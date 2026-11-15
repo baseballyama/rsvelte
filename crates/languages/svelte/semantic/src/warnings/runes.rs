@@ -296,6 +296,56 @@ pub(super) fn rune_placement(
     }
 }
 
+/// `rune_invalid_usage`: outside runes mode, a declarator whose initializer calls `$state`,
+/// `$derived` or `$props` that is not a store subscription, such as a parameter of that name.
+pub(super) fn legacy_rune_calls(
+    component: &Component,
+    resolution: &Resolution,
+    out: &mut Vec<(Raised, Diagnostic)>,
+) {
+    struct Calls<'r> {
+        resolution: &'r Resolution,
+        section: Section,
+        out: &'r mut Vec<(Raised, Diagnostic)>,
+    }
+    impl<'a> Visit<'a> for Calls<'_> {
+        fn visit_variable_declarator(&mut self, it: &oxc_ast::ast::VariableDeclarator<'a>) {
+            if let Some(Expression::CallExpression(call)) = &it.init
+                && let Expression::Identifier(callee) = &call.callee
+                && let name = callee.name.as_str()
+                && matches!(name, "$state" | "$derived" | "$props")
+                && (self.resolution.symbol(callee).is_some()
+                    || !self.resolution.is_store_subscription(name))
+            {
+                let at = span(call.span);
+                let raised = Raised {
+                    phase: Phase::Walk,
+                    section: self.section,
+                    at: at.start_offset,
+                };
+                let message = format!("Cannot use `{name}` rune in non-runes mode");
+                self.out
+                    .push((raised, error("rune_invalid_usage", &message, at)));
+            }
+            walk::walk_variable_declarator(self, it);
+        }
+    }
+    for (section, script) in [
+        (Section::Module, &component.module),
+        (Section::Instance, &component.instance),
+    ] {
+        let Some(script) = script else {
+            continue;
+        };
+        let mut calls = Calls {
+            resolution,
+            section,
+            out,
+        };
+        calls.visit_program(component.javascript.get_program(script.program));
+    }
+}
+
 /// Where the `$props()` calls of `program` are, in source order.
 fn props_calls(resolution: &Resolution, program: &Program<'_>) -> Vec<oxc_span::Span> {
     struct Calls<'r> {

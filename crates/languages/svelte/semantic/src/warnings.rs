@@ -38,7 +38,7 @@ use found::Found;
 pub use ignore::{LEGACY_REPLACEMENTS, code_for_v5};
 pub use runes::dollar_name_errors;
 pub(crate) use runes::svelte_option;
-use runes::{custom_element, rune_placement, runes};
+use runes::{custom_element, legacy_rune_calls, rune_placement, runes};
 use selectors::unused_selectors;
 use template::Template;
 
@@ -331,6 +331,8 @@ pub fn warnings(
     ));
     if runes {
         rune_placement(component, resolution, &mut out.errors);
+    } else {
+        legacy_rune_calls(component, resolution, &mut out.errors);
     }
     let mut found = Found::default();
     let custom_options = svelte_option(component, source, "customElement").is_some();

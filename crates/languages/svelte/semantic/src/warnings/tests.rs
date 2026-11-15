@@ -645,3 +645,16 @@ fn a_derived_a_template_function_declares_is_referenced_locally_there() {
         $derived(v); v = x; }}>{v}</b>\n";
     assert_eq!(texts("state_referenced_locally", source), ["x"]);
 }
+
+#[test]
+fn a_rune_parameter_called_in_a_declarator_is_an_error_in_legacy_mode() {
+    let errors = |code: &str| compiled_with_errors(code, None).1;
+    assert_eq!(
+        errors("<script>\nfunction f($derived) { const x = $derived(1); }\n</script>\n"),
+        ["rune_invalid_usage"]
+    );
+    assert_eq!(
+        errors("<script>\nimport { state } from './s.js';\nlet a = $state(0);\n</script>\n"),
+        Vec::<String>::new()
+    );
+}

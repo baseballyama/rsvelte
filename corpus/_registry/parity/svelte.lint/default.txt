@@ -1,4 +1,4 @@
-# svelte.lint/default: 37167 match
+# svelte.lint/default: 37169 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -166,7 +166,6 @@ svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/compile_module_rejects
 svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/compile_module_rejects_a_typescript_class_member_modifier/c20a02a5092f39ec.svelte.js	refused
 svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/compile_module_rejects_a_typescript_class_member_modifier/f40983c9a64ebd32.svelte.js	refused
 svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/compile_module_rejects_a_typescript_class_member_modifier/f42022ec0db4692c.svelte.js	refused
-svelte/rsvelte-tests-core-2/non_runes_rune_usage_error_span/invalid_rune_initializer_in_non_runes_mode_points_at_the_call/d690c74f99e4b5b0.svelte	mismatch
 svelte/rsvelte-tests-core-2/ownership_ignore_reach_4403/every_cell_matches_the_official_compiler/15eb04292fea6d0a.svelte	mismatch
 svelte/rsvelte-tests-core-2/ownership_ignore_reach_4403/every_cell_matches_the_official_compiler/34f1f692dc4df531.svelte	mismatch
 svelte/rsvelte-tests-core-2/ownership_ignore_reach_4403/every_cell_matches_the_official_compiler/50a03c8ec63e0664.svelte	mismatch
@@ -525,7 +524,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-property-non-r
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/each-updates-9/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/hydration-attribute-changed-ignored/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/hydration-html-changed-ignored/main.svelte	mismatch
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/not-actual-runes/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-binding-ignored/Parent.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-binding-ignore/Item.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-ignored/Child.svelte	mismatch
