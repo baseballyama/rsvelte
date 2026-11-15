@@ -44,6 +44,7 @@ pub struct Builder<'a> {
     recorded: Vec<Recorded>,
     wrapped: String,
     unchecked: &'static [&'static str],
+    unchecked_errors: Vec<SyntaxError>,
     as_acorn: bool,
     acorn_rejection: Option<(u32, Rejection)>,
     parentheses: Vec<(oxc_span::Span, u8)>,
@@ -91,6 +92,7 @@ impl<'a> Builder<'a> {
             recorded: Vec::new(),
             wrapped: String::new(),
             unchecked: &[],
+            unchecked_errors: Vec::new(),
             as_acorn: false,
             acorn_rejection: None,
             parentheses: Vec::new(),
@@ -144,6 +146,10 @@ impl<'a> Builder<'a> {
         if self.acorn_rejection.is_none() {
             self.acorn_rejection = stop;
         }
+        // Another host may report what this one lets pass.
+        (self.unchecked_errors).extend(
+            (diagnostics.iter()).map(|error| syntax_error([error.clone()], text, fallback, shift)),
+        );
         Ok(())
     }
 
@@ -160,6 +166,7 @@ impl<'a> Builder<'a> {
             acorn_rejection: self.acorn_rejection,
             parentheses: self.parentheses,
             unchecked: self.unchecked,
+            unchecked_errors: self.unchecked_errors,
             as_acorn: self.as_acorn,
         }
     }

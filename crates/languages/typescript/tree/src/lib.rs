@@ -85,6 +85,8 @@ struct Trees<'a> {
     /// by span.
     parentheses: Vec<(oxc_span::Span, u8)>,
     unchecked: &'static [&'static str],
+    /// The errors oxc reported in the parts that the host lets pass, in order.
+    unchecked_errors: Vec<SyntaxError>,
     as_acorn: bool,
 }
 
@@ -215,6 +217,12 @@ impl Tree {
             .borrow_dependent()
             .acorn_rejection
             .map(acorn_grammar::rejection)
+    }
+
+    /// The syntax errors oxc reported in the parts that the host the builder read for lets pass.
+    #[must_use]
+    pub fn unchecked_errors(&self) -> &[SyntaxError] {
+        &self.0.borrow_dependent().unchecked_errors
     }
 
     /// Whether the host the builder read for reports `error`, an error of an analysis of the

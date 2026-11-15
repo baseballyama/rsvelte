@@ -224,3 +224,18 @@ fn built_parameters_are_kept() {
     .expect("builds");
     assert!(tree.get_parameters(kept).items.is_empty());
 }
+
+#[test]
+fn the_tree_keeps_the_errors_the_host_lets_pass() {
+    let text = "let x!: number = 1;";
+    let (tree, _) = Tree::build(text, |builder| {
+        builder.leave_unchecked(&["1263"]);
+        let range = Span::new(0, text.len() as u32);
+        builder.program(range, SourceType::ts()).map_err(Into::into)
+    })
+    .expect("the host lets the error pass");
+    let codes: Vec<_> = (tree.unchecked_errors().iter())
+        .map(|error| error.typescript_code)
+        .collect();
+    assert_eq!(codes, [Some(1263)]);
+}

@@ -146,8 +146,13 @@ impl Task for Lint {
         };
         let directive_error = match parse_error {
             None if rsvelte_svelte_syntax::matches(context.document) => {
-                (context.get::<rsvelte_svelte_syntax::Parsed>().as_ref().ok())
-                    .and_then(directive_names::rejection)
+                (context.get::<rsvelte_svelte_syntax::Parsed>().as_ref().ok()).and_then(
+                    |component| {
+                        (grammar::rejection(component))
+                            .map(|(message, at)| (message.to_owned(), at))
+                            .or_else(|| directive_names::rejection(component))
+                    },
+                )
             }
             _ => None,
         };
@@ -249,6 +254,7 @@ fn positions<'a>(context: &'a DocumentContext<'_>) -> rsvelte_lint_runner::outpu
 }
 
 mod directive_names;
+mod grammar;
 
 #[cfg(test)]
 mod tests;

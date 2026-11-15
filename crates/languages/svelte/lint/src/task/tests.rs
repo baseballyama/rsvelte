@@ -213,3 +213,34 @@ fn a_directive_name_that_is_not_an_identifier_fails_the_parse() {
         );
     }
 }
+
+/// Svelte lets these TypeScript grammar errors pass; typescript-eslint throws them at the
+/// declaration.
+#[test]
+fn a_grammar_error_svelte_lets_pass_fails_the_parse() {
+    for (source, message, column) in [
+        (
+            "<script lang=\"ts\">\nlet x!: number = 1;\n</script>\n",
+            "Parsing error: Declarations with initializers cannot also have definite assignment \
+             assertions.",
+            4,
+        ),
+        (
+            "<script lang=\"ts\">\ndeclare function* g(): void;\n</script>\n",
+            "Parsing error: Generators are not allowed in an ambient context.",
+            0,
+        ),
+    ] {
+        let document =
+            Document::new("App.svelte".to_owned(), source.to_owned()).expect("a small document");
+        let (json, _) = lint_with("svelte/valid-compile", &document, |_| {});
+        let finding = &json["findings"][0];
+        assert_eq!(finding["message"].as_str(), Some(message), "{source}");
+        assert_eq!(finding["start"]["line"].as_u64(), Some(2), "{source}");
+        assert_eq!(
+            finding["start"]["column"].as_u64(),
+            Some(column),
+            "{source}"
+        );
+    }
+}
