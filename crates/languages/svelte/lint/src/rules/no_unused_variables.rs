@@ -66,12 +66,18 @@ fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
 /// with the first assigned identifier as its definition.
 fn reactive_declarations(file: &File<'_>, reporter: &mut Reporter<'_>) {
     // Most components have no `$:`, and then need no legacy facts.
-    let tree = file.javascript();
-    let reactive = file.programs().into_iter().any(|program| {
-        tree.get_program(program).body.iter().any(|statement| {
+    let (Some(component), tree) = (file.component(), file.javascript()) else {
+        return;
+    };
+    let reactive = component
+        .module
+        .iter()
+        .chain(&component.instance)
+        .any(|script| {
+            tree.get_program(script.program).body.iter().any(|statement| {
             matches!(statement, Statement::LabeledStatement(labeled) if labeled.label.name == "$")
         })
-    });
+        });
     if !reactive {
         return;
     }
@@ -351,44 +357,44 @@ fn shared_names(file: &File<'_>, out: &mut FxHashSet<SymbolId>) {
     let scoping = resolution.scoping();
     let (module, instance) = (scoping.root_scope_id(), resolution.instance_scope());
     let fragment = |children| resolution.template_scope(TemplateScope::Fragment(children));
-    let mut pairs = Vec::new();
-    if module != instance {
-        pairs.push((module, Some(instance)));
-    }
-    if let Some(tree) = file.normalized() {
-        let root = fragment(tree.root);
-        pairs.push((instance, root));
-        if module != instance {
-            pairs.push((module, root));
-        }
-        for (identifier, node) in tree.nodes.iter_enumerated() {
-            let blocks = match &node.kind {
-                NodeKind::Snippet(snippet) => [
-                    Some((TemplateScope::Snippet(identifier), snippet.body)),
-                    None,
-                ],
-                NodeKind::Each(each) => [Some((TemplateScope::Each(identifier), each.body)), None],
-                NodeKind::Await(a) => [
-                    a.then().map(|then| (TemplateScope::Then(identifier), then)),
-                    a.catch()
-                        .map(|catch| (TemplateScope::Catch(identifier), catch)),
-                ],
-                _ => continue,
-            };
-            for (scope, body) in blocks.into_iter().flatten() {
-                if let Some(scope) = resolution.template_scope(scope) {
-                    pairs.push((scope, fragment(body)));
-                }
-            }
-        }
-    }
-    for (outer, inner) in pairs {
+    let mut merge = |outer: ScopeId, inner: Option<ScopeId>| {
         let Some(inner) = inner else {
-            continue;
+            return;
         };
         for (name, &second) in scoping.get_bindings(inner) {
             if let Some(first) = scoping.get_binding(outer, *name) {
                 share(file, scoping, first, second, out);
+            }
+        }
+    };
+    if module != instance {
+        merge(module, Some(instance));
+    }
+    let Some(tree) = file.normalized() else {
+        return;
+    };
+    let root = fragment(tree.root);
+    merge(instance, root);
+    if module != instance {
+        merge(module, root);
+    }
+    for (identifier, node) in tree.nodes.iter_enumerated() {
+        let blocks = match &node.kind {
+            NodeKind::Snippet(snippet) => [
+                Some((TemplateScope::Snippet(identifier), snippet.body)),
+                None,
+            ],
+            NodeKind::Each(each) => [Some((TemplateScope::Each(identifier), each.body)), None],
+            NodeKind::Await(a) => [
+                a.then().map(|then| (TemplateScope::Then(identifier), then)),
+                a.catch()
+                    .map(|catch| (TemplateScope::Catch(identifier), catch)),
+            ],
+            _ => continue,
+        };
+        for (scope, body) in blocks.into_iter().flatten() {
+            if let Some(scope) = resolution.template_scope(scope) {
+                merge(scope, fragment(body));
             }
         }
     }
