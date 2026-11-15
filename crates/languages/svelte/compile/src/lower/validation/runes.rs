@@ -382,10 +382,11 @@ impl<'a> RuneWalk<'a> {
             && self.res.symbol(name).is_none()
             && !self.res.is_store_subscription(&name.name)
         {
+            // Upstream erases the types before it analyzes, so the name is the whole target.
             return crate::lower::special::invalid(
                 "bind_invalid_value",
                 "Can only bind to state or props",
-                span_of(e),
+                Span::new(name.span.start, name.span.end),
             );
         }
         Ok(())
