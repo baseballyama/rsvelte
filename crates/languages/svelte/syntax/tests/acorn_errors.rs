@@ -1,0 +1,57 @@
+//! Acorn's error for the oxc errors that tsc's codes name, where svelte reports it.
+
+use rsvelte_svelte_syntax::parse::parse;
+
+#[test]
+fn acorn_reports_each_error_in_its_own_words_and_place() {
+    // What svelte 5.57.3 reports, in bytes of each source.
+    for (source, message, at) in [
+        ("<script>let f; ++f();</script>", "Assigning to rvalue", 17),
+        (
+            "<script>let f; (f())++;</script>",
+            "Assigning to rvalue",
+            16,
+        ),
+        (
+            "<script>let f, x; for ((f()) in x);</script>",
+            "Assigning to rvalue",
+            24,
+        ),
+        (
+            "<script>let f, x; for (((f())) of x);</script>",
+            "Assigning to rvalue",
+            25,
+        ),
+        (
+            "<script>let f, x; ({...f()} = x);</script>",
+            "Assigning to rvalue",
+            23,
+        ),
+        (
+            "<script>let a; ((a + 1)) = 2;</script>",
+            "Assigning to rvalue",
+            17,
+        ),
+        (
+            "<script>let x; (({})) = x;</script>",
+            "Assigning to rvalue",
+            15,
+        ),
+        ("{(a + 1) = 2}", "Assigning to rvalue", 2),
+        ("{++(f())}", "Assigning to rvalue", 4),
+        ("{f()++}", "Assigning to rvalue", 1),
+        (
+            "<script>let v = <T,>(a) => a;</script>",
+            "Unexpected token",
+            16,
+        ),
+        ("{<div/>}", "Unexpected token", 1),
+        ("<script>let a = (</script>", "Unexpected token", 17),
+        ("<script>let a = (  </script>", "Unexpected token", 19),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert_eq!(error.code, "js_parse_error", "{source:?}");
+        assert_eq!(error.message.lines().next(), Some(message), "{source:?}");
+        assert_eq!(error.span.start_offset, at, "{source:?}");
+    }
+}

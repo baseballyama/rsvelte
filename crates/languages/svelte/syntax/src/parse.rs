@@ -50,13 +50,13 @@ const INITIAL_TOKEN_CAPACITY_LIMIT: usize = 8192;
 /// The TypeScript grammar rules oxc checks and acorn-typescript, upstream's parser, does not.
 ///
 /// Upstream compiles each one, such as a class member without an implementation (2390, 2391),
-/// or rejects it later: as `typescript_invalid_feature` (1147, 1194), or an export nothing
+/// or rejects it later: as `typescript_invalid_feature` (1147, 1194, 1276), or an export nothing
 /// declares as `export_undefined` (2304). An optional rest parameter (1047) is not one: acorn
 /// checks it in some places only. An `await` outside an async function (1308) is one: acorn
 /// accepts it in an enum, so the compiler raises it only where acorn does.
 pub const ACORN_UNCHECKED_TYPESCRIPT_RULES: &[&str] = &[
     "1015", "1016", "1021", "1038", "1051", "1093", "1094", "1095", "1147", "1194", "1221", "1222",
-    "1263", "1264", "1308", "2304", "2368", "2390", "2391", "2681", "5085",
+    "1263", "1264", "1276", "1308", "2304", "2368", "2390", "2391", "2681", "5085",
 ];
 
 /// # Errors
@@ -160,6 +160,24 @@ fn parse_with(source_text: &str, scripts: Scripts) -> ParseResult<Component> {
     Ok(component)
 }
 
+/// A `.svelte.js` module as upstream's `compileModule` parses it: with acorn, which reads it as it
+/// reads a component's script.
+///
+/// # Errors
+///
+/// A [`Diagnostic`] at the first syntax error, as [`parse`] reports one in a script.
+pub fn parse_module(
+    source_text: &str,
+    source_type: SourceType,
+) -> ParseResult<(Tree, rsvelte_typescript_tree::ProgramIdentifier)> {
+    Tree::build(source_text, |builder| {
+        builder.leave_unchecked(ACORN_UNCHECKED_TYPESCRIPT_RULES);
+        builder.read_as_acorn();
+        let range = Span::new(0, builder.source_text().len() as u32);
+        (builder.program(range, source_type)).map_err(|e| acorn_position(javascript_failure(e)))
+    })
+}
+
 /// Whether `offset` is in the content of a `<script>` element, which svelte-eslint-parser
 /// parses itself.
 #[must_use]
@@ -172,7 +190,7 @@ pub fn in_script_content(source_text: &str, offset: u32) -> bool {
 #[cold]
 fn javascript_error(e: Diagnostic) -> Diagnostic {
     let Diagnostic { message, span, .. } = e;
-    svelte_error("js_parse_error", acorn_message(&message), span)
+    svelte_error("js_parse_error", message, span)
 }
 
 /// Acorn reports a JavaScript syntax error at a position, not a range.
@@ -182,18 +200,6 @@ fn acorn_position(mut e: Diagnostic) -> Diagnostic {
         e.span = Span::new(e.span.start_offset, e.span.start_offset);
     }
     e
-}
-
-/// Acorn's wording of the oxc errors that mean the same thing.
-fn acorn_message(message: &str) -> std::borrow::Cow<'_, str> {
-    let unexpected = message == "Unexpected JSX expression"
-        || message.starts_with("Expected `") && message.contains("` but found `");
-    match message {
-        _ if unexpected => "Unexpected token".into(),
-        "Cannot assign to this expression" => "Assigning to rvalue".into(),
-        "Unterminated string" => "Unterminated string constant".into(),
-        _ => message.into(),
-    }
 }
 
 /// Upstream's error `code`, whose message ends with the link to its docs; an error of this

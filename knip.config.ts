@@ -26,13 +26,15 @@ export default {
 		},
 		'tools/performance': {
 			entry: ['workloads/*/*.ts'],
-			// The ESLint arms of the lint workloads require the packages tools/oracle installs.
+			// The arms of the official tools require the packages tools/oracle installs.
 			ignoreDependencies: [
 				'eslint',
 				'eslint-plugin-svelte',
 				'svelte-eslint-parser',
 				'@typescript-eslint/parser',
 				'globals',
+				'prettier',
+				'prettier-plugin-svelte',
 			],
 		},
 	},
