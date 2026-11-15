@@ -1,4 +1,4 @@
-# svelte.lint/default: 37070 match
+# svelte.lint/default: 37080 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -77,7 +77,6 @@ svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_computed_key_in_a_
 svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_template_expression_keeps_its_positions/f9e1a8d36317a200.svelte	mismatch
 svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/69872f6e8c224c02.svelte	mismatch
 svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_whole_key_subtree_moves_with_it/4f67cefb5b0ba2e9.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_block_item_progress/empty_block_item_selector_terminates_with_the_upstream_error/6ee0cd37bd59cda7.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_empty_declaration_error_span/consecutive_semicolons_span_to_the_following_block_close/6ab50de7e6515fdc.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_identifier_required/a_class_or_id_needs_a_name/01f7a05eed159967.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_identifier_required/a_class_or_id_needs_a_name/c002d81d849002ce.svelte	mismatch
@@ -103,12 +102,10 @@ svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_ar
 svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/d19e82e3c15ba56b.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/e2a71600612d7577.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_scss_line_comment_position/line_comment_declaration_uses_the_first_word_as_its_property/e87804372b604b75.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_declaration_with_no_property_name_compiles/d953086401992f11.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/56850d42c980b1cc.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/d1817713cb279f42.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/da7b20631d49c91b.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_attribute_selector_keeps_the_source_spacing/57fe13a37abdb380.svelte	unexpected
-svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/214ad01217b359a0.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/381ba85d95b7646f.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/48807b8550f96ab1.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/6b67ea6ccb4f222f.svelte	mismatch
@@ -123,11 +120,6 @@ svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_comment_after_a_comb
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_nested_rule_reports_its_own_brace/2408ae21c5f87718.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_nested_rule_reports_its_own_brace/fb4cc5dedb6650c0.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_pseudo_class_argument_is_reported_at_its_closing_paren/8cbb31b173f99158.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_value_scan_4046/a_brace_inside_any_bracket_but_url_still_ends_the_value/68ad7174e520e1fd.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_value_scan_4046/a_brace_inside_any_bracket_but_url_still_ends_the_value/aaa2f72c259b7f5a.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_value_scan_4046/a_brace_inside_any_bracket_but_url_still_ends_the_value/cc2e5748172a179c.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_value_scan_4046/a_plain_paren_is_not_a_bracket_the_value_scan_balances/3574410c285bd1a9.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_value_scan_4046/a_plain_paren_is_not_a_bracket_the_value_scan_balances/c682e2c621eebf05.svelte	mismatch
 svelte/rsvelte-tests-core-2/declaration_tag_keyword_3692/a_type_alias_is_a_declaration_only_in_typescript/31d56272e52457e9.svelte	mismatch
 svelte/rsvelte-tests-core-2/declaration_tag_keyword_3692/a_type_alias_is_a_declaration_only_in_typescript/b275deab1b0ff83c.svelte	mismatch
 svelte/rsvelte-tests-core-2/declaration_tag_missing_initializer_3705/neighbouring_declaration_shapes_keep_their_existing_outcomes/79df455b3881d80f.svelte	mismatch
@@ -608,7 +600,6 @@ svelte/rsvelte/pattern/adversarial/expressions/rejected-snippet-rest.svelte	mism
 svelte/rsvelte/pattern/adversarial/legacy/legacy-export-renames-and-const.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/snippets/rejected-slot-snippet-conflict.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/special-elements/svelte-self-licensed-parents.svelte	mismatch
-svelte/rsvelte/pattern/css/empty-declaration.svelte	mismatch
 svelte/rsvelte/pattern/issues/2525-svelte-ignore-comment-code-scope.svelte	mismatch
 svelte/rsvelte/pattern/issues/3124-slot-snippet-conflict-span.svelte	mismatch
 svelte/rsvelte/pattern/issues/3129-comment-between-compounds.svelte	mismatch
@@ -629,7 +620,6 @@ svelte/rsvelte/pattern/issues/3413-optional-private-field.svelte	mismatch
 svelte/rsvelte/pattern/issues/3511-store-scoped-each-position.svelte	mismatch
 svelte/rsvelte/pattern/issues/3511-store-scoped-snippet-position.svelte	mismatch
 svelte/rsvelte/pattern/issues/3692-declaration-tag-keyword.svelte	mismatch
-svelte/rsvelte/pattern/issues/4046-scss-value-scan-paren-brace.svelte	mismatch
 svelte/rsvelte/pattern/issues/4046-svelte-self-bind-member-dev-assign.svelte	mismatch
 svelte/rsvelte/pattern/issues/4133-binding-pattern-type-annotation.svelte	mismatch
 svelte/rsvelte/pattern/issues/4403-ownership-ignore-reach.svelte	mismatch

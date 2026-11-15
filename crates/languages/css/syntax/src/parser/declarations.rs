@@ -13,6 +13,11 @@ impl P<'_> {
                 Some(b'}') | None => return Ok((declarations, children)),
                 Some(b';') => self.position += 1,
                 Some(b'@') => push(&mut children, self.at_rule()?),
+                Some(_) if self.tolerant => {
+                    if let Some(rule) = self.tolerant_item()? {
+                        push(&mut children, rule);
+                    }
+                }
                 Some(_) => {
                     let start = self.position;
                     let nested = self.b[self.value_end()?] == b'{';
@@ -68,7 +73,7 @@ impl P<'_> {
 
     /// Where Svelte ends the value that starts here: at the first `;`, `{` or `}` outside a
     /// string and a `url(...)`, whatever brackets come before it.
-    pub(super) fn value_end(&self) -> R<usize> {
+    fn value_end(&self) -> R<usize> {
         let mut at = self.position;
         let mut quote = None;
         let mut in_url = false;

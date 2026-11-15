@@ -185,8 +185,18 @@ fn an_scss_sheet_skips_what_svelte_rejects() {
     let source = "$a: 1; .a { // b: c;\n  &.d {} }\n@media #{$e}, x { .f {} }\n// g\n";
     let content = Span::new(0, source.len() as u32);
     parse(source, content).unwrap_err();
-    let sheet = parse_scss(source, content).expect("parses");
+    let sheet = parse_for_lint(source, content, true).expect("parses");
     assert_eq!(sheet.rules.len(), 2);
     assert_eq!(sheet.rules[0].children.len(), 1);
     assert_eq!(sheet.rules[1].children.len(), 1);
+}
+
+#[test]
+fn a_css_sheet_for_lint_skips_the_declarations_svelte_rejects() {
+    let source = ".a { color: ; b: calc(1;2); c: attr(x}y); { } .d {} }";
+    let content = Span::new(0, source.len() as u32);
+    parse(source, content).unwrap_err();
+    let sheet = parse_for_lint(source, content, false).expect("parses");
+    assert_eq!(sheet.rules.len(), 1);
+    assert_eq!(sheet.rules[0].children.len(), 1);
 }

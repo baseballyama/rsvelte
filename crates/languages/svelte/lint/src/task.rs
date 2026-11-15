@@ -14,7 +14,7 @@ use crate::computation::{
     PostcssConfigurationOnDisk, SameNamedFileOnDisk,
 };
 use crate::rules::style_attribute::InlineStyles;
-use crate::rules::style_sheet::{ScssStyleSheet, StyleSheetVerdict};
+use crate::rules::style_sheet::{LintStyleSheet, StyleSheetVerdict};
 use crate::types::TypeFacts;
 
 pub static PLUGIN: Plugin = Plugin {
@@ -47,7 +47,7 @@ pub fn register_artifacts(registry: &mut Registry) {
         .artifact::<ModuleSemantic>()
         .artifact::<InlineStyles>()
         .artifact::<StyleSheetVerdict>()
-        .artifact::<ScssStyleSheet>()
+        .artifact::<LintStyleSheet>()
         .artifact::<NativeConditionTypes>()
         .artifact::<LegacyReactivity>()
         .artifact::<SameNamedFileOnDisk>()
