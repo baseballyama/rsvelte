@@ -385,3 +385,31 @@ fn a_snippet_read_only_in_its_own_body_is_unused() {
         ]
     );
 }
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0 and typescript-eslint's parser.
+#[test]
+fn a_snippet_declares_its_type_parameters_in_its_own_scope() {
+    let typescript = |template: &str| format!("<script lang=\"ts\"></script>{template}");
+    assert_eq!(
+        unused_at(&typescript(
+            "{#snippet s<T,U>(a: T)}{a}{/snippet}{@render s(1)}"
+        )),
+        [("'U' is defined but never used.".to_owned(), 1)]
+    );
+    assert_eq!(
+        unused(&typescript(
+            "{#snippet s<T>()}x{/snippet}{#snippet r<T>()}y{/snippet}{@render s()}{@render r()}"
+        )),
+        [
+            "'T' is defined but never used.",
+            "'T' is defined but never used."
+        ]
+    );
+    assert_eq!(
+        unused(
+            "<script lang=\"ts\">type T = 1;</script>\
+             {#snippet s<T>(a: T)}{a}{/snippet}{@render s(1)}"
+        ),
+        ["'T' is defined but never used."]
+    );
+}

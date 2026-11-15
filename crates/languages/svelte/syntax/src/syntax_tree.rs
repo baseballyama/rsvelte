@@ -120,6 +120,8 @@ pub enum TemplateNode {
         name: ExpressionIdentifier,
         /// `<T>` after the name, as written; only in TypeScript.
         type_parameters: Option<Span>,
+        /// The type parameters of `type_parameters`, when they parse.
+        generics: Option<TypeParametersIdentifier>,
         /// Absent without parentheses (`{#snippet name}`).
         parameters: Option<ParametersIdentifier>,
         body: Range,

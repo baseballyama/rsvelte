@@ -96,6 +96,7 @@ impl Builder<'_> {
                 parameters,
                 body,
                 span,
+                ..
             } = *self.component.node(child)
             else {
                 continue;
