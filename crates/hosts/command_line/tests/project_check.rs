@@ -104,3 +104,27 @@ fn an_esm_import_of_a_rune_module_by_its_component_name_reads_the_module() {
         ]
     );
 }
+
+#[test]
+fn a_snippet_given_to_a_component_is_read_and_an_unused_one_is_not() {
+    let project = Project::new(
+        "unused-snippet",
+        &[
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","strict":true,
+"skipLibCheck":true,"noEmit":true,"types":[],"noUnusedLocals":true},"include":["src"]}"#,
+            ),
+            (
+                "src/Child.svelte",
+                "<script lang=\"ts\">\n  import type { Snippet } from 'svelte';\n  let { text }: { text?: Snippet } = $props();\n</script>\n{@render text?.()}\n",
+            ),
+            (
+                "src/Parent.svelte",
+                "<script lang=\"ts\">\n  import Child from './Child.svelte';\n</script>\n<Child>\n  {#snippet text()}<p></p>{/snippet}\n</Child>\n{#snippet unused()}<p></p>{/snippet}\n",
+            ),
+        ],
+    );
+    // svelte-check reports the unused snippet, and not the one it reads as a prop.
+    assert_eq!(project.check(), ["src/Parent.svelte TS6133"]);
+}
