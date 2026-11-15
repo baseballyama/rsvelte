@@ -1,3 +1,5 @@
+use rsvelte_markup_syntax::script_language::is_typescript;
+
 use super::{Diagnostic, P, R, Script, Span, Style, TagAttributes, Template, TokenType};
 
 impl P<'_, '_> {
@@ -164,6 +166,8 @@ impl P<'_, '_> {
         {
             return Self::err_at(*name, "this script language is not supported");
         }
+        let lang = has("lang").and_then(|(_, lang)| *lang);
+        self.lang_read = Some(lang.is_some_and(|lang| is_typescript(lang.text(self.source_text))));
         let content = self.raw_text("script")?;
         if self.c.script.is_some() {
             return Self::err_at(content, "a component can have only one <script setup>");

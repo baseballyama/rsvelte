@@ -12231,13 +12231,8 @@
 === 83 compiler/tests/test_server_module_jsdoc_not_mangled/66edac37a0bd02a8.svelte.js	lint.txt
 2:3 2:13 no-unused-private-class-members "'#fieldNode' is defined but never used."
 
-=== 136 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/25cc84cda4760858.svelte	lint.txt
-1:51 1:60 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
-1:76 1:77 no-unused-vars "'A' is defined but never used."
-
-=== 334 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/35efd90757e6abdb.svelte	lint.txt
-1:9 1:23 svelte/valid-compile "Unrecognised attribute — should be one of `generics`, `lang` or `module`. If this exists for a preprocessor, ensure that the preprocessor removes it\nhttps://svelte.dev/e/script_unknown_attribute(script_unknown_attribute)"
-1:28 1:37 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
+=== 80 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/9096b19bedcfe51e.svelte	lint.txt
+1:65 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
 
 === 1027 component_attribute_assign_exemption/a_component_attribute_arrow_body_is_exempt/208dddb78fd72c1e.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."

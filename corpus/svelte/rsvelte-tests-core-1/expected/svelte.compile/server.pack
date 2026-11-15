@@ -29895,51 +29895,6 @@ export default function _ed17f459498d7a3($$renderer, $$props) {
 
 	$$renderer.push(`<!--]-->`);
 }
-=== 234 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/25cc84cda4760858.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _5cc84cda4760858($$renderer) {
-	let x = 1;
-
-	$$renderer.push(`<div>`);
-	$$renderer.push(`<script lang="ts"></script>`);
-	$$renderer.push(`<!----></div><p>1</p>`);
-}
-=== 145 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/35efd90757e6abdb.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _5efd90757e6abdb($$renderer) {
-	let x = 1;
-
-	$$renderer.push(`<p>1</p>`);
-}
-=== 393 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/35efd90757e6abdb.svelte	warnings.json
-[
-	{
-		"code": "script_unknown_attribute",
-		"message": "Unrecognised attribute — should be one of `generics`, `lang` or `module`. If this exists for a preprocessor, ensure that the preprocessor removes it\nhttps://svelte.dev/e/script_unknown_attribute",
-		"start": {
-			"line": 1,
-			"column": 8,
-			"character": 8
-		},
-		"end": {
-			"line": 1,
-			"column": 22,
-			"character": 22
-		}
-	}
-]
-
-=== 178 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/9096b19bedcfe51e.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _096b19bedcfe51e($$renderer) {
-	let x = 1;
-	const s = '<script lang="ts">';
-
-	$$renderer.push(`<p>1</p>`);
-}
 === 286 component_attribute_assign_exemption/a_component_attribute_arrow_body_is_exempt/208dddb78fd72c1e.svelte	js
 import * as $ from 'svelte/internal/server';
 import Comp from './Comp.svelte';

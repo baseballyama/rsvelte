@@ -4,7 +4,7 @@ use crate::warnings::tests::{compiled, texts};
 fn a_legacy_code_before_the_style_is_reported_at_the_code() {
     let source =
         "<p class=\"a\"></p>\n<!-- svelte-ignore css-unused-selector -->\n<style>.b {}</style>\n";
-    // Upstream reports it four bytes early; see `upstream_issues.md`. The selector is reported too.
+    // Upstream reports it four bytes early. The selector is reported too.
     assert_eq!(texts("legacy_code", source), ["css-unused-selector"]);
     assert_eq!(texts("css_unused_selector", source), [".b"]);
 }
@@ -13,7 +13,7 @@ fn a_legacy_code_before_the_style_is_reported_at_the_code() {
 fn a_comment_in_a_default_slot_warns_once() {
     let source = "<script>\n  import C from './C.svelte';\n</script>\n<C>\n  <!-- svelte-ignore \
         a11y-autofocus -->\n  <div></div>\n  <input autofocus />\n</C>\n";
-    // Upstream warns twice and ignores the later `<input>` too; see `upstream_issues.md`.
+    // Upstream warns twice and ignores the later `<input>` too.
     assert_eq!(texts("legacy_code", source), ["a11y-autofocus"]);
     assert_eq!(texts("a11y_autofocus", source), ["autofocus"]);
 }

@@ -591,3 +591,5 @@ fn next_line_directives_count_a_lone_carriage_return_as_a_line_end() {
     let found = lint("<script>\r// eslint-disable-next-line no-undef\ra;\r</script>\r");
     assert_eq!(rules(&found), Vec::<&str>::new());
 }
+
+mod unused_javascript;
