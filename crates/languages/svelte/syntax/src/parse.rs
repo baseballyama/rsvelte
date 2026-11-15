@@ -104,7 +104,26 @@ enum Scripts {
 }
 
 fn parse_with(source_text: &str, scripts: Scripts) -> ParseResult<Component> {
-    let (javascript, template) = Tree::build(source_text, |builder| {
+    let guess = rsvelte_markup_syntax::script_language::guess_typescript(source_text);
+    let (parsed, lang_read) = parse_as(source_text, scripts, guess);
+    // Without a script element's `lang` the component is JavaScript, unless the parse stopped
+    // before one could be read.
+    let typescript = lang_read.unwrap_or_else(|| guess && parsed.is_err());
+    if typescript == guess {
+        return parsed;
+    }
+    parse_as(source_text, scripts, typescript).0
+}
+
+/// The component, its expressions read as TypeScript or not, and the language its first script
+/// element with a `lang` gives it.
+fn parse_as(
+    source_text: &str,
+    scripts: Scripts,
+    typescript: bool,
+) -> (ParseResult<Component>, Option<bool>) {
+    let mut lang_read = None;
+    let parsed = Tree::build(source_text, |builder| {
         builder.leave_unchecked(ACORN_UNCHECKED_TYPESCRIPT_RULES);
         builder.read_as_acorn();
         let mut parser = Parser {
@@ -116,8 +135,8 @@ fn parse_with(source_text: &str, scripts: Scripts) -> ParseResult<Component> {
             position: 0,
             builder,
             component: Template::new(source_text.len()),
-            // The script's language decides how template expressions parse, so read it first.
-            typescript: script::script_is_typescript(source_text),
+            typescript,
+            lang_read: None,
             pending_children: buffer_pool::take_keyed::<Parser<'static, 'static>, _>(),
             unique_names: FxHashSet::default(),
             meta_tags: 0,
@@ -140,6 +159,7 @@ fn parse_with(source_text: &str, scripts: Scripts) -> ParseResult<Component> {
         buffer_pool::give_keyed::<Parser<'static, 'static>, _>(std::mem::take(
             &mut parser.pending_children,
         ));
+        lang_read = parser.lang_read;
         // The style sheet's error came first in the document, so it is the one upstream reports.
         parser.component.root = root.map_err(|e| {
             parser
@@ -151,13 +171,17 @@ fn parse_with(source_text: &str, scripts: Scripts) -> ParseResult<Component> {
                 .unwrap_or_else(|| acorn_position(e))
         })?;
         Ok(parser.component)
-    })?;
-    let component = template.into_component(javascript);
-    // Upstream reads the options once the template is parsed; a style sheet's error comes first.
-    if component.style_error().is_none() {
-        options::read_options(&component, source_text)?;
-    }
-    Ok(component)
+    });
+    let component = parsed.and_then(|(javascript, template)| {
+        let component = template.into_component(javascript);
+        // Upstream reads the options once the template is parsed; a style sheet's error comes
+        // first.
+        if component.style_error().is_none() {
+            options::read_options(&component, source_text)?;
+        }
+        Ok(component)
+    });
+    (component, lang_read)
 }
 
 /// A `.svelte.js` module as upstream's `compileModule` parses it: with acorn, which reads it as it
@@ -303,7 +327,10 @@ struct Parser<'a, 'b> {
     position: usize,
     builder: &'b mut Builder<'a>,
     component: Template,
+    /// Whether expressions parse as TypeScript, before a script element says.
     typescript: bool,
+    /// The language of the first script element with a `lang`, once one is read.
+    lang_read: Option<bool>,
     pending_children: Vec<TemplateNodeIdentifier>,
     /// Upstream's `unique_names` for the start tag being read.
     unique_names: FxHashSet<(attribute::Unique, &'a str)>,
