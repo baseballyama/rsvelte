@@ -152,3 +152,20 @@ fn an_abstract_field_with_an_initializer_is_thrown_at_the_initializer() {
         );
     }
 }
+
+#[test]
+fn a_character_no_token_starts_is_thrown_where_it_is() {
+    // What typescript-eslint 8.72.1 throws.
+    for (text, at) in [
+        ("const 💡 = 1;", 6),
+        ("\nconst 💡name = 1;", 7),
+        ("a\u{1}b;", 1),
+        ("class A { # x }", 10),
+    ] {
+        assert_eq!(
+            thrown(text),
+            Some(("Invalid character.".to_owned(), at)),
+            "{text:?}"
+        );
+    }
+}

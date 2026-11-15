@@ -225,6 +225,7 @@ pub(crate) fn acorn(
         "1161" => Some(fails("Unterminated regular expression", start + 1)),
         // A missing token: acorn fails at the next token from where oxc labels it.
         "1005" => Some(fails("Unexpected token", token(start, None)?)),
+        "1127" => unexpected_character(text, start, end),
         "1212" => Some(Acorn::Fails {
             message: Cow::Owned(error.message.to_string()),
             at: start,
@@ -400,6 +401,18 @@ fn optional_rest(
             "A binding pattern parameter cannot be optional in an implementation signature.",
             rest.start,
         )),
+    })
+}
+
+/// acorn names the character it cannot read, which after `#` is the one oxc's label `start..end`
+/// ends with.
+fn unexpected_character(text: &str, start: u32, end: u32) -> Option<Acorn> {
+    let label = text.get(start as usize..end as usize)?;
+    let at = start + u32::from(label.starts_with('#'));
+    let character = text.get(at as usize..)?.chars().next()?;
+    Some(Acorn::Fails {
+        message: Cow::Owned(format!("Unexpected character '{character}'")),
+        at,
     })
 }
 
