@@ -369,7 +369,6 @@ svelte/rsvelte-tests-core-3/template_function_rune_3233/a_derived_local_in_a_han
 svelte/rsvelte-tests-core-3/template_function_rune_3233/a_reassigned_state_local_in_a_handler_is_a_source/d6e4fe8e1fc9de97.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_function_rune_3233/a_state_local_that_is_never_reassigned_stays_a_plain_value/41b740762a32b567.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_scan_lexical_state_3708_3709_3711/a_comment_in_an_await_head_does_not_end_it/85602f44f89a6d2f.svelte	mismatch
-svelte/rsvelte-tests-core-3/template_scan_lexical_state_3708_3709_3711/a_comment_in_an_await_head_does_not_end_it/c12f26de3001c722.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_typescript_mode_3261/snippet_type_parameters_follow_the_component_mode/581064536a037a1e.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_typescript_mode_3261/snippet_type_parameters_follow_the_component_mode/6350a76e66fdb6d4.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_typescript_mode_3261/snippet_type_parameters_follow_the_component_mode/9997f8854bd1f01a.svelte	mismatch
@@ -660,7 +659,6 @@ svelte/svelte-inspect-value/packages/svelte/src/lib/components/HTMLViewSimple.sv
 svelte/svelte-inspect-value/packages/svelte/src/lib/components/Preview.svelte	mismatch
 svelte/svelte/packages/svelte/tests/migrate/samples/svelte-ignore/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/migrate/samples/svelte-ignore/output.svelte	mismatch
-svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-property-non-reactive-ignored-2/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-property-non-reactive-ignored/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/each-updates-9/main.svelte	mismatch

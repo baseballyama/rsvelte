@@ -648,6 +648,8 @@ Issue: [svelte-eslint-parser #1005](https://github.com/sveltejs/svelte-eslint-pa
 | `<template lang="pug">` with a `{a}`                      | no reference to `a`             | 1            |
 | A closing tag with a space: `</script >`                  | no script                       | 3            |
 | A one-line file whose script follows the template         | no script                       | 1            |
+| A line comment after a call: `{#await f(a) // }`          | the head ends inside it         | 1            |
+| `</textarea` twice, the first not closed by `>`           | the end tag at the second       | 1            |
 
 Issues for the rows of the table:
 
@@ -666,6 +668,12 @@ Issues for the rows of the table:
   template.
 - A script after the template on one line: no issue yet. The case is
   `{#if x}<p></p>{/if}<script lang="ts">let a = 1</script>`.
+- A line comment after a call: no issue yet. Without the call, `{#await a // }` is the
+  `Parsing error` above. With it, the tokens read `//` as two `/` and the
+  `}` after them as the end of the head, so the next line's `}` is text to `svelte/indent`.
+- `</textarea`: no issue yet. In `<textarea>a</textarea⏎⏎</textarea⏎>`, Svelte ends the content
+  at the first `</textarea`, whose end tag runs to the `>`. svelte-eslint-parser starts the end tag
+  at the second `</textarea`, and the text between belongs to no node.
 
 Svelte 5.57.3 compiles every one of them, so this crate lints them. The corpus skips their lint
 units (`corpus/_registry/units.toml`).

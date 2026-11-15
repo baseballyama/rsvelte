@@ -2681,6 +2681,7 @@
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_scan_lexical_state_3708_3709_3711/a_comment_in_an_await_head_does_not_end_it/c12f26de3001c722.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser does not read a line comment in an `{#await}` head as a comment, so it takes the `}` inside it for the end of the head"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/await_head_expression_survives/cbb6b349ed958d11.svelte".skip]
@@ -4168,3 +4169,6 @@
 
 ["svelte/svelte/packages/svelte/tests/print/samples/css-escape-sequences/input.svelte".skip]
 "svelte.lint" = "upstream bug: postcss-selector-parser ends a hex escape before a tab or a line break, and after six digits before a space, so `#line\\a` and the name after it are two selectors"
+
+["svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser places the end tag of a `<textarea>` at its last `</textarea`, where Svelte ends the content at the first"
