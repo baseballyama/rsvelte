@@ -192,6 +192,7 @@ pub(crate) fn acorn(
     if error.code.scope.as_deref() != Some("TS") {
         // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.
         return regular_expression(text, start, read())
+            .or_else(|| invalid_escape(text, (start, end), read()))
             .or_else(|| reserved(start).filter(|_| kind_at(start) == Some(Kind::Enum)));
     }
     let token = |after: u32, kind: Option<Kind>| {
@@ -503,6 +504,20 @@ fn optional_rest(
             rest.start,
         )),
     })
+}
+
+/// Where acorn rejects a name's escape of a character no name may hold: oxc labels the end of the
+/// escape, in the name's token among `tokens`, and acorn its `\`.
+fn invalid_escape(
+    text: &str,
+    (start, end): (u32, u32),
+    tokens: impl Iterator<Item = Token>,
+) -> Option<Acorn> {
+    let name = tokens.take_while(|token| token.start() < start).last()?;
+    let read = text.get(name.start() as usize..start as usize)?;
+    let escape = read.rfind("\\u")?;
+    (start == end && name.end() >= start)
+        .then(|| fails("Invalid Unicode escape", name.start() + escape as u32))
 }
 
 /// Where acorn, which reads a `/` after a token of `tokens` that an expression may follow as a
