@@ -4575,6 +4575,7 @@
 
 ["svelte/rsvelte-tests-core-2/parser_hardening/declaration_tag_multibyte_type_annotation_does_not_panic/47244ebc480a595e.svelte".skip]
 "svelte.compile" = "upstream bug: without `lang=\"ts\"` svelte 5.57.3 reads a `{@const}` type annotation as `_ as T` spliced 5 bytes before the colon and takes acorn's end of `_` as its position, so `expected_token` lands inside the name"
+"svelte.check" = "upstream bug: without `lang=\"ts\"` svelte 5.57.3 reads a `{@const}` type annotation as `_ as T` spliced 5 bytes before the colon and takes acorn's end of `_` as its position, so `expected_token` lands inside the name"
 
 ["svelte/flowbite-svelte/src/lib/forms/tags/Tags.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
