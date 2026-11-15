@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use oxc_ast::AstKind;
 use oxc_ast::ast::{BindingPattern, Expression};
 use oxc_span::Span;
@@ -6,6 +8,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, Range, TemplateNode, TemplateNodeIdentifier,
+    decode_attribute,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
@@ -80,7 +83,7 @@ type Element = TemplateNodeIdentifier;
 /// or ends with.
 #[derive(Default)]
 struct Selections<'a> {
-    exact: FxHashMap<&'a str, Vec<Element>>,
+    exact: FxHashMap<Cow<'a, str>, Vec<Element>>,
     /// By the text a value starts with, with the text it ends with when known; looked up by each
     /// prefix of a name, so that a name does not scan every element.
     by_prefix: FxHashMap<String, Vec<(Option<String>, Element)>>,
@@ -254,7 +257,11 @@ impl Template<'_> {
                     .expect("a directive has a name")
                     .text(source);
                 self.directives.insert(name);
-                self.classes.exact.entry(name).or_default().push(element);
+                self.classes
+                    .exact
+                    .entry(Cow::Borrowed(name))
+                    .or_default()
+                    .push(element);
                 continue;
             }
             if attribute.kind != AttributeKind::Attribute {
@@ -272,13 +279,17 @@ impl Template<'_> {
             for part in self.component.parts(parts) {
                 match *part {
                     Part::Text(span) => {
-                        let text = span.text(source);
-                        if split {
-                            for class in split_ecmascript_whitespace(text) {
-                                selections.exact.entry(class).or_default().push(element);
+                        // Upstream matches the decoded value, so `&#97;` is `a`.
+                        let mut add =
+                            |value| selections.exact.entry(value).or_default().push(element);
+                        match decode_attribute(span.text(source)) {
+                            Cow::Borrowed(text) if split => {
+                                split_ecmascript_whitespace(text)
+                                    .for_each(|v| add(Cow::Borrowed(v)));
                             }
-                        } else {
-                            selections.exact.entry(text).or_default().push(element);
+                            Cow::Owned(text) if split => split_ecmascript_whitespace(&text)
+                                .for_each(|v| add(Cow::Owned(v.to_owned()))),
+                            text => add(text),
                         }
                     }
                     Part::Expression { expression, .. } => {
