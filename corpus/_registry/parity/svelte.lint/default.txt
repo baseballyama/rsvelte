@@ -1,4 +1,4 @@
-# svelte.lint/default: 37130 match
+# svelte.lint/default: 37131 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -153,7 +153,6 @@ svelte/rsvelte-tests-core-2/directive_shorthand_loc/shorthand_directive_expressi
 svelte/rsvelte-tests-core-2/directive_shorthand_loc/shorthand_directive_expression_has_no_loc_and_an_explicit_one_keeps_it/983174459eefeddb.svelte	mismatch
 svelte/rsvelte-tests-core-2/directive_shorthand_loc/shorthand_directive_expression_has_no_loc_and_an_explicit_one_keeps_it/b6e587a37951ebc4.svelte	mismatch
 svelte/rsvelte-tests-core-2/each_fallback_const_scope_3377/a_body_const_reusing_the_item_name_is_still_a_duplicate/7a32d86a9055b1e1.svelte	mismatch
-svelte/rsvelte-tests-core-2/early_errors_3243/early_errors_reach_a_typescript_script_too/1f4d960367ca688a.svelte	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/6a26782d79102a88.svelte.js	refused
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/e6f48eb60e9a7548.svelte.js	refused
 svelte/rsvelte-tests-core-2/early_errors_3243/the_analyze_phase_duplicate_check_is_still_reachable/1fb31d8590dd4b8b.svelte	mismatch
