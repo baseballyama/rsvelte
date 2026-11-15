@@ -4089,3 +4089,45 @@
 
 ["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_is_not_reactive/f4814aa53a465939.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte/pattern/adversarial/typescript/ts-decorator-and-modifiers.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/svelte-canvas/src/routes/_components/NavMenu.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/svelte-material-ui/packages/checkbox/src/Checkbox.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/svelte-material-ui/packages/radio/src/Radio.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/svelte-material-ui/packages/slider/src/Slider.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/svelte-material-ui/packages/tooltip/src/Tooltip.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/threlte/apps/docs/src/examples/extras/cube-camera/App.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/threlte/packages/extras/src/lib/components/Instancing/InstancedMeshes/InstancedMeshes.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/kampsy-ui/src/routes/badge/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
+
+["svelte/kampsy-ui/src/routes/button/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
+
+["svelte/kampsy-ui/src/routes/checkbox/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
+
+["svelte/kampsy-ui/src/routes/collapse/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
+
+["svelte/kampsy-ui/src/routes/installation/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
+
+["svelte/svelte-toast/src/routes/+layout.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads the code of a `<script>` element inside the markup as part of the component script, so the last statement of the script spans the markup"

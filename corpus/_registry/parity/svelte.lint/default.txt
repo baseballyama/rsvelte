@@ -14,11 +14,6 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/n
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/invalid-svelte-ignore03-svelte4-input.svelte	mismatch
 svelte/flare/src/lib/components/SettingsView.svelte	mismatch
 svelte/joy-of-code/posts/learn-svelte/examples/reactive-events.svelte	mismatch
-svelte/kampsy-ui/src/routes/badge/+page.svelte	mismatch
-svelte/kampsy-ui/src/routes/button/+page.svelte	mismatch
-svelte/kampsy-ui/src/routes/checkbox/+page.svelte	mismatch
-svelte/kampsy-ui/src/routes/collapse/+page.svelte	mismatch
-svelte/kampsy-ui/src/routes/installation/+page.svelte	mismatch
 svelte/kite-public/src/lib/components/story/CitationTooltip.svelte	mismatch
 svelte/kite-public/src/routes/+layout.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/svelte/testfiles/diagnostics-module.svelte	mismatch
@@ -645,7 +640,6 @@ svelte/rsvelte/pattern/adversarial/expressions/rejected-snippet-rest.svelte	mism
 svelte/rsvelte/pattern/adversarial/legacy/legacy-export-renames-and-const.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/snippets/rejected-slot-snippet-conflict.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/special-elements/svelte-self-licensed-parents.svelte	mismatch
-svelte/rsvelte/pattern/adversarial/typescript/ts-decorator-and-modifiers.svelte	mismatch
 svelte/rsvelte/pattern/css/empty-declaration.svelte	mismatch
 svelte/rsvelte/pattern/issues/2525-svelte-ignore-comment-code-scope.svelte	mismatch
 svelte/rsvelte/pattern/issues/3124-slot-snippet-conflict-span.svelte	mismatch
@@ -694,18 +688,12 @@ svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/radius-p
 svelte/svar-core/svelte/src/components/Calendar.svelte	mismatch
 svelte/svar-grid/svelte/src/components/Layout.svelte	mismatch
 svelte/svelte-bits/src/lib/components/library/Backgrounds/GridDistortion/GridDistortion.svelte	mismatch
-svelte/svelte-canvas/src/routes/_components/NavMenu.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/docs/template-syntax/11-bind/function-bindings/01-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/function-binding-with-comment01-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/function-binding-with-comment02-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/non-function-binding02-input.svelte	mismatch
 svelte/svelte-inspect-value/packages/svelte/src/lib/components/HTMLViewSimple.svelte	mismatch
 svelte/svelte-inspect-value/packages/svelte/src/lib/components/Preview.svelte	mismatch
-svelte/svelte-material-ui/packages/checkbox/src/Checkbox.svelte	mismatch
-svelte/svelte-material-ui/packages/radio/src/Radio.svelte	mismatch
-svelte/svelte-material-ui/packages/slider/src/Slider.svelte	mismatch
-svelte/svelte-material-ui/packages/tooltip/src/Tooltip.svelte	mismatch
-svelte/svelte-toast/src/routes/+layout.svelte	mismatch
 svelte/svelte/packages/svelte/tests/css/samples/general-siblings-combinator-each-else-nested/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/css/samples/general-siblings-combinator-each-else/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/css/samples/siblings-combinator-each-else-nested/input.svelte	mismatch
@@ -741,6 +729,4 @@ svelte/svelte/packages/svelte/tests/validator/samples/svelte-self-deprecated/inp
 svelte/svelte/packages/svelte/tests/validator/samples/unknown-code/input.svelte	mismatch
 svelte/sveltekit/packages/kit/src/runtime/client/remote-functions/query-batch.svelte.js	mismatch
 svelte/sveltekit/packages/kit/src/runtime/components/root.svelte	mismatch
-svelte/threlte/apps/docs/src/examples/extras/cube-camera/App.svelte	mismatch
 svelte/threlte/packages/extras/src/lib/components/GLTF/GLTF.svelte	mismatch
-svelte/threlte/packages/extras/src/lib/components/Instancing/InstancedMeshes/InstancedMeshes.svelte	mismatch

@@ -661,6 +661,32 @@ Issues for the rows of the table:
 Svelte 5.57.3 compiles every one of them, so this crate lints them. The corpus skips their lint
 units (`corpus/_registry/units.toml`).
 
+## A `<script>` inside the markup joins the component's script (svelte-eslint-parser)
+
+With svelte-eslint-parser 1.10.1 and `svelte/indent` at its defaults.
+
+```svelte
+<script>
+  import { dev } from '$app/environment'
+</script>
+
+<svelte:head>
+  {#if !dev}
+    <script>
+      window.a = 1
+    </script>
+  {/if}
+</svelte:head>
+```
+
+Upstream reports every line from 3 to 11, for example line 5: `Expected indentation of 4 spaces
+but found 0 spaces.` The `ImportDeclaration` ends at 8:18, the end of `window.a = 1`.
+[`extractBlocks`](https://github.com/sveltejs/svelte-eslint-parser/blob/e7e70142ca0b211ff849057e0b1d68eba460fb4b/src/context/index.ts#L395-L396)
+finds `<script>` elements with a regular expression over the whole file, and
+[the loop](https://github.com/sveltejs/svelte-eslint-parser/blob/e7e70142ca0b211ff849057e0b1d68eba460fb4b/src/context/index.ts#L233)
+adds the content of each one to the component's script code, a nested one too. Svelte reads the
+nested element as markup. The corpus skips the lint unit.
+
 ## Rules that throw (`svelte/indent`, `svelte/consistent-selector-style`)
 
 - `svelte/indent` throws `Cannot read properties of null (reading 'range')` on 18 components of
@@ -670,6 +696,32 @@ units (`corpus/_registry/units.toml`).
 - Issues: the `svelte/indent` crash comes from a mapped type in a `$props()` annotation, and [eslint-plugin-svelte #970](https://github.com/sveltejs/eslint-plugin-svelte/issues/970) fixes it on `main`, not yet released. [eslint-plugin-svelte #1699](https://github.com/sveltejs/eslint-plugin-svelte/issues/1699) is the `consistent-selector-style` crash.
 - ESLint then reports nothing for the file. This crate reports every rule, and the corpus skips
   these lint units.
+
+## `svelte/indent`: a mapped type moves unrelated lines when the script uses a rune
+
+With eslint-plugin-svelte 3.24.1, svelte-eslint-parser 1.10.1 and default options.
+
+```svelte
+<script lang="ts">
+  const e: { [K in keyof typeof h]: K } = {}
+  let s = $state(1)
+</script>
+
+<div>
+  <p title="a"></p>
+  <!-- the same line 15 more times -->
+</div>
+```
+
+Upstream reports lines 3 to 6 and every `<p>`: `Expected indentation of 4 spaces but found 2
+spaces.` and the like. With a rune or a store, svelte-eslint-parser parses virtual code and then
+fixes node locations, but not the deprecated alias `TSMappedType.typeParameter`, which keeps its
+virtual-code range (here `[391, 410]` for a type at `[30, 58]`).
+[`TSMappedType`](https://github.com/sveltejs/eslint-plugin-svelte/blob/a18a0e43f1d31a01f102208e75249ce5d401e983/packages/eslint-plugin-svelte/src/rules/indent-helpers/ts.ts#L269-L274)
+lays out that range as an element, so it sets offsets on whatever tokens sit there. When the
+range holds no token, the rule throws (the section above). PR
+[#970](https://github.com/sveltejs/eslint-plugin-svelte/pull/970), merged on `main` and not yet
+released, reads `key` and `constraint` instead. The corpus skips these lint units.
 
 ## Svelte's compiler: what `svelte.compile` warns, which `svelte/valid-compile` reports
 
