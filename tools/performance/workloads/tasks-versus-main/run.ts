@@ -315,7 +315,7 @@ timed('check', () => {
 			'--main-check',
 			path.join(bin, 'svelte_check'),
 			'--arms',
-			'svelte-check-ts6,svelte-check-tsgo,rsvelte-tsgo,main-tsgo',
+			'svelte-check-ts6,svelte-check-tsgo,svelte-check-tsrs,rsvelte-tsgo,rsvelte-tsrs,main-tsgo',
 			'--rounds',
 			checkRounds,
 			'--warmup',

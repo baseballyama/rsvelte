@@ -120,7 +120,8 @@ for (const file of checks) {
 	};
 	const arms = report.arms as Record<string, Arm>;
 	const time = (arm: Arm) => median(arm.warm.map((sample) => sample.wallMs)) / 1000;
-	const own = arms['rsvelte-tsgo'];
+	// tsrs is the checker this branch runs on; tsgo is there to compare.
+	const own = arms['rsvelte-tsrs'] ?? arms['rsvelte-tsgo'];
 	lines.push(
 		`## Type check, ${report.env.id}`,
 		'',
@@ -129,12 +130,12 @@ for (const file of checks) {
 		'| Arm | Time | Arm / `experimental` | Peak MiB, whole process tree | Errors |',
 		'| --- | --- | --- | --- | --- |',
 	);
-	for (const [name, arm] of Object.entries(arms)) {
+	for (const arm of Object.values(arms)) {
 		if (arm.warm.length === 0) {
 			lines.push(`| ${arm.label} | broken: ${arm.broken[0]?.problem ?? 'no run'} | – | – | – |`);
 			continue;
 		}
-		const ratio = own?.warm.length && name !== 'rsvelte-tsgo' ? times(time(arm) / time(own)) : '–';
+		const ratio = own?.warm.length && arm !== own ? times(time(arm) / time(own)) : '–';
 		const peak = median(arm.warm.map((sample) => sample.treePeakRssKiB)) * 1024;
 		lines.push(
 			`| ${arm.label} | ${seconds(time(arm))} s | ${ratio} | ${mib(peak)} | ${arm.errors} |`,
