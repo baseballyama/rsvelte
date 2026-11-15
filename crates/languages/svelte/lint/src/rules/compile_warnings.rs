@@ -116,6 +116,17 @@ fn read(value: Span, comment: Span, source: &str, out: &mut Ignores) {
 }
 
 impl Ignores {
+    /// Whether `offset` is in a comment that names a code, which upstream blanks before it
+    /// compiles.
+    fn blanks(&self, offset: u32) -> bool {
+        let after = self
+            .items
+            .partition_point(|item| item.comment.start_offset <= offset);
+        after
+            .checked_sub(1)
+            .is_some_and(|i| contains(self.items[i].comment, offset))
+    }
+
     /// The items of `comment`, with their indexes.
     fn of(&self, comment: Span) -> impl Iterator<Item = (usize, &IgnoreItem)> {
         let start = self
@@ -220,7 +231,9 @@ pub(super) fn apply<'a>(
     let targets = Targets { component };
     let mut warnings = Vec::new();
     for warning in &compile.warnings {
-        if stripped.is_some_and(|s| contains(s, warning.span.start_offset)) {
+        if stripped.is_some_and(|s| contains(s, warning.span.start_offset))
+            || ignores.blanks(warning.span.start_offset)
+        {
             continue;
         }
         let mut silenced = false;

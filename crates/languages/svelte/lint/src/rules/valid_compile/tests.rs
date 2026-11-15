@@ -476,3 +476,20 @@ fn leaves_out_the_validation_errors_upstream_raises_only_in_runes_mode() {
         []
     );
 }
+
+#[test]
+fn a_svelte_ignore_comment_raises_nothing_as_upstream_blanks_it() {
+    let runes = "<script>\n  let x = $state(0);\n</script>\n";
+    assert_eq!(
+        codes(&format!(
+            "{runes}<!-- svelte-ignore not-a-code -->\n<p>{{x}}</p>\n"
+        )),
+        []
+    );
+    assert_eq!(
+        codes(&format!(
+            "{runes}<!-- svelte-ignore a11y-missing-attribute -->\n<p>{{x}}</p>\n"
+        )),
+        []
+    );
+}
