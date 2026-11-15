@@ -9,7 +9,7 @@ pub fn guess_typescript(source_text: &str) -> bool {
         let value = &source_text[at + "lang=".len()..];
         ["\"ts\"", "'ts'", "ts"]
             .iter()
-            .any(|ts| value.starts_with(ts))
+            .any(|typescript| value.starts_with(typescript))
     })
 }
 
