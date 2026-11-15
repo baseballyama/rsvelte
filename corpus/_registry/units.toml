@@ -104,6 +104,18 @@
 "svelte.compile" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
 "svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
 
+["svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/non_css_style_ignore_is_treated_as_used/befdd05c4edb8a56.svelte".skip]
+"svelte.compile" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+"svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+
+["svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/plain_css_unused_ignore_is_still_reported/964da7c6a5553df3.svelte".skip]
+"svelte.compile" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+"svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+
+["svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/transformed_scss_unused_ignore_is_reported/e19fecebd6a045c3.svelte".skip]
+"svelte.compile" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+"svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang03-input.svelte".skip]
 "svelte.compile" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
 "svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"

@@ -4,21 +4,17 @@
 //! tell "not warned" from "not checked". [`CompileWarnings::warnings`] holds every warning;
 //! [`CompileWarnings::compiled`] leaves out the ones a `svelte-ignore` comment ignores.
 
-use oxc_ast::AstKind;
-use oxc_ast_visit::Visit;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Component, Script, TemplateNode};
-use rsvelte_typescript_tree::{
-    DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
-    ProgramIdentifier, Tree,
-};
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 
 use crate::analyze::Analysis;
 use crate::compiler_syntax_tree::CompilerSyntaxTree;
-use crate::resolve::{Resolution, Roots, TemplateName, TemplateScope};
+use crate::resolve::Resolution;
 
 mod a11y;
+mod awaits;
 mod exports;
 mod found;
 mod fuzzymatch;
@@ -34,7 +30,7 @@ mod tests;
 mod updates;
 
 use exports::unused_exports;
-use found::Found;
+use found::{Found, VisitOrder};
 pub use ignore::{LEGACY_REPLACEMENTS, code_for_v5};
 pub use runes::dollar_name_errors;
 pub(crate) use runes::svelte_option;
@@ -316,7 +312,7 @@ pub fn warnings(
     options: Options,
 ) -> CompileWarnings {
     let mut out = CompileWarnings {
-        awaits: top_level_awaits(component, compiler_syntax_tree),
+        awaits: awaits::suspending_awaits(component, compiler_syntax_tree, resolution),
         ..CompileWarnings::default()
     };
     deprecated_tag(component, source, &mut out.errors);
@@ -390,7 +386,7 @@ pub fn warnings(
         unused_selectors(&sheet.rules, analysis, source, &mut found);
     }
     let regions = ignore::regions(component, compiler_syntax_tree, source, runes, &mut found);
-    let found = found.finish();
+    let found = found.finish(&VisitOrder::of(component, source));
     out.ignored = ignore::ignored(&found, &regions);
     out.warnings = found.into_iter().map(|(_, warning)| warning).collect();
     out
@@ -426,7 +422,7 @@ pub fn module_warnings(
         &mut found,
     );
     let regions = ignore::module_regions(&scripts, source, &mut found);
-    let found = found.finish();
+    let found = found.finish(&VisitOrder::default());
     CompileWarnings {
         ignored: ignore::ignored(&found, &regions),
         warnings: found.into_iter().map(|(_, warning)| warning).collect(),
@@ -506,69 +502,4 @@ fn deprecated_tag(component: &Component, source: &str, out: &mut Vec<(Raised, Di
             }
         }
     }
-}
-
-/// `await` at the top level of the instance script or of a template expression.
-fn top_level_awaits(component: &Component, compiler_syntax_tree: &CompilerSyntaxTree) -> Vec<Span> {
-    struct Awaits<'t> {
-        tree: &'t Tree,
-        functions: u32,
-        out: Vec<Span>,
-    }
-    impl<'a> Visit<'a> for Awaits<'_> {
-        fn enter_node(&mut self, kind: AstKind<'a>) {
-            match kind {
-                AstKind::Function(_) | AstKind::ArrowFunctionExpression(_) => self.functions += 1,
-                AstKind::AwaitExpression(e) if self.functions == 0 => self.out.push(span(e.span)),
-                _ => {}
-            }
-        }
-
-        fn leave_node(&mut self, kind: AstKind<'a>) {
-            if matches!(
-                kind,
-                AstKind::Function(_) | AstKind::ArrowFunctionExpression(_)
-            ) {
-                self.functions -= 1;
-            }
-        }
-    }
-    impl Roots for Awaits<'_> {
-        fn expression(&mut self, expression: ExpressionIdentifier) {
-            self.visit_expression(self.tree.get_expression(expression));
-        }
-
-        fn bound(&mut self, expression: ExpressionIdentifier) {
-            self.expression(expression);
-        }
-
-        fn declaration(&mut self, declaration: DeclarationIdentifier) {
-            self.visit_variable_declaration(self.tree.get_declaration(declaration));
-        }
-
-        fn pattern(&mut self, pattern: PatternIdentifier) {
-            self.visit_formal_parameter(self.tree.get_pattern(pattern));
-        }
-
-        fn parameters(&mut self, parameters: ParametersIdentifier) {
-            self.visit_formal_parameters(self.tree.get_parameters(parameters));
-        }
-
-        fn name(&mut self, _: TemplateName) {}
-
-        fn enter(&mut self, _: TemplateScope) {}
-
-        fn leave(&mut self) {}
-    }
-    let tree = &component.javascript;
-    let mut awaits = Awaits {
-        tree,
-        functions: 0,
-        out: Vec::new(),
-    };
-    if let Some(instance) = &component.instance {
-        awaits.visit_program(tree.get_program(instance.program));
-    }
-    crate::resolve::walk(compiler_syntax_tree, compiler_syntax_tree.root, &mut awaits);
-    awaits.out
 }

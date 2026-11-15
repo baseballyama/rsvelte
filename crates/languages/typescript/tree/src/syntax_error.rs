@@ -148,7 +148,8 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
 }
 
 /// What acorn reports for `error`, in the part whose text is `text`, whose tokens are `tokens`,
-/// followed by the token after the part that ended it, and whose tree `visit` walks; `None` for an error whose code does not say, or that acorn accepts.
+/// followed by the token after the part that ended it, and whose tree `visit` walks; `None` for an
+/// error whose code does not say, or that acorn accepts.
 #[cold]
 pub(crate) fn acorn(
     error: &OxcDiagnostic,
