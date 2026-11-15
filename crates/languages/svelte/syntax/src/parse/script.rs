@@ -277,16 +277,22 @@ impl Parser<'_, '_> {
         &mut self,
         content: Span,
         source_type: SourceType,
+        unchecked: &'static [&'static str],
     ) -> Result<(ProgramIdentifier, bool), SyntaxError> {
-        let typescript = SourceType::ts().with_module(true);
-        let read = if source_type.is_typescript() {
-            self.builder.program_or_errors(content, source_type)
+        if !source_type.is_typescript()
+            && let Ok(program) = self.builder.program(content, source_type)
+        {
+            return Ok((program, false));
+        }
+        let read_as = if source_type.is_typescript() {
+            source_type
         } else {
-            match self.builder.program(content, source_type) {
-                Ok(program) => return Ok((program, false)),
-                Err(_) => self.builder.program_or_errors(content, typescript),
-            }
+            SourceType::ts().with_module(true)
         };
+        self.builder.leave_unchecked(unchecked);
+        let read = self.builder.program_or_errors(content, read_as);
+        self.builder
+            .leave_unchecked(super::ACORN_UNCHECKED_TYPESCRIPT_RULES);
         let errors = match read {
             Ok(program) => return Ok((program, true)),
             Err(errors) => errors,
@@ -320,7 +326,9 @@ impl Parser<'_, '_> {
                     source_type,
                 )
                 .map(|p| (p, typescript)),
-            Scripts::ReadAsTypeScript => self.program_read_as_typescript(content, source_type),
+            Scripts::ReadAsTypeScript(unchecked) => {
+                self.program_read_as_typescript(content, source_type, unchecked)
+            }
         }
         .map_err(javascript_failure)?;
         // Upstream parses the script before it checks for another.

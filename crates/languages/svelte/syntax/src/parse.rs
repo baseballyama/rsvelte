@@ -89,7 +89,23 @@ pub fn parse_without_scripts(source_text: &str) -> ParseResult<Component> {
 ///
 /// As [`parse`], outside the scripts.
 pub fn parse_reading_scripts_as_typescript(source_text: &str) -> ParseResult<Component> {
-    parse_with(source_text, Scripts::ReadAsTypeScript)
+    parse_with(
+        source_text,
+        Scripts::ReadAsTypeScript(ACORN_UNCHECKED_TYPESCRIPT_RULES),
+    )
+}
+
+/// [`parse_reading_scripts_as_typescript`] as svelte-eslint-parser reads a script: TypeScript
+/// leaves unchecked the grammar errors typescript-eslint lets through.
+///
+/// # Errors
+///
+/// As [`parse`], outside the scripts.
+pub fn parse_reading_scripts_as_typescript_eslint(source_text: &str) -> ParseResult<Component> {
+    parse_with(
+        source_text,
+        Scripts::ReadAsTypeScript(rsvelte_typescript_tree::TYPESCRIPT_ESLINT_UNCHECKED),
+    )
 }
 
 /// How the parser reads each script's content.
@@ -99,8 +115,9 @@ enum Scripts {
     Read,
     /// Not at all: each program is empty.
     Left,
-    /// As the compiler does, and as TypeScript where the compiler rejects it.
-    ReadAsTypeScript,
+    /// As the compiler does, and as TypeScript where the compiler rejects it, leaving these
+    /// TypeScript codes unchecked.
+    ReadAsTypeScript(&'static [&'static str]),
 }
 
 fn parse_with(source_text: &str, scripts: Scripts) -> ParseResult<Component> {

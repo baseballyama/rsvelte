@@ -11,7 +11,8 @@ use rsvelte_kernel::source::positions::LineBreaks;
 use crate::Configuration;
 use crate::computation::{
     ConditionTypes, LegacyReactivity, LintConfiguration, ModuleAsTypeScript, ModuleSemantic,
-    NativeConditionTypes, PostcssConfigurationOnDisk, SameNamedFileOnDisk, TypeScriptAnalysis,
+    NativeConditionTypes, ParsedAsTypeScriptEslint, PostcssConfigurationOnDisk,
+    SameNamedFileOnDisk, TypeScriptAnalysis,
 };
 use crate::rules::style_attribute::InlineStyles;
 use crate::rules::style_sheet::StyleSheetVerdict;
@@ -50,6 +51,7 @@ pub fn register_artifacts(registry: &mut Registry) {
         .artifact::<NativeConditionTypes>()
         .artifact::<LegacyReactivity>()
         .artifact::<TypeScriptAnalysis>()
+        .artifact::<ParsedAsTypeScriptEslint>()
         .artifact::<ModuleAsTypeScript>()
         .artifact::<SameNamedFileOnDisk>()
         .artifact::<PostcssConfigurationOnDisk>();
@@ -192,7 +194,7 @@ fn typescript_eslint_rejection<'a>(
 ) -> Option<(Cow<'a, str>, u32)> {
     // svelte-eslint-parser parses the template with the scripts blanked out first, so an error of
     // the template wins over the scripts'.
-    let component = match context.get::<rsvelte_svelte_syntax::ParsedAsTypeScript>() {
+    let component = match context.get::<ParsedAsTypeScriptEslint>() {
         Ok(component) => component,
         Err(error) => {
             return Some((

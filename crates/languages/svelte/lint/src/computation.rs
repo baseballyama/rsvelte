@@ -8,8 +8,8 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerSyntaxTree, lower};
 use rsvelte_svelte_semantic::legacy::Legacy;
 use rsvelte_svelte_semantic::resolve::{Resolution, resolve};
 use rsvelte_svelte_semantic::{Lowered, Resolved};
+use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::Component;
-use rsvelte_svelte_syntax::{Parsed, ParsedAsTypeScript};
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::{
     ProgramIdentifier, Script, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, Tree,
@@ -100,11 +100,27 @@ pub(crate) fn component<'a>(
             error.span.start_offset,
         )
     };
-    match context.get::<ParsedAsTypeScript>() {
+    match context.get::<ParsedAsTypeScriptEslint>() {
         Ok(component) if component.script_typescript_errors.is_empty() && in_script() => {
             Ok(component)
         }
         _ => Err(error),
+    }
+}
+
+/// The component with each script the compiler rejects read as typescript-eslint reads it.
+#[derive(Debug)]
+pub(crate) struct ParsedAsTypeScriptEslint;
+
+impl Artifact for ParsedAsTypeScriptEslint {
+    type Output = Result<Component, Diagnostic>;
+
+    const NAME: &'static str = "svelte.lint.parse_as_typescript_eslint";
+
+    fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        rsvelte_svelte_syntax::parse::parse_reading_scripts_as_typescript_eslint(
+            context.source_text(),
+        )
     }
 }
 
