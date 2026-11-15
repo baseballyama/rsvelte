@@ -45,6 +45,9 @@ pub(super) struct Template<'a> {
     blocks: u32,
     /// Each `bind:this` expression, and whether a block encloses it.
     pub(super) bind_this: Vec<(Span, bool)>,
+    /// Upstream's first entry of `slot_names`: the first `<slot>` name, and the last `<slot>`
+    /// with that name.
+    pub(super) first_slot: Option<(&'a str, Span)>,
     /// The identifiers an `{#each}` context declares inside a rest element.
     each_rest: FxHashSet<SymbolId>,
     /// The nearest enclosing element with its own end tag, which closes the open ones inside.
@@ -82,6 +85,7 @@ impl<'a> Template<'a> {
             owner: Owner::Other,
             blocks: 0,
             bind_this: Vec::new(),
+            first_slot: None,
             each_rest: FxHashSet::default(),
             closer: None,
             parent_element: None,
@@ -247,11 +251,17 @@ impl<'a> Template<'a> {
     /// `<slot name>`: a static name other than `default`.
     fn slot(&mut self, element: Span, attributes: Range) {
         let component = self.context.component;
+        let mut name = "default";
         for attribute in component.attributes(attributes) {
             if attribute.kind != AttributeKind::Attribute
                 || attribute.name.text(self.context.source) != "name"
             {
                 continue;
+            }
+            if let AttributeValue::Parts(parts) = attribute.value
+                && let [Part::Text(span)] = component.parts(parts)
+            {
+                name = span.text(self.context.source);
             }
             let text = match attribute.value {
                 AttributeValue::Parts(parts) => match component.parts(parts) {
@@ -263,6 +273,11 @@ impl<'a> Template<'a> {
             if let Some((code, message)) = slot_name_error(text.as_deref()) {
                 self.error(element, error(code, message, attribute.span));
             }
+        }
+        match &mut self.first_slot {
+            None => self.first_slot = Some((name, element)),
+            Some((first, at)) if *first == name => *at = element,
+            Some(_) => {}
         }
     }
 

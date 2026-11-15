@@ -658,3 +658,18 @@ fn a_rune_parameter_called_in_a_declarator_is_an_error_in_legacy_mode() {
         Vec::<String>::new()
     );
 }
+
+#[test]
+fn a_slot_beside_a_render_tag_is_a_conflict() {
+    let errors = |code: &str| compiled_with_errors(code, None).1;
+    let render = "{#snippet s()}x{/snippet}\n{@render s()}\n";
+    assert_eq!(
+        errors(&format!("<slot />\n{render}")),
+        ["slot_snippet_conflict"]
+    );
+    assert_eq!(
+        errors(&format!("{{$$slots.a}}\n{render}")),
+        ["slot_snippet_conflict"]
+    );
+    assert_eq!(errors(render), Vec::<String>::new());
+}
