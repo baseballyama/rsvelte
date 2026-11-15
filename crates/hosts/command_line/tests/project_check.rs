@@ -224,9 +224,9 @@ fn a_bindable_prop_only_written_is_not_unused() {
 }
 
 #[test]
-fn a_css_custom_property_given_to_a_component_is_not_a_prop() {
+fn a_stylesheet_custom_property_given_to_a_component_is_not_a_prop() {
     let project = Project::new(
-        "css-custom-property",
+        "stylesheet-custom-property",
         &[
             (
                 "tsconfig.json",
