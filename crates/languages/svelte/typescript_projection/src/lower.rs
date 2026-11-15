@@ -6,6 +6,7 @@ mod children;
 mod contract;
 mod directive;
 mod generic;
+pub use contract::store_reads;
 pub use generic::{UnparsedScript, unparsed_script};
 mod hoistable;
 mod root_snippets;

@@ -143,6 +143,9 @@ pub enum TypeScriptDocument {
         extension: &'static str,
         /// Each relative module specifier the document imports, by its string literal's range.
         imports: Vec<(Span, String)>,
+        /// Each Svelte store by its name's range, with where the component reads `$store`:
+        /// svelte-check reports a store that is no store at each of those reads.
+        store_reads: Vec<(Span, Vec<Span>)>,
     },
 }
 
@@ -301,6 +304,7 @@ struct Prepared {
     source_text: String,
     extension: &'static str,
     imports: Vec<(Span, String)>,
+    store_reads: Vec<(Span, Vec<Span>)>,
 }
 
 impl FinishTask for Check {
@@ -363,6 +367,7 @@ impl FinishTask for Check {
                 env,
                 extension,
                 imports,
+                store_reads,
             }) => Some(Box::new(Prepared {
                 path: context.document.path.clone(),
                 projection: Emitter {
@@ -375,6 +380,7 @@ impl FinishTask for Check {
                 source_text: context.source_text().to_owned(),
                 extension,
                 imports: imports.clone(),
+                store_reads: store_reads.clone(),
             })),
         }
     }

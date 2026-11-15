@@ -8,6 +8,10 @@ use rsvelte_kernel::source::positions::{LineIndex, Span};
 
 use super::{Prepared, TypeScriptDiagnostic};
 
+const NO_OVERLOAD_MATCHES_CALL: u32 = 2769;
+const ARGUMENT_NOT_ASSIGNABLE: u32 = 2345;
+const USED_BEFORE_ASSIGNED: u32 = 2454;
+
 /// A finding located in its document, with what orders it.
 struct Finding {
     semantic: bool,
@@ -50,6 +54,37 @@ pub(super) fn write_findings(
                 ))
             })
         };
+        // svelte-check's `mapAndFilterDiagnostics`: the call that reads `$store` fails at the
+        // store, a finding it hides and repeats at each read.
+        if let Some(span) = mapped
+            && (f.code == NO_OVERLOAD_MATCHES_CALL || f.code == ARGUMENT_NOT_ASSIGNABLE)
+            && let Some((_, reads)) = d.store_reads.iter().find(|(store, _)| *store == span)
+        {
+            let store = span.text(&d.source_text[bom as usize..]);
+            for &read in reads {
+                per_doc[f.file].push(Finding {
+                    semantic: true,
+                    // svelte-check lists the copies where the failing call is, in read order.
+                    generated,
+                    span: read,
+                    code: f.code,
+                    message: format!(
+                        "Cannot use '{store}' as a store. '{store}' needs to be an object with a \
+                         subscribe method on it.\n\n{}",
+                        f.message
+                    ),
+                });
+            }
+            continue;
+        }
+        // A declaration is never read before it is assigned: the read is svelte2tsx's, which
+        // svelte-check hides.
+        if let Some(span) = mapped
+            && f.code == USED_BEFORE_ASSIGNED
+            && d.store_reads.iter().any(|(store, _)| *store == span)
+        {
+            continue;
+        }
         if let Some(span) = mapped {
             per_doc[f.file].push(Finding {
                 // TypeScript 7 parses some grammar errors that TypeScript 6 checks, such as

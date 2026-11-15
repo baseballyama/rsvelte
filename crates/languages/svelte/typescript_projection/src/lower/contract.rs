@@ -4,6 +4,7 @@ use oxc_ast::ast::{
     TSType, VariableDeclaration, VariableDeclarationKind,
 };
 use oxc_span::GetSpan;
+use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
 
 use super::generic::Generics;
@@ -61,6 +62,46 @@ pub(super) fn namespace_exports(statement: &Statement<'_>, removed: &mut impl Fn
         }
         namespace_exports(nested, removed);
     }
+}
+
+/// Each store subscription `$x` whose store `x` a variable or an import of the instance binds, for
+/// which svelte2tsx declares `$x`: the name, the store's symbol, and whether an import binds it.
+fn subscribed_stores(
+    resolution: &Resolution,
+) -> impl Iterator<Item = (&str, oxc_syntax::symbol::SymbolId, bool)> {
+    let scoping = resolution.scoping();
+    resolution
+        .unresolved_names()
+        .filter(|name| resolution.is_store_subscription(name))
+        .filter_map(move |name| {
+            let symbol = scoping.find_binding(resolution.instance_scope(), name[1..].into())?;
+            match resolution.declaration(symbol) {
+                AstKind::VariableDeclarator(_) => Some((name, symbol, false)),
+                AstKind::ImportSpecifier(_)
+                | AstKind::ImportDefaultSpecifier(_)
+                | AstKind::ImportNamespaceSpecifier(_) => Some((name, symbol, true)),
+                _ => None,
+            }
+        })
+}
+
+/// Each store `x` that the projection reads as `$x`, by its name's range, with where the
+/// component reads `$x`.
+#[must_use]
+pub fn store_reads(resolution: &Resolution) -> Vec<(Span, Vec<Span>)> {
+    let scoping = resolution.scoping();
+    subscribed_stores(resolution)
+        .map(|(name, symbol, _)| {
+            let reads = scoping
+                .root_unresolved_references()
+                .get(name)
+                .into_iter()
+                .flatten()
+                .map(|&reference| span(resolution.reference_span(reference)))
+                .collect();
+            (span(scoping.symbol_span(symbol)), reads)
+        })
+        .collect()
 }
 
 pub(super) struct Edit {
@@ -575,18 +616,13 @@ impl Builder<'_> {
                 })
                 .map(|statement| statement.span().end)
         };
-        let mut out: Vec<_> = resolution
-            .unresolved_names()
-            .filter(|name| resolution.is_store_subscription(name))
-            .filter_map(|name| scoping.find_binding(resolution.instance_scope(), name[1..].into()))
-            .filter_map(|symbol| {
+        let mut out: Vec<_> = subscribed_stores(resolution)
+            .filter_map(|(_, symbol, import)| {
                 let store = scoping.symbol_span(symbol);
-                let at = match resolution.declaration(symbol) {
-                    AstKind::VariableDeclarator(_) => StoreAt::After(statement_end(store)?),
-                    AstKind::ImportSpecifier(_)
-                    | AstKind::ImportDefaultSpecifier(_)
-                    | AstKind::ImportNamespaceSpecifier(_) => StoreAt::Start,
-                    _ => return None,
+                let at = if import {
+                    StoreAt::Start
+                } else {
+                    StoreAt::After(statement_end(store)?)
                 };
                 Some((at, span(store)))
             })

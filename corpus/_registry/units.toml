@@ -4353,3 +4353,21 @@
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/56133462a29e565e.svelte".skip]
 "svelte.check" = "legacy: `$:` is Svelte 4 syntax, and svelte rejects this component in runes mode (legacy_reactive_statement_invalid)"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-wrong-usage/input.svelte".skip]
+"svelte.check" = "checker: for a call that no overload matches, TS 7 explains only the last overload where TS 6 explains each, here in svelte-check's message for a value used as a store"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/0747857e339aa28c.svelte".skip]
+"svelte.check" = "checker: for a call that no overload matches, TS 7 explains only the last overload where TS 6 explains each, here in svelte-check's message for a value used as a store"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/f9eb825ab25210d3.svelte".skip]
+"svelte.check" = "checker: for a call that no overload matches, TS 7 explains only the last overload where TS 6 explains each, here in svelte-check's message for a value used as a store"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/fbb594ea963fe6f9.svelte".skip]
+"svelte.check" = "checker: for a call that no overload matches, TS 7 explains only the last overload where TS 6 explains each, here in svelte-check's message for a value used as a store"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store03-input.svelte".skip]
+"svelte.check" = "checker: for a call that no overload matches, TS 7 explains only the last overload where TS 6 explains each, here in svelte-check's message for a value used as a store"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store03-type-output.svelte".skip]
+"svelte.check" = "checker: for a call that no overload matches, TS 7 explains only the last overload where TS 6 explains each, here in svelte-check's message for a value used as a store"

@@ -7,9 +7,10 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_semantic::Resolved;
 use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::Component;
-use rsvelte_svelte_typescript_projection::{Printed, THROWN};
+use rsvelte_svelte_typescript_projection::{Printed, THROWN, store_reads};
 use rsvelte_typescript_check::{
     Check, Documents, MappedLanguage, MappedLanguages, TypeScriptDocument, TypeScriptEnv,
     TypeScriptStandIn, TypeScriptView,
@@ -187,6 +188,11 @@ fn typescript_view(
         env: Arc::clone(env),
         extension: if typescript { ".ts" } else { ".js" },
         imports: relative_imports(component),
+        store_reads: context
+            .get::<Resolved>()
+            .as_ref()
+            .map(store_reads)
+            .unwrap_or_default(),
     })
 }
 

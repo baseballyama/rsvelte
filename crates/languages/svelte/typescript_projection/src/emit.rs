@@ -263,15 +263,19 @@ impl Printer<'_> {
     /// The store subscription `$name`, declared with the store's value type.
     fn store_subscription(&mut self, store: Span) {
         let name = store.text(self.source);
-        // A type query reads no value, so this declaration can raise no finding of its own.
-        let (open, close) = if self.tree.javascript {
-            (" = __rsvelte_store_get(", ")")
-        } else {
-            ("!: __rsvelte_store_value<typeof ", ">")
-        };
-        for part in [";let $", name, open, name, close, ";\n"] {
-            self.output.push(part);
+        self.output.push(";let $");
+        self.output.push(name);
+        if self.tree.javascript {
+            for part in [" = __rsvelte_store_get(", name, ");\n"] {
+                self.output.push(part);
+            }
+            return;
         }
+        // svelte-check copies a finding on the store to each read of `$x`; the store's name
+        // locates it.
+        self.output.push(" = __sveltets_2_store_get(");
+        self.output.atom(name, store);
+        self.output.push(");\n");
     }
 
     /// svelte2tsx's runes component: a type of the same name lets an import name its type.
