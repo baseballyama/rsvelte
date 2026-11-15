@@ -1,4 +1,4 @@
-# svelte.lint/default: 37157 match
+# svelte.lint/default: 37160 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -399,7 +399,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/every_t
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/modifiers_and_a_trailing_comma_are_read_from_the_parse/3b62fe6ae1f4ce8d.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_reexport_2113/reexport_of_a_local_let_still_widens_and_stays_a_prop/603d62102a5ffdc1.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_reexport_2113/type_only_reexport_is_removed_like_official/eaaae7a32789e3f1.svelte	refused
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_runes_reference_3260/instance_script_reference_enters_runes_mode/637511244ec83c79.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/script_like_component_is_not_blanked/ffe93aebb9e69b3e.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/style_like_component_is_not_blanked/64766c531adab110.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/style_like_component_with_a_close_tag_is_not_blanked/9bd55f8f0a0e78b4.svelte	mismatch
@@ -466,8 +465,6 @@ svelte/rsvelte/pattern/css/empty-declaration.svelte	mismatch
 svelte/rsvelte/pattern/issues/3124-slot-snippet-conflict-span.svelte	mismatch
 svelte/rsvelte/pattern/issues/3129-comment-between-compounds.svelte	mismatch
 svelte/rsvelte/pattern/issues/3141-const-in-svelte-self.svelte	mismatch
-svelte/rsvelte/pattern/issues/3182-export-let-bindable.svelte	mismatch
-svelte/rsvelte/pattern/issues/3182-export-let-initializer-error.svelte	mismatch
 svelte/rsvelte/pattern/issues/3189-unbound-dollar-still-rejected.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-invalid-escape.svelte	mismatch

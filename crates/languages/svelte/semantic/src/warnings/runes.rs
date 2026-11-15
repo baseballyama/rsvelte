@@ -269,7 +269,8 @@ pub(super) fn rune_placement(
                     "Cannot use `export let` in runes mode — use `$props()` instead",
                     at,
                 );
-                out.push((walk(section, at.start_offset), found));
+                // Upstream checks an export after its declaration, so errors inside it come first.
+                out.push((walk(section, at.end_offset - 1), found));
             }
         }
         for (i, call) in props_calls(resolution, program).into_iter().enumerate() {

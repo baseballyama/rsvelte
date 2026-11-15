@@ -493,3 +493,11 @@ fn a_svelte_ignore_comment_raises_nothing_as_upstream_blanks_it() {
         []
     );
 }
+
+#[test]
+fn an_export_let_error_waits_for_the_errors_inside_it() {
+    assert_eq!(
+        codes("<script>\n  export let x = $bindable(1);\n</script>\n{x}\n"),
+        [("bindable_invalid_location".to_owned(), 2, 17)]
+    );
+}
