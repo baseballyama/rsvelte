@@ -82,15 +82,30 @@ fn an_esm_import_of_a_rune_module_by_its_component_name_reads_the_module() {
             ("tsconfig.json", NODENEXT),
             (
                 "src/state.svelte.ts",
-                "export const count = (): string => '';\nexport default class Counter {\n  n = '';\n}\n",
+                concat!(
+                    "export const count = (): string => '';\n",
+                    "export default class Counter {\n",
+                    "  n = '';\n",
+                    "}\n",
+                ),
             ),
             (
                 "src/use.ts",
-                "import Counter, { count } from './state.svelte';\nexport const n: number = count();\nexport const m: number = new Counter().n;\n",
+                concat!(
+                    "import Counter, { count } from './state.svelte';\n",
+                    "export const n: number = count();\n",
+                    "export const m: number = new Counter().n;\n",
+                ),
             ),
             (
                 "src/Use.svelte",
-                "<script lang=\"ts\">\n  import { count } from './state.svelte';\n  const n: number = count();\n</script>\n{n}\n",
+                concat!(
+                    "<script lang=\"ts\">\n",
+                    "  import { count } from './state.svelte';\n",
+                    "  const n: number = count();\n",
+                    "</script>\n",
+                    "{n}\n",
+                ),
             ),
         ],
     );
@@ -117,11 +132,25 @@ fn a_snippet_given_to_a_component_is_read_and_an_unused_one_is_not() {
             ),
             (
                 "src/Child.svelte",
-                "<script lang=\"ts\">\n  import type { Snippet } from 'svelte';\n  let { text }: { text?: Snippet } = $props();\n</script>\n{@render text?.()}\n",
+                concat!(
+                    "<script lang=\"ts\">\n",
+                    "  import type { Snippet } from 'svelte';\n",
+                    "  let { text }: { text?: Snippet } = $props();\n",
+                    "</script>\n",
+                    "{@render text?.()}\n",
+                ),
             ),
             (
                 "src/Parent.svelte",
-                "<script lang=\"ts\">\n  import Child from './Child.svelte';\n</script>\n<Child>\n  {#snippet text()}<p></p>{/snippet}\n</Child>\n{#snippet unused()}<p></p>{/snippet}\n",
+                concat!(
+                    "<script lang=\"ts\">\n",
+                    "  import Child from './Child.svelte';\n",
+                    "</script>\n",
+                    "<Child>\n",
+                    "  {#snippet text()}<p></p>{/snippet}\n",
+                    "</Child>\n",
+                    "{#snippet unused()}<p></p>{/snippet}\n",
+                ),
             ),
         ],
     );
@@ -145,11 +174,20 @@ fn a_class_component_of_a_package_takes_the_props_of_its_instance() {
             ),
             (
                 "node_modules/icons/index.d.ts",
-                "import { SvelteComponent } from 'svelte';\nexport declare class Icon extends SvelteComponent<{ size?: number }> {}\n",
+                concat!(
+                    "import { SvelteComponent } from 'svelte';\n",
+                    "export declare class Icon extends SvelteComponent<{ size?: number }> {}\n",
+                ),
             ),
             (
                 "src/App.svelte",
-                "<script lang=\"ts\">\n  import { Icon } from 'icons';\n</script>\n<Icon size={2} />\n<Icon size=\"big\" />\n",
+                concat!(
+                    "<script lang=\"ts\">\n",
+                    "  import { Icon } from 'icons';\n",
+                    "</script>\n",
+                    "<Icon size={2} />\n",
+                    "<Icon size=\"big\" />\n",
+                ),
             ),
         ],
     );

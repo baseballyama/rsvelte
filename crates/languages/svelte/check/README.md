@@ -41,9 +41,9 @@ script. Without `allowJs`, svelte-check reports TS7016 for an import of a compon
 The checker reads a content-mapped file as typed whatever its extension. So when a probe shows
 that the project's options report TS7016, `rsvelte_typescript_check` adds it for a relative import
 of one, and the component's default export reads as `any`. Under `node16` and `nodenext`, an
-ESM import of `./x.svelte` reads the rune module `x.svelte.ts`, as in svelte-check, through a
-declaration `x.d.svelte.ts` in the file layer. It re-exports `default` too, so a default import
-of a module without one is not reported.
+import of `./x.svelte` from an ES module reads the rune module `x.svelte.ts`, as in svelte-check,
+through a declaration `x.d.svelte.ts` in the file layer. That declaration exports the module's
+`default` too, so a default import of a module without one is not reported.
 Empty findings do not prove that the checker checked its props or its instance. A
 component that does not parse is not checked: as in svelte-check, its one finding is the
 parser's error, with the code `-1`.
