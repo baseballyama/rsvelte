@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
+use rsvelte_svelte_typescript_projection::{Refusal, unparsed_module_refusal};
 use rsvelte_typescript_check::{TypeScriptDocument, TypeScriptEnv};
 
 /// The document to check, or `None` when the markup does not parse either.
@@ -13,6 +14,16 @@ pub(super) fn view<'e>(
     env: impl FnOnce() -> Result<&'e Arc<TypeScriptEnv>, Diagnostic>,
 ) -> Option<Result<TypeScriptDocument, Diagnostic>> {
     let component = rsvelte_svelte_syntax::parse::parse_without_scripts(source_text).ok()?;
+    if let Some(Refusal::Thrown { message, span }) = component
+        .module
+        .as_ref()
+        .and_then(|module| unparsed_module_refusal(source_text, module.content))
+    {
+        return Some(Ok(TypeScriptDocument::Rejected {
+            message: message.to_owned(),
+            span,
+        }));
+    }
     let scripts = [&component.module, &component.instance];
     let typescript = scripts
         .iter()

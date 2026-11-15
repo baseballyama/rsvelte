@@ -299,21 +299,14 @@ impl Builder<'_> {
         hoisted(module, program, props, &stores)
     }
 
-    /// svelte2tsx rejects a `$$Generic` alias in the module script.
-    pub(super) fn module_generics(&self) -> Result<()> {
+    /// svelte2tsx rejects the first `$$Generic` alias, or `$$Events`, `$$Slots` or `$$Props`
+    /// declaration, in the module script.
+    pub(super) fn module_declarations(&self) -> Result<()> {
         let Some(script) = &self.component.module else {
             return Ok(());
         };
         let program = self.component.javascript.get_program(script.program);
-        DollarGenerics::of(program)
-            .found
-            .first()
-            .map_or(Ok(()), |alias| {
-                Err(Refusal::Thrown {
-                    message: "$$Generic declarations are only allowed in the instance script",
-                    span: alias.span,
-                })
-            })
+        instance_only(program, 0).map_or(Ok(()), Err)
     }
 
     /// Wraps the instance and the template, from `generics.start`, in the render function that
@@ -353,6 +346,27 @@ impl Builder<'_> {
     }
 }
 
+/// [`Builder::module_declarations`] for a module script that Svelte does not parse, at `content`
+/// in `source_text`, which svelte2tsx still reads as TypeScript.
+#[must_use]
+pub fn unparsed_module_refusal(source_text: &str, content: Span) -> Option<Refusal> {
+    let allocator = oxc_allocator::Allocator::default();
+    let text = &source_text[content.start_offset as usize..content.end_offset as usize];
+    let parsed = oxc_parser::Parser::new(&allocator, text, oxc_span::SourceType::ts()).parse();
+    instance_only(&parsed.program, content.start_offset)
+}
+
+/// The error for the first declaration in `program` that only the instance script may make, with
+/// `program`'s spans `offset` bytes into the component.
+fn instance_only(program: &Program<'_>, offset: u32) -> Option<Refusal> {
+    DollarGenerics::of(program)
+        .instance_only
+        .map(|(span, message)| Refusal::Thrown {
+            message,
+            span: Span::new(span.start_offset + offset, span.end_offset + offset),
+        })
+}
+
 /// An error svelte2tsx throws without a position, which svelte-check reports at the start.
 const fn thrown(message: &'static str) -> Refusal {
     Refusal::Thrown {
@@ -378,6 +392,8 @@ struct DollarGenerics {
     collect_named: bool,
     /// The `export` around the declaration being visited.
     export: Option<Span>,
+    /// The first declaration that svelte2tsx allows only in the instance script, with its error.
+    instance_only: Option<(Span, &'static str)>,
 }
 
 impl DollarGenerics {
@@ -400,6 +416,17 @@ impl DollarGenerics {
         if self.collect_named {
             self.named.push((declared, span(name)));
         }
+    }
+
+    /// Records `declared` when it is the first `$$Events`, `$$Slots` or `$$Props` declaration.
+    fn convention(&mut self, declared: Span, name: &str) {
+        let message = match name {
+            "$$Events" => "$$Events can only be declared in the instance script",
+            "$$Slots" => "$$Slots can only be declared in the instance script",
+            "$$Props" => "$$Props can only be declared in the instance script",
+            _ => return,
+        };
+        self.instance_only.get_or_insert((declared, message));
     }
 
     /// The declaration's span with its `export`, which svelte2tsx's node starts at.
@@ -429,6 +456,10 @@ impl<'a> Visit<'a> for DollarGenerics {
             && let TSTypeName::IdentifierReference(name) = &reference.type_name
             && name.name == "$$Generic"
         {
+            self.instance_only.get_or_insert((
+                declared,
+                "$$Generic declarations are only allowed in the instance script",
+            ));
             self.found.push(DollarGeneric {
                 span: declared,
                 name: span(it.id.span),
@@ -439,6 +470,8 @@ impl<'a> Visit<'a> for DollarGenerics {
                     .map(|argument| span(argument.span()))
                     .collect(),
             });
+        } else {
+            self.convention(declared, &it.id.name);
         }
         walk::walk_ts_type_alias_declaration(self, it);
     }
@@ -447,6 +480,7 @@ impl<'a> Visit<'a> for DollarGenerics {
         let declared = self.declared(it.span);
         self.export = None;
         self.name(declared, it.id.span);
+        self.convention(declared, &it.id.name);
         walk::walk_ts_interface_declaration(self, it);
     }
 }

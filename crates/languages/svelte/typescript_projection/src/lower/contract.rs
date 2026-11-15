@@ -26,7 +26,7 @@ enum StoreAt {
 impl Builder<'_> {
     /// The scripts, then the contract's value and the render function's generics.
     pub(super) fn scripts(&mut self) -> Result<(NodeIdentifier, Generics)> {
-        self.module_generics()?;
+        self.module_declarations()?;
         let (mut edits, render_start) = self.module_and_store_edits();
         let mut bindings = Buffer::new(0);
         let mut exports = Buffer::new(0);

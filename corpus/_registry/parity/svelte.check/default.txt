@@ -1,4 +1,4 @@
-# svelte.check/default: 34916 match
+# svelte.check/default: 34923 match
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte	mismatch
 svelte/appwrite-console/src/routes/(public)/auth/preview/+page.svelte	mismatch
@@ -102,13 +102,6 @@ svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/59adde327ea8994d.s
 svelte/rsvelte-tests/rsvelte_language_server/tsgo_component_info/tests/parser_script_native_value_and_non_colon_triggers_are_rejected/91ee76e6755d0421.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/tsgo_overlay/tests/an_unparseable_shadow_still_finds_the_render_return_type_slot/204de4961e65fda8.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/nodes/snippet_hoisting/tests/duplicate_name_self_reference_does_not_inherit_blocked_peer/7a63d4879226079a.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_exported_interface_dollar_props_throws/6f1a3ee68490bdbe.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_interface_dollar_events_throws/7912b9ac275589fe.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_interface_dollar_props_throws/352fcc03b20230c6.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_interface_dollar_slots_throws/509b97563cda3059.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_type_dollar_events_throws/1b161dfe8e55cab0.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_type_dollar_props_throws/eaa03a9c78c87a89.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_type_dollar_slots_throws/fa4fcf48fd739f6d.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/namespace_import_stays_in_its_namespace/25decd71616c26c8.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_module_nested_arrow_assertion_uses_collected_facts/b4dfac757edb153a.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_bind_suffix_map_4103/a_one_way_binding_not_on_the_element_carries_its_own_map_segments/ee00fd9be3022ca2.svelte	unexpected

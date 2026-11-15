@@ -6,6 +6,7 @@ mod children;
 mod contract;
 mod directive;
 mod generic;
+pub use generic::unparsed_module_refusal;
 mod hoistable;
 mod root_snippets;
 mod tag;
