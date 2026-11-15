@@ -272,7 +272,7 @@ impl Parser<'_, '_> {
 
     /// The script's program as Prettier's Svelte plugin and svelte-eslint-parser read it: as the
     /// compiler reads it, else as TypeScript, else what oxc recovered of it, else empty, keeping
-    /// the first such script's TypeScript errors; and whether it is TypeScript.
+    /// its TypeScript errors; and whether it is TypeScript.
     fn program_read_as_typescript(
         &mut self,
         content: Span,
@@ -291,9 +291,9 @@ impl Parser<'_, '_> {
             Ok(program) => return Ok((program, true)),
             Err(rejected) => rejected,
         };
-        if self.component.script_typescript_errors.is_empty() {
-            self.component.script_typescript_errors = rejected.errors;
-        }
+        self.component
+            .script_typescript_errors
+            .extend(rejected.errors);
         // typescript-eslint tolerates some of oxc's errors, and the rules read the rest.
         if let Some(program) = rejected.recovered {
             return Ok((program, true));

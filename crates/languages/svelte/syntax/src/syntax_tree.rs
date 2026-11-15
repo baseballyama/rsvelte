@@ -332,8 +332,8 @@ pub struct Component {
     pub module: Option<Script>,
     pub instance: Option<Script>,
     pub style: Option<Style>,
-    /// Read by [`crate::parse::parse_reading_scripts_as_typescript`], the errors of the first
-    /// script the compiler rejects that TypeScript rejects too, in order; empty otherwise.
+    /// Read by [`crate::parse::parse_reading_scripts_as_typescript`], the errors of each script
+    /// the compiler rejects that TypeScript rejects too, in order; empty otherwise.
     pub script_typescript_errors: Vec<SyntaxError>,
     /// The whole document as tokens: markup, the JavaScript parser's tokens and comments, and the
     /// whitespace between them. The style sheet is one [`TokenType::Stylesheet`] token.
