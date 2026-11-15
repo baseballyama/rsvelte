@@ -48,6 +48,10 @@ impl SvelteRule for ValidCompile {
             Some(Ok(config)) => Some(config),
             None => None,
         };
+        let compile = match compile {
+            Ok(compile) => compile,
+            Err(error) => return report(reporter, error, &error.message, &error.code),
+        };
         let experimental_async = config.is_some_and(|c| c.experimental_async);
         let applied = apply(
             file,

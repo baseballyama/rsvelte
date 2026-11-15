@@ -14,7 +14,9 @@ The checker gives the original Svelte inputs and the cached AST projections to
 `rsvelte-typescript-content-mapper`. Native TypeScript reads the projection and the span map,
 then reports diagnostics in original coordinates. Nothing parses Svelte again. The shared
 protocol crate also serves other languages. The `contentMapper` option names this executable;
-the default is `rsvelte-typescript-content-mapper` in `node_modules/.bin` or on `PATH`.
+the default is `rsvelte-typescript-content-mapper` in `node_modules/.bin` or on `PATH`. It knows
+only the run's documents. Name `rsvelte-svelte-content-mapper` instead to also project, when the
+checker asks, a component the run was not given, such as one a package ships.
 
 ```sh
 cargo install --path crates/languages/typescript/content_mapper

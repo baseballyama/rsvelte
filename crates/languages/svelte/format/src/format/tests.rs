@@ -473,6 +473,18 @@ fn a_script_babel_rejects_is_kept_as_written_and_the_rest_formatted() {
         refusal("<script>\n\tlet a; let a;\n</script>\n<p>x</p>\n").0,
         "code a module rejects"
     );
+    // Babel no longer reads `assert` import attributes; Prettier's TypeScript parser does.
+    let script = "<script>\n\timport d from './d.json' assert { type: 'json' };\n</script>\n";
+    assert_eq!(
+        formatted(&format!("{script}<p>{{d}}</p>\n")),
+        format!("{script}\n<p>{{d}}</p>\n")
+    );
+    assert_eq!(
+        formatted(
+            "<script lang=\"ts\">\nimport d from './d.json' assert { type: 'json' };\n</script>\n"
+        ),
+        "<script lang=\"ts\">\n  import d from \"./d.json\" assert { type: \"json\" };\n</script>\n"
+    );
     // Prettier's TypeScript parser recovers, and the port does not know what it prints.
     assert_eq!(
         refusal("<script lang=\"ts\">\n\tfunction f() { continue; }\n</script>\n<p>x</p>\n").0,

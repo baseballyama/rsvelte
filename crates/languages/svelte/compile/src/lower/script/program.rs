@@ -106,7 +106,13 @@ pub(in crate::lower) fn lower_script<'t, 'o>(
                 }
                 out.push(kept);
             }
-            Statement::ImportDeclaration(_) if matches!(context, ScriptContext::File) => {
+            // The server keeps a module script's statements in their order; the client hoists its
+            // imports.
+            Statement::ImportDeclaration(_)
+                if matches!(context, ScriptContext::File)
+                    || (rw.target == Target::Server
+                        && matches!(context, ScriptContext::Module)) =>
+            {
                 out.push(rw.statement(statement));
             }
             Statement::ImportDeclaration(_) => hoisted.push(rw.statement(statement)),
