@@ -230,8 +230,8 @@
 		"not-runes-compatible:legacy_export_invalid": 1
 	},
 	"rsvelte": {
-		"admitted": 2938,
-		"claimed": 2977,
+		"admitted": 2940,
+		"claimed": 2979,
 		"duplicate": 39,
 		"rejected:module-rejected:derived_invalid_export": 1,
 		"rejected:module-rejected:dollar_prefix_invalid": 1,
@@ -259,6 +259,7 @@
 		"rejected:not-runes-compatible:declaration_duplicate": 1,
 		"rejected:not-runes-compatible:dollar_binding_invalid": 1,
 		"rejected:not-runes-compatible:dollar_prefix_invalid": 11,
+		"rejected:not-runes-compatible:duplicate_class_field": 1,
 		"rejected:not-runes-compatible:each_item_invalid_assignment": 3,
 		"rejected:not-runes-compatible:element_unclosed": 1,
 		"rejected:not-runes-compatible:expected_token": 11,

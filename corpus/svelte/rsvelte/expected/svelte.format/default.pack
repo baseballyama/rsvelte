@@ -46812,3 +46812,22 @@ b`;
   {/each}
 </select>
 
+=== 130 pattern/ts-class-generator-method-overload.svelte	svelte
+<script lang="ts">
+  class C {
+    *m(): Generator<number>;
+    *m() {
+      yield 1;
+    }
+  }
+  console.log(new C());
+</script>
+
+=== 73 pattern/ts-class-generator-method-signature.svelte	svelte
+<script lang="ts">
+  class C {
+    *m();
+  }
+  console.log(C);
+</script>
+

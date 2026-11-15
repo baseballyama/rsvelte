@@ -48696,3 +48696,22 @@ export function pin(then) {
 	{/each}
 </select>
 
+=== 118 pattern/ts-class-generator-method-overload.svelte	svelte	runes	rejected
+<script lang="ts">
+	class C {
+		*m(): Generator<number>;
+		*m() {
+			yield 1;
+		}
+	}
+	console.log(new C());
+</script>
+
+=== 68 pattern/ts-class-generator-method-signature.svelte	svelte	runes	neutral
+<script lang="ts">
+	class C {
+		*m();
+	}
+	console.log(C);
+</script>
+

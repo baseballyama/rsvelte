@@ -69867,3 +69867,19 @@ export default function Store_member_write_invalidates_inner_signals($$renderer,
 		$.bind_props($$props, { shape });
 	});
 }
+=== 248 pattern/ts-class-generator-method-overload.svelte	error.json
+{
+	"code": "duplicate_class_field",
+	"message": "`m` has already been declared\nhttps://svelte.dev/e/duplicate_class_field",
+	"start": {
+		"line": 4,
+		"column": 2,
+		"character": 59
+	},
+	"end": {
+		"line": 6,
+		"column": 3,
+		"character": 81
+	}
+}
+
