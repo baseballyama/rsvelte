@@ -9,8 +9,8 @@
 //   INSTRUCTION_TOLERANCE: one warm round, taken as the difference between `rounds=2` and
 //   `rounds=1`, and loading (`rounds=0`: start-up, reading the files and constructing the
 //   documents), which every invocation pays. cachegrind runs some fifty times slower than the
-//   machine, so these count every INSTRUCTION_SAMPLE-th unit of the corpus in name order, not the
-//   corpus; the three runs go at once, beside the allocation run.
+//   machine, so these count one unit in INSTRUCTION_SAMPLE, picked by a hash of its path so that
+//   adding a unit keeps the others' picks, not the corpus; the three runs go at once, beside the allocation run.
 //
 // The ratchet is two-sided: a counter that rose fails, and so does one that fell without the
 // baseline recording it, so an improvement is locked in by the change that made it. `--update`
@@ -50,7 +50,7 @@ interface Baseline {
 	instructions: Record<string, number>;
 	/** Loading's instructions (`rounds=0`), per `<arch>-<os>`. */
 	load_instructions: Record<string, number>;
-	/** What the instructions count: every `every`-th unit; absent: every unit. */
+	/** What the instructions count: one unit in `every`, by path hash; absent: every unit. */
 	instruction_sample?: Sample;
 }
 
@@ -84,7 +84,7 @@ export async function main(args: string[]): Promise<void> {
 	const POPULATION = ['corpus/svelte'];
 	/** Relative; cachegrind repeats itself exactly on one machine, this absorbs libc and CPU dispatch. */
 	const INSTRUCTION_TOLERANCE = 0.002;
-	/** Instructions count every this-th corpus unit. */
+	/** Instructions count one corpus unit in this many. */
 	const INSTRUCTION_SAMPLE = 20;
 
 	const { values } = parseArgs({

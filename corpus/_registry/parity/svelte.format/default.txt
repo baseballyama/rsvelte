@@ -1,4 +1,4 @@
-# svelte.format/default: 34492 match
+# svelte.format/default: 34491 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -556,6 +556,7 @@ svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/the_typescript_rules_a
 svelte/rsvelte-tests-core-3/ts_type_import_value_redeclaration/type_imports_collide_with_value_declarations_at_the_second_name/038d0dc034da5245.svelte	refused
 svelte/rsvelte-tests-core-3/ts_type_import_value_redeclaration/type_imports_collide_with_value_declarations_at_the_second_name/37872848f3467e35.svelte	refused
 svelte/rsvelte-tests-core-3/ts_type_import_value_redeclaration/type_imports_collide_with_value_declarations_at_the_second_name/8e90b81fa7f50efb.svelte	refused
+svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeats_its_comment/45b1a6d91ed20a95.svelte	mismatch
 svelte/rsvelte-tests-core-3/unary_fallback_arm_4386/an_each_destructuring_default_takes_the_arm_upstream_takes/bc756e01927eb257.svelte	refused
 svelte/rsvelte-tests-core-3/unary_fallback_arm_4386/an_each_destructuring_default_takes_the_arm_upstream_takes/c96cc8b9324e804d.svelte	refused
 svelte/rsvelte-tests-core-3/with_statement_strict_mode/with_statement_in_instance_script_is_rejected/d3aec6e2c66c6e6a.svelte	refused

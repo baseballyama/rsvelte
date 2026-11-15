@@ -15,8 +15,8 @@ pub struct Locator {
     /// function or a parameter list. A template's pattern and `{@const}` are none of these, and
     /// upstream hands each to acorn as the target of an assignment.
     pub(super) declares: bool,
-    /// Whether a type alias or an interface declares the first name of [`Find::Redeclared`].
-    first_type: bool,
+    /// For [`Find::Redeclared`], whether the first declaration is a type alias or an interface.
+    pub(super) first_is_type: bool,
 }
 
 /// What decides how acorn reads an optional rest element, from the nodes around it.
@@ -69,12 +69,14 @@ pub(super) enum Find {
     Jump,
     /// The `delete` around the label.
     Unary,
-    /// The parameter list around the label, or the type alias the label names after a type alias
-    /// or an interface named at `first`, which acorn's TypeScript plugin keeps apart.
-    Redeclared { first: oxc_span::Span },
     /// The innermost method, class field, static block or other function around the label, which
     /// decides whether acorn allows `super` there.
     SuperHome,
+    /// The initializer of the class field whose key is the label.
+    Initializer,
+    /// The type alias or interface whose name is the label, or the parameter list around it,
+    /// where the label redeclares the name the span is.
+    Redeclared(oxc_span::Span),
 }
 
 impl Locator {
@@ -84,7 +86,7 @@ impl Locator {
             find,
             found: None,
             declares: false,
-            first_type: false,
+            first_is_type: false,
             rest: AroundRest {
                 ambient: false,
                 reading: Reading::Binding,
@@ -132,6 +134,21 @@ impl Locator {
         around.holder = Holder::Parameters;
     }
 
+    fn enter_redeclared(&mut self, first: oxc_span::Span, kind: AstKind<'_>, around: bool) {
+        let name = match kind {
+            AstKind::FormalParameters(it) if around => {
+                return self.found = Some((it.span.start, kind.ty()));
+            }
+            AstKind::TSTypeAliasDeclaration(it) => it.id.span,
+            AstKind::TSInterfaceDeclaration(it) => it.id.span,
+            _ => return,
+        };
+        self.first_is_type |= name == first;
+        if name == self.label {
+            self.found = Some((name.start, kind.ty()));
+        }
+    }
+
     /// Takes in a node of the walk, outer nodes before inner ones.
     pub fn enter(&mut self, kind: AstKind<'_>) {
         let around = kind.span().contains_inclusive(self.label);
@@ -153,25 +170,8 @@ impl Locator {
             }
             return;
         }
-        if let Find::Redeclared { first } = self.find {
-            match kind {
-                AstKind::TSTypeAliasDeclaration(it) if it.id.span == first => {
-                    self.first_type = true;
-                }
-                AstKind::TSInterfaceDeclaration(it) if it.id.span == first => {
-                    self.first_type = true;
-                }
-                AstKind::TSTypeAliasDeclaration(it) if it.id.span == self.label => {
-                    if self.first_type {
-                        self.found = Some((it.span.start, kind.ty()));
-                    }
-                }
-                AstKind::FormalParameters(it) if around => {
-                    self.found = Some((it.span.start, kind.ty()));
-                }
-                _ => {}
-            }
-            return;
+        if let Find::Redeclared(first) = self.find {
+            return self.enter_redeclared(first, kind, around);
         }
         let found = match (self.find, kind) {
             // A method's function is the method, which comes first in the walk.
@@ -196,6 +196,10 @@ impl Locator {
                     && it.value.body.is_none() =>
             {
                 it.span.start
+            }
+            (Find::Initializer, AstKind::PropertyDefinition(it)) if it.key.span() == self.label => {
+                let Some(value) = &it.value else { return };
+                value.span().start
             }
             (Find::Function, AstKind::Function(_) | AstKind::ArrowFunctionExpression(_))
             | (

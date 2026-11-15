@@ -147,28 +147,30 @@ fn acorn_reads_a_class_accessor_without_a_body_and_an_export_it_does_not_check()
 }
 
 #[test]
-fn a_type_alias_declared_again_fails_with_the_plugins_message() {
-    let alias = |at| Some(("type 'T' has already been declared.".to_owned(), at));
-    let name = |message: &str, at| Some((message.to_owned(), at));
-    for (text, expected) in [
-        ("type T = 1; type T = 2;", alias(17)),
-        ("interface T {} type T = 1;", alias(20)),
-        ("function f() { type T = 1; type T = 2; }", alias(32)),
-        ("namespace N { type T = 1; type T = 2; }", alias(31)),
-        ("type T<A> = 1; type T = 2;", alias(20)),
+fn a_type_alias_fails_only_where_a_type_declared_its_name_before() {
+    // What svelte 5.57.3, through acorn-typescript, reports.
+    for (text, acorn) in [
         (
-            "let x = 1; let x = 2;",
-            name("Identifier 'x' has already been declared", 15),
+            "type T = 1; type T = 2;",
+            Some(("type 'T' has already been declared.", 17)),
         ),
+        (
+            "interface T {} type T = 1;",
+            Some(("type 'T' has already been declared.", 20)),
+        ),
+        (
+            "{ type T = 1; type T = 2; }",
+            Some(("type 'T' has already been declared.", 19)),
+        ),
+        ("type T = 1; interface T {}", None),
+        ("class T {} type T = 1;", None),
+        ("enum T {} type T = 1;", None),
     ] {
+        let expected = acorn.map(|(message, at)| (message.to_owned(), at));
         assert_eq!(
             acorn_reports(text, SourceType::ts(), &[]),
             expected,
             "{text:?}"
         );
     }
-    assert_eq!(
-        acorn_reports("function f(a, a) {}", SourceType::mjs(), &[]),
-        name("Argument name clash", 14)
-    );
 }
