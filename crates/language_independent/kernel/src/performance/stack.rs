@@ -27,6 +27,11 @@ const PER_BYTE: usize = 4 << 10;
 /// What a task needs besides the nesting of its text.
 const BASE: usize = 1 << 20;
 
+/// Stack each worker of the pipeline reserves; pages are committed only as they are used.
+///
+/// With rayon's 2 MiB, [`for_text`] maps and unmaps a segment for most documents.
+pub const WORKER: usize = 64 << 20;
+
 /// Runs `f`, a task over a text of `len` bytes, on a stack as deep as that text may nest: on this
 /// one when it has room, else on a segment whose pages are reserved, not committed.
 pub fn for_text<R>(len: usize, f: impl FnOnce() -> R) -> R {

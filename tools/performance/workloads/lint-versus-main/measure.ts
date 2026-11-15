@@ -169,8 +169,8 @@ function wall() {
 					// Each arm takes each place in turn.
 					const order = armNames.map((_, i) => armNames[(i + repetition) % armNames.length]!);
 					order.forEach((arm, position) => {
-						// ESLint has no allocator to pick, so it runs once.
-						if (arm === 'eslint' && allocator !== allocators[0]) return;
+						// ESLint has no allocator to pick, so it runs once, and as it runs plainly, on one thread.
+						if (arm === 'eslint' && (allocator !== allocators[0] || thread !== '1')) return;
 						const output = run(
 							arms[arm],
 							['lint', mode, rulesFile(mode, arm), at('inputs.txt'), rounds, thread],
