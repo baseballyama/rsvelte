@@ -696,9 +696,10 @@ text after the last separator only when it found no code before
 - Case: `<!--svelte-ignore a11y_missing_attribute a11y_distracting_elements-->` before an
   `<img>` without `alt`. Upstream never checks `a11y_distracting_elements`, and reports nothing.
   With a space before `-->`, it reports the code as unused.
-- Case: `// svelte-ignore state_referenced_locally TODO`, where the last word is a note.
+- Case: `// svelte-ignore state_referenced_locally TODO`, where the last word is a note, and
+  `// svelte-ignore await_reactivity_loss, state_referenced_locally`.
 - Correct: Svelte reads every code of the list. This crate checks the last one too.
-- The corpus skips their 4 lint units.
+- The corpus skips their 5 lint units.
 
 ## The `this` attribute of `<svelte:element>` (svelte-eslint-parser)
 
