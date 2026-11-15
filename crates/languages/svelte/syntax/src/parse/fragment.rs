@@ -150,7 +150,11 @@ impl Parser<'_, '_> {
     fn comment(&mut self) -> ParseResult<TemplateNodeIdentifier> {
         let start_offset = self.position;
         let Some(end) = memchr::memmem::find(self.rest().as_bytes(), b"-->") else {
-            // Upstream reads to the end before it requires the `-->`.
+            // Upstream reads to the end before it requires the `-->`, and cannot start to read
+            // at the end.
+            if start_offset + 4 == self.source_text.len() {
+                return self.unexpected_eof();
+            }
             self.position = self.source_text.len();
             return self.expected_token("-->");
         };
