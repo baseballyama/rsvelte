@@ -2613,6 +2613,7 @@
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 deletes a comment outside a template expression's parentheses, which Svelte attaches to no node"
 
 ["svelte/rsvelte-tests-core-2/parse_ast_comment_attachment_4133/comments_inside_or_after_parens_still_reach_the_expression/9f102071b2d1f718.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/special_tag_bracket_scan/debug_tag_comment_with_brace/55705dc7a048ab7a.svelte".skip]
@@ -3062,6 +3063,7 @@
 "svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 reads `assert {` after a line break as import attributes, where the grammar forbids a line break before assert and TypeScript rejects it"
 
 ["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
 "svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
 "svelte.format" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
 
@@ -4092,3 +4094,35 @@
 
 ["svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/20d491fc9d358155.svelte".skip]
 "svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on an enum in a script without `lang`, so ESLint reports nothing"
+
+["svelte/rsvelte/pattern/issues/3189-unbound-dollar-still-rejected.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/59adde327ea8994d.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests/rsvelte_language_server/selection_ranges/tests/style_selection_expands_while_scripts_remain_excluded/1ba3fc42196f334c.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests/rsvelte_language_server/tsgo_component_info/tests/parser_script_native_value_and_non_colon_triggers_are_rejected/91ee76e6755d0421.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests/rsvelte_language_server/tsgo_response/tests/a_name_longer_than_fifty_units_is_cut/52a32249c3589343.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/modifiers_and_a_trailing_comma_are_read_from_the_parse/3b62fe6ae1f4ce8d.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+
+["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/every_host_accepts_what_upstream_accepts/37afe1d05a47e6a8.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+
+["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/0072c9b1c27c3e21.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/59e91fdef56ed90e.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/ff14a907a86b8623.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"

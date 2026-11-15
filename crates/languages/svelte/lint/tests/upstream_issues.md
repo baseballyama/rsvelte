@@ -253,6 +253,22 @@ which `setOffsetElementList` calls from the `TSEnumDeclaration` handler in
 the enum as in a TypeScript script. Test in `task/tests.rs`:
 `an_enum_in_a_plain_script_is_indented`.
 
+## A parse error at a position of the generated code (svelte-eslint-parser)
+
+Input:
+
+```svelte
+<script>x</script>
+```
+
+svelte-eslint-parser 1.10.0 parses code it generates from the scripts and the template with
+typescript-eslint (`parseScriptWithoutAnalyzeScopeFromVCode` and `analyzeTypeScriptInSvelte`
+in `parser/script.js`). When that code fails, ESLint reports the error at its line and column in
+the generated code: `Unexpected keyword or identifier.` at 2:0 here, a line the file does not
+have. `{(a) /* c */}`, `let x = $;` and `generics="const T extends string"` fail the same way. This
+crate does not reproduce them. The corpus skips each unit whose expected error is past the
+end of its file.
+
 ## `svelte/prefer-const` treats a `<script module>` export as a prop
 
 Issue: [svelte-eslint-parser #992](https://github.com/sveltejs/svelte-eslint-parser/issues/992).
