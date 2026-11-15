@@ -3,12 +3,14 @@ use oxc_ast::ast::{
     VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
-use oxc_span::Span;
+use oxc_span::{GetSpan, Span};
 use oxc_syntax::scope::ScopeFlags;
 use rsvelte_svelte_syntax::syntax_tree::Component;
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 
-/// The grammar errors Svelte's parser lets pass that typescript-eslint throws, with its words.
-const THROWN: [(u32, &str); 4] = [
+/// The grammar errors a host lets pass that typescript-eslint throws from its own check of the
+/// tree, with its words.
+const THROWN: [(u32, &str); 5] = [
     (1221, "Generators are not allowed in an ambient context."),
     (
         1222,
@@ -22,12 +24,15 @@ const THROWN: [(u32, &str); 4] = [
         1264,
         "Declarations with definite assignment assertions must also have type annotations.",
     ),
+    (1267, "Abstract property cannot have an initializer."),
 ];
 
-/// What typescript-eslint throws for the first such error in a script, and where: at the
-/// declaration it checks, where oxc points at the `!` or the `*`.
-pub(super) fn rejection(component: &Component) -> Option<(&'static str, u32)> {
-    let tree = &component.javascript;
+/// What typescript-eslint throws for the first such error in `programs` of `tree`, and where:
+/// at the node it checks, where oxc points at the `!`, the `*` or the name.
+pub(super) fn rejection(
+    tree: &Tree,
+    programs: impl IntoIterator<Item = ProgramIdentifier>,
+) -> Option<(&'static str, u32)> {
     let (error, message) = (tree.unchecked_errors().iter())
         .filter_map(|error| {
             let code = error.typescript_code?;
@@ -36,51 +41,68 @@ pub(super) fn rejection(component: &Component) -> Option<(&'static str, u32)> {
         })
         .min_by_key(|(error, _)| error.diagnostic.span.start_offset)?;
     let at = error.diagnostic.span.start_offset;
-    let script = (component.module.iter().chain(&component.instance))
-        .find(|script| script.content.start_offset <= at && at < script.content.end_offset)?;
-    let mut declaration = Declaration {
+    let program = (programs
+        .into_iter()
+        .map(|program| tree.get_program(program)))
+    .find(|program| program.span.start <= at && at < program.span.end)?;
+    let mut node = Node {
         at,
-        function: matches!(error.typescript_code, Some(1221 | 1222)),
+        kind: match error.typescript_code {
+            Some(1221 | 1222) => Kind::Function,
+            Some(1267) => Kind::Initializer,
+            _ => Kind::Declarator,
+        },
         start: None,
     };
-    declaration.visit_program(tree.get_program(script.program));
-    Some((message, declaration.start?))
+    node.visit_program(program);
+    Some((message, node.start?))
 }
 
-/// The start of the innermost declaration of the kind an error is about that holds `at`.
-struct Declaration {
+/// The scripts of `component`.
+pub(super) fn scripts(component: &Component) -> impl Iterator<Item = ProgramIdentifier> {
+    (component.module.iter().chain(&component.instance)).map(|script| script.program)
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Kind {
+    /// A variable declarator or a class property.
+    Declarator,
+    Function,
+    /// A class property's initializer.
+    Initializer,
+}
+
+/// The start of the innermost node of the kind an error is about that holds `at`.
+struct Node {
     at: u32,
-    function: bool,
+    kind: Kind,
     start: Option<u32>,
 }
 
-impl Declaration {
-    const fn enter(&mut self, span: Span) {
-        if span.start <= self.at && self.at < span.end {
-            self.start = Some(span.start);
+impl Node {
+    const fn enter(&mut self, kind: Kind, holder: Span, start: u32) {
+        if self.kind as u8 == kind as u8 && holder.start <= self.at && self.at < holder.end {
+            self.start = Some(start);
         }
     }
 }
 
-impl<'a> Visit<'a> for Declaration {
+impl<'a> Visit<'a> for Node {
     fn visit_variable_declarator(&mut self, it: &VariableDeclarator<'a>) {
-        if !self.function {
-            self.enter(it.span);
-        }
+        self.enter(Kind::Declarator, it.span, it.span.start);
         walk::walk_variable_declarator(self, it);
     }
 
     fn visit_property_definition(&mut self, it: &PropertyDefinition<'a>) {
-        if !self.function {
-            self.enter(it.span);
+        self.enter(Kind::Declarator, it.span, it.span.start);
+        if let Some(value) = &it.value {
+            self.enter(Kind::Initializer, it.span, value.span().start);
         }
         walk::walk_property_definition(self, it);
     }
 
     fn visit_function(&mut self, it: &Function<'a>, flags: ScopeFlags) {
-        if self.function {
-            self.enter(it.span);
-        }
+        self.enter(Kind::Function, it.span, it.span.start);
         walk::walk_function(self, it, flags);
     }
 }
@@ -90,8 +112,8 @@ impl<'a> Visit<'a> for Declaration {
 pub(super) fn scanner_rejection(component: &Component) -> Option<(String, u32)> {
     let tree = &component.javascript;
     let mut scanner = Scanner { first: None };
-    for script in component.module.iter().chain(&component.instance) {
-        scanner.visit_program(tree.get_program(script.program));
+    for program in scripts(component) {
+        scanner.visit_program(tree.get_program(program));
     }
     scanner.first
 }
@@ -169,7 +191,7 @@ impl<'a> Visit<'a> for Scanner {
         if it.phase == Some(ImportPhase::Source)
             && let Some(local) = (it.specifiers.iter().flatten()).next()
         {
-            let at = oxc_span::GetSpan::span(local).start;
+            let at = local.span().start;
             self.reject("'=' expected.".to_owned(), at);
         }
         walk::walk_import_declaration(self, it);

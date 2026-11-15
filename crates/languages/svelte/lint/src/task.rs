@@ -148,7 +148,7 @@ impl Task for Lint {
             None if rsvelte_svelte_syntax::matches(context.document) => {
                 (context.get::<rsvelte_svelte_syntax::Parsed>().as_ref().ok()).and_then(
                     |component| {
-                        (grammar::rejection(component))
+                        (grammar::rejection(&component.javascript, grammar::scripts(component)))
                             .map(|(message, at)| (message.to_owned(), at))
                             .or_else(|| directive_names::rejection(component))
                     },
@@ -166,12 +166,14 @@ impl Task for Lint {
                 error.span.start_offset,
             ) {
                 typescript_eslint_rejection(context).or_else(|| {
-                    let component = context
-                        .get::<rsvelte_svelte_syntax::Parsed>()
-                        .as_ref()
-                        .ok()?;
-                    let (message, at) = grammar::scanner_rejection(component)?;
-                    Some((Cow::Owned(message), at))
+                    if let Ok(component) = context.get::<rsvelte_svelte_syntax::Parsed>() {
+                        let (message, at) = grammar::scanner_rejection(component)?;
+                        return Some((Cow::Owned(message), at));
+                    }
+                    let component = crate::computation::component(context).ok()?;
+                    let (message, at) =
+                        grammar::rejection(&component.javascript, grammar::scripts(component))?;
+                    Some((Cow::Borrowed(message), at))
                 })
             } else {
                 Some((
@@ -239,13 +241,19 @@ fn typescript_eslint_rejection<'a>(
     Some((error.typescript_eslint_message()?, at))
 }
 
-/// What typescript-eslint throws for a module that neither the shared parse nor TypeScript reads.
+/// What typescript-eslint throws for a module the shared parse rejects.
 fn module_rejection<'a>(context: &'a DocumentContext<'_>) -> Option<(Cow<'a, str>, u32)> {
     context
         .get::<rsvelte_typescript_tree::Parsed>()
         .as_ref()
         .err()?;
-    let errors = context.get::<ModuleAsTypeScript>().as_ref().err()?;
+    let errors = match context.get::<ModuleAsTypeScript>() {
+        Ok(module) => {
+            let (message, at) = grammar::rejection(&module.tree, [module.root])?;
+            return Some((Cow::Borrowed(message), at));
+        }
+        Err(errors) => errors,
+    };
     let error = rsvelte_typescript_tree::typescript_eslint_error(errors)?;
     Some((
         error.typescript_eslint_message()?,

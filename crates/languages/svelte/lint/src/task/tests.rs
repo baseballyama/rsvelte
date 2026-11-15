@@ -275,3 +275,26 @@ fn a_legacy_octal_or_a_source_import_fails_the_parse() {
         );
     }
 }
+
+/// typescript-eslint throws on an abstract property's initializer at the initializer.
+#[test]
+fn an_abstract_initializer_fails_the_parse_at_the_initializer() {
+    for (path, source, column) in [
+        ("a.svelte.js", "class K {\n\tabstract a = 1;\n}\n", 14),
+        (
+            "App.svelte",
+            "<script>\nclass K {\n\tabstract a = 1;\n}\n</script>\n<p>{K}</p>\n",
+            14,
+        ),
+    ] {
+        let document = Document::new(path.to_owned(), source.to_owned()).expect("a small document");
+        let (json, _) = lint_with("svelte/no-svelte-internal", &document, |_| {});
+        let finding = &json["findings"][0];
+        assert_eq!(
+            finding["message"].as_str(),
+            Some("Parsing error: Abstract property cannot have an initializer."),
+            "{path}"
+        );
+        assert_eq!(finding["start"]["column"].as_u64(), Some(column), "{path}");
+    }
+}
