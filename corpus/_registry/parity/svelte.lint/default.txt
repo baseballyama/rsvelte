@@ -1,4 +1,4 @@
-# svelte.lint/default: 37178 match
+# svelte.lint/default: 37179 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -348,7 +348,6 @@ svelte/rsvelte-tests-formatter/indent/tab_indent_reindents_multiline_bind_getter
 svelte/rsvelte-tests-formatter/markup_patterns/let_directive_value_is_formatted_as_an_expression/ac7edb54ecf01f25.svelte	mismatch
 svelte/rsvelte-tests-formatter/style/scss_syntax_body_does_not_abort_parse/bd49abef40bff38d.svelte	mismatch
 svelte/rsvelte-tests-formatter/svelte_element_this_chunks/single_quoted_value_with_an_expression_keeps_the_whole_value/d364396ec9b25275.svelte	mismatch
-svelte/rsvelte-tests-formatter/typescript/directive_values_preserve_ts_casts/ac1e9af7e042ba08.svelte	mismatch
 svelte/rsvelte-tests-formatter/typescript/plain_script_with_import_type_formats_as_ts/4c8f2777ba39e75b.svelte	refused
 svelte/rsvelte-tests-formatter/typescript/plain_script_with_typeof_generic_formats_as_ts/021c26b1a4368b0c.svelte	refused
 svelte/rsvelte-tests-formatter/typescript/plain_script_with_typeof_generic_formats_as_ts/d64ae6148180ecd1.svelte	refused

@@ -509,6 +509,18 @@ fn a_typescript_feature_is_refused_before_the_template_is_analyzed() {
 }
 
 #[test]
+fn an_unknown_bind_target_under_a_cast_points_at_the_name() {
+    assert_eq!(
+        compile_at(
+            "<script lang=\"ts\"></script><input bind:value={value as string} />",
+            Target::Client
+        )
+        .err(),
+        Some(("bind_invalid_value".to_owned(), (46, 51)))
+    );
+}
+
+#[test]
 fn a_default_export_is_refused_before_the_typescript_it_holds() {
     assert_eq!(
         compile_at(
