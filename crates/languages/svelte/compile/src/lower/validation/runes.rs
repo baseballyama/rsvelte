@@ -67,6 +67,10 @@ enum Parent {
     LoneExpression,
     /// The callee of an `$inspect(…).with(…)` statement, whose `$inspect(…)` stands in it.
     InspectWith(Option<(Body, bool)>),
+    /// The callee of an `$inspect(…).with(…)` that initializes a name at a script's top level,
+    /// and the `$inspect(…)` in it.
+    InitializerWith,
+    InitializerInspect,
     /// The value of a class field that is neither static nor computed.
     ClassField,
     /// The value of `this.x = …`, a statement of a constructor's body.

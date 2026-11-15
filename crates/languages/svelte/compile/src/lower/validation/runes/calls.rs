@@ -165,10 +165,24 @@ impl RuneWalk<'_> {
                 }
                 // Upstream prints these statements as `;;` outside development, which only a
                 // statement list holds as written, and breaks the code it prints for any other
-                // use.
-                "$inspect" | "$inspect().with" | "$inspect.trace" => {
-                    matches!(place.parent, Parent::Statement(_))
+                // use. A top-level name it initializes with `.with` takes the inspector on the
+                // server and is not declared on the client.
+                "$inspect" => {
+                    matches!(
+                        place.parent,
+                        Parent::Statement(_) | Parent::InitializerInspect
+                    )
                 }
+                "$inspect().with" => matches!(
+                    place.parent,
+                    Parent::Statement(_)
+                        | Parent::Initializer {
+                            top: true,
+                            named: true,
+                            ..
+                        }
+                ),
+                "$inspect.trace" => matches!(place.parent, Parent::Statement(_)),
                 _ => false,
             };
         if supported || self.refused.is_some() {
