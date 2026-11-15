@@ -4,11 +4,13 @@
 
 use std::borrow::Cow;
 
-use super::SyntaxError;
+use oxc_diagnostics::OxcDiagnostic;
+
+use super::{Find, Locator, SyntaxError, locate};
 
 /// The message of a code, where `{0}` stands for the name or token oxc's message quotes. Those of
-/// 1070, 1071, 1090, 2404, 2483 and 2499 are typescript-eslint's words, the others tsc's.
-const MESSAGES: [(u32, &str); 28] = [
+/// 1070, 1071, 1090, 1267, 2404, 2483 and 2499 are typescript-eslint's words, the others tsc's.
+const MESSAGES: [(u32, &str); 30] = [
     (1005, "'{0}' expected."),
     (
         1024,
@@ -30,6 +32,7 @@ const MESSAGES: [(u32, &str); 28] = [
     (1099, "Type argument list cannot be empty."),
     (1109, "Expression expected."),
     (1110, "Type expected."),
+    (1127, "Invalid character."),
     (1161, "Unterminated regular expression literal."),
     (1172, "'extends' clause already seen."),
     (1173, "'extends' clause must precede 'implements' clause."),
@@ -51,6 +54,7 @@ const MESSAGES: [(u32, &str); 28] = [
         "'accessor' modifier can only appear on a property declaration.",
     ),
     (1434, "Unexpected keyword or identifier."),
+    (1267, "Abstract property cannot have an initializer."),
     (1435, "Unknown keyword or identifier. Did you mean '{0}'?"),
     (1489, "Decimals with leading zeros are not allowed."),
     (
@@ -109,6 +113,20 @@ impl SyntaxError {
         };
         Some(Cow::Owned(template.replace("{0}", argument)))
     }
+}
+
+/// Where typescript-eslint throws `error`, in the tree `visit` walks, when that is not where oxc
+/// labels it: it checks an abstract field's initializer itself, and reports the initializer.
+pub(crate) fn typescript_eslint_at(
+    error: &OxcDiagnostic,
+    visit: impl FnOnce(&mut Locator),
+) -> Option<u32> {
+    if error.code.scope.as_deref() != Some("TS") || error.code.number.as_deref() != Some("1267") {
+        return None;
+    }
+    let label = error.labels.first()?;
+    let end = label.offset() + label.len();
+    locate(label.offset(), end, Find::Initializer, visit).map(|(at, _)| at)
 }
 
 /// The error of `errors`, oxc's in its order, that typescript-eslint throws.

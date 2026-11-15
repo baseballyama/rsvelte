@@ -145,3 +145,32 @@ fn acorn_reads_a_class_accessor_without_a_body_and_an_export_it_does_not_check()
     .expect("parses");
     assert!(Semantic::program(tree, program).syntax_error().is_some());
 }
+
+#[test]
+fn a_type_alias_fails_only_where_a_type_declared_its_name_before() {
+    // What svelte 5.57.3, through acorn-typescript, reports.
+    for (text, acorn) in [
+        (
+            "type T = 1; type T = 2;",
+            Some(("type 'T' has already been declared.", 17)),
+        ),
+        (
+            "interface T {} type T = 1;",
+            Some(("type 'T' has already been declared.", 20)),
+        ),
+        (
+            "{ type T = 1; type T = 2; }",
+            Some(("type 'T' has already been declared.", 19)),
+        ),
+        ("type T = 1; interface T {}", None),
+        ("class T {} type T = 1;", None),
+        ("enum T {} type T = 1;", None),
+    ] {
+        let expected = acorn.map(|(message, at)| (message.to_owned(), at));
+        assert_eq!(
+            acorn_reports(text, SourceType::ts(), &[]),
+            expected,
+            "{text:?}"
+        );
+    }
+}

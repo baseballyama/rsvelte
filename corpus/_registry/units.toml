@@ -104,6 +104,18 @@
 "svelte.compile" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
 "svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
 
+["svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/non_css_style_ignore_is_treated_as_used/befdd05c4edb8a56.svelte".skip]
+"svelte.compile" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+"svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+
+["svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/plain_css_unused_ignore_is_still_reported/964da7c6a5553df3.svelte".skip]
+"svelte.compile" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+"svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+
+["svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/transformed_scss_unused_ignore_is_reported/e19fecebd6a045c3.svelte".skip]
+"svelte.compile" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+"svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang03-input.svelte".skip]
 "svelte.compile" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
 "svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
@@ -4119,3 +4131,18 @@
 
 ["svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/36e05300c734c306.svelte".skip]
 "svelte.check" = "the official output depends on Node's stack depth, so it cannot be trusted"
+
+["svelte/rsvelte-tests-core-2/malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/2cd944404c6f582d.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a line comment, and parses them with ` => {}` appended, so it rejects a valid header"
+"svelte.check" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a line comment, and parses them with ` => {}` appended, so it rejects a valid header, which svelte-check reports"
+"svelte.lint" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a line comment, and parses them with ` => {}` appended, so it rejects a valid header, which svelte/valid-compile reports"
+
+["svelte/rsvelte-tests-core-2/malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/c5bc4d862a4fa46e.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a line comment, and parses them with ` => {}` appended, so it rejects a valid header"
+"svelte.check" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a line comment, and parses them with ` => {}` appended, so it rejects a valid header, which svelte-check reports"
+"svelte.lint" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a line comment, and parses them with ` => {}` appended, so it rejects a valid header, which svelte/valid-compile reports"
+
+["svelte/rsvelte-tests-core-2/malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/b6bcad46807ea3c1.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a string, and parses them with ` => {}` appended, so it rejects a valid header"
+"svelte.check" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a string, and parses them with ` => {}` appended, so it rejects a valid header, which svelte-check reports"
+"svelte.lint" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a string, and parses them with ` => {}` appended, so it rejects a valid header, which svelte/valid-compile reports"

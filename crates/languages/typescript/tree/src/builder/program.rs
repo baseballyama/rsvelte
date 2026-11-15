@@ -6,7 +6,7 @@ use rsvelte_kernel::source::positions::Span;
 
 use super::{Builder, Part, parentheses};
 use crate::ProgramIdentifier;
-use crate::syntax_error::{SyntaxError, acorn, syntax_error};
+use crate::syntax_error::{SyntaxError, acorn, syntax_error, typescript_eslint_at};
 
 impl<'a> Builder<'a> {
     /// Parses `range` of the document as a program, such as the body of a `<script>` element.
@@ -39,9 +39,17 @@ impl<'a> Builder<'a> {
         let start = range.start_offset;
         self.read_program(text, start, source_type, true)
             .map_err(|rejected| {
-                let errors = rejected.diagnostics.into_iter();
+                let program = (rejected.recovered).map(|program| &self.programs[program.index()]);
+                let errors = rejected.diagnostics.into_iter().map(|e| {
+                    let at = program.and_then(|program| {
+                        typescript_eslint_at(&e, |locator| Part::Program(program).walk(locator))
+                    });
+                    let mut error = syntax_error([e], text, &[], start, 0);
+                    error.typescript_eslint_at = at;
+                    error
+                });
                 Rejected {
-                    errors: errors.map(|e| syntax_error([e], text, start, 0)).collect(),
+                    errors: errors.collect(),
                     recovered: rejected.recovered,
                 }
             })
@@ -74,8 +82,8 @@ impl<'a> Builder<'a> {
             .parse();
         if parsed.fatal_error {
             let acorn = (parsed.diagnostics.first())
-                .and_then(|first| acorn(first, text, &parsed.tokens, |_| {}));
-            let mut error = syntax_error(parsed.diagnostics.iter().cloned(), text, start, 0);
+                .and_then(|first| acorn(first, text, (&parsed.tokens, None), |_| {}));
+            let mut error = syntax_error(parsed.diagnostics.iter().cloned(), text, &[], start, 0);
             error.acorn = acorn;
             return Err(Box::new(Read {
                 error,
@@ -87,7 +95,7 @@ impl<'a> Builder<'a> {
         let rejection = match self.check(
             &parsed.diagnostics,
             (text, start, 0),
-            &parsed.tokens,
+            (&parsed.tokens, None),
             (part, source_type),
         ) {
             Ok(()) => None,

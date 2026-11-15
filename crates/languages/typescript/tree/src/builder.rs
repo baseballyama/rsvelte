@@ -17,7 +17,9 @@ mod program;
 pub use program::Rejected;
 
 use crate::acorn_grammar::{Rejection, Unsupported, rejection};
-use crate::syntax_error::{Locator, SyntaxError, acorn, reported, syntax_error};
+use crate::syntax_error::{
+    Locator, SyntaxError, acorn, reported, syntax_error, typescript_eslint_at,
+};
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
     ProgramIdentifier, Trees, TypeParametersIdentifier,
@@ -117,7 +119,7 @@ impl<'a> Builder<'a> {
         &mut self,
         diagnostics: &[OxcDiagnostic],
         (text, fallback, shift): (&str, u32, u32),
-        tokens: &[Token],
+        (tokens, next_token): (&[Token], Option<Token>),
         (part, source_type): (Part<'_, 'a>, SourceType),
     ) -> Result<(), SyntaxError> {
         let visit = |locator: &mut Locator| part.walk(locator);
@@ -131,10 +133,13 @@ impl<'a> Builder<'a> {
             None
         };
         if let Some(first) = first {
-            let acorn = acorn(&diagnostics[first], text, tokens, visit);
+            // acorn may fail at the token after the part, which the parser read to end it.
+            let acorn = acorn(&diagnostics[first], text, (tokens, next_token), visit);
             let errors = diagnostics.iter().skip(first).cloned();
-            let mut error = syntax_error(errors, text, fallback, shift);
+            let mut error = syntax_error(errors, text, &[], fallback, shift);
             error.acorn = acorn.map(|acorn| acorn.shifted(shift));
+            error.typescript_eslint_at =
+                typescript_eslint_at(&diagnostics[first], visit).map(|at| at + shift);
             // acorn throws where it stops first, before an error oxc reports later or at the same
             // place.
             return Err(match stop {
@@ -238,12 +243,12 @@ impl<'a> Builder<'a> {
             .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .parse_expression_at(start)
-            .map_err(|errors| syntax_error(errors, text, start, 0))?;
+            .map_err(|error| syntax_error(error.diagnostics, text, &error.tokens, start, 0))?;
         let part = Part::Expression(&parsed.expression);
         self.check(
             &parsed.diagnostics,
             (text, start, 0),
-            &parsed.tokens,
+            (&parsed.tokens, parsed.next_token),
             (part, source_type),
         )?;
         self.record(&parsed.tokens, &parsed.comments, 0);
@@ -277,12 +282,14 @@ impl<'a> Builder<'a> {
             .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .parse_statement_at(start)
-            .map_err(|errors| syntax_error(errors, self.source_text, start, 0))?;
+            .map_err(|error| {
+                syntax_error(error.diagnostics, self.source_text, &error.tokens, start, 0)
+            })?;
         let part = Part::Statement(&parsed.statement);
         self.check(
             &parsed.diagnostics,
             (self.source_text, start, 0),
-            &parsed.tokens,
+            (&parsed.tokens, parsed.next_token),
             (part, source_type),
         )?;
         self.record(&parsed.tokens, &parsed.comments, 0);
@@ -427,7 +434,7 @@ impl<'a> Builder<'a> {
             .with_options(parentheses::options(parenthesized))
             .with_config(TokensParserConfig)
             .parse_expression_at(0)
-            .map_err(|errors| syntax_error(errors, text, 0, shift))?;
+            .map_err(|error| syntax_error(error.diagnostics, text, &error.tokens, 0, shift))?;
         if parenthesized {
             let recorded = &mut self.parentheses;
             parentheses::strip(self.allocator, &mut parsed.expression, shift, recorded);
@@ -436,7 +443,7 @@ impl<'a> Builder<'a> {
         self.check(
             &parsed.diagnostics,
             (text, 0, shift),
-            &parsed.tokens,
+            (&parsed.tokens, parsed.next_token),
             (part, source_type),
         )?;
         if !wrapper(&parsed.expression) {
@@ -540,6 +547,7 @@ fn refused(message: &str, span: Span) -> SyntaxError {
         diagnostic: Diagnostic::error("parse_error", message, span),
         acorn: None,
         typescript_code: None,
+        typescript_eslint_at: None,
     }
 }
 

@@ -1,9 +1,1 @@
-# svelte.compile.warnings: 31922 match
-svelte/rsvelte-tests-core-3/store_rune_conflict_3597/another_rune_reference_still_enables_runes_mode/85dae5221dd8bfac.svelte	mismatch
-svelte/rsvelte-tests-core-3/template_function_rune_3233/a_derived_local_in_a_handler_reads_through_get/38db9a590b3474fa.svelte	mismatch
-svelte/rsvelte-tests-core-3/template_function_rune_3233/a_reassigned_state_local_in_a_handler_is_a_source/d6e4fe8e1fc9de97.svelte	mismatch
-svelte/rsvelte-tests-core-3/template_function_rune_3233/a_state_local_that_is_never_reassigned_stays_a_plain_value/41b740762a32b567.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/non_css_style_ignore_is_treated_as_used/befdd05c4edb8a56.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/plain_css_unused_ignore_is_still_reported/964da7c6a5553df3.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/transformed_scss_unused_ignore_is_reported/e19fecebd6a045c3.svelte	mismatch
-svelte/rsvelte/lint/no-raw-special-elements/17-component-slot.svelte	mismatch
+# svelte.compile.warnings: 31927 match

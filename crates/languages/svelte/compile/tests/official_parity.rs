@@ -401,6 +401,19 @@ fn an_await_while_rendering_needs_async_mode() {
 }
 
 #[test]
+fn an_await_in_a_for_await_is_reported_before_the_loop() {
+    // Upstream's analysis meets only the `await`; the port's own refusal of the loop comes last.
+    let source = "<script>\nfor await (const x of y) g(await f(x));\n</script>";
+    for target in [Target::Client, Target::Server] {
+        assert_eq!(
+            compile_at(source, target).err(),
+            Some(("experimental_async".to_owned(), (36, 46))),
+            "{target:?}"
+        );
+    }
+}
+
+#[test]
 fn a_byte_order_mark_is_no_text() {
     assert!(squashed("\u{feff}<p>a</p>", Target::Server).contains("`<p>a</p>`"));
 }

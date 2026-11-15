@@ -63,6 +63,7 @@ impl Semantic {
                     at,
                 }),
                 typescript_code: None,
+                typescript_eslint_at: None,
             }
         })
     }

@@ -50,7 +50,7 @@ pub(crate) struct Unit {
     pub(crate) path: String,
 }
 
-fn relative(root: &Path, dir: &Path) -> String {
+pub(crate) fn relative(root: &Path, dir: &Path) -> String {
     let rel = dir.strip_prefix(root).expect("a unit is inside its root");
     let parts: Vec<String> = rel
         .iter()
