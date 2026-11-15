@@ -1015,8 +1015,8 @@ their `svelte.compile` skip gives.
 - Svelte refuses the empty declaration between two semicolons ([`style.js`][empty]).
 - Svelte matches an empty `~=` or `^=` value, which selects nothing ([`css-prune.js`][prune]).
 - The acorn-typescript parser reads an `await` in a namespace as one in a class static block.
-- Svelte skips only whitespace after a combinator, so it reads a comment there as the next
-  compound selector and fails to read a name ([`style.js`][combinator]).
+- Between two compound selectors, Svelte skips only whitespace, so it reads a comment there as
+  the next compound selector and fails to read a name ([`style.js`][combinator]).
   The `svelte/consistent-selector-style` rule then reads the selector at the wrong place.
 
 [fold]: https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/scope.js#L72

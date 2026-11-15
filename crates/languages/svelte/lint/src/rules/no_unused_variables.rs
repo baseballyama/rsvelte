@@ -40,7 +40,8 @@ impl SvelteRule for NoUnusedVariables {
 
 /// The core rule, without the names `svelte-eslint-parser` marks used: `$bindable()` props,
 /// names a re-export lists, subscribed stores, snippets passed to a component, and one of two
-/// top-level names the scripts share. Its reads include the scripts' references to top-level snippets.
+/// top-level names the scripts share. Its reads include the scripts' references to top-level
+/// snippets.
 fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     let mut skipped = FxHashSet::default();
     let runes = runes(file) != Some(false);
