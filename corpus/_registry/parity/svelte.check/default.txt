@@ -4,8 +4,6 @@ svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/database
 svelte/appwrite-console/src/routes/(public)/auth/preview/+page.svelte	mismatch
 svelte/bits-ui/packages/bits-ui/src/lib/bits/select/components/select.svelte	mismatch
 svelte/carbon-components-svelte/tests/OverflowMenu/OverflowMenuItem.icons.test.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-object-in-text-mustaches/invalid/function01-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/attach-tag-output.svelte	mismatch
 svelte/flowbite-svelte/src/lib/device-mockups/DeviceMockup.svelte	mismatch
