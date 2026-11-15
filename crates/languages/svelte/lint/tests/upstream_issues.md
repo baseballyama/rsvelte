@@ -464,9 +464,10 @@ No issue yet.
 - Upstream reports `.a` 7 columns before it, the length of `/* l */`, as if the comment were not in
   the source. A comment before another argument does the same: in `div:not(.a /* m */, .b)`,
   `.b` moves by its comment. So does a comment between the selectors of a rule: in
-  `.a /* c */, .b`, upstream reports `.b` 7 columns early.
+  `.a /* c */, .b`, upstream reports `.b` 7 columns early. So does a comment between compounds,
+  as in `p > /* c */ .a` and `.a /* mid */ .b`.
 - Correct: report `.a` at its own column.
-- The corpus skips its 6 lint units.
+- The corpus skips its 8 lint units.
 
 ## Quirks of the CSS parsers that upstream uses
 

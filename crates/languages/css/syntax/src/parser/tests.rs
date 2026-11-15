@@ -200,3 +200,31 @@ fn a_css_sheet_for_lint_skips_the_declarations_svelte_rejects() {
     assert_eq!(sheet.rules.len(), 1);
     assert_eq!(sheet.rules[0].children.len(), 1);
 }
+
+#[test]
+fn a_css_sheet_for_lint_keeps_a_rule_whose_selector_it_cannot_read() {
+    let source = ":1a { color: red } .x { > { } .b {} }";
+    let content = Span::new(0, source.len() as u32);
+    parse(source, content).unwrap_err();
+    let sheet = parse_for_lint(source, content, false).expect("parses");
+    assert_eq!(sheet.rules.len(), 2);
+    let RuleKind::Style { selectors, .. } = &sheet.rules[0].kind else {
+        panic!("a style rule");
+    };
+    assert!(selectors.is_empty());
+    assert_eq!(sheet.rules[1].children.len(), 2);
+}
+
+#[test]
+fn a_css_sheet_for_lint_reads_selectors_as_postcss_selector_parser_does() {
+    let source = ".a., #1a, .b:nth-child(2e), p >, , .c { } @1a (x) { }";
+    let content = Span::new(0, source.len() as u32);
+    parse(source, content).unwrap_err();
+    let sheet = parse_for_lint(source, content, false).expect("parses");
+    assert_eq!(sheet.rules.len(), 2);
+    let RuleKind::Style { selectors, .. } = &sheet.rules[0].kind else {
+        panic!("a style rule");
+    };
+    assert_eq!(selectors.len(), 5);
+    assert_eq!(selectors[0].parts[0].simple.iter().count(), 2);
+}

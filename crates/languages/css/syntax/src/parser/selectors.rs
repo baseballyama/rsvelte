@@ -13,19 +13,26 @@ impl P<'_> {
     /// Ends before the `{` of the block, or before the `)` of a pseudo-class.
     pub(super) fn selector_list(&mut self, inside_pseudo: bool) -> R<Vec<ComplexSelector>> {
         let mut selectors = Vec::new();
+        let close = if inside_pseudo { b')' } else { b'{' };
         self.skip_trivia()?;
         loop {
-            push(&mut selectors, self.complex(inside_pseudo)?);
-            self.skip_trivia()?;
-            if self.peek() == Some(if inside_pseudo { b')' } else { b'{' }) {
+            // ESLint's selector parser reads an empty selector in a list.
+            let empty = self.tolerant && matches!(self.peek(), Some(c) if c == b',' || c == close);
+            if !empty {
+                push(&mut selectors, self.complex(inside_pseudo)?);
+                self.skip_trivia()?;
+            }
+            if self.peek() == Some(close) {
                 return Ok(selectors);
             }
             let comma = self.position as u32;
             self.expect(b',')?;
-            selectors
-                .last_mut()
-                .expect("a selector precedes the comma")
-                .comma = Some(Span::new(comma, comma + 1));
+            if !empty {
+                selectors
+                    .last_mut()
+                    .expect("a selector precedes the comma")
+                    .comma = Some(Span::new(comma, comma + 1));
+            }
             self.skip_trivia()?;
         }
     }
@@ -54,6 +61,9 @@ impl P<'_> {
                 break;
             }
             combinator = Some(self.combinators(inside_pseudo)?);
+            if self.tolerant && self.ends_selector(inside_pseudo) {
+                break;
+            }
         }
         if parts
             .iter()
@@ -145,7 +155,7 @@ impl P<'_> {
         if let Some(at) = comment {
             return Err(expected_identifier(at));
         }
-        if explicit.is_some() && self.ends_selector(inside_pseudo) {
+        if explicit.is_some() && self.ends_selector(inside_pseudo) && !self.tolerant {
             return Err(ParseError {
                 code: "css_selector_invalid",
                 message: "Invalid selector".to_owned(),
@@ -231,7 +241,7 @@ impl P<'_> {
             }
             b'#' => {
                 self.position += 1;
-                let name = self.identifier()?;
+                let name = self.name()?;
                 Simple::Identifier {
                     span: self.span(s),
                     name,
@@ -239,7 +249,7 @@ impl P<'_> {
             }
             b'.' => {
                 self.position += 1;
-                let name = self.identifier()?;
+                let name = self.name()?;
                 Simple::Class {
                     span: self.span(s),
                     name,
@@ -376,7 +386,14 @@ impl P<'_> {
                     }
                 }
             } else if NTH.iter().any(|nth| name.eq_ignore_ascii_case(nth)) {
-                nth = self.selector_list(true)?;
+                if !self.tolerant {
+                    nth = self.selector_list(true)?;
+                } else if let Some(list) = self.attempt(|p| p.selector_list(true)) {
+                    nth = list;
+                } else {
+                    // ESLint's selector parser reads any argument of an `nth-*` pseudo-class.
+                    self.skip_balanced_until(b")")?;
+                }
             } else {
                 self.skip_balanced_until(b")")?;
             }
@@ -401,6 +418,15 @@ impl P<'_> {
                 nth: nth.into_boxed_slice(),
             }
         })
+    }
+
+    /// The name of a class or an ID, which the lint's selector parser reads empty or from a digit.
+    fn name(&mut self) -> R<Span> {
+        if self.tolerant {
+            Ok(self.ident())
+        } else {
+            self.identifier()
+        }
     }
 
     /// The length of an `An+B` and of the `of` after it, when the selector ends there or an
