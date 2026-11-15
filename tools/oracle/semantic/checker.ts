@@ -16,6 +16,7 @@ import {
 	type Observation,
 } from './observations.ts';
 import { TypeComparison, UnmeasuredType } from './types.ts';
+import { CARGO_TARGET } from '../paths.ts';
 
 export interface Projection {
 	input: string;
@@ -88,7 +89,7 @@ export class SemanticChecker {
 		}
 		this.mapperBinary = fs.realpathSync(
 			process.env.RSVELTE_TYPESCRIPT_CONTENT_MAPPER ??
-				path.resolve(tools, '../../target/debug/rsvelte-typescript-content-mapper'),
+				path.join(CARGO_TARGET, 'debug/rsvelte-typescript-content-mapper'),
 		);
 		const mapper = path.join(modules, 'rsvelte-semantic-mapper');
 		fs.mkdirSync(mapper);
