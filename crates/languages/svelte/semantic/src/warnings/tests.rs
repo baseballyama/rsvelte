@@ -766,6 +766,20 @@ fn an_instance_name_a_module_import_declares_is_a_duplicate() {
         )),
         Vec::<String>::new()
     );
+    assert_eq!(
+        errors(&format!(
+            "{module}<script>\n  let {{ a: [FOO] }} = {{}};\n</script>\n{{FOO}}\n"
+        )),
+        ["declaration_duplicate_module_import"]
+    );
+    let types = "<script module lang=\"ts\">\n  import type { T } from './a';\n  \
+        import { type U } from './a';\n</script>\n";
+    assert_eq!(
+        errors(&format!(
+            "{types}<script lang=\"ts\">\n  let T = 1;\n  let U = 2;\n</script>\n{{T}}{{U}}\n"
+        )),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
