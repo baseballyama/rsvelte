@@ -647,6 +647,19 @@ No issues yet. The corpus skips the lint units of each.
   `{#if a}<div // c\n>{/if}`, as a token for each character, not as a comment. Upstream then takes
   the comment's last character as the token before `>`.
 
+## An export specifier marks its local name as a prop (svelte-eslint-parser)
+
+No issue yet. `analyzePropsScope` adds a read of `spec.local` for every specifier of an
+`export { … }`, whatever its `source` or `exportKind`
+([analyze-scope.ts](https://github.com/sveltejs/svelte-eslint-parser/blob/467f843e0c74a08b694e0d1b5676a10931023a2f/src/parser/analyze-scope.ts)).
+
+- Case: `let x = 1; export { x as y } from './mod';`. The specifier names the module's `x`,
+  yet upstream counts the instance `x` as read and reports nothing for no-unused-vars.
+- Case: `const q = 1; export { type q };`. A type-only export reads no value, yet upstream counts
+  `q` as read.
+- Correct: report the unused `x` and `q`. This crate does.
+- The corpus skips their 2 lint units.
+
 ## The `this` attribute of `<svelte:element>` (svelte-eslint-parser)
 
 No issue yet. `processThisAttribute` finds the parts of `this=` by searching the text
