@@ -1,4 +1,4 @@
-# svelte.lint/default: 37059 match
+# svelte.lint/default: 37063 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -13,7 +13,6 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/n
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang01-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/invalid-svelte-ignore03-svelte4-input.svelte	mismatch
 svelte/flare/src/lib/components/SettingsView.svelte	mismatch
-svelte/joy-of-code/posts/learn-svelte/examples/reactive-events.svelte	mismatch
 svelte/kampsy-ui/src/routes/badge/+page.svelte	mismatch
 svelte/kampsy-ui/src/routes/button/+page.svelte	mismatch
 svelte/kampsy-ui/src/routes/checkbox/+page.svelte	mismatch
@@ -28,7 +27,6 @@ svelte/layercake/src/_components/SharedTooltip.percent-range.html.svelte	mismatc
 svelte/layerchart/docs/src/examples/components/Partition/flame-graph.svelte	mismatch
 svelte/melt-ui/docs/src/components/preview.svelte	mismatch
 svelte/originui-svelte/src/lib/components/ui/data-table/flex-render.svelte	mismatch
-svelte/originui-svelte/src/lib/hooks/use-local-storage.svelte.ts	mismatch
 svelte/primo/src/lib/components/app-sidebar.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	refused
 svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte	mismatch
@@ -577,7 +575,6 @@ svelte/rsvelte/lint/no-dom-manipulating/18-cross-dom-listener-reactivity.svelte	
 svelte/rsvelte/lint/no-dupe-on-directives/16-cr-only-lineno.svelte	mismatch
 svelte/rsvelte/lint/no-dupe-style-properties/13-case-and-custom-props.svelte	mismatch
 svelte/rsvelte/lint/no-dupe-use-directives/11-cr-only-lineno.svelte	mismatch
-svelte/rsvelte/lint/no-ignored-unsubscribe/16-private-identifier.svelte	mismatch
 svelte/rsvelte/lint/no-inspect/13-destructure-shorthand.svelte	mismatch
 svelte/rsvelte/lint/no-inspect/17-import-export-specifier.svelte	mismatch
 svelte/rsvelte/lint/no-nested-style-tag/06-self-closing-top.svelte	mismatch
@@ -689,7 +686,6 @@ svelte/svelte/packages/svelte/tests/print/samples/css-escape-sequences/input.sve
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-current-time-remove-listener/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-getter-setter/Child.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-getter-setter/main.svelte	mismatch
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/each-updates-9/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/not-actual-runes/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/typescript-each-indexed/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/bidirectional-control-characters/input.svelte	mismatch
