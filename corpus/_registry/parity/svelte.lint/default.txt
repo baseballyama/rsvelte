@@ -1,4 +1,4 @@
-# svelte.lint/default: 37571 match
+# svelte.lint/default: 37576 match
 svelte/flare/src/lib/components/SettingsView.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/4e9145d6de0541b6.svelte	mismatch
 svelte/rsvelte-tests-core-2/malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/681354e4e5d31214.svelte	mismatch

@@ -55,8 +55,12 @@ pub(super) fn check_analysis(
         };
         (raised, error)
     }));
-    // Upstream raises it once its walk is done.
-    errors.extend(markup::mixed_syntaxes(input).map(|error| {
+    // Upstream raises these once its walk is done, in this order.
+    let after_walk = [
+        markup::mixed_syntaxes(input),
+        markup::slot_snippet_conflict(input, res, custom_element),
+    ];
+    errors.extend(after_walk.into_iter().flatten().map(|error| {
         let raised = Raised {
             phase: Phase::Walk,
             section: Section::Template,

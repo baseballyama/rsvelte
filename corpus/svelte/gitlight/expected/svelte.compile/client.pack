@@ -1259,3 +1259,383 @@ export default function _page($$anchor, $$props) {
 	}
 ]
 
+=== 4324 src/routes/+page.svelte	css
+
+	[data-slide].svelte-1uha8ag {
+		@keyframes svelte-1uha8ag-slide {
+			from {
+				opacity: 0;
+				translate: 0 0.5rem;
+			}
+
+			to {
+				opacity: 1;
+				translate: 0;
+			}
+		}
+		--stagger: 1;
+
+		animation: svelte-1uha8ag-slide 0.3s calc(var(--stagger) * 0.1s) ease-in-out backwards;
+	}
+
+	.wrapper.svelte-1uha8ag {
+		position: relative;
+		display: flex;
+		overflow: hidden;
+		height: 100vh;
+		flex-direction: column;
+		align-items: center;
+		padding: 0 2rem;
+
+		@include screens.mobile {
+			height: 100svh;
+			padding: 0 1.5rem 2rem;
+		}
+	}
+
+	.header.svelte-1uha8ag {
+		display: flex;
+		width: min(64rem, 100%);
+		align-items: center;
+		justify-content: space-between;
+		padding-top: 2rem;
+
+		.title-container:where(.svelte-1uha8ag) {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+
+			.logo:where(.svelte-1uha8ag) {
+				width: 2rem;
+				height: 2rem;
+			}
+
+			.title:where(.svelte-1uha8ag) {
+				@include typography.heading-1;
+			}
+		}
+
+		.links:where(.svelte-1uha8ag) {
+			display: flex;
+			align-items: center;
+			gap: 1rem;
+
+			.icon-link:where(.svelte-1uha8ag) {
+				transition: opacity variables.$transition;
+
+				&:hover {
+					opacity: 0.75;
+				}
+
+				svg {
+					height: 1.5rem;
+				}
+			}
+		}
+	}
+
+	.main.svelte-1uha8ag {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2rem;
+
+		@include screens.mobile {
+			width: 100vw;
+			padding: 0 1.5rem;
+			margin-top: 4rem;
+		}
+
+		@include screens.desktop {
+			padding-top: 10vh;
+
+			@media (height >= 1000px) {
+				padding-top: 16vh;
+			}
+		}
+
+		.hero-container:where(.svelte-1uha8ag) {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+
+			.hero:where(.svelte-1uha8ag) {
+				@include typography.bold;
+
+				padding-bottom: 1rem;
+				-webkit-background-clip: text;
+				-moz-background-clip: text;
+				background-clip: text;
+				background-image: linear-gradient(variables.$bg-6, transparent 175%);
+				font-size: 2.5rem;
+				text-align: center;
+				-webkit-text-fill-color: transparent;
+				-moz-text-fill-color: transparent;
+
+				@include screens.desktop {
+					max-width: 45rem;
+					font-size: 3rem;
+				}
+			}
+
+			.subhero:where(.svelte-1uha8ag) {
+				color: variables.$bg-5;
+				font-size: 1.25rem;
+				text-align: center;
+			}
+		}
+
+		.buttons-container:where(.svelte-1uha8ag) {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+			gap: 1rem;
+		}
+
+		.separator:where(.svelte-1uha8ag) {
+			width: 20rem;
+			height: 1px;
+			background-image: linear-gradient(to right, transparent, variables.$blue, transparent);
+		}
+
+		.features-list:where(.svelte-1uha8ag) {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+
+			@include screens.mobile {
+				gap: 2rem;
+			}
+
+			.feature:where(.svelte-1uha8ag) {
+				display: flex;
+				width: 16rem;
+				flex-direction: column;
+				align-items: center;
+				gap: 0.5rem;
+
+				svg {
+					height: 2rem;
+					color: variables.$light-blue;
+				}
+
+				.title:where(.svelte-1uha8ag) {
+					@include typography.bold;
+				}
+
+				.description:where(.svelte-1uha8ag) {
+					color: variables.$bg-5;
+				}
+			}
+		}
+
+		.image-container:where(.svelte-1uha8ag) {
+			@include screens.mobile {
+				display: none;
+			}
+
+			@keyframes svelte-1uha8ag-slide-3d {
+				from {
+					opacity: 0;
+					transform: perspective(500px) rotate3d(1, 0, 0, 10deg);
+					translate: 0 4rem;
+				}
+
+				to {
+					opacity: 1;
+					transform: perspective(500px) rotate3d(1, 0, 0, 2deg);
+					translate: 0;
+				}
+			}
+
+			position: relative;
+			overflow: hidden;
+			border-radius: 0.8rem;
+			margin-top: 2rem;
+			animation: svelte-1uha8ag-slide-3d 1.5s cubic-bezier(0.8, 0, 0.2, 1) both;
+			box-shadow:
+				0 0 8rem rgba(variables.$blue, 0.25),
+				0 0 2rem rgba(variables.$light-blue, 0.25);
+
+			@media (height >= 1000px) {
+				margin-top: 4rem;
+			}
+
+			.image:where(.svelte-1uha8ag) {
+				max-width: unset;
+			}
+
+			&::before {
+				@keyframes svelte-1uha8ag-reflect-appear {
+					0% {
+						opacity: 0;
+						translate: -40% 90%;
+					}
+
+					100% {
+						opacity: 1;
+						translate: -30% 100%;
+					}
+				}
+
+				position: absolute;
+				width: 150%;
+				height: 20rem;
+				animation: svelte-1uha8ag-reflect-appear 1.5s cubic-bezier(0.8, 0, 0.2, 1) both;
+				background-image: linear-gradient(transparent, rgba(white, 0.03));
+				content: '';
+				inset: 0;
+				rotate: 135deg;
+			}
+		}
+	}
+
+=== 4980 src/routes/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { onDestroy, onMount } from 'svelte';
+import { browser } from '$app/environment';
+import { Button, DownloadButton } from '$lib/components';
+
+import {
+	ArrowRightIcon,
+	GithubIcon,
+	HeartIcon,
+	LightningIcon,
+	SparklesIcon,
+	XIcon
+} from '$lib/icons';
+
+var root = $.from_html(`<meta name="description" content="Better GitHub and GitLab notifications as a free, open-source desktop app."/>`);
+var root_1 = $.from_html(`<!> Download the app`, 1);
+var root_2 = $.from_html(`<div class="wrapper svelte-1uha8ag"><header class="header svelte-1uha8ag"><div class="title-container svelte-1uha8ag"><img class="logo svelte-1uha8ag" src="/images/logo.webp" alt="" height="32" width="32"/> <h1 class="title svelte-1uha8ag"><strong>GitLight</strong></h1></div> <div class="links svelte-1uha8ag"><a href="https://x.com/colinlienard" target="_blank" rel="noreferrer" class="icon-link svelte-1uha8ag" aria-label="Colin Lienard X account"><!></a> <a href="https://github.com/colinlienard/gitlight" target="_blank" rel="noreferrer" class="icon-link svelte-1uha8ag" aria-label="GitLight GitHub repository"><!></a></div></header> <main class="main svelte-1uha8ag"><div class="hero-container svelte-1uha8ag"><h2 class="hero svelte-1uha8ag" data-slide="" style="--stagger: 0"><strong>GitHub and GitLab notifications on your desktop</strong></h2> <h3 class="subhero svelte-1uha8ag" data-slide="" style="--stagger: 1">Never miss a pull request, issue, commit, review...</h3></div> <div class="buttons-container svelte-1uha8ag" data-slide="" style="--stagger: 2"><!> <!></div> <span class="separator svelte-1uha8ag" data-slide="" style="--stagger: 3"></span> <ul class="features-list svelte-1uha8ag" data-slide="" style="--stagger: 4"><li class="feature svelte-1uha8ag"><!> <h4 class="title svelte-1uha8ag">Filter and monitor events</h4> <p class="description svelte-1uha8ag"><strong>Kanban</strong> style interface.</p></li> <li class="feature svelte-1uha8ag"><!> <h4 class="title svelte-1uha8ag"><strong>Free</strong> and <strong>open source</strong></h4> <p class="description svelte-1uha8ag">Contribute on GitHub!</p></li> <li class="feature svelte-1uha8ag"><!> <h4 class="title svelte-1uha8ag">Made for performance</h4> <p class="description svelte-1uha8ag">Built with <strong>Tauri</strong> and <strong>SvelteKit</strong>.</p></li></ul> <article class="image-container svelte-1uha8ag"><picture class="svelte-1uha8ag"><source class="image svelte-1uha8ag" srcset="/images/gitlight-dark.webp" media="(prefers-color-scheme: dark)" width="1024" height="640"/> <img class="image svelte-1uha8ag" src="/images/gitlight-light.webp" alt="" width="1024" height="640"/></picture></article></main></div>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	function onThemeChange({ matches }) {
+		document.documentElement.setAttribute('data-theme', matches ? 'dark' : 'light');
+	}
+
+	onMount(() => {
+		window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', onThemeChange);
+	});
+
+	onDestroy(() => {
+		if (!browser) return;
+
+		window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', onThemeChange);
+	});
+
+	var div = root_2();
+
+	$.head('1uha8ag', ($$anchor) => {
+		var meta = root();
+
+		$.effect(() => {
+			$.document.title = 'GitLight • GitHub and GitLab notifications on your desktop';
+		});
+
+		$.append($$anchor, meta);
+	});
+
+	var header = $.child(div);
+	var div_1 = $.sibling($.child(header), 2);
+	var a = $.child(div_1);
+	var node = $.child(a);
+
+	XIcon(node, {});
+	$.reset(a);
+
+	var a_1 = $.sibling(a, 2);
+	var node_1 = $.child(a_1);
+
+	GithubIcon(node_1, {});
+	$.reset(a_1);
+	$.reset(div_1);
+	$.reset(header);
+
+	var main = $.sibling(header, 2);
+	var div_2 = $.sibling($.child(main), 2);
+	var node_2 = $.child(div_2);
+
+	DownloadButton(node_2, {
+		children: ($$anchor, $$slotProps) => {
+			Button($$anchor, {
+				children: ($$anchor, $$slotProps) => {
+					var fragment_1 = root_1();
+					var node_3 = $.first_child(fragment_1);
+
+					ArrowRightIcon(node_3, {});
+					$.next();
+					$.append($$anchor, fragment_1);
+				},
+				$$slots: { default: true }
+			});
+		},
+		$$slots: { default: true }
+	});
+
+	var node_4 = $.sibling(node_2, 2);
+
+	Button(node_4, {
+		secondary: true,
+		href: '/login',
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text = $.text('or use in the browser');
+
+			$.append($$anchor, text);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_2);
+
+	var ul = $.sibling(div_2, 4);
+	var li = $.child(ul);
+	var node_5 = $.child(li);
+
+	SparklesIcon(node_5, {});
+	$.next(4);
+	$.reset(li);
+
+	var li_1 = $.sibling(li, 2);
+	var node_6 = $.child(li_1);
+
+	HeartIcon(node_6, {});
+	$.next(4);
+	$.reset(li_1);
+
+	var li_2 = $.sibling(li_1, 2);
+	var node_7 = $.child(li_2);
+
+	LightningIcon(node_7, {});
+	$.next(4);
+	$.reset(li_2);
+	$.reset(ul);
+	$.next(2);
+	$.reset(main);
+	$.reset(div);
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 379 src/routes/+page.svelte	warnings.json
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<span ...></span>` rather than `<span ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 81,
+			"column": 2,
+			"character": 2136
+		},
+		"end": {
+			"line": 81,
+			"column": 60,
+			"character": 2194
+		}
+	}
+]
+

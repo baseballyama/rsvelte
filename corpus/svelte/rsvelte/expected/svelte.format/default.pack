@@ -33929,6 +33929,35 @@ plain text with no script, no markup elements and no expressions
   {@render body(labelled)}
 {/if}
 
+=== 60 pattern/bind-dashed-name.svelte	svelte
+<script>
+  let a = $state(0);
+</script>
+
+<input bind:a-b />
+
+=== 132 pattern/bind-dollar-store-member-name.svelte	svelte
+<script>
+  import { writable } from "svelte/store";
+  const store = writable({ value: "" });
+</script>
+
+<input bind:$store.value />
+
+=== 68 pattern/bind-member-name.svelte	svelte
+<script>
+  let a = $state({ b: "" });
+</script>
+
+<input bind:a.b />
+
+=== 74 pattern/class-member-name.svelte	svelte
+<script>
+  let a = $state({ b: true });
+</script>
+
+<div class:a.b>x</div>
+
 === 329 pattern/css/consecutive-and-column-combinators.svelte	svelte
 <table>
   <colgroup><col class="c" /></colgroup>

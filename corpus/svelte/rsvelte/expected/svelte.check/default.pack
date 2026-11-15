@@ -7579,6 +7579,18 @@
 === 3 pattern/adversarial/typescript/type-only-imports-and-exports.svelte	json
 []
 
+=== 3 pattern/bind-dashed-name.svelte	json
+[]
+
+=== 3 pattern/bind-dollar-store-member-name.svelte	json
+[]
+
+=== 3 pattern/bind-member-name.svelte	json
+[]
+
+=== 3 pattern/class-member-name.svelte	json
+[]
+
 === 3 pattern/css/consecutive-and-column-combinators.svelte	json
 []
 

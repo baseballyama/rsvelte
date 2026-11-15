@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { comparePopulation } from './semantic/run.ts';
+import { CARGO_TARGET } from './paths.ts';
 
 export async function main(args: string[]): Promise<void> {
 	const { values } = parseArgs({
@@ -19,9 +20,7 @@ export async function main(args: string[]): Promise<void> {
 	const report = await comparePopulation({
 		tools,
 		inputs: path.resolve(values.inputs ?? path.join(tools, '../../corpus/svelte')),
-		projector: path.resolve(
-			values.projector ?? path.join(tools, '../../target/debug/examples/semantic'),
-		),
+		projector: path.resolve(values.projector ?? path.join(CARGO_TARGET, 'debug/examples/semantic')),
 		onProgress: (count, input) => {
 			if (count % 100 === 0) console.error(`${count} units: ${input}`);
 		},

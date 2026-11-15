@@ -3419,6 +3419,38 @@ export default function Id01_input($$anchor) {
 	}
 ]
 
+=== 318 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id-class/recursive-loop01-input.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<a>Click me!</a>`);
+
+export default function Recursive_loop01_input($$anchor) {
+	const a = derived;
+	const derived = a;
+	var a_1 = root();
+
+	$.set_attribute(a_1, 'id', derived);
+	$.append($$anchor, a_1);
+}
+=== 283 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id-class/recursive-loop01-input.svelte	warnings.json
+[
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 6,
+			"column": 0,
+			"character": 60
+		},
+		"end": {
+			"line": 6,
+			"column": 29,
+			"character": 89
+		}
+	}
+]
+
 === 365 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id/class01-input.svelte	css
 
   .link.svelte-155xx9s {
@@ -8585,6 +8617,32 @@ export default function Test01_output($$anchor) {
 	}
 ]
 
+=== 263 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-abstract-accessor-property-input.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function Ts_abstract_accessor_property_input($$anchor) {
+	class Foo {
+		abstract accessor;
+		foo;
+		// parser v5 does not parse value.
+		//    =
+		//    1
+	}
+}
+=== 264 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-abstract-accessor-property-output.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function Ts_abstract_accessor_property_output($$anchor) {
+	class Foo {
+		abstract accessor;
+		foo;
+		// parser v5 does not parse value.
+		//    =
+		//    1
+	}
+}
 === 190 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property01-input.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -8699,6 +8757,28 @@ import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function Ts_import_assertion03_output($$anchor) {}
+=== 241 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-input.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function Ts_import_assertion04_input($$anchor, $$props) {
+	$.push($$props, true);
+
+	var $$exports = { foo };
+
+	return $.pop($$exports);
+}
+=== 242 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-output.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function Ts_import_assertion04_output($$anchor, $$props) {
+	$.push($$props, true);
+
+	var $$exports = { foo };
+
+	return $.pop($$exports);
+}
 === 206 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes01-input.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -8735,6 +8815,28 @@ import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function Ts_import_attributes03_output($$anchor) {}
+=== 242 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes04-input.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function Ts_import_attributes04_input($$anchor, $$props) {
+	$.push($$props, true);
+
+	var $$exports = { foo };
+
+	return $.pop($$exports);
+}
+=== 243 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes04-output.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function Ts_import_attributes04_output($$anchor, $$props) {
+	$.push($$props, true);
+
+	var $$exports = { foo };
+
+	return $.pop($$exports);
+}
 === 185 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-instantiation-expression01-input.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -8788,6 +8890,28 @@ import * as $ from 'svelte/internal/client';
 
 export default function Ts_function02_output($$anchor) {
 	function* bar() {}
+}
+=== 222 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-input.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function Ts_import_export01_input($$anchor) {
+	import foo = require('bar');
+
+	export = foo;
+
+	export as namespace a;
+}
+=== 223 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-output.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function Ts_import_export01_output($$anchor) {
+	import foo = require('bar');
+
+	export = foo;
+
+	export as namespace a;
 }
 === 298 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-type01-input.svelte	js
 import 'svelte/internal/disclose-version';
@@ -16765,6 +16889,20 @@ export default function PushState_unresolved_pathname01_input($$anchor, $$props)
 	}
 ]
 
+=== 314 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/recursive-loop01-input.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<a>Click me!</a>`);
+
+export default function Recursive_loop01_input($$anchor) {
+	const a = value;
+	const value = a;
+	var a_1 = root();
+
+	$.set_attribute(a_1, 'href', value);
+	$.append($$anchor, a_1);
+}
 === 374 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/replaceState-partial-resolve01-input.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -19344,6 +19482,17 @@ import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function No_svelte_internal05_input($$anchor) {}
+=== 244 packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal06-input.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function No_svelte_internal06_input($$anchor, $$props) {
+	$.push($$props, true);
+
+	var $$exports = { inspect };
+
+	return $.pop($$exports);
+}
 === 181 packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal07-input.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
