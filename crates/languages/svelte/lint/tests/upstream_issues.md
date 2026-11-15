@@ -483,9 +483,13 @@ repository, and no lint case covers these quirks.
 - In an inline style, `convertChild` places a declaration's value from the property's end. A hack
   prefix (`*a: b`) moves that end one character left. This crate places the value at its own
   position.
+  The property itself starts at the prefix but is as long as the name without it, so
+  `svelte/no-dupe-style-properties` and `svelte/no-shorthand-style-property-overrides` report
+  `_colo` for `_color`. The corpus skips their 2 lint units.
 - The safe parser ends an open comment, string or escape one character past the source, and the
   declaration that holds it too. For `a: b /* c`, the comment ends at 10. This crate ends it at the
   source's end, 9.
+  The corpus skips its 3 lint units.
 - An at-rule in an inline style, such as `style="@media x"`, has no end, and `convertChild`
   throws. This crate does not convert that style.
 
@@ -615,6 +619,50 @@ Issue: [svelte-eslint-parser #1004](https://github.com/sveltejs/svelte-eslint-pa
   outside its `let:` scope. This crate resolves names as the compiler does.
   Test: `rsvelte_svelte_semantic` `resolve::tests::an_element_attribute_sees_its_let_names_and_a_component_one_only_with_a_slot`.
 
+## Smaller upstream defects that one or two corpus units show
+
+No issues yet. The corpus skips the lint units of each.
+
+- `svelte/no-inspect` visits every `Identifier`
+  ([no-inspect.ts](https://github.com/sveltejs/eslint-plugin-svelte/blob/24201e06a1a8e270c1143d1fb460e6ae635719d8/packages/eslint-plugin-svelte/src/rules/no-inspect.ts#L27)),
+  and ESTree has two over the one token of `const { $inspect } = o`, `import { $inspect }` and
+  `export { $inspect }`. Upstream reports them twice. This crate reports each token once.
+- `hasUsefulStringEscape` does not count `\0`
+  ([prefer-attribute-interpolation.ts](https://github.com/sveltejs/eslint-plugin-svelte/blob/24201e06a1a8e270c1143d1fb460e6ae635719d8/packages/eslint-plugin-svelte/src/rules/prefer-attribute-interpolation.ts#L15)),
+  so upstream reports `` data-a={`a\0${b}`} ``, whose NUL no attribute text can hold. This
+  crate does not.
+- `svelte/no-inner-declarations` gives the core rule a proxy node
+  ([no-inner-declarations.ts](https://github.com/sveltejs/eslint-plugin-svelte/blob/24201e06a1a8e270c1143d1fb460e6ae635719d8/packages/eslint-plugin-svelte/src/rules/no-inner-declarations.ts#L29-L36)).
+  `getScope` does not know the proxy, so `.upper` is the global scope for
+  `if (a) function g() {}` at the top of a script, and upstream reports the strict code as
+  sloppy. This crate does not report it.
+- eslint-utils' `ReferenceTracker` stops a cycle with a stack, not a set of the variables it has
+  seen. For `const { ['derived']: d = ns.derived } = ns; d()`, it reaches `d` through the key
+  and through the default, and `svelte/require-stores-init` reports `d()` twice.
+- svelte-eslint-parser takes a `}` inside a comment for the end of an `{#await}` head:
+  `{#await p /* } */}` gives `svelte/mustache-spacing` the space before the comment's `}`.
+- svelte-eslint-parser drops the attributes of a `<style>` whose closing tag is `</style >`, so
+  `svelte/block-lang` and `svelte/first-attribute-linebreak` see no `lang`.
+- svelte-eslint-parser reads `// c` in a start tag inside a block, such as
+  `{#if a}<div // c\n>{/if}`, as a token for each character, not as a comment. Upstream then takes
+  the comment's last character as the token before `>`.
+
+## The `this` attribute of `<svelte:element>` (svelte-eslint-parser)
+
+No issue yet. `processThisAttribute` finds the parts of `this=` by searching the text
+([element.ts](https://github.com/sveltejs/svelte-eslint-parser/blob/467f843e0c74a08b694e0d1b5676a10931023a2f/src/parser/converts/element.ts#L536-L601)).
+
+- Case: `<svelte:element this = {tag}>`. The key runs from `this` to the `=`
+  ([element.ts](https://github.com/sveltejs/svelte-eslint-parser/blob/467f843e0c74a08b694e0d1b5676a10931023a2f/src/parser/converts/element.ts#L666)), so its text is `this `. Upstream reports only the space after the `=`
+  for `svelte/no-spaces-around-equal-signs-in-attribute`, and names `'this '` in the message of
+  `svelte/max-attributes-per-line`.
+- Case: `<svelte:element this="{'div'}">` and `<svelte:element this='h{n}'>`. A string value
+  that does not start with `{` becomes a static attribute whose value is as long as the string
+  Svelte read, measured from after the quote, so `this="{'div'}"` ends at `{'di`. Upstream
+  reports nothing for `svelte/html-quotes` and gives other rules the short range.
+- Correct: the key is `this`, and the value is the whole quoted text. This crate reads them so.
+- The corpus skips their 11 lint units.
+
 ## A name declared inside `{:else}` is not found (svelte-eslint-parser)
 
 No issue yet.
@@ -644,13 +692,14 @@ Issue: [svelte-eslint-parser #1005](https://github.com/sveltejs/svelte-eslint-pa
 | --------------------------------------------------------- | ------------------------------- | ------------ |
 | `<script` in a string: `` {@html `<script>…</script>`} `` | `Parsing error`                 | 9            |
 | Components named `Script` and `Style`                     | `Parsing error: Type expected.` | 1            |
+| A component named `Style` in a file without that error    | read as a `<style>` element     | 3            |
 | `use:a.b`, `transition:a.b`, `class:A.B`, `style:a-b`     | `Parsing error`                 | 11           |
 | A one-line `<script>import … from '…'</script>`           | `Parsing error: ';' expected.`  | 1            |
 | Any other one-line `<script>…</script>`                   | `Parsing error: ',' expected.`  | 38           |
 | `{@const x = (y)}`                                        | `Parsing error: ')' expected.`  | 2            |
 | `{@const x = (a, b)}` and `{#await (a, b)}`               | `Parsing error: ')' expected.`  | 9            |
 | An expression that ends in a line comment: `{a // c\n}`   | `Parsing error: ')' expected.`  | 24           |
-| `<template lang="pug">` with a `{a}`                      | no reference to `a`             | 1            |
+| `<template lang="pug">` with a `{a}`                      | no reference to `a`             | 2            |
 | A closing tag with a space: `</script >`                  | no script                       | 3            |
 | A one-line file whose script follows the template         | no script                       | 1            |
 
@@ -675,13 +724,23 @@ Issues for the rows of the table:
 Svelte 5.57.3 compiles every one of them, so this crate lints them. The corpus skips their lint
 units (`corpus/_registry/units.toml`).
 
-## Rules that throw (`svelte/indent`, `svelte/consistent-selector-style`)
+## Rules that throw (`svelte/indent`, `svelte/consistent-selector-style`, `no-unused-vars`)
 
 - `svelte/indent` throws `Cannot read properties of null (reading 'range')` on 18 components of
   `svelte-material-ui` and one of `threlte`.
 - `svelte/consistent-selector-style` throws `Unexpected '!'` on an HTML comment in `<style>`
   (Svelte's `css/samples/comment-html`).
 - Issues: the `svelte/indent` crash comes from a mapped type in a `$props()` annotation, and [eslint-plugin-svelte #970](https://github.com/sveltejs/eslint-plugin-svelte/issues/970) fixes it on `main`, not yet released. [eslint-plugin-svelte #1699](https://github.com/sveltejs/eslint-plugin-svelte/issues/1699) is the `consistent-selector-style` crash.
+- `svelte/consistent-selector-style` also throws on any selector `postcss-selector-parser`
+  rejects, such as `*|`, a bare `:`, `[  ]` or an unterminated `[x^]` (7 units).
+- `svelte/indent` throws `Column number out of range` when a line starts with U+2028 or U+2029
+  (2 units). `svelte-eslint-parser` counts token columns as if neither breaks a line, while
+  ESLint's `sourceCode.lines` splits on both, and the fix calls `getIndexFromLoc` with that
+  column on an empty line:
+  [indent-helpers/index.js](https://github.com/sveltejs/eslint-plugin-svelte/blob/24201e06a1a8e270c1143d1fb460e6ae635719d8/packages/eslint-plugin-svelte/src/rules/indent-helpers/index.ts).
+- ESLint's `no-unused-vars` throws `Node must be provided when reporting error if location is
+  not provided` on an unused enum member with a string-literal name, `enum E { 'a-b' }` (2 units):
+  the `typescript-eslint` variable has a definition but no identifier to report at.
 - ESLint then reports nothing for the file. This crate reports every rule, and the corpus skips
   these lint units.
 
