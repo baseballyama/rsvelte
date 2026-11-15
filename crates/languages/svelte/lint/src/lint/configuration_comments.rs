@@ -56,12 +56,43 @@ pub(super) fn settings(comments: &[Span], source: &str) -> Vec<(String, Setting)
     out
 }
 
-/// `ConfigCommentParser.parseJSONLikeConfig`: the text as a JSON object's members, or, failing
-/// that, with each name before a `:` quoted and a comma after the first `]` or digit that only
-/// spaces separate from a `"`.
+/// `ConfigCommentParser.parseJSONLikeConfig`: the text as a JSON object's members, as `levn`
+/// members (`name: value, …`), or, failing that, with each name before a `:` quoted and a comma
+/// after the first `]` or digit that only spaces separate from a `"`.
 fn parse_json_like(text: &str) -> Option<Vec<(String, Box<RawValue>)>> {
     let parse = |text: String| serde_json::from_str::<Members>(&text).ok().map(|m| m.0);
-    parse(format!("{{{text}}}")).or_else(|| parse(format!("{{{}}}", normalize(text))))
+    parse(format!("{{{text}}}"))
+        .or_else(|| levn_members(text))
+        .or_else(|| parse(format!("{{{}}}", normalize(text))))
+}
+
+/// The members of `levn`'s `Object` without braces, for the values JSON writes: a name, bare or
+/// quoted, a `:`, a value, and a comma before the next member.
+fn levn_members(text: &str) -> Option<Vec<(String, Box<RawValue>)>> {
+    let mut members = Vec::new();
+    let mut rest = text.trim_matches(is_javascript_space);
+    while !rest.is_empty() {
+        let colon = rest.find(':')?;
+        let name = rest[..colon].trim_matches(is_javascript_space);
+        let name = name
+            .strip_prefix('"')
+            .and_then(|n| n.strip_suffix('"'))
+            .unwrap_or(name);
+        if name.is_empty() || name.contains(|c: char| c == '"' || is_javascript_space(c)) {
+            return None;
+        }
+        let value = &rest[colon + 1..];
+        let mut values = serde_json::Deserializer::from_str(value).into_iter::<Box<RawValue>>();
+        let parsed = values.next()?.ok()?;
+        members.push((name.to_owned(), parsed));
+        rest = value[values.byte_offset()..].trim_start_matches(is_javascript_space);
+        if let Some(after) = rest.strip_prefix(',') {
+            rest = after.trim_start_matches(is_javascript_space);
+        } else if !rest.is_empty() {
+            return None;
+        }
+    }
+    Some(members)
 }
 
 /// A JSON object's members in source order.

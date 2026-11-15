@@ -1,6 +1,9 @@
 ;
 
 	/** @type {typeof __rsvelte_public_props0} */ let { open = $bindable(), w = $bindable() } = $props();
+open;
+w;
+
 	let t = $state(0);
 	let p = $state(true);
 	let v = $state(1);

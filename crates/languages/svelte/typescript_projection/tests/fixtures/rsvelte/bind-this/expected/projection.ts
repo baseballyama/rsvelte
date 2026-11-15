@@ -2,6 +2,8 @@
 
 	import Foo from './Foo.svelte';
 	/** @type {typeof __rsvelte_public_props0} */ let { p = $bindable(), C } = $props();
+p;
+
 	let el;
 	let a = $state();
 	let refs = $state([]);

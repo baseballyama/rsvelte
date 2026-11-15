@@ -7,8 +7,9 @@ use oxc_semantic::{Host, HostVisitor, ScopeFlags, ScopeId, SymbolFlags};
 use oxc_span::GetSpan;
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier, Tree,
+    TypeParametersIdentifier,
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::walk::{Recorded, Roots, TemplateName, TemplateScope};
 use crate::compiler_syntax_tree::{
@@ -32,6 +33,8 @@ pub(super) struct ComponentHost<'t, 'a> {
 pub(super) struct Names<'a> {
     snippets: FxHashMap<CompilerNodeIdentifier, &'a BindingIdentifier<'a>>,
     lets: FxHashMap<AttributeIdentifier, Vec<&'a BindingIdentifier<'a>>>,
+    /// The type parameters of snippets, which their own scopes declare.
+    snippet_generics: FxHashSet<TypeParametersIdentifier>,
 }
 
 impl<'a> Names<'a> {
@@ -45,10 +48,12 @@ impl<'a> Names<'a> {
         let mut names = Self {
             snippets: FxHashMap::default(),
             lets: FxHashMap::default(),
+            snippet_generics: FxHashSet::default(),
         };
         for (identifier, node) in compiler_syntax_tree.nodes.iter_enumerated() {
             match &node.kind {
                 NodeKind::Snippet(snippet) => {
+                    names.snippet_generics.extend(snippet.generics);
                     if let Expression::Identifier(name) = tree.get_expression(snippet.name) {
                         let binding = BindingIdentifier::new(name.span, name.name, &nodes);
                         names.snippets.insert(identifier, allocator.alloc(binding));
@@ -158,8 +163,10 @@ impl<'a> Host<'a> for ComponentHost<'_, 'a> {
             visitor.enter_scope(ScopeFlags::Function, &instance.scope_id);
         }
         // The instance script's `generics`, whose names its body and the template read.
-        for (_, parameters) in self.tree.type_parameters() {
-            visitor.visit_ts_type_parameter_declaration(parameters);
+        for (identifier, parameters) in self.tree.type_parameters() {
+            if !self.names.snippet_generics.contains(&identifier) {
+                visitor.visit_ts_type_parameter_declaration(parameters);
+            }
         }
         if let Some(instance) = self.nested_instance {
             visitor.visit_statements(&instance.body);
@@ -206,6 +213,11 @@ impl Roots for HostRoots<'_, '_, '_, '_, '_> {
     fn parameters(&mut self, parameters: ParametersIdentifier) {
         self.visitor
             .visit_formal_parameters(self.host.tree.get_parameters(parameters));
+    }
+
+    fn type_parameters(&mut self, parameters: TypeParametersIdentifier) {
+        self.visitor
+            .visit_ts_type_parameter_declaration(self.host.tree.get_type_parameters(parameters));
     }
 
     fn name(&mut self, name: TemplateName) {

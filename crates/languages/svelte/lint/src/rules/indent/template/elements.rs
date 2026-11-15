@@ -1,5 +1,6 @@
 //! Elements and their attributes.
 
+use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::characters::trim_ecmascript;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
@@ -110,6 +111,17 @@ impl Template<'_, '_> {
             match *part {
                 Part::Text(span) => self.text(span, None),
                 Part::Expression { expression, span } => {
+                    // svelte-eslint-parser wraps a getter and setter pair in a node upstream
+                    // does not know, and upstream leaves the tokens of unknown nodes alone.
+                    if attribute.kind == AttributeKind::Bind
+                        && let Expression::SequenceExpression(pair) =
+                            self.tree().get_expression(expression)
+                    {
+                        self.script
+                            .layout
+                            .ignore(crate::rules::node_span(pair.span));
+                        continue;
+                    }
                     if matches!(
                         attribute.kind,
                         AttributeKind::Attribute | AttributeKind::Style

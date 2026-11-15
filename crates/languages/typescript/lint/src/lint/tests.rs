@@ -151,6 +151,10 @@ const UNUSED: &[(&str, &[&str])] = &[
         ],
     ),
     (
+        "namespace A.B.C { const a = 1; }",
+        &["'a' is assigned a value but never used.@24-25"],
+    ),
+    (
         "function g<T>() {} g();",
         &["'T' is defined but never used.@11-12"],
     ),
@@ -238,6 +242,37 @@ const UNUSED: &[(&str, &[&str])] = &[
             "'b' is defined but never used.@118-128",
             "'this' is defined but never used.@165-177",
             "'x' is defined but never used.@179-189",
+        ],
+    ),
+    (
+        "type Foo = 1; let h: (this: Foo, a: number) => void; h; interface I { m(this: I): void; } \
+         let i: I; i; type C = { (this: C): void }; let c: C; c;",
+        &[
+            "'this' is defined but never used.@22-31",
+            "'a' is defined but never used.@33-42",
+            "'this' is defined but never used.@72-79",
+            "'this' is defined but never used.@115-122",
+        ],
+    ),
+    (
+        "let x = function (a = 1, b?: string, c = 2) {}; x; let y = function (b: string, { c } = \
+         {}) {}; y; let z = function (b: string, ...r) {}; z;",
+        &[
+            "'a' is assigned a value but never used.@18-19",
+            "'c' is assigned a value but never used.@37-38",
+            "'c' is assigned a value but never used.@82-83",
+            "'b' is defined but never used.@117-126",
+            "'r' is defined but never used.@131-132",
+        ],
+    ),
+    (
+        "class C { m(this: C) {} } class D { x: D; static make() { return new D(); } } class E {} \
+         new E(); class F extends Array<F> {}",
+        &[
+            "'C' is defined but never used.@6-7",
+            "'this' is defined but never used.@12-19",
+            "'D' is defined but never used.@32-33",
+            "'F' is defined but never used.@104-105",
         ],
     ),
 ];
