@@ -31,6 +31,9 @@ pub(super) fn view<'e>(
         Err(error) => return Some(Err(error)),
     };
     let mut projection = Emitter::new();
+    if let Some(line) = super::directive::of(&component, source_text) {
+        projection.push(line);
+    }
     if let Some(module) = &component.module {
         projection.copy(source_text, module.content);
         projection.push("\n");

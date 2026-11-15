@@ -175,12 +175,16 @@ fn typescript_view(
         Err(diagnostic) => return Err(diagnostic.clone()),
     };
     let env = env_of(env)?;
-    Ok(TypeScriptDocument::Checked {
-        projection: Emitter {
+    let projection = directive::of(component, &context.document.text).map_or_else(
+        || Emitter {
             out: projection.out.clone(),
             mappings: projection.mappings.clone(),
             atoms: projection.atoms.clone(),
         },
+        |line| directive::prepended(line, projection),
+    );
+    Ok(TypeScriptDocument::Checked {
+        projection,
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),
         extension: if typescript { ".ts" } else { ".js" },
@@ -240,6 +244,7 @@ fn env_of(
         .map_err(|why| Diagnostic::error("check_unconfigured", why, Span::new(0, 0)))
 }
 
+mod directive;
 mod script_syntax;
 
 #[cfg(test)]
