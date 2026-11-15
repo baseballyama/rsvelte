@@ -5,14 +5,16 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineBreaks;
+use rsvelte_svelte_syntax::syntax_tree::Component;
 
 use crate::Configuration;
 use crate::computation::{
-    ConditionTypes, LegacyReactivity, LintConfiguration, ModuleAsTypeScript, ModuleSemantic,
-    NativeConditionTypes, ParsedAsTypeScriptEslint, PostcssConfigurationOnDisk,
-    SameNamedFileOnDisk, TypeScriptAnalysis,
+    ConditionTypes, LegacyReactivity, LintConfiguration, LoweredAsTypeScript, ModuleAsTypeScript,
+    ModuleSemantic, NativeConditionTypes, PostcssConfigurationOnDisk, ResolvedAsTypeScript,
+    SameNamedFileOnDisk,
 };
 use crate::rules::style_attribute::InlineStyles;
 use crate::rules::style_sheet::StyleSheetVerdict;
@@ -46,13 +48,13 @@ pub fn register_artifacts(registry: &mut Registry) {
     rsvelte_typescript_semantic::register(registry);
     registry
         .artifact::<ModuleSemantic>()
+        .artifact::<ModuleAsTypeScript>()
         .artifact::<InlineStyles>()
         .artifact::<StyleSheetVerdict>()
+        .artifact::<LoweredAsTypeScript>()
+        .artifact::<ResolvedAsTypeScript>()
         .artifact::<NativeConditionTypes>()
         .artifact::<LegacyReactivity>()
-        .artifact::<TypeScriptAnalysis>()
-        .artifact::<ParsedAsTypeScriptEslint>()
-        .artifact::<ModuleAsTypeScript>()
         .artifact::<SameNamedFileOnDisk>()
         .artifact::<PostcssConfigurationOnDisk>();
 }
@@ -70,10 +72,10 @@ pub fn register_type_provider(
         rsvelte_svelte_syntax::matches,
         move |context| {
             let facts = provider(context);
-            let Some(resolution) = context.get::<rsvelte_svelte_semantic::Resolved>() else {
+            let Ok(linted) = crate::computation::Linted::of(context) else {
                 return Err("the type provider ran on a component that does not parse".to_owned());
             };
-            let nodes = resolution.semantic().nodes().len();
+            let nodes = linted.resolution().semantic().nodes().len();
             if facts.len() == nodes {
                 Ok(facts)
             } else {
@@ -124,11 +126,9 @@ impl Task for Lint {
         // svelte-eslint-parser throws Svelte's parse error, which ESLint reports as the one
         // finding: the markup's, or a JavaScript one in the template's expressions, which Svelte's
         // parser reads too. It parses a script itself, with typescript-eslint whatever the
-        // script's language, and throws what that rejects; any other error in a script stays
-        // refused.
-        let javascript_error;
-        let parse_error = if !rsvelte_svelte_syntax::matches(context.document) {
-            if let Some((message, at)) = module_rejection(context) {
+        // script's language, and throws what that rejects; the rules read a script it parses.
+        match parse_verdict(context) {
+            Verdict::Throws(message, at) => {
                 rsvelte_lint_runner::output::report_parse_error(
                     out,
                     positions(context),
@@ -137,59 +137,11 @@ impl Task for Lint {
                 );
                 return;
             }
-            None
-        } else if let Err(error) = context.get::<rsvelte_svelte_syntax::Parsed>() {
-            Some(error)
-        } else {
-            javascript_error = rsvelte_svelte_compile::javascript_error(context);
-            javascript_error.as_ref()
-        };
-        let directive_error = match parse_error {
-            None if rsvelte_svelte_syntax::matches(context.document) => {
-                (context.get::<rsvelte_svelte_syntax::Parsed>().as_ref().ok()).and_then(
-                    |component| {
-                        (grammar::rejection(&component.javascript, grammar::scripts(component)))
-                            .map(|(message, at)| (message.to_owned(), at))
-                            .or_else(|| directive_names::rejection(component))
-                    },
-                )
-            }
-            _ => None,
-        };
-        if let Some((message, at)) = directive_error {
-            rsvelte_lint_runner::output::report_parse_error(out, positions(context), &message, at);
-            return;
-        }
-        if let Some(error) = parse_error {
-            let thrown = if rsvelte_svelte_syntax::parse::in_script_content(
-                context.source_text(),
-                error.span.start_offset,
-            ) {
-                typescript_eslint_rejection(context).or_else(|| {
-                    if let Ok(component) = context.get::<rsvelte_svelte_syntax::Parsed>() {
-                        let (message, at) = grammar::scanner_rejection(component)?;
-                        return Some((Cow::Owned(message), at));
-                    }
-                    let component = crate::computation::component(context).ok()?;
-                    let (message, at) =
-                        grammar::rejection(&component.javascript, grammar::scripts(component))?;
-                    Some((Cow::Borrowed(message), at))
-                })
-            } else {
-                Some((
-                    Cow::Borrowed(error.message.as_str()),
-                    error.span.start_offset,
-                ))
-            };
-            if let Some((message, at)) = thrown {
-                rsvelte_lint_runner::output::report_parse_error(
-                    out,
-                    positions(context),
-                    &message,
-                    at,
-                );
+            Verdict::Refused(error) => {
+                out.diagnostics.push(error);
                 return;
             }
+            Verdict::Parses => {}
         }
         let (file, findings, rules) = match crate::rule::File::new(context, configuration.globals())
             .and_then(|file| {
@@ -213,32 +165,114 @@ impl Task for Lint {
     }
 }
 
-/// What typescript-eslint throws for the first script the compiler rejects, and where.
-fn typescript_eslint_rejection<'a>(
-    context: &'a DocumentContext<'_>,
-) -> Option<(Cow<'a, str>, u32)> {
-    // svelte-eslint-parser parses the template with the scripts blanked out first, so an error of
-    // the template wins over the scripts'.
-    let component = match context.get::<ParsedAsTypeScriptEslint>() {
-        Ok(component) => component,
-        Err(error) => {
-            return Some((
-                Cow::Borrowed(error.message.as_str()),
-                error.span.start_offset,
-            ));
+/// What svelte-eslint-parser does with the document.
+enum Verdict<'a> {
+    /// It throws this message at this offset.
+    Throws(Cow<'a, str>, u32),
+    /// This port cannot tell what it throws.
+    Refused(Diagnostic),
+    /// It parses the document, and the rules read it.
+    Parses,
+}
+
+fn parse_verdict<'a>(context: &'a DocumentContext<'_>) -> Verdict<'a> {
+    if !rsvelte_svelte_syntax::matches(context.document) {
+        return module_rejection(context).map_or(Verdict::Parses, |(message, at)| {
+            Verdict::Throws(message, at)
+        });
+    }
+    let javascript_error;
+    let (error, component) = match context.get::<rsvelte_svelte_syntax::Parsed>() {
+        Err(error) => (error, None),
+        Ok(component) => {
+            javascript_error = rsvelte_svelte_semantic::javascript_error(context);
+            match &javascript_error {
+                Some(error) => (error, Some(component)),
+                None => return unchecked_verdict(component),
+            }
         }
     };
-    let error =
-        rsvelte_typescript_tree::typescript_eslint_error(&component.script_typescript_errors)?;
+    if !rsvelte_svelte_syntax::parse::in_script_content(
+        context.source_text(),
+        error.span.start_offset,
+    ) {
+        return Verdict::Throws(Cow::Owned(error.message.clone()), error.span.start_offset);
+    }
+    match typescript_eslint_verdict(context) {
+        TypescriptEslint::Throws(message, at) => Verdict::Throws(message, at),
+        // tsc's scanner rejects what oxc and Svelte's parser both read.
+        verdict => match component.and_then(grammar::scanner_rejection) {
+            Some((message, at)) => Verdict::Throws(Cow::Owned(message), at),
+            None if matches!(verdict, TypescriptEslint::Unknown) => Verdict::Refused(error.clone()),
+            None => Verdict::Parses,
+        },
+    }
+}
+
+/// What typescript-eslint throws in a component Svelte's parser reads whole: what that lets pass.
+fn unchecked_verdict(component: &Component) -> Verdict<'static> {
+    let tree = &component.javascript;
+    if let Some((message, at)) =
+        grammar::rejection(tree, tree.unchecked_errors(), grammar::scripts(component))
+    {
+        return Verdict::Throws(Cow::Borrowed(message), at);
+    }
+    directive_names::rejection(component).map_or(Verdict::Parses, |(message, at)| {
+        Verdict::Throws(Cow::Owned(message), at)
+    })
+}
+
+/// What typescript-eslint does with the scripts when the compiler rejects one.
+enum TypescriptEslint<'a> {
+    /// It throws this message at this offset.
+    Throws(Cow<'a, str>, u32),
+    /// It parses them, and the rules read them.
+    Parses,
+    /// This port cannot tell what it throws.
+    Unknown,
+}
+
+/// What typescript-eslint does with the first script the compiler rejects.
+fn typescript_eslint_verdict<'a>(context: &'a DocumentContext<'_>) -> TypescriptEslint<'a> {
+    // svelte-eslint-parser parses the template with the scripts blanked out first, so an error of
+    // the template wins over the scripts'.
+    let component = match context.get::<rsvelte_svelte_syntax::ParsedAsTypeScript>() {
+        Ok(component) => component,
+        Err(error) => {
+            return TypescriptEslint::Throws(
+                Cow::Borrowed(error.message.as_str()),
+                error.span.start_offset,
+            );
+        }
+    };
+    let errors = &component.script_typescript_errors;
+    let Some(error) = rsvelte_typescript_tree::typescript_eslint_error(errors) else {
+        return grammar_verdict(component);
+    };
     let at = error.diagnostic.span.start_offset;
     // svelte-eslint-parser hands typescript-eslint the template's code after the script's, so
     // what it throws at the script's end depends on that code.
-    let script = (component.module.iter().chain(&component.instance))
-        .find(|script| script.content.start_offset <= at && at <= script.content.end_offset)?;
-    if at == script.content.end_offset {
-        return None;
+    let inside = (component.module.iter().chain(&component.instance))
+        .any(|script| script.content.start_offset <= at && at < script.content.end_offset);
+    // An error without TypeScript's code is one this port does not know TypeScript's verdict on.
+    if !inside || error.typescript_code.is_none() {
+        return TypescriptEslint::Unknown;
     }
-    Some((error.typescript_eslint_message()?, at))
+    // An error it does not throw leaves the script to the rules.
+    error.typescript_eslint_message().map_or_else(
+        || grammar_verdict(component),
+        |message| TypescriptEslint::Throws(message, at),
+    )
+}
+
+/// What typescript-eslint throws from its own check of the scripts read as TypeScript.
+fn grammar_verdict<'a>(component: &Component) -> TypescriptEslint<'a> {
+    let tree = &component.javascript;
+    let errors = (component.script_typescript_errors.iter()).chain(tree.unchecked_errors());
+    grammar::rejection(tree, errors, grammar::scripts(component))
+        .map_or(TypescriptEslint::Parses, |(message, at)| {
+            TypescriptEslint::Throws(Cow::Borrowed(message), at)
+        })
 }
 
 /// What typescript-eslint throws for a module the shared parse rejects.
@@ -249,7 +283,8 @@ fn module_rejection<'a>(context: &'a DocumentContext<'_>) -> Option<(Cow<'a, str
         .err()?;
     let errors = match context.get::<ModuleAsTypeScript>() {
         Ok(module) => {
-            let (message, at) = grammar::rejection(&module.tree, [module.root])?;
+            let tree = &module.tree;
+            let (message, at) = grammar::rejection(tree, tree.unchecked_errors(), [module.root])?;
             return Some((Cow::Borrowed(message), at));
         }
         Err(errors) => errors,

@@ -171,9 +171,10 @@ function programFiles(): string[] {
 }
 
 // `rsvelte check` asks the checker for the tsconfig's files, and its mapper projects any other
-// component the program reads, such as a package's.
-const rsvelteArguments = (checker: string) => [
-	'check',
+// component the program reads, such as a package's. tsrs has no `--showConfig`, so its arms run
+// the files tsgo found.
+const rsvelteArguments = (checker: string, given?: string[]) => [
+	...(given ? ['run', ...given] : ['check']),
 	'--task',
 	TASK,
 	'--options',
@@ -211,10 +212,15 @@ type Arm = {
 const svelteCheck = ['--workspace', workspace, '--output', 'machine-verbose'];
 // Type checking only: rsvelte's check runs no Svelte compiler or CSS diagnostics either.
 const sources = ['--diagnostic-sources', 'js'];
-const rsvelteArm = (checker: string, typescript: string, env?: Record<string, string>): Arm => ({
+const rsvelteArm = (
+	checker: string,
+	typescript: string,
+	env?: Record<string, string>,
+	given?: string[],
+): Arm => ({
 	label: '',
 	program: rsvelte,
-	arguments: rsvelteArguments(checker),
+	arguments: rsvelteArguments(checker, given),
 	env,
 	typescript,
 	parse: parseRsvelte,
@@ -269,12 +275,12 @@ const arms: Record<ArmName, Arm> = {
 		label: 'rsvelte, Rust content mapper, tsgo',
 	},
 	'rsvelte-tsrs': {
-		...rsvelteArm(tsrsNative, nativeVersion(tsrsNative)),
-		label: 'rsvelte, Rust content mapper, tsrs',
+		...rsvelteArm(tsrsNative, nativeVersion(tsrsNative), undefined, files),
+		label: 'rsvelte, Rust content mapper, tsrs, files from tsgo',
 	},
 	'rsvelte-tsrs-fast': {
-		...rsvelteArm(tsrsNative, nativeVersion(tsrsNative), { TSRS_FAST: '1' }),
-		label: 'rsvelte, Rust content mapper, tsrs TSRS_FAST=1',
+		...rsvelteArm(tsrsNative, nativeVersion(tsrsNative), { TSRS_FAST: '1' }, files),
+		label: 'rsvelte, Rust content mapper, tsrs TSRS_FAST=1, files from tsgo',
 	},
 };
 

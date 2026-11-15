@@ -24,21 +24,35 @@ pub enum Feature {
 /// `remove_typescript_nodes` meets them: a namespace's body before the namespace.
 #[must_use]
 pub fn first_runtime_feature(program: &Program<'_>) -> Option<(Feature, Span)> {
-    find(program, false)
+    find(program, false, |_| true)
 }
 
 /// [`first_runtime_feature`] as Svelte's `remove_typescript_nodes` sees it: it keeps an import
 /// equals inside a namespace as a value, so it refuses the namespace instead.
 #[must_use]
 pub fn first_svelte_runtime_feature(program: &Program<'_>) -> Option<(Feature, Span)> {
-    find(program, true)
+    first_svelte_runtime_feature_where(program, |_| true)
 }
 
-fn find(program: &Program<'_>, svelte: bool) -> Option<(Feature, Span)> {
+/// [`first_svelte_runtime_feature`] among the features `wanted` keeps.
+#[must_use]
+pub fn first_svelte_runtime_feature_where(
+    program: &Program<'_>,
+    wanted: fn(Feature) -> bool,
+) -> Option<(Feature, Span)> {
+    find(program, true, wanted)
+}
+
+fn find(
+    program: &Program<'_>,
+    svelte: bool,
+    wanted: fn(Feature) -> bool,
+) -> Option<(Feature, Span)> {
     let mut finder = Finder {
         found: None,
         svelte,
         namespaces: 0,
+        wanted,
     };
     finder.visit_program(program);
     finder.found
@@ -49,11 +63,14 @@ struct Finder {
     svelte: bool,
     /// How many namespace bodies the walk is in.
     namespaces: u32,
+    wanted: fn(Feature) -> bool,
 }
 
 impl Finder {
     fn found(&mut self, feature: Feature, span: Span) {
-        self.found.get_or_insert((feature, span));
+        if (self.wanted)(feature) {
+            self.found.get_or_insert((feature, span));
+        }
     }
 
     /// A module block the walk has entered, refused once its statements are walked.

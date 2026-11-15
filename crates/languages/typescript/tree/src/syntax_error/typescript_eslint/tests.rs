@@ -101,7 +101,7 @@ fn thrown_of_all(text: &str) -> Option<(String, u32)> {
         .parse()
         .diagnostics
         .into_iter()
-        .map(|error| crate::syntax_error([error], text, 0, 0))
+        .map(|error| crate::syntax_error([error], text, &[], 0, 0))
         .collect();
     let error = super::typescript_eslint_error(&errors)?;
     let message = error.typescript_eslint_message()?.into_owned();

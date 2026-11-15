@@ -6,7 +6,7 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_span::{GetSpan, Span};
 use oxc_syntax::scope::ScopeFlags;
 use rsvelte_svelte_syntax::syntax_tree::Component;
-use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
+use rsvelte_typescript_tree::{ProgramIdentifier, SyntaxError, Tree};
 
 /// The grammar errors a host lets pass that typescript-eslint throws from its own check of the
 /// tree, with its words.
@@ -27,13 +27,14 @@ const THROWN: [(u32, &str); 5] = [
     (1267, "Abstract property cannot have an initializer."),
 ];
 
-/// What typescript-eslint throws for the first such error in `programs` of `tree`, and where:
-/// at the node it checks, where oxc points at the `!`, the `*` or the name.
-pub(super) fn rejection(
+/// What typescript-eslint throws for the first such error of `errors` in `programs` of `tree`, and
+/// where: at the node it checks, where oxc points at the `!`, the `*` or the name.
+pub(super) fn rejection<'e>(
     tree: &Tree,
+    errors: impl IntoIterator<Item = &'e SyntaxError>,
     programs: impl IntoIterator<Item = ProgramIdentifier>,
 ) -> Option<(&'static str, u32)> {
-    let (error, message) = (tree.unchecked_errors().iter())
+    let (error, message) = (errors.into_iter())
         .filter_map(|error| {
             let code = error.typescript_code?;
             let (_, message) = THROWN.iter().find(|(number, _)| *number == code)?;

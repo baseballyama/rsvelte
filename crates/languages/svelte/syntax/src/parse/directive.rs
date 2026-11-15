@@ -15,21 +15,21 @@ fn is_valid_identifier(name: &str) -> bool {
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
 }
 
-/// Whether the text between a `{` and its expression opens a parenthesis outside a comment.
-fn opens_a_parenthesis(text: &str) -> bool {
+/// How many parentheses the text between a `{` and its expression opens outside a comment.
+fn parentheses_before(text: &str) -> u8 {
     let mut rest = text;
+    let mut pairs: u8 = 0;
     while let Some(c) = rest.chars().next() {
         if let Some(comment) = rest.strip_prefix("/*") {
             rest = comment.find("*/").map_or("", |end| &comment[end + 2..]);
         } else if let Some(comment) = rest.strip_prefix("//") {
             rest = comment.find('\n').map_or("", |end| &comment[end..]);
-        } else if c == '(' {
-            return true;
         } else {
+            pairs = pairs.saturating_add(u8::from(c == '('));
             rest = &rest[c.len_utf8()..];
         }
     }
-    false
+    pairs
 }
 
 impl<'a> Parser<'a, '_> {
@@ -64,10 +64,11 @@ impl<'a> Parser<'a, '_> {
         if attribute.kind == AttributeKind::Bind
             && let [Part::Expression { expression, span }] = *parts.get(&self.component.parts)
         {
-            let start = oxc_span::GetSpan::span(self.builder.get_expression(expression)).start;
-            let before = &self.source_text[span.start_offset as usize + 1..start as usize];
-            if opens_a_parenthesis(before) {
-                self.component.parenthesized_binds.push(expression);
+            let inner = oxc_span::GetSpan::span(self.builder.get_expression(expression));
+            let before = &self.source_text[span.start_offset as usize + 1..inner.start as usize];
+            let pairs = parentheses_before(before);
+            if pairs > 0 {
+                self.builder.record_parentheses(inner, pairs);
             }
         }
         Ok(())

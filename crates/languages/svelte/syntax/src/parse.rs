@@ -89,23 +89,7 @@ pub fn parse_without_scripts(source_text: &str) -> ParseResult<Component> {
 ///
 /// As [`parse`], outside the scripts.
 pub fn parse_reading_scripts_as_typescript(source_text: &str) -> ParseResult<Component> {
-    parse_with(
-        source_text,
-        Scripts::ReadAsTypeScript(ACORN_UNCHECKED_TYPESCRIPT_RULES),
-    )
-}
-
-/// [`parse_reading_scripts_as_typescript`] as svelte-eslint-parser reads a script: TypeScript
-/// leaves unchecked the grammar errors typescript-eslint lets through.
-///
-/// # Errors
-///
-/// As [`parse`], outside the scripts.
-pub fn parse_reading_scripts_as_typescript_eslint(source_text: &str) -> ParseResult<Component> {
-    parse_with(
-        source_text,
-        Scripts::ReadAsTypeScript(rsvelte_typescript_tree::TYPESCRIPT_ESLINT_UNCHECKED),
-    )
+    parse_with(source_text, Scripts::ReadAsTypeScript)
 }
 
 /// How the parser reads each script's content.
@@ -115,9 +99,8 @@ enum Scripts {
     Read,
     /// Not at all: each program is empty.
     Left,
-    /// As the compiler does, and as TypeScript where the compiler rejects it, leaving these
-    /// TypeScript codes unchecked.
-    ReadAsTypeScript(&'static [&'static str]),
+    /// As the compiler does, and as TypeScript where the compiler rejects it.
+    ReadAsTypeScript,
 }
 
 fn parse_with(source_text: &str, scripts: Scripts) -> ParseResult<Component> {
@@ -239,7 +222,6 @@ struct Template {
     parts: Vec<Part>,
     modifiers: Vec<Span>,
     debug_identifiers: Vec<rsvelte_typescript_tree::ExpressionIdentifier>,
-    parenthesized_binds: Vec<rsvelte_typescript_tree::ExpressionIdentifier>,
     root: Range,
     module: Option<Script>,
     instance: Option<Script>,
@@ -257,7 +239,6 @@ impl Template {
             parts: buffer_pool::take_keyed::<Component, _>(),
             modifiers: buffer_pool::take_keyed::<Component, _>(),
             debug_identifiers: buffer_pool::take_keyed::<Component, _>(),
-            parenthesized_binds: Vec::new(),
             root: Range::default(),
             module: None,
             instance: None,
@@ -279,7 +260,6 @@ impl Template {
             parts: std::mem::take(&mut self.parts),
             modifiers: std::mem::take(&mut self.modifiers),
             debug_identifiers: std::mem::take(&mut self.debug_identifiers),
-            parenthesized_binds: std::mem::take(&mut self.parenthesized_binds),
             root: self.root,
             module: self.module.take(),
             instance: self.instance.take(),

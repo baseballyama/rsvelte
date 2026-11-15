@@ -25,9 +25,9 @@ impl Artifact for InlineStyles {
     const NAME: &'static str = "svelte.lint.inline_styles";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let component = crate::computation::component(context)
-            .expect("lint requests inline styles of a component it reads");
-        inline_styles(component, context.source_text())
+        let linted = crate::computation::Linted::of(context)
+            .expect("lint requests inline styles after parsing");
+        inline_styles(linted.component, context.source_text())
     }
 }
 

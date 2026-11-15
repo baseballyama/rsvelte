@@ -270,35 +270,33 @@ impl Parser<'_, '_> {
         self.eat_token(TokenType::TagEnd, 1);
     }
 
-    /// The script's program as Prettier's Svelte plugin reads it: as the compiler reads it, else
-    /// as TypeScript, else empty, keeping the first such script's TypeScript errors; and whether
-    /// it is TypeScript.
+    /// The script's program as Prettier's Svelte plugin and svelte-eslint-parser read it: as the
+    /// compiler reads it, else as TypeScript, else what oxc recovered of it, else empty, keeping
+    /// the first such script's TypeScript errors; and whether it is TypeScript.
     fn program_read_as_typescript(
         &mut self,
         content: Span,
         source_type: SourceType,
-        unchecked: &'static [&'static str],
     ) -> Result<(ProgramIdentifier, bool), SyntaxError> {
-        if !source_type.is_typescript()
-            && let Ok(program) = self.builder.program(content, source_type)
-        {
-            return Ok((program, false));
-        }
-        let read_as = if source_type.is_typescript() {
-            source_type
+        let typescript = SourceType::ts().with_module(true);
+        let read = if source_type.is_typescript() {
+            self.builder.program_or_errors(content, source_type)
         } else {
-            SourceType::ts().with_module(true)
+            match self.builder.program(content, source_type) {
+                Ok(program) => return Ok((program, false)),
+                Err(_) => self.builder.program_or_errors(content, typescript),
+            }
         };
-        self.builder.leave_unchecked(unchecked);
-        let read = self.builder.program_or_errors(content, read_as);
-        self.builder
-            .leave_unchecked(super::ACORN_UNCHECKED_TYPESCRIPT_RULES);
-        let errors = match read {
+        let rejected = match read {
             Ok(program) => return Ok((program, true)),
-            Err(errors) => errors,
+            Err(rejected) => rejected,
         };
         if self.component.script_typescript_errors.is_empty() {
-            self.component.script_typescript_errors = errors;
+            self.component.script_typescript_errors = rejected.errors;
+        }
+        // typescript-eslint tolerates some of oxc's errors, and the rules read the rest.
+        if let Some(program) = rejected.recovered {
+            return Ok((program, true));
         }
         let end = content.end_offset;
         let program = self.builder.program(Span::new(end, end), source_type)?;
@@ -326,9 +324,7 @@ impl Parser<'_, '_> {
                     source_type,
                 )
                 .map(|p| (p, typescript)),
-            Scripts::ReadAsTypeScript(unchecked) => {
-                self.program_read_as_typescript(content, source_type, unchecked)
-            }
+            Scripts::ReadAsTypeScript => self.program_read_as_typescript(content, source_type),
         }
         .map_err(javascript_failure)?;
         // Upstream parses the script before it checks for another.

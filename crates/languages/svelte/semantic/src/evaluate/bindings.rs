@@ -12,10 +12,11 @@ impl Evaluator<'_> {
     /// the evaluator's scope in a tree a task built.
     fn resolve(&self, identifier: &IdentifierReference<'_>) -> Option<SymbolId> {
         let scoping = self.res.scoping();
-        match identifier.reference_id.get() {
+        let symbol = match identifier.reference_id.get() {
             Some(reference) => scoping.get_reference(reference).symbol_id(),
             None => scoping.find_binding(self.scope?, identifier.name),
-        }
+        };
+        crate::resolve::bound(scoping, symbol)
     }
 
     pub(super) fn identifier(&mut self, identifier: &IdentifierReference<'_>, values: &mut Values) {

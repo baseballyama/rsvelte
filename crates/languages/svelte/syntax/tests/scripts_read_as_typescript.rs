@@ -1,9 +1,7 @@
 //! A script the compiler rejects, read as Prettier's Svelte plugin reads it: as TypeScript, and
 //! past it when TypeScript rejects it too. The compiler's read does not change.
 
-use rsvelte_svelte_syntax::parse::{
-    parse, parse_reading_scripts_as_typescript, parse_reading_scripts_as_typescript_eslint,
-};
+use rsvelte_svelte_syntax::parse::{parse, parse_reading_scripts_as_typescript};
 
 fn at(source: &str, text: &str) -> u32 {
     source.find(text).expect("the text") as u32
@@ -93,19 +91,4 @@ fn an_error_before_the_script_stops_both_reads_there() {
         );
         assert!(strict.span.start_offset < at(source, "<script"), "{source}");
     }
-}
-
-/// typescript-eslint lets the checker's grammar errors through, so its read keeps the program.
-#[test]
-fn a_checker_error_keeps_the_program_as_typescript_eslint_reads_it() {
-    let source = "<script>\n\tclass C {\n\t\tstatic private a = 1;\n\t}\n</script>\n\n<p>{C}</p>\n";
-    let prettier = parse_reading_scripts_as_typescript(source).expect("the markup parses");
-    assert!(!prettier.script_typescript_errors.is_empty());
-    let eslint = parse_reading_scripts_as_typescript_eslint(source).expect("the markup parses");
-    assert!(eslint.script_typescript_errors.is_empty());
-    let instance = eslint.instance.as_ref().expect("the script");
-    assert_eq!(
-        eslint.javascript.get_program(instance.program).body.len(),
-        1
-    );
 }
