@@ -37,20 +37,30 @@ fn a_pseudo_element_argument_is_a_selector_list() {
 }
 
 #[test]
-fn an_nth_selector_list_is_kept_apart_from_the_matched_selectors() {
+fn an_nth_selector_list_is_read_apart_from_the_matched_selectors() {
     use crate::syntax_tree::Simple;
     let source = "li:nth-child(2n of .a, .b) { }";
     let sheet = parse(source, Span::new(0, source.len() as u32)).expect("parses");
     let RuleKind::Style { selectors, .. } = &sheet.rules[0].kind else {
         panic!("a style rule");
     };
-    let Some(Simple::PseudoClass { selectors, nth, .. }) =
+    let Some(simple @ Simple::PseudoClass { selectors, .. }) =
         selectors[0].parts[0].simple.iter().next_back()
     else {
         panic!("a pseudo-class");
     };
     assert!(selectors.is_empty());
+    let nth = nth_of_selectors(source, simple);
     assert_eq!(nth.len(), 2);
+    let Some(Simple::Class { name, .. }) = nth[1].parts[0].simple.iter().next() else {
+        panic!("a class");
+    };
+    assert_eq!(sheet.text(*name, source), "b");
+}
+
+#[test]
+fn a_simple_selector_stays_small() {
+    assert_eq!(size_of::<Simple>(), 48);
 }
 
 fn whole(stylesheet: &str) -> R<StyleSheet> {

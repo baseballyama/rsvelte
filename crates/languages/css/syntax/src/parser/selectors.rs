@@ -381,7 +381,6 @@ impl P<'_> {
         let element = self.eat(b':');
         let name = self.identifier()?;
         let mut selectors = Vec::new();
-        let mut nth = Vec::new();
         let arguments = if self.eat(b'(') {
             let a = self.position;
             let name = name.text(self.source_text);
@@ -395,10 +394,8 @@ impl P<'_> {
                 }
             } else if NTH.iter().any(|nth| name.eq_ignore_ascii_case(nth)) {
                 if !self.tolerant {
-                    nth = self.selector_list(true)?;
-                } else if let Some(list) = self.attempt(|p| p.selector_list(true)) {
-                    nth = list;
-                } else {
+                    self.selector_list(true)?;
+                } else if self.attempt(|p| p.selector_list(true)).is_none() {
                     // ESLint's selector parser reads any argument of an `nth-*` pseudo-class.
                     self.skip_balanced_until(b")")?;
                 }
@@ -423,7 +420,6 @@ impl P<'_> {
                 name,
                 arguments,
                 selectors: selectors.into_boxed_slice(),
-                nth: nth.into_boxed_slice(),
             }
         })
     }
@@ -509,6 +505,41 @@ fn trivia(rest: &[u8], from: usize) -> usize {
 fn count(rest: &[u8], from: usize, f: fn(&u8) -> bool) -> usize {
     rest.get(from..)
         .map_or(0, |rest| rest.iter().take_while(|c| f(c)).count())
+}
+
+/// The selector list of the `An+B of S` argument of an `nth-*` pseudo-class, as lint reads it.
+///
+/// The tree does not keep it, so that every simple selector stays small. Its names read through
+/// the sheet's [`StyleSheet::text`](crate::StyleSheet::text), since the sheet's parse read them.
+#[must_use]
+pub fn nth_of_selectors(source_text: &str, simple: &Simple) -> Vec<ComplexSelector> {
+    let Simple::PseudoClass {
+        name,
+        arguments: Some(arguments),
+        ..
+    } = simple
+    else {
+        return Vec::new();
+    };
+    let name = name.text(source_text);
+    let of = arguments
+        .text(source_text)
+        .as_bytes()
+        .windows(2)
+        .any(|w| w.eq_ignore_ascii_case(b"of"));
+    if !of || !NTH.iter().any(|nth| name.eq_ignore_ascii_case(nth)) {
+        return Vec::new();
+    }
+    // The reader ends at the `)` after the argument.
+    let start = arguments.start_offset as usize;
+    let mut p = P::new(
+        source_text,
+        start,
+        arguments.end_offset as usize + 1,
+        None,
+        Some(false),
+    );
+    p.attempt(|p| p.selector_list(true)).unwrap_or_default()
 }
 
 const NTH: [&str; 4] = [

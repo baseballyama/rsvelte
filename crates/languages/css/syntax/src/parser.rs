@@ -19,6 +19,8 @@ pub struct ParseError {
 mod declarations;
 mod selectors;
 
+pub use selectors::nth_of_selectors;
+
 type R<T> = Result<T, ParseError>;
 
 /// Parses `content` (a range of `source_text`) as a style sheet.
@@ -81,26 +83,7 @@ fn read(
     close: Option<&[u8]>,
     lint: Option<bool>,
 ) -> R<StyleSheet> {
-    let mut p = P {
-        tolerant: lint.is_some(),
-        scss: lint == Some(true),
-        b: source_text.as_bytes(),
-        source_text,
-        position: start,
-        end,
-        close,
-        comments: Vec::new(),
-        whitespace: Vec::new(),
-        comment_closers: Vec::new(),
-        selector_count: 0,
-        relative_count: 0,
-        value_tokens: Vec::new(),
-        rule_count: 0,
-        current_rule: None,
-        selector_parent: None,
-        atoms: Interner::new(),
-        escaped: FxHashMap::default(),
-    };
+    let mut p = P::new(source_text, start, end, close, lint);
     let rules = p.rules(false)?;
     Ok(StyleSheet {
         content: Span::new(start as u32, p.position as u32),
@@ -115,6 +98,37 @@ fn read(
         atoms: p.atoms,
         escaped: p.escaped,
     })
+}
+
+impl<'a> P<'a> {
+    fn new(
+        source_text: &'a str,
+        start: usize,
+        end: usize,
+        close: Option<&'a [u8]>,
+        lint: Option<bool>,
+    ) -> Self {
+        P {
+            tolerant: lint.is_some(),
+            scss: lint == Some(true),
+            b: source_text.as_bytes(),
+            source_text,
+            position: start,
+            end,
+            close,
+            comments: Vec::new(),
+            whitespace: Vec::new(),
+            comment_closers: Vec::new(),
+            selector_count: 0,
+            relative_count: 0,
+            value_tokens: Vec::new(),
+            rule_count: 0,
+            current_rule: None,
+            selector_parent: None,
+            atoms: Interner::new(),
+            escaped: FxHashMap::default(),
+        }
+    }
 }
 
 struct P<'a> {

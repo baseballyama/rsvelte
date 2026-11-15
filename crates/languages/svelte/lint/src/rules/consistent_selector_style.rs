@@ -5,6 +5,7 @@ use oxc_ast::ast::{BindingPattern, Expression};
 use oxc_span::Span;
 use rsvelte_kernel::source::characters::split_ecmascript_whitespace;
 use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_stylesheet_syntax::nth_of_selectors;
 use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, Range, TemplateNode, TemplateNodeIdentifier,
@@ -437,10 +438,13 @@ impl<'r> Check<'r, '_, '_> {
                     Simple::NamespacedType { span, name } if name.text(source) != "*" => {
                         self.check(Selected::Type, *span, name.text(source));
                     }
-                    Simple::PseudoClass { selectors, nth, .. }
+                    Simple::PseudoClass { selectors, .. }
                         if self.rule.check_global || !simple.is_pseudo(source, &["global"]) =>
                     {
-                        for selector in selectors.iter().chain(nth) {
+                        for selector in selectors {
+                            self.selector(selector);
+                        }
+                        for selector in &nth_of_selectors(source, simple) {
                             self.selector(selector);
                         }
                     }

@@ -1,5 +1,6 @@
 use rsvelte_kernel::source::characters::split_ecmascript_whitespace;
 use rsvelte_lint_runner::rule::Reporter;
+use rsvelte_stylesheet_syntax::nth_of_selectors;
 use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, TemplateNode};
 use rustc_hash::FxHashSet;
@@ -133,8 +134,11 @@ fn selector_classes<'a>(
                 Simple::Class { name, .. } => {
                     out.insert(sheet.text(*name, source));
                 }
-                Simple::PseudoClass { selectors, nth, .. } => {
-                    for selector in selectors.iter().chain(nth) {
+                Simple::PseudoClass { selectors, .. } => {
+                    for selector in selectors {
+                        selector_classes(sheet, source, selector, out);
+                    }
+                    for selector in &nth_of_selectors(source, simple) {
                         selector_classes(sheet, source, selector, out);
                     }
                 }

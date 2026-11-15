@@ -160,8 +160,6 @@ pub enum Simple {
         name: Span,
         arguments: Option<Span>,
         selectors: Box<[ComplexSelector]>,
-        /// The selector list of an `An+B of S` argument, which only lint reads.
-        nth: Box<[ComplexSelector]>,
     },
     PseudoElement {
         span: Span,
