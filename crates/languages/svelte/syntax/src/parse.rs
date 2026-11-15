@@ -105,7 +105,7 @@ enum Scripts {
 
 fn parse_with(source_text: &str, scripts: Scripts) -> ParseResult<Component> {
     let (javascript, template) = Tree::build(source_text, |builder| {
-        builder.leave_unchecked(ACORN_UNCHECKED_TYPESCRIPT_RULES);
+        builder.leave_unchecked(&ACORN_UNCHECKED_TYPESCRIPT_RULES);
         builder.read_as_acorn();
         let mut parser = Parser {
             // Upstream parses the component without its trailing whitespace, so that is where
