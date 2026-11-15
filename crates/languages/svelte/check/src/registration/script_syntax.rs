@@ -6,7 +6,7 @@ use std::sync::Arc;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_typescript_projection::{Refusal, unparsed_script};
+use rsvelte_svelte_typescript_projection::{Refusal, checked_as_typescript, unparsed_script};
 use rsvelte_typescript_check::{TypeScriptDocument, TypeScriptEnv};
 
 /// The document to check, or `None` when the markup does not parse either.
@@ -25,12 +25,7 @@ pub(super) fn view<'e>(
             span,
         }));
     }
-    let scripts = [&component.module, &component.instance];
-    let typescript = scripts
-        .iter()
-        .copied()
-        .flatten()
-        .any(|script| script.typescript);
+    let typescript = checked_as_typescript(&component, source_text);
     let env = match env() {
         Ok(env) => env,
         Err(error) => return Some(Err(error)),

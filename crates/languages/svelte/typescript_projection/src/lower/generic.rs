@@ -60,7 +60,7 @@ impl Builder<'_> {
         let attribute = script
             .attributes
             .iter()
-            .filter(|_| script.typescript)
+            .filter(|_| !self.tree.javascript)
             .find(|(name, _)| name.text(self.source) == "generics");
         let mut exported = true;
         // From after the `<` of the start tag to the value's opening quote.

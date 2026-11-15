@@ -5,7 +5,8 @@ pub mod content_mapper;
 mod lower;
 pub mod syntax_tree;
 pub use lower::{
-    Refusal, Resolve, UnparsedScript, lower, lower_alone, store_reads, unparsed_script,
+    Refusal, Resolve, UnparsedScript, checked_as_typescript, lower, lower_alone, store_reads,
+    unparsed_script,
 };
 mod emit;
 pub use emit::{emit, emit_named};
