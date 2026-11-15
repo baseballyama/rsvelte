@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { parse as parseToml } from 'smol-toml';
-import { SOURCES_FILE, UNITS_FILE, inputsPack } from './paths.ts';
+import { READERS_FILE, SOURCES_FILE, UNITS_FILE, inputsPack } from './paths.ts';
 import { languageById, FAMILIES } from './languages.ts';
 import { readPack, type Entry } from './pack.ts';
 import type { FixtureToml, Source, Task, Unit, UnitKey, UnitMeta } from './types.ts';
@@ -57,4 +57,20 @@ export function allUnits(sourceIds?: string[], families?: string[]): Unit[] {
 export function applies(task: Task, variantId: string, unit: Unit): boolean {
 	const skip = unit.fixture.skip ?? {};
 	return task.appliesTo(unit) && !skip[task.id] && !skip[`${task.id}/${variantId}`];
+}
+
+let readers: { name: string; pack: string }[] | undefined;
+
+/**
+ * Whether regen writes `unit`'s entries in the pack of `task` and `variantId`: the task applies,
+ * or a task that readers.toml says reads a file of that pack does.
+ */
+export function writes(task: Task, variantId: string, unit: Unit): boolean {
+	if (applies(task, variantId, unit)) return true;
+	if (!task.appliesTo(unit)) return false;
+	readers ??= Object.entries(
+		parseToml(fs.readFileSync(READERS_FILE, 'utf8')) as Record<string, { pack: string }>,
+	).map(([name, r]) => ({ name, pack: r.pack }));
+	const skip = unit.fixture.skip ?? {};
+	return readers.some((r) => r.pack === `${task.id}/${variantId}` && !skip[r.name]);
 }

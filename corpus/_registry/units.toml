@@ -1423,6 +1423,7 @@
 "svelte.compile" = "upstream bug: svelte 5.57.3 exports `x` from an instance-script `export { x } from`, which binds no local `x`, so the component throws a ReferenceError"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_reexport_2113/reexport_of_a_local_let_still_widens_and_stays_a_prop/603d62102a5ffdc1.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser marks the local name of a re-export or a type-only export specifier as read."
 "svelte.compile" = "upstream bug: svelte 5.57.3 exports `x` from an instance-script `export { x } from`, which binds no local `x`, so the component throws a ReferenceError"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_reexport_2113/renamed_reexport_keeps_official_local_to_exported_mapping/f2186ac6a152b18e.svelte".skip]
@@ -1649,27 +1650,35 @@
 
 ["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/707b8495618a84da.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
 
 ["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/7eed68000c2fb1b7.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
 
 ["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/85c020f989bf01f9.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
 
 ["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/aaeb425f4f512192.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
 
 ["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/b573ea7718283b17.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
 
 ["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/c65113fd27c1708c.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
 
 ["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/e02cdbb999fb1470.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
 
 ["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/e698f9d7b260d0bf.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
 
 ["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/6974a5a87fbd5b68.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
@@ -1697,21 +1706,27 @@
 
 ["svelte/rsvelte-tests-core-2/globals_table_3617/two_shapes_stay_unfolded_on_purpose/181620c5ec25570d.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+"svelte.lint" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
 
 ["svelte/rsvelte-tests-core-3/server_global_fold_fns_3388/an_out_of_range_code_point_is_not_folded/7d852d86356c29fe.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+"svelte.lint" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
 
 ["svelte/rsvelte-tests-core-2/globals_table_3617/two_shapes_stay_unfolded_on_purpose/90b344717c29bda3.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+"svelte.lint" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
 
 ["svelte/rsvelte-tests-core-3/server_global_fold_fns_3388/an_out_of_range_code_point_is_not_folded/f4163d314d83ab72.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+"svelte.lint" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
 
 ["svelte/rsvelte-tests-core-2/globals_table_3617/two_shapes_stay_unfolded_on_purpose/f971de0d0c72cc7f.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+"svelte.lint" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
 
 ["svelte/rsvelte-tests-core-3/server_global_fold_fns_3388/an_out_of_range_code_point_is_not_folded/aff6c094f7f09b91.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+"svelte.lint" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
 
 ["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/f38d296e65efce2f.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
@@ -1794,6 +1809,7 @@
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_bare_terminator_inside_a_rule_is_a_css_error/ff8caef21871e90a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds the <script> and <style> blocks with a regular expression, so it blanks text Svelte does not read as a block and Svelte's parser fails elsewhere"
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_comment_is_a_comment/4af889e4d7e202d4.svelte".skip]
@@ -2055,39 +2071,51 @@
 
 ["svelte/rsvelte-tests-core-1/css_empty_declaration_error_span/consecutive_semicolons_span_to_the_following_block_close/6ab50de7e6515fdc.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads the empty declaration between two semicolons, which CSS allows, as css_empty_declaration"
+"svelte.lint" = "upstream bug: svelte 5.57.3 reads the empty declaration between two semicolons, which CSS allows, as css_empty_declaration"
 
 ["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/12c6b8beaa21d52d.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+"svelte.lint" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
 
 ["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/1d52c2bf6295517c.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+"svelte.lint" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
 
 ["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/d19e82e3c15ba56b.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+"svelte.lint" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
 
 ["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/e2a71600612d7577.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+"svelte.lint" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
 
 ["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/56850d42c980b1cc.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
+"svelte.lint" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
 
 ["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/d1817713cb279f42.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
+"svelte.lint" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
 
 ["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/da7b20631d49c91b.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
+"svelte.lint" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
 
 ["svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_comment_after_a_combinator_is_an_expected_identifier_at_the_comment/6417a3f535e59cc1.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style reports a selector after a comment as many columns early as the comment is long"
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"
 
 ["svelte/rsvelte/pattern/issues/3129-comment-between-compounds.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style reports a selector after a comment as many columns early as the comment is long"
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ef7c2ebb965e3245.svelte".skip]
 "svelte.compile" = "upstream bug: acorn-typescript reports an `await` in a namespace body as 'Cannot use await in class static initialization block'"
+"svelte.lint" = "upstream bug: acorn-typescript reports an `await` in a namespace body as 'Cannot use await in class static initialization block'"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/06a6ed83909b32c0.svelte".skip]
 "svelte.compile" = "upstream bug: acorn-typescript reports an `await` in a namespace body as 'Cannot use await in class static initialization block'"
+"svelte.lint" = "upstream bug: acorn-typescript reports an `await` in a namespace body as 'Cannot use await in class static initialization block'"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/070bec3752f0534a.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 checks the body of a `declare` namespace, module or global for values, and refuses a `const` there, though erasing the types leaves nothing"
@@ -2434,6 +2462,7 @@
 "svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
 
 ["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/single_quoted_value_with_an_expression_keeps_the_whole_value/d364396ec9b25275.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads a quoted <svelte:element> this value that holds a {...} as a static attribute that ends inside the value"
 "svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
 
 ["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/text_then_expression_keeps_the_whole_value/3a8bc92bcc84cfb8.svelte".skip]
@@ -2448,18 +2477,22 @@
 ["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+"svelte.lint" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 
 ["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/4809229d13f750f6.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+"svelte.lint" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 
 ["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/7e0bf9a55c019a47.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+"svelte.lint" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 
 ["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/af4e901d46ddc2c3.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+"svelte.lint" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 
 ["svelte/rsvelte-tests-core-2/keyframe_percentage_scoping/a_top_level_step_scopes_every_element/706368196c7e4643.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 css-prune matches a @keyframes step such as 0% as a selector that every element satisfies, so it gives every element the scoping class though no rule uses it"
@@ -2626,6 +2659,7 @@
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 deletes a comment outside a template expression's parentheses, which Svelte attaches to no node"
 
 ["svelte/rsvelte-tests-core-2/parse_ast_comment_attachment_4133/comments_inside_or_after_parens_still_reach_the_expression/9f102071b2d1f718.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/special_tag_bracket_scan/debug_tag_comment_with_brace/55705dc7a048ab7a.svelte".skip]
@@ -2691,9 +2725,11 @@
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_scan_lexical_state_3708_3709_3711/a_comment_in_an_await_head_does_not_end_it/85602f44f89a6d2f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser takes a } inside a comment in an {#await} head for the head's closing brace"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_scan_lexical_state_3708_3709_3711/a_comment_in_an_await_head_does_not_end_it/c12f26de3001c722.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser does not read a line comment in an `{#await}` head as a comment, so it takes the `}` inside it for the end of the head"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/await_head_expression_survives/cbb6b349ed958d11.svelte".skip]
@@ -2925,6 +2961,7 @@
 "svelte.check" = "checker: TS 7 prints a union's literal members in its own order where TS 6 keeps the written order, so the message lists them differently"
 
 ["svelte/svelte-inspect-value/packages/svelte/src/lib/components/HTMLViewSimple.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore drops the last of several codes when no separator follows it."
 "svelte.check" = "checker: TS 7 reports only the last overload of a call that no overload matches where TS 6 reports each overload"
 
 ["svelte/svelte/packages/svelte/tests/manual/each-stress-test/main.svelte".skip]
@@ -2933,62 +2970,77 @@
 ["svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/the_shapes_official_already_gets_right_are_unchanged/62731713e2ae3407.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.lint" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
 ["svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/three_string_literals_in_a_script_report_three_times/afdac586527470e9.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.lint" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
 ["svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/two_quasis_of_one_template_literal_report_twice/a623ecae2f12e62a.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.lint" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
 ["svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/two_string_literals_in_a_script_report_twice/f78ee2a73ae535ff.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.lint" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
 ["svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/two_template_expressions_report_twice/fc996b62696df7a9.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.lint" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
 ["svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/a_script_literal_still_warns/5204698638a62e55.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.lint" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
 ["svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/1b153d5fd6e74398.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.lint" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
 ["svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/d28b687dbfce54c4.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.lint" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
 ["svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/an_attribute_and_an_expression_both_report/81542bf877f46ecd.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.lint" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
 ["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/12839e381b7e9d66.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.lint" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
 ["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/60efd40319cca749.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.lint" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
 ["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/ed8c0c7fe07ced23.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.lint" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
 ["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_template_expression_keeps_its_positions/f9e1a8d36317a200.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.lint" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
 ["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/69872f6e8c224c02.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.lint" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
 ["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_whole_key_subtree_moves_with_it/4f67cefb5b0ba2e9.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.lint" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
 ["svelte/svelte-maplibre/src/lib/BackgroundLayer.svelte".skip]
 "svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
@@ -3075,6 +3127,7 @@
 "svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 reads `assert {` after a line break as import attributes, where the grammar forbids a line break before assert and TypeScript rejects it"
 
 ["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
 "svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
 "svelte.format" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
 
@@ -3358,6 +3411,7 @@
 "svelte.format" = "upstream bug: Prettier 3.9.10 prints a hex escape's terminating space and a descendant combinator as one space, which joins the two selectors into one name"
 
 ["svelte/svelte/packages/svelte/tests/css/samples/unicode-identifier/input.svelte".skip]
+"svelte.lint" = "upstream bug: postcss-selector-parser ends a hex escape before a tab or a line break, and after six digits before a space, so `#line\\a` and the name after it are two selectors"
 "svelte.format" = "upstream bug: Prettier 3.9.10 prints a hex escape's terminating space and a descendant combinator as one space, which joins the two selectors into one name"
 
 ["svelte/rsvelte-tests-core-1/css_selector_syntax_5_56_10/a_scoped_pseudo_class_keeps_its_source_spelling/da31ac17065cbeab.svelte".skip]
@@ -4104,6 +4158,343 @@
 ["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_is_not_reactive/f4814aa53a465939.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
 
+["svelte/rsvelte-tests-core-2/parse_ts_module_declaration/a_dotted_name_nests_a_module_declaration_where_a_block_would_be/1c1217871103557f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/rsvelte-tests-core-2/parse_ts_module_declaration/a_dotted_name_nests_a_module_declaration_where_a_block_would_be/b66a20c689b9e13b.svelte".skip]
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_with_a_value_is_rejected/1f82eac595c2e251.svelte".skip]
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_with_a_value_is_rejected/46379ca8ebc6edac.svelte".skip]
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_with_a_value_is_rejected/54a88385bee713ce.svelte".skip]
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_with_a_value_is_rejected/7b950a8813f1a805.svelte".skip]
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_with_a_value_is_rejected/f9d8e04057c7012f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_with_a_value_is_rejected/fe69ac1d08911a5f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-input.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte blanks svelte-ignore comments before it compiles, so a block holding only one reports block_empty, which the compiler does not (eslint-plugin-svelte #1689)"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-svelte4-input.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte blanks svelte-ignore comments before it compiles, so a block holding only one reports block_empty, which the compiler does not (eslint-plugin-svelte #1689)"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/invalid-svelte-ignore03-svelte4-input.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte blanks svelte-ignore comments before it compiles, so a block holding only one reports block_empty, which the compiler does not (eslint-plugin-svelte #1689)"
+
+["svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/ignore_in_other_if_branch_is_unused/592e39911be35f02.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte blanks svelte-ignore comments before it compiles, so a block holding only one reports block_empty, which the compiler does not (eslint-plugin-svelte #1689)"
+
+["svelte/rsvelte/pattern/adversarial/typescript/ts-decorator-and-modifiers.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/svelte-canvas/src/routes/_components/NavMenu.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/svelte-material-ui/packages/checkbox/src/Checkbox.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/svelte-material-ui/packages/radio/src/Radio.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/svelte-material-ui/packages/slider/src/Slider.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/svelte-material-ui/packages/tooltip/src/Tooltip.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/threlte/apps/docs/src/examples/extras/cube-camera/App.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/threlte/packages/extras/src/lib/components/Instancing/InstancedMeshes/InstancedMeshes.svelte".skip]
+"svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
+
+["svelte/kampsy-ui/src/routes/badge/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
+
+["svelte/kampsy-ui/src/routes/button/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
+
+["svelte/kampsy-ui/src/routes/checkbox/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
+
+["svelte/kampsy-ui/src/routes/collapse/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
+
+["svelte/kampsy-ui/src/routes/installation/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
+
+["svelte/svelte-toast/src/routes/+layout.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads the code of a `<script>` element inside the markup as part of the component script, so the last statement of the script spans the markup"
+
+["svelte/rsvelte/lint/consistent-selector-style/04-each-fallback.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style counts the `{:else}` branch of an each block as rendered any number of times"
+
+["svelte/svelte/packages/svelte/tests/css/samples/general-siblings-combinator-each-else-nested/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style counts the `{:else}` branch of an each block as rendered any number of times"
+
+["svelte/svelte/packages/svelte/tests/css/samples/general-siblings-combinator-each-else/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style counts the `{:else}` branch of an each block as rendered any number of times"
+
+["svelte/svelte/packages/svelte/tests/css/samples/siblings-combinator-each-else-nested/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style counts the `{:else}` branch of an each block as rendered any number of times"
+
+["svelte/svelte/packages/svelte/tests/css/samples/siblings-combinator-each-else/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style counts the `{:else}` branch of an each block as rendered any number of times"
+
+["svelte/rsvelte/pattern/adversarial/css/css-comment-positions.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style reports a selector after a comment as many columns early as the comment is long"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/04bc05a5c4a48321.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/1358524331a32498.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/37e29319f0324448.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/491ea81fca3dc99b.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/5b242d82304197ec.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/svelte/packages/svelte/tests/print/samples/css-escape-sequences/input.svelte".skip]
+"svelte.lint" = "upstream bug: postcss-selector-parser ends a hex escape before a tab or a line break, and after six digits before a space, so `#line\\a` and the name after it are two selectors"
+
+["svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser places the end tag of a `<textarea>` at its last `</textarea`, where Svelte ends the content at the first"
+
+["svelte/appwrite-console/src/lib/components/billing/planSelection.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/+page.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/create-[type]/(type)/push.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/layercake/src/_components/SharedTooltip.html.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/layercake/src/_components/SharedTooltip.percent-range.html.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/primo/src/lib/components/app-sidebar.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte/lint/prefer-destructured-store-props/03-block-scopes.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/rsvelte/lint/prefer-destructured-store-props/05-const-tag.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/rsvelte/lint/prefer-destructured-store-props/14-nested-store-member.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/rsvelte/lint/prefer-destructured-store-props/17-const-tag-and-let.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/shadcn-svelte/docs/src/lib/registry/examples/combobox-form.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/svar-grid/svelte/src/components/Layout.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/appwrite-console/src/lib/components/csvExportBox.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte 3.23.1's prefer-svelte-reactivity leaves a reassigned variable on its ReferenceTracker's stack, so it misses the variable's later constructions (eslint-plugin-svelte #1693)"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte 3.23.1's prefer-svelte-reactivity leaves a reassigned variable on its ReferenceTracker's stack, so it misses the variable's later constructions (eslint-plugin-svelte #1693)"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/export/+page.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte 3.23.1's prefer-svelte-reactivity leaves a reassigned variable on its ReferenceTracker's stack, so it misses the variable's later constructions (eslint-plugin-svelte #1693)"
+
+["svelte/svar-core/svelte/src/components/Calendar.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte 3.23.1's prefer-svelte-reactivity leaves a reassigned variable on its ReferenceTracker's stack, so it misses the variable's later constructions (eslint-plugin-svelte #1693)"
+
+["svelte/sveltekit/packages/kit/src/runtime/client/remote-functions/query-batch.svelte.js".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte 3.23.1's prefer-svelte-reactivity leaves a reassigned variable on its ReferenceTracker's stack, so it misses the variable's later constructions (eslint-plugin-svelte #1693)"
+
+["svelte/kite-public/src/lib/components/story/CitationTooltip.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives an {#if} branch's scope the whole {#if} block, so eslint-utils' findVariable does not find a name declared inside {:else}"
+
+["svelte/rsvelte/lint/first-attribute-linebreak/14-this-exotic-ws-first.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/html-quotes/15-this-exotic-ws-eq.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/html-self-closing/13-this-scan-failures.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/max-attributes-per-line/15-this-keytext-whitespace.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/max-attributes-per-line/16-this-exotic-ws-eq.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/max-attributes-per-line/17-crlf-this-keytext.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/no-spaces-around-equal-signs-in-attribute/07-special-this.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/no-spaces-around-equal-signs-in-attribute/11-this-exotic-ws-eq.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/no-spaces-around-equal-signs-in-attribute/12-this-scan-failures.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/html-quotes/13-this-string-literal-quoted.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads a quoted <svelte:element> this value that holds a {...} as a static attribute that ends inside the value"
+
+["svelte/rsvelte/lint/no-dupe-style-properties/13-case-and-custom-props.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte starts an inline style property at a hack prefix (_color, *color) but measures it without the prefix"
+
+["svelte/rsvelte/lint/no-shorthand-style-property-overrides/13-case-and-hacks.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte starts an inline style property at a hack prefix (_color, *color) but measures it without the prefix"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/style_like_component_is_not_blanked/64766c531adab110.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser 1.10.0 reads a component named Style as a <style> element (svelte-eslint-parser #1006)"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/style_like_component_with_a_close_tag_is_not_blanked/9bd55f8f0a0e78b4.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser 1.10.0 reads a component named Style as a <style> element (svelte-eslint-parser #1006)"
+
+["svelte/rsvelte/lint/no-nested-style-tag/14-component-lookalike.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser 1.10.0 reads a component named Style as a <style> element (svelte-eslint-parser #1006)"
+
+["svelte/rsvelte/lint/no-inspect/13-destructure-shorthand.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-inspect reports a shorthand { $inspect } or an import or export specifier twice, once for each Identifier over the one token"
+
+["svelte/rsvelte/lint/no-inspect/17-import-export-specifier.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-inspect reports a shorthand { $inspect } or an import or export specifier twice, once for each Identifier over the one token"
+
+["svelte/rsvelte/lint/require-stores-init/10-destructured-namespace.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-utils' ReferenceTracker follows a destructured store both through its key and its default, so require-stores-init reports one call twice"
+
+["svelte/rsvelte/lint/prefer-attribute-interpolation/13-escape-classes.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's hasUsefulStringEscape misses \\0, so prefer-attribute-interpolation suggests markup that cannot hold the NUL"
+
+["svelte/rsvelte/lint/prefer-style-directive/13-comment-string-interleave.svelte".skip]
+"svelte.lint" = "upstream bug: postcss-safe-parser ends an open comment, string or escape one character past the inline style"
+
+["svelte/rsvelte/lint/prefer-style-directive/14-escape-boundaries.svelte".skip]
+"svelte.lint" = "upstream bug: postcss-safe-parser ends an open comment, string or escape one character past the inline style"
+
+["svelte/rsvelte/lint/require-optimized-style-attribute/13-comment-shapes.svelte".skip]
+"svelte.lint" = "upstream bug: postcss-safe-parser ends an open comment, string or escape one character past the inline style"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/valid/pug01-input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser does not read the markup of <template lang=\"pug\"> (svelte-eslint-parser #727)"
+
+["svelte/rsvelte/lint/html-closing-bracket-new-line/05-script-style-tags.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser drops the attributes of a <style> whose closing tag has a space before >"
+
+["svelte/layerchart/docs/src/examples/components/Partition/flame-graph.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads a // comment in a start tag inside a block as tokens, not as a comment"
+
+["svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-inner-declarations hands the core rule a proxy node, so getScope skips a declaration's own scope and a top-level function outside a block counts as sloppy code"
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_namespace_local_part_and_an_at_rule_still_need_one/4b6d95c5a21bf11f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_namespace_local_part_and_an_at_rule_still_need_one/cd846e6aecf8e955.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_pseudo_class_and_an_attribute_still_need_one/7f107c374b5a7473.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_pseudo_element_needs_a_name/45e2ed376d25c163.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_attribute_selector_keeps_the_source_spacing/57fe13a37abdb380.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/b8fc896b6d2ce9e7.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/e25afc0dacd98fca.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
+
+["svelte/rsvelte-tests-core-2/import_export_parser_shapes/a_quoted_enum_member_name_is_a_literal/4bfcd601713582f5.svelte".skip]
+"svelte.lint" = "upstream bug: no-unused-vars throws on an enum member with a string-literal name."
+
+["svelte/rsvelte/pattern/issues/an-enum-declaration-carries-its-members.svelte".skip]
+"svelte.lint" = "upstream bug: no-unused-vars throws on an enum member with a string-literal name."
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/26f7bc47509f509a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws Column number out of range on irregular whitespace at a line start."
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/802126b5a9bbd4fa.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws Column number out of range on irregular whitespace at a line start."
+
+["svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeats_its_comment/3dc5b24e8a5754bb.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws on a null range in a mapped type."
+
+["svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeats_its_comment/45b1a6d91ed20a95.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws on a null range in a mapped type."
+
+["svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeats_its_comment/d22c0680b437e04a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws on a null range in a mapped type."
+
+["svelte/rsvelte/pattern/issues/3189-unbound-dollar-still-rejected.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/59adde327ea8994d.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests/rsvelte_language_server/selection_ranges/tests/style_selection_expands_while_scripts_remain_excluded/1ba3fc42196f334c.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests/rsvelte_language_server/tsgo_component_info/tests/parser_script_native_value_and_non_colon_triggers_are_rejected/91ee76e6755d0421.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests/rsvelte_language_server/tsgo_response/tests/a_name_longer_than_fifty_units_is_cut/52a32249c3589343.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/modifiers_and_a_trailing_comma_are_read_from_the_parse/3b62fe6ae1f4ce8d.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/every_host_accepts_what_upstream_accepts/37afe1d05a47e6a8.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/0072c9b1c27c3e21.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/59e91fdef56ed90e.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/ff14a907a86b8623.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/utils/htmlxparser/tests/an_uppercase_tag_is_a_component_and_never_an_orphan_script/379921bcb6f806e1.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds `<script>` blocks ignoring case, so it reads this `<Script>` or `<SCRIPT>` element as one, which Svelte does not"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/script_like_component_is_not_blanked/ffe93aebb9e69b3e.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds `<script>` blocks ignoring case, so it reads this `<Script>` or `<SCRIPT>` element as one, which Svelte does not"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/uppercase_script_like_component_is_not_blanked/b8ae751f2ba7fde5.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds `<script>` blocks ignoring case, so it reads this `<Script>` or `<SCRIPT>` element as one, which Svelte does not"
+
+["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/an_uppercase_closing_tag_is_content_too/51a8d7c4f585bd3a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds the end of a `<style>` block ignoring case, so a `</STYLE>` in the style sheet ends it, which Svelte does not"
+
+["svelte/rsvelte-tests-core-3/style_terminator_3593/near_misses_are_not_terminators/024c029169d7ee6b.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds the end of a `<style>` block ignoring case, so a `</STYLE>` in the style sheet ends it, which Svelte does not"
+
 ["svelte/rsvelte/pattern/adversarial/runes/inspect-with-and-snapshot-nesting.svelte".skip]
 "svelte.compile/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
 
@@ -4134,6 +4525,27 @@
 ["svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/36e05300c734c306.svelte".skip]
 "svelte.check" = "the official output depends on Node's stack depth, so it cannot be trusted"
 
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/an_exported_type_only_declaration_adds_no_props_parameter/258c735b9ab26ced.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser marks the local name of a re-export or a type-only export specifier as read."
+
+["svelte/rsvelte/pattern/issues/4133-binding-pattern-type-annotation.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/require-each-key ends its range inside the context's type annotation."
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/typescript-each-indexed/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/require-each-key ends its range inside the context's type annotation."
+
+["svelte/kite-public/src/routes/+layout.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore drops the last of several codes when no separator follows it."
+
+["svelte/rsvelte/lint/no-unused-svelte-ignore/12-no-trailing-space-codes.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore drops the last of several codes when no separator follows it."
+
+["svelte/svelte-inspect-value/packages/svelte/src/lib/components/Preview.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore drops the last of several codes when no separator follows it."
+
+["svelte/rsvelte-tests-core-3/svelte_ignore_comment_attachment_2256/comma_separated_codes_suppress/c91de8241b3a0217.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore drops the last of several codes when no separator follows it."
+
 ["svelte/rsvelte-tests-core-2/malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/2cd944404c6f582d.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a line comment, and parses them with ` => {}` appended, so it rejects a valid header"
 "svelte.check" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a line comment, and parses them with ` => {}` appended, so it rejects a valid header, which svelte-check reports"
@@ -4163,6 +4575,7 @@
 
 ["svelte/rsvelte-tests-core-2/parser_hardening/declaration_tag_multibyte_type_annotation_does_not_panic/47244ebc480a595e.svelte".skip]
 "svelte.compile" = "upstream bug: without `lang=\"ts\"` svelte 5.57.3 reads a `{@const}` type annotation as `_ as T` spliced 5 bytes before the colon and takes acorn's end of `_` as its position, so `expected_token` lands inside the name"
+"svelte.check" = "upstream bug: without `lang=\"ts\"` svelte 5.57.3 reads a `{@const}` type annotation as `_ as T` spliced 5 bytes before the colon and takes acorn's end of `_` as its position, so `expected_token` lands inside the name"
 
 ["svelte/flowbite-svelte/src/lib/forms/tags/Tags.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
@@ -4192,9 +4605,6 @@
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
 
 ["svelte/primo/src/lib/builder/views/editor/Page.svelte".skip]
-"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
-
-["svelte/primo/src/lib/components/app-sidebar.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
 
 ["svelte/rsvelte-tests-formatter/block_header_call_args/a_long_iterable_pushes_the_key_over_the_width/03834301bec484ba.svelte".skip]
@@ -4304,6 +4714,9 @@
 
 ["svelte/svelte-eslint-parser/tests/fixtures/parser/ast/each-with-comment-input.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines, so the line after a line comment in it loses its indent and the closing parenthesis lands at the header's column; we keep that break inside the arguments' indent"
+
+["svelte/rsvelte-tests-core-1/compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/9096b19bedcfe51e.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds the <script> and <style> blocks with a regular expression, so it blanks text Svelte does not read as a block and Svelte's parser fails elsewhere"
 
 ["svelte/rsvelte-tests-core-1/class_field_tag_label_2021/anonymous_class_falls_back_to_the_upstream_placeholder/0860dafe2dc30de4.svelte.js".skip]
 "svelte.compileModule" = "upstream bug: esrap writes `;` after a default-exported class declaration (it leaves out only a function declaration), which adds an empty statement"

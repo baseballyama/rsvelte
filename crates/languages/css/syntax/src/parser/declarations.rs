@@ -13,6 +13,11 @@ impl P<'_> {
                 Some(b'}') | None => return Ok((declarations, children)),
                 Some(b';') => self.position += 1,
                 Some(b'@') => push(&mut children, self.at_rule()?),
+                Some(_) if self.tolerant => {
+                    if let Some(rule) = self.tolerant_item()? {
+                        push(&mut children, rule);
+                    }
+                }
                 Some(_) => {
                     let start = self.position;
                     let nested = self.b[self.value_end()?] == b'{';

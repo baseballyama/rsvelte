@@ -1,5 +1,5 @@
 use super::*;
-use crate::syntax_tree::RuleKind;
+use crate::syntax_tree::{RuleKind, Simple};
 
 fn prelude(stylesheet: &str) -> &str {
     let sheet = parse(stylesheet, Span::new(0, stylesheet.len() as u32)).expect("parses");
@@ -34,6 +34,33 @@ fn a_pseudo_element_argument_is_a_selector_list() {
         panic!("a pseudo-element");
     };
     assert_eq!(selectors.len(), 2);
+}
+
+#[test]
+fn an_nth_selector_list_is_read_apart_from_the_matched_selectors() {
+    use crate::syntax_tree::Simple;
+    let source = "li:nth-child(2n of .a, .b) { }";
+    let sheet = parse(source, Span::new(0, source.len() as u32)).expect("parses");
+    let RuleKind::Style { selectors, .. } = &sheet.rules[0].kind else {
+        panic!("a style rule");
+    };
+    let Some(simple @ Simple::PseudoClass { selectors, .. }) =
+        selectors[0].parts[0].simple.iter().next_back()
+    else {
+        panic!("a pseudo-class");
+    };
+    assert!(selectors.is_empty());
+    let nth = nth_of_selectors(source, simple);
+    assert_eq!(nth.len(), 2);
+    let Some(Simple::Class { name, .. }) = nth[1].parts[0].simple.iter().next() else {
+        panic!("a class");
+    };
+    assert_eq!(sheet.text(*name, source), "b");
+}
+
+#[test]
+fn a_simple_selector_stays_small() {
+    assert_eq!(size_of::<Simple>(), 48);
 }
 
 fn whole(stylesheet: &str) -> R<StyleSheet> {
@@ -161,4 +188,58 @@ fn a_selector_the_stylesheet_grammar_allows_parses() {
     for source in [":global(2n) { }", "li:nth-child(2n of.a) { }"] {
         whole(source).expect(source);
     }
+}
+
+#[test]
+fn an_scss_sheet_skips_what_svelte_rejects() {
+    let source = "$a: 1; .a { // b: c;\n  &.d {} }\n@media #{$e}, x { .f {} }\n// g\n";
+    let content = Span::new(0, source.len() as u32);
+    parse(source, content).unwrap_err();
+    let sheet = parse_for_lint(source, content, true).expect("parses");
+    assert_eq!(sheet.rules.len(), 2);
+    assert_eq!(sheet.rules[0].children.len(), 1);
+    assert_eq!(sheet.rules[1].children.len(), 1);
+}
+
+#[test]
+fn a_stylesheet_for_lint_skips_the_declarations_svelte_rejects() {
+    let source = ".a { color: ; b: calc(1;2); c: attr(x}y); { } .d {} }";
+    let content = Span::new(0, source.len() as u32);
+    parse(source, content).unwrap_err();
+    let sheet = parse_for_lint(source, content, false).expect("parses");
+    assert_eq!(sheet.rules.len(), 1);
+    assert_eq!(sheet.rules[0].children.len(), 1);
+}
+
+#[test]
+fn a_stylesheet_for_lint_keeps_a_rule_whose_selector_it_cannot_read() {
+    let source = ":1a { color: red } .x { > { } .b {} }";
+    let content = Span::new(0, source.len() as u32);
+    parse(source, content).unwrap_err();
+    let sheet = parse_for_lint(source, content, false).expect("parses");
+    assert_eq!(sheet.rules.len(), 2);
+    let RuleKind::Style { selectors, .. } = &sheet.rules[0].kind else {
+        panic!("a style rule");
+    };
+    assert!(selectors.is_empty());
+    assert_eq!(sheet.rules[1].children.len(), 2);
+}
+
+#[test]
+fn a_stylesheet_for_lint_reads_selectors_as_postcss_selector_parser_does() {
+    let source = ".a., #1a, .b:nth-child(2e), p >, , .c\u{85} | .d { } @1a (x) { }";
+    let content = Span::new(0, source.len() as u32);
+    parse(source, content).unwrap_err();
+    let sheet = parse_for_lint(source, content, false).expect("parses");
+    assert_eq!(sheet.rules.len(), 2);
+    let RuleKind::Style { selectors, .. } = &sheet.rules[0].kind else {
+        panic!("a style rule");
+    };
+    assert_eq!(selectors.len(), 5);
+    assert_eq!(selectors[0].parts[0].simple.iter().count(), 2);
+    assert_eq!(selectors[4].parts.len(), 2);
+    let Simple::Class { name, .. } = selectors[4].parts[0].simple.iter().next().unwrap() else {
+        panic!("a class");
+    };
+    assert_eq!(name.text(source), ".c\u{85}".get(1..).unwrap());
 }

@@ -2,6 +2,8 @@
 
 	let text = $state('');
 	/** @type {typeof __rsvelte_public_props0} */ let { p = $bindable() } = $props();
+p;
+
 	let rest = {};
 
 ;

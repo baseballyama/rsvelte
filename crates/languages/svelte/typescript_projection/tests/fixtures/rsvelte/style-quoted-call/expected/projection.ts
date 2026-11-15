@@ -27,7 +27,9 @@ async () => {
   }
   {
     __rsvelte_component(Comp)(__rsvelte_internals(), {
-      "--a": `${f(n)}px`,
+      ...(__sveltets_2_cssProp({
+        "--a": `${f(n)}px`,
+      })),
     });
   }
   {

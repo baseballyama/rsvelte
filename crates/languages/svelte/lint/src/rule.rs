@@ -92,12 +92,7 @@ impl<'a> File<'a> {
         let parsed = if rsvelte_svelte_syntax::matches(context.document) {
             Source::Component(Linted::of(context).map_err(Clone::clone)?)
         } else {
-            Source::Module(
-                context
-                    .get::<rsvelte_typescript_tree::Parsed>()
-                    .as_ref()
-                    .map_err(Clone::clone)?,
-            )
+            Source::Module(crate::computation::module(context).map_err(Clone::clone)?)
         };
         Ok(Self {
             context,

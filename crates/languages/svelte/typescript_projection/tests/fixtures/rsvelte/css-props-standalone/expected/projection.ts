@@ -13,13 +13,17 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
 async () => {
   {
     __rsvelte_component(C)(__rsvelte_internals(), {
-      "--w": `${w}px`,
+      ...(__sveltets_2_cssProp({
+        "--w": `${w}px`,
+      })),
     });
   }
   if (show) {
     {
       __rsvelte_component(C)(__rsvelte_internals(), {
-        "--a": items.length,
+        ...(__sveltets_2_cssProp({
+          "--a": items.length,
+        })),
       });
     }
   }
@@ -28,7 +32,9 @@ async () => {
       {
         __rsvelte_component(C)(__rsvelte_internals(), {
           children: __rsvelte_children,
-          "--b": item,
+          ...(__sveltets_2_cssProp({
+            "--b": item,
+          })),
           "c": item,
         });
         (item);
@@ -40,7 +46,9 @@ async () => {
     svelteHTML.createElement("div", {});
     {
       __rsvelte_component(C)(__rsvelte_internals(), {
-        "--x": Math.max(w, 2),
+        ...(__sveltets_2_cssProp({
+          "--x": Math.max(w, 2),
+        })),
       });
     }
   }

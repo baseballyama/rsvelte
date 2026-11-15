@@ -825,10 +825,6 @@
 3:7 3:12 svelte/prefer-const "'items' is never reassigned. Use 'const' instead."
 17:3 17:8 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 143 lint/consistent-selector-style/04-each-fallback.svelte	lint.txt
-3:7 3:12 svelte/prefer-const "'items' is never reassigned. Use 'const' instead."
-7:3 7:20 svelte/no-unused-class-name "Unused class \"item\"."
-
 === 438 lint/consistent-selector-style/05-variable-affix.svelte	lint.txt
 2:7 2:11 svelte/prefer-const "'kind' is never reassigned. Use 'const' instead."
 6:23 6:34 svelte/max-attributes-per-line "'class' should be on a new line."
@@ -1486,19 +1482,6 @@
 7:15 7:21 svelte/max-attributes-per-line "'id' should be on a new line."
 7:31 7:31 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 900 lint/first-attribute-linebreak/14-this-exotic-ws-first.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:9 2:10 no-unused-vars "'C' is defined but never used."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:2 7:14 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
-7:6 7:7 no-irregular-whitespace "Irregular whitespace not allowed."
-7:7 7:9 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
-7:8 7:9 no-irregular-whitespace "Irregular whitespace not allowed."
-7:15 7:21 svelte/max-attributes-per-line "'id' should be on a new line."
-7:31 7:31 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
-
 === 1019 lint/first-attribute-linebreak/15-this-scan-failures-last.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:9 2:10 no-unused-vars "'C' is defined but never used."
@@ -1563,15 +1546,6 @@
 5:27 5:52 svelte/max-attributes-per-line "'this' should be on a new line."
 5:27 5:52 svelte/sort-attributes "Attribute 'this' should go before 'class'."
 5:52 6:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
-
-=== 695 lint/html-closing-bracket-new-line/05-script-style-tags.svelte	lint.txt
-1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:18 2:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:12 8:12 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
-12:8 14:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 2 line breaks found."
 
 === 482 lint/html-closing-bracket-new-line/06-title-in-head.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1896,15 +1870,6 @@
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:5 7:5 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 514 lint/html-quotes/13-this-string-literal-quoted.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:9 2:10 no-unused-vars "'C' is defined but never used."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:9 no-unused-vars "'tag' is assigned a value but never used."
-3:6 3:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-6:24 6:34 svelte/max-attributes-per-line "'this' should be on a new line."
-6:24 6:34 svelte/sort-attributes "Attribute 'this' should go before 'id'."
-
 === 743 lint/html-quotes/14-this-scan-failures.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:9 2:10 no-unused-vars "'C' is defined but never used."
@@ -1916,18 +1881,6 @@
 7:20 7:21 svelte/html-quotes "Expected to be enclosed by double quotes."
 7:22 7:40 svelte/max-attributes-per-line "'this' should be on a new line."
 7:22 7:40 svelte/sort-attributes "Attribute 'this' should go before 'id'."
-
-=== 767 lint/html-quotes/15-this-exotic-ws-eq.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:9 2:10 no-unused-vars "'C' is defined but never used."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-6:20 6:21 svelte/html-quotes "Expected to be enclosed by double quotes."
-6:22 6:34 svelte/max-attributes-per-line "'this ' should be on a new line."
-6:22 6:34 svelte/sort-attributes "Attribute 'this' should go before 'id'."
-6:26 6:27 no-irregular-whitespace "Irregular whitespace not allowed."
-6:27 6:29 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
-6:28 6:29 no-irregular-whitespace "Irregular whitespace not allowed."
 
 === 493 lint/html-quotes/opt-key-dynamic-quoted-false.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 0 spaces but found 1 whitespace."
@@ -2022,20 +1975,6 @@
 5:15 5:23 svelte/html-self-closing "Require self-closing on Svelte custom components."
 5:28 5:35 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
 5:33 5:35 svelte/html-self-closing "Disallow self-closing on HTML elements."
-
-=== 958 lint/html-self-closing/13-this-scan-failures.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:9 2:10 no-unused-vars "'C' is defined but never used."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-6:22 6:29 svelte/html-quotes "Unexpected to be enclosed by any quotes."
-6:29 6:47 svelte/html-self-closing "Require self-closing on Svelte special elements."
-7:35 7:53 svelte/html-self-closing "Require self-closing on Svelte special elements."
-8:29 8:47 svelte/html-self-closing "Require self-closing on Svelte special elements."
-9:21 9:22 no-irregular-whitespace "Irregular whitespace not allowed."
-9:22 9:24 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
-9:23 9:24 no-irregular-whitespace "Irregular whitespace not allowed."
-9:29 9:47 svelte/html-self-closing "Require self-closing on Svelte special elements."
 
 === 616 lint/html-self-closing/14-exotic-ws-children.svelte	lint.txt
 1:6 1:7 no-irregular-whitespace "Irregular whitespace not allowed."
@@ -2494,48 +2433,6 @@
 3:6 3:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
 6:24 6:36 svelte/max-attributes-per-line "'this' should be on a new line."
 6:24 6:36 svelte/sort-attributes "Attribute 'this' should go before 'id'."
-
-=== 1442 lint/max-attributes-per-line/15-this-keytext-whitespace.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:9 2:10 no-unused-vars "'C' is defined but never used."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-6:24 6:36 svelte/max-attributes-per-line "'this ' should be on a new line."
-6:24 6:36 svelte/sort-attributes "Attribute 'this' should go before 'id'."
-6:29 6:31 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
-7:24 7:36 svelte/max-attributes-per-line "'this\t' should be on a new line."
-7:24 7:36 svelte/sort-attributes "Attribute 'this' should go before 'id'."
-7:29 7:31 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
-8:17 8:23 svelte/first-attribute-linebreak "Expected a linebreak before this attribute."
-8:24 10:7 svelte/max-attributes-per-line "'this\n\t' should be on a new line."
-8:24 10:7 svelte/sort-attributes "Attribute 'this' should go before 'id'."
-9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-9:2 10:2 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
-10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-10:7 10:7 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
-
-=== 1091 lint/max-attributes-per-line/16-this-exotic-ws-eq.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:9 2:10 no-unused-vars "'C' is defined but never used."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-6:24 6:36 svelte/max-attributes-per-line "'this ' should be on a new line."
-6:24 6:36 svelte/sort-attributes "Attribute 'this' should go before 'id'."
-6:28 6:29 no-irregular-whitespace "Irregular whitespace not allowed."
-6:29 6:31 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
-6:30 6:31 no-irregular-whitespace "Irregular whitespace not allowed."
-7:24 7:36 svelte/max-attributes-per-line "'this\f' should be on a new line."
-7:24 7:36 svelte/sort-attributes "Attribute 'this' should go before 'id'."
-7:28 7:29 no-irregular-whitespace "Irregular whitespace not allowed."
-7:29 7:31 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
-7:30 7:31 no-irregular-whitespace "Irregular whitespace not allowed."
-
-=== 415 lint/max-attributes-per-line/17-crlf-this-keytext.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-5:24 5:36 svelte/max-attributes-per-line "'this ' should be on a new line."
-5:24 5:36 svelte/sort-attributes "Attribute 'this' should go before 'id'."
-5:29 5:31 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
 
 === 393 lint/max-attributes-per-line/opt-key-singleline-1.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 0 spaces but found 1 whitespace."
@@ -4668,39 +4565,6 @@
 10:6 10:50 svelte/no-inline-styles "Found disallowed style attribute."
 10:13 10:37 svelte/require-optimized-style-attribute "It cannot be optimized because property of style declaration contain interpolation."
 
-=== 2277 lint/no-dupe-style-properties/13-case-and-custom-props.svelte	lint.txt
-1:6 1:37 svelte/no-inline-styles "Found disallowed style attribute."
-1:13 1:24 svelte/prefer-style-directive "Can use style directives instead."
-1:25 1:36 svelte/prefer-style-directive "Can use style directives instead."
-2:6 2:37 svelte/no-inline-styles "Found disallowed style attribute."
-2:13 2:18 svelte/no-dupe-style-properties "Duplicate property 'COLOR'."
-2:13 2:24 svelte/prefer-style-directive "Can use style directives instead."
-2:25 2:30 svelte/no-dupe-style-properties "Duplicate property 'COLOR'."
-2:25 2:36 svelte/prefer-style-directive "Can use style directives instead."
-3:6 3:28 svelte/no-inline-styles "Found disallowed style attribute."
-3:13 3:20 svelte/prefer-style-directive "Can use style directives instead."
-3:21 3:27 svelte/prefer-style-directive "Can use style directives instead."
-4:6 4:28 svelte/no-inline-styles "Found disallowed style attribute."
-4:13 4:16 svelte/no-dupe-style-properties "Duplicate property '--x'."
-4:13 4:20 svelte/prefer-style-directive "Can use style directives instead."
-4:21 4:24 svelte/no-dupe-style-properties "Duplicate property '--x'."
-4:21 4:27 svelte/prefer-style-directive "Can use style directives instead."
-5:6 5:46 svelte/no-inline-styles "Found disallowed style attribute."
-5:13 5:25 svelte/no-dupe-style-properties "Duplicate property '-webkit-mask'."
-5:13 5:29 svelte/prefer-style-directive "Can use style directives instead."
-5:30 5:42 svelte/no-dupe-style-properties "Duplicate property '-webkit-mask'."
-5:30 5:45 svelte/prefer-style-directive "Can use style directives instead."
-6:6 6:38 svelte/no-inline-styles "Found disallowed style attribute."
-6:13 6:18 svelte/no-dupe-style-properties "Duplicate property 'color'."
-6:13 6:25 svelte/prefer-style-directive "Can use style directives instead."
-6:26 6:31 svelte/no-dupe-style-properties "Duplicate property 'color'."
-6:26 6:37 svelte/prefer-style-directive "Can use style directives instead."
-7:6 7:38 svelte/no-inline-styles "Found disallowed style attribute."
-7:13 7:18 svelte/no-dupe-style-properties "Duplicate property 'color'."
-7:13 7:25 svelte/prefer-style-directive "Can use style directives instead."
-7:26 7:31 svelte/no-dupe-style-properties "Duplicate property 'color'."
-7:26 7:37 svelte/prefer-style-directive "Can use style directives instead."
-
 === 2027 lint/no-dupe-style-properties/14-opaque-regions.svelte	lint.txt
 1:6 1:61 svelte/no-inline-styles "Found disallowed style attribute."
 1:13 1:48 svelte/prefer-style-directive "Can use style directives instead."
@@ -6430,18 +6294,6 @@
 5:16 5:24 svelte/no-inspect "Do not use $inspect directive"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 794 lint/no-inspect/13-destructure-shorthand.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:19 2:27 svelte/no-inspect "Do not use $inspect directive"
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:10 3:18 svelte/no-inspect "Do not use $inspect directive"
-3:10 3:18 svelte/no-inspect "Do not use $inspect directive"
-3:10 3:18 svelte/valid-compile "The $ prefix is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_prefix_invalid(dollar_prefix_invalid)"
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:10 4:18 svelte/no-inspect "Do not use $inspect directive"
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:8 5:16 svelte/no-inspect "Do not use $inspect directive"
-
 === 668 lint/no-inspect/14-ts-type-position.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -6482,18 +6334,6 @@
 5:9 5:17 svelte/no-inspect "Do not use $inspect directive"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
-=== 767 lint/no-inspect/17-import-export-specifier.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:11 2:19 svelte/no-inspect "Do not use $inspect directive"
-2:11 2:19 svelte/no-inspect "Do not use $inspect directive"
-2:11 2:19 no-import-assign "'$inspect' is read-only."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:11 6:19 svelte/no-inspect "Do not use $inspect directive"
-6:11 6:19 svelte/no-inspect "Do not use $inspect directive"
-6:11 6:19 svelte/valid-compile "The $ prefix is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_prefix_invalid(dollar_prefix_invalid)"
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:7 7:15 svelte/no-inspect "Do not use $inspect directive"
 
 === 1723 lint/no-inspect/18-params-and-catch.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -6781,10 +6621,6 @@
 === 307 lint/no-nested-style-tag/13-svelte-element-host.svelte	lint.txt
 2:7 2:10 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
 6:17 6:29 svelte/valid-compile "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this(svelte_element_invalid_this)"
-
-=== 138 lint/no-nested-style-tag/14-component-lookalike.svelte	lint.txt
-2:10 2:15 no-unused-vars "'Style' is defined but never used."
-5:8 5:10 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 209 lint/no-nested-style-tag/15-nested-with-attrs.svelte	lint.txt
 2:3 7:11 svelte/no-nested-style-tag "Nested `<style>` elements are not scoped and may lead to unintended styles being applied."
@@ -7878,28 +7714,6 @@
 8:13 8:28 svelte/prefer-style-directive "Can use style directives instead."
 8:29 8:39 svelte/prefer-style-directive "Can use style directives instead."
 
-=== 1571 lint/no-shorthand-style-property-overrides/13-case-and-hacks.svelte	lint.txt
-1:6 1:40 svelte/no-inline-styles "Found disallowed style attribute."
-1:13 1:29 svelte/prefer-style-directive "Can use style directives instead."
-1:30 1:39 svelte/prefer-style-directive "Can use style directives instead."
-2:6 2:40 svelte/no-inline-styles "Found disallowed style attribute."
-2:13 2:29 svelte/prefer-style-directive "Can use style directives instead."
-2:30 2:39 svelte/prefer-style-directive "Can use style directives instead."
-3:6 3:40 svelte/no-inline-styles "Found disallowed style attribute."
-3:13 3:29 svelte/prefer-style-directive "Can use style directives instead."
-3:30 3:39 svelte/prefer-style-directive "Can use style directives instead."
-4:6 4:41 svelte/no-inline-styles "Found disallowed style attribute."
-4:13 4:30 svelte/prefer-style-directive "Can use style directives instead."
-4:31 4:37 svelte/no-shorthand-style-property-overrides "Unexpected shorthand 'margin' after 'margin-top'."
-4:31 4:40 svelte/prefer-style-directive "Can use style directives instead."
-5:6 5:42 svelte/no-inline-styles "Found disallowed style attribute."
-5:13 5:30 svelte/prefer-style-directive "Can use style directives instead."
-5:31 5:37 svelte/no-shorthand-style-property-overrides "Unexpected shorthand 'margin' after 'margin-top'."
-5:31 5:41 svelte/prefer-style-directive "Can use style directives instead."
-6:6 6:51 svelte/no-inline-styles "Found disallowed style attribute."
-6:41 6:47 svelte/no-shorthand-style-property-overrides "Unexpected shorthand 'margin' after 'margin-top'."
-6:41 6:50 svelte/prefer-style-directive "Can use style directives instead."
-
 === 1746 lint/no-shorthand-style-property-overrides/14-opaque-regions.svelte	lint.txt
 1:6 1:51 svelte/no-inline-styles "Found disallowed style attribute."
 1:13 1:40 svelte/prefer-style-directive "Can use style directives instead."
@@ -8023,12 +7837,6 @@
 6:6 6:8 svelte/mustache-spacing "Expected no space after '{', but found."
 6:10 6:12 svelte/mustache-spacing "Expected no space before '}', but found."
 
-=== 345 lint/no-spaces-around-equal-signs-in-attribute/07-special-this.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-6:24 6:26 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
-
 === 501 lint/no-spaces-around-equal-signs-in-attribute/08-crlf.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
@@ -8052,40 +7860,6 @@
 3:9 3:16 svelte/sort-attributes "Attribute 'alt' should go before 'src'."
 3:16 3:17 svelte/html-self-closing "Require self-closing on HTML void elements."
 3:16 3:16 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
-
-=== 1431 lint/no-spaces-around-equal-signs-in-attribute/11-this-exotic-ws-eq.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-6:24 6:36 svelte/max-attributes-per-line "'this ' should be on a new line."
-6:24 6:36 svelte/sort-attributes "Attribute 'this' should go before 'id'."
-6:28 6:29 no-irregular-whitespace "Irregular whitespace not allowed."
-6:29 6:31 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
-6:30 6:31 no-irregular-whitespace "Irregular whitespace not allowed."
-7:24 7:36 svelte/max-attributes-per-line "'this\f' should be on a new line."
-7:24 7:36 svelte/sort-attributes "Attribute 'this' should go before 'id'."
-7:28 7:29 no-irregular-whitespace "Irregular whitespace not allowed."
-7:29 7:31 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
-7:30 7:31 no-irregular-whitespace "Irregular whitespace not allowed."
-8:26 8:36 svelte/max-attributes-per-line "'this ' should be on a new line."
-8:26 8:36 svelte/sort-attributes "Attribute 'this' should go before 'id'."
-8:30 8:31 no-irregular-whitespace "Irregular whitespace not allowed."
-8:31 8:33 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
-8:32 8:33 no-irregular-whitespace "Irregular whitespace not allowed."
-
-=== 1019 lint/no-spaces-around-equal-signs-in-attribute/12-this-scan-failures.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:9 2:10 no-unused-vars "'C' is defined but never used."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-6:19 6:22 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
-6:26 6:40 svelte/max-attributes-per-line "'this ' should be on a new line."
-6:26 6:40 svelte/sort-attributes "Attribute 'this' should go before 'id'."
-6:31 6:33 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
-7:19 7:22 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
-7:26 7:46 svelte/max-attributes-per-line "'this ' should be on a new line."
-7:26 7:46 svelte/sort-attributes "Attribute 'this' should go before 'id'."
-7:31 7:33 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
 
 === 968 lint/no-spaces-around-equal-signs-in-attribute/13-exotic-ws-controls.svelte	lint.txt
 1:8 1:11 svelte/no-spaces-around-equal-signs-in-attribute "Unexpected spaces found around equal signs."
@@ -9369,10 +9143,6 @@
 === 89 lint/no-unused-svelte-ignore/11-mixed-same-comment.svelte	lint.txt
 1:20 1:42 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 
-=== 170 lint/no-unused-svelte-ignore/12-no-trailing-space-codes.svelte	lint.txt
-1:1 1:70 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
-1:1 1:70 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
-
 === 89 lint/no-unused-svelte-ignore/13-parenthetical-note.svelte	lint.txt
 3:20 3:45 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 
@@ -9808,19 +9578,6 @@
 7:17 7:27 svelte/valid-compile "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this(svelte_element_invalid_this)"
 7:28 7:44 svelte/max-attributes-per-line "'data-x' should be on a new line."
 7:35 7:44 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
-
-=== 948 lint/prefer-attribute-interpolation/13-escape-classes.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
-5:13 5:24 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
-6:13 6:24 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
-6:16 6:17 no-useless-escape "Unnecessary escape character: \\'."
-7:13 7:24 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
-7:16 7:17 no-useless-escape "Unnecessary escape character: \\\"."
-8:13 8:24 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
-8:16 8:17 no-useless-escape "Unnecessary escape character: \\q."
-9:13 9:24 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
-9:16 9:17 no-useless-escape "Unnecessary escape character: \\$."
 
 === 263 lint/prefer-attribute-interpolation/14-useful-escapes.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -10673,23 +10430,6 @@
 12:1 12:2 svelte/indent "Expected \" \" character, but found \"\\t\" character."
 12:2 12:3 svelte/indent "Expected \" \" character, but found \"\\t\" character."
 
-=== 1448 lint/prefer-destructured-store-props/03-block-scopes.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-9:1 9:25 svelte/require-each-key "Each block should have a key"
-10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-10:6 10:16 svelte/prefer-destructured-store-props "Destructure item from $foo for better change tracking & fewer redraws"
-10:19 10:26 svelte/prefer-destructured-store-props "Destructure i from $foo for better change tracking & fewer redraws"
-10:29 10:40 svelte/prefer-destructured-store-props "Destructure direct from $foo for better change tracking & fewer redraws"
-13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-13:6 13:13 svelte/prefer-destructured-store-props "Destructure v from $foo for better change tracking & fewer redraws"
-15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-15:6 15:15 svelte/prefer-destructured-store-props "Destructure err from $foo for better change tracking & fewer redraws"
-18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-18:6 18:15 svelte/prefer-destructured-store-props "Destructure par from $foo for better change tracking & fewer redraws"
-
 === 707 lint/prefer-destructured-store-props/04-fn-param-scope.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -10700,16 +10440,6 @@
 10:3 10:10 no-undef "'console' is not defined."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:4 11:5 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
-
-=== 695 lint/prefer-destructured-store-props/05-const-tag.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:1 8:20 svelte/require-each-key "Each block should have a key"
-9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-9:2 9:27 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
-10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-10:6 10:15 svelte/prefer-destructured-store-props "Destructure key from $foo for better change tracking & fewer redraws"
 
 === 276 lint/prefer-destructured-store-props/06-dollar-names.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -10766,21 +10496,6 @@
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:5 7:13 svelte/prefer-destructured-store-props "Destructure bar from $foo for better change tracking & fewer redraws"
 
-=== 1315 lint/prefer-destructured-store-props/14-nested-store-member.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-10:1 10:22 svelte/require-each-key "Each block should have a key"
-11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-11:6 11:22 svelte/prefer-destructured-store-props "Destructure $bar[item] from $foo for better change tracking & fewer redraws"
-11:11 11:21 svelte/prefer-destructured-store-props "Destructure item from $bar for better change tracking & fewer redraws"
-12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-12:6 12:23 svelte/prefer-destructured-store-props "Destructure $bar.direct from $foo for better change tracking & fewer redraws"
-12:11 12:22 svelte/prefer-destructured-store-props "Destructure direct from $bar for better change tracking & fewer redraws"
-15:5 15:22 svelte/prefer-destructured-store-props "Destructure $bar.direct from $foo for better change tracking & fewer redraws"
-15:10 15:21 svelte/prefer-destructured-store-props "Destructure direct from $bar for better change tracking & fewer redraws"
-
 === 670 lint/prefer-destructured-store-props/15-legacy-rune-names.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -10801,23 +10516,6 @@
 12:1 12:2 svelte/indent "Expected \" \" character, but found \"\\t\" character."
 12:2 12:3 svelte/indent "Expected \" \" character, but found \"\\t\" character."
 13:1 13:2 svelte/indent "Expected indentation of 0 spaces but found 1 whitespace."
-
-=== 1402 lint/prefer-destructured-store-props/17-const-tag-and-let.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-9:1 9:22 svelte/require-each-key "Each block should have a key"
-10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-10:2 10:25 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
-11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-11:6 11:15 svelte/prefer-destructured-store-props "Destructure key from $foo for better change tracking & fewer redraws"
-12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-12:6 12:16 svelte/prefer-destructured-store-props "Destructure plain from $foo for better change tracking & fewer redraws"
-16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-16:6 16:19 svelte/prefer-destructured-store-props "Destructure slotKey from $foo for better change tracking & fewer redraws"
-20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-20:6 20:19 svelte/prefer-destructured-store-props "Destructure cardKey from $foo for better change tracking & fewer redraws"
 
 === 611 lint/prefer-destructured-store-props/18-script-vs-template.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11026,40 +10724,6 @@
 1:28 1:38 svelte/prefer-style-directive "Can use style directives instead."
 2:34 2:51 svelte/no-inline-styles "Found disallowed style attribute."
 2:41 2:50 svelte/prefer-style-directive "Can use style directives instead."
-
-=== 1407 lint/prefer-style-directive/13-comment-string-interleave.svelte	lint.txt
-2:6 2:53 svelte/no-inline-styles "Found disallowed style attribute."
-2:13 2:41 svelte/prefer-style-directive "Can use style directives instead."
-2:42 2:52 svelte/prefer-style-directive "Can use style directives instead."
-3:6 3:56 svelte/no-inline-styles "Found disallowed style attribute."
-3:13 3:45 svelte/prefer-style-directive "Can use style directives instead."
-3:46 3:55 svelte/prefer-style-directive "Can use style directives instead."
-4:6 4:49 svelte/no-inline-styles "Found disallowed style attribute."
-4:13 4:28 svelte/prefer-style-directive "Can use style directives instead."
-4:28 4:49 svelte/require-optimized-style-attribute "It cannot be optimized because contains comments."
-5:6 5:40 svelte/no-inline-styles "Found disallowed style attribute."
-5:13 5:23 svelte/prefer-style-directive "Can use style directives instead."
-5:24 5:40 svelte/require-optimized-style-attribute "It cannot be optimized because contains comments."
-6:6 6:49 svelte/no-inline-styles "Found disallowed style attribute."
-6:13 6:36 svelte/prefer-style-directive "Can use style directives instead."
-6:37 6:48 svelte/prefer-style-directive "Can use style directives instead."
-7:6 7:38 svelte/no-inline-styles "Found disallowed style attribute."
-7:13 7:26 svelte/require-optimized-style-attribute "It cannot be optimized because contains comments."
-7:27 7:37 svelte/prefer-style-directive "Can use style directives instead."
-
-=== 877 lint/prefer-style-directive/14-escape-boundaries.svelte	lint.txt
-1:6 1:39 svelte/no-inline-styles "Found disallowed style attribute."
-1:13 1:38 svelte/prefer-style-directive "Can use style directives instead."
-2:6 2:40 svelte/no-inline-styles "Found disallowed style attribute."
-2:13 2:28 svelte/prefer-style-directive "Can use style directives instead."
-2:29 2:39 svelte/prefer-style-directive "Can use style directives instead."
-3:6 3:42 svelte/no-inline-styles "Found disallowed style attribute."
-3:13 3:41 svelte/prefer-style-directive "Can use style directives instead."
-4:6 4:26 svelte/no-inline-styles "Found disallowed style attribute."
-4:13 4:25 svelte/prefer-style-directive "Can use style directives instead."
-5:6 5:39 svelte/no-inline-styles "Found disallowed style attribute."
-5:13 5:26 svelte/prefer-style-directive "Can use style directives instead."
-5:27 5:39 svelte/prefer-style-directive "Can use style directives instead."
 
 === 1444 lint/prefer-style-directive/15-custom-props-and-important.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12080,29 +11744,6 @@
 9:6 9:27 svelte/no-inline-styles "Found disallowed style attribute."
 9:13 9:26 svelte/prefer-style-directive "Can use style directives instead."
 
-=== 1763 lint/require-optimized-style-attribute/13-comment-shapes.svelte	lint.txt
-1:6 1:21 svelte/no-inline-styles "Found disallowed style attribute."
-1:13 1:20 svelte/require-optimized-style-attribute "It cannot be optimized because contains comments."
-2:6 2:37 svelte/no-inline-styles "Found disallowed style attribute."
-2:13 2:24 svelte/prefer-style-directive "Can use style directives instead."
-2:25 2:36 svelte/require-optimized-style-attribute "It cannot be optimized because contains comments."
-3:6 3:35 svelte/no-inline-styles "Found disallowed style attribute."
-3:13 3:23 svelte/require-optimized-style-attribute "It cannot be optimized because contains comments."
-3:24 3:34 svelte/prefer-style-directive "Can use style directives instead."
-4:6 4:36 svelte/no-inline-styles "Found disallowed style attribute."
-4:13 4:35 svelte/prefer-style-directive "Can use style directives instead."
-5:6 5:40 svelte/no-inline-styles "Found disallowed style attribute."
-5:13 5:23 svelte/prefer-style-directive "Can use style directives instead."
-5:24 5:40 svelte/require-optimized-style-attribute "It cannot be optimized because contains comments."
-6:6 6:34 svelte/no-inline-styles "Found disallowed style attribute."
-6:13 6:17 svelte/require-optimized-style-attribute "It cannot be optimized because contains comments."
-6:18 6:22 svelte/require-optimized-style-attribute "It cannot be optimized because contains comments."
-6:23 6:33 svelte/prefer-style-directive "Can use style directives instead."
-7:6 7:36 svelte/no-inline-styles "Found disallowed style attribute."
-7:13 7:24 svelte/prefer-style-directive "Can use style directives instead."
-7:24 7:29 svelte/require-optimized-style-attribute "It cannot be optimized because contains comments."
-7:30 7:35 svelte/require-optimized-style-attribute "It cannot be optimized because contains comments."
-
 === 1316 lint/require-optimized-style-attribute/14-shorthand-hosts.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12769,21 +12410,6 @@
 10:8 10:9 svelte/require-store-reactive-access "Use the $ prefix or the get function to access reactive values instead of accessing the raw store."
 10:11 10:12 svelte/require-store-reactive-access "Use the $ prefix or the get function to access reactive values instead of accessing the raw store."
 10:14 10:15 svelte/require-store-reactive-access "Use the $ prefix or the get function to access reactive values instead of accessing the raw store."
-
-=== 1272 lint/require-stores-init/10-destructured-namespace.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:12 7:16 svelte/require-stores-init "Always set a default value for svelte stores."
-8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:12 8:17 svelte/require-stores-init "Always set a default value for svelte stores."
-9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-9:12 9:30 svelte/require-stores-init "Always set a default value for svelte stores."
-9:12 9:30 svelte/require-stores-init "Always set a default value for svelte stores."
-12:5 12:6 svelte/require-store-reactive-access "Use the $ prefix or the get function to access reactive values instead of accessing the raw store."
-12:8 12:9 svelte/require-store-reactive-access "Use the $ prefix or the get function to access reactive values instead of accessing the raw store."
-12:11 12:12 svelte/require-store-reactive-access "Use the $ prefix or the get function to access reactive values instead of accessing the raw store."
 
 === 393 lint/require-stores-init/11-each-shadowed-call.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -16386,16 +16012,6 @@
 13:3 13:5 svelte/consistent-selector-style "Selector should select by element type instead of class"
 15:2 15:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
 21:5 21:7 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
-=== 806 pattern/adversarial/css/css-comment-positions.svelte	lint.txt
-5:2 5:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
-13:2 13:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
-13:7 13:9 svelte/consistent-selector-style "Selector should select by element type instead of class"
-17:2 17:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
-17:7 17:9 svelte/consistent-selector-style "Selector should select by element type instead of class"
-23:3 23:5 svelte/consistent-selector-style "Selector should select by element type instead of class"
-28:2 28:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
-30:5 30:7 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
 === 745 pattern/adversarial/css/css-custom-properties-and-vars.svelte	lint.txt
 2:7 2:10 svelte/prefer-const "'hue' is never reassigned. Use 'const' instead."
@@ -21689,48 +21305,6 @@
 1:1 21:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 19:17 19:21 svelte/valid-compile "This reference only captures the initial value of `rows`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 
-=== 3329 pattern/adversarial/typescript/ts-decorator-and-modifiers.svelte	lint.txt
-1:1 48:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-9:1 9:2 svelte/indent "Expected indentation of 4 spaces but found 1 whitespace."
-10:1 10:2 svelte/indent "Expected indentation of 4 spaces but found 1 whitespace."
-12:1 12:2 svelte/indent "Expected indentation of 4 spaces but found 1 whitespace."
-13:1 13:3 svelte/indent "Expected indentation of 6 spaces but found 2 whitespaces."
-14:1 14:3 svelte/indent "Expected indentation of 6 spaces but found 2 whitespaces."
-15:1 15:3 svelte/indent "Expected indentation of 6 spaces but found 2 whitespaces."
-16:1 16:3 svelte/indent "Expected indentation of 6 spaces but found 2 whitespaces."
-16:10 16:16 no-unused-private-class-members "'#count' is defined but never used."
-18:1 18:3 svelte/indent "Expected indentation of 6 spaces but found 2 whitespaces."
-19:1 19:3 svelte/indent "Expected indentation of 6 spaces but found 2 whitespaces."
-21:1 21:3 svelte/indent "Expected indentation of 6 spaces but found 2 whitespaces."
-22:1 22:4 svelte/indent "Expected indentation of 8 spaces but found 3 whitespaces."
-23:1 23:4 svelte/indent "Expected indentation of 8 spaces but found 3 whitespaces."
-24:1 24:3 svelte/indent "Expected indentation of 6 spaces but found 2 whitespaces."
-26:1 26:3 svelte/indent "Expected indentation of 6 spaces but found 2 whitespaces."
-27:1 27:4 svelte/indent "Expected indentation of 8 spaces but found 3 whitespaces."
-28:1 28:3 svelte/indent "Expected indentation of 6 spaces but found 2 whitespaces."
-30:1 30:3 svelte/indent "Expected indentation of 6 spaces but found 2 whitespaces."
-31:1 31:4 svelte/indent "Expected indentation of 8 spaces but found 3 whitespaces."
-32:1 32:3 svelte/indent "Expected indentation of 6 spaces but found 2 whitespaces."
-33:1 33:2 svelte/indent "Expected indentation of 4 spaces but found 1 whitespace."
-35:1 35:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-36:1 36:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-38:1 38:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-39:1 39:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-40:1 40:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-41:1 41:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-43:1 43:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-44:1 44:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-45:1 45:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-46:1 46:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-47:1 47:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-47:6 47:7 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
-
 === 90 pattern/adversarial/typescript/ts-erasure-surface.svelte	lint.txt
 1:1 31:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
@@ -23133,11 +22707,6 @@
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:2 12:10 svelte/no-inspect "Do not use $inspect directive"
 
-=== 332 pattern/issues/3129-comment-between-compounds.svelte	lint.txt
-4:2 4:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
-4:5 4:5 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
-4:6 4:8 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
 === 662 pattern/issues/3130-nth-of-in-any-pseudo-class.svelte	lint.txt
 1:16 1:32 svelte/no-unused-class-name "Unused class \"b\"."
 4:3 4:5 svelte/consistent-selector-style "Selector should select by element type instead of class"
@@ -23766,9 +23335,6 @@
 17:1 17:17 svelte/require-each-key "Each block should have a key"
 18:1 18:19 svelte/require-each-key "Each block should have a key"
 
-=== 47 pattern/issues/3189-unbound-dollar-still-rejected.svelte	lint.txt
-8:44 - - "Parsing error: Identifier expected."
-
 === 64 pattern/issues/3190-double-dollar-slots-in-runes.svelte	lint.txt
 3:1 3:27 svelte/require-each-key "Each block should have a key"
 
@@ -23794,13 +23360,6 @@
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:23 svelte/require-each-key "Each block should have a key"
-
-=== 390 pattern/issues/3194-strict-annex-b-function.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:10 no-constant-condition "Unexpected constant condition."
-2:12 2:27 svelte/no-inner-declarations "Move function declaration to program root."
-2:12 2:12 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
-2:21 2:22 no-unused-vars "'g' is defined but never used."
 
 === 273 pattern/issues/3194-strict-assign-eval.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -26022,37 +25581,6 @@
 67:2 67:22 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 68:1 68:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2416 pattern/issues/4133-binding-pattern-type-annotation.svelte	lint.txt
-1:1 19:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:21 svelte/prefer-const "'items' is never reassigned. Use 'const' instead."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:28 svelte/prefer-const "'boxes' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-8:1 8:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-10:1 10:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-13:1 13:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-15:1 15:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-21:1 21:28 svelte/require-each-key "Each block should have a key"
-22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-25:1 25:21 svelte/require-each-key "Each block should have a key"
-26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-26:2 26:35 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
-27:1 27:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-27:2 27:36 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
-28:1 28:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-32:1 32:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-34:1 34:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
 === 1991 pattern/issues/4212-module-proxy-deny-list.svelte.js	lint.txt
 4:7 4:15 svelte/prefer-const "'sequence' is never reassigned. Use 'const' instead."
 5:7 5:13 svelte/prefer-const "'tagged' is never reassigned. Use 'const' instead."
@@ -26493,11 +26021,6 @@
 42:3 42:7 svelte/consistent-selector-style "Selector should select by element type instead of class"
 44:5 44:10 svelte/consistent-selector-style "Selector should select by ID instead of class"
 46:5 46:9 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
-=== 181 pattern/issues/an-enum-declaration-carries-its-members.svelte	error.txt
-Node must be provided when reporting error if location is not provided
-Occurred while linting pattern/issues/an-enum-declaration-carries-its-members.svelte:1
-Rule: "no-unused-vars"
 
 === 868 pattern/issues/an-enumerable-id-prunes-the-values-it-cannot-take.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

@@ -1,6 +1,7 @@
 //! Warnings in the order the compiler emits them.
 
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::names::is_component_name;
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, TemplateNode,
@@ -38,6 +39,8 @@ impl Stage {
 #[derive(Default)]
 pub(super) struct Found {
     items: Vec<(Stage, u64, Diagnostic)>,
+    /// The places where a check read a `svelte-ignore` itself, with the code it ignored there.
+    silenced: Vec<(Span, &'static str)>,
 }
 
 impl Found {
@@ -52,9 +55,16 @@ impl Found {
         self.items.push((stage, u64::from(at) * 4 + 1, warning));
     }
 
-    /// The warnings in emission order, the template's in `order`; equal positions keep the
-    /// order they were found in.
-    pub(super) fn finish(mut self, order: &VisitOrder) -> Vec<(Stage, Diagnostic)> {
+    /// A check that reads `svelte-ignore` itself ignored `code` in `span`; its warnings there
+    /// are kept, marked ignored.
+    pub(super) fn silence(&mut self, span: Span, code: &'static str) {
+        self.silenced.push((span, code));
+    }
+
+    /// The warnings in emission order, the template's in `order`, equal positions in the order
+    /// they were found in, and whether a check's own `svelte-ignore` ignored each; that list is
+    /// empty when no check ignored anything.
+    pub(super) fn finish(mut self, order: &VisitOrder) -> (Vec<(Stage, Diagnostic)>, Vec<bool>) {
         if !order.moves.is_empty() {
             for (stage, at, _) in &mut self.items {
                 if *stage == Stage::Walk(Section::Template) {
@@ -63,10 +73,25 @@ impl Found {
             }
         }
         self.items.sort_by_key(|(stage, at, _)| (*stage, *at));
+        // Most components silence nothing, so they need no second list.
+        if self.silenced.is_empty() {
+            let found = (self.items.into_iter())
+                .map(|(stage, _, warning)| (stage, warning))
+                .collect();
+            return (found, Vec::new());
+        }
+        let silenced = &self.silenced;
         self.items
             .into_iter()
-            .map(|(stage, _, warning)| (stage, warning))
-            .collect()
+            .map(|(stage, _, warning)| {
+                let ignored = silenced.iter().any(|&(span, code)| {
+                    &*warning.code == code
+                        && span.start_offset <= warning.span.start_offset
+                        && warning.span.end_offset <= span.end_offset
+                });
+                ((stage, warning), ignored)
+            })
+            .unzip()
     }
 }
 

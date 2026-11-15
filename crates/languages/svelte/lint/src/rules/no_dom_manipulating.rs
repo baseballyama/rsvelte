@@ -1,16 +1,20 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::Expression;
-use oxc_semantic::ReferenceId;
+use oxc_semantic::{NodeId, ReferenceId};
 use oxc_span::GetSpan;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_semantic::legacy::Variable;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, TemplateNode};
+use rsvelte_typescript_semantic::static_value::StaticValues;
 use rustc_hash::FxHashSet;
 
 use super::legacy_reactivity::{expression_node, is_markup_element, legacy, property_name};
 use super::nodes::span;
 use super::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+
+#[cfg(test)]
+mod tests;
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-dom-manipulating",
@@ -54,40 +58,9 @@ const PROPERTIES: &[&str] = &[
 
 impl SvelteRule for NoDomManipulating {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let component = file.component().expect("a component rule");
-        let source = file.source();
-        let javascript = &component.javascript;
         // Analyzed first: until then a node's id is the parser's, not the analysis's.
         let semantic = file.semantic();
-        // The expressions of `bind:this={name}` on HTML elements.
-        let mut bound = FxHashSet::default();
-        for node in &component.nodes {
-            let TemplateNode::Element {
-                name, attributes, ..
-            } = node
-            else {
-                continue;
-            };
-            if !is_markup_element(name.text(source)) {
-                continue;
-            }
-            for attribute in component.attributes(*attributes) {
-                if attribute.kind != AttributeKind::Bind
-                    || attribute
-                        .directive_name(&component.modifiers)
-                        .is_none_or(|name| name.text(source) != "this")
-                {
-                    continue;
-                }
-                if let AttributeValue::Parts(parts) = attribute.value
-                    && let [Part::Expression { expression, .. }] = component.parts(parts)
-                    && let expression = javascript.get_expression(*expression)
-                    && matches!(expression, Expression::Identifier(_))
-                {
-                    bound.insert(expression_node(expression));
-                }
-            }
-        }
+        let bound = bound_this(file);
         if bound.is_empty() {
             return;
         }
@@ -104,6 +77,7 @@ impl SvelteRule for NoDomManipulating {
             .filter(|(reference, _)| bound.contains(&reference.node_id()))
             .filter_map(|(_, top)| top.map(|top| top.variable))
             .collect();
+        let keys = StaticValues::without_names(semantic);
         for (reference, top) in references() {
             if !top.is_some_and(|top| variables.contains(&top.variable)) {
                 continue;
@@ -119,8 +93,18 @@ impl SvelteRule for NoDomManipulating {
             if expression_node(object) != identifier {
                 continue;
             }
-            let Some(name) = property_name(member_kind) else {
-                continue;
+            let computed;
+            let name = match (property_name(member_kind), member_kind) {
+                (Some(name), _) => name,
+                // `getPropertyName` without a scope evaluates only what the key spells out.
+                (None, AstKind::ComputedMemberExpression(member)) => {
+                    let Some(name) = keys.string(&member.expression) else {
+                        continue;
+                    };
+                    computed = name;
+                    computed.as_str()
+                }
+                (None, _) => continue,
             };
             // `(foo?.remove)()` calls the chain the member ends.
             let mut callee = member;
@@ -154,4 +138,40 @@ impl SvelteRule for NoDomManipulating {
             }
         }
     }
+}
+
+/// The expressions of `bind:this={name}` on HTML elements.
+fn bound_this(file: &File<'_>) -> FxHashSet<NodeId> {
+    let component = file.component().expect("a component rule");
+    let source = file.source();
+    let javascript = &component.javascript;
+    let mut bound = FxHashSet::default();
+    for node in &component.nodes {
+        let TemplateNode::Element {
+            name, attributes, ..
+        } = node
+        else {
+            continue;
+        };
+        if !is_markup_element(name.text(source)) {
+            continue;
+        }
+        for attribute in component.attributes(*attributes) {
+            if attribute.kind != AttributeKind::Bind
+                || attribute
+                    .directive_name(&component.modifiers)
+                    .is_none_or(|name| name.text(source) != "this")
+            {
+                continue;
+            }
+            if let AttributeValue::Parts(parts) = attribute.value
+                && let [Part::Expression { expression, .. }] = component.parts(parts)
+                && let expression = javascript.get_expression(*expression)
+                && matches!(expression, Expression::Identifier(_))
+            {
+                bound.insert(expression_node(expression));
+            }
+        }
+    }
+    bound
 }

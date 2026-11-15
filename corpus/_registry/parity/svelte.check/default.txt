@@ -1,4 +1,4 @@
-# svelte.check/default: 34886 match
+# svelte.check/default: 34887 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte	mismatch
@@ -60,16 +60,12 @@ svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_wher
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/da266f625312c031.svelte	mismatch
 svelte/rsvelte-tests-core-2/import_export_parser_shapes/javascript_stamps_no_export_kind_on_a_default_export/dc3ff104ae7b3006.svelte	unexpected
 svelte/rsvelte-tests-core-2/import_export_parser_shapes/typescript_stamps_an_export_kind_on_a_default_export/dc1ebbb91be96717.svelte	unexpected
-svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/block_markers_reject_a_nel/d17180b037ec6515.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/4e9145d6de0541b6.svelte	mismatch
-svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/d654bef2323adbe8.svelte	mismatch
-svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/f1bad544504a65b6.svelte	mismatch
 svelte/rsvelte-tests-core-2/malformed_snippet_header/an_optional_parameter_marker_without_lang_ts_fails_after_the_question_mark/8584ad3a7a51e39c.svelte	mismatch
 svelte/rsvelte-tests-core-2/malformed_snippet_header/balanced_literals_and_comments_in_a_header_compile/877d2d02e603fddb.svelte	mismatch
 svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/a_member_oxc_already_rejects_does_not_move/62f5fd2ac19278a6.svelte	mismatch
 svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/a_member_oxc_already_rejects_does_not_move/c17ea09d73673f96.svelte	mismatch
 svelte/rsvelte-tests-core-2/parse_class_member_modifiers/a_template_expressions_class_body_answers_the_same/d69ffebd46ac41cb.svelte	mismatch
-svelte/rsvelte-tests-core-2/parser_hardening/declaration_tag_multibyte_type_annotation_does_not_panic/47244ebc480a595e.svelte	mismatch
 svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/05b2487cbe722987.svelte	mismatch
 svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/0987dd6e6407d320.svelte	mismatch
 svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/47c9312bd7216844.svelte	mismatch
@@ -176,7 +172,6 @@ svelte/rsvelte/lint/no-useless-children-snippet/06-boundary-and-self.svelte	mism
 svelte/rsvelte/lint/require-each-key/13-key-expression-forms.svelte	mismatch
 svelte/rsvelte/pattern/issues/3164-on-directive-inner-init.svelte	mismatch
 svelte/rsvelte/pattern/issues/3199-grammar-import-source.svelte	mismatch
-svelte/rsvelte/pattern/issues/3201-template-strict-param-clash.svelte	mismatch
 svelte/rsvelte/pattern/issues/3667-namespace-type-only-import.svelte	mismatch
 svelte/rsvelte/pattern/issues/script-data-lang-ts-strips.svelte	mismatch
 svelte/rsvelte/pattern/issues/var-derived-outlives-the-statement-it-declared-it.svelte	mismatch
@@ -202,4 +197,3 @@ svelte/svelteui/apps/docs/src/lib/components/homepage/AllComponents.svelte	misma
 svelte/svelteui/apps/docs/src/lib/components/mainpages/NextSteps.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/rapier/attractor/AdvancedScene.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/rapier/collision-groups/App.svelte	mismatch
-svelte/threlte/packages/extras/src/lib/components/Svg/Svg.svelte	mismatch
