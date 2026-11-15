@@ -392,6 +392,7 @@ Issue: [eslint-plugin-svelte #1698](https://github.com/sveltejs/eslint-plugin-sv
 - Correct: the rule reports both. The `{:else}` branch of an each block renders at most once.
 - Why: `elementOccurrenceCount` multiplies the else block's count by the count of its parent each
   block, which is `ZeroToInf`.
+- The corpus skips the lint units that hold such a branch.
 
 ## A space beside an expression names an empty class
 
@@ -460,9 +461,10 @@ No issue yet.
 - Case: `<div class="a"></div><style>div:is(/* l */ .a) { color: red }</style>`.
 - Upstream reports `.a` 7 columns before it, the length of `/* l */`, as if the comment were not in
   the source. A comment before another argument does the same: in `div:not(.a /* m */, .b)`,
-  `.b` moves by its comment.
+  `.b` moves by its comment. So does a comment between the selectors of a rule: in
+  `.a /* c */, .b`, upstream reports `.b` 7 columns early.
 - Correct: report `.a` at its own column.
-- The corpus skips its 5 lint units.
+- The corpus skips its 6 lint units.
 
 ## Quirks of the CSS parsers that upstream uses
 
@@ -630,7 +632,7 @@ Issue: [svelte-eslint-parser #1005](https://github.com/sveltejs/svelte-eslint-pa
 | --------------------------------------------------------- | ------------------------------- | ------------ |
 | `<script` in a string: `` {@html `<script>…</script>`} `` | `Parsing error`                 | 9            |
 | Components named `Script` and `Style`                     | `Parsing error: Type expected.` | 1            |
-| `use:a.b`, `transition:a.b`, `class:A.B`, `style:a-b`     | `Parsing error`                 | 11           |
+| `use:a.b`, `transition:a.b`, `class:A.B`, `style:a-b`     | `Parsing error`                 | 12           |
 | A one-line `<script>import … from '…'</script>`           | `Parsing error: ';' expected.`  | 1            |
 | Any other one-line `<script>…</script>`                   | `Parsing error: ',' expected.`  | 38           |
 | `{@const x = (y)}`                                        | `Parsing error: ')' expected.`  | 2            |

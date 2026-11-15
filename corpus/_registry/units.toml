@@ -4131,3 +4131,24 @@
 
 ["svelte/svelte-toast/src/routes/+layout.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser reads the code of a `<script>` element inside the markup as part of the component script, so the last statement of the script spans the markup"
+
+["svelte/rsvelte/lint/consistent-selector-style/04-each-fallback.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style counts the `{:else}` branch of an each block as rendered any number of times"
+
+["svelte/svelte/packages/svelte/tests/css/samples/general-siblings-combinator-each-else-nested/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style counts the `{:else}` branch of an each block as rendered any number of times"
+
+["svelte/svelte/packages/svelte/tests/css/samples/general-siblings-combinator-each-else/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style counts the `{:else}` branch of an each block as rendered any number of times"
+
+["svelte/svelte/packages/svelte/tests/css/samples/siblings-combinator-each-else-nested/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style counts the `{:else}` branch of an each block as rendered any number of times"
+
+["svelte/svelte/packages/svelte/tests/css/samples/siblings-combinator-each-else/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style counts the `{:else}` branch of an each block as rendered any number of times"
+
+["svelte/rsvelte/pattern/adversarial/css/css-comment-positions.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style reports a selector after a comment as many columns early as the comment is long"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/04bc05a5c4a48321.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
