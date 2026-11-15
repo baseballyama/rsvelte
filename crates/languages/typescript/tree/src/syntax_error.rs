@@ -184,10 +184,8 @@ pub(crate) fn acorn(
     // A script is a module, so acorn reads every reserved word in a binding as an error of its own.
     let reserved = |at: u32| {
         let kind = kind_at(at)?;
-        (kind == Kind::Enum || kind.is_future_reserved_keyword()).then(|| Acorn::Fails {
-            message: Cow::Owned(format!("The keyword '{}' is reserved", kind.to_str())),
-            at,
-        })
+        (kind == Kind::Enum || kind.is_future_reserved_keyword())
+            .then(|| keyword(kind.to_str(), at))
     };
     if error.code.scope.as_deref() != Some("TS") {
         // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.
@@ -236,18 +234,36 @@ pub(crate) fn acorn(
             "Unexpected token",
             after_member_name(start, end, read(), visit)?,
         )),
-        // A numeric enum member, a class's `implements` and a token where an expression or a type
-        // belongs are where acorn fails.
-        "2452" | "8005" | "1109" | "1110" => Some(fails("Unexpected token", start)),
+        // A numeric enum member, a class's `implements`, a token where an expression or a type
+        // belongs and JSX are where acorn fails.
+        "2452" | "8005" | "1109" | "1110" | "17004" => Some(fails("Unexpected token", start)),
         // oxc labels the slash, and acorn reports the body after it.
         "1161" => Some(fails("Unterminated regular expression", start + 1)),
-        // A missing token: acorn fails at the next token from where oxc labels it.
-        "1005" => Some(fails("Unexpected token", token(start, None)?)),
+        // A missing token: acorn fails at the next token from where oxc labels it, or at the end.
+        "1005" => Some(fails(
+            "Unexpected token",
+            token(start, None).unwrap_or(text.len() as u32),
+        )),
+        // An arrow function's type parameters, where acorn fails at the `<`.
+        "8004" => Some(fails(
+            "Unexpected token",
+            read()
+                .take_while(|token| token.start() < start)
+                .last()?
+                .start(),
+        )),
+        "2364" | "2701" | "2357" | "2406" | "2487" => {
+            Some(fails("Assigning to rvalue", rvalue(start, read())?))
+        }
         "1127" => unexpected_character(text, start, end),
-        "1212" => Some(Acorn::Fails {
-            message: Cow::Owned(error.message.to_string()),
-            at: start,
-        }),
+        // A word reserved in strict code, which acorn names unescaped, as its token does; the
+        // analysis passes no tokens.
+        "1212" => Some(keyword(
+            kind_at(start).map_or(text.get(start as usize..end as usize)?, |kind| {
+                kind.to_str()
+            }),
+            start,
+        )),
         "1049" => Some(fails("setter should have exactly one param", start)),
         "1473" | "1474" => Some(fails(
             "'import' and 'export' may only appear at the top level",
@@ -279,6 +295,30 @@ pub(crate) fn acorn(
         )),
         _ => early_error(error, number, text, (start, end), visit),
     }
+}
+
+/// Acorn's error at a reserved `word`.
+fn keyword(word: &str, at: u32) -> Acorn {
+    Acorn::Fails {
+        message: Cow::Owned(format!("The keyword '{word}' is reserved")),
+        at,
+    }
+}
+
+/// Where acorn reports a target that cannot be assigned, which oxc labels from its outermost
+/// parentheses at `start`: at the target inside them, or at them around an object or an array.
+fn rvalue(start: u32, tokens: impl Iterator<Item = Token>) -> Option<u32> {
+    let mut tokens = tokens.skip_while(|token| token.start() < start);
+    let first = tokens.next()?;
+    let inside = std::iter::once(first)
+        .chain(tokens)
+        .find(|token| token.kind() != Kind::LParen)?;
+    let pattern = matches!(inside.kind(), Kind::LCurly | Kind::LBrack);
+    Some(if pattern {
+        first.start()
+    } else {
+        inside.start()
+    })
 }
 
 /// What acorn reports for an error of the analysis, which oxc labels from `start` to `end` and

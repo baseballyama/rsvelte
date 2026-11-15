@@ -1,8 +1,9 @@
 use oxc_parser::Kind;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 
-use super::{ParseResult, Parser};
+use super::{ParseResult, Parser, svelte_error};
 use crate::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range, TokenType};
 
 /// Upstream `get_directive_type`.
@@ -270,7 +271,8 @@ impl Parser<'_, '_> {
                     attribute.quoted = true;
                     let quote = quote_token(q);
                     self.eat_token(quote, 1);
-                    self.sequence(Some(q))?;
+                    self.sequence(Some(q))
+                        .map_err(|e| self.unclosed_before_tag_end(e, q))?;
                     if self.component.parts.len() == start {
                         let at = self.position as u32;
                         self.component.parts.push(Part::Text(Span::new(at, at)));
@@ -278,7 +280,8 @@ impl Parser<'_, '_> {
                     self.eat_token(quote, 1);
                 }
                 Some(_) => {
-                    self.sequence(None)?;
+                    self.sequence(None)
+                        .map_err(|e| self.unclosed_before_tag_end(e, b'}'))?;
                     if self.component.parts.len() == start {
                         return self.err("expected_attribute_value", "Expected attribute value");
                     }
@@ -288,6 +291,21 @@ impl Parser<'_, '_> {
         }
         attribute.value = AttributeValue::Parts(self.parts_since(start));
         Ok(())
+    }
+}
+
+impl Parser<'_, '_> {
+    /// Upstream's error for a value whose expression acorn rejects at the `>` of a `/>`: the value
+    /// did not close before the tag did, so the `closing` token is missing there.
+    #[cold]
+    fn unclosed_before_tag_end(&self, error: Diagnostic, closing: u8) -> Diagnostic {
+        let at = error.span.start_offset as usize;
+        let before_tag_end = at > 0 && self.source_text.get(at - 1..=at) == Some("/>");
+        if error.code != "js_parse_error" || !before_tag_end {
+            return error;
+        }
+        let message = format!("Expected token {}", char::from(closing));
+        svelte_error("expected_token", message, Span::new(at as u32, at as u32))
     }
 }
 

@@ -6,7 +6,7 @@ use oxc_formatter::{
     ExpressionLayout, ExpressionRoot, JsEmbeddedIn, JsFormatOptions, JsRoot, ProgramLayout,
     ProgramSemicolons, QuoteStyle,
 };
-use oxc_formatter_core::{FormatElement, normalize_newlines};
+use oxc_formatter_core::{FormatElement, LineMode, Tag, normalize_newlines};
 use oxc_span::SourceType;
 use rsvelte_document_printer::{Embedding, LayoutInstructionIdentifier};
 use rsvelte_kernel::source::positions::Span;
@@ -59,6 +59,8 @@ impl<'x> Printer<'_, '_, 'x> {
         let ir = self.format_javascript(&text, span, part, adjust.single_quote)?;
         // Prettier's `removeLines` means flat; its expanded states that survive it are a quirk.
         let mut ir = if adjust.single_line {
+            let mut ir = ir;
+            break_after_line_comments(&mut ir);
             self.embedder.embedding.remove_soft_lines(ir)
         } else {
             ir
@@ -195,6 +197,58 @@ fn remove_parentheses(ir: &mut ArenaVec<'_, FormatElement<'_>>) {
     {
         ir.remove(end);
         ir.remove(start);
+    }
+}
+
+/// Makes the first soft line after a line comment a hard line, so the comment ends its own line
+/// when the soft lines go: left pending, it would flush after the block, into the markup.
+fn break_after_line_comments(ir: &mut ArenaVec<'_, FormatElement<'_>>) {
+    if !holds_line_comment(ir) {
+        return;
+    }
+    // Interned content is shared, so the lines inside it are rewritten on a copy written in place
+    let mut flat = Vec::with_capacity(ir.len());
+    flatten_interned(ir, &mut flat);
+    let mut in_suffix = false;
+    let mut pending = false;
+    for element in &mut flat {
+        match element {
+            FormatElement::Tag(Tag::StartLineSuffix) => in_suffix = true,
+            FormatElement::Tag(Tag::EndLineSuffix) => in_suffix = false,
+            FormatElement::Text { text, .. } if in_suffix && is_line_comment(text.as_str()) => {
+                pending = true;
+            }
+            FormatElement::Line(LineMode::Soft | LineMode::SoftOrSpace) if pending => {
+                *element = FormatElement::Line(LineMode::Hard);
+                pending = false;
+            }
+            FormatElement::Line(_) | FormatElement::LineSuffixBoundary => pending = false,
+            _ => {}
+        }
+    }
+    ir.clear();
+    ir.extend(flat);
+}
+
+fn is_line_comment(text: &str) -> bool {
+    text.starts_with("//")
+}
+
+fn holds_line_comment(ir: &[FormatElement<'_>]) -> bool {
+    ir.iter().any(|element| match element {
+        FormatElement::Text { text, .. } => is_line_comment(text.as_str()),
+        FormatElement::Interned(interned) => holds_line_comment(interned),
+        _ => false,
+    })
+}
+
+fn flatten_interned<'a>(ir: &[FormatElement<'a>], flat: &mut Vec<FormatElement<'a>>) {
+    for element in ir {
+        if let FormatElement::Interned(interned) = element {
+            flatten_interned(interned, flat);
+        } else {
+            flat.push(element.clone());
+        }
     }
 }
 
