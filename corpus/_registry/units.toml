@@ -4289,6 +4289,7 @@
 
 ["svelte/primo/src/lib/components/app-sidebar.svelte".skip]
 "svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
 
 ["svelte/rsvelte/lint/prefer-destructured-store-props/03-block-scopes.svelte".skip]
 "svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
@@ -4585,9 +4586,6 @@
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
 
 ["svelte/primo/src/lib/builder/views/editor/Page.svelte".skip]
-"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
-
-["svelte/primo/src/lib/components/app-sidebar.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
 
 ["svelte/rsvelte-tests-formatter/block_header_call_args/a_long_iterable_pushes_the_key_over_the_width/03834301bec484ba.svelte".skip]
