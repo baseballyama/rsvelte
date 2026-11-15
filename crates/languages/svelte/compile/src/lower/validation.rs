@@ -214,13 +214,11 @@ fn first_typescript_feature(
     wanted: fn(Feature) -> bool,
 ) -> Result<(), Diagnostic> {
     let javascript = input.component.javascript;
-    let mut programs: Vec<_> = (input.component.module.into_iter())
-        .chain(input.component.instance)
-        .map(|p| javascript.get_program(p))
-        .collect();
+    let mut programs = [input.component.module, input.component.instance]
+        .map(|p| p.map(|p| javascript.get_program(p)));
     // The parser met the scripts in document order.
-    programs.sort_by_key(|p| p.span.start);
-    match (programs.into_iter())
+    programs.sort_by_key(|p| p.map(|p| p.span.start));
+    match (programs.into_iter().flatten())
         .find_map(|program| first_svelte_runtime_feature_where(program, wanted))
     {
         Some((feature, span)) => Err(typescript_invalid_feature(
