@@ -4126,3 +4126,21 @@
 
 ["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/ff14a907a86b8623.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/utils/htmlxparser/tests/an_uppercase_tag_is_a_component_and_never_an_orphan_script/379921bcb6f806e1.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds `<script>` blocks ignoring case, so it reads this `<Script>` or `<SCRIPT>` element as one, which Svelte does not"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/script_like_component_is_not_blanked/ffe93aebb9e69b3e.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds `<script>` blocks ignoring case, so it reads this `<Script>` or `<SCRIPT>` element as one, which Svelte does not"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/style_like_component_is_not_blanked/64766c531adab110.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds `<style>` blocks ignoring case, so it reads this `<Style>` or `<STYLE>` element as one, which Svelte does not"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/style_like_component_with_a_close_tag_is_not_blanked/9bd55f8f0a0e78b4.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds `<style>` blocks ignoring case, so it reads this `<Style>` or `<STYLE>` element as one, which Svelte does not"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/uppercase_script_like_component_is_not_blanked/b8ae751f2ba7fde5.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds `<script>` blocks ignoring case, so it reads this `<Script>` or `<SCRIPT>` element as one, which Svelte does not"
+
+["svelte/rsvelte/lint/no-nested-style-tag/14-component-lookalike.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds `<style>` blocks ignoring case, so it reads this `<Style>` or `<STYLE>` element as one, which Svelte does not"

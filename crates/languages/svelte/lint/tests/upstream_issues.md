@@ -269,6 +269,22 @@ have. `{(a) /* c */}`, `let x = $;` and `generics="const T extends string"` fail
 crate does not reproduce them. The corpus skips each unit whose expected error is past the
 end of its file.
 
+## `<Script>` and `<Style>` read as blocks (svelte-eslint-parser)
+
+Input:
+
+```svelte
+<Script>
+	<p>hello</p>
+</Script>
+```
+
+svelte-eslint-parser 1.10.0 finds the blocks in `context/index.js` with
+`/<!--[\s\S]*?-->|<(script|style|template)([\s>])/giu`, which ignores case. Svelte reads
+`<Script>` and `<Style>` as components and `<SCRIPT>` as an element, but the parser parses their
+content as a script or a style sheet, and ESLint reports `Unterminated regular expression
+literal.` here. This crate reads the tags as Svelte does.
+
 ## `svelte/prefer-const` treats a `<script module>` export as a prop
 
 Issue: [svelte-eslint-parser #992](https://github.com/sveltejs/svelte-eslint-parser/issues/992).
