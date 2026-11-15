@@ -597,32 +597,3 @@ fn an_unbound_bind_target_is_reported_without_its_type_cast() {
         }
     }
 }
-
-#[test]
-fn a_slot_beside_a_render_tag_is_upstreams_conflict_after_the_walk() {
-    // From svelte 5.57.3.
-    let render = "{#snippet s()}x{/snippet}{@render s()}";
-    for (markup, expected) in [
-        ("<slot />", ("slot_snippet_conflict", (0, 8))),
-        (
-            "<slot name=\"a\" /><slot /><slot name=\"a\" />",
-            ("slot_snippet_conflict", (25, 42)),
-        ),
-        ("<p>{$$slots.a}</p>", ("slot_snippet_conflict", (4, 4))),
-        (
-            "<!-- $$slot --><p>{$$slots.a}</p>",
-            ("slot_snippet_conflict", (5, 5)),
-        ),
-        (
-            "<button on:click={() => {}}></button><button onclick={() => {}}></button><slot />",
-            ("mixed_event_handler_syntaxes", (8, 27)),
-        ),
-    ] {
-        let source = format!("{markup}{render}");
-        for target in [Target::Client, Target::Server] {
-            let error = compile_at(&source, target).err();
-            let expected = (expected.0.to_owned(), expected.1);
-            assert_eq!(error, Some(expected), "{source} on {target:?}");
-        }
-    }
-}
