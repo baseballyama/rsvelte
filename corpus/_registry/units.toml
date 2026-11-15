@@ -4144,3 +4144,9 @@
 
 ["svelte/rsvelte/lint/no-nested-style-tag/14-component-lookalike.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser finds `<style>` blocks ignoring case, so it reads this `<Style>` or `<STYLE>` element as one, which Svelte does not"
+
+["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/an_uppercase_closing_tag_is_content_too/51a8d7c4f585bd3a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds the end of a `<style>` block ignoring case, so a `</STYLE>` in the style sheet ends it, which Svelte does not"
+
+["svelte/rsvelte-tests-core-3/style_terminator_3593/near_misses_are_not_terminators/024c029169d7ee6b.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds the end of a `<style>` block ignoring case, so a `</STYLE>` in the style sheet ends it, which Svelte does not"

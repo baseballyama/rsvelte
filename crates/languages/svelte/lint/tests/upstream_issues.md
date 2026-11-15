@@ -283,7 +283,9 @@ svelte-eslint-parser 1.10.0 finds the blocks in `context/index.js` with
 `/<!--[\s\S]*?-->|<(script|style|template)([\s>])/giu`, which ignores case. Svelte reads
 `<Script>` and `<Style>` as components and `<SCRIPT>` as an element, but the parser parses their
 content as a script or a style sheet, and ESLint reports `Unterminated regular expression
-literal.` here. This crate reads the tags as Svelte does.
+literal.` here. Its end tag patterns, such as `/<\/style>/giu`, ignore case too, so a
+`</STYLE>` in a string of the style sheet ends the block. This crate reads the tags as Svelte
+does.
 
 ## `svelte/prefer-const` treats a `<script module>` export as a prop
 
