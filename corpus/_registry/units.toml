@@ -4284,3 +4284,6 @@
 
 ["svelte/svelte/packages/svelte/tests/css/samples/css-vars/input.svelte".skip]
 "svelte.format" = "upstream bug: Prettier 3.9.10 adds a space before `!important` in a custom property with no value on every pass (`--bar: !important` prints `--bar:  !important`, then `--bar:   !important`)"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/ast/each-with-comment-input.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines, so the line after a line comment in it loses its indent and the closing parenthesis lands at the header's column; we keep that break inside the arguments' indent"
