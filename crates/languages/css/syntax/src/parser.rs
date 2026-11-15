@@ -6,7 +6,7 @@ use rsvelte_kernel::source::interning::{Atom, Interner};
 use rsvelte_kernel::source::positions::Span;
 use rustc_hash::FxHashMap;
 
-use crate::syntax_tree::{Rule, RuleIdentifier, RuleKind, StyleSheet};
+use crate::syntax_tree::{ComplexSelector, Rule, RuleIdentifier, RuleKind, StyleSheet};
 
 #[derive(Debug, Clone)]
 pub struct ParseError {
@@ -410,7 +410,34 @@ impl P<'_> {
             self.expect(b'}')?;
             return Ok(None);
         }
-        self.style_rule().map(Some)
+        // ESLint still lints a rule whose selector its parser cannot read.
+        let selectors = self.attempt(Self::rule_selectors).unwrap_or_else(|| {
+            self.position = end;
+            Vec::new()
+        });
+        self.style_rule_with(start, selectors).map(Some)
+    }
+
+    /// What `read` reads, or nothing, with the reader back where it was, on its error.
+    fn attempt<T>(&mut self, read: impl FnOnce(&mut Self) -> R<T>) -> Option<T> {
+        let mark = (
+            self.position,
+            self.comments.len(),
+            self.whitespace.len(),
+            self.comment_closers.len(),
+            self.selector_count,
+            self.relative_count,
+        );
+        let read = read(self).ok();
+        if read.is_none() {
+            self.position = mark.0;
+            self.comments.truncate(mark.1);
+            self.whitespace.truncate(mark.2);
+            self.comment_closers.truncate(mark.3);
+            self.selector_count = mark.4;
+            self.relative_count = mark.5;
+        }
+        read
     }
 
     /// The first `;`, `{` or `}` outside brackets, strings and comments, or the end.
@@ -533,13 +560,26 @@ impl P<'_> {
     }
 
     fn style_rule(&mut self) -> R<Rule> {
+        let start_offset = self.position;
+        let selectors = self.rule_selectors()?;
+        self.style_rule_with(start_offset, selectors)
+    }
+
+    fn rule_selectors(&mut self) -> R<Vec<ComplexSelector>> {
+        let previous_parent = self.selector_parent;
+        self.selector_parent = self.current_rule;
+        let selectors = self.selector_list(false);
+        self.selector_parent = previous_parent;
+        selectors
+    }
+
+    /// The block of a style rule whose selectors end at the `{`.
+    fn style_rule_with(&mut self, start_offset: usize, selectors: Vec<ComplexSelector>) -> R<Rule> {
         let identifier = RuleIdentifier::new(self.rule_count);
         self.rule_count += 1;
         let parent = self.current_rule;
         let previous_parent = self.selector_parent;
         self.selector_parent = parent;
-        let start_offset = self.position;
-        let selectors = self.selector_list(false)?;
         let block_start_offset = self.position;
         self.position += 1;
         self.current_rule = Some(identifier);
