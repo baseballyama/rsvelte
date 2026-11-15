@@ -7,7 +7,7 @@ use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::{Visit, VisitMut};
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::config::TokensParserConfig;
-use oxc_parser::{Kind, Parser, Token};
+use oxc_parser::{Kind, Parser, PartError, Token};
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
@@ -16,7 +16,7 @@ mod parentheses;
 mod program;
 pub use program::Rejected;
 
-use crate::acorn_grammar::{Rejection, Unsupported, rejection};
+use crate::acorn_grammar::{Rejection, Unsupported, rejection, whitespace};
 use crate::syntax_error::{
     Locator, SyntaxError, acorn, reported, syntax_error, typescript_eslint_at,
 };
@@ -119,7 +119,7 @@ impl<'a> Builder<'a> {
         &mut self,
         diagnostics: &[OxcDiagnostic],
         (text, fallback, shift): (&str, u32, u32),
-        (tokens, next_token): (&[Token], Option<Token>),
+        (tokens, next_token, irregular): (&[Token], Option<Token>, &[oxc_span::Span]),
         (part, source_type): (Part<'_, 'a>, SourceType),
     ) -> Result<(), SyntaxError> {
         let visit = |locator: &mut Locator| part.walk(locator);
@@ -128,7 +128,11 @@ impl<'a> Builder<'a> {
         let stop = if self.as_acorn && (first.is_some() || self.acorn_rejection.is_none()) {
             let mut unsupported = Unsupported::new(source_type.is_typescript(), tokens);
             part.walk(&mut unsupported);
-            unsupported.first.map(|(at, why)| (at + shift, why))
+            let unsupported = unsupported.first.map(|(at, why)| (at + shift, why));
+            unsupported
+                .into_iter()
+                .chain(whitespace(text, irregular, shift))
+                .min_by_key(|stop| stop.0)
         } else {
             None
         };
@@ -151,6 +155,20 @@ impl<'a> Builder<'a> {
             self.acorn_rejection = stop;
         }
         Ok(())
+    }
+
+    /// The error of a part oxc cannot read, or where acorn stops before it at whitespace
+    /// ECMAScript does not allow.
+    #[cold]
+    fn fatal(&self, error: PartError<'_>, text: &str, fallback: u32, shift: u32) -> SyntaxError {
+        let stop = (self.as_acorn)
+            .then(|| whitespace(text, &error.irregular_whitespaces, shift))
+            .flatten();
+        let syntax_error = syntax_error(error.diagnostics, text, &error.tokens, fallback, shift);
+        match stop {
+            Some(stop) if stop.0 <= syntax_error.acorn_at() => rejection(stop),
+            _ => syntax_error,
+        }
     }
 
     pub(crate) fn finish(self) -> Trees<'a> {
@@ -243,12 +261,16 @@ impl<'a> Builder<'a> {
             .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .parse_expression_at(start)
-            .map_err(|error| syntax_error(error.diagnostics, text, &error.tokens, start, 0))?;
+            .map_err(|error| self.fatal(error, text, start, 0))?;
         let part = Part::Expression(&parsed.expression);
         self.check(
             &parsed.diagnostics,
             (text, start, 0),
-            (&parsed.tokens, parsed.next_token),
+            (
+                &parsed.tokens,
+                parsed.next_token,
+                &parsed.irregular_whitespaces,
+            ),
             (part, source_type),
         )?;
         self.record(&parsed.tokens, &parsed.comments, 0);
@@ -282,14 +304,16 @@ impl<'a> Builder<'a> {
             .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .parse_statement_at(start)
-            .map_err(|error| {
-                syntax_error(error.diagnostics, self.source_text, &error.tokens, start, 0)
-            })?;
+            .map_err(|error| self.fatal(error, self.source_text, start, 0))?;
         let part = Part::Statement(&parsed.statement);
         self.check(
             &parsed.diagnostics,
             (self.source_text, start, 0),
-            (&parsed.tokens, parsed.next_token),
+            (
+                &parsed.tokens,
+                parsed.next_token,
+                &parsed.irregular_whitespaces,
+            ),
             (part, source_type),
         )?;
         self.record(&parsed.tokens, &parsed.comments, 0);
@@ -434,7 +458,7 @@ impl<'a> Builder<'a> {
             .with_options(parentheses::options(parenthesized))
             .with_config(TokensParserConfig)
             .parse_expression_at(0)
-            .map_err(|error| syntax_error(error.diagnostics, text, &error.tokens, 0, shift))?;
+            .map_err(|error| self.fatal(error, text, 0, shift))?;
         if parenthesized {
             let recorded = &mut self.parentheses;
             parentheses::strip(self.allocator, &mut parsed.expression, shift, recorded);
@@ -443,7 +467,11 @@ impl<'a> Builder<'a> {
         self.check(
             &parsed.diagnostics,
             (text, 0, shift),
-            (&parsed.tokens, parsed.next_token),
+            (
+                &parsed.tokens,
+                parsed.next_token,
+                &parsed.irregular_whitespaces,
+            ),
             (part, source_type),
         )?;
         if !wrapper(&parsed.expression) {

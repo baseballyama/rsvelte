@@ -24,6 +24,9 @@ pub(crate) enum Rejection {
     ExportedGlobal,
     /// A decorator's `@`, a character acorn does not read.
     At,
+    /// U+0085 or U+200B, which oxc reads as whitespace, as tsc does, and ECMAScript does not.
+    NextLine,
+    ZeroWidthSpace,
 }
 
 impl Rejection {
@@ -36,6 +39,8 @@ impl Rejection {
             ),
             Self::ExportedGlobal => "'export declare' must be followed by an ambient declaration.",
             Self::At => "Unexpected character '@'",
+            Self::NextLine => "Unexpected character '\u{85}'",
+            Self::ZeroWidthSpace => "Unexpected character '\u{200B}'",
         }
     }
 }
@@ -159,6 +164,23 @@ impl<'a> Visit<'a> for Unsupported<'_> {
             self.first = Some(found);
         }
     }
+}
+
+/// Where acorn stops at the first whitespace in `irregular`, the spans oxc lists in `text`, that
+/// ECMAScript does not allow; `shift` moves them into the document.
+pub(crate) fn whitespace(
+    text: &str,
+    irregular: &[oxc_span::Span],
+    shift: u32,
+) -> Option<(u32, Rejection)> {
+    irregular.iter().find_map(|span| {
+        let rejection = match text.get(span.start as usize..)?.chars().next()? {
+            '\u{85}' => Rejection::NextLine,
+            '\u{200B}' => Rejection::ZeroWidthSpace,
+            _ => return None,
+        };
+        Some((span.start + shift, rejection))
+    })
 }
 
 /// What acorn throws where it rejects at `at`.
