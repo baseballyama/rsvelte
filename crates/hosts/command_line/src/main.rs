@@ -3,6 +3,8 @@
 //! `rsvelte run <file> --task <identifier>` prints one task's outputs for one file.
 //! `rsvelte run <file>... --task <identifier>` runs the tasks over every file in one run, as a
 //! project, and labels each output with its file.
+//! `rsvelte lint [<path>...] [--task <identifier>]...` lints the files below the paths, by default
+//! the current directory, and prints the problems as `ESLint` does.
 //! `rsvelte check [--task <identifier>]...` runs the tasks, by default `ts.check/default`, over
 //! the files of the project they check, as its checker selects them from the tsconfig.
 //! `rsvelte benchmark <dir> [--task <identifier>]... [rounds=N] [json=<file>]` measures the
@@ -29,6 +31,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use commands::corpus::corpus;
+use commands::lint;
 use commands::run::{run_file, run_files, run_project};
 use commands::{benchmark, performance};
 use input::load;
@@ -100,6 +103,10 @@ fn main() -> ExitCode {
     }
     let selection = if !tasks.is_empty() {
         rsvelte_plugin_interface::Selection::Named(tasks.iter().map(|&t| t.to_owned()).collect())
+    } else if positional.first() == Some(&"lint") {
+        rsvelte_plugin_interface::Selection::Named(
+            lint::TASKS.iter().map(|&t| t.to_owned()).collect(),
+        )
     } else if positional.first() == Some(&"check") {
         rsvelte_plugin_interface::Selection::Named(vec![PROJECT_CHECK.to_owned()])
     } else if matches!(positional.first(), Some(&("corpus" | "run"))) {
@@ -169,6 +176,11 @@ fn dispatch(
         }
         ["run", file] => run_file(reg, Path::new(file), tasks, fix),
         ["run", files @ ..] if !files.is_empty() && !fix => run_files(reg, files, tasks),
+        ["lint", paths @ ..] if !fix => lint::lint(
+            reg,
+            if paths.is_empty() { &["."] } else { paths },
+            if tasks.is_empty() { lint::TASKS } else { tasks },
+        ),
         ["check"] if !fix => run_project(
             reg,
             if tasks.is_empty() {
@@ -192,7 +204,7 @@ fn dispatch(
             Err(e) => usage(&e),
         },
         _ => usage(concat!(
-            "expected `corpus <dir>...`, `run <file>...`, `check`, ",
+            "expected `corpus <dir>...`, `run <file>...`, `lint [<path>...]`, `check`, ",
             "`benchmark <dir>` or `performance <dir>...`"
         )),
     }
