@@ -53,23 +53,28 @@ impl Parser<'_, '_> {
                 "Declaration tags must be `let` or `const` declarations",
             );
         }
-        let keyword = ["let", "const"].into_iter().any(|k| {
+        // `type` names a value too, so upstream parses it and keeps what is an expression.
+        let keyword = ["let", "const", "type"].into_iter().find(|k| {
             rest.starts_with(k)
                 && !rest[k.len()..]
                     .chars()
                     .next()
                     .is_some_and(is_identifier_continue)
         });
-        if !keyword {
+        let Some(keyword) = keyword else {
             return Ok(None);
-        }
+        };
         let start_offset = self.position as u32;
         let source_type = self.source_type();
         let mark = self.builder.mark();
-        let (statement, next) = self
-            .builder
-            .read_statement_at(start_offset, source_type)
-            .map_err(javascript_failure)?;
+        let (statement, next) = match self.builder.read_statement_at(start_offset, source_type) {
+            Ok(read) => read,
+            // acorn-typescript reads `type as T` as an expression where oxc expects a type alias.
+            Err(_) if keyword == "type" && self.expression_ends_tag(start_offset, mark) => {
+                return Ok(None);
+            }
+            Err(error) => return Err(javascript_failure(error)),
+        };
         let declaration = match statement {
             Statement::VariableDeclaration(declaration) => declaration,
             // `{let}` or `{constant + 1}` is an expression, as upstream reads it.
@@ -77,16 +82,28 @@ impl Parser<'_, '_> {
                 self.builder.rewind(mark);
                 return Ok(None);
             }
-            _ => {
+            statement => {
+                let at = statement.span();
                 return Self::err_at(
-                    Span::new(start_offset, next),
-                    "parse_error",
-                    "expected a `let` or `const` declaration",
+                    Span::new(at.start, at.end),
+                    "declaration_tag_invalid_type",
+                    "Declaration tags must be `let` or `const` declarations",
                 );
             }
         };
         self.javascript_region(start_offset, next);
         Ok(Some(self.builder.keep_declaration(declaration.unbox())))
+    }
+
+    /// Whether an expression at `start` runs to the tag's `}`, read and then forgotten.
+    fn expression_ends_tag(&mut self, start: u32, mark: usize) -> bool {
+        self.builder.rewind(mark);
+        let read = self.builder.read_expression_at(start, self.source_type());
+        self.builder.rewind(mark);
+        read.is_ok_and(|(_, end)| {
+            super::whitespace::trim_whitespace_start(&self.source_text[end as usize..])
+                .starts_with('}')
+        })
     }
 
     fn special_tag(&mut self, start_offset: usize) -> ParseResult<TemplateNodeIdentifier> {

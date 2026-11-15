@@ -38,7 +38,8 @@ impl SvelteRule for NoUnusedSvelteIgnore {
         if ignores.items.is_empty() {
             return;
         }
-        let Some(compile) = file.compile_warnings() else {
+        // A compile that stops while parsing uses no comment.
+        let Some(Ok(compile)) = file.compile_warnings() else {
             return;
         };
         let experimental_async = match file.svelte_config() {

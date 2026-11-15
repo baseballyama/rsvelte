@@ -1,7 +1,5 @@
-# svelte.compileModule/server: 2291 match
+# svelte.compileModule/server: 2294 match
 svelte/rsvelte-tests-core-1/class_field_tag_label_2021/anonymous_class_falls_back_to_the_upstream_placeholder/0860dafe2dc30de4.svelte.js	mismatch
-svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/tests/module_async_derived_instruments_its_thunk_in_dev/a70e89098f9b811a.svelte.js	unexpected
-svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/tests/module_async_derived_prelude_does_not_reorder_console_analysis/aa33996234c562fd.svelte.js	unexpected
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/6a26782d79102a88.svelte.js	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/e6f48eb60e9a7548.svelte.js	mismatch
 svelte/rsvelte-tests-core-2/indirect_state_export_error_spans/indirect_state_exports_point_at_the_invalid_specifier/8f5826d2dde2e7b6.svelte.js	unexpected
@@ -9,7 +7,6 @@ svelte/rsvelte-tests-core-2/indirect_state_export_error_spans/indirect_state_exp
 svelte/rsvelte-tests-core-2/module_compile_error_propagation/ts_decorator_now_errors_instead_of_being_silently_dropped/d3ee40422927611c.svelte.js	unexpected
 svelte/rsvelte-tests-core-2/module_compile_error_propagation/ts_module_errors_like_upstream/8310a5563c393ab6.svelte.js	mismatch
 svelte/rsvelte-tests-core-2/module_compile_ts_strip/client_rejects_ts_annotations/cce85b132666848f.svelte.js	mismatch
-svelte/rsvelte-tests-core-2/module_compile_ts_strip/server_async_derived_array_destructure_uses_server_temp/6e64fa702b90ba09.svelte.js	unexpected
 svelte/rsvelte-tests-core-2/module_compile_ts_strip/server_rejects_ts_annotations/4276e78cf7fc238a.svelte.js	mismatch
 svelte/rsvelte-tests-core-2/module_destructure_state_assign/same_named_plain_values_are_not_signals/2f896a111888b079.svelte.js	mismatch
 svelte/rsvelte-tests-core-2/module_inspect_slot_3611/an_inspect_with_declarator_keeps_its_binding_and_value/5ec595030be1bb54.svelte.js	refused

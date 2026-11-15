@@ -71,7 +71,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 let body = self.build_template(pieces);
                 let callback = b.arrow_block(b.parameters(["$$renderer"]), body, false);
                 let call = b.call(b.member(b.id("$$renderer"), "title"), [callback]);
-                template.push(Piece::Statement(b.statement(call)));
+                // Upstream puts it in `state.init`, which comes before the template.
+                self.snippets.push(b.statement(call));
             }
             ElementKind::Metadata(Some(
                 MetadataTag::Window

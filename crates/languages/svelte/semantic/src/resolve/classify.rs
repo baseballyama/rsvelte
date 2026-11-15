@@ -47,15 +47,21 @@ pub(super) fn classify<'a>(
 }
 
 /// The initialiser of the declarator `symbol` came from (`initializer` in `let x = initializer`).
-/// Upstream declares a new binding at each `var` redeclaration, so the last declarator's counts.
+/// Upstream declares a new binding at each `var` redeclaration, so the last declarator's counts,
+/// and one a block hoists out of itself has no initialiser.
 pub(super) fn initializer(semantic: &Semantic, symbol: SymbolId) -> Option<&Expression<'_>> {
     let scoping = semantic.scoping();
     let declaration = scoping
         .symbol_redeclarations(symbol)
         .last()
         .map_or_else(|| scoping.symbol_declaration(symbol), |r| r.declaration);
-    match semantic.nodes().kind(declaration) {
-        AstKind::VariableDeclarator(d) => d.init.as_ref(),
+    let nodes = semantic.nodes();
+    match nodes.kind(declaration) {
+        AstKind::VariableDeclarator(d)
+            if nodes.get_node(declaration).scope_id() == scoping.symbol_scope_id(symbol) =>
+        {
+            d.init.as_ref()
+        }
         _ => None,
     }
 }
