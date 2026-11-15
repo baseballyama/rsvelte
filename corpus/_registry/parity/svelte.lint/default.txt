@@ -1,4 +1,4 @@
-# svelte.lint/default: 37066 match
+# svelte.lint/default: 37068 match
 svelte/bits-ui/tests/src/tests/checkbox/checkbox-group-test.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/valid/pug01-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-input.svelte	mismatch
@@ -560,8 +560,6 @@ svelte/rsvelte/lint/max-attributes-per-line/15-this-keytext-whitespace.svelte	mi
 svelte/rsvelte/lint/max-attributes-per-line/16-this-exotic-ws-eq.svelte	mismatch
 svelte/rsvelte/lint/max-attributes-per-line/17-crlf-this-keytext.svelte	mismatch
 svelte/rsvelte/lint/no-at-debug-tags/13-spaced-tag.svelte	mismatch
-svelte/rsvelte/lint/no-dom-manipulating/13-static-computed-key.svelte	mismatch
-svelte/rsvelte/lint/no-dom-manipulating/18-cross-dom-listener-reactivity.svelte	mismatch
 svelte/rsvelte/lint/no-dupe-style-properties/13-case-and-custom-props.svelte	mismatch
 svelte/rsvelte/lint/no-inspect/13-destructure-shorthand.svelte	mismatch
 svelte/rsvelte/lint/no-inspect/17-import-export-specifier.svelte	mismatch
