@@ -12,6 +12,7 @@ use rustc_hash::FxHashSet;
 mod lets;
 mod placement;
 mod slots;
+mod transitions;
 
 use placement::Ancestors;
 use rsvelte_svelte_semantic::warnings::slot_name_error;
@@ -276,6 +277,7 @@ fn element<'a>(
         ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element))
     ) {
         animation(input, parent, attributes)?;
+        transitions::check(attributes)?;
         event_modifiers(attributes)?;
     }
     if el.kind.renders_component() {
