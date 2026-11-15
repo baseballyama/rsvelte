@@ -1,7 +1,9 @@
 //! `let:` directives: the names a slot's content takes from the props its `<slot>` passes.
 
+use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{
-    ArrayExpressionElement, BindingPattern, BindingProperty, BindingRestElement, Expression,
+    ArrayExpressionElement, AssignmentOperator, AssignmentTarget, AssignmentTargetMaybeDefault,
+    AssignmentTargetProperty, BindingPattern, BindingProperty, BindingRestElement, Expression,
     ObjectPropertyKind, PropertyKey, PropertyKind,
 };
 use oxc_span::SPAN;
@@ -105,20 +107,25 @@ fn is_fragment(element: &Element) -> bool {
 ///
 /// # Errors
 ///
-/// When the value holds what this port does not lower: a default, a computed key, an array's rest
-/// or another expression.
+/// When the value holds what this port does not lower: a default where `defaults` is false, a
+/// computed key, an array's rest or another expression.
 pub(super) fn pattern<'o>(
     b: &Builder<'o>,
     directive: &Let<'_>,
     value: &Expression<'_>,
+    defaults: bool,
 ) -> Result<BindingPattern<'o>, rsvelte_kernel::diagnostics::Diagnostic> {
-    convert(b, value).map_or_else(
+    convert(b, value, defaults).map_or_else(
         || unsupported("this `let:` pattern", directive.attribute.span),
         Ok,
     )
 }
 
-fn convert<'o>(b: &Builder<'o>, value: &Expression<'_>) -> Option<BindingPattern<'o>> {
+fn convert<'o>(
+    b: &Builder<'o>,
+    value: &Expression<'_>,
+    defaults: bool,
+) -> Option<BindingPattern<'o>> {
     match value {
         Expression::Identifier(name) => Some(b.binding(&name.name)),
         Expression::ObjectExpression(object) => {
@@ -132,7 +139,7 @@ fn convert<'o>(b: &Builder<'o>, value: &Expression<'_>) -> Option<BindingPattern
                         let PropertyKey::StaticIdentifier(key) = &p.key else {
                             return None;
                         };
-                        let value = convert(b, &p.value)?;
+                        let value = convert(b, &p.value, defaults)?;
                         properties.push(BindingProperty::new(
                             SPAN,
                             b.key(&key.name),
@@ -145,7 +152,7 @@ fn convert<'o>(b: &Builder<'o>, value: &Expression<'_>) -> Option<BindingPattern
                     ObjectPropertyKind::SpreadProperty(spread)
                         if i + 1 == object.properties.len() =>
                     {
-                        let argument = convert(b, &spread.argument)?;
+                        let argument = convert(b, &spread.argument, defaults)?;
                         rest = Some(BindingRestElement::boxed(SPAN, argument, b));
                     }
                     _ => return None,
@@ -165,8 +172,82 @@ fn convert<'o>(b: &Builder<'o>, value: &Expression<'_>) -> Option<BindingPattern
                 match element {
                     ArrayExpressionElement::Elision(_) => elements.push(None),
                     ArrayExpressionElement::SpreadElement(_) => return None,
-                    element => elements.push(Some(convert(b, element.as_expression()?)?)),
+                    element => {
+                        elements.push(Some(convert(b, element.as_expression()?, defaults)?));
+                    }
                 }
+            }
+            Some(BindingPattern::new_array_pattern(
+                SPAN,
+                b.vec(elements),
+                None,
+                b,
+            ))
+        }
+        // Upstream prints a default as written, without reading it through the component's state.
+        Expression::AssignmentExpression(assignment)
+            if defaults && assignment.operator == AssignmentOperator::Assign =>
+        {
+            let left = target(b, &assignment.left)?;
+            Some(with_default(b, left, &assignment.right))
+        }
+        _ => None,
+    }
+}
+
+/// The pattern a default's left side stands for, which the parser reads as an assignment target.
+fn target<'o>(b: &Builder<'o>, value: &AssignmentTarget<'_>) -> Option<BindingPattern<'o>> {
+    match value {
+        AssignmentTarget::AssignmentTargetIdentifier(name) => Some(b.binding(&name.name)),
+        AssignmentTarget::ObjectAssignmentTarget(object) => {
+            let mut properties = Vec::with_capacity(object.properties.len());
+            for property in &object.properties {
+                let (key, value, shorthand) = match property {
+                    AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(p) => {
+                        let name = b.binding(&p.binding.name);
+                        let value = match &p.init {
+                            Some(init) => with_default(b, name, init),
+                            None => name,
+                        };
+                        (p.binding.name.as_str(), value, true)
+                    }
+                    AssignmentTargetProperty::AssignmentTargetPropertyProperty(p)
+                        if !p.computed =>
+                    {
+                        let PropertyKey::StaticIdentifier(key) = &p.name else {
+                            return None;
+                        };
+                        (key.name.as_str(), maybe_default(b, &p.binding)?, false)
+                    }
+                    AssignmentTargetProperty::AssignmentTargetPropertyProperty(_) => return None,
+                };
+                properties.push(BindingProperty::new(
+                    SPAN,
+                    b.key(key),
+                    value,
+                    shorthand,
+                    false,
+                    b,
+                ));
+            }
+            let rest = match &object.rest {
+                Some(rest) => Some(BindingRestElement::boxed(SPAN, target(b, &rest.target)?, b)),
+                None => None,
+            };
+            Some(BindingPattern::new_object_pattern(
+                SPAN,
+                b.vec(properties),
+                rest,
+                b,
+            ))
+        }
+        AssignmentTarget::ArrayAssignmentTarget(array) if array.rest.is_none() => {
+            let mut elements = Vec::with_capacity(array.elements.len());
+            for element in &array.elements {
+                elements.push(match element {
+                    Some(element) => Some(maybe_default(b, element)?),
+                    None => None,
+                });
             }
             Some(BindingPattern::new_array_pattern(
                 SPAN,
@@ -177,4 +258,25 @@ fn convert<'o>(b: &Builder<'o>, value: &Expression<'_>) -> Option<BindingPattern
         }
         _ => None,
     }
+}
+
+fn maybe_default<'o>(
+    b: &Builder<'o>,
+    value: &AssignmentTargetMaybeDefault<'_>,
+) -> Option<BindingPattern<'o>> {
+    match value {
+        AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(default) => {
+            let left = target(b, &default.binding)?;
+            Some(with_default(b, left, &default.init))
+        }
+        value => target(b, value.as_assignment_target()?),
+    }
+}
+
+fn with_default<'o>(
+    b: &Builder<'o>,
+    left: BindingPattern<'o>,
+    right: &Expression<'_>,
+) -> BindingPattern<'o> {
+    BindingPattern::new_assignment_pattern(SPAN, left, right.clone_in(b.allocator()), b)
 }

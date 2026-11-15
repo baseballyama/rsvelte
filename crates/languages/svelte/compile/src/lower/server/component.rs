@@ -177,7 +177,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 Some(Expression::Identifier(name)) => {
                     (b.binding(&name.name), name.name == directive.prop)
                 }
-                Some(value) => (pattern(b, directive, value)?, false),
+                Some(value) => (pattern(b, directive, value, true)?, false),
             };
             let key = b.key(directive.prop);
             properties.push(BindingProperty::new(SPAN, key, value, shorthand, false, b));
