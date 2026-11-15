@@ -209,7 +209,8 @@ fn a_bindable_prop_only_written_is_not_unused() {
                 "src/Drawer.svelte",
                 concat!(
                     "<script lang=\"ts\">\n",
-                    "  let { open = $bindable(false), plain = 1 }: { open?: boolean; plain?: number } =\n",
+                    "  let { open = $bindable(false), plain = 1 }:\n",
+                    "    { open?: boolean; plain?: number } =\n",
                     "    $props();\n",
                     "  const close = () => (open = false);\n",
                     "</script>\n",
@@ -234,7 +235,12 @@ fn a_css_custom_property_given_to_a_component_is_not_a_prop() {
             ),
             (
                 "src/Child.svelte",
-                "<script lang=\"ts\">\n  let { size }: { size?: number } = $props();\n</script>\n{size}\n",
+                concat!(
+                    "<script lang=\"ts\">\n",
+                    "  let { size }: { size?: number } = $props();\n",
+                    "</script>\n",
+                    "{size}\n",
+                ),
             ),
             (
                 "src/App.svelte",
