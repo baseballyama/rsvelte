@@ -26,6 +26,14 @@ const fn sigil(node: &TemplateNode) -> Option<char> {
 impl Template<'_> {
     pub(super) fn opening_tag(&mut self, node: &TemplateNode) {
         let Some(sigil) = sigil(node) else { return };
+        // Upstream checks only `{#each}` and `{@render}` outside runes mode.
+        let always = matches!(
+            node,
+            TemplateNode::Each { .. } | TemplateNode::Render { .. }
+        );
+        if !always && !self.context.runes {
+            return;
+        }
         let span = node.span();
         // The parser records `{` alone only when whitespace comes before the sigil.
         let spaced = self

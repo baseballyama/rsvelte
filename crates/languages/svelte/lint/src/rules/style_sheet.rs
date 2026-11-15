@@ -2,6 +2,7 @@
 //! verdict, by the element's `lang`. The rules that read the style sheet share it.
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
+use rsvelte_stylesheet_syntax::StyleSheet;
 use rsvelte_stylesheet_syntax::postcss::{self, Dialect, SyntaxError};
 
 use crate::rule::File;
@@ -53,4 +54,48 @@ impl Artifact for StyleSheetVerdict {
 
 pub(super) fn verdict<'a>(file: &File<'a>) -> &'a StyleVerdict {
     file.context.get::<StyleSheetVerdict>()
+}
+
+/// The sheet that Svelte rejects and `PostCSS` (or `postcss-scss`) reads, as [`parse_for_lint`]
+/// reads it; `None` when Svelte's own sheet stands or none can be read.
+///
+/// [`parse_for_lint`]: rsvelte_stylesheet_syntax::parse_for_lint
+#[derive(Debug)]
+pub(crate) struct LintStyleSheet;
+
+impl Artifact for LintStyleSheet {
+    type Output = Option<StyleSheet>;
+
+    const NAME: &'static str = "svelte.lint.lint_style_sheet";
+
+    fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        if !matches!(context.get::<StyleSheetVerdict>(), StyleVerdict::Parsed) {
+            return None;
+        }
+        let style = crate::computation::Linted::of(context)
+            .ok()?
+            .component
+            .style
+            .as_ref()?;
+        if style.sheet.is_ok() {
+            return None;
+        }
+        let source = context.source_text();
+        let scss = style.attributes.iter().any(|(name, value)| {
+            name.text(source) == "lang" && value.is_some_and(|v| v.text(source) == "scss")
+        });
+        rsvelte_stylesheet_syntax::parse_for_lint(source, style.content, scss).ok()
+    }
+}
+
+/// The style sheet that the rules which read selectors see, once `PostCSS` reads the element.
+pub(super) fn sheet<'a>(file: &File<'a>) -> Option<&'a StyleSheet> {
+    if !matches!(verdict(file), StyleVerdict::Parsed) {
+        return None;
+    }
+    let style = file.component()?.style.as_ref()?;
+    style
+        .sheet
+        .as_ref()
+        .map_or_else(|_| file.context.get::<LintStyleSheet>().as_ref(), Some)
 }

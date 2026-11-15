@@ -1,7 +1,7 @@
 //! The JavaScript errors acorn throws while upstream parses a component.
 
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_typescript_tree::SyntaxError;
+use rsvelte_typescript_tree::{Acorn, SyntaxError};
 
 use crate::input::ComponentInput;
 use crate::resolve::Resolution;
@@ -39,8 +39,19 @@ fn first_and_whether_redeclared(res: &Resolution) -> Option<(SyntaxError, bool)>
 #[must_use]
 pub fn parse_error(input: &ComponentInput<'_>, res: &Resolution) -> Option<Diagnostic> {
     first_and_whether_redeclared(res)
-        .filter(|(error, redeclared)| !(*redeclared && outside_scripts(input, &error.diagnostic)))
+        .filter(|(error, redeclared)| {
+            !(*redeclared && !clashes(error) && outside_scripts(input, &error.diagnostic))
+        })
         .map(|(error, _)| rsvelte_svelte_syntax::parse::javascript_failure(error))
+}
+
+/// Whether `error` is two parameters of one function with the same name, which acorn rejects as
+/// it parses, in the template too.
+fn clashes(error: &SyntaxError) -> bool {
+    matches!(
+        &error.acorn,
+        Some(Acorn::Fails { message, .. }) if message == "Argument name clash"
+    )
 }
 
 /// Whether `error` is outside the scripts.

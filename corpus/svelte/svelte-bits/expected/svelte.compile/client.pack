@@ -48984,6 +48984,218 @@ export default function StarCard($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
+=== 4375 src/lib/components/landing/Features/VariantTabs.svelte	css
+
+	.ln-feat-stack.svelte-sdoiib {
+		position: relative;
+		width: 100%;
+		height: 100%;
+		min-height: 200px;
+		overflow: hidden;
+		box-sizing: border-box;
+	}
+
+	/* Each chip is positioned absolutely and drifts on its own loop. */
+	.ln-feat-stack-chip.svelte-sdoiib {
+		--chip-color: rgba(255, 255, 255, 0.12);
+		position: absolute;
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 9px 14px;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 10px;
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+		z-index: 1;
+		white-space: nowrap;
+	}
+
+	/* ── Positions ── */
+
+	.ln-feat-stack-chip--svelte.svelte-sdoiib {
+		--chip-color: #ff3e00;
+		top: 22%;
+		left: 14%;
+		transform: rotate(-5deg);
+		animation:
+			svelte-sdoiib-driftA 7s ease-in-out infinite,
+			svelte-sdoiib-pulseSvelte 6s ease-in-out infinite;
+	}
+
+	.ln-feat-stack-chip--ts.svelte-sdoiib {
+		--chip-color: #3178c6;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 2;
+		animation:
+			svelte-sdoiib-driftB 8s ease-in-out infinite,
+			svelte-sdoiib-pulseTs 6s ease-in-out infinite 2s;
+	}
+
+	.ln-feat-stack-chip--tw.svelte-sdoiib {
+		--chip-color: #38bdf8;
+		bottom: 20%;
+		right: 12%;
+		transform: rotate(4deg);
+		animation:
+			svelte-sdoiib-driftC 7.5s ease-in-out infinite,
+			svelte-sdoiib-pulseTw 6s ease-in-out infinite 4s;
+	}
+
+	/* ── Drift animations (gentle floating) ── */
+
+	@keyframes svelte-sdoiib-driftA {
+		0%, 100% { transform: translate(0, 0) rotate(-5deg); }
+		50%      { transform: translate(6px, -8px) rotate(-3deg); }
+	}
+
+	@keyframes svelte-sdoiib-driftB {
+		0%, 100% { transform: translate(-50%, -50%); }
+		50%      { transform: translate(calc(-50% + 4px), calc(-50% - 6px)); }
+	}
+
+	@keyframes svelte-sdoiib-driftC {
+		0%, 100% { transform: translate(0, 0) rotate(4deg); }
+		50%      { transform: translate(-7px, 5px) rotate(6deg); }
+	}
+
+	/* ── Border pulse: each chip glows briefly in its own brand color ── */
+
+	@keyframes svelte-sdoiib-pulseSvelte {
+		0%, 70%, 100% {
+			border-color: rgba(255, 255, 255, 0.08);
+			box-shadow: 0 0 0 0 transparent;
+			background: rgba(255, 255, 255, 0.03);
+		}
+		15%, 25% {
+			border-color: #ff3e00;
+			box-shadow:
+				0 0 0 1px rgba(255, 62, 0, 0.35),
+				0 0 24px rgba(255, 62, 0, 0.32);
+			background: rgba(255, 62, 0, 0.07);
+		}
+	}
+
+	@keyframes svelte-sdoiib-pulseTs {
+		0%, 70%, 100% {
+			border-color: rgba(255, 255, 255, 0.08);
+			box-shadow: 0 0 0 0 transparent;
+			background: rgba(255, 255, 255, 0.03);
+		}
+		15%, 25% {
+			border-color: #3178c6;
+			box-shadow:
+				0 0 0 1px rgba(49, 120, 198, 0.4),
+				0 0 24px rgba(49, 120, 198, 0.32);
+			background: rgba(49, 120, 198, 0.08);
+		}
+	}
+
+	@keyframes svelte-sdoiib-pulseTw {
+		0%, 70%, 100% {
+			border-color: rgba(255, 255, 255, 0.08);
+			box-shadow: 0 0 0 0 transparent;
+			background: rgba(255, 255, 255, 0.03);
+		}
+		15%, 25% {
+			border-color: #38bdf8;
+			box-shadow:
+				0 0 0 1px rgba(56, 189, 248, 0.4),
+				0 0 24px rgba(56, 189, 248, 0.32);
+			background: rgba(56, 189, 248, 0.08);
+		}
+	}
+
+	/* ── Mark + label ── */
+
+	.ln-feat-stack-mark.svelte-sdoiib {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 22px;
+		height: 22px;
+		flex-shrink: 0;
+	}
+
+	.ln-feat-stack-mark--svelte.svelte-sdoiib img:where(.svelte-sdoiib) {
+		width: auto;
+		height: 20px;
+	}
+
+	.ln-feat-stack-name.svelte-sdoiib {
+		font-family: 'Geist Mono', monospace;
+		font-size: 12px;
+		color: rgba(255, 255, 255, 0.88);
+		letter-spacing: -0.01em;
+	}
+
+	/* ── Connecting lines hint at composition (subtle) ── */
+
+	.ln-feat-stack.svelte-sdoiib::before,
+	.ln-feat-stack.svelte-sdoiib::after {
+		content: '';
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		width: 1px;
+		height: 70%;
+		background: linear-gradient(
+			to bottom,
+			transparent 0%,
+			rgba(255, 255, 255, 0.05) 50%,
+			transparent 100%
+		);
+		transform-origin: center;
+		pointer-events: none;
+		z-index: 0;
+	}
+
+	.ln-feat-stack.svelte-sdoiib::before {
+		transform: translate(-50%, -50%) rotate(35deg);
+	}
+
+	.ln-feat-stack.svelte-sdoiib::after {
+		transform: translate(-50%, -50%) rotate(-35deg);
+	}
+
+	@media (max-width: 1024px) {
+		.ln-feat-stack-chip--svelte.svelte-sdoiib {
+			top: 18%;
+			left: 8%;
+		}
+		.ln-feat-stack-chip--tw.svelte-sdoiib {
+			bottom: 16%;
+			right: 6%;
+		}
+	}
+
+=== 2619 src/lib/components/landing/Features/VariantTabs.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import iconLogo from '$lib/assets/logo/svelte-bits-icon-logo.svg';
+
+var root = $.from_html(`<div class="ln-feat-stack svelte-sdoiib"><div class="ln-feat-stack-chip ln-feat-stack-chip--svelte svelte-sdoiib"><span class="ln-feat-stack-mark ln-feat-stack-mark--svelte svelte-sdoiib" aria-hidden="true"><img alt="" class="svelte-sdoiib"/></span> <span class="ln-feat-stack-name svelte-sdoiib">Svelte&nbsp;5</span></div> <div class="ln-feat-stack-chip ln-feat-stack-chip--ts svelte-sdoiib"><span class="ln-feat-stack-mark svelte-sdoiib" aria-hidden="true"><svg viewBox="0 0 32 32" width="18" height="18" fill="none" class="svelte-sdoiib"><rect width="32" height="32" rx="4" fill="#3178C6" class="svelte-sdoiib"></rect><path d="M9.5 17.5h3v8.4h2.6v-8.4h3v-2.3h-8.6v2.3zm9.4 6.7c.6 1.2 1.9 2 3.9 2 2.4 0 4-1.2 4-3.2 0-1.7-.9-2.6-3.1-3.1l-1-.2c-1-.2-1.4-.6-1.4-1.1 0-.6.5-1 1.3-1 .8 0 1.3.4 1.5 1l2.2-.7c-.5-1.4-1.7-2.1-3.7-2.1-2.2 0-3.7 1.2-3.7 3 0 1.7 1 2.6 3.1 3l1 .3c1.1.2 1.5.6 1.5 1.2 0 .6-.6 1.1-1.6 1.1-1 0-1.6-.5-2-1.3l-2 .8z" fill="#fff" class="svelte-sdoiib"></path></svg></span> <span class="ln-feat-stack-name svelte-sdoiib">TypeScript</span></div> <div class="ln-feat-stack-chip ln-feat-stack-chip--tw svelte-sdoiib"><span class="ln-feat-stack-mark svelte-sdoiib" aria-hidden="true"><svg viewBox="0 0 32 20" width="22" height="14" fill="none" class="svelte-sdoiib"><path d="M16 0C11.733 0 9.067 2.133 8 6.4 9.6 4.267 11.467 3.467 13.6 4c1.217.305 2.087 1.187 3.05 2.165C18.218 7.756 19.97 9.6 23.6 9.6c4.267 0 6.933-2.133 8-6.4-1.6 2.133-3.467 2.933-5.6 2.4-1.217-.305-2.087-1.187-3.05-2.165C21.382 1.844 19.63 0 16 0zM8 9.6c-4.267 0-6.933 2.133-8 6.4 1.6-2.133 3.467-2.933 5.6-2.4 1.217.305 2.087 1.187 3.05 2.165C10.218 17.356 11.97 19.2 15.6 19.2c4.267 0 6.933-2.133 8-6.4-1.6 2.133-3.467 2.933-5.6 2.4-1.217-.305-2.087-1.187-3.05-2.165C13.382 11.444 11.63 9.6 8 9.6z" fill="#38BDF8" class="svelte-sdoiib"></path></svg></span> <span class="ln-feat-stack-name svelte-sdoiib">Tailwind</span></div></div>`);
+
+export default function VariantTabs($$anchor) {
+	var // Visual: the three technologies powering svelte-bits, shown as floating
+	// pills that drift gently and pulse their borders in sequence using each
+	// brand's own color (Svelte orange, TS blue, Tailwind cyan).
+	div = root();
+
+	var div_1 = $.child(div);
+	var span = $.child(div_1);
+	var img = $.only_child(span);
+
+	$.next(2);
+	$.reset(div_1);
+	$.next(4);
+	$.reset(div);
+	$.template_effect(() => $.set_attribute(img, 'src', iconLogo));
+	$.append($$anchor, div);
+}
 === 2960 src/lib/components/landing/Footer/Footer.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -58536,6 +58748,94 @@ export default function SplashCursor($$anchor, $$props) {
 	$.reset(div);
 	$.append($$anchor, div);
 	$.pop();
+}
+=== 721 src/lib/components/library/Animations/StarBorder/StarBorder.svelte	css
+
+	.star-sweep-bottom.svelte-1367xib {
+		animation-name: svelte-1367xib-star-movement-bottom;
+		animation-timing-function: linear;
+		animation-iteration-count: infinite;
+		animation-direction: alternate;
+	}
+	.star-sweep-top.svelte-1367xib {
+		animation-name: svelte-1367xib-star-movement-top;
+		animation-timing-function: linear;
+		animation-iteration-count: infinite;
+		animation-direction: alternate;
+	}
+	@keyframes svelte-1367xib-star-movement-bottom {
+		0% { transform: translate(0%, 0%); opacity: 1; }
+		100% { transform: translate(-100%, 0%); opacity: 0; }
+	}
+	@keyframes svelte-1367xib-star-movement-top {
+		0% { transform: translate(0%, 0%); opacity: 1; }
+		100% { transform: translate(100%, 0%); opacity: 0; }
+	}
+
+=== 2141 src/lib/components/library/Animations/StarBorder/StarBorder.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'children',
+	'as',
+	'class',
+	'color',
+	'speed',
+	'thickness'
+]);
+
+var root = $.from_html(`<div class="star-sweep-bottom absolute w-[300%] h-[50%] opacity-70 bottom-[-11px] right-[-250%] rounded-full z-0 svelte-1367xib"></div> <div class="star-sweep-top absolute w-[300%] h-[50%] opacity-70 top-[-10px] left-[-250%] rounded-full z-0 svelte-1367xib"></div> <div class="relative z-1 bg-gradient-to-b from-black to-gray-900 border border-gray-800 text-white text-center text-[16px] py-[16px] px-[26px] rounded-[20px] svelte-1367xib"><!></div>`, 1);
+
+export default function StarBorder($$anchor, $$props) {
+	let as = $.prop($$props, 'as', 3, 'button'),
+		className = $.prop($$props, 'class', 3, ''),
+		color = $.prop($$props, 'color', 3, 'white'),
+		speed = $.prop($$props, 'speed', 3, '6s'),
+		thickness = $.prop($$props, 'thickness', 3, 1),
+		rest = $.rest_props($$props, rest_excludes);
+
+	const gradientBg = $.derived(() => `radial-gradient(circle, ${color()}, transparent 10%)`);
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.element(node, as, false, ($$element, $$anchor) => {
+		$.attribute_effect(
+			$$element,
+			() => ({
+				class: `star-border relative inline-block overflow-hidden rounded-[20px] ${className() ?? ''}`,
+				...rest,
+				[$.STYLE]: { padding: `${thickness() ?? ''}px 0` }
+			}),
+			void 0,
+			void 0,
+			void 0,
+			'svelte-1367xib'
+		);
+
+		var fragment_1 = root();
+		var div = $.first_child(fragment_1);
+		let styles;
+		var div_1 = $.sibling(div, 2);
+		let styles_1;
+		var div_2 = $.sibling(div_1, 2);
+		var node_1 = $.child(div_2);
+
+		$.snippet(node_1, () => $$props.children ?? $.noop);
+		$.reset(div_2);
+
+		$.template_effect(() => {
+			styles = $.set_style(div, '', styles, { background: $.get(gradientBg), 'animation-duration': speed() });
+			styles_1 = $.set_style(div_1, '', styles_1, { background: $.get(gradientBg), 'animation-duration': speed() });
+		});
+
+		$.append($$anchor, fragment_1);
+	});
+
+	$.append($$anchor, fragment);
 }
 === 1362 src/lib/components/library/Animations/StickerPeel/StickerPeel.svelte	css
 
@@ -79847,6 +80147,265 @@ export default function GlassSurface($$anchor, $$props) {
 	$.append($$anchor, div_1);
 	$.pop();
 }
+=== 2790 src/lib/components/library/Components/GooeyNav/GooeyNav.svelte	css
+
+	:root {
+		--linear-ease: linear(0, 0.068, 0.19 2.7%, 0.804 8.1%, 1.037, 1.199 13.2%, 1.245, 1.27 15.8%, 1.274, 1.272 17.4%, 1.249 19.1%, 0.996 28%, 0.949, 0.928 33.3%, 0.926, 0.933 36.8%, 1.001 45.6%, 1.013, 1.019 50.8%, 1.018 54.4%, 1 63.1%, 0.995 68%, 1.001 85%, 1);
+	}
+	.effect.svelte-3hotau { position: absolute; opacity: 1; pointer-events: none; display: grid; place-items: center; z-index: 1; }
+	.effect.text.svelte-3hotau { color: white; transition: color 0.3s ease; }
+	.effect.text.active { color: black; }
+	.effect.filter.svelte-3hotau { filter: blur(7px) contrast(100) blur(0); mix-blend-mode: lighten; }
+	.effect.filter.svelte-3hotau::before { content: ""; position: absolute; inset: -75px; z-index: -2; background: black; }
+	.effect.filter.svelte-3hotau::after { content: ""; position: absolute; inset: 0; background: white; transform: scale(0); opacity: 0; z-index: -1; border-radius: 9999px; }
+	.effect.active::after { animation: svelte-3hotau-pill 0.3s ease both; }
+	@keyframes svelte-3hotau-pill { to { transform: scale(1); opacity: 1; } }
+	.particle, .point { display: block; opacity: 0; width: 20px; height: 20px; border-radius: 9999px; transform-origin: center; }
+	.particle { --time: 5s; position: absolute; top: calc(50% - 8px); left: calc(50% - 8px); animation: svelte-3hotau-particle calc(var(--time)) ease 1 -350ms; }
+	.point { background: var(--color); opacity: 1; animation: svelte-3hotau-point calc(var(--time)) ease 1 -350ms; }
+	@keyframes svelte-3hotau-particle {
+		0% { transform: rotate(0deg) translate(calc(var(--start-x)), calc(var(--start-y))); opacity: 1; animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45); }
+		70% { transform: rotate(calc(var(--rotate) * 0.5)) translate(calc(var(--end-x) * 1.2), calc(var(--end-y) * 1.2)); opacity: 1; animation-timing-function: ease; }
+		85% { transform: rotate(calc(var(--rotate) * 0.66)) translate(calc(var(--end-x)), calc(var(--end-y))); opacity: 1; }
+		100% { transform: rotate(calc(var(--rotate) * 1.2)) translate(calc(var(--end-x) * 0.5), calc(var(--end-y) * 0.5)); opacity: 1; }
+	}
+	@keyframes svelte-3hotau-point {
+		0% { transform: scale(0); opacity: 0; animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45); }
+		25% { transform: scale(calc(var(--scale) * 0.25)); }
+		38% { opacity: 1; }
+		65% { transform: scale(var(--scale)); opacity: 1; animation-timing-function: ease; }
+		85% { transform: scale(var(--scale)); opacity: 1; }
+		100% { transform: scale(0); opacity: 0; }
+	}
+	li.active.svelte-3hotau { color: black; text-shadow: none; }
+	li.active.svelte-3hotau::after { opacity: 1; transform: scale(1); }
+	li.svelte-3hotau::after {
+		content: ""; position: absolute; inset: 0; border-radius: 8px; background: white;
+		opacity: 0; transform: scale(0); transition: all 0.3s ease; z-index: -1;
+	}
+
+=== 6271 src/lib/components/library/Components/GooeyNav/GooeyNav.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { onMount } from 'svelte';
+
+var root = $.from_html(`<li><a class="outline-none py-[0.6em] px-[1em] inline-block svelte-3hotau"> </a></li>`);
+var root_1 = $.from_html(`<div class="relative svelte-3hotau"><nav class="flex relative svelte-3hotau" style="transform:translate3d(0,0,0.01px);"><ul class="flex gap-8 list-none p-0 px-4 m-0 relative z-[3] svelte-3hotau" style="color:white;text-shadow:0 1px 1px hsl(205deg 30% 10% / 0.2);"></ul></nav> <span class="effect filter svelte-3hotau"></span> <span class="effect text svelte-3hotau"></span></div>`);
+
+export default function GooeyNav($$anchor, $$props) {
+	$.push($$props, true);
+
+	let animationTime = $.prop($$props, 'animationTime', 3, 600),
+		particleCount = $.prop($$props, 'particleCount', 3, 15),
+		particleDistances = $.prop($$props, 'particleDistances', 19, () => [90, 10]),
+		particleR = $.prop($$props, 'particleR', 3, 100),
+		timeVariance = $.prop($$props, 'timeVariance', 3, 300),
+		colors = $.prop($$props, 'colors', 19, () => [1, 2, 3, 1, 2, 3, 1, 4]),
+		initialActiveIndex = $.prop($$props, 'initialActiveIndex', 3, 0);
+
+	let containerRef;
+	let navRef;
+	let filterRef;
+	let textRef;
+	let activeIndex = $.state($.proxy(initialActiveIndex()));
+	const noise = (n = 1) => n / 2 - Math.random() * n;
+
+	function getXY(distance, pointIndex, totalPoints) {
+		const angle = (360 + noise(8)) / totalPoints * pointIndex * (Math.PI / 180);
+
+		return [distance * Math.cos(angle), distance * Math.sin(angle)];
+	}
+
+	function createParticle(i, t, d, r) {
+		const rotate = noise(r / 10);
+
+		return {
+			start: getXY(d[0], particleCount() - i, particleCount()),
+			end: getXY(d[1] + noise(7), particleCount() - i, particleCount()),
+			time: t,
+			scale: 1 + noise(0.2),
+			color: colors()[Math.floor(Math.random() * colors().length)],
+			rotate: rotate > 0 ? (rotate + r / 20) * 10 : (rotate - r / 20) * 10
+		};
+	}
+
+	function makeParticles(element) {
+		const d = particleDistances();
+		const r = particleR();
+		const bubbleTime = animationTime() * 2 + timeVariance();
+
+		element.style.setProperty('--time', `${bubbleTime}ms`);
+
+		for (let i = 0; i < particleCount(); i++) {
+			const t = animationTime() * 2 + noise(timeVariance() * 2);
+			const p = createParticle(i, t, d, r);
+
+			element.classList.remove('active');
+
+			setTimeout(
+				() => {
+					const particle = document.createElement('span');
+					const point = document.createElement('span');
+
+					particle.classList.add('particle');
+					particle.style.setProperty('--start-x', `${p.start[0]}px`);
+					particle.style.setProperty('--start-y', `${p.start[1]}px`);
+					particle.style.setProperty('--end-x', `${p.end[0]}px`);
+					particle.style.setProperty('--end-y', `${p.end[1]}px`);
+					particle.style.setProperty('--time', `${p.time}ms`);
+					particle.style.setProperty('--scale', `${p.scale}`);
+					particle.style.setProperty('--color', `var(--color-${p.color}, white)`);
+					particle.style.setProperty('--rotate', `${p.rotate}deg`);
+					point.classList.add('point');
+					particle.appendChild(point);
+					element.appendChild(particle);
+					requestAnimationFrame(() => element.classList.add('active'));
+
+					setTimeout(
+						() => {
+							try {
+								element.removeChild(particle);
+							} catch {
+								/* noop */
+							}
+						},
+						t
+					);
+				},
+				30
+			);
+		}
+	}
+
+	function updateEffectPosition(element) {
+		if (!containerRef || !filterRef || !textRef) return;
+
+		const containerRect = containerRef.getBoundingClientRect();
+		const pos = element.getBoundingClientRect();
+
+		const styles = {
+			left: `${pos.x - containerRect.x}px`,
+			top: `${pos.y - containerRect.y}px`,
+			width: `${pos.width}px`,
+			height: `${pos.height}px`
+		};
+
+		Object.assign(filterRef.style, styles);
+		Object.assign(textRef.style, styles);
+		textRef.innerText = element.innerText;
+	}
+
+	function handleClick(e, index) {
+		const liEl = e.currentTarget.closest('li');
+
+		if (!liEl || $.get(activeIndex) === index) return;
+
+		$.set(activeIndex, index, true);
+		updateEffectPosition(liEl);
+
+		if (filterRef) {
+			filterRef.querySelectorAll('.particle').forEach((p) => filterRef.removeChild(p));
+		}
+
+		if (textRef) {
+			textRef.classList.remove('active');
+			void textRef.offsetWidth;
+			textRef.classList.add('active');
+		}
+
+		if (filterRef) makeParticles(filterRef);
+	}
+
+	function handleKey(e, index) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+
+			const liEl = e.currentTarget.parentElement;
+
+			if (liEl) handleClick({ currentTarget: liEl }, index);
+		}
+	}
+
+	onMount(() => {
+		if (!navRef || !containerRef) return;
+
+		const lis = navRef.querySelectorAll('li');
+		const activeLi = lis[$.get(activeIndex)];
+
+		if (activeLi) {
+			updateEffectPosition(activeLi);
+			textRef?.classList.add('active');
+		}
+
+		const ro = new ResizeObserver(() => {
+			const cur = navRef?.querySelectorAll('li')[$.get(activeIndex)];
+
+			if (cur) updateEffectPosition(cur);
+		});
+
+		ro.observe(containerRef);
+
+		return () => ro.disconnect();
+	});
+
+	var div = root_1();
+	var nav = $.child(div);
+	var ul = $.child(nav);
+
+	$.each(ul, 21, () => $$props.items, $.index, ($$anchor, item, index) => {
+		var li = root();
+		var a = $.child(li);
+		var text = $.only_child(a, true);
+
+		$.reset(li);
+
+		$.template_effect(() => {
+			$.set_class(li, 1, `rounded-full relative cursor-pointer transition-[background-color_color_box-shadow] duration-300 ease shadow-[0_0_0.5px_1.5px_transparent] text-white ${$.get(activeIndex) === index ? 'active' : ''}`, 'svelte-3hotau');
+			$.set_attribute(a, 'href', $.get(item).href);
+			$.set_text(text, $.get(item).label);
+		});
+
+		$.delegated('click', a, (e) => handleClick(e, index));
+		$.delegated('keydown', a, (e) => handleKey(e, index));
+		$.append($$anchor, li);
+	});
+
+	$.reset(ul);
+	$.bind_this(ul, ($$value) => navRef = $$value, () => navRef);
+	$.reset(nav);
+
+	var span = $.sibling(nav, 2);
+
+	$.bind_this(span, ($$value) => filterRef = $$value, () => filterRef);
+
+	var span_1 = $.sibling(span, 2);
+
+	$.bind_this(span_1, ($$value) => textRef = $$value, () => textRef);
+	$.reset(div);
+	$.bind_this(div, ($$value) => containerRef = $$value, () => containerRef);
+	$.append($$anchor, div);
+	$.pop();
+}
+
+$.delegate(['click', 'keydown']);
+=== 375 src/lib/components/library/Components/GooeyNav/GooeyNav.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `initialActiveIndex`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 41,
+			"column": 26,
+			"character": 963
+		},
+		"end": {
+			"line": 41,
+			"column": 44,
+			"character": 981
+		}
+	}
+]
+
 === 25850 src/lib/components/library/Components/InfiniteMenu/InfiniteMenu.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';

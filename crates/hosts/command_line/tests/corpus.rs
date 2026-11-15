@@ -353,11 +353,7 @@ fn main() -> ExitCode {
     let result = rsvelte_corpus::Conformance::new("svelte", registry)
         .compare("svelte.compile/client")
         .compare("svelte.compile/server")
-        .compare_file(
-            "svelte.compile.warnings",
-            "svelte.compile/client",
-            "warnings.json",
-        )
+        .compare_file("svelte.compile.warnings")
         .compare("svelte.compileModule/client")
         .compare("svelte.compileModule/server")
         .compare("svelte.format/default")

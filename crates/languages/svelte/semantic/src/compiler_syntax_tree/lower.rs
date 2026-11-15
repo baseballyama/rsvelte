@@ -237,11 +237,13 @@ impl SurfaceBuilder<'_> {
             }
             TemplateNode::Snippet {
                 name,
+                generics,
                 parameters,
                 body,
                 ..
             } => NodeKind::Snippet(Snippet {
                 name,
+                generics,
                 parameters,
                 body: self.list(c.children(body), Some(identifier)),
             }),

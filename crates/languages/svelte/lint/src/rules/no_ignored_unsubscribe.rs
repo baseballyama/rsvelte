@@ -6,6 +6,9 @@ use super::javascript::walk;
 use super::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
+#[cfg(test)]
+mod tests;
+
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-ignored-unsubscribe",
     files: Files::All,
@@ -43,6 +46,10 @@ impl SvelteRule for NoIgnoredUnsubscribe {
                     }
                     _ => return,
                 },
+                // A private name's ESTree `name` has no `#`.
+                Expression::PrivateFieldExpression(member) if member.field.name == "subscribe" => {
+                    span(&member.field)
+                }
                 _ => return,
             };
             reporter.report(

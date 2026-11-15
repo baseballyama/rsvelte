@@ -52,7 +52,7 @@ impl Artifact for Warned {
             resolution,
             analysis,
             context.source_text(),
-            &context.document.path,
+            Some(&context.document.path),
             OPTIONS,
         );
         found

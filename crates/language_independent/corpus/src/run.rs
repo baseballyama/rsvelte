@@ -39,7 +39,7 @@ pub struct Conformance {
     out_of_scope: Option<&'static str>,
     /// The units [`Self::out_of_scope`]'s task reported.
     excluded: AtomicUsize,
-    /// `(unit key, task)` for each official entry of a unit that `units.toml` skips for the task.
+    /// `(unit key, task)` for each official entry of a unit that no reader of the pack takes.
     stale: Mutex<Vec<(String, &'static str)>>,
 }
 
@@ -47,8 +47,8 @@ pub struct Conformance {
 struct Compared {
     task: &'static str,
     implemented: bool,
-    /// For a task that writes one file of another task's official output: that task and file.
-    official: Option<(&'static str, &'static str)>,
+    /// A task in `readers.toml`: it compares one file of another task's official output.
+    reader: bool,
 }
 
 /// One source's verdicts: (unit key, index into `compared`, verdict).
@@ -74,25 +74,21 @@ impl Conformance {
         self.compared.push(Compared {
             task,
             implemented: true,
-            official: None,
+            reader: false,
         });
         self
     }
 
-    /// Compares the `file` that rsvelte's `task` writes with that file of `official`'s output,
-    /// such as the compiler's `warnings.json`. A unit where the official tool reported an error is
-    /// the other task's to judge; one without the file expects none.
+    /// Compares the file that rsvelte's `task` writes with that file of another task's official
+    /// output, as `corpus/_registry/readers.toml` names them, such as the compiler's
+    /// `warnings.json`. A unit where the official tool reported an error is the other task's to
+    /// judge; one without the file expects none.
     #[must_use]
-    pub fn compare_file(
-        mut self,
-        task: &'static str,
-        official: &'static str,
-        file: &'static str,
-    ) -> Self {
+    pub fn compare_file(mut self, task: &'static str) -> Self {
         self.compared.push(Compared {
             task,
             implemented: true,
-            official: Some((official, file)),
+            reader: true,
         });
         self
     }
@@ -103,7 +99,7 @@ impl Conformance {
         self.compared.push(Compared {
             task,
             implemented: false,
-            official: None,
+            reader: false,
         });
         self
     }
@@ -154,6 +150,13 @@ impl Conformance {
         let started = Instant::now();
         let root = PathBuf::from(sources::ROOT);
         let registry = sources::Registry::read(&root)?;
+        if let Some(c) = self
+            .compared
+            .iter()
+            .find(|c| c.reader && !registry.readers.contains_key(c.task))
+        {
+            return Err(format!("{} is not in readers.toml", c.task));
+        }
         let mut sources = sources::sources(&root.join(self.family))?;
         // Largest first, so the last source to start is a small one.
         let size = |s: &Source| std::fs::metadata(s.dir.join("inputs.pack")).map_or(0, |m| m.len());
@@ -256,7 +259,7 @@ impl Conformance {
         let expected: Vec<Pack> = self
             .compared
             .iter()
-            .map(|c| source.expected(c.official.map_or(c.task, |(task, _)| task)))
+            .map(|c| source.expected(reader_of(c, registry).map_or(c.task, |r| &r.pack)))
             .collect::<Result<_, _>>()?;
         let tasks: Vec<&str> = self
             .compared
@@ -336,9 +339,9 @@ impl Conformance {
         let key = source.key(&document.path);
         let table = registry.units.get(&key);
         for (i, c) in self.compared.iter().enumerate() {
-            // Regen writes nothing for a skipped unit, so its entry predates the skip.
-            if c.official.is_none()
-                && table.is_some_and(|t| t.skips(c.task))
+            // Regen writes nothing for a unit no reader of the pack takes.
+            if !c.reader
+                && table.is_some_and(|t| registry.skips_every_reader(t, c.task))
                 && expected[i].find(&document.path).next().is_some()
             {
                 self.stale
@@ -364,7 +367,7 @@ impl Conformance {
             }
             let official: Vec<Entry<'_>> = expected[i].find(&document.path).collect();
             let ours = result.outputs.iter().find(|(t, _)| *t == c.task);
-            if let Some((_, file)) = c.official {
+            if let Some(file) = reader_of(c, registry).map(|r| r.file.as_str()) {
                 if official.is_empty()
                     || official.iter().any(|e| e.attributes.starts_with("error."))
                 {
@@ -400,6 +403,15 @@ impl Conformance {
     }
 }
 
+/// The pack and file a reader task compares; `None` for a task with a pack of its own.
+fn reader_of<'r>(c: &Compared, registry: &'r sources::Registry) -> Option<&'r sources::Reader> {
+    if c.reader {
+        registry.readers.get(c.task)
+    } else {
+        None
+    }
+}
+
 /// Fails with a regen command for each of the first `stale` entries.
 fn stale_entries(stale: &mut [(String, &str)]) -> Result<(), String> {
     if stale.is_empty() {
@@ -407,7 +419,8 @@ fn stale_entries(stale: &mut [(String, &str)]) -> Result<(), String> {
     }
     stale.sort_unstable();
     let mut lines = vec![format!(
-        "{} expected entries belong to units that units.toml skips; remove them with:",
+        "{} expected entries belong to units that units.toml skips for every task reading the \
+         pack; remove them with:",
         stale.len()
     )];
     lines.extend(stale.iter().take(PRINTED_MOVES).map(|(key, task)| {

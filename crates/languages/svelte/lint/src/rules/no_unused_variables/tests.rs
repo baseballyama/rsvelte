@@ -81,6 +81,14 @@ fn exported_declarations_are_not_unused() {
     assert!(got.ends_with(want), "{got}");
 }
 
+#[test]
+fn a_name_a_re_export_lists_is_used() {
+    assert_eq!(
+        unused("<script>\n\tlet x = 1;\n\tlet z = 1;\n\texport { x as y } from './m';\n</script>"),
+        ["'z' is assigned a value but never used."]
+    );
+}
+
 /// Each finding's message and start line.
 fn unused_at(source_text: &str) -> Vec<(String, u32)> {
     let got = lint(source_text);
@@ -382,6 +390,99 @@ fn a_snippet_read_only_in_its_own_body_is_unused() {
         [
             "'c' is defined but never used.",
             "'f' is defined but never used."
+        ]
+    );
+}
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0 and typescript-eslint's parser.
+#[test]
+fn a_snippet_declares_its_type_parameters_in_its_own_scope() {
+    let typescript = |template: &str| format!("<script lang=\"ts\"></script>{template}");
+    assert_eq!(
+        unused_at(&typescript(
+            "{#snippet s<T,U>(a: T)}{a}{/snippet}{@render s(1)}"
+        )),
+        [("'U' is defined but never used.".to_owned(), 1)]
+    );
+    assert_eq!(
+        unused(&typescript(
+            "{#snippet s<T>()}x{/snippet}{#snippet r<T>()}y{/snippet}{@render s()}{@render r()}"
+        )),
+        [
+            "'T' is defined but never used.",
+            "'T' is defined but never used."
+        ]
+    );
+    assert_eq!(
+        unused(
+            "<script lang=\"ts\">type T = 1;</script>\
+             {#snippet s<T>(a: T)}{a}{/snippet}{@render s(1)}"
+        ),
+        ["'T' is defined but never used."]
+    );
+}
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0: its scopes merge what Svelte's keep apart.
+#[test]
+fn a_name_declared_twice_in_one_upstream_scope_is_one_variable() {
+    assert_eq!(
+        unused_at("<script>let row = 1;</script>\n{#snippet row()}<b>x</b>{/snippet}"),
+        [("'row' is assigned a value but never used.".to_owned(), 1)]
+    );
+    assert_eq!(
+        unused("{#snippet row(item)}{@const item = 1}{item}{/snippet}{@render row(1)}"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("{#each [1] as it}{@const it = 1}x{/each}"),
+        ["'it' is assigned a value but never used."]
+    );
+    assert_eq!(
+        unused("<script>let n = 0;</script>{#snippet count()}<b>{n}</b>{/snippet}<p>{$count}</p>"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script module>export const nm = 1;</script>{@const nm = 1}"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("{#await p then v}{@const v = 1}x{:catch e}{@const e = 2}{e}{/await}"),
+        ["'v' is assigned a value but never used."]
+    );
+}
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0.
+#[test]
+fn a_reactive_assignment_declares_an_undeclared_name() {
+    assert_eq!(
+        unused("<script>$: x = f();</script>"),
+        ["'x' is defined but never used."]
+    );
+    assert_eq!(
+        unused("<script>$: x = f();</script>{x}"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script>$: x = 1; x;</script>"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script>$: x = 1; function g() { return x; } g;</script>"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused_at("<script>$: x = 1;\n$: x = 2;</script>"),
+        [("'x' is assigned a value but never used.".to_owned(), 2)]
+    );
+    assert_eq!(
+        unused("<script>$: x = 1; $: x = x + 1;</script>"),
+        ["'x' is assigned a value but never used."]
+    );
+    assert_eq!(
+        unused("<script>$: [a, b] = f(); $: c += 1; a;</script>"),
+        [
+            "'b' is defined but never used.",
+            "'c' is defined but never used."
         ]
     );
 }

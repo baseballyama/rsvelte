@@ -13,7 +13,7 @@ impl Template<'_, '_> {
         self.offset(keyword, 1, open);
         let close = self.after(keyword);
         self.offset(close, 0, open);
-        self.block_children(range, open);
+        self.trimmed_block_children(range, open);
         self.visit_children(range);
     }
 
@@ -47,7 +47,7 @@ impl Template<'_, '_> {
             self.offset(test_tokens.map(|(f, _)| f), 1, if_tokens[0]);
             let close = self.after(test_tokens.map(|(_, l)| l));
             self.offset(close, 0, open);
-            self.block_children(consequent, open);
+            self.trimmed_block_children(consequent, open);
             let next_open = alternate.and_then(|_| {
                 let end = self.region_end(consequent, close)?;
                 self.tokens().after_offset(end)

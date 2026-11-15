@@ -442,3 +442,62 @@ fn an_await_outside_an_async_function_fails_the_parse_in_either_mode() {
         error
     );
 }
+
+#[test]
+fn names_the_component_self_as_a_compile_without_a_filename_does() {
+    let found = lint("<script>\n  let x = $state(0);\n</script>\n{#if x}<svelte:self />{/if}\n");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(
+        found[0].2.contains("`import Self from './Self.svelte'`"),
+        "{found:?}"
+    );
+}
+
+#[test]
+fn reports_the_validation_errors_upstream_raises_in_legacy_mode() {
+    assert_eq!(
+        codes("<Test a={$store.a} />\n"),
+        [("global_reference_invalid".to_owned(), 1, 9)]
+    );
+    assert_eq!(
+        codes("{#each [1] as item}{@const a = item}{@const a = item}{/each}\n"),
+        [("declaration_duplicate".to_owned(), 1, 44)]
+    );
+}
+
+#[test]
+fn leaves_out_the_validation_errors_upstream_raises_only_in_runes_mode() {
+    assert_eq!(
+        codes("{#each [1, 2] as item}<input bind:value={item}>{/each}\n"),
+        []
+    );
+    assert_eq!(
+        codes("<script>\n  import { noop } from 'svelte/internal';\n  noop();\n</script>\n"),
+        []
+    );
+}
+
+#[test]
+fn a_svelte_ignore_comment_raises_nothing_as_upstream_blanks_it() {
+    let runes = "<script>\n  let x = $state(0);\n</script>\n";
+    assert_eq!(
+        codes(&format!(
+            "{runes}<!-- svelte-ignore not-a-code -->\n<p>{{x}}</p>\n"
+        )),
+        []
+    );
+    assert_eq!(
+        codes(&format!(
+            "{runes}<!-- svelte-ignore a11y-missing-attribute -->\n<p>{{x}}</p>\n"
+        )),
+        []
+    );
+}
+
+#[test]
+fn an_export_let_error_waits_for_the_errors_inside_it() {
+    assert_eq!(
+        codes("<script>\n  export let x = $bindable(1);\n</script>\n{x}\n"),
+        [("bindable_invalid_location".to_owned(), 2, 17)]
+    );
+}
