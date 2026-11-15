@@ -149,15 +149,15 @@ fn the_rules_read_a_script_the_compiler_rejects_as_typescript() {
     );
 }
 
-/// What typescript-eslint throws at a script's end depends on the template's code, so lint
-/// refuses the script rather than guess.
+/// What typescript-eslint throws at a script's end depends on the code of the template's
+/// expressions, so lint refuses the script rather than guess.
 #[test]
 fn an_error_at_a_scripts_end_is_refused() {
     let mut registry = Registry::new();
     register_with_configuration(&mut registry, Configuration::new(LintSettings::default()));
     let document = Document::new(
         "App.svelte".to_owned(),
-        "<script>const a = </script><p></p>".to_owned(),
+        "<script>const a = </script><p>{1}</p>".to_owned(),
     )
     .expect("a small document");
     let context = DocumentContext::new(&document, registry.artifacts());
@@ -385,5 +385,25 @@ fn an_open_brace_at_a_scripts_end_is_expected_at_the_documents_end() {
         "<script>\n\tlet a = {\n</script>\n\n<b>x</b>\n",
         "Parsing error: '}' expected.",
         (6, 0),
+    );
+}
+
+/// tsc reports a name or an expression missing at the end of the file right after the last token.
+#[test]
+fn a_missing_node_at_a_scripts_end_is_reported_after_the_last_token() {
+    assert_parse_error(
+        "<script>\n  let a = (\n</script>\n",
+        "Parsing error: Expression expected.",
+        (2, 11),
+    );
+    assert_parse_error(
+        "<script>class A { b() { return true; } } new A().</script>",
+        "Parsing error: Identifier expected.",
+        (1, 49),
+    );
+    assert_parse_error(
+        "<script>const a = </script><p></p>",
+        "Parsing error: Expression expected.",
+        (1, 17),
     );
 }

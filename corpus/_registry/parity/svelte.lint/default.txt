@@ -1,4 +1,4 @@
-# svelte.lint/default: 37225 match
+# svelte.lint/default: 37227 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -345,10 +345,8 @@ svelte/rsvelte-tests-formatter/typescript/directive_shorthand_collapse_still_app
 svelte/rsvelte-tests-formatter/typescript/directive_values_preserve_ts_casts/ac1e9af7e042ba08.svelte	mismatch
 svelte/rsvelte-tests-formatter/value_sequence_rebuild_4311/every_cell_formats_to_the_oracle_output/bfa86658bef7ed6b.svelte	mismatch
 svelte/rsvelte-tests-formatter/value_sequence_rebuild_4311/the_oracle_output_is_a_fixed_point/151649a5a3736b33.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_content_mapper/tests/a_broken_script_body_is_left_for_typescript_to_report/33018fc5a929c17c.svelte	refused
 svelte/rsvelte-tests/rsvelte_language_server/completions/tests/the_component_doc_comment_is_offered/3088745555afdfa8.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/folding/tests/no_input_panics/55ce6fb6ed3ca3b4.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_language_server/tsgo_overlay/tests/an_unparseable_shadow_still_finds_the_render_return_type_slot/204de4961e65fda8.svelte	refused
 svelte/rsvelte-tests/rsvelte_language_server/tsgo_overlay/tests/source_map_supplies_a_fallback_for_rewritten_markup/bed5dd654034d2b1.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_lint/rules/no_undef/tests/typeof_option_and_arguments_match_eslint_semantics/2e1b52bcaf5ad094.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/ignore_in_other_if_branch_is_unused/592e39911be35f02.svelte	mismatch
