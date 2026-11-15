@@ -219,7 +219,7 @@ the block can replace.
 ```
 
 Upstream takes the property name `a` for the `{#each}` item `a`, so it does not report `$s.a`.
-This crate does the opposite in both cases.
+This crate does the opposite in both cases, and the corpus skips the lint units that show it.
 
 ## A crash in `svelte/no-reactive-functions` on ESLint 10
 
@@ -287,6 +287,7 @@ Fixed in eslint-plugin-svelte 3.24.1, which reports the first construction twice
 - Correct: report the second `Set` too. `q.add(1)` mutates that one, so upstream misses
   exactly the construction the rule exists to catch. rsvelte follows every reference of `q`
   from each construction and reports both.
+- The corpus skips its 5 lint units, which reassign a variable a new instance.
 
 ## `svelte/indent`: a snippet without parameters takes a `(` from its body
 
@@ -613,6 +614,19 @@ Issue: [svelte-eslint-parser #1004](https://github.com/sveltejs/svelte-eslint-pa
 - Correct: Svelte's compiler evaluates the attributes of a component without a static `slot`
   outside its `let:` scope. This crate resolves names as the compiler does.
   Test: `rsvelte_svelte_semantic` `resolve::tests::an_element_attribute_sees_its_let_names_and_a_component_one_only_with_a_slot`.
+
+## A name declared inside `{:else}` is not found (svelte-eslint-parser)
+
+No issue yet.
+
+- Case: `{#if a}x{:else}{(() => { const o = new Set(); o.add(1); })()}{/if}`.
+- Upstream reports nothing for `svelte/prefer-svelte-reactivity`. `nestIfBlock` gives the scope of
+  the `{#if}` branch the whole `SvelteIfBlock` as its block
+  ([script-let.ts](https://github.com/sveltejs/svelte-eslint-parser/blob/467f843e0c74a08b694e0d1b5676a10931023a2f/src/context/script-let.ts#L502-L509)),
+  and the `{:else}` scope is its sibling. eslint-utils' `getInnermostScope` stops at the first
+  child scope whose block holds the node, so `findVariable` never reaches the `{:else}` scope.
+- Correct: report `new Set()`, as for the same code in the `{#if}` branch. This crate does.
+- The corpus skips its lint unit.
 
 ## An each block's key sees a `{@const}` of the body (svelte-eslint-parser)
 

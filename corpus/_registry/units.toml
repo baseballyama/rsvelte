@@ -4089,3 +4089,57 @@
 
 ["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_is_not_reactive/f4814aa53a465939.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/appwrite-console/src/lib/components/billing/planSelection.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/+page.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/create-[type]/(type)/push.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/layercake/src/_components/SharedTooltip.html.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/layercake/src/_components/SharedTooltip.percent-range.html.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/primo/src/lib/components/app-sidebar.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/rsvelte/lint/prefer-destructured-store-props/03-block-scopes.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/rsvelte/lint/prefer-destructured-store-props/05-const-tag.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/rsvelte/lint/prefer-destructured-store-props/14-nested-store-member.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/rsvelte/lint/prefer-destructured-store-props/17-const-tag-and-let.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/shadcn-svelte/docs/src/lib/registry/examples/combobox-form.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/svar-grid/svelte/src/components/Layout.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/appwrite-console/src/lib/components/csvExportBox.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte 3.23.1's prefer-svelte-reactivity leaves a reassigned variable on its ReferenceTracker's stack, so it misses the variable's later constructions (eslint-plugin-svelte #1693)"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte 3.23.1's prefer-svelte-reactivity leaves a reassigned variable on its ReferenceTracker's stack, so it misses the variable's later constructions (eslint-plugin-svelte #1693)"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/export/+page.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte 3.23.1's prefer-svelte-reactivity leaves a reassigned variable on its ReferenceTracker's stack, so it misses the variable's later constructions (eslint-plugin-svelte #1693)"
+
+["svelte/svar-core/svelte/src/components/Calendar.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte 3.23.1's prefer-svelte-reactivity leaves a reassigned variable on its ReferenceTracker's stack, so it misses the variable's later constructions (eslint-plugin-svelte #1693)"
+
+["svelte/sveltekit/packages/kit/src/runtime/client/remote-functions/query-batch.svelte.js".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte 3.23.1's prefer-svelte-reactivity leaves a reassigned variable on its ReferenceTracker's stack, so it misses the variable's later constructions (eslint-plugin-svelte #1693)"
+
+["svelte/kite-public/src/lib/components/story/CitationTooltip.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives an {#if} branch's scope the whole {#if} block, so eslint-utils' findVariable does not find a name declared inside {:else}"
