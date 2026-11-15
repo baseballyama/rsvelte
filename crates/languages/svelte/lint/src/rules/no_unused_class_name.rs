@@ -49,7 +49,7 @@ impl SvelteRule for NoUnusedClassName {
             StyleVerdict::NoStyle => {}
             StyleVerdict::Parsed => {
                 // `PostCSS` reads a sheet rsvelte's parser does not: its classes are unknown.
-                let Some(Ok(sheet)) = component.style.as_ref().map(|s| &s.sheet) else {
+                let Some(sheet) = super::style_sheet::sheet(file) else {
                     return;
                 };
                 for rule in &sheet.rules {

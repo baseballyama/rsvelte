@@ -68,7 +68,7 @@ impl P<'_> {
 
     /// Where Svelte ends the value that starts here: at the first `;`, `{` or `}` outside a
     /// string and a `url(...)`, whatever brackets come before it.
-    fn value_end(&self) -> R<usize> {
+    pub(super) fn value_end(&self) -> R<usize> {
         let mut at = self.position;
         let mut quote = None;
         let mut in_url = false;

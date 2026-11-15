@@ -15,7 +15,6 @@ use serde::Deserialize;
 
 use super::element_kind::{ElementKind, element_kind};
 use super::nodes;
-use super::style_sheet::{StyleVerdict, verdict};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -145,10 +144,7 @@ struct Template<'a> {
 impl SvelteRule for ConsistentSelectorStyle {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        let StyleVerdict::Parsed = verdict(file) else {
-            return;
-        };
-        let Some(Ok(sheet)) = component.style.as_ref().map(|s| &s.sheet) else {
+        let Some(sheet) = super::style_sheet::sheet(file) else {
             return;
         };
         let mut template = Template {

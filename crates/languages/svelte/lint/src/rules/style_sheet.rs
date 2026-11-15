@@ -2,6 +2,7 @@
 //! verdict, by the element's `lang`. The rules that read the style sheet share it.
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
+use rsvelte_stylesheet_syntax::StyleSheet;
 use rsvelte_stylesheet_syntax::postcss::{self, Dialect, SyntaxError};
 use rsvelte_svelte_syntax::Parsed;
 
@@ -56,4 +57,44 @@ impl Artifact for StyleSheetVerdict {
 
 pub(super) fn verdict<'a>(file: &File<'a>) -> &'a StyleVerdict {
     file.context.get::<StyleSheetVerdict>()
+}
+
+/// The SCSS sheet that Svelte rejects and `postcss-scss` reads, as [`parse_scss`] reads it; `None`
+/// when Svelte's own sheet stands or none can be read.
+///
+/// [`parse_scss`]: rsvelte_stylesheet_syntax::parse_scss
+#[derive(Debug)]
+pub(crate) struct ScssStyleSheet;
+
+impl Artifact for ScssStyleSheet {
+    type Output = Option<StyleSheet>;
+
+    const NAME: &'static str = "svelte.lint.scss_style_sheet";
+
+    fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        if !matches!(context.get::<StyleSheetVerdict>(), StyleVerdict::Parsed) {
+            return None;
+        }
+        let style = context.get::<Parsed>().as_ref().ok()?.style.as_ref()?;
+        let source = context.source_text();
+        let scss = style.attributes.iter().any(|(name, value)| {
+            name.text(source) == "lang" && value.is_some_and(|v| v.text(source) == "scss")
+        });
+        if !scss || style.sheet.is_ok() {
+            return None;
+        }
+        rsvelte_stylesheet_syntax::parse_scss(source, style.content).ok()
+    }
+}
+
+/// The style sheet that the rules which read selectors see, once `PostCSS` reads the element.
+pub(super) fn sheet<'a>(file: &File<'a>) -> Option<&'a StyleSheet> {
+    if !matches!(verdict(file), StyleVerdict::Parsed) {
+        return None;
+    }
+    let style = file.component()?.style.as_ref()?;
+    style
+        .sheet
+        .as_ref()
+        .map_or_else(|_| file.context.get::<ScssStyleSheet>().as_ref(), Some)
 }

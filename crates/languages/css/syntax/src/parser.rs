@@ -33,6 +33,23 @@ pub fn parse(source_text: &str, content: Span) -> R<StyleSheet> {
         content.start_offset as usize,
         content.end_offset as usize,
         None,
+        false,
+    )
+}
+
+/// Parses an SCSS sheet as far as linters read it: it also skips `// …` comments, a declaration
+/// between rules and `#{…}` in an at-rule's prelude, which Svelte rejects.
+///
+/// # Errors
+///
+/// [`ParseError`] at the first syntax error, as [`parse`] returns it.
+pub fn parse_scss(source_text: &str, content: Span) -> R<StyleSheet> {
+    read(
+        source_text,
+        content.start_offset as usize,
+        content.end_offset as usize,
+        None,
+        true,
     )
 }
 
@@ -51,11 +68,19 @@ pub fn parse_until(source_text: &str, start: u32, close: &str) -> R<StyleSheet> 
         start as usize,
         source_text.len(),
         Some(close.as_bytes()),
+        false,
     )
 }
 
-fn read(source_text: &str, start: usize, end: usize, close: Option<&[u8]>) -> R<StyleSheet> {
+fn read(
+    source_text: &str,
+    start: usize,
+    end: usize,
+    close: Option<&[u8]>,
+    scss: bool,
+) -> R<StyleSheet> {
     let mut p = P {
+        scss,
         b: source_text.as_bytes(),
         source_text,
         position: start,
@@ -90,6 +115,7 @@ fn read(source_text: &str, start: usize, end: usize, close: Option<&[u8]>) -> R<
 }
 
 struct P<'a> {
+    scss: bool,
     b: &'a [u8],
     source_text: &'a str,
     position: usize,
@@ -166,6 +192,10 @@ impl P<'_> {
             ("-->", 4)
         } else if rest.starts_with("/*") {
             ("*/", 2)
+        } else if self.scss && rest.starts_with("//") {
+            let line = rest.find(['\n', '\r', '\u{c}']).unwrap_or(rest.len());
+            self.position += line;
+            return Ok(true);
         } else {
             return Ok(false);
         };
@@ -339,6 +369,12 @@ impl P<'_> {
                 self.skip_trivia()?;
                 continue;
             }
+            if self.scss && c == b'#' && self.b.get(self.position + 1) == Some(&b'{') {
+                self.position += 2;
+                self.skip_balanced_until(b"}")?;
+                self.eat(b'}');
+                continue;
+            }
             match c {
                 b'"' | b'\'' => {
                     self.string()?;
@@ -363,6 +399,9 @@ impl P<'_> {
                 None => return Err(self.expected_token("}")),
                 Some(b'}') if nested => return Ok(rules),
                 Some(b'@') => push(&mut rules, self.at_rule()?),
+                Some(_) if self.scss && self.b.get(self.value_end()?) == Some(&b';') => {
+                    self.position = self.value_end()? + 1;
+                }
                 Some(_) => push(&mut rules, self.style_rule()?),
             }
         }

@@ -179,3 +179,14 @@ fn a_selector_the_stylesheet_grammar_allows_parses() {
         whole(source).expect(source);
     }
 }
+
+#[test]
+fn an_scss_sheet_skips_what_svelte_rejects() {
+    let source = "$a: 1; .a { // b: c;\n  &.d {} }\n@media #{$e}, x { .f {} }\n// g\n";
+    let content = Span::new(0, source.len() as u32);
+    parse(source, content).unwrap_err();
+    let sheet = parse_scss(source, content).expect("parses");
+    assert_eq!(sheet.rules.len(), 2);
+    assert_eq!(sheet.rules[0].children.len(), 1);
+    assert_eq!(sheet.rules[1].children.len(), 1);
+}
