@@ -1,4 +1,4 @@
-# svelte.lint/default: 37082 match
+# svelte.lint/default: 37084 match
 svelte/bits-ui/tests/src/tests/checkbox/checkbox-group-test.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-svelte4-input.svelte	mismatch
@@ -236,10 +236,8 @@ svelte/rsvelte-tests-core-2/parse_ast_comment_attachment_4133/comments_inside_or
 svelte/rsvelte-tests-core-2/parse_ast_template_ts_and_style_comment_4133/the_comment_before_a_style_tag_is_stored_as_a_node/71919e462bb2a805.svelte	mismatch
 svelte/rsvelte-tests-core-2/parse_class_implements_4133/an_export_default_class_keeps_the_clause/3e51411dfe54fa13.svelte	mismatch
 svelte/rsvelte-tests-core-2/parse_ts_declaration_comments_3702/comments_inside_an_export_default_interface_are_walked/193ad09868890fc0.svelte	mismatch
-svelte/rsvelte-tests-core-2/parse_ts_exotic_types/type_predicate_carries_parameter_name_asserts_and_annotation/fa8814acf39c3461.svelte	mismatch
 svelte/rsvelte-tests-core-2/parse_ts_module_declaration/a_dotted_name_nests_a_module_declaration_where_a_block_would_be/1c1217871103557f.svelte	mismatch
 svelte/rsvelte-tests-core-2/parse_ts_module_declaration/a_dotted_name_nests_a_module_declaration_where_a_block_would_be/b66a20c689b9e13b.svelte	mismatch
-svelte/rsvelte-tests-core-2/parse_ts_types/function_type_this_parameter_is_prepended/9f6d6bc356496884.svelte	mismatch
 svelte/rsvelte-tests-core-2/parser_hardening/declaration_tag_multibyte_type_annotation_does_not_panic/47244ebc480a595e.svelte	mismatch
 svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/05b2487cbe722987.svelte	refused
 svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/0987dd6e6407d320.svelte	refused

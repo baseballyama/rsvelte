@@ -244,6 +244,16 @@ const UNUSED: &[(&str, &[&str])] = &[
             "'x' is defined but never used.@179-189",
         ],
     ),
+    (
+        "type Foo = 1; let h: (this: Foo, a: number) => void; h; interface I { m(this: I): void; } \
+         let i: I; i; type C = { (this: C): void }; let c: C; c;",
+        &[
+            "'this' is defined but never used.@22-31",
+            "'a' is defined but never used.@33-42",
+            "'this' is defined but never used.@72-79",
+            "'this' is defined but never used.@115-122",
+        ],
+    ),
 ];
 
 #[test]

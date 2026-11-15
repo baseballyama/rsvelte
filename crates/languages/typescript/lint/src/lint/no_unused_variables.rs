@@ -100,10 +100,19 @@ pub fn no_unused_variables<'r>(
     }
     // A `this` parameter is a variable to typescript-eslint and never has a reference.
     for node in f.nodes.iter() {
-        if let AstKind::Function(function) = node.kind()
-            && let Some(this) = &function.this_param
-            && !(function.body.is_some() && any_parameter_used(&f, &function.params))
-        {
+        let this = match node.kind() {
+            AstKind::Function(function)
+                if !(function.body.is_some() && any_parameter_used(&f, &function.params)) =>
+            {
+                &function.this_param
+            }
+            // A signature has no body, so `after-used` never spares its parameters.
+            AstKind::TSFunctionType(signature) => &signature.this_param,
+            AstKind::TSMethodSignature(signature) => &signature.this_param,
+            AstKind::TSCallSignatureDeclaration(signature) => &signature.this_param,
+            _ => continue,
+        };
+        if let Some(this) = this {
             reporter.range("'this' is defined but never used.", span(this.span));
         }
     }
