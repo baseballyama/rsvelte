@@ -8,7 +8,7 @@ use oxc_parser::ParseOptions;
 use oxc_span::GetSpan;
 
 /// `ESTree` has no parentheses, and the formatter requires that they are not kept, so a part
-/// keeps them only to [`strip`] them. Regular expressions are validated, as acorn validates them.
+/// keeps them only to `strip` them. Regular expressions are validated, as acorn validates them.
 impl super::Builder<'_> {
     /// Records that the source wrapped the node at `span` in `pairs` pairs of parentheses, which
     /// the tree drops.
