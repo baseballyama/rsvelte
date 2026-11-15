@@ -1,5 +1,6 @@
 ;
-
+function $$render() {
+  
 	declare const injected: number;
 	declare function f(): number;
 	declare class C {}
@@ -15,36 +16,38 @@
 
 ;
 
-async () => {
-  {
-    svelteHTML.createElement("b", {});
-    (f());
-  }
-  {
-    svelteHTML.createElement("i", {});
-    (C);
-  }
-  {
-    svelteHTML.createElement("s", {});
-    (v);
-  }
-  {
-    svelteHTML.createElement("u", {});
-    (real);
-  }
-  {
-    svelteHTML.createElement("span", {});
-    (deep);
-  }
-  {
-    svelteHTML.createElement("em", {});
-    (top);
-  }
-  {
-    svelteHTML.createElement("q", {});
-    (typeof injected);
-  }
-};
-const AmbientAndHoistedNamesAreNotKnown__SvelteComponent_ = __rsvelte_export_component<any, {}, "">();
+  async () => {
+    {
+      svelteHTML.createElement("b", {});
+      (f());
+    }
+    {
+      svelteHTML.createElement("i", {});
+      (C);
+    }
+    {
+      svelteHTML.createElement("s", {});
+      (v);
+    }
+    {
+      svelteHTML.createElement("u", {});
+      (real);
+    }
+    {
+      svelteHTML.createElement("span", {});
+      (deep);
+    }
+    {
+      svelteHTML.createElement("em", {});
+      (top);
+    }
+    {
+      svelteHTML.createElement("q", {});
+      (typeof injected);
+    }
+  };
+  return __rsvelte_export_component<any, {}, "">();
+}
+const AmbientAndHoistedNamesAreNotKnown__SvelteComponent_ = $$render();
 type AmbientAndHoistedNamesAreNotKnown__SvelteComponent_ = ReturnType<typeof AmbientAndHoistedNamesAreNotKnown__SvelteComponent_>;
 export default AmbientAndHoistedNamesAreNotKnown__SvelteComponent_;

@@ -1,46 +1,49 @@
 ;
-
+function $$render() {
+  
 	/** @type {typeof __rsvelte_public_props0} */ let { options = [], ...rest } = $props();
 	let current = $state('x');
 
 ;
 
-const __rsvelte_public_props0 = __rsvelte_props({}, {
-  options: __rsvelte_array_prop(),
-}, true);
-async () => {
-  {
-    svelteHTML.createElement("select", {
-      ...(rest),
-      "class": "picker",
-      "bind:value": current,
-    });
-    () => {
-      // @ts-ignore
-      current = __rsvelte_untyped_prop();
-    };
+  const __rsvelte_public_props0 = __rsvelte_props({}, {
+    options: __rsvelte_array_prop(),
+  }, true);
+  async () => {
     {
-      for (let [, option] of __rsvelte_each(options)) {
+      svelteHTML.createElement("select", {
+        ...(rest),
+        "class": "picker",
+        "bind:value": current,
+      });
+      () => {
+        // @ts-ignore
+        current = __rsvelte_untyped_prop();
+      };
+      {
+        for (let [, option] of __rsvelte_each(options)) {
+          {
+            svelteHTML.createElement("option", {
+              "value": option,
+            });
+            (option === current);
+            (option);
+          }
+        }
+      }
+      {
+        svelteHTML.createElement("optgroup", {
+          "label": "more",
+        });
         {
           svelteHTML.createElement("option", {
-            "value": option,
+            ...(rest),
           });
-          (option === current);
-          (option);
         }
       }
     }
-    {
-      svelteHTML.createElement("optgroup", {
-        "label": "more",
-      });
-      {
-        svelteHTML.createElement("option", {
-          ...(rest),
-        });
-      }
-    }
-  }
-};
-const SelectSpread__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  };
+  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+}
+const SelectSpread__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof SelectSpread__SvelteComponent_>} */ (SelectSpread__SvelteComponent_);

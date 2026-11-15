@@ -1,12 +1,15 @@
 ;
-const active = true;
+function $$render() {
+  const active = true;
 ;
 
-async () => {
-  {
-    svelteHTML.createElement("div", {});
-    (active);
-  }
-};
-const ElementClassOnlyStatic__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  async () => {
+    {
+      svelteHTML.createElement("div", {});
+      (active);
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const ElementClassOnlyStatic__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof ElementClassOnlyStatic__SvelteComponent_>} */ (ElementClassOnlyStatic__SvelteComponent_);

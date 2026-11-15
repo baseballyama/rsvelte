@@ -1,33 +1,36 @@
 ;
-let x = $state(1);
+function $$render() {
+  let x = $state(1);
 ;
 
-async () => {
-  {
-    svelteHTML.createElement("template", {
-      "id": "t",
-    });
+  async () => {
     {
-      svelteHTML.createElement("b", {});
-    }
-    (x);
-  }
-  {
-    svelteHTML.createElement("template", {});
-    {
-      svelteHTML.createElement("b", {});
+      svelteHTML.createElement("template", {
+        "id": "t",
+      });
+      {
+        svelteHTML.createElement("b", {});
+      }
       (x);
     }
-  }
-  {
-    svelteHTML.createElement("div", {});
     {
       svelteHTML.createElement("template", {});
       {
-        svelteHTML.createElement("i", {});
+        svelteHTML.createElement("b", {});
+        (x);
       }
     }
-  }
-};
-const TemplateElement__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+    {
+      svelteHTML.createElement("div", {});
+      {
+        svelteHTML.createElement("template", {});
+        {
+          svelteHTML.createElement("i", {});
+        }
+      }
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const TemplateElement__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof TemplateElement__SvelteComponent_>} */ (TemplateElement__SvelteComponent_);

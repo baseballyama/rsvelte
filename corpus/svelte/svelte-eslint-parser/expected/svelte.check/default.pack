@@ -1670,62 +1670,6 @@
 	}
 ]
 
-=== 1731 tests/fixtures/parser/ast/ts-store03-input.svelte	json
-[
-	{
-		"code": 2769,
-		"message": "Cannot use 'maybeNullAndStr' as a store. 'maybeNullAndStr' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<boolean>): boolean', gave the following error.\n    Argument of type 'string | Readable<boolean> | null' is not assignable to parameter of type 'SvelteStore<boolean>'.\n      Type 'null' is not assignable to type 'SvelteStore<boolean>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'string | Readable<boolean> | null' is not assignable to parameter of type 'SvelteStore<any> | null | undefined'.\n      Type 'string' is not assignable to type 'SvelteStore<any>'.",
-		"start": {
-			"line": 9,
-			"character": 2
-		},
-		"end": {
-			"line": 9,
-			"character": 18
-		}
-	},
-	{
-		"code": 2769,
-		"message": "Cannot use 'maybeNullAndStr' as a store. 'maybeNullAndStr' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<boolean>): boolean', gave the following error.\n    Argument of type 'string | Readable<boolean> | null' is not assignable to parameter of type 'SvelteStore<boolean>'.\n      Type 'null' is not assignable to type 'SvelteStore<boolean>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'string | Readable<boolean> | null' is not assignable to parameter of type 'SvelteStore<any> | null | undefined'.\n      Type 'string' is not assignable to type 'SvelteStore<any>'.",
-		"start": {
-			"line": 14,
-			"character": 1
-		},
-		"end": {
-			"line": 14,
-			"character": 17
-		}
-	}
-]
-
-=== 1731 tests/fixtures/parser/ast/ts-store03-type-output.svelte	json
-[
-	{
-		"code": 2769,
-		"message": "Cannot use 'maybeNullAndStr' as a store. 'maybeNullAndStr' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<boolean>): boolean', gave the following error.\n    Argument of type 'string | Readable<boolean> | null' is not assignable to parameter of type 'SvelteStore<boolean>'.\n      Type 'null' is not assignable to type 'SvelteStore<boolean>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'string | Readable<boolean> | null' is not assignable to parameter of type 'SvelteStore<any> | null | undefined'.\n      Type 'string' is not assignable to type 'SvelteStore<any>'.",
-		"start": {
-			"line": 9,
-			"character": 2
-		},
-		"end": {
-			"line": 9,
-			"character": 18
-		}
-	},
-	{
-		"code": 2769,
-		"message": "Cannot use 'maybeNullAndStr' as a store. 'maybeNullAndStr' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<boolean>): boolean', gave the following error.\n    Argument of type 'string | Readable<boolean> | null' is not assignable to parameter of type 'SvelteStore<boolean>'.\n      Type 'null' is not assignable to type 'SvelteStore<boolean>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'string | Readable<boolean> | null' is not assignable to parameter of type 'SvelteStore<any> | null | undefined'.\n      Type 'string' is not assignable to type 'SvelteStore<any>'.",
-		"start": {
-			"line": 14,
-			"character": 1
-		},
-		"end": {
-			"line": 14,
-			"character": 17
-		}
-	}
-]
-
 === 3 tests/fixtures/parser/ast/ts-use01-input.svelte	json
 []
 

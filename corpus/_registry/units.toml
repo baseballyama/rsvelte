@@ -3385,15 +3385,19 @@
 "svelte.check" = "checker: TS 7 reports 2880 for an import assertion in a JavaScript file where TS 6 reports it only in TypeScript"
 
 ["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/0088599d9714f97a.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks a style sheet with a regular expression that needs `</style>`, so at another closer it leaves the CSS in its TSX and TypeScript reports it as JSX"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 snips a style sheet only before `</style\\s*>`, so at `</style x>` it keeps none of the sheet and prints the element empty"
 
 ["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/1bb2b4aed0a9a6d2.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks a style sheet with a regular expression that needs `</style>`, so at another closer it leaves the CSS in its TSX and TypeScript reports it as JSX"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 snips a style sheet only before `</style\\s*>`, so at `</style x>` it keeps none of the sheet and prints the element empty"
 
 ["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/70dafcc981faebbf.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks a style sheet with a regular expression that needs `</style>`, so at another closer it leaves the CSS in its TSX and TypeScript reports it as JSX"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 snips a style sheet only before `</style\\s*>`, so at `</style x>` it keeps none of the sheet and prints the element empty"
 
 ["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/cfe410676d33493a.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks a style sheet with a regular expression that needs `</style>`, so at another closer it leaves the CSS in its TSX and TypeScript reports it as JSX"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 snips a style sheet only before `</style\\s*>`, so at `</style x>` it keeps none of the sheet and prints the element empty"
 
 ["svelte/rsvelte-tests-core-1/css_block_item_progress/empty_block_item_selector_terminates_with_the_upstream_error/6ee0cd37bd59cda7.svelte".skip]
@@ -4748,6 +4752,39 @@
 
 ["svelte/rsvelte-tests-core-2/module_server_comment_ownership_2307/a_default_parameter_initializer_comment_is_dropped/5bd0d879f6bac971.svelte.js".skip]
 "svelte.compileModule" = "upstream bug: svelte 5.57.3 drops a comment in a default parameter's initializer"
+
+["svelte/rsvelte/lint/no-svelte-internal/14-deep-subpaths.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes an instance-script `export { default as x } from` as the prop `{x: default}`, which does not parse, so TypeScript skips its grammar checks and svelte-check hides the misplaced `export * as` beside it"
+
+["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/a_style_closer_with_only_whitespace_is_consumed_whole/1165f809cf132996.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks a style sheet with a regular expression that needs `</style>`, so at another closer it leaves the CSS in its TSX and TypeScript reports it as JSX"
+
+["svelte/rsvelte-tests-formatter/render_neutral_divergences/a_style_close_tag_keeps_its_internal_whitespace/f9b7f23dbe8da7ae.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks a style sheet with a regular expression that needs `</style>`, so at another closer it leaves the CSS in its TSX and TypeScript reports it as JSX"
+
+["svelte/svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-style-tag/input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks a style sheet with a regular expression that needs `</style>`, so at another closer it leaves the CSS in its TSX and TypeScript reports it as JSX"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/56133462a29e565e.svelte".skip]
+"svelte.check" = "legacy: `$:` is Svelte 4 syntax, and svelte rejects this component in runes mode (legacy_reactive_statement_invalid)"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-wrong-usage/input.svelte".skip]
+"svelte.check" = "checker: for a call that no overload matches, TS 7 explains only the last overload where TS 6 explains each, here in svelte-check's message for a value used as a store"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/0747857e339aa28c.svelte".skip]
+"svelte.check" = "checker: for a call that no overload matches, TS 7 explains only the last overload where TS 6 explains each, here in svelte-check's message for a value used as a store"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/f9eb825ab25210d3.svelte".skip]
+"svelte.check" = "checker: for a call that no overload matches, TS 7 explains only the last overload where TS 6 explains each, here in svelte-check's message for a value used as a store"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/fbb594ea963fe6f9.svelte".skip]
+"svelte.check" = "checker: for a call that no overload matches, TS 7 explains only the last overload where TS 6 explains each, here in svelte-check's message for a value used as a store"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store03-input.svelte".skip]
+"svelte.check" = "checker: for a call that no overload matches, TS 7 explains only the last overload where TS 6 explains each, here in svelte-check's message for a value used as a store"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store03-type-output.svelte".skip]
+"svelte.check" = "checker: for a call that no overload matches, TS 7 explains only the last overload where TS 6 explains each, here in svelte-check's message for a value used as a store"
 
 ["svelte/rsvelte/pattern/bind-dashed-name.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"

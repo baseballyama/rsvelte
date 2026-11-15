@@ -1,5 +1,6 @@
 ;
-
+function $$render() {
+  
 	let a = $state(1);
 	let b = $derived(a * 2);
 	$inspect(a);
@@ -20,14 +21,16 @@
 
 ;
 
-async () => {
-  if (a) {
-    const c = a;
-    {
-      svelteHTML.createElement("p", {});
-      (c);
+  async () => {
+    if (a) {
+      const c = a;
+      {
+        svelteHTML.createElement("p", {});
+        (c);
+      }
     }
-  }
-};
-const InspectEffects__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const InspectEffects__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof InspectEffects__SvelteComponent_>} */ (InspectEffects__SvelteComponent_);
