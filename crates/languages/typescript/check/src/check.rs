@@ -163,6 +163,9 @@ pub struct TypeScriptEnv {
     /// Existing files the checker reads with this text instead, as the language's own checker
     /// reads them.
     pub replaced: Vec<(PathBuf, String)>,
+    /// Suffixes, such as `.svelte`, that an import of `x<suffix>` also reaches as the script
+    /// `x<suffix>.ts` when no such document exists, as the language's own checker resolves it.
+    pub script_modules: Vec<&'static str>,
 }
 
 impl TypeScriptEnv {
@@ -206,6 +209,11 @@ impl TypeScriptEnv {
         for i in &other.include {
             if !self.include.contains(i) {
                 self.include.push(i.clone());
+            }
+        }
+        for suffix in &other.script_modules {
+            if !self.script_modules.contains(suffix) {
+                self.script_modules.push(suffix);
             }
         }
         Ok(())
@@ -495,6 +503,7 @@ fn check_projected(
         include: env.include.clone(),
         replaced: env.replaced.clone(),
         paths: env.paths.clone(),
+        script_modules: env.script_modules.clone(),
     };
     let checked = tsc.check(&req);
     // Mapping back reads the generated text around a position.

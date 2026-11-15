@@ -17,7 +17,9 @@ mod program;
 pub use program::Rejected;
 
 use crate::acorn_grammar::{Rejection, Unsupported, rejection};
-use crate::syntax_error::{Locator, SyntaxError, acorn, reported, syntax_error};
+use crate::syntax_error::{
+    Locator, SyntaxError, acorn, reported, syntax_error, typescript_eslint_at,
+};
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
     ProgramIdentifier, Trees, TypeParametersIdentifier,
@@ -136,6 +138,8 @@ impl<'a> Builder<'a> {
             let errors = diagnostics.iter().skip(first).cloned();
             let mut error = syntax_error(errors, text, &[], fallback, shift);
             error.acorn = acorn.map(|acorn| acorn.shifted(shift));
+            error.typescript_eslint_at =
+                typescript_eslint_at(&diagnostics[first], visit).map(|at| at + shift);
             // acorn throws where it stops first, before an error oxc reports later or at the same
             // place.
             return Err(match stop {
@@ -543,6 +547,7 @@ fn refused(message: &str, span: Span) -> SyntaxError {
         diagnostic: Diagnostic::error("parse_error", message, span),
         acorn: None,
         typescript_code: None,
+        typescript_eslint_at: None,
     }
 }
 

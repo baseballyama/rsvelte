@@ -211,7 +211,7 @@ fn typescript_eslint_verdict<'a>(context: &'a DocumentContext<'_>) -> Typescript
     else {
         return TypescriptEslint::Parses;
     };
-    let at = error.diagnostic.span.start_offset;
+    let at = (error.typescript_eslint_at).unwrap_or(error.diagnostic.span.start_offset);
     // svelte-eslint-parser hands typescript-eslint the template's code after the script's, so
     // what it throws at the script's end depends on that code.
     let inside = (component.module.iter().chain(&component.instance))

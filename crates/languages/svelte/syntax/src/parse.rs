@@ -186,12 +186,6 @@ fn acorn_position(mut e: Diagnostic) -> Diagnostic {
 
 /// Acorn's wording of the oxc errors that mean the same thing.
 fn acorn_message(message: &str) -> std::borrow::Cow<'_, str> {
-    if let Some(character) = message
-        .strip_prefix("Invalid Character `")
-        .and_then(|rest| rest.strip_suffix('`'))
-    {
-        return format!("Unexpected character '{character}'").into();
-    }
     let unexpected = message == "Unexpected JSX expression"
         || message.starts_with("Expected `") && message.contains("` but found `");
     match message {

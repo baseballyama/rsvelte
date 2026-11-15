@@ -63,6 +63,7 @@ fn typescript_env(vue: &std::path::Path) -> TypeScriptEnv {
         declarations: vec![HELPERS],
         include: Vec::new(),
         replaced: Vec::new(),
+        script_modules: Vec::new(),
         paths: vec![
             ("vue".to_owned(), vue.join("dist/vue.d.mts")),
             (

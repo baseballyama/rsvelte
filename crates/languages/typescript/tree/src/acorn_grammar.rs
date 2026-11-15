@@ -171,6 +171,7 @@ pub(crate) fn rejection((at, why): (u32, Rejection)) -> SyntaxError {
             at,
         }),
         typescript_code: None,
+        typescript_eslint_at: None,
     }
 }
 

@@ -62,7 +62,8 @@ return their original source range.
   `<svelte:component this={C}>` is a call of `C`, `<svelte:element this={tag}>` an element of
   the tag `tag`, and the snippets of `<svelte:boundary>` are its props.
 - They also cover Svelte 5 component props without children, and `class:` and `bind:` on
-  elements and components. A bound variable reads as its declared type, as svelte2tsx widens it.
+  elements and components. A class component, as Svelte 4 types declare one, takes the props of
+  its instance. A bound variable reads as its declared type, as svelte2tsx widens it.
 - An element's `on:`, `use:`, transition, `animate:` and `style:` directives call svelte2tsx's
   own checks. A component's `on:` is svelte2tsx's `$on` call, and a Svelte 5 component takes
   any event. A component's `let:` reads its default slot's values in a block around its

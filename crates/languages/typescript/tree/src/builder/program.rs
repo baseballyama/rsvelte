@@ -6,7 +6,7 @@ use rsvelte_kernel::source::positions::Span;
 
 use super::{Builder, Part, parentheses};
 use crate::ProgramIdentifier;
-use crate::syntax_error::{SyntaxError, acorn, syntax_error};
+use crate::syntax_error::{SyntaxError, acorn, syntax_error, typescript_eslint_at};
 
 impl<'a> Builder<'a> {
     /// Parses `range` of the document as a program, such as the body of a `<script>` element.
@@ -39,11 +39,17 @@ impl<'a> Builder<'a> {
         let start = range.start_offset;
         self.read_program(text, start, source_type, true)
             .map_err(|rejected| {
-                let errors = rejected.diagnostics.into_iter();
+                let program = (rejected.recovered).map(|program| &self.programs[program.index()]);
+                let errors = rejected.diagnostics.into_iter().map(|e| {
+                    let at = program.and_then(|program| {
+                        typescript_eslint_at(&e, |locator| Part::Program(program).walk(locator))
+                    });
+                    let mut error = syntax_error([e], text, &[], start, 0);
+                    error.typescript_eslint_at = at;
+                    error
+                });
                 Rejected {
-                    errors: errors
-                        .map(|e| syntax_error([e], text, &[], start, 0))
-                        .collect(),
+                    errors: errors.collect(),
                     recovered: rejected.recovered,
                 }
             })
