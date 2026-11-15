@@ -1,4 +1,4 @@
-# svelte.lint/default: 37085 match
+# svelte.lint/default: 37088 match
 svelte/bits-ui/tests/src/tests/checkbox/checkbox-group-test.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-svelte4-input.svelte	mismatch
@@ -274,7 +274,6 @@ svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_
 svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/696aaefc0ff5653b.svelte	refused
 svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/af2787da59b35a7f.svelte	refused
 svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/fd297002503b61c4.svelte	refused
-svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_not_check_are_not_parse_errors/a10fed05f6062204.svelte	mismatch
 svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_not_check_are_not_parse_errors/e00b662be8bfb468.svelte	mismatch
 svelte/rsvelte-tests-core-3/root_fragment_scope_3375/a_store_subscription_on_a_top_level_snippet_name_is_rejected/acec735b993db62a.svelte	mismatch
 svelte/rsvelte-tests-core-3/root_fragment_scope_3375/a_title_const_still_reports_the_title_content_error/c90ac9231e215b1c.svelte	mismatch
@@ -413,9 +412,7 @@ svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_param
 svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/the_typescript_rules_acorn_does_not_check_still_compile/09d5f9f6cacf1a4e.svelte	mismatch
 svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/the_typescript_rules_acorn_does_not_check_still_compile/0de9b451cf80c103.svelte	mismatch
 svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/the_typescript_rules_acorn_does_not_check_still_compile/619a1ff260960713.svelte	mismatch
-svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/the_typescript_rules_acorn_does_not_check_still_compile/718158d20eeeb691.svelte	mismatch
 svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/the_typescript_rules_acorn_does_not_check_still_compile/82d22ec02e623027.svelte	mismatch
-svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/the_typescript_rules_acorn_does_not_check_still_compile/dab1619212db5ae5.svelte	mismatch
 svelte/rsvelte-tests-core-3/ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/0bb17b52cf0a0a36.svelte.js	refused
 svelte/rsvelte-tests-core-3/ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/0d0e12462432b908.svelte.js	refused
 svelte/rsvelte-tests-core-3/ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/1dfc2c24b2bcaae5.svelte.js	refused

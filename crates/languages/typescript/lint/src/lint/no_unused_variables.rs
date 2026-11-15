@@ -242,13 +242,20 @@ fn function_definition(f: &Facts<'_>, declaration: NodeId) -> Option<NodeId> {
 }
 
 fn is_used(f: &Facts<'_>, symbol: SymbolId, declaration: NodeId, uses: &[Use]) -> bool {
+    // eslint-scope declares a class's name again in the class's scope, so a reference from inside
+    // the class reads that variable instead.
+    let own_class = matches!(f.kind(declaration), AstKind::Class(_)).then_some(declaration);
+    let inside_class = |node: NodeId| {
+        own_class.is_some_and(|class| f.nodes.ancestor_ids(node).any(|a| a == class))
+    };
     let typed = f
         .scoping
         .get_resolved_reference_ids(symbol)
         .iter()
         .any(|&id| {
-            let flags = f.scoping.get_reference(id).flags();
-            flags.is_type() || flags.is_value_as_type()
+            let reference = f.scoping.get_reference(id);
+            let flags = reference.flags();
+            (flags.is_type() || flags.is_value_as_type()) && !inside_class(reference.node_id())
         });
     if typed || f.qualified.contains(&symbol) {
         return true;
@@ -256,7 +263,7 @@ fn is_used(f: &Facts<'_>, symbol: SymbolId, declaration: NodeId, uses: &[Use]) -
     let function = function_definition(f, declaration);
     let declaration_scope = f.scoping.symbol_scope_id(symbol);
     let mut rhs = None;
-    uses.iter().any(|u| {
+    uses.iter().filter(|u| !inside_class(u.node)).any(|u| {
         let for_itself = is_read_for_itself(f, u, rhs);
         rhs = rhs_node(f, u, rhs, declaration_scope);
         is_for_in_of_reference(f, u)

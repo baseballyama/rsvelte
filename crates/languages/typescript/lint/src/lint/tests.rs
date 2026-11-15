@@ -265,6 +265,16 @@ const UNUSED: &[(&str, &[&str])] = &[
             "'r' is defined but never used.@131-132",
         ],
     ),
+    (
+        "class C { m(this: C) {} } class D { x: D; static make() { return new D(); } } class E {} \
+         new E(); class F extends Array<F> {}",
+        &[
+            "'C' is defined but never used.@6-7",
+            "'this' is defined but never used.@12-19",
+            "'D' is defined but never used.@32-33",
+            "'F' is defined but never used.@104-105",
+        ],
+    ),
 ];
 
 #[test]
