@@ -246,7 +246,13 @@ pub(crate) fn validate_unit(
     snippets::check_exports(input, res, &hoistable)?;
     const_cycles::check(input, res)?;
     // A refusal waits for the scripts' errors, which the rune checks raise only later.
-    if let Err(refusal) = coverage::check(input, res) {
+    let refused = (if unit == Unit::Component {
+        validation::refuse_typescript(input)
+    } else {
+        Ok(())
+    })
+    .and_then(|()| coverage::check(input, res));
+    if let Err(refusal) = refused {
         let script = validation::script_error(input, res, custom_element.is_some());
         return Err(script.map_or(refusal, |(_, error)| error));
     }
@@ -325,7 +331,9 @@ pub(crate) fn mode_independent_errors(input: &CompileInput<'_>, res: &Resolution
     }));
     CompileErrors {
         raised,
-        after_analysis: validation::check_typescript(input).err(),
+        after_analysis: (validation::check_typescript(input))
+            .and_then(|()| validation::refuse_typescript(input))
+            .err(),
     }
 }
 

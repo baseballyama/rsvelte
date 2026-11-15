@@ -213,3 +213,14 @@ fn a_declaration_file_is_no_module_to_compile() {
     assert!(applies("a.svelte.ts"));
     assert!(!applies("a.d.svelte.ts"));
 }
+
+#[test]
+fn an_await_in_a_derived_needs_experimental_async() {
+    let source = "let p;\nconst d = $derived(await p);\n";
+    let diagnostics = output("a.svelte.js", source, Target::Client).diagnostics;
+    let codes: Vec<(&str, u32)> = diagnostics
+        .iter()
+        .map(|d| (d.code.as_ref(), d.span.start_offset))
+        .collect();
+    assert_eq!(codes, [("experimental_async", 26)]);
+}

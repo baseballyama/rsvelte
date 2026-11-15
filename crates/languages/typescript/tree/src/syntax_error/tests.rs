@@ -98,3 +98,21 @@ fn an_optional_rest_acorn_reads_as_an_expression_or_a_name_fails_at_the_question
         );
     }
 }
+
+#[test]
+fn modifiers_out_of_order_fail_after_the_first_word_after_static() {
+    // What svelte 5.57.3 reports, offsets into `class C { ` + the member.
+    for (member, at) in [
+        ("static private a = 1;", 15),
+        ("static public a;", 14),
+        ("readonly static a;", 9),
+        ("static protected m(){}", 17),
+    ] {
+        let text = format!("class C {{ {member} }}");
+        assert_eq!(
+            acorn_reads(&text),
+            Some(("Unexpected token".to_owned(), 10 + at)),
+            "{member:?}"
+        );
+    }
+}
