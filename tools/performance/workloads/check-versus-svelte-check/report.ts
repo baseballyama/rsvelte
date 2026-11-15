@@ -13,6 +13,7 @@ const ARMS = [
 	'rsvelte-tsgo',
 	'rsvelte-tsrs',
 	'rsvelte-tsrs-fast',
+	'main-tsgo',
 ];
 const PAIRS: [string, string, string][] = [
 	['svelte-check-tsgo', 'rsvelte-tsrs', 'headline: official TS 7.1 → rsvelte + tsrs'],
@@ -22,6 +23,7 @@ const PAIRS: [string, string, string][] = [
 	['rsvelte-tsrs', 'rsvelte-tsrs-fast', 'tsrs default → TSRS_FAST=1'],
 	['svelte-check-ts6', 'svelte-check-tsgo', 'svelte-check TS 6 → TS 7.1'],
 	['svelte-check-ts6', 'rsvelte-tsrs', 'today (svelte-check TS 6) → rsvelte + tsrs'],
+	['main-tsgo', 'rsvelte-tsgo', 'main → this branch (both tsgo)'],
 ];
 
 type Sample = {
