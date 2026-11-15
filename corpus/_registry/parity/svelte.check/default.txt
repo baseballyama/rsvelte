@@ -1,4 +1,4 @@
-# svelte.check/default: 34875 match
+# svelte.check/default: 34878 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte	mismatch
@@ -37,8 +37,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/transition-options/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ts-ignore-attribute.v5/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/typechecks-js-with-ts-check/input.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/component-handler/input.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/function-call-in-props/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-checkJs-module.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/component-props-completion-rune.svelte	mismatch
@@ -209,7 +207,6 @@ svelte/svelte/packages/svelte/tests/runtime-browser/custom-elements-samples/exte
 svelte/sveltestrap/src/Nav/Nav.stories.svelte	mismatch
 svelte/svelteui/apps/docs/src/lib/components/homepage/AllComponents.svelte	mismatch
 svelte/svelteui/apps/docs/src/lib/components/mainpages/NextSteps.svelte	mismatch
-svelte/threlte/apps/docs/src/examples/flex/examples/App.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/rapier/attractor/AdvancedScene.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/rapier/collision-groups/App.svelte	mismatch
 svelte/threlte/packages/extras/src/lib/components/Svg/Svg.svelte	mismatch

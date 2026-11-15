@@ -128,3 +128,31 @@ fn a_snippet_given_to_a_component_is_read_and_an_unused_one_is_not() {
     // svelte-check reports the unused snippet, and not the one it reads as a prop.
     assert_eq!(project.check(), ["src/Parent.svelte TS6133"]);
 }
+
+#[test]
+fn a_class_component_of_a_package_takes_the_props_of_its_instance() {
+    let project = Project::new(
+        "class-component",
+        &[
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","strict":true,
+"skipLibCheck":true,"noEmit":true,"types":[]},"include":["src"]}"#,
+            ),
+            (
+                "node_modules/icons/package.json",
+                r#"{"name":"icons","types":"index.d.ts"}"#,
+            ),
+            (
+                "node_modules/icons/index.d.ts",
+                "import { SvelteComponent } from 'svelte';\nexport declare class Icon extends SvelteComponent<{ size?: number }> {}\n",
+            ),
+            (
+                "src/App.svelte",
+                "<script lang=\"ts\">\n  import { Icon } from 'icons';\n</script>\n<Icon size={2} />\n<Icon size=\"big\" />\n",
+            ),
+        ],
+    );
+    // svelte-check reports only the prop of the wrong type, as its svelte2tsx constructs the class.
+    assert_eq!(project.check(), ["src/App.svelte TS2322"]);
+}
