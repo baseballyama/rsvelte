@@ -189,21 +189,25 @@ impl Builder<'_> {
                 replacement: None,
             });
         };
-        let mut previous = program.span.start;
+        // The comments are in source order, so each statement takes those before it once.
+        let mut comments = program.comments.iter().peekable();
         for statement in &program.body {
             let start = statement.span().start;
             let import = matches!(statement, Statement::ImportDeclaration(_));
             // svelte2tsx moves an import's leading comments with it. TypeScript 6 reads a JSDoc
             // `@import` in a function, as TypeScript 7 does only at the top level.
-            for comment in &program.comments {
-                if previous <= comment.span.start
-                    && comment.span.end <= start
+            while let Some(comment) = comments.next_if(|comment| comment.span.start < start) {
+                if comment.span.end <= start
                     && (import || span(comment.span).text(self.source).contains("@import"))
                 {
                     moved(self, span(comment.span));
                 }
             }
-            previous = statement.span().end;
+            // A comment inside the statement belongs to it.
+            while comments
+                .next_if(|comment| comment.span.start < statement.span().end)
+                .is_some()
+            {}
             // svelte2tsx moves an import inside a namespace too.
             let mut imports = Vec::new();
             super::namespace::nested_imports(statement, &mut imports);
@@ -293,6 +297,10 @@ impl Builder<'_> {
                     .map(|annotation| &annotation.type_annotation)
             })
         });
+        // svelte2tsx hoists nothing without an annotated `$props()`.
+        let Some(props) = props else {
+            return Vec::new();
+        };
         let stores: Vec<&str> = (self.resolution)()
             .map(|resolution| {
                 resolution
