@@ -2,6 +2,7 @@
 
 use oxc_ast::ast::Expression;
 use oxc_span::GetSpan;
+use oxc_syntax::identifier::is_identifier_name;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeValue, Part};
 use rsvelte_typescript_tree::ExpressionIdentifier;
@@ -99,8 +100,9 @@ const fn has_type(expression: &Expression<'_>) -> bool {
 /// Whether TypeScript can assign to `expression`, which Svelte rejects otherwise.
 fn assignable(expression: &Expression<'_>) -> bool {
     match expression {
-        Expression::Identifier(_)
-        | Expression::StaticMemberExpression(_)
+        // A shorthand name prints as written: `a.b` assigns a member, `a-b` assigns nothing.
+        Expression::Identifier(name) => name.name.split('.').all(is_identifier_name),
+        Expression::StaticMemberExpression(_)
         | Expression::ComputedMemberExpression(_)
         | Expression::PrivateFieldExpression(_)
         | Expression::SequenceExpression(_) => true,

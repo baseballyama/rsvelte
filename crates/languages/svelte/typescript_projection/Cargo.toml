@@ -18,6 +18,7 @@ rsvelte_typescript_tree.workspace = true
 oxc_ast.workspace = true
 oxc_ast_visit.workspace = true
 oxc_span.workspace = true
+oxc_syntax.workspace = true
 rsvelte_typescript_content_mapper.workspace = true
 
 [dev-dependencies]
