@@ -456,6 +456,11 @@ fn optional_rest(
 /// ends with.
 fn unexpected_character(text: &str, start: u32, end: u32) -> Option<Acorn> {
     let label = text.get(start as usize..end as usize)?;
+    // An escape in a name, which oxc labels from its `\`: acorn expects a `u` after it.
+    if let Some(escape) = label.strip_prefix('\\') {
+        return (!escape.starts_with('u'))
+            .then(|| fails("Expecting Unicode escape sequence \\uXXXX", start + 1));
+    }
     let at = start + u32::from(label.starts_with('#'));
     let character = text.get(at as usize..)?.chars().next()?;
     Some(Acorn::Fails {
