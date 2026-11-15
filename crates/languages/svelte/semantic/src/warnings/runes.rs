@@ -224,17 +224,72 @@ fn variable_declaration<'s, 'a>(
     }
 }
 
-/// The errors of runes: their placement in runes mode, their calls outside it.
-pub(super) fn rune_errors(
+/// The errors of the scripts' declarations: an instance name that a module import declares,
+/// then runes' placement in runes mode or their calls outside it.
+pub(super) fn declaration_errors(
     component: &Component,
     resolution: &Resolution,
     runes: bool,
     out: &mut Vec<(Raised, Diagnostic)>,
 ) {
+    module_import_conflicts(component, out);
     if runes {
         rune_placement(component, resolution, out);
     } else {
         legacy_rune_calls(component, resolution, out);
+    }
+}
+
+/// `declaration_duplicate_module_import`: a top-level instance declarator that binds a name a
+/// `<script module>` import declares.
+fn module_import_conflicts(component: &Component, out: &mut Vec<(Raised, Diagnostic)>) {
+    let (Some(module), Some(instance)) = (&component.module, &component.instance) else {
+        return;
+    };
+    let javascript = &component.javascript;
+    // Upstream erases type imports before it analyzes.
+    let imports: FxHashSet<&str> = (javascript.get_program(module.program).body.iter())
+        .filter_map(|statement| match statement {
+            Statement::ImportDeclaration(import) if !import.import_kind.is_type() => {
+                import.specifiers.as_ref()
+            }
+            _ => None,
+        })
+        .flatten()
+        .filter(|specifier| {
+            !matches!(specifier, oxc_ast::ast::ImportDeclarationSpecifier::ImportSpecifier(s)
+                if s.import_kind.is_type())
+        })
+        .map(|specifier| specifier.local().name.as_str())
+        .collect();
+    if imports.is_empty() {
+        return;
+    }
+    for statement in &javascript.get_program(instance.program).body {
+        let Some((declaration, _)) = variable_declaration(statement) else {
+            continue;
+        };
+        for declarator in &declaration.declarations {
+            let conflicts = declarator
+                .id
+                .get_binding_identifiers()
+                .iter()
+                .any(|id| imports.contains(id.name.as_str()));
+            if conflicts {
+                let at = span(oxc_span::GetSpan::span(&declarator.id));
+                let raised = Raised {
+                    phase: Phase::Walk,
+                    section: Section::Instance,
+                    at: at.start_offset,
+                };
+                let message = "Cannot declare a variable with the same name as an import from \
+                    `<script module>`";
+                out.push((
+                    raised,
+                    error("declaration_duplicate_module_import", message, at),
+                ));
+            }
+        }
     }
 }
 

@@ -1,9 +1,8 @@
-# svelte.compile/client: 35098 match
+# svelte.compile/client: 35099 match
 svelte/rsvelte-tests-core-2/declaration_tag_keyword_3692/a_type_alias_is_a_declaration_only_in_typescript/31d56272e52457e9.svelte	mismatch
 svelte/rsvelte-tests-core-2/declaration_tag_keyword_3692/a_type_alias_is_a_declaration_only_in_typescript/b275deab1b0ff83c.svelte	mismatch
 svelte/rsvelte-tests-core-2/declaration_tag_missing_initializer_3705/neighbouring_declaration_shapes_keep_their_existing_outcomes/79df455b3881d80f.svelte	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/early_errors_reach_a_typescript_script_too/1f4d960367ca688a.svelte	mismatch
-svelte/rsvelte-tests-core-2/early_errors_3243/the_analyze_phase_duplicate_check_is_still_reachable/d6fd0ea8bba6d45d.svelte	unexpected
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/block_markers_reject_a_nel/d17180b037ec6515.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/4e9145d6de0541b6.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/d654bef2323adbe8.svelte	mismatch

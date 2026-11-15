@@ -728,3 +728,21 @@ fn two_transitions_in_one_direction_conflict() {
         Vec::<String>::new()
     );
 }
+
+#[test]
+fn an_instance_name_a_module_import_declares_is_a_duplicate() {
+    let errors = |code: &str| compiled_with_errors(code, None).1;
+    let module = "<script module>\n  import { FOO } from './a.js';\n</script>\n";
+    assert_eq!(
+        errors(&format!(
+            "{module}<script>\n  let FOO;\n</script>\n{{FOO}}\n"
+        )),
+        ["declaration_duplicate_module_import"]
+    );
+    assert_eq!(
+        errors(&format!(
+            "{module}<script>\n  let BAR;\n</script>\n{{FOO}}{{BAR}}\n"
+        )),
+        Vec::<String>::new()
+    );
+}

@@ -38,7 +38,7 @@ use found::Found;
 pub use ignore::{LEGACY_REPLACEMENTS, code_for_v5};
 pub use runes::dollar_name_errors;
 pub(crate) use runes::svelte_option;
-use runes::{custom_element, rune_errors, runes};
+use runes::{custom_element, declaration_errors, runes};
 use selectors::unused_selectors;
 use template::Template;
 
@@ -331,7 +331,7 @@ pub fn warnings(
         resolution,
         runes,
     ));
-    rune_errors(component, resolution, runes, &mut out.errors);
+    declaration_errors(component, resolution, runes, &mut out.errors);
     let mut found = Found::default();
     let custom_options = svelte_option(component, source, "customElement").is_some();
     let none = rustc_hash::FxHashMap::default();
