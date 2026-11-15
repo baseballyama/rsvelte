@@ -87,6 +87,23 @@ fn named_default_and_namespace_imports_are_followed() {
 }
 
 #[test]
+fn a_computed_key_is_evaluated_without_names() {
+    let source = "import * as ns from 'svelte/store';\n\
+                  const k = 'writable';\n\
+                  ns['writ' + 'able'](); ns[`read${'able'}`](); ns[k]();\n\
+                  const { ['der' + 'ived']: d } = ns; d();";
+    assert_eq!(
+        store(source, &["writable", "readable", "derived"]),
+        [
+            "writable@ns['writ' + 'able']()",
+            "readable@ns[`read${'able'}`]()",
+            "derived@['der' + 'ived']: d",
+            "derived@d()",
+        ]
+    );
+}
+
+#[test]
 fn aliases_are_followed_and_cycles_end() {
     let source = "import { writable } from 'svelte/store';\n\
                   import * as ns from 'svelte/store';\n\

@@ -81,21 +81,20 @@ impl<'a> Parser<'a, '_> {
     ) -> ParseResult<()> {
         match attribute.kind {
             AttributeKind::Bind | AttributeKind::Class | AttributeKind::Style => {
-                let text = directive.text(self.source_text);
-                if identifier_len(text) != text.len() {
-                    if attribute.kind == AttributeKind::Bind {
-                        return Self::err_at(
-                            directive,
-                            "parse_error",
-                            "expected a property name after `bind:`",
-                        );
-                    }
-                    if attribute.kind == AttributeKind::Style {
-                        // `style:--custom-property` has no expression; it sets the empty string.
-                        return Ok(());
-                    }
+                let text: &'a str = directive.text(self.source_text);
+                let identifier = identifier_len(text) == text.len();
+                if !identifier && attribute.kind == AttributeKind::Style {
+                    // `style:--custom-property` has no expression; it sets the empty string.
+                    return Ok(());
                 }
-                let expression = self.name_expression(directive)?;
+                let expression = if identifier {
+                    self.name_expression(directive)?
+                } else {
+                    // Upstream reads the whole name, dots and dashes too, as one identifier.
+                    let span = oxc_span::Span::new(directive.start_offset, directive.end_offset);
+                    let name = Expression::new_identifier(span, text, &self.builder.nodes());
+                    self.builder.keep_expression(name)
+                };
                 let parts = self.component.parts.len();
                 self.component.parts.push(Part::Expression {
                     expression,

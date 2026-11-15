@@ -56,6 +56,8 @@ pub enum Global {
 #[derive(Debug)]
 pub struct StaticValues<'a> {
     semantic: &'a Semantic,
+    /// Whether a name has a value: `getStaticValue` without an initial scope knows none.
+    names: bool,
     /// What the references of each variable met so far say, so that a variable named many times
     /// has its references read once.
     variables: RefCell<FxHashMap<SymbolId, Variable>>,
@@ -137,7 +139,17 @@ impl<'a> StaticValues<'a> {
     pub fn new(semantic: &'a Semantic) -> Self {
         Self {
             semantic,
+            names: true,
             variables: RefCell::new(FxHashMap::default()),
+        }
+    }
+
+    /// Evaluates only what the code spells out, as `getStaticValue(node)` with no scope does.
+    #[must_use]
+    pub fn without_names(semantic: &'a Semantic) -> Self {
+        Self {
+            names: false,
+            ..Self::new(semantic)
         }
     }
 
@@ -169,6 +181,7 @@ impl<'a> StaticValues<'a> {
             Expression::BooleanLiteral(b) => plain(Value::Boolean(b.value)),
             Expression::NullLiteral(_) => plain(Value::Null),
             Expression::TemplateLiteral(t) => self.template(t, visiting),
+            Expression::Identifier(_) if !self.names => None,
             Expression::Identifier(identifier) => {
                 let reference = self
                     .semantic

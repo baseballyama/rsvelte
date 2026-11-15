@@ -133,18 +133,6 @@
 6:35 6:39 no-undef "'node' is not defined."
 7:11 7:32 no-undef "'defaultFallbackNumber' is not defined."
 
-=== 226 attr_width/multi_breakable_value_breaks_first_when_later_cannot_absorb/6354b6639c25f4e1.svelte	lint.txt
-1:1 1:127 svelte/no-unused-class-name "Unused class \"lc-vector\"."
-1:1 1:127 svelte/no-unused-class-name "Unused class \"\"."
-1:24 1:32 no-undef "'isFilled' is not defined."
-1:110 1:119 no-undef "'className' is not defined."
-
-=== 220 attr_width/multi_breakable_value_breaks_first_when_later_cannot_absorb/bd91abddec316cb5.svelte	lint.txt
-1:1 5:2 svelte/no-unused-class-name "Unused class \"lc-vector\"."
-1:1 5:2 svelte/no-unused-class-name "Unused class \"\"."
-2:21 2:29 no-undef "'isFilled' is not defined."
-4:61 4:70 no-undef "'className' is not defined."
-
 === 508 attr_width/multi_breakable_value_keeps_first_flat_when_later_absorbs/8189ddff8bda82bb.svelte	lint.txt
 1:1 1:87 svelte/no-unused-class-name "Unused class \"then\"."
 1:1 1:87 svelte/no-unused-class-name "Unused class \"some\"."
@@ -187,22 +175,6 @@
 1:24 1:29 no-undef "'angle' is not defined."
 1:65 1:76 no-undef "'outerRadius' is not defined."
 1:82 1:87 svelte/html-self-closing "Require self-closing on SVG elements."
-
-=== 345 attr_width/multi_interp_value_breaks_single_breakable_interpolation/2a0ccb0872a6e447.svelte	lint.txt
-1:1 1:88 svelte/no-unused-class-name "Unused class \"wx-calendar\"."
-1:1 1:88 svelte/no-unused-class-name "Unused class \"\"."
-1:25 1:80 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-1:26 1:30 no-undef "'part' is not defined."
-1:47 1:51 no-undef "'part' is not defined."
-1:82 1:85 no-undef "'css' is not defined."
-
-=== 343 attr_width/multi_interp_value_is_idempotent/417e38be74b5c803.svelte	lint.txt
-1:1 5:2 svelte/no-unused-class-name "Unused class \"wx-calendar\"."
-1:1 5:2 svelte/no-unused-class-name "Unused class \"\"."
-2:22 4:10 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-2:23 2:27 no-undef "'part' is not defined."
-2:44 2:48 no-undef "'part' is not defined."
-4:12 4:15 no-undef "'css' is not defined."
 
 === 43 attr_width/short_ascii_tag_stays_one_line/56dc1952e5cd1fd8.svelte	lint.txt
 1:2 1:7 no-undef "'Alert' is not defined."
@@ -967,9 +939,6 @@
 1:28 1:42 svelte/max-attributes-per-line "'class' should be on a new line."
 1:42 1:60 svelte/html-self-closing "Require self-closing on Svelte special elements."
 
-=== 58 class_attribute_whitespace/a_whitespace_only_value_is_untouched/a784b21b0f53fbde.svelte	lint.txt
-1:1 1:18 svelte/no-unused-class-name "Unused class \"\"."
-
 === 194 class_attribute_whitespace/another_attribute_on_the_same_element_is_untouched/c40b2aab0a8004b5.svelte	lint.txt
 1:1 1:32 svelte/no-unused-class-name "Unused class \"a\"."
 1:1 1:32 svelte/no-unused-class-name "Unused class \"b\"."
@@ -1000,14 +969,6 @@
 1:6 2:5 svelte/first-attribute-linebreak "Expected a linebreak before this attribute."
 1:14 1:16 svelte/no-trailing-spaces "Trailing spaces not allowed."
 2:5 2:5 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
-
-=== 99 class_attribute_whitespace/whitespace_only_text_around_an_interpolation_survives/86f2768eff09025a.svelte	lint.txt
-1:1 1:20 svelte/no-unused-class-name "Unused class \"\"."
-1:16 1:17 no-undef "'x' is not defined."
-
-=== 99 class_attribute_whitespace/whitespace_only_text_around_an_interpolation_survives/91df26e9c35c9c87.svelte	lint.txt
-1:1 1:20 svelte/no-unused-class-name "Unused class \"\"."
-1:14 1:15 no-undef "'x' is not defined."
 
 === 0 collapse/tests/collapse_candidate_gate_predicate/02170c9e1b7b8945.svelte	lint.txt
 
@@ -1079,12 +1040,6 @@
 1:6 1:7 no-undef "'a' is not defined."
 1:8 1:27 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 1:16 1:17 no-unused-vars "'x' is assigned a value but never used."
-
-=== 40 const_tag_line_comment/a_trailing_line_comment_does_not_swallow_the_closing_brace/6f41de20fb78df05.svelte	lint.txt
-4:27 - - "Parsing error: '}' expected."
-
-=== 40 const_tag_line_comment/the_fix_is_idempotent/996596f05a4aac4f.svelte	lint.txt
-4:27 - - "Parsing error: '}' expected."
 
 === 99 css_native/unparseable_style_body_is_spliced_without_a_blank_line/f8bd54d445626702.svelte	lint.txt
 4:3 4:5 svelte/consistent-selector-style "Selector should select by element type instead of class"
@@ -1378,9 +1333,6 @@
 1:8 1:26 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 1:16 1:17 no-unused-vars "'y' is assigned a value but never used."
 1:20 1:21 no-undef "'h' is not defined."
-
-=== 40 expression/an_assignment_used_as_a_const_body_loses_the_declarator_parens/9280cfee7a51471a.svelte	lint.txt
-3:22 - - "Parsing error: ')' expected."
 
 === 195 expression/collapses_whitespace_in_simple_interp/96b9730a6b9bfe5e.svelte	lint.txt
 1:4 1:6 svelte/mustache-spacing "Expected no space after '{', but found."
@@ -2565,9 +2517,6 @@
 === 81 indent/collapse_hug_mixed_uses_tab_indent/05e2bd269d775131.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 40 indent/default_options_indent_with_two_spaces/3ee31eb2728ac375.svelte	lint.txt
-2:16 - - "Parsing error: ',' expected."
-
 === 146 indent/snippet_tab_body_converts_to_spaces/51e35aa99aa60b76.svelte	lint.txt
 1:11 1:19 no-unused-vars "'children' is defined but never used."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2723,9 +2672,6 @@
 3:1 3:38 svelte/button-has-type "Missing an explicit type attribute for button."
 3:15 3:37 svelte/html-quotes "Unexpected to be enclosed by any quotes."
 3:17 3:23 no-undef "'global' is not defined."
-
-=== 80 markup_cast_head_parens/declaration_name_head_matches_oracle/011aebbaa3dfa3f0.svelte	lint.txt
-3:13 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
 
 === 134 markup_cast_head_parens/declaration_name_head_matches_oracle/01356af444c5f3b5.svelte	lint.txt
 1:1 1:28 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -3535,9 +3481,6 @@
 3:1 3:33 svelte/button-has-type "Missing an explicit type attribute for button."
 3:16 3:19 no-undef "'foo' is not defined."
 
-=== 80 markup_cast_head_parens/declaration_name_head_matches_oracle/2d77964ecb1f570d.svelte	lint.txt
-3:21 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
-
 === 290 markup_cast_head_parens/declaration_name_head_matches_oracle/2d91722675af6afa.svelte	lint.txt
 1:1 1:28 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 3:1 3:39 svelte/button-has-type "Missing an explicit type attribute for button."
@@ -4181,9 +4124,6 @@
 === 138 markup_cast_head_parens/declaration_name_head_matches_oracle/54114ee5051db3f5.svelte	lint.txt
 1:1 1:28 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 3:13 3:22 no-undef "'satisfies' is not defined."
-
-=== 80 markup_cast_head_parens/declaration_name_head_matches_oracle/54557b00a714b2a9.svelte	lint.txt
-3:24 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
 
 === 133 markup_cast_head_parens/declaration_name_head_matches_oracle/54cd2474da546edb.svelte	lint.txt
 1:1 1:28 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -5296,9 +5236,6 @@
 === 134 markup_cast_head_parens/declaration_name_head_matches_oracle/8d5d337925f9ca4c.svelte	lint.txt
 1:1 1:28 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 3:6 3:12 no-undef "'module' is not defined."
-
-=== 80 markup_cast_head_parens/declaration_name_head_matches_oracle/8d74744ba580b1a1.svelte	lint.txt
-3:14 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
 
 === 136 markup_cast_head_parens/declaration_name_head_matches_oracle/8de5f0224cd860f3.svelte	lint.txt
 1:1 1:28 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -10531,10 +10468,6 @@
 
 === 0 markup_preserve_ws/textarea_preserves_inner_whitespace/46773c42b81912db.svelte	lint.txt
 
-=== 136 markup_preserve_ws/unicode_separators_in_text_are_content/de5bfca9953f9163.svelte	lint.txt
-1:5 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-3:5 4:1 no-irregular-whitespace "Irregular whitespace not allowed."
-
 === 286 markup_wrap/attribute_object_value_breaks_by_nested_column/781a57a309b116d7.svelte	lint.txt
 1:2 1:6 no-undef "'Comp' is not defined."
 3:12 3:20 no-undef "'oneValue' is not defined."
@@ -11544,12 +11477,6 @@
 6:5 11:34 svelte/sort-attributes "Attribute 'binaryConditionOnAdded' should go before 'bind:query'."
 11:18 11:33 no-undef "'BinaryCondition' is not defined."
 
-=== 310 render_neutral_divergences/a_script_close_tag_keeps_its_internal_whitespace/6898cde9d10db12f.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:9 5:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 2 line breaks found."
-3:9 3:14 svelte/no-trailing-spaces "Trailing spaces not allowed."
-7:6 7:10 no-undef "'name' is not defined."
-
 === 186 render_neutral_divergences/a_style_close_tag_keeps_its_internal_whitespace/f9b7f23dbe8da7ae.svelte	lint.txt
 7:8 9:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 2 line breaks found."
 7:8 7:13 svelte/no-trailing-spaces "Trailing spaces not allowed."
@@ -11735,10 +11662,6 @@
 1:27 1:30 no-undef "'tag' is not defined."
 1:30 1:32 svelte/mustache-spacing "Expected no space before '}', but found."
 
-=== 304 svelte_element_this_chunks/single_quoted_value_with_an_expression_keeps_the_whole_value/d364396ec9b25275.svelte	lint.txt
-1:17 1:28 svelte/valid-compile "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this(svelte_element_invalid_this)"
-1:29 1:38 svelte/max-attributes-per-line "'class' should be on a new line."
-
 === 228 svelte_element_this_chunks/text_then_expression_keeps_the_whole_value/3a8bc92bcc84cfb8.svelte	lint.txt
 1:17 1:40 svelte/valid-compile "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this(svelte_element_invalid_this)"
 
@@ -11874,21 +11797,6 @@
 
 === 40 tailwind_functions/standalone_mustache_is_untouched/4f8cb88f2857b9be.svelte	lint.txt
 1:5 1:7 no-undef "'cn' is not defined."
-
-=== 40 trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/5b48c20575ee097e.svelte	lint.txt
-9:15 - - "Parsing error: ')' expected."
-
-=== 40 trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/6c31a27208d4d289.svelte	lint.txt
-7:12 - - "Parsing error: ')' expected."
-
-=== 40 trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/d15dae7c28fa60c3.svelte	lint.txt
-7:12 - - "Parsing error: ')' expected."
-
-=== 40 trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/d9b6042991557371.svelte	lint.txt
-7:18 - - "Parsing error: ')' expected."
-
-=== 40 trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/e89d92737973b5ce.svelte	lint.txt
-9:14 - - "Parsing error: ')' expected."
 
 === 178 typescript/attribute_value_ts_cast_round_trips/41aadc006097321d.svelte	lint.txt
 1:1 1:28 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -12281,12 +12189,6 @@
 1:1 2:2 svelte/no-unused-class-name "Unused class \"wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"."
 1:80 2:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 
-=== 245 whitespace_body_close_break/a_source_newline_body_breaks_the_same_way/915aa929cdbc3333.svelte	lint.txt
-1:1 1:79 svelte/no-unused-class-name "Unused class \"wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"."
-1:1 1:79 svelte/no-unused-class-name "Unused class \"\"."
-1:50 1:56 no-undef "'option' is not defined."
-1:64 1:70 no-undef "'option' is not defined."
-
 === 126 whitespace_body_close_break/an_open_tag_exactly_at_the_width_keeps_its_bracket_glued/33e776d94a3b8850.svelte	lint.txt
 1:1 1:81 svelte/no-unused-class-name "Unused class \"wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"."
 
@@ -12306,30 +12208,6 @@
 
 === 137 whitespace_body_close_break/an_open_tag_that_does_not_fit_still_wraps/89b5496a05c1bae0.svelte	lint.txt
 1:1 1:92 svelte/no-unused-class-name "Unused class \"wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"."
-
-=== 905 whitespace_body_close_break/an_open_tag_whose_value_was_wrapped_in_source_breaks_once_flattened/295ea0c2da6bcfac.svelte	lint.txt
-1:6 1:12 no-undef "'option' is not defined."
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:2 6:3 svelte/no-unused-class-name "Unused class \"wx-icon\"."
-2:2 6:3 svelte/no-unused-class-name "Unused class \"\"."
-2:2 6:3 svelte/no-unused-class-name "Unused class \"wx-icon-padding\"."
-3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-3:19 3:25 no-undef "'option' is not defined."
-3:32 5:9 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-3:34 3:40 no-undef "'option' is not defined."
-4:1 4:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-5:1 5:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
-=== 417 whitespace_body_close_break/an_open_tag_whose_value_was_wrapped_in_source_breaks_once_flattened/816165f81f2e81dc.svelte	lint.txt
-1:6 1:12 no-undef "'option' is not defined."
-2:3 6:4 svelte/no-unused-class-name "Unused class \"wx-icon\"."
-2:3 6:4 svelte/no-unused-class-name "Unused class \"\"."
-2:3 6:4 svelte/no-unused-class-name "Unused class \"wx-icon-padding\"."
-3:21 3:27 no-undef "'option' is not defined."
-3:34 5:12 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-3:36 3:42 no-undef "'option' is not defined."
 
 === 112 whitespace_body_close_break/glued_trailing_text_does_not_count_toward_the_width/7048babf3622c299.svelte	lint.txt
 2:3 2:69 svelte/no-unused-class-name "Unused class \"wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"."
@@ -12351,36 +12229,6 @@
 === 119 whitespace_body_close_break/the_element_stays_on_one_line_when_it_fits_exactly/30e92356b0b2d812.svelte	lint.txt
 2:3 2:76 svelte/no-unused-class-name "Unused class \"wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"."
 
-=== 1512 whitespace_body_close_break/the_reported_segmented_shape/4fea167a55291bd1.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-4:1 4:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-5:1 5:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
-5:10 5:16 no-undef "'option' is not defined."
-6:1 6:6 svelte/indent "Expected indentation of 10 spaces but found 5 whitespaces."
-6:6 10:7 svelte/no-unused-class-name "Unused class \"wx-icon\"."
-6:6 10:7 svelte/no-unused-class-name "Unused class \"\"."
-7:1 7:7 svelte/indent "Expected indentation of 12 spaces but found 6 whitespaces."
-7:23 7:29 no-undef "'option' is not defined."
-7:36 9:13 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-7:38 7:44 no-undef "'option' is not defined."
-8:1 8:8 svelte/indent "Expected indentation of 14 spaces but found 7 whitespaces."
-9:1 9:8 svelte/indent "Expected indentation of 14 spaces but found 7 whitespaces."
-10:1 10:6 svelte/indent "Expected indentation of 10 spaces but found 5 whitespaces."
-11:1 11:6 svelte/indent "Expected indentation of 10 spaces but found 5 whitespaces."
-12:1 12:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
-13:1 13:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
-=== 350 whitespace_body_close_break/the_reported_segmented_shape/ad4da3b07186574f.svelte	lint.txt
-5:14 5:20 no-undef "'option' is not defined."
-6:11 6:77 svelte/no-unused-class-name "Unused class \"wx-icon\"."
-6:11 6:77 svelte/no-unused-class-name "Unused class \"\"."
-6:30 6:36 no-undef "'option' is not defined."
-6:43 6:75 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-6:45 6:51 no-undef "'option' is not defined."
-
 === 862 wrapper_only_parse_error_fmt_4083/a_sequence_under_a_modifier_head_is_still_rejected/0eceab338b4309d5.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12393,9 +12241,6 @@
 5:6 5:15 no-unused-vars "'type' is defined but never used."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:6 6:16 no-unused-vars "'value' is defined but never used."
-
-=== 41 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/0072c9b1c27c3e21.svelte	lint.txt
-10:19 - - "Parsing error: ',' expected."
 
 === 834 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/1458440f726e6416.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -12464,9 +12309,6 @@
 5:6 5:15 no-unused-vars "'type' is defined but never used."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:6 6:16 no-unused-vars "'value' is defined but never used."
-
-=== 41 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/59e91fdef56ed90e.svelte	lint.txt
-10:20 - - "Parsing error: ',' expected."
 
 === 937 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/7273d81f57781274.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -12606,9 +12448,6 @@
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:6 6:16 no-unused-vars "'value' is defined but never used."
 9:1 9:38 svelte/require-each-key "Each block should have a key"
-
-=== 41 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/ff14a907a86b8623.svelte	lint.txt
-10:20 - - "Parsing error: ',' expected."
 
 === 874 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/00b9f98ed10382e1.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -12881,9 +12720,6 @@
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:6 6:16 no-unassigned-vars "'value' is always 'undefined' because it's never assigned."
 9:1 9:31 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
-
-=== 41 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/6b8b31cf791755dc.svelte	lint.txt
-10:34 - - "Parsing error: ')' expected."
 
 === 834 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/6f6f7ca9d3f29f54.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

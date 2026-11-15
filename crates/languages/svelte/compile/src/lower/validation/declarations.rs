@@ -1,7 +1,8 @@
 //! Upstream's `declaration_duplicate` for what the template declares and for the instance's
 //! imports, which its scopes see where oxc's do not.
 
-use oxc_ast::ast::{ImportDeclarationSpecifier, Statement};
+use oxc_ast::ast::{Declaration, ImportDeclarationSpecifier, Statement};
+use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
 
@@ -14,7 +15,54 @@ pub(super) fn duplicates(input: &CompileInput<'_>, res: &Resolution) -> Vec<(Rai
     let mut out = Vec::new();
     instance_imports(input, res, &mut out);
     template(input, res, &mut out);
+    out.extend(module_import_conflict(input));
     out
+}
+
+/// Upstream's `declaration_duplicate_module_import`, which its walk raises at an instance's
+/// top-level variable that has the name of a module script's import.
+fn module_import_conflict(input: &CompileInput<'_>) -> Option<(Raised, Diagnostic)> {
+    let (Some(module), Some(instance)) = (input.component.module, input.component.instance) else {
+        return None;
+    };
+    let javascript = input.component.javascript;
+    let imported = |name: &str| {
+        (javascript.get_program(module).body.iter()).any(|s| match s {
+            Statement::ImportDeclaration(import) => {
+                (import.specifiers.iter().flatten()).any(|specifier| specifier.local().name == name)
+            }
+            _ => false,
+        })
+    };
+    let declarators = (javascript.get_program(instance).body.iter())
+        .filter_map(|s| match s {
+            Statement::VariableDeclaration(declaration) => Some(&**declaration),
+            Statement::ExportDeclaration(export) => match &export.declaration {
+                Declaration::VariableDeclaration(declaration) => Some(&**declaration),
+                _ => None,
+            },
+            _ => None,
+        })
+        .flat_map(|declaration| &declaration.declarations);
+    let declarator = declarators.into_iter().find(|d| {
+        let mut conflict = false;
+        crate::lower::paths::bound_names(&d.id, false, &mut |id, _| {
+            conflict |= imported(&id.name);
+        });
+        conflict
+    })?;
+    let span = Span::new(declarator.id.span().start, declarator.id.span().end);
+    let raised = Raised {
+        phase: Phase::Walk,
+        section: Section::Instance,
+        at: span.start_offset,
+    };
+    let message =
+        "Cannot declare a variable with the same name as an import from `<script module>`";
+    Some((
+        raised,
+        error("declaration_duplicate_module_import", message, span),
+    ))
 }
 
 fn raised(section: Section, name: &str, span: oxc_span::Span) -> (Raised, Diagnostic) {

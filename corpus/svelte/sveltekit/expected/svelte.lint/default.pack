@@ -404,12 +404,6 @@
 171:15 171:18 no-undef "'URL' is not defined."
 171:19 171:27 no-undef "'location' is not defined."
 
-=== 414 packages/kit/src/runtime/client/remote-functions/query-batch.svelte.js	lint.txt
-14:17 14:26 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
-14:17 14:26 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
-38:5 38:15 no-undef "'setTimeout' is not defined."
-40:17 40:26 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
-
 === 1389 packages/kit/src/runtime/client/remote-functions/query-live/instance.svelte.js	lint.txt
 129:27 129:42 no-undef "'AbortController' is not defined."
 193:46 193:55 no-undef "'navigator' is not defined."

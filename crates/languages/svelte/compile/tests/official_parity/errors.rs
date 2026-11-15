@@ -509,6 +509,18 @@ fn a_typescript_feature_is_refused_before_the_template_is_analyzed() {
 }
 
 #[test]
+fn an_unknown_bind_target_under_a_cast_points_at_the_name() {
+    assert_eq!(
+        compile_at(
+            "<script lang=\"ts\"></script><input bind:value={value as string} />",
+            Target::Client
+        )
+        .err(),
+        Some(("bind_invalid_value".to_owned(), (46, 51)))
+    );
+}
+
+#[test]
 fn a_default_export_is_refused_before_the_typescript_it_holds() {
     assert_eq!(
         compile_at(
@@ -518,6 +530,30 @@ fn a_default_export_is_refused_before_the_typescript_it_holds() {
         .err(),
         Some(("module_illegal_default_export".to_owned(), (18, 54)))
     );
+}
+
+#[test]
+fn a_decorated_default_export_takes_the_semicolon_after_it() {
+    for (source, end) in [
+        (
+            "<script lang=\"ts\">export default @dec class {};</script>",
+            47,
+        ),
+        (
+            "<script lang=\"ts\">export default @dec class {} ;</script>",
+            48,
+        ),
+        (
+            "<script lang=\"ts\">export default @dec class {}</script>",
+            46,
+        ),
+    ] {
+        assert_eq!(
+            compile_at(source, Target::Client).err(),
+            Some(("module_illegal_default_export".to_owned(), (18, end))),
+            "{source}"
+        );
+    }
 }
 
 #[test]
@@ -536,6 +572,26 @@ fn a_decorator_or_an_accessor_field_in_a_plain_script_stops_where_acorn_stops() 
             assert_eq!(
                 compile_at(source, target).map(|_| ()),
                 Err(("js_parse_error".to_owned(), (at, at))),
+                "{source} on {target:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn an_unbound_bind_target_is_reported_without_its_type_cast() {
+    // From svelte 5.57.3.
+    for (markup, span) in [
+        ("<input bind:value={value as string} />", (46, 51)),
+        ("<input bind:value={(value)} />", (47, 52)),
+        ("<input bind:value={value!} />", (46, 51)),
+    ] {
+        let source = format!("<script lang=\"ts\"></script>{markup}");
+        for target in [Target::Client, Target::Server] {
+            let error = compile_at(&source, target).err();
+            assert_eq!(
+                error,
+                Some(("bind_invalid_value".to_owned(), span)),
                 "{source} on {target:?}"
             );
         }

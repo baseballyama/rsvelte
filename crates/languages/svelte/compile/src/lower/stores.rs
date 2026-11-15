@@ -6,10 +6,11 @@ use oxc_semantic::ReferenceId;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, ElementKind, MetadataTag, NodeKind,
 };
+use rsvelte_svelte_semantic::resolve::RUNES;
 use rustc_hash::FxHashSet;
 
 use super::validation::unbound;
-use super::{CompileInput, Diagnostic, Resolution, Span, span_of};
+use super::{CompileInput, Diagnostic, Resolution, Span, Unit, span_of};
 
 /// The `$name`s no binding declares, each with its references, in upstream's order: the module
 /// script's, the instance script's, then the template's, each in the order upstream's scope walk
@@ -77,17 +78,22 @@ impl<'r> Names<'r> {
     ///
     /// `global_reference_invalid` for `$`, a `$$name` or an undeclared lowercase store;
     /// `store_invalid_scoped_subscription` for a store a nested scope declares; and
-    /// `store_invalid_subscription` for a subscription in the module script.
+    /// `store_invalid_subscription` for a subscription in the module script; in a module file,
+    /// `store_invalid_subscription_module` for every subscription.
     pub(super) fn check(
         &self,
         input: &CompileInput<'_>,
         res: &Resolution,
+        unit: Unit,
     ) -> Result<(), Diagnostic> {
         let scoping = res.scoping();
         let span = |r: ReferenceId| {
             let span = res.reference_span(r);
             Span::new(span.start, span.end)
         };
+        if unit == Unit::Module {
+            return self.check_module(res);
+        }
         let module =
             (input.component.module).map(|p| input.component.javascript.get_program(p).span);
         for (name, references) in &self.names {
@@ -127,6 +133,32 @@ impl<'r> Names<'r> {
                     "store_invalid_subscription",
                     "Cannot reference store value inside `<script module>`",
                     span(r),
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// Upstream `analyze_module`'s check: a module file has no component to subscribe in, so any
+    /// `$name` whose `name` the module declares is an error, unless it is a rune.
+    fn check_module(&self, res: &Resolution) -> Result<(), Diagnostic> {
+        let scoping = res.scoping();
+        for (name, references) in &self.names {
+            let span = res.reference_span(references[0]);
+            let span = Span::new(span.start, span.end);
+            if *name == "$" || name.starts_with("$$") {
+                return global_reference_invalid(name, span);
+            }
+            let store = Ident::from(&name[1..]);
+            if !RUNES.contains(name)
+                && scoping
+                    .find_binding(scoping.root_scope_id(), store)
+                    .is_some()
+            {
+                return super::special::invalid(
+                    "store_invalid_subscription_module",
+                    "Cannot reference store value outside a `.svelte` file",
+                    span,
                 );
             }
         }

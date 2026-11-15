@@ -16,9 +16,13 @@ mod parentheses;
 mod program;
 pub use program::Rejected;
 
+/// No rule unchecked: the list a host starts with.
+const NOTHING: &[&str] = &[];
+
 use crate::acorn_grammar::{Rejection, Unsupported, rejection, whitespace};
 use crate::syntax_error::{
-    Locator, SyntaxError, acorn, reported, syntax_error, typescript_eslint_at,
+    Locator, SyntaxError, TYPESCRIPT_ESLINT_CHECKS, acorn, reported, syntax_error, typescript_code,
+    typescript_eslint_at,
 };
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
@@ -46,7 +50,8 @@ pub struct Builder<'a> {
     comments: Vec<Comment>,
     recorded: Vec<Recorded>,
     wrapped: String,
-    unchecked: &'static [&'static str],
+    unchecked: &'static &'static [&'static str],
+    unchecked_errors: Vec<SyntaxError>,
     as_acorn: bool,
     acorn_rejection: Option<(u32, Rejection)>,
     parentheses: Vec<(oxc_span::Span, u8)>,
@@ -93,7 +98,8 @@ impl<'a> Builder<'a> {
             comments: Vec::new(),
             recorded: Vec::new(),
             wrapped: String::new(),
-            unchecked: &[],
+            unchecked: &NOTHING,
+            unchecked_errors: Vec::new(),
             as_acorn: false,
             acorn_rejection: None,
             parentheses: Vec::new(),
@@ -102,7 +108,7 @@ impl<'a> Builder<'a> {
 
     /// Lets the parts break the TypeScript grammar rules with these error codes, which oxc checks
     /// and the host's own parser does not.
-    pub const fn leave_unchecked(&mut self, codes: &'static [&'static str]) {
+    pub const fn leave_unchecked(&mut self, codes: &'static &'static [&'static str]) {
         self.unchecked = codes;
     }
 
@@ -154,6 +160,15 @@ impl<'a> Builder<'a> {
         if self.acorn_rejection.is_none() {
             self.acorn_rejection = stop;
         }
+        // typescript-eslint throws some of what this host lets pass, from its own checks.
+        (self.unchecked_errors).extend(
+            (diagnostics.iter())
+                .filter(|error| {
+                    typescript_code(error)
+                        .is_some_and(|code| TYPESCRIPT_ESLINT_CHECKS.contains(&code))
+                })
+                .map(|error| syntax_error([error.clone()], text, tokens, fallback, shift)),
+        );
         Ok(())
     }
 
@@ -190,6 +205,8 @@ impl<'a> Builder<'a> {
                 })
             }),
             unchecked: self.unchecked,
+            unchecked_errors: (!self.unchecked_errors.is_empty())
+                .then(|| Box::new(self.unchecked_errors)),
             as_acorn: self.as_acorn,
         }
     }
@@ -273,6 +290,15 @@ impl<'a> Builder<'a> {
             ),
             (part, source_type),
         )?;
+        // Upstream refuses a sequence as an attribute's value unless parentheses wrap it.
+        if let Expression::SequenceExpression(sequence) = &parsed.expression {
+            let pairs = (parsed.tokens.iter())
+                .take_while(|t| t.kind() == Kind::LParen && t.start() < sequence.span.start)
+                .count();
+            if pairs > 0 {
+                self.record_parentheses(sequence.span, u8::try_from(pairs).unwrap_or(u8::MAX));
+            }
+        }
         self.record(&parsed.tokens, &parsed.comments, 0);
         self.comments.extend_from_slice(&parsed.comments);
         Ok((parsed.expression, parsed.end))

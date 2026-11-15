@@ -14,6 +14,7 @@ impl Parser<'_, '_> {
         let name = self.identifier()?;
         self.skip_ws();
         let mut type_parameters = None;
+        let mut generics = None;
         if self.typescript && self.peek() == Some(b'<') {
             let len = match match_bracket(self.rest(), b'<', b'>') {
                 Ok(len) => len,
@@ -23,6 +24,10 @@ impl Parser<'_, '_> {
                 self.position as u32,
                 (self.position + len) as u32,
             ));
+            // Svelte only skips the list, so one that does not parse declares nothing; the
+            // parameters' read below replaces the tokens this one records.
+            let inner = Span::new(self.position as u32 + 1, (self.position + len - 1) as u32);
+            generics = self.builder.type_parameters(inner, self.source_type()).ok();
             self.eat_token(TokenType::Text, len);
             self.skip_ws();
         }
@@ -67,6 +72,7 @@ impl Parser<'_, '_> {
         Ok(self.push_node(TemplateNode::Snippet {
             name,
             type_parameters,
+            generics,
             parameters,
             body,
             span,

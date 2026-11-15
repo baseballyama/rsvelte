@@ -1,4 +1,4 @@
-# svelte.check/default: 34882 match
+# svelte.check/default: 34884 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte	mismatch
@@ -176,7 +176,6 @@ svelte/rsvelte/lint/no-useless-children-snippet/06-boundary-and-self.svelte	mism
 svelte/rsvelte/lint/require-each-key/13-key-expression-forms.svelte	mismatch
 svelte/rsvelte/pattern/issues/3164-on-directive-inner-init.svelte	mismatch
 svelte/rsvelte/pattern/issues/3199-grammar-import-source.svelte	mismatch
-svelte/rsvelte/pattern/issues/3201-template-strict-param-clash.svelte	mismatch
 svelte/rsvelte/pattern/issues/3667-namespace-type-only-import.svelte	mismatch
 svelte/rsvelte/pattern/issues/script-data-lang-ts-strips.svelte	mismatch
 svelte/rsvelte/pattern/issues/var-derived-outlives-the-statement-it-declared-it.svelte	mismatch
@@ -202,4 +201,3 @@ svelte/svelteui/apps/docs/src/lib/components/homepage/AllComponents.svelte	misma
 svelte/svelteui/apps/docs/src/lib/components/mainpages/NextSteps.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/rapier/attractor/AdvancedScene.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/rapier/collision-groups/App.svelte	mismatch
-svelte/threlte/packages/extras/src/lib/components/Svg/Svg.svelte	mismatch

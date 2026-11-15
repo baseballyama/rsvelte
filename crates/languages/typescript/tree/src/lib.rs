@@ -21,7 +21,8 @@ mod builder;
 pub use builder::{Builder, Recorded, Rejected};
 mod syntax_error;
 pub use syntax_error::{
-    Acorn, Locator, SyntaxError, analysis_error, syntax_error, typescript_eslint_error,
+    Acorn, Locator, SyntaxError, TYPESCRIPT_ESLINT_CHECKS, TYPESCRIPT_ESLINT_UNCHECKED,
+    analysis_error, syntax_error, typescript_eslint_error,
 };
 
 pub mod scratch;
@@ -89,7 +90,15 @@ struct Trees<'a> {
     comments: Vec<Comment>,
     /// Boxed, so that a document with neither costs one pointer in every tree.
     rare: Option<Box<Rare>>,
-    unchecked: &'static [&'static str],
+    /// Behind a reference, so that it and the errors below take the place of one slice.
+    unchecked: &'static &'static [&'static str],
+    /// The errors oxc reported in the parts that the host lets pass and typescript-eslint throws,
+    /// in order; boxed, as almost no document has one.
+    #[expect(
+        clippy::box_collection,
+        reason = "a thin pointer keeps every tree one word smaller"
+    )]
+    unchecked_errors: Option<Box<Vec<SyntaxError>>>,
     as_acorn: bool,
 }
 
@@ -219,6 +228,17 @@ impl Tree {
         (self.0.borrow_dependent().rare.as_ref())
             .and_then(|rare| rare.acorn_rejection)
             .map(acorn_grammar::rejection)
+    }
+
+    /// The syntax errors oxc reported in the parts that the host the builder read for lets pass,
+    /// of the codes of [`TYPESCRIPT_ESLINT_CHECKS`].
+    #[must_use]
+    pub fn unchecked_errors(&self) -> &[SyntaxError] {
+        self.0
+            .borrow_dependent()
+            .unchecked_errors
+            .as_deref()
+            .map_or(&[], Vec::as_slice)
     }
 
     /// Whether the host the builder read for reports `error`, an error of an analysis of the

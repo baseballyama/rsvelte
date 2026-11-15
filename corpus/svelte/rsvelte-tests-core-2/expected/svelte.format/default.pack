@@ -7528,14 +7528,8 @@ https://svelte.dev/e/expected_pattern
 === 41 each_header_comments/legal_forms_still_parse/437e083fbbe26c5e.svelte	svelte
 {#each [1] as x, i (x)}<i>{x}</i>{/each}
 
-=== 34 each_header_comments/legal_forms_still_parse/5b30638cd1c613fd.svelte	svelte
-{#each [1] as x}<i>{x}</i>{/each}
-
 === 35 each_header_comments/legal_forms_still_parse/d73ab33c475d573e.svelte	error.txt
 unknown node type: TemplateLiteral
-
-=== 45 each_header_comments/legal_forms_still_parse/fec09272c8956d4f.svelte	svelte
-{#each [{ a: 1 }] as { a }}<i>{a}</i>{/each}
 
 === 194 each_invalidation_transform_input/a_reactive_import_is_invalidated_through_its_import_alias/04a567c09f69d433.svelte	svelte
 <script>
@@ -24049,9 +24043,6 @@ https://svelte.dev/e/directive_invalid_value
   })();
 </script>
 
-=== 4 parse_ast_comment_attachment_4133/a_comment_before_a_parenthesized_template_expression_is_dropped_with_the_parens/29a76cd13f320fec.svelte	svelte
-{a}
-
 === 73 parse_ast_comment_attachment_4133/a_comment_before_a_parenthesized_template_expression_is_dropped_with_the_parens/c0fa0bf9bc74b579.svelte	svelte
 <div
   onclick={() => {
@@ -24083,9 +24074,6 @@ https://svelte.dev/e/directive_invalid_value
 <script>
   let v = /* a */ [/* b */];
 </script>
-
-=== 4 parse_ast_comment_attachment_4133/comments_inside_or_after_parens_still_reach_the_expression/9f102071b2d1f718.svelte	svelte
-{a}
 
 === 12 parse_ast_comment_attachment_4133/comments_inside_or_after_parens_still_reach_the_expression/ca19f0471fd142cf.svelte	svelte
 {/* c */ a}
@@ -24125,13 +24113,6 @@ https://svelte.dev/e/directive_invalid_value
 <!-- c -->
 <style>
   a {
-  }
-</style>
-
-=== 48 parse_ast_official_shapes/a_hex_escape_terminator_belongs_to_the_selector_before_a_combinator/f7145fc67908ac46.svelte	svelte
-<style>
-  .\61 b {
-    color: red;
   }
 </style>
 
@@ -25157,11 +25138,6 @@ Expected token =
 https://svelte.dev/e/expected_token
 > 1 | {#if true}{@const café: T = e}{/if}
     |                   ^
-
-=== 20 parser_hardening/empty_style_selector_reports_css_expected_identifier/b88d5f3115712610.svelte	svelte
-<style>
-{}
-</style>
 
 === 28 parser_hardening/high_codepoint_type_selector_parses/09576c64dce4eb66.svelte	svelte
 <style>

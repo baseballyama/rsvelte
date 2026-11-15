@@ -4935,13 +4935,6 @@ type Type = 'type'
 </Script>
 <Style />
 
-=== 77 packages/svelte2tsx/test/svelte2tsx/samples/script-tag-in-style-comment-with-real-script/input.svelte	svelte
-<script lang="ts"></script>
-
-<style>
-  /* see the <script> block */
-</style>
-
 === 65 packages/svelte2tsx/test/svelte2tsx/samples/script-with-src/input.svelte	svelte
 <script src="./abc.js"></script>
 

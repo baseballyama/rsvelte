@@ -88,7 +88,7 @@ pub fn analysis_error(
 }
 
 /// The number of `error`'s tsc diagnostic.
-fn typescript_code(error: &OxcDiagnostic) -> Option<u32> {
+pub(crate) fn typescript_code(error: &OxcDiagnostic) -> Option<u32> {
     if error.code.scope.as_deref() != Some("TS") {
         return None;
     }
@@ -526,7 +526,9 @@ mod locator;
 mod typescript_eslint;
 
 pub(crate) use typescript_eslint::typescript_eslint_at;
-pub use typescript_eslint::typescript_eslint_error;
+pub use typescript_eslint::{
+    TYPESCRIPT_ESLINT_CHECKS, TYPESCRIPT_ESLINT_UNCHECKED, typescript_eslint_error,
+};
 
 #[cfg(test)]
 mod tests;

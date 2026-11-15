@@ -10279,12 +10279,6 @@ https://svelte.dev/e/expected_token
 
 <main>Hello</main>
 
-=== 128 rsvelte_projection/svelte2tsx/utils/htmlxparser/tests/orphan_script_fast_path_defers_raw_html_and_comments/43c7d095953ef3fb.svelte	error.txt
-Expected token }
-https://svelte.dev/e/expected_token
-> 1 | {@html "<script>raw</script>"}
-    |                               ^
-
 === 34 rsvelte_projection/svelte2tsx/utils/htmlxparser/tests/orphan_script_fast_path_defers_raw_html_and_comments/6a004e38f79e6380.svelte	svelte
 <!-- <script>comment</script> -->
 
@@ -14670,14 +14664,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 
 <button class={a}>c</button>
 
-=== 116 rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/60de768276a5f99c.svelte	svelte
-<script lang="ts">
-  import C from "./C.svelte";
-  let a: any = 1;
-</script>
-
-<button style="top: {a}px">c</button>
-
 === 99 rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/64dd8647c41e559f.svelte	svelte
 <script lang="ts">
   import C from "./C.svelte";
@@ -14745,22 +14731,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 
 <slot foo="x {a} z" />
 
-=== 113 rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/7af5e2327e6495e1.svelte	svelte
-<script lang="ts">
-  import C from "./C.svelte";
-  let a: any = 1;
-</script>
-
-<button class="x {a} z">c</button>
-
-=== 107 rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/848de04f89c4c556.svelte	svelte
-<script lang="ts">
-  import C from "./C.svelte";
-  let a: any = 1;
-</script>
-
-<button class={a}>c</button>
-
 === 117 rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/8ebc6452ea908abd.svelte	svelte
 <script lang="ts">
   import C from "./C.svelte";
@@ -14808,14 +14778,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 >
 
 === 129 rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/b86da3df3c2f1b51.svelte	svelte
-<script lang="ts">
-  import C from "./C.svelte";
-  let a: any = 1;
-</script>
-
-<C><button slot="s" class="x {a} z">c</button></C>
-
-=== 129 rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/c3bb76f94f2a54ad.svelte	svelte
 <script lang="ts">
   import C from "./C.svelte";
   let a: any = 1;
@@ -14883,22 +14845,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 
 <button class="x {a} z">c</button>
 
-=== 99 rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/e930c16638623224.svelte	svelte
-<script lang="ts">
-  import C from "./C.svelte";
-  let a: any = 1;
-</script>
-
-<C name="x {a} z" />
-
-=== 107 rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/ece574aedc893546.svelte	svelte
-<script lang="ts">
-  import C from "./C.svelte";
-  let a: any = 1;
-</script>
-
-<button class={a}>c</button>
-
 === 126 rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/ee6daba25cdf9c15.svelte	svelte
 <script lang="ts">
   import C from "./C.svelte";
@@ -14914,17 +14860,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 </script>
 
 <button class={a}>c</button>
-
-=== 101 rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/f8c02f47bdc31d8c.svelte	svelte
-<script lang="ts">
-  import C from "./C.svelte";
-  let a: any = 1;
-</script>
-
-<slot foo="x {a} z" />
-
-=== 15 rsvelte_projection/svelte2tsx_mustache_source_range/a_comment_between_the_braces_is_kept/102a23729bba7ddb.svelte	svelte
-<div>{a}</div>
 
 === 19 rsvelte_projection/svelte2tsx_mustache_source_range/a_plain_expression_tag_is_still_a_bare_statement/65ca538b635761b7.svelte	svelte
 <div>{count}</div>
