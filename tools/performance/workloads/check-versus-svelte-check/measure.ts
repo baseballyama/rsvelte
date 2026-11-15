@@ -1,13 +1,15 @@
 // `measure.ts --id <name> --project <dir> --tsconfig <relative> --language-tools <dir>
 //   --tools <dir> --rsvelte <binary> --mapper <binary> --out <file.json> [--rounds 10]
-//   [--warmup 2] [--cold 3] [--seed 1] [--expect-synthetic <components>] [--arms a,b]`
+//   [--warmup 2] [--cold 3] [--seed 1] [--expect-synthetic <components>] [--arms a,b]
+//   [--main-check <binary>]`
 // times every arm (`ARMS`) on one project and writes every sample and diagnostic to `--out`.
 //
 // Each round runs every arm once, in an order shuffled with `--seed`, so drift on the runner lands
 // on all arms alike and two arms can be paired by round. `--warmup` rounds are not recorded.
 // `--cold` rounds drop the page cache before each run. A run that does not finish, or whose
 // diagnostics differ from its arm's first run, is recorded as broken and never averaged.
-// `--expect-synthetic` asserts that every arm reports exactly the injected errors.
+// `--expect-synthetic` asserts that every arm reports exactly the injected errors. Arm `main-tsgo`
+// runs `main`'s `svelte_check` that `--main-check` names, and runs by default only when it is given.
 import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -27,6 +29,7 @@ const ARMS = [
 	'rsvelte-tsgo',
 	'rsvelte-tsrs',
 	'rsvelte-tsrs-fast',
+	'main-tsgo',
 ] as const;
 type ArmName = (typeof ARMS)[number];
 
@@ -55,8 +58,13 @@ const tools = path.resolve(option('tools'), 'node_modules');
 const rsvelte = path.resolve(option('rsvelte'));
 const mapper = path.resolve(option('mapper'));
 const out = path.resolve(option('out'));
-const selected = (options.arms ?? ARMS.join(',')).split(',').filter(Boolean) as ArmName[];
+const mainCheck = options['main-check'] ? path.resolve(options['main-check']) : null;
+const selected = (options.arms ?? ARMS.filter((arm) => arm !== 'main-tsgo' || mainCheck).join(','))
+	.split(',')
+	.filter(Boolean) as ArmName[];
 for (const arm of selected) if (!ARMS.includes(arm)) throw new Error(`unknown arm ${arm}`);
+if (selected.includes('main-tsgo') && !mainCheck)
+	throw new Error('arm main-tsgo needs --main-check');
 
 const readJson = (file: string) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const versionOf = (directory: string): string =>
@@ -103,6 +111,7 @@ for (const file of [
 	path.join(svelteCheckPublished, 'bin/svelte-check'),
 	rsvelte,
 	mapper,
+	...(mainCheck ? [mainCheck] : []),
 ])
 	if (!fs.existsSync(file)) throw new Error(`missing ${file}`);
 if (!fs.existsSync(tsconfig)) throw new Error(`no tsconfig at ${tsconfig}`);
@@ -282,6 +291,15 @@ const arms: Record<ArmName, Arm> = {
 		...rsvelteArm(tsrsNative, nativeVersion(tsrsNative), { TSRS_FAST: '1' }, files),
 		label: 'rsvelte, Rust content mapper, tsrs TSRS_FAST=1, files from tsgo',
 	},
+	// `main`'s svelte-check port writes svelte2tsx-like files and runs tsgo on them.
+	'main-tsgo': {
+		label: 'main svelte_check --tsgo',
+		program: mainCheck ?? '',
+		arguments: [...svelteCheck, '--tsconfig', tsconfig, '--tsgo', ...sources],
+		env: { TSGO_BIN: ts7Native },
+		typescript: nativeVersion(ts7Native),
+		parse: parseSvelteCheck,
+	},
 };
 
 const env = {
@@ -296,6 +314,7 @@ const env = {
 	rsvelteRevision: process.env.RSVELTE_REVISION ?? null,
 	rsvelteSha256: sha256(rsvelte),
 	mapperSha256: sha256(mapper),
+	mainCheckSha256: mainCheck && sha256(mainCheck),
 	languageToolsRevision: output('git', ['-C', languageTools, 'rev-parse', 'HEAD']).stdout.trim(),
 	svelteCheckTs7Sha256: sha256(languageToolsCli),
 	officialMapperSha256: sha256(path.join(mapperDirectory, 'dist/server.js')),
@@ -479,6 +498,8 @@ const PAIRS: [ArmName, ArmName][] = [
 	['svelte-check-tsgo', 'rsvelte-tsrs'],
 	['svelte-check-ts6', 'svelte-check-tsgo'],
 	['svelte-check-ts6', 'rsvelte-tsrs'],
+	['main-tsgo', 'rsvelte-tsgo'],
+	['svelte-check-tsgo', 'main-tsgo'],
 ];
 const byCode = (list: Diagnostic[]) => {
 	const counts: Record<string, number> = {};
