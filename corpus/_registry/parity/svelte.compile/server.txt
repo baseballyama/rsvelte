@@ -1,8 +1,7 @@
-# svelte.compile/server: 35116 match
+# svelte.compile/server: 35118 match
 svelte/rsvelte-tests-core-1/bind_host_axis_3264/legal_bindings_still_compile_on_every_host/e2b7a8af8920172b.svelte	refused
 svelte/rsvelte-tests-core-1/bindable_rune_default_3615/rune_identifier_defaults_are_proxied_lazily/0a4afed7c6de59de.svelte	mismatch
 svelte/rsvelte-tests-core-1/bindable_rune_default_3615/rune_identifier_defaults_are_proxied_lazily/dedb2969507c2d84.svelte	mismatch
-svelte/rsvelte-tests-core-2/direct_component_parent_3141/const_tag_placement_still_separates_the_two/4538b5b50e0bf370.svelte	unexpected
 svelte/rsvelte-tests-core-2/early_errors_3243/the_analyze_phase_duplicate_check_is_still_reachable/d6fd0ea8bba6d45d.svelte	unexpected
 svelte/rsvelte-tests-core-2/inspect_operand_slot_3441/a_with_inspect_initializer_on_server_dev/c295403bf92ffd40.svelte	refused
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/block_markers_reject_a_nel/d17180b037ec6515.svelte	mismatch
@@ -25,4 +24,3 @@ svelte/rsvelte/lint/no-inspect/03-template.svelte	refused
 svelte/rsvelte/lint/no-not-function-handler/04-const-chain.svelte	unexpected
 svelte/rsvelte/pattern/adversarial/snippets/rejected-slot-snippet-conflict.svelte	mismatch
 svelte/rsvelte/pattern/issues/3124-slot-snippet-conflict-span.svelte	mismatch
-svelte/rsvelte/pattern/issues/3141-const-in-svelte-self.svelte	unexpected
