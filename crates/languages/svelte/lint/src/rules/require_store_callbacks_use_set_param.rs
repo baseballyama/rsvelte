@@ -6,6 +6,9 @@ use super::nodes::span;
 use super::svelte_store::{Function, Scopes, rename, store_calls};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
+#[cfg(test)]
+mod tests;
+
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/require-store-callbacks-use-set-param",
     files: Files::All,
@@ -37,31 +40,32 @@ impl SvelteRule for RequireStoreCallbacksUseSetParam {
                 continue;
             };
             let parameters = function.parameters;
-            let parameter = match parameters.items.first() {
-                Some(parameter) => match &parameter.pattern {
+            let parameter = match (function.this, parameters.items.first()) {
+                (Some(this), _) => Some((this, "this")),
+                (None, Some(parameter)) => match &parameter.pattern {
                     // A default value makes the parameter a pattern, not a name.
                     BindingPattern::BindingIdentifier(identifier)
                         if parameter.initializer.is_none() && identifier.name != "set" =>
                     {
-                        Some(identifier)
+                        Some((identifier.span, identifier.name.as_str()))
                     }
                     _ => continue,
                 },
-                None if parameters.rest.is_some() => continue,
-                None => None,
+                (None, None) if parameters.rest.is_some() => continue,
+                (None, None) => None,
             };
-            let name = parameter.map(|identifier| identifier.name.as_str());
+            let name = parameter.map(|(_, name)| name);
             let mut report = Report::range(
                 "Store callbacks must use `set` param.",
                 span(&function.span),
             )
             .message_id("unexpected");
             if let Ok(symbol) = scopes.replaceable(file, function, name, "set") {
-                if let (Some(parameter), Some(name)) = (parameter, name) {
+                if let Some((at, name)) = parameter {
                     report = report.suggest(Suggestion {
                         message_id: Some("updateParam".into()),
                         message: format!("Rename parameter from {name} to `set`."),
-                        fix: rename(file, span(parameter.as_ref()), symbol, "set"),
+                        fix: rename(file, span(&at), symbol, "set"),
                     });
                 } else if let Some(open) =
                     open_parenthesis_before(file.source(), parameters.span.start, function.body)

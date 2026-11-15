@@ -1,4 +1,4 @@
-# svelte.lint/default: 37063 match
+# svelte.lint/default: 37064 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -595,7 +595,6 @@ svelte/rsvelte/lint/prefer-destructured-store-props/17-const-tag-and-let.svelte	
 svelte/rsvelte/lint/prefer-style-directive/13-comment-string-interleave.svelte	mismatch
 svelte/rsvelte/lint/prefer-style-directive/14-escape-boundaries.svelte	mismatch
 svelte/rsvelte/lint/require-optimized-style-attribute/13-comment-shapes.svelte	mismatch
-svelte/rsvelte/lint/require-store-callbacks-use-set-param/12-ts-this-param.svelte	mismatch
 svelte/rsvelte/lint/require-store-reactive-access/06-directives.svelte	mismatch
 svelte/rsvelte/lint/require-stores-init/10-destructured-namespace.svelte	mismatch
 svelte/rsvelte/lint/shorthand-directive/opt-key-prefer-always-explicit.svelte	mismatch
