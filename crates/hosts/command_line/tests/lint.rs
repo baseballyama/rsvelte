@@ -52,7 +52,7 @@ fn lint_reports_the_files_below_the_directory_as_eslint_does() {
     assert_eq!(output.status.code(), Some(1), "{stdout}");
     assert!(stdout.contains("App.svelte\n"), "{stdout}");
     assert!(
-        stdout.contains("2:7  error  'unused' is assigned a value but never used."),
+        stdout.contains("2:7  error  'unused' is assigned a value but never used  no-unused-vars"),
         "{stdout}"
     );
     assert!(stdout.contains("no-unused-vars"), "{stdout}");
@@ -62,7 +62,7 @@ fn lint_reports_the_files_below_the_directory_as_eslint_does() {
     );
     assert!(!stdout.contains("Clean.svelte"), "{stdout}");
     assert!(
-        stdout.ends_with("\u{2716} 1 problem (1 error, 0 warnings)\n"),
+        stdout.ends_with("\u{2716} 1 problem (1 error, 0 warnings)\n\n"),
         "{stdout}"
     );
 }
@@ -73,4 +73,22 @@ fn lint_of_a_clean_file_prints_nothing() {
     let output = project.lint(&["src/Clean.svelte"]);
     assert_eq!(output.status.code(), Some(0));
     assert_eq!(String::from_utf8_lossy(&output.stdout), "");
+}
+
+#[test]
+fn lint_orders_files_and_aligns_positions_as_stylish_does() {
+    let project = Project::new();
+    let file = project.0.join("src-a/Two.svelte");
+    std::fs::create_dir_all(file.parent().expect("a parent")).expect("directory");
+    let text = "<script>\n  let a = 1;\n\n\n\n\n\n\n\n        let bb = 2;\n</script>\n";
+    std::fs::write(file, text).expect("file");
+    let output = project.lint(&[]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let two = stdout
+        .find("src-a/Two.svelte")
+        .expect("Two.svelte is listed");
+    let app = stdout.find("src/App.svelte").expect("App.svelte is listed");
+    assert!(two < app, "`-` sorts before `/`: {stdout}");
+    assert!(stdout.contains("\n   2:7   error  "), "{stdout}");
+    assert!(stdout.contains("\n  10:13  error  "), "{stdout}");
 }
