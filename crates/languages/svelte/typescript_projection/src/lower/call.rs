@@ -145,8 +145,12 @@ impl Builder<'_> {
                 at: tag_start,
             }),
             Some((a, AttributeValue::Parts(parts))) => match self.component.parts(parts) {
-                &[Part::Text(text)] => {
-                    let text = self.tree.push(Node::Text(text));
+                // svelte-check reports a name `$$Slots` lacks at the name.
+                [Part::Text(text)] if !text.text(self.source).contains(['"', '\\', '\n', '\r']) => {
+                    self.tree.push(Node::QuotedText(*text))
+                }
+                [Part::Text(text)] => {
+                    let text = self.tree.push(Node::Text(*text));
                     let parts = self.tree.list(&[text]);
                     self.tree.push(Node::String {
                         parts,
