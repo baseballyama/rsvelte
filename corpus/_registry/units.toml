@@ -4770,3 +4770,15 @@
 
 ["svelte/rsvelte/lint/sort-attributes/22-this-controls.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a comment in `<svelte:element this={...}>` again after the attribute when another attribute follows, and once more on every pass"
+
+["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/6feaf383fddfb677.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+
+["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/a048d6180b48cb18.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+
+["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/a5712ab853e3a0de.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+
+["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/d214dcf990e39fa6.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"

@@ -34147,48 +34147,6 @@ https://svelte.dev/e/expected_token
 
 {k}
 
-=== 116 ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/6feaf383fddfb677.svelte	svelte
-<script module lang="ts">
-  function f(...p: string[]) {}
-</script>
-
-<script lang="ts">
-  let k = 1;
-</script>
-
-{k}
-
-=== 79 ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/a048d6180b48cb18.svelte	svelte
-<script lang="ts">
-  function f(...p: string[]) {}
-  let k = 1;
-</script>
-
-{k}
-
-=== 88 ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/a5712ab853e3a0de.svelte	svelte
-<script lang="ts">
-  class C {
-    m(...p: string[]) {}
-  }
-  let k = 1;
-</script>
-
-{k}
-
-=== 125 ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/d214dcf990e39fa6.svelte	svelte
-<script module lang="ts">
-  class C {
-    m(...p: string[]) {}
-  }
-</script>
-
-<script lang="ts">
-  let k = 1;
-</script>
-
-{k}
-
 === 91 ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/fac06b787974b4dc.svelte	svelte
 <script lang="ts">
   declare function h(...p: string[]): void;
