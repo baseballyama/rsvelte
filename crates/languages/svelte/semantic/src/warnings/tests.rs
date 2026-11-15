@@ -36,7 +36,7 @@ fn compiled_with_errors(
         resolution,
         analysis,
         code,
-        "Test.svelte",
+        Some("Test.svelte"),
         options,
     );
     let warnings = found

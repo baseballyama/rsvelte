@@ -303,8 +303,8 @@ impl Options {
     }
 }
 
-/// The warnings of `component` from the file `filename`; `analysis` is needed only for its
-/// style sheet.
+/// The warnings of `component` from the file `filename`, `None` when the caller names no file;
+/// `analysis` is needed only for its style sheet.
 #[must_use]
 pub fn warnings(
     component: &Component,
@@ -312,7 +312,7 @@ pub fn warnings(
     resolution: &Resolution,
     analysis: Option<&Analysis>,
     source: &str,
-    filename: &str,
+    filename: Option<&str>,
     options: Options,
 ) -> CompileWarnings {
     let mut out = CompileWarnings {
@@ -351,8 +351,17 @@ pub fn warnings(
         &mut found,
     );
     custom_element(component, resolution, source, &mut found);
-    let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
-    let name = rsvelte_svelte_syntax::names::component_name(filename);
+    // Upstream names an unknown file `Self.svelte`.
+    let (name, basename) = filename.map_or_else(
+        || ("Self".to_owned(), "Self.svelte"),
+        |filename| {
+            let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
+            (
+                rsvelte_svelte_syntax::names::component_name(filename),
+                basename,
+            )
+        },
+    );
     let mut template = Template::new(
         template::Context {
             component,

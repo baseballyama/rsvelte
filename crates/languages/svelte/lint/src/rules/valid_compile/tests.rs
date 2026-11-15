@@ -442,3 +442,13 @@ fn an_await_outside_an_async_function_fails_the_parse_in_either_mode() {
         error
     );
 }
+
+#[test]
+fn names_the_component_self_as_a_compile_without_a_filename_does() {
+    let found = lint("<script>\n  let x = $state(0);\n</script>\n{#if x}<svelte:self />{/if}\n");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(
+        found[0].2.contains("`import Self from './Self.svelte'`"),
+        "{found:?}"
+    );
+}

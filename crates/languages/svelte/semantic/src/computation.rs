@@ -85,7 +85,8 @@ impl Artifact for Warned {
             res,
             analysis,
             context.source_text(),
-            &context.document.path,
+            // eslint-plugin-svelte compiles without a filename.
+            None,
             crate::warnings::Options::linting(c, context.source_text()),
         ))
     }
