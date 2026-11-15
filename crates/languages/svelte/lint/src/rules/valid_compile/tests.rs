@@ -452,3 +452,27 @@ fn names_the_component_self_as_a_compile_without_a_filename_does() {
         "{found:?}"
     );
 }
+
+#[test]
+fn reports_the_validation_errors_upstream_raises_in_legacy_mode() {
+    assert_eq!(
+        codes("<Test a={$store.a} />\n"),
+        [("global_reference_invalid".to_owned(), 1, 9)]
+    );
+    assert_eq!(
+        codes("{#each [1] as item}{@const a = item}{@const a = item}{/each}\n"),
+        [("declaration_duplicate".to_owned(), 1, 44)]
+    );
+}
+
+#[test]
+fn leaves_out_the_validation_errors_upstream_raises_only_in_runes_mode() {
+    assert_eq!(
+        codes("{#each [1, 2] as item}<input bind:value={item}>{/each}\n"),
+        []
+    );
+    assert_eq!(
+        codes("<script>\n  import { noop } from 'svelte/internal';\n  noop();\n</script>\n"),
+        []
+    );
+}

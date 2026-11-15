@@ -120,48 +120,47 @@ impl Artifact for Validated {
 }
 
 /// The errors `compile` raises for the component that this port knows, without what it does not
-/// lower yet; `runes` adds those upstream raises only in runes mode, ahead of the analysis's.
+/// lower yet; without `runes`, those upstream raises only in runes mode are left out.
 #[must_use]
 pub fn compile_errors(context: &DocumentContext<'_>, runes: bool) -> CompileErrors {
-    if runes {
-        match context.get::<Validated>() {
-            Ok(options) => {
-                let (Some(input), Some(res)) = (
-                    component_input(context),
-                    context.get::<rsvelte_svelte_semantic::Resolved>().as_ref(),
-                ) else {
-                    return CompileErrors::default();
-                };
-                let raised = crate::lower::rune_error(&input.into(), res, options)
-                    .filter(|(_, error)| error.code != UNSUPPORTED)
-                    .into_iter()
-                    .collect();
-                return CompileErrors {
-                    raised,
-                    after_analysis: None,
-                };
-            }
-            Err(error) if error.code != UNSUPPORTED && !GENERATED.contains(&&*error.code) => {
-                let raised = Raised {
-                    phase: Phase::Parse,
-                    section: Section::Template,
-                    at: 0,
-                };
-                return CompileErrors {
-                    raised: vec![(raised, error.clone())],
-                    after_analysis: None,
-                };
-            }
-            // The checks after it still run.
-            Err(_) => {}
+    // A style sheet that does not parse leaves no input, though lint may strip that style.
+    let (Some(input), Some(res)) = (
+        component_input(context),
+        context.get::<rsvelte_svelte_semantic::Resolved>().as_ref(),
+    ) else {
+        return CompileErrors::default();
+    };
+    // Validation assumes runes mode, as every compile here runs in it.
+    let lint_raises = |error: &Diagnostic| {
+        error.code != UNSUPPORTED
+            && !GENERATED.contains(&&*error.code)
+            && (runes || !RUNES_ONLY.contains(&&*error.code))
+    };
+    match context.get::<Validated>() {
+        Ok(options) => {
+            let raised = crate::lower::rune_error(&input.into(), res, options)
+                .filter(|(_, error)| lint_raises(error))
+                .into_iter()
+                .collect();
+            return CompileErrors {
+                raised,
+                after_analysis: None,
+            };
         }
+        Err(error) if lint_raises(error) => {
+            let raised = Raised {
+                phase: Phase::Parse,
+                section: Section::Template,
+                at: 0,
+            };
+            return CompileErrors {
+                raised: vec![(raised, error.clone())],
+                after_analysis: None,
+            };
+        }
+        // The checks after it still run.
+        Err(_) => {}
     }
-    let Some(input) = component_input(context) else {
-        return CompileErrors::default();
-    };
-    let Some(res) = context.get::<rsvelte_svelte_semantic::Resolved>().as_ref() else {
-        return CompileErrors::default();
-    };
     let mut errors = crate::lower::mode_independent_errors(&input.into(), res);
     errors.raised.retain(|(_, error)| error.code != UNSUPPORTED);
     errors.after_analysis = errors
@@ -186,7 +185,26 @@ const UNSUPPORTED: &str = "unsupported";
 
 /// The errors of [`Validated`] that upstream raises as it generates code, which
 /// `generate: false` skips.
-const GENERATED: &[&str] = &["const_tag_invalid_reference"];
+const GENERATED: &[&str] = &["const_tag_invalid_reference", "const_tag_cycle"];
+
+/// What validation raises that upstream's analysis raises only in runes mode; the analysis's
+/// own `$` name checks cover legacy mode.
+const RUNES_ONLY: &[&str] = &[
+    "attribute_invalid_sequence_expression",
+    "attribute_unquoted_sequence",
+    "block_unexpected_character",
+    "dollar_binding_invalid",
+    "dollar_prefix_invalid",
+    "duplicate_class_field",
+    "each_item_invalid_assignment",
+    "import_svelte_internal_forbidden",
+    "legacy_export_invalid",
+    "legacy_props_invalid",
+    "legacy_reactive_statement_invalid",
+    "legacy_rest_props_invalid",
+    "state_field_duplicate",
+    "state_field_invalid_assignment",
+];
 
 /// Registers what [`compile_errors`] reads.
 pub fn register_validation(registry: &mut Registry) {
