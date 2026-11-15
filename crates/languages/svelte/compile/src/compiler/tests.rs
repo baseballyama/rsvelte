@@ -99,3 +99,29 @@ fn compile_module_reads_javascript_whatever_the_name_says() {
     );
     compiled("a.svelte.ts", "let a: number = 1;\n").expect_err("a type is not JavaScript");
 }
+
+#[test]
+fn a_module_file_store_subscription_is_the_module_error() {
+    // Expected codes and offsets from svelte 5.57.3 `compileModule`.
+    for generate in [Target::Client, Target::Server] {
+        let compiled = |source: &str| {
+            let options = ModuleCompileOptions {
+                filename: "a.svelte.js".to_owned(),
+                generate,
+            };
+            compile_module(source, &options)
+        };
+        let error = compiled("import { store } from 'somewhere';\n\nconsole.log($store);")
+            .expect_err("a module has no component to subscribe in");
+        assert_eq!(error.code, "store_invalid_subscription_module");
+        assert_eq!(
+            error.message,
+            "Cannot reference store value outside a `.svelte` file\nhttps://svelte.dev/e/store_invalid_subscription_module"
+        );
+        assert_eq!((error.span.start_offset, error.span.end_offset), (48, 54));
+        // A rune is not a subscription, even when the module declares its name.
+        compiled("let state = 1;\nexport const a = $state(state);\n").expect("compiles");
+        // A `$name` the module does not declare is a global, as upstream's module loop leaves it.
+        compiled("console.log($undeclared);\n").expect("compiles");
+    }
+}
