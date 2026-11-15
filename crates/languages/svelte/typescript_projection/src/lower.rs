@@ -427,6 +427,11 @@ impl Builder<'_> {
         let properties = self.finish_list(start);
         let properties = self.tree.push(Node::Object { properties });
         let (call, named) = if is_component {
+            // svelte-check reports a finding on all of a component's props at its name.
+            let properties = self.tree.push(Node::Located {
+                value: properties,
+                at: name,
+            });
             let component = match component {
                 Some(component) => self.expression_source(component, None),
                 None => self.tree.push(Node::AnyComponent),

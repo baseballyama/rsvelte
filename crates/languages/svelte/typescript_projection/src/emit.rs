@@ -137,7 +137,7 @@ impl Printer<'_> {
                 body,
             } => self.for_of(binding, iterable, body),
             Node::Assignment { target, value } => self.assignment(target, value),
-            Node::Object { properties } => self.object(properties),
+            Node::Object { properties } => self.object(properties, None),
             Node::Block { body } => {
                 self.output.push("{\n");
                 self.body(body);
@@ -213,6 +213,17 @@ impl Printer<'_> {
                 self.output.copy(self.source, span);
                 self.output.mark(span.end_offset);
             }
+            Node::QuotedText(span) => {
+                let start = self.output.out.len() as u32;
+                for part in ["\"", span.text(self.source), "\""] {
+                    self.output.push(part);
+                }
+                self.output.atom_since(start, span);
+            }
+            Node::Located { value, at } => match self.tree.node(value) {
+                Node::Object { properties } => self.object(properties, Some(at)),
+                _ => self.node(value),
+            },
             Node::StoreSubscription(store) => self.store_subscription(store),
             Node::GeneratedIdentifier { prefix, index } => {
                 self.node(prefix);
@@ -472,13 +483,19 @@ impl Printer<'_> {
         self.indentation();
     }
 
-    fn object(&mut self, properties: Range) {
+    /// The object of `properties`, whose braces map to `at`, so that a finding on all of it does.
+    fn object(&mut self, properties: Range, at: Option<Span>) {
+        let brace = |output: &mut Emitter, text: &str| match at {
+            Some(at) => output.atom(text, at),
+            None => output.push(text),
+        };
         if self.tree.children(properties).is_empty() {
-            self.output.push("{}");
+            brace(&mut self.output, "{}");
         } else {
-            self.output.push("{\n");
+            brace(&mut self.output, "{");
+            self.output.push("\n");
             self.body(properties);
-            self.output.push("}");
+            brace(&mut self.output, "}");
         }
     }
 

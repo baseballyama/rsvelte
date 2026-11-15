@@ -1,4 +1,4 @@
-# svelte.check/default: 34952 match
+# svelte.check/default: 34955 match
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte	mismatch
 svelte/appwrite-console/src/routes/(public)/auth/preview/+page.svelte	mismatch
@@ -13,12 +13,10 @@ svelte/kite-public/src/lib/components/contribute/ContributeHistory.svelte	mismat
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events-usage/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots-usage/input.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/element-events/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/input.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/implicit-snippet.v5/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/pug/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/snippet-js.v5/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	mismatch
@@ -27,7 +25,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/typechecks-js-with-ts-check/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-checkJs-module.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/component-props-completion-rune.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	mismatch
 svelte/layerchart/packages/layerchart/src/lib/components/ChartChildren/ChartChildren.base.svelte	mismatch
 svelte/layerchart/packages/layerchart/src/lib/components/charts/__fixtures__/ArcChartTooltip.svelte	mismatch

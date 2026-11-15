@@ -159,6 +159,13 @@ pub enum Node {
         template: bool,
     },
     Text(Span),
+    /// `value`, where a finding on all of it maps to `at`, and a finding inside it as usual.
+    Located {
+        value: NodeIdentifier,
+        at: Span,
+    },
+    /// Text that needs no escape as a string literal, which a finding on the literal locates.
+    QuotedText(Span),
     /// Source text without a mapping, so neither findings nor typed lint see this copy.
     UnmappedSource(Span),
     /// A `$$Generic` alias as svelte2tsx's unmapped type parameter, `name extends constraint`.
