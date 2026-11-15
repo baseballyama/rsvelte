@@ -1,10 +1,12 @@
 use std::cell::{Cell, RefCell};
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{BindingIdentifier, Expression, Program};
+use oxc_ast::ast::{
+    AssignmentTarget, AssignmentTargetMaybeDefault, AssignmentTargetProperty, BindingIdentifier,
+    Expression, Program,
+};
 use oxc_ast::builder::AstBuilder;
 use oxc_semantic::{Host, HostVisitor, ScopeFlags, ScopeId, SymbolFlags};
-use oxc_span::GetSpan;
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier, Tree,
     TypeParametersIdentifier,
@@ -33,6 +35,8 @@ pub(super) struct ComponentHost<'t, 'a> {
 pub(super) struct Names<'a> {
     snippets: FxHashMap<CompilerNodeIdentifier, &'a BindingIdentifier<'a>>,
     lets: FxHashMap<AttributeIdentifier, Vec<&'a BindingIdentifier<'a>>>,
+    /// The `let:` names under a default value, which assigns them where they are declared.
+    defaulted_lets: Vec<&'a BindingIdentifier<'a>>,
     /// The type parameters of snippets, which their own scopes declare.
     snippet_generics: FxHashSet<TypeParametersIdentifier>,
 }
@@ -48,6 +52,7 @@ impl<'a> Names<'a> {
         let mut names = Self {
             snippets: FxHashMap::default(),
             lets: FxHashMap::default(),
+            defaulted_lets: Vec::new(),
             snippet_generics: FxHashSet::default(),
         };
         for (identifier, node) in compiler_syntax_tree.nodes.iter_enumerated() {
@@ -67,11 +72,16 @@ impl<'a> Names<'a> {
                         };
                         let mut bindings = Vec::new();
                         if let Some(value) = value {
-                            let mut add = |span: oxc_span::Span, name: &'a str| {
-                                let binding = BindingIdentifier::new(span, name, &nodes);
-                                bindings.push(&*allocator.alloc(binding));
+                            let defaulted = &mut names.defaulted_lets;
+                            let mut add = |span: oxc_span::Span, name: &'a str, default: bool| {
+                                let binding =
+                                    &*allocator.alloc(BindingIdentifier::new(span, name, &nodes));
+                                bindings.push(binding);
+                                if default {
+                                    defaulted.push(binding);
+                                }
                             };
-                            for_each_target(tree.get_expression(value), &mut add);
+                            for_each_target(tree.get_expression(value), false, &mut add);
                         } else {
                             let span = match &a.name {
                                 Name::Source(span) | Name::Spelled { span, .. } => *span,
@@ -113,22 +123,32 @@ impl<'a> Names<'a> {
                     )
                 })
                 .collect(),
+            defaulted_lets: self
+                .defaulted_lets
+                .iter()
+                .filter_map(|b| symbol(b))
+                .collect(),
         }
     }
 }
 
-/// Upstream `extract_identifiers` of a `let:` value, which is written as an expression.
-fn for_each_target<'a>(e: &'a Expression<'a>, f: &mut impl FnMut(oxc_span::Span, &'a str)) {
+/// Upstream `extract_identifiers` of a `let:` value, which is written as an expression; `default`
+/// says the name sits under a default value.
+fn for_each_target<'a>(
+    e: &'a Expression<'a>,
+    default: bool,
+    f: &mut impl FnMut(oxc_span::Span, &'a str, bool),
+) {
     match e {
-        Expression::Identifier(identifier) => f(identifier.span, identifier.name.as_str()),
+        Expression::Identifier(identifier) => f(identifier.span, identifier.name.as_str(), default),
         Expression::ObjectExpression(object) => {
             for property in &object.properties {
                 match property {
                     oxc_ast::ast::ObjectPropertyKind::ObjectProperty(p) => {
-                        for_each_target(&p.value, f);
+                        for_each_target(&p.value, default, f);
                     }
                     oxc_ast::ast::ObjectPropertyKind::SpreadProperty(s) => {
-                        for_each_target(&s.argument, f);
+                        for_each_target(&s.argument, default, f);
                     }
                 }
             }
@@ -137,23 +157,79 @@ fn for_each_target<'a>(e: &'a Expression<'a>, f: &mut impl FnMut(oxc_span::Span,
             for element in &array.elements {
                 match element {
                     oxc_ast::ast::ArrayExpressionElement::SpreadElement(s) => {
-                        for_each_target(&s.argument, f);
+                        for_each_target(&s.argument, default, f);
                     }
                     oxc_ast::ast::ArrayExpressionElement::Elision(_) => {}
                     element => {
                         if let Some(e) = element.as_expression() {
-                            for_each_target(e, f);
+                            for_each_target(e, default, f);
                         }
                     }
                 }
             }
         }
         Expression::AssignmentExpression(assignment) => {
-            if let Some(target) = assignment.left.get_identifier_name() {
-                f(assignment.left.span(), target);
+            for_each_assigned(&assignment.left, true, f);
+        }
+        _ => {}
+    }
+}
+
+/// [`for_each_target`] of the pattern on the left of a default value.
+fn for_each_assigned<'a>(
+    target: &'a AssignmentTarget<'a>,
+    default: bool,
+    f: &mut impl FnMut(oxc_span::Span, &'a str, bool),
+) {
+    match target {
+        AssignmentTarget::AssignmentTargetIdentifier(identifier) => {
+            f(identifier.span, identifier.name.as_str(), default);
+        }
+        AssignmentTarget::ObjectAssignmentTarget(object) => {
+            for property in &object.properties {
+                match property {
+                    AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(p) => {
+                        f(
+                            p.binding.span,
+                            p.binding.name.as_str(),
+                            default || p.init.is_some(),
+                        );
+                    }
+                    AssignmentTargetProperty::AssignmentTargetPropertyProperty(p) => {
+                        for_each_maybe_default(&p.binding, default, f);
+                    }
+                }
+            }
+            if let Some(rest) = &object.rest {
+                for_each_assigned(&rest.target, default, f);
+            }
+        }
+        AssignmentTarget::ArrayAssignmentTarget(array) => {
+            for element in array.elements.iter().flatten() {
+                for_each_maybe_default(element, default, f);
+            }
+            if let Some(rest) = &array.rest {
+                for_each_assigned(&rest.target, default, f);
             }
         }
         _ => {}
+    }
+}
+
+fn for_each_maybe_default<'a>(
+    target: &'a AssignmentTargetMaybeDefault<'a>,
+    default: bool,
+    f: &mut impl FnMut(oxc_span::Span, &'a str, bool),
+) {
+    match target {
+        AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(it) => {
+            for_each_assigned(&it.binding, true, f);
+        }
+        target => {
+            if let Some(target) = target.as_assignment_target() {
+                for_each_assigned(target, default, f);
+            }
+        }
     }
 }
 

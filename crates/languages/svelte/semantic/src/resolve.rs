@@ -13,7 +13,7 @@ use oxc_semantic::{ReferenceId, ScopeId, Scoping, SymbolFlags, SymbolId};
 use oxc_span::{GetSpan, Span};
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::compiler_syntax_tree::{
     AttributeIdentifier, CompilerNodeIdentifier, CompilerSyntaxTree,
@@ -68,6 +68,7 @@ pub struct BindingInformation<'a> {
 pub(crate) struct TemplateNames {
     pub(crate) snippets: FxHashMap<CompilerNodeIdentifier, SymbolId>,
     pub(crate) lets: FxHashMap<AttributeIdentifier, Vec<SymbolId>>,
+    pub(crate) defaulted_lets: FxHashSet<SymbolId>,
 }
 
 /// `symbol` unless only `declare` declarations make it: upstream strips them before its analysis.
@@ -297,6 +298,17 @@ impl Resolution {
             .lets
             .get(&attribute)
             .map_or(&[], Vec::as_slice)
+    }
+
+    /// Whether `symbol` is a `let:` name under a default value, which assigns it where the
+    /// directive declares it.
+    #[must_use]
+    pub fn let_name_has_default(&self, symbol: SymbolId) -> bool {
+        self.0
+            .borrow_dependent()
+            .names
+            .defaulted_lets
+            .contains(&symbol)
     }
 
     /// The instance calls `$props()` (upstream `needs_props`).

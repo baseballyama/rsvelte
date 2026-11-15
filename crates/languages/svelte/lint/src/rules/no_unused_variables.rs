@@ -58,6 +58,10 @@ fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
         |symbol| !skipped.contains(&symbol),
         |symbol| reads.get(&symbol).map_or(&[], Vec::as_slice),
         |symbol| bodies.get(&symbol).copied(),
+        |symbol| {
+            file.resolution()
+                .is_some_and(|r| r.let_name_has_default(symbol))
+        },
         reporter,
     );
     reactive_declarations(file, reporter);

@@ -87,6 +87,7 @@ impl<'a> Rule<RuleContext<'a>> for NoUnusedVariables {
             |symbol| !aliases.contains(&symbol),
             |_| &[],
             |_| None,
+            |_| false,
             reporter,
         );
     }
