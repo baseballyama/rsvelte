@@ -39,6 +39,8 @@ pub struct Conformance {
     out_of_scope: Option<&'static str>,
     /// The units [`Self::out_of_scope`]'s task reported.
     excluded: AtomicUsize,
+    /// `(unit key, task)` for each official entry of a unit that `units.toml` skips for the task.
+    stale: Mutex<Vec<(String, &'static str)>>,
 }
 
 #[derive(Debug)]
@@ -62,6 +64,7 @@ impl Conformance {
             also_run: Vec::new(),
             out_of_scope: None,
             excluded: AtomicUsize::new(0),
+            stale: Mutex::new(Vec::new()),
         }
     }
 
@@ -169,6 +172,12 @@ impl Conformance {
                 verdicts[task].insert(key, verdict);
             }
         }
+        stale_entries(
+            self.stale
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .as_mut_slice(),
+        )?;
         eprintln!(
             "corpus {}: {units} units of {} sources in {:.2} s, {} out of scope",
             self.family,
@@ -325,6 +334,19 @@ impl Conformance {
         registry: &sources::Registry,
     ) -> Result<Verdicts, String> {
         let key = source.key(&document.path);
+        let table = registry.units.get(&key);
+        for (i, c) in self.compared.iter().enumerate() {
+            // Regen writes nothing for a skipped unit, so its entry predates the skip.
+            if c.official.is_none()
+                && table.is_some_and(|t| t.skips(c.task))
+                && expected[i].find(&document.path).next().is_some()
+            {
+                self.stale
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .push((key.clone(), c.task));
+            }
+        }
         let excluded = self.out_of_scope.is_some_and(|task| {
             result
                 .outputs
@@ -335,7 +357,6 @@ impl Conformance {
             self.excluded.fetch_add(1, Ordering::Relaxed);
             return Ok(Vec::new());
         }
-        let table = registry.units.get(&key);
         let mut out = Vec::new();
         for (i, c) in self.compared.iter().enumerate() {
             if table.is_some_and(|t| t.skips(c.task)) {
@@ -377,6 +398,26 @@ impl Conformance {
         }
         Ok(out)
     }
+}
+
+/// Fails with a regen command for each of the first `stale` entries.
+fn stale_entries(stale: &mut [(String, &str)]) -> Result<(), String> {
+    if stale.is_empty() {
+        return Ok(());
+    }
+    stale.sort_unstable();
+    let mut lines = vec![format!(
+        "{} expected entries belong to units that units.toml skips; remove them with:",
+        stale.len()
+    )];
+    lines.extend(stale.iter().take(PRINTED_MOVES).map(|(key, task)| {
+        let (name, _) = task_files::location(task);
+        format!("  mise exec -- node tools/oracle/oracle.ts regen --task {name} --path '{key}'")
+    }));
+    if stale.len() > PRINTED_MOVES {
+        lines.push(format!("  … {} more", stale.len() - PRINTED_MOVES));
+    }
+    Err(lines.join("\n"))
 }
 
 /// One task's counts, and how many of the units both sides have output for match.
@@ -438,3 +479,6 @@ fn parallel_map<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Ve
     done.sort_unstable_by_key(|(i, _)| *i);
     done.into_iter().map(|(_, r)| r).collect()
 }
+
+#[cfg(test)]
+mod tests;

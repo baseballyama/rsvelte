@@ -4701,134 +4701,6 @@
 === 3 style_attribute_expression_metadata_3569/global_call_is_not_promoted_to_an_impure_call/3890b7a1af66e2be.svelte	json
 []
 
-=== 248 style_close_tag_scan_3281/a_closing_tag_inside_a_double_quoted_value_is_content/16a88fbeb58ec9c8.svelte	json
-[
-	{
-		"code": -1,
-		"message": "`</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
-		"start": {
-			"line": 1,
-			"character": 35
-		},
-		"end": {
-			"line": 1,
-			"character": 35
-		}
-	}
-]
-
-=== 193 style_close_tag_scan_3281/a_closing_tag_inside_a_leading_comment_is_content/f9a9ddcdcef60879.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
-		"start": {
-			"line": 1,
-			"character": 32
-		},
-		"end": {
-			"line": 1,
-			"character": 32
-		}
-	}
-]
-
-=== 248 style_close_tag_scan_3281/a_closing_tag_inside_a_quoted_url_is_content/b386532cbe9926f3.svelte	json
-[
-	{
-		"code": -1,
-		"message": "`</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
-		"start": {
-			"line": 1,
-			"character": 41
-		},
-		"end": {
-			"line": 1,
-			"character": 41
-		}
-	}
-]
-
-=== 248 style_close_tag_scan_3281/a_closing_tag_inside_a_single_quoted_value_is_content/2ffafb2f266c9dd0.svelte	json
-[
-	{
-		"code": -1,
-		"message": "`</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
-		"start": {
-			"line": 1,
-			"character": 35
-		},
-		"end": {
-			"line": 1,
-			"character": 35
-		}
-	}
-]
-
-=== 248 style_close_tag_scan_3281/a_closing_tag_inside_a_trailing_comment_is_content/b799d45c01a456cc.svelte	json
-[
-	{
-		"code": -1,
-		"message": "`</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
-		"start": {
-			"line": 1,
-			"character": 39
-		},
-		"end": {
-			"line": 1,
-			"character": 39
-		}
-	}
-]
-
-=== 193 style_close_tag_scan_3281/a_closing_tag_inside_an_attribute_selector_value_is_content/e1d926c94d7529d3.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
-		"start": {
-			"line": 1,
-			"character": 36
-		},
-		"end": {
-			"line": 1,
-			"character": 36
-		}
-	}
-]
-
-=== 193 style_close_tag_scan_3281/a_closing_tag_inside_an_html_comment_is_content/37e835c52cab486b.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
-		"start": {
-			"line": 1,
-			"character": 35
-		},
-		"end": {
-			"line": 1,
-			"character": 35
-		}
-	}
-]
-
-=== 248 style_close_tag_scan_3281/a_closing_tag_inside_an_unquoted_url_is_content/e40e97f4d6a6be6c.svelte	json
-[
-	{
-		"code": -1,
-		"message": "`</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
-		"start": {
-			"line": 1,
-			"character": 39
-		},
-		"end": {
-			"line": 1,
-			"character": 39
-		}
-	}
-]
-
 === 3 style_close_tag_scan_3281/a_closing_tag_with_a_space_before_the_bracket_is_content/5c2c2e9d9a7148a8.svelte	json
 []
 
@@ -4843,22 +4715,6 @@
 
 === 3 style_close_tag_scan_3281/an_apostrophe_in_an_scss_line_comment_does_not_hide_the_css_error/94b995e04075acf2.svelte	json
 []
-
-=== 248 style_close_tag_scan_3281/an_escaped_quote_does_not_reopen_the_string/dd4791d121b63c3e.svelte	json
-[
-	{
-		"code": -1,
-		"message": "`</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
-		"start": {
-			"line": 1,
-			"character": 37
-		},
-		"end": {
-			"line": 1,
-			"character": 37
-		}
-	}
-]
 
 === 3 style_close_tag_scan_3281/an_unclosed_paren_in_a_value_does_not_hide_the_closing_tag/8e5b133ba891ac79.svelte	json
 []
@@ -4932,166 +4788,6 @@
 === 3 style_directive_sequence_3455/the_spread_attribute_path_also_reads_every_chunk/34da35a302cf5b2c.svelte	json
 []
 
-=== 246 style_terminator_3593/a_bare_terminator_inside_a_rule_is_a_css_error/ff8caef21871e90a.svelte	json
-[
-	{
-		"code": -1,
-		"message": "`</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
-		"start": {
-			"line": 4,
-			"character": 0
-		},
-		"end": {
-			"line": 4,
-			"character": 0
-		}
-	}
-]
-
-=== 193 style_terminator_3593/a_terminator_inside_a_comment_is_a_comment/4af889e4d7e202d4.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
-		"start": {
-			"line": 4,
-			"character": 14
-		},
-		"end": {
-			"line": 4,
-			"character": 14
-		}
-	}
-]
-
-=== 246 style_terminator_3593/a_terminator_inside_a_nested_at_rule_is_still_a_value/2fc806a64ddbf495.svelte	json
-[
-	{
-		"code": -1,
-		"message": "`</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
-		"start": {
-			"line": 4,
-			"character": 0
-		},
-		"end": {
-			"line": 4,
-			"character": 0
-		}
-	}
-]
-
-=== 246 style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/01726ffa6744c30a.svelte	json
-[
-	{
-		"code": -1,
-		"message": "`</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
-		"start": {
-			"line": 4,
-			"character": 0
-		},
-		"end": {
-			"line": 4,
-			"character": 0
-		}
-	}
-]
-
-=== 246 style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/4a4f09bc123bb7cb.svelte	json
-[
-	{
-		"code": -1,
-		"message": "`</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
-		"start": {
-			"line": 4,
-			"character": 0
-		},
-		"end": {
-			"line": 4,
-			"character": 0
-		}
-	}
-]
-
-=== 246 style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/5012ab13505d74b5.svelte	json
-[
-	{
-		"code": -1,
-		"message": "`</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
-		"start": {
-			"line": 4,
-			"character": 0
-		},
-		"end": {
-			"line": 4,
-			"character": 0
-		}
-	}
-]
-
-=== 205 style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/7881f7b8d8d61218.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Unterminated string constant\nhttps://svelte.dev/e/js_parse_error",
-		"start": {
-			"line": 3,
-			"character": 38
-		},
-		"end": {
-			"line": 3,
-			"character": 38
-		}
-	}
-]
-
-=== 246 style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/8a2c6ab63566f277.svelte	json
-[
-	{
-		"code": -1,
-		"message": "`</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
-		"start": {
-			"line": 4,
-			"character": 0
-		},
-		"end": {
-			"line": 4,
-			"character": 0
-		}
-	}
-]
-
-=== 246 style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/fe62b93807b9d785.svelte	json
-[
-	{
-		"code": -1,
-		"message": "`</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
-		"start": {
-			"line": 4,
-			"character": 0
-		},
-		"end": {
-			"line": 4,
-			"character": 0
-		}
-	}
-]
-
-=== 193 style_terminator_3593/a_terminator_inside_an_unquoted_url_is_a_declaration_value/88036cc31fc233f5.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
-		"start": {
-			"line": 4,
-			"character": 19
-		},
-		"end": {
-			"line": 4,
-			"character": 19
-		}
-	}
-]
-
 === 3 style_terminator_3593/an_unterminated_string_is_still_unexpected_eof/126ce10a84e6b1a7.svelte	json
 []
 
@@ -5131,22 +4827,6 @@
 
 === 3 svelte_component_validation/h047_transition_directive_errors/1b0db60669ccfbc3.svelte	json
 []
-
-=== 173 svelte_component_validation/h047_use_directive_errors/0748a23f377dd6d8.svelte	json
-[
-	{
-		"code": -1,
-		"message": "element.addAction is not a function",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
 
 === 3 svelte_component_validation/h053_special_element_event_capture_excludes_pointercapture/dffa2cd8b5b04051.svelte	json
 []
@@ -5451,22 +5131,6 @@
 	}
 ]
 
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/02b8bd4a8ab920ef.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
-
 === 238 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/03e676148dc5fb08.svelte	json
 [
 	{
@@ -5579,22 +5243,6 @@
 	}
 ]
 
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/08ce42869b21def9.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
-
 === 238 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/0c89b5f72448f4ca.svelte	json
 [
 	{
@@ -5690,22 +5338,6 @@
 		"end": {
 			"line": 0,
 			"character": 41
-		}
-	}
-]
-
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/107eb7ce6783b87f.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
 		}
 	}
 ]
@@ -6161,22 +5793,6 @@
 	}
 ]
 
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/234dc959b53ad977.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
-
 === 242 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/238973be27c8b030.svelte	json
 [
 	{
@@ -6500,22 +6116,6 @@
 	}
 ]
 
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/3cf7b596d370436e.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
-
 === 242 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/3da0a1017f453904.svelte	json
 [
 	{
@@ -6628,22 +6228,6 @@
 	}
 ]
 
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/41672ad9acf8d9aa.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
-
 === 3 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/418a67e93baa559c.svelte	json
 []
 
@@ -6697,22 +6281,6 @@
 
 === 3 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/437f216b80bee65f.svelte	json
 []
-
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/44bd7f37829919f3.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
 
 === 238 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/44ea7315138b1a75.svelte	json
 [
@@ -6842,22 +6410,6 @@
 	}
 ]
 
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/4a73a43dffe334eb.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
-
 === 260 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/4b8577d7a0a14f69.svelte	json
 [
 	{
@@ -6973,22 +6525,6 @@
 	}
 ]
 
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5002f20344e50a2e.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
-
 === 3 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/506af957926226ac.svelte	json
 []
 
@@ -7039,38 +6575,6 @@
 		"end": {
 			"line": 0,
 			"character": 36
-		}
-	}
-]
-
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5278cf1d23460451.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
-
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/55601ae2614c6b53.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
 		}
 	}
 ]
@@ -7183,22 +6687,6 @@
 		"end": {
 			"line": 0,
 			"character": 32
-		}
-	}
-]
-
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5f9f85a4472d151b.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
 		}
 	}
 ]
@@ -7625,22 +7113,6 @@
 	}
 ]
 
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/7f2e247324af9c81.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
-
 === 227 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/80ed8d13db943f4c.svelte	json
 [
 	{
@@ -7784,22 +7256,6 @@
 		"end": {
 			"line": 0,
 			"character": 38
-		}
-	}
-]
-
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/8bae3f89d57dd71c.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
 		}
 	}
 ]
@@ -7998,22 +7454,6 @@
 		"end": {
 			"line": 0,
 			"character": 25
-		}
-	}
-]
-
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/9d297f9dc6127645.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
 		}
 	}
 ]
@@ -8750,38 +8190,6 @@
 	}
 ]
 
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/cb80ba7928fe889b.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
-
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/cc78e710c686d5e0.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
-
 === 227 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/d0af4fb96bfd850c.svelte	json
 [
 	{
@@ -9181,22 +8589,6 @@
 		"end": {
 			"line": 0,
 			"character": 37
-		}
-	}
-]
-
-=== 232 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/e38cd649906cd769.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
 		}
 	}
 ]
@@ -14975,34 +14367,6 @@
 === 3 template_expression_ts_gate/matches_the_official_compiler/15007839f42dc75f.svelte	json
 []
 
-=== 418 template_expression_ts_gate/matches_the_official_compiler/15236774b728cdf0.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 1,
-			"character": 14
-		},
-		"end": {
-			"line": 1,
-			"character": 28
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 1,
-			"character": 18
-		},
-		"end": {
-			"line": 1,
-			"character": 28
-		}
-	}
-]
-
 === 193 template_expression_ts_gate/matches_the_official_compiler/1613736259a1bdc5.svelte	json
 [
 	{
@@ -15691,46 +15055,6 @@
 		"end": {
 			"line": 1,
 			"character": 8
-		}
-	}
-]
-
-=== 600 template_expression_ts_gate/matches_the_official_compiler/352be5c37b112081.svelte	json
-[
-	{
-		"code": 7006,
-		"message": "Parameter 'v' implicitly has an 'any' type.",
-		"start": {
-			"line": 1,
-			"character": 30
-		},
-		"end": {
-			"line": 1,
-			"character": 31
-		}
-	},
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 28
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 2,
-			"character": 18
-		},
-		"end": {
-			"line": 2,
-			"character": 28
 		}
 	}
 ]
@@ -18136,46 +17460,6 @@
 	}
 ]
 
-=== 600 template_expression_ts_gate/matches_the_official_compiler/a8398e50cf040f29.svelte	json
-[
-	{
-		"code": 7006,
-		"message": "Parameter 'v' implicitly has an 'any' type.",
-		"start": {
-			"line": 1,
-			"character": 30
-		},
-		"end": {
-			"line": 1,
-			"character": 31
-		}
-	},
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 38
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 2,
-			"character": 18
-		},
-		"end": {
-			"line": 2,
-			"character": 38
-		}
-	}
-]
-
 === 185 template_expression_ts_gate/matches_the_official_compiler/a8da1b0bcfac17d7.svelte	json
 [
 	{
@@ -18248,34 +17532,6 @@
 
 === 3 template_expression_ts_gate/matches_the_official_compiler/ab59b2d9733e2a66.svelte	json
 []
-
-=== 418 template_expression_ts_gate/matches_the_official_compiler/abd0a1f88f57a197.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 1,
-			"character": 14
-		},
-		"end": {
-			"line": 1,
-			"character": 38
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 1,
-			"character": 18
-		},
-		"end": {
-			"line": 1,
-			"character": 38
-		}
-	}
-]
 
 === 3 template_expression_ts_gate/matches_the_official_compiler/abd67c642a279863.svelte	json
 []
@@ -19575,34 +18831,6 @@
 === 3 template_expression_ts_gate/matches_the_official_compiler/eb11a7f24260c222.svelte	json
 []
 
-=== 418 template_expression_ts_gate/matches_the_official_compiler/eb9c9a6b6c2af98d.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 1,
-			"character": 14
-		},
-		"end": {
-			"line": 1,
-			"character": 36
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 1,
-			"character": 18
-		},
-		"end": {
-			"line": 1,
-			"character": 36
-		}
-	}
-]
-
 === 191 template_expression_ts_gate/matches_the_official_compiler/eca5d73e967411e9.svelte	json
 [
 	{
@@ -19996,46 +19224,6 @@
 
 === 3 template_expression_ts_gate/matches_the_official_compiler/fa0fceb2d3b428c3.svelte	json
 []
-
-=== 600 template_expression_ts_gate/matches_the_official_compiler/faac14661d841790.svelte	json
-[
-	{
-		"code": 7006,
-		"message": "Parameter 'v' implicitly has an 'any' type.",
-		"start": {
-			"line": 1,
-			"character": 30
-		},
-		"end": {
-			"line": 1,
-			"character": 31
-		}
-	},
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 36
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 2,
-			"character": 18
-		},
-		"end": {
-			"line": 2,
-			"character": 36
-		}
-	}
-]
 
 === 185 template_expression_ts_gate/matches_the_official_compiler/fae97aadd0735237.svelte	json
 [
@@ -22756,15 +21944,6 @@
 === 3 template_typescript_mode_3261/plain_javascript_is_unaffected/0a0d65908f65eee6.svelte	json
 []
 
-=== 3 template_typescript_mode_3261/plain_javascript_is_unaffected/0e8016c12287c287.svelte	json
-[]
-
-=== 3 template_typescript_mode_3261/plain_javascript_is_unaffected/10da7aec64a367ed.svelte	json
-[]
-
-=== 3 template_typescript_mode_3261/plain_javascript_is_unaffected/16b734da2d6d5b34.svelte	json
-[]
-
 === 3 template_typescript_mode_3261/plain_javascript_is_unaffected/1c237d3e55875fec.svelte	json
 []
 
@@ -22796,13 +21975,7 @@
 	}
 ]
 
-=== 3 template_typescript_mode_3261/plain_javascript_is_unaffected/1ea59dcd98419ae0.svelte	json
-[]
-
 === 3 template_typescript_mode_3261/plain_javascript_is_unaffected/2971dbceae22014a.svelte	json
-[]
-
-=== 3 template_typescript_mode_3261/plain_javascript_is_unaffected/3008ed44ebe5af2f.svelte	json
 []
 
 === 3 template_typescript_mode_3261/plain_javascript_is_unaffected/38c7a8c99a314ba8.svelte	json
@@ -22817,36 +21990,11 @@
 === 3 template_typescript_mode_3261/plain_javascript_is_unaffected/499f16c2c04d6ff1.svelte	json
 []
 
-=== 3 template_typescript_mode_3261/plain_javascript_is_unaffected/49ada6559860ca59.svelte	json
-[]
-
-=== 3 template_typescript_mode_3261/plain_javascript_is_unaffected/4ac22166f63f1fbd.svelte	json
-[]
-
 === 3 template_typescript_mode_3261/plain_javascript_is_unaffected/4c0245d9ab05df17.svelte	json
-[]
-
-=== 3 template_typescript_mode_3261/plain_javascript_is_unaffected/50022d85dc0d1ba1.svelte	json
 []
 
 === 3 template_typescript_mode_3261/plain_javascript_is_unaffected/507dbedb6f804523.svelte	json
 []
-
-=== 174 template_typescript_mode_3261/plain_javascript_is_unaffected/50ac15bc0e0a95bc.svelte	json
-[
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 29
-		}
-	}
-]
 
 === 3 template_typescript_mode_3261/plain_javascript_is_unaffected/5bdacc7ce3c377fa.svelte	json
 []
@@ -22861,9 +22009,6 @@
 []
 
 === 3 template_typescript_mode_3261/plain_javascript_is_unaffected/8a1b9162049a16f8.svelte	json
-[]
-
-=== 3 template_typescript_mode_3261/plain_javascript_is_unaffected/9448d5a12453d93d.svelte	json
 []
 
 === 3 template_typescript_mode_3261/plain_javascript_is_unaffected/b65022446300ffce.svelte	json
@@ -22884,22 +22029,6 @@
 === 3 template_typescript_mode_3261/plain_javascript_is_unaffected/c83bd04c08ae9b54.svelte	json
 []
 
-=== 189 template_typescript_mode_3261/plain_javascript_is_unaffected/cd90fff9c646235a.svelte	json
-[
-	{
-		"code": 2322,
-		"message": "Type 'number' is not assignable to type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 3
-		},
-		"end": {
-			"line": 3,
-			"character": 8
-		}
-	}
-]
-
 === 3 template_typescript_mode_3261/plain_javascript_is_unaffected/cfade9cc800338b0.svelte	json
 []
 
@@ -22908,34 +22037,6 @@
 
 === 3 template_typescript_mode_3261/plain_javascript_is_unaffected/e40a2d72f1fdaec5.svelte	json
 []
-
-=== 418 template_typescript_mode_3261/plain_javascript_is_unaffected/e5c9cc8e21d67c29.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 28
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 3,
-			"character": 18
-		},
-		"end": {
-			"line": 3,
-			"character": 28
-		}
-	}
-]
 
 === 3 template_typescript_mode_3261/plain_javascript_is_unaffected/e874d924163789a7.svelte	json
 []
@@ -22973,22 +22074,6 @@
 		},
 		"end": {
 			"line": 7,
-			"character": 27
-		}
-	}
-]
-
-=== 330 template_typescript_mode_3261/snippet_default_parameter_agrees_in_both_modes/37756842c2fac34f.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 16
-		},
-		"end": {
-			"line": 3,
 			"character": 27
 		}
 	}
@@ -23166,43 +22251,8 @@
 	}
 ]
 
-=== 265 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/00881b5fd646e06c.svelte	json
-[
-	{
-		"code": 1355,
-		"message": "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals.",
-		"start": {
-			"line": 3,
-			"character": 8
-		},
-		"end": {
-			"line": 3,
-			"character": 9
-		}
-	}
-]
-
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/018b55b604f3fc8d.svelte	json
 []
-
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/01fb01e58b99ac97.svelte	json
-[]
-
-=== 330 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/03245b26170cd9ce.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 20
-		},
-		"end": {
-			"line": 3,
-			"character": 31
-		}
-	}
-]
 
 === 187 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/03279c5d586c1996.svelte	json
 [
@@ -23241,78 +22291,6 @@
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/06fe2a8903cebf45.svelte	json
 []
-
-=== 329 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/074b48fe9551f5dd.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 6
-		},
-		"end": {
-			"line": 3,
-			"character": 17
-		}
-	}
-]
-
-=== 501 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/08847f6fcff8d82e.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 37
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 37
-		}
-	}
-]
-
-=== 418 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/0a19858f735db89f.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 49
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 3,
-			"character": 18
-		},
-		"end": {
-			"line": 3,
-			"character": 49
-		}
-	}
-]
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/0b0659d05a766317.svelte	json
 []
@@ -23396,66 +22374,6 @@
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/130fe6d634018329.svelte	json
 []
 
-=== 265 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/1353e0f4d92b2daa.svelte	json
-[
-	{
-		"code": 1355,
-		"message": "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals.",
-		"start": {
-			"line": 3,
-			"character": 6
-		},
-		"end": {
-			"line": 3,
-			"character": 7
-		}
-	}
-]
-
-=== 438 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/1389a0353fcb487d.svelte	json
-[
-	{
-		"code": 1355,
-		"message": "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 29
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 38
-		}
-	}
-]
-
-=== 178 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/13bbf6c3407680a3.svelte	json
-[
-	{
-		"code": 2558,
-		"message": "Expected 0 type arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 7
-		},
-		"end": {
-			"line": 3,
-			"character": 13
-		}
-	}
-]
-
 === 329 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/152145a5f80f5f1c.svelte	json
 [
 	{
@@ -23480,38 +22398,6 @@
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/18dcc060a7a73acd.svelte	json
 []
-
-=== 330 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/1a35faa641b35627.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 13
-		},
-		"end": {
-			"line": 3,
-			"character": 24
-		}
-	}
-]
-
-=== 330 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/1af3d9545ee0fb38.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 20
-		},
-		"end": {
-			"line": 3,
-			"character": 29
-		}
-	}
-]
 
 === 267 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/1b0072a74bbe8146.svelte	json
 [
@@ -23545,46 +22431,6 @@
 	}
 ]
 
-=== 682 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/1cbaf5d768188050.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 37
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 3,
-			"character": 18
-		},
-		"end": {
-			"line": 3,
-			"character": 37
-		}
-	},
-	{
-		"code": 1355,
-		"message": "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals.",
-		"start": {
-			"line": 3,
-			"character": 25
-		},
-		"end": {
-			"line": 3,
-			"character": 26
-		}
-	}
-]
-
 === 179 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/1f47ddd5aaec91a5.svelte	json
 [
 	{
@@ -23601,92 +22447,14 @@
 	}
 ]
 
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/209add8579013121.svelte	json
-[]
-
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2734d09b805aca2f.svelte	json
 []
-
-=== 267 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/27398d37d132f1c9.svelte	json
-[
-	{
-		"code": 1355,
-		"message": "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals.",
-		"start": {
-			"line": 3,
-			"character": 12
-		},
-		"end": {
-			"line": 3,
-			"character": 13
-		}
-	}
-]
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/28b1c30313197429.svelte	json
 []
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2971f11d27cd8f34.svelte	json
 []
-
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2a14e4126065dd1a.svelte	json
-[]
-
-=== 199 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2a2f83a81ea569f7.svelte	json
-[
-	{
-		"code": 1360,
-		"message": "Type 'number' does not satisfy the expected type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 7
-		},
-		"end": {
-			"line": 3,
-			"character": 16
-		}
-	}
-]
-
-=== 602 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2a3e9e9dc2cc6725.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 31
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 3,
-			"character": 18
-		},
-		"end": {
-			"line": 3,
-			"character": 31
-		}
-	},
-	{
-		"code": 2339,
-		"message": "Property 'k' does not exist on type 'number'.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 29
-		}
-	}
-]
 
 === 200 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2afd4574d0027b4b.svelte	json
 [
@@ -23706,46 +22474,6 @@
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2babb2fb99a31016.svelte	json
 []
-
-=== 745 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2d1b086d680a0e9e.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 38
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 3,
-			"character": 18
-		},
-		"end": {
-			"line": 3,
-			"character": 38
-		}
-	},
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 25
-		},
-		"end": {
-			"line": 3,
-			"character": 36
-		}
-	}
-]
 
 === 418 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2df946a254dee915.svelte	json
 [
@@ -23835,53 +22563,6 @@
 	}
 ]
 
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/34b31867ac6c8355.svelte	json
-[]
-
-=== 200 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/35362742f41afc7c.svelte	json
-[
-	{
-		"code": 1360,
-		"message": "Type 'number' does not satisfy the expected type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 18
-		},
-		"end": {
-			"line": 3,
-			"character": 27
-		}
-	}
-]
-
-=== 386 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/357f2d9aeb00fdee.svelte	json
-[
-	{
-		"code": 2322,
-		"message": "Type 'number' is not assignable to type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 3
-		},
-		"end": {
-			"line": 3,
-			"character": 8
-		}
-	},
-	{
-		"code": 1360,
-		"message": "Type 'number' does not satisfy the expected type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 12
-		},
-		"end": {
-			"line": 3,
-			"character": 21
-		}
-	}
-]
-
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/35907e1fe25c7e6c.svelte	json
 []
 
@@ -23900,9 +22581,6 @@
 		}
 	}
 ]
-
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/35f0a405fd82ede2.svelte	json
-[]
 
 === 329 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/3662a18e33b02891.svelte	json
 [
@@ -23932,22 +22610,6 @@
 		"end": {
 			"line": 7,
 			"character": 25
-		}
-	}
-]
-
-=== 174 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/38a9353f86c2aaed.svelte	json
-[
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 50
 		}
 	}
 ]
@@ -23995,9 +22657,6 @@
 		}
 	}
 ]
-
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/39d2830093d8b7dc.svelte	json
-[]
 
 === 179 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/3a2cc3e9d845071f.svelte	json
 [
@@ -24072,25 +22731,6 @@
 ]
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/43f8f3ecf6029492.svelte	json
-[]
-
-=== 200 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/440dfaa7b6c4dfbd.svelte	json
-[
-	{
-		"code": 1360,
-		"message": "Type 'number' does not satisfy the expected type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 15
-		},
-		"end": {
-			"line": 3,
-			"character": 24
-		}
-	}
-]
-
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/4517ec8495a40313.svelte	json
 []
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/462b091ce59b2579.svelte	json
@@ -24171,38 +22811,6 @@
 	}
 ]
 
-=== 200 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/4edf8a5d430f0c83.svelte	json
-[
-	{
-		"code": 1360,
-		"message": "Type 'number' does not satisfy the expected type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 23
-		}
-	}
-]
-
-=== 330 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/4f5627dc39a259a4.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 23
-		}
-	}
-]
-
 === 200 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/4f854a3bf0b90822.svelte	json
 [
 	{
@@ -24225,26 +22833,7 @@
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/508868473efe94b3.svelte	json
 []
 
-=== 265 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/50a302ea4939faa2.svelte	json
-[
-	{
-		"code": 1355,
-		"message": "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals.",
-		"start": {
-			"line": 3,
-			"character": 5
-		},
-		"end": {
-			"line": 3,
-			"character": 6
-		}
-	}
-]
-
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/5164ba6bbe5e0426.svelte	json
-[]
-
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/528cfda3a987176a.svelte	json
 []
 
 === 265 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/531ac4f385061e57.svelte	json
@@ -24259,22 +22848,6 @@
 		"end": {
 			"line": 7,
 			"character": 5
-		}
-	}
-]
-
-=== 187 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/543b75fbf21c7ff2.svelte	json
-[
-	{
-		"code": 2339,
-		"message": "Property 'k' does not exist on type 'number'.",
-		"start": {
-			"line": 3,
-			"character": 19
-		},
-		"end": {
-			"line": 3,
-			"character": 20
 		}
 	}
 ]
@@ -24307,81 +22880,6 @@
 	}
 ]
 
-=== 371 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/54ac25511e80d300.svelte	json
-[
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 46
-		}
-	},
-	{
-		"code": 1360,
-		"message": "Type 'number' does not satisfy the expected type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 30
-		},
-		"end": {
-			"line": 3,
-			"character": 39
-		}
-	}
-]
-
-=== 189 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/56bee1cbef3350f8.svelte	json
-[
-	{
-		"code": 2322,
-		"message": "Type 'number' is not assignable to type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 3
-		},
-		"end": {
-			"line": 3,
-			"character": 8
-		}
-	}
-]
-
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/5c0d0d5ea914d137.svelte	json
-[]
-
-=== 418 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/5f3e477248e3f847.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type 'String | Number | null | undefined'.",
-		"start": {
-			"line": 7,
-			"character": 16
-		},
-		"end": {
-			"line": 7,
-			"character": 27
-		}
-	},
-	{
-		"code": 2558,
-		"message": "Expected 0 type arguments, but got 1.",
-		"start": {
-			"line": 7,
-			"character": 18
-		},
-		"end": {
-			"line": 7,
-			"character": 24
-		}
-	}
-]
-
 === 329 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/5f840d6379f1b9e4.svelte	json
 [
 	{
@@ -24398,96 +22896,8 @@
 	}
 ]
 
-=== 179 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/604dd53f4df1bf71.svelte	json
-[
-	{
-		"code": 2558,
-		"message": "Expected 0 type arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 22
-		},
-		"end": {
-			"line": 3,
-			"character": 28
-		}
-	}
-]
-
-=== 330 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/60671a81a994e181.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 10
-		},
-		"end": {
-			"line": 3,
-			"character": 21
-		}
-	}
-]
-
-=== 594 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6180063030c6a92c.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 38
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 3,
-			"character": 18
-		},
-		"end": {
-			"line": 3,
-			"character": 38
-		}
-	},
-	{
-		"code": 2558,
-		"message": "Expected 0 type arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 27
-		},
-		"end": {
-			"line": 3,
-			"character": 33
-		}
-	}
-]
-
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/61907b4dcfbc0f70.svelte	json
 []
-
-=== 330 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/61c9f49a592c50d2.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 10
-		},
-		"end": {
-			"line": 3,
-			"character": 19
-		}
-	}
-]
 
 === 267 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/61d6047445f77551.svelte	json
 [
@@ -24507,66 +22917,6 @@
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/65418ef5a931c060.svelte	json
 []
-
-=== 200 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6686a2f752dbbdad.svelte	json
-[
-	{
-		"code": 1360,
-		"message": "Type 'number' does not satisfy the expected type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 10
-		},
-		"end": {
-			"line": 3,
-			"character": 19
-		}
-	}
-]
-
-=== 329 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6aa74d4657b5ce2e.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 4
-		},
-		"end": {
-			"line": 3,
-			"character": 15
-		}
-	}
-]
-
-=== 418 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6acdc8657e099ffe.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 49
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 3,
-			"character": 18
-		},
-		"end": {
-			"line": 3,
-			"character": 49
-		}
-	}
-]
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6c03ece2c170fd0c.svelte	json
 []
@@ -24606,137 +22956,14 @@
 	}
 ]
 
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6e60cf692af283fb.svelte	json
-[]
-
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6f703045cac27012.svelte	json
 []
-
-=== 403 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6f86069336ffe18a.svelte	json
-[
-	{
-		"code": 2322,
-		"message": "Type 'void & ((v: any) => void)' is not assignable to type 'string | null | undefined'.",
-		"start": {
-			"line": 3,
-			"character": 3
-		},
-		"end": {
-			"line": 3,
-			"character": 8
-		}
-	},
-	{
-		"code": 2558,
-		"message": "Expected 0 type arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 12
-		},
-		"end": {
-			"line": 3,
-			"character": 18
-		}
-	}
-]
-
-=== 187 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6fa3367e9ae4a37f.svelte	json
-[
-	{
-		"code": 2339,
-		"message": "Property 'k' does not exist on type 'number'.",
-		"start": {
-			"line": 3,
-			"character": 23
-		},
-		"end": {
-			"line": 3,
-			"character": 24
-		}
-	}
-]
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6fe5b3b6083833e1.svelte	json
 []
 
-=== 418 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/706d73a09fa0d4aa.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 47
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 3,
-			"character": 18
-		},
-		"end": {
-			"line": 3,
-			"character": 47
-		}
-	}
-]
-
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/70df96133741528b.svelte	json
 []
-
-=== 178 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7220b5cddaf5f631.svelte	json
-[
-	{
-		"code": 2558,
-		"message": "Expected 0 type arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 6
-		},
-		"end": {
-			"line": 3,
-			"character": 12
-		}
-	}
-]
-
-=== 330 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/72dbb6991a187140.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 25
-		}
-	}
-]
-
-=== 329 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7400f03639951ac0.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 5
-		},
-		"end": {
-			"line": 3,
-			"character": 16
-		}
-	}
-]
 
 === 330 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7435d35ca49d2178.svelte	json
 [
@@ -24754,37 +22981,6 @@
 	}
 ]
 
-=== 350 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/74e5be37e7cdf8f1.svelte	json
-[
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 39
-		}
-	},
-	{
-		"code": 2558,
-		"message": "Expected 0 type arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 30
-		},
-		"end": {
-			"line": 3,
-			"character": 36
-		}
-	}
-]
-
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/74e847c583e55574.svelte	json
-[]
-
 === 265 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/75158bbd104c1e04.svelte	json
 [
 	{
@@ -24796,22 +22992,6 @@
 		},
 		"end": {
 			"line": 7,
-			"character": 9
-		}
-	}
-]
-
-=== 185 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7525749f7a059acf.svelte	json
-[
-	{
-		"code": 2339,
-		"message": "Property 'k' does not exist on type 'number'.",
-		"start": {
-			"line": 3,
-			"character": 8
-		},
-		"end": {
-			"line": 3,
 			"character": 9
 		}
 	}
@@ -24841,22 +23021,6 @@
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/79acf39f3582b95e.svelte	json
 []
-
-=== 330 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7ae4e14ff36845ff.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 16
-		},
-		"end": {
-			"line": 3,
-			"character": 25
-		}
-	}
-]
 
 === 174 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7b49a65508f699a4.svelte	json
 [
@@ -24896,55 +23060,8 @@
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7d03e5cdce0294dd.svelte	json
 []
 
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7d78f1886e765e88.svelte	json
-[]
-
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7e0e0f02570445b1.svelte	json
 []
-
-=== 267 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7e2fb65a516823d8.svelte	json
-[
-	{
-		"code": 1355,
-		"message": "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 15
-		}
-	}
-]
-
-=== 439 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/8048e84a70b1060b.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void & ((v: any) => void)' is not assignable to parameter of type 'String | Number | null | undefined'.",
-		"start": {
-			"line": 3,
-			"character": 16
-		},
-		"end": {
-			"line": 3,
-			"character": 27
-		}
-	},
-	{
-		"code": 2558,
-		"message": "Expected 0 type arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 18
-		},
-		"end": {
-			"line": 3,
-			"character": 24
-		}
-	}
-]
 
 === 330 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/80847cd3da6762c2.svelte	json
 [
@@ -24962,132 +23079,8 @@
 	}
 ]
 
-=== 179 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/8177ec9fa4d006cd.svelte	json
-[
-	{
-		"code": 2558,
-		"message": "Expected 0 type arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 15
-		},
-		"end": {
-			"line": 3,
-			"character": 21
-		}
-	}
-]
-
-=== 174 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/81ec0b0a6f98ca43.svelte	json
-[
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 30
-		}
-	}
-]
-
-=== 453 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/827912c6eec0a261.svelte	json
-[
-	{
-		"code": 2322,
-		"message": "Type 'number' is not assignable to type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 3
-		},
-		"end": {
-			"line": 3,
-			"character": 8
-		}
-	},
-	{
-		"code": 1355,
-		"message": "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals.",
-		"start": {
-			"line": 3,
-			"character": 10
-		},
-		"end": {
-			"line": 3,
-			"character": 11
-		}
-	}
-]
-
-=== 200 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/83223bf688e072c1.svelte	json
-[
-	{
-		"code": 1360,
-		"message": "Type 'number' does not satisfy the expected type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 16
-		},
-		"end": {
-			"line": 3,
-			"character": 25
-		}
-	}
-]
-
-=== 187 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/83afca4d5b4edaad.svelte	json
-[
-	{
-		"code": 2339,
-		"message": "Property 'k' does not exist on type 'number'.",
-		"start": {
-			"line": 3,
-			"character": 16
-		},
-		"end": {
-			"line": 3,
-			"character": 17
-		}
-	}
-]
-
-=== 329 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/8501dbd3fdfa3b01.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 5
-		},
-		"end": {
-			"line": 3,
-			"character": 14
-		}
-	}
-]
-
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/8519542980a6a3ba.svelte	json
 []
-
-=== 329 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/86ae5faf147f2117.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 8
-		},
-		"end": {
-			"line": 3,
-			"character": 17
-		}
-	}
-]
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/86b2d2a410123ace.svelte	json
 []
@@ -25103,22 +23096,6 @@
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/8e87fbce0a228ea0.svelte	json
 []
-
-=== 179 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/8ed224fa0b8de0fd.svelte	json
-[
-	{
-		"code": 2558,
-		"message": "Expected 0 type arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 10
-		},
-		"end": {
-			"line": 3,
-			"character": 16
-		}
-	}
-]
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/8fc29e1bb9b1eacc.svelte	json
 []
@@ -25210,62 +23187,6 @@
 	}
 ]
 
-=== 745 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/94db8290bc551938.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 36
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 3,
-			"character": 18
-		},
-		"end": {
-			"line": 3,
-			"character": 36
-		}
-	},
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 25
-		},
-		"end": {
-			"line": 3,
-			"character": 34
-		}
-	}
-]
-
-=== 329 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/95a9a415c5ea9c55.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 6
-		},
-		"end": {
-			"line": 3,
-			"character": 15
-		}
-	}
-]
-
 === 350 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/96b2aa0695841ef9.svelte	json
 [
 	{
@@ -25290,22 +23211,6 @@
 		"end": {
 			"line": 7,
 			"character": 36
-		}
-	}
-]
-
-=== 178 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/976344a6e4a32d23.svelte	json
-[
-	{
-		"code": 2558,
-		"message": "Expected 0 type arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 8
-		},
-		"end": {
-			"line": 3,
-			"character": 14
 		}
 	}
 ]
@@ -25413,41 +23318,6 @@
 	}
 ]
 
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/9e36be80c9ebde39.svelte	json
-[]
-
-=== 179 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/9f14f48d1f9944ed.svelte	json
-[
-	{
-		"code": 2558,
-		"message": "Expected 0 type arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 16
-		},
-		"end": {
-			"line": 3,
-			"character": 22
-		}
-	}
-]
-
-=== 330 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a08a919774c67131.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 12
-		},
-		"end": {
-			"line": 3,
-			"character": 21
-		}
-	}
-]
-
 === 187 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a0f928c3f3dacdb3.svelte	json
 [
 	{
@@ -25483,22 +23353,6 @@
 	}
 ]
 
-=== 330 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a1a501b14c70bf27.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 16
-		},
-		"end": {
-			"line": 3,
-			"character": 27
-		}
-	}
-]
-
 === 174 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a3f57a7cff824957.svelte	json
 [
 	{
@@ -25518,22 +23372,6 @@
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a44297a575230118.svelte	json
 []
 
-=== 329 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a46864f54f45dd3b.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 4
-		},
-		"end": {
-			"line": 3,
-			"character": 13
-		}
-	}
-]
-
 === 200 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a491d536986d8d18.svelte	json
 [
 	{
@@ -25546,22 +23384,6 @@
 		"end": {
 			"line": 7,
 			"character": 23
-		}
-	}
-]
-
-=== 185 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a4e1bdf07bb083e6.svelte	json
-[
-	{
-		"code": 2339,
-		"message": "Property 'k' does not exist on type 'number'.",
-		"start": {
-			"line": 3,
-			"character": 7
-		},
-		"end": {
-			"line": 3,
-			"character": 8
 		}
 	}
 ]
@@ -25617,62 +23439,6 @@
 	}
 ]
 
-=== 265 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/ababb42dd27c272c.svelte	json
-[
-	{
-		"code": 1355,
-		"message": "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals.",
-		"start": {
-			"line": 3,
-			"character": 4
-		},
-		"end": {
-			"line": 3,
-			"character": 5
-		}
-	}
-]
-
-=== 615 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/acd2a29594465660.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 45
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 3,
-			"character": 18
-		},
-		"end": {
-			"line": 3,
-			"character": 45
-		}
-	},
-	{
-		"code": 1360,
-		"message": "Type 'number' does not satisfy the expected type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 27
-		},
-		"end": {
-			"line": 3,
-			"character": 36
-		}
-	}
-]
-
 === 330 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/acfdfcae9bd676db.svelte	json
 [
 	{
@@ -25691,22 +23457,6 @@
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/ad988db55e686df4.svelte	json
 []
-
-=== 174 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/ae0f34be4faf9fbb.svelte	json
-[
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 48
-		}
-	}
-]
 
 === 382 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b02319c3a0489f57.svelte	json
 [
@@ -25742,96 +23492,8 @@
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b0ba9b1485bb7e23.svelte	json
 []
 
-=== 418 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b195cdcf4a286295.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 47
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 3,
-			"character": 18
-		},
-		"end": {
-			"line": 3,
-			"character": 47
-		}
-	}
-]
-
-=== 358 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b211972b0fd0fb7b.svelte	json
-[
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 32
-		}
-	},
-	{
-		"code": 2339,
-		"message": "Property 'k' does not exist on type 'number'.",
-		"start": {
-			"line": 3,
-			"character": 31
-		},
-		"end": {
-			"line": 3,
-			"character": 32
-		}
-	}
-]
-
-=== 186 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b3cc270a37271cd6.svelte	json
-[
-	{
-		"code": 2339,
-		"message": "Property 'k' does not exist on type 'number'.",
-		"start": {
-			"line": 3,
-			"character": 9
-		},
-		"end": {
-			"line": 3,
-			"character": 10
-		}
-	}
-]
-
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b3e88b2860a7b33d.svelte	json
 []
-
-=== 330 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b56c2a47bc15bb0c.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 12
-		},
-		"end": {
-			"line": 3,
-			"character": 23
-		}
-	}
-]
 
 === 371 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b68918455b3dddca.svelte	json
 [
@@ -25861,71 +23523,8 @@
 	}
 ]
 
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b698a40db30ad660.svelte	json
-[]
-
-=== 267 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b71eb10092eaabb9.svelte	json
-[
-	{
-		"code": 1355,
-		"message": "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals.",
-		"start": {
-			"line": 3,
-			"character": 13
-		},
-		"end": {
-			"line": 3,
-			"character": 14
-		}
-	}
-]
-
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b77b5087aea8d085.svelte	json
 []
-
-=== 199 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b7a112ca1a1d57a9.svelte	json
-[
-	{
-		"code": 1360,
-		"message": "Type 'number' does not satisfy the expected type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 6
-		},
-		"end": {
-			"line": 3,
-			"character": 15
-		}
-	}
-]
-
-=== 501 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b870153c8bd127a4.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 39
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 39
-		}
-	}
-]
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b880e4b3009226cd.svelte	json
 []
@@ -26006,9 +23605,6 @@
 ]
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/babcb7fc60a12c0a.svelte	json
-[]
-
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/bbc338188f31e129.svelte	json
 []
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/be9dc6904ac0bff3.svelte	json
@@ -26141,59 +23737,8 @@
 	}
 ]
 
-=== 329 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/c6a33d8251f90e50.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 8
-		},
-		"end": {
-			"line": 3,
-			"character": 19
-		}
-	}
-]
-
-=== 330 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/c6b1e2880866dbaa.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 3,
-			"character": 13
-		},
-		"end": {
-			"line": 3,
-			"character": 22
-		}
-	}
-]
-
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/ca25c907983fb7c1.svelte	json
-[]
-
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/ca7519e34dd9548d.svelte	json
 []
-
-=== 174 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/ce642191af3e7abd.svelte	json
-[
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 48
-		}
-	}
-]
 
 === 418 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/ce9c99bde7cc13f5.svelte	json
 [
@@ -26255,87 +23800,8 @@
 	}
 ]
 
-=== 418 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/cf9fec03a83a7892.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'void' is not assignable to parameter of type '__sveltets_2_SvelteTransitionReturnType'.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 29
-		}
-	},
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 2.",
-		"start": {
-			"line": 3,
-			"character": 18
-		},
-		"end": {
-			"line": 3,
-			"character": 29
-		}
-	}
-]
-
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/d0a0f9083f3c24c8.svelte	json
 []
-
-=== 200 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/d0f24c7315a90a1c.svelte	json
-[
-	{
-		"code": 1360,
-		"message": "Type 'number' does not satisfy the expected type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 22
-		},
-		"end": {
-			"line": 3,
-			"character": 31
-		}
-	}
-]
-
-=== 187 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/d42b32c3049f88f2.svelte	json
-[
-	{
-		"code": 2339,
-		"message": "Property 'k' does not exist on type 'number'.",
-		"start": {
-			"line": 3,
-			"character": 11
-		},
-		"end": {
-			"line": 3,
-			"character": 12
-		}
-	}
-]
-
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/d5a43d7b490faa75.svelte	json
-[]
-
-=== 187 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/d717e44cd322cd73.svelte	json
-[
-	{
-		"code": 2339,
-		"message": "Property 'k' does not exist on type 'number'.",
-		"start": {
-			"line": 3,
-			"character": 15
-		},
-		"end": {
-			"line": 3,
-			"character": 16
-		}
-	}
-]
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/d952b1af75e08d58.svelte	json
 []
@@ -26352,38 +23818,6 @@
 		"end": {
 			"line": 7,
 			"character": 18
-		}
-	}
-]
-
-=== 267 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/da1ce6f5ad24aa4e.svelte	json
-[
-	{
-		"code": 1355,
-		"message": "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals.",
-		"start": {
-			"line": 3,
-			"character": 16
-		},
-		"end": {
-			"line": 3,
-			"character": 17
-		}
-	}
-]
-
-=== 267 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/dcf6a10dd6726530.svelte	json
-[
-	{
-		"code": 1355,
-		"message": "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals.",
-		"start": {
-			"line": 3,
-			"character": 20
-		},
-		"end": {
-			"line": 3,
-			"character": 21
 		}
 	}
 ]
@@ -26467,41 +23901,6 @@
 []
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/e393e772421ac608.svelte	json
-[]
-
-=== 187 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/e6af1fd9c3729757.svelte	json
-[
-	{
-		"code": 2339,
-		"message": "Property 'k' does not exist on type 'number'.",
-		"start": {
-			"line": 3,
-			"character": 13
-		},
-		"end": {
-			"line": 3,
-			"character": 14
-		}
-	}
-]
-
-=== 199 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/e779d7ebad51ba3c.svelte	json
-[
-	{
-		"code": 1360,
-		"message": "Type 'number' does not satisfy the expected type 'string'.",
-		"start": {
-			"line": 3,
-			"character": 8
-		},
-		"end": {
-			"line": 3,
-			"character": 17
-		}
-	}
-]
-
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/e7db5b8ac84fc412.svelte	json
 []
 
 === 682 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/e7fe97574089c67d.svelte	json
@@ -26644,26 +24043,7 @@
 	}
 ]
 
-=== 187 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/f605250d93c10f34.svelte	json
-[
-	{
-		"code": 2339,
-		"message": "Property 'k' does not exist on type 'number'.",
-		"start": {
-			"line": 3,
-			"character": 17
-		},
-		"end": {
-			"line": 3,
-			"character": 18
-		}
-	}
-]
-
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/f8432030f831dce7.svelte	json
-[]
-
-=== 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/f86c64dd42630672.svelte	json
 []
 
 === 3 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/f8b00af246c29dd4.svelte	json
@@ -26766,38 +24146,6 @@
 		"end": {
 			"line": 7,
 			"character": 6
-		}
-	}
-]
-
-=== 174 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/fe5b57a8847163cc.svelte	json
-[
-	{
-		"code": 2554,
-		"message": "Expected 0 arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 28
-		},
-		"end": {
-			"line": 3,
-			"character": 50
-		}
-	}
-]
-
-=== 179 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/fec25aeeddc26f64.svelte	json
-[
-	{
-		"code": 2558,
-		"message": "Expected 0 type arguments, but got 1.",
-		"start": {
-			"line": 3,
-			"character": 14
-		},
-		"end": {
-			"line": 3,
-			"character": 20
 		}
 	}
 ]
@@ -31303,62 +28651,14 @@
 	}
 ]
 
-=== 187 ts_assertion_expressions_extra/non_null_as_member_object_preserves_wrapper/35d52702799bad3c.svelte	json
-[
-	{
-		"code": 2339,
-		"message": "Property 'b' does not exist on type 'number'.",
-		"start": {
-			"line": 0,
-			"character": 29
-		},
-		"end": {
-			"line": 0,
-			"character": 30
-		}
-	}
-]
-
 === 3 ts_assertion_expressions_extra/non_null_in_chain_erased_from_codegen/e84fc09fc4ca7906.svelte	json
 []
-
-=== 187 ts_assertion_expressions_extra/non_null_inside_optional_chain_preserves_wrapper/dfef30ecf8c7d136.svelte	json
-[
-	{
-		"code": 2339,
-		"message": "Property 'b' does not exist on type 'number'.",
-		"start": {
-			"line": 0,
-			"character": 30
-		},
-		"end": {
-			"line": 0,
-			"character": 31
-		}
-	}
-]
 
 === 3 ts_assertion_expressions_extra/non_null_mid_chain_erased_from_codegen/0f11873b29919297.svelte	json
 []
 
 === 3 ts_assertion_expressions_extra/non_null_mid_optional_chain_preserves_wrapper/da85036a7032324b.svelte	json
 []
-
-=== 535 ts_assertion_expressions_extra/ts_instantiation_preserves_wrapper_and_type_arguments/600b0a1fbcec00e9.svelte	json
-[
-	{
-		"code": 2635,
-		"message": "Type '{ (): (v: any) => void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; (): void; ():...' has no signatures for which the type argument list is applicable.",
-		"start": {
-			"line": 0,
-			"character": 30
-		},
-		"end": {
-			"line": 0,
-			"character": 36
-		}
-	}
-]
 
 === 3 ts_assertion_expressions_extra/ts_type_assertion_in_template_expression_tag_preserved/2d69e078a0bae6d7.svelte	json
 []
@@ -32530,62 +29830,6 @@
 === 3 ts_decorators_2597/a_decorator_in_a_plain_script_is_still_a_parse_error/1216f88886d4a860.svelte	json
 []
 
-=== 337 ts_decorators_2597/a_decorator_under_a_default_export_is_not_the_reported_error/b0a7ed534e86235c.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 1,
-			"character": 7
-		},
-		"end": {
-			"line": 1,
-			"character": 14
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'dec'.",
-		"start": {
-			"line": 1,
-			"character": 24
-		},
-		"end": {
-			"line": 1,
-			"character": 27
-		}
-	}
-]
-
-=== 337 ts_decorators_2597/a_decorator_under_a_default_export_is_not_the_reported_error/f758f4def7740efe.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 1,
-			"character": 7
-		},
-		"end": {
-			"line": 1,
-			"character": 14
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'dec'.",
-		"start": {
-			"line": 1,
-			"character": 16
-		},
-		"end": {
-			"line": 1,
-			"character": 19
-		}
-	}
-]
-
 === 3 ts_decorators_2597/a_non_decorator_at_sign_still_compiles/0dc71d72e01a3e24.svelte	json
 []
 
@@ -32613,34 +29857,6 @@
 
 === 3 ts_decorators_2597/a_non_decorator_at_sign_still_compiles/c3101ce786276278.svelte	json
 []
-
-=== 593 ts_decorators_2597/every_decorator_position_is_rejected/09227f78130cec78.svelte	json
-[
-	{
-		"code": 1241,
-		"message": "Unable to resolve signature of method decorator when called as an expression.\n  This expression is not callable.\n    Type 'Number' has no call signatures.",
-		"start": {
-			"line": 1,
-			"character": 11
-		},
-		"end": {
-			"line": 1,
-			"character": 12
-		}
-	},
-	{
-		"code": 1241,
-		"message": "Unable to resolve signature of method decorator when called as an expression.\n  This expression is not callable.\n    Type 'Number' has no call signatures.",
-		"start": {
-			"line": 1,
-			"character": 14
-		},
-		"end": {
-			"line": 1,
-			"character": 15
-		}
-	}
-]
 
 === 163 ts_decorators_2597/every_decorator_position_is_rejected/1a3085be2862cb20.svelte	json
 [
@@ -33325,22 +30541,6 @@
 === 3 ts_export_type_only_declaration/an_empty_module_export_is_removed/6183aac5f1124ac9.svelte	json
 []
 
-=== 221 ts_export_type_only_declaration/an_exported_import_equals_adds_no_props_parameter/5d0ce2b793c1ccd6.svelte	json
-[
-	{
-		"code": 1232,
-		"message": "An import declaration can only be used at the top level of a namespace or module.",
-		"start": {
-			"line": 1,
-			"character": 0
-		},
-		"end": {
-			"line": 1,
-			"character": 6
-		}
-	}
-]
-
 === 222 ts_export_type_only_declaration/an_exported_type_only_declaration_adds_no_props_parameter/2514c33ca9686661.svelte	json
 [
 	{
@@ -33847,22 +31047,6 @@
 		"end": {
 			"line": 1,
 			"character": 36
-		}
-	}
-]
-
-=== 190 ts_grammar_rule_parser_parity/a_namespace_import_or_reexport_is_not_a_parse_error/f78aa3188c740aa7.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Cannot read properties of undefined (reading 'kind')",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
 		}
 	}
 ]
@@ -36138,34 +33322,6 @@
 	}
 ]
 
-=== 377 ts_type_import_value_redeclaration/type_imports_collide_with_value_declarations_at_the_second_name/0681114feeabb165.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 1,
-			"character": 35
-		},
-		"end": {
-			"line": 1,
-			"character": 42
-		}
-	},
-	{
-		"code": 2307,
-		"message": "Cannot find module 'x' or its corresponding type declarations.",
-		"start": {
-			"line": 1,
-			"character": 23
-		},
-		"end": {
-			"line": 1,
-			"character": 26
-		}
-	}
-]
-
 === 221 ts_type_import_value_redeclaration/type_imports_collide_with_value_declarations_at_the_second_name/1062231930baa241.svelte	json
 [
 	{
@@ -37188,34 +34344,6 @@
 	}
 ]
 
-=== 417 with_statement_strict_mode/with_statement_in_typescript_script_is_rejected/82c283be6466c763.svelte	json
-[
-	{
-		"code": 1101,
-		"message": "'with' statements are not allowed in strict mode.",
-		"start": {
-			"line": 1,
-			"character": 2
-		},
-		"end": {
-			"line": 1,
-			"character": 6
-		}
-	},
-	{
-		"code": 2410,
-		"message": "The 'with' statement is not supported. All symbols in a 'with' block will have type 'any'.",
-		"start": {
-			"line": 1,
-			"character": 2
-		},
-		"end": {
-			"line": 1,
-			"character": 10
-		}
-	}
-]
-
 === 191 with_statement_strict_mode/with_statement_nested_in_function_is_rejected/c9f9260320cc37f2.svelte	json
 [
 	{
@@ -37608,58 +34736,6 @@
 
 === 3 wrapper_only_parse_error_4083/an_already_parsing_body_is_untouched/97dd5afdfb28129a.svelte	json
 []
-
-=== 714 wrapper_only_parse_error_4083/an_already_parsing_body_is_untouched/bcc4b9fb00313c20.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 0,
-			"character": 49
-		},
-		"end": {
-			"line": 0,
-			"character": 57
-		}
-	},
-	{
-		"code": 1434,
-		"message": "Unexpected keyword or identifier.",
-		"start": {
-			"line": 0,
-			"character": 58
-		},
-		"end": {
-			"line": 0,
-			"character": 60
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'as'.",
-		"start": {
-			"line": 0,
-			"character": 58
-		},
-		"end": {
-			"line": 0,
-			"character": 60
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'string' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 0,
-			"character": 61
-		},
-		"end": {
-			"line": 0,
-			"character": 67
-		}
-	}
-]
 
 === 3 wrapper_only_parse_error_4083/an_already_parsing_body_is_untouched/feaadafc78754d59.svelte	json
 []

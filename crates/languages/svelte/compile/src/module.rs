@@ -15,7 +15,6 @@ use rsvelte_svelte_semantic::input::ComponentInput;
 use rsvelte_svelte_semantic::resolve::resolve_module;
 use rsvelte_svelte_semantic::warnings::module_warnings;
 use rsvelte_typescript_compile::print;
-use rsvelte_typescript_tree::Tree;
 
 use crate::lower::{self, CompileInput, Target};
 use crate::warnings::OPTIONS;
@@ -79,7 +78,8 @@ pub(crate) fn compiled(
     target: Target,
     lines: Option<&LineIndex>,
 ) -> Result<Module, Diagnostic> {
-    let (javascript, program) = Tree::program(document, source_type)?;
+    let (javascript, program) =
+        rsvelte_svelte_syntax::parse::parse_module(&document.text, source_type)?;
     let compiler_syntax_tree =
         CompilerSyntaxTreeBuilder::new(&document.text, 0, 0).finish(Children::default());
     let input = CompileInput::from(ComponentInput {

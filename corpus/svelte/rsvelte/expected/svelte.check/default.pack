@@ -8679,12 +8679,6 @@
 === 3 pattern/issues/3199-grammar-await-using.svelte	json
 []
 
-=== 3 pattern/issues/3199-grammar-export-assert.svelte	json
-[]
-
-=== 3 pattern/issues/3199-grammar-import-assert.svelte	json
-[]
-
 === 3 pattern/issues/3199-grammar-import-defer.svelte	json
 []
 

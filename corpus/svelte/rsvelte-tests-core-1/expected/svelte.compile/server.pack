@@ -7511,66 +7511,6 @@ export default function E6ecca271b3b016e($$renderer) {
 	}
 ]
 
-=== 49 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte	css
-
-	a[data-flag~=""].svelte-6zlcyq { color: red; }
-
-=== 191 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _d8efadcd5f748d3($$renderer) {
-	let v = "x";
-
-	$$renderer.push(`<a href="#" data-flag="" class="svelte-6zlcyq">a</a>`);
-}
-=== 273 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte	warnings.json
-[
-	{
-		"code": "a11y_invalid_attribute",
-		"message": "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
-		"start": {
-			"line": 5,
-			"column": 3,
-			"character": 37
-		},
-		"end": {
-			"line": 5,
-			"column": 11,
-			"character": 45
-		}
-	}
-]
-
-=== 49 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/4809229d13f750f6.svelte	css
-
-	a[data-flag^=""].svelte-luc18v { color: red; }
-
-=== 191 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/4809229d13f750f6.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _809229d13f750f6($$renderer) {
-	let v = "x";
-
-	$$renderer.push(`<a href="#" data-flag="" class="svelte-luc18v">a</a>`);
-}
-=== 273 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/4809229d13f750f6.svelte	warnings.json
-[
-	{
-		"code": "a11y_invalid_attribute",
-		"message": "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
-		"start": {
-			"line": 5,
-			"column": 3,
-			"character": 37
-		},
-		"end": {
-			"line": 5,
-			"column": 11,
-			"character": 45
-		}
-	}
-]
-
 === 49 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/626697f6a00a0255.svelte	css
 
 	a[data-flag=""].svelte-1rg3ug9 { color: red; }
@@ -7614,66 +7554,6 @@ export default function _a02d8a7122dae01($$renderer) {
 	$$renderer.push(`<a href="#" data-flag="" class="svelte-j3t4rk">a</a>`);
 }
 === 273 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/6a02d8a7122dae01.svelte	warnings.json
-[
-	{
-		"code": "a11y_invalid_attribute",
-		"message": "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
-		"start": {
-			"line": 5,
-			"column": 3,
-			"character": 37
-		},
-		"end": {
-			"line": 5,
-			"column": 11,
-			"character": 45
-		}
-	}
-]
-
-=== 49 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/7e0bf9a55c019a47.svelte	css
-
-	a[data-flag^=""].svelte-sczzla { color: red; }
-
-=== 191 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/7e0bf9a55c019a47.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _e0bf9a55c019a47($$renderer) {
-	let v = "x";
-
-	$$renderer.push(`<a href="#" data-flag="" class="svelte-sczzla">a</a>`);
-}
-=== 273 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/7e0bf9a55c019a47.svelte	warnings.json
-[
-	{
-		"code": "a11y_invalid_attribute",
-		"message": "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
-		"start": {
-			"line": 5,
-			"column": 3,
-			"character": 37
-		},
-		"end": {
-			"line": 5,
-			"column": 11,
-			"character": 45
-		}
-	}
-]
-
-=== 50 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/af4e901d46ddc2c3.svelte	css
-
-	a[data-flag~=""].svelte-1whm7dy { color: red; }
-
-=== 192 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/af4e901d46ddc2c3.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Af4e901d46ddc2c3($$renderer) {
-	let v = "x";
-
-	$$renderer.push(`<a href="#" data-flag="" class="svelte-1whm7dy">a</a>`);
-}
-=== 273 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/af4e901d46ddc2c3.svelte	warnings.json
 [
 	{
 		"code": "a11y_invalid_attribute",
@@ -9305,31 +9185,6 @@ export default function _e5914301fed6b92($$renderer) {
 	}
 ]
 
-=== 147 bidi_every_occurrence_3344/the_shapes_official_already_gets_right_are_unchanged/62731713e2ae3407.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _2731713e2ae3407($$renderer) {
-	let a = "x‮y";
-	let b = "pppppppppp‮q";
-}
-=== 432 bidi_every_occurrence_3344/the_shapes_official_already_gets_right_are_unchanged/62731713e2ae3407.svelte	warnings.json
-[
-	{
-		"code": "bidirectional_control_characters",
-		"message": "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters",
-		"start": {
-			"line": 1,
-			"column": 31,
-			"character": 31
-		},
-		"end": {
-			"line": 1,
-			"column": 45,
-			"character": 45
-		}
-	}
-]
-
 === 142 bidi_every_occurrence_3344/the_shapes_official_already_gets_right_are_unchanged/eeef142ad1de0f28.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -9392,105 +9247,6 @@ export default function F951e22c1c2e0535($$renderer) {
 	}
 ]
 
-=== 156 bidi_every_occurrence_3344/three_string_literals_in_a_script_report_three_times/afdac586527470e9.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Afdac586527470e9($$renderer) {
-	let a = "x‮y";
-	let b = "p‮q";
-	let c = "m‮n";
-}
-=== 432 bidi_every_occurrence_3344/three_string_literals_in_a_script_report_three_times/afdac586527470e9.svelte	warnings.json
-[
-	{
-		"code": "bidirectional_control_characters",
-		"message": "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters",
-		"start": {
-			"line": 1,
-			"column": 31,
-			"character": 31
-		},
-		"end": {
-			"line": 1,
-			"column": 36,
-			"character": 36
-		}
-	}
-]
-
-=== 142 bidi_every_occurrence_3344/two_quasis_of_one_template_literal_report_twice/a623ecae2f12e62a.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function A623ecae2f12e62a($$renderer) {
-	$$renderer.push(`<b>a‮b1c‮d</b>`);
-}
-=== 428 bidi_every_occurrence_3344/two_quasis_of_one_template_literal_report_twice/a623ecae2f12e62a.svelte	warnings.json
-[
-	{
-		"code": "bidirectional_control_characters",
-		"message": "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters",
-		"start": {
-			"line": 1,
-			"column": 5,
-			"character": 5
-		},
-		"end": {
-			"line": 1,
-			"column": 8,
-			"character": 8
-		}
-	}
-]
-
-=== 138 bidi_every_occurrence_3344/two_string_literals_in_a_script_report_twice/f78ee2a73ae535ff.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function F78ee2a73ae535ff($$renderer) {
-	let a = "x‮y";
-	let b = "p‮q";
-}
-=== 432 bidi_every_occurrence_3344/two_string_literals_in_a_script_report_twice/f78ee2a73ae535ff.svelte	warnings.json
-[
-	{
-		"code": "bidirectional_control_characters",
-		"message": "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters",
-		"start": {
-			"line": 1,
-			"column": 16,
-			"character": 16
-		},
-		"end": {
-			"line": 1,
-			"column": 21,
-			"character": 21
-		}
-	}
-]
-
-=== 141 bidi_every_occurrence_3344/two_template_expressions_report_twice/fc996b62696df7a9.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Fc996b62696df7a9($$renderer) {
-	$$renderer.push(`<b>a‮bc‮d</b>`);
-}
-=== 428 bidi_every_occurrence_3344/two_template_expressions_report_twice/fc996b62696df7a9.svelte	warnings.json
-[
-	{
-		"code": "bidirectional_control_characters",
-		"message": "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters",
-		"start": {
-			"line": 1,
-			"column": 4,
-			"character": 4
-		},
-		"end": {
-			"line": 1,
-			"column": 9,
-			"character": 9
-		}
-	}
-]
-
 === 119 bidirectional_control_characters_slots_3227/a_script_literal_still_warns/21b1231e1b124275.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -9515,14 +9271,6 @@ export default function _1b1231e1b124275($$renderer) {}
 	}
 ]
 
-=== 155 bidirectional_control_characters_slots_3227/a_script_literal_still_warns/5204698638a62e55.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _204698638a62e55($$renderer) {
-	let s = "a‮b";
-
-	$$renderer.push(`<b>a‮b</b>`);
-}
 === 136 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/1318223db50291f3.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -9547,18 +9295,6 @@ export default function _318223db50291f3($$renderer) {
 	}
 ]
 
-=== 228 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/1b153d5fd6e74398.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _b153d5fd6e74398($$renderer) {
-	if ("a‮b") {
-		$$renderer.push(`<!--[0-->x`);
-	} else {
-		$$renderer.push('<!--[-1-->');
-	}
-
-	$$renderer.push(`<!--]-->`);
-}
 === 177 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/41c8d31d26ba9ffe.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -9607,22 +9343,6 @@ export default function Af2abd9d841725d0($$renderer) {
 	}
 ]
 
-=== 382 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/d28b687dbfce54c4.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function D28b687dbfce54c4($$renderer) {
-	$$renderer.push(`<!--[-->`);
-
-	const each_array = $.ensure_array_like(["a‮b"]);
-
-	for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
-		let v = each_array[$$index];
-
-		$$renderer.push(`<!---->${$.escape(v)}`);
-	}
-
-	$$renderer.push(`<!--]-->`);
-}
 === 146 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/d885b42f442ee74a.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -9729,30 +9449,6 @@ export default function _b41964b6536ed0b($$renderer) {
 			"line": 1,
 			"column": 21,
 			"character": 21
-		}
-	}
-]
-
-=== 158 bidirectional_control_characters_slots_3227/an_attribute_and_an_expression_both_report/81542bf877f46ecd.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _1542bf877f46ecd($$renderer) {
-	$$renderer.push(`<b>c‮d</b><i title="a‮b">y</i>`);
-}
-=== 432 bidirectional_control_characters_slots_3227/an_attribute_and_an_expression_both_report/81542bf877f46ecd.svelte	warnings.json
-[
-	{
-		"code": "bidirectional_control_characters",
-		"message": "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters",
-		"start": {
-			"line": 1,
-			"column": 25,
-			"character": 25
-		},
-		"end": {
-			"line": 1,
-			"column": 26,
-			"character": 26
 		}
 	}
 ]
@@ -10440,84 +10136,6 @@ import * as $ from 'svelte/internal/server';
 export default function F81dcf0aeddb1510($$renderer) {
 	$$renderer.push(`<p>true</p>`);
 }
-=== 53 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/09511e45c2f398d2.svelte	error.txt
-BigInts have no unsigned right shift, use >> instead
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/0e3abc198418bc74.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 17 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/1c753cd80489c8fb.svelte	error.txt
-Division by zero
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/2618d0bc377704a3.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/42ac82a706464018.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 53 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/45399919d09d6ede.svelte	error.txt
-BigInts have no unsigned right shift, use >> instead
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/5692964a76de3f52.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/66376f67124b4d81.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/68629d53c79fcf5a.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 42 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/6974a5a87fbd5b68.svelte	error.txt
-Cannot convert a BigInt value to a number
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/6a936932e986470d.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/6fd16479e929dc6d.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/85ddd8c637dd1099.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 17 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/87e34b3a689f9448.svelte	error.txt
-Division by zero
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/966796ac4d297f6f.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 42 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/9de45e3b32fb9351.svelte	error.txt
-Cannot convert a BigInt value to a number
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/a13c53ad2b76b622.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/a241a352683b3e49.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/ab9c47ba37e79731.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/ad07f339dcdf112d.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/d19c15ef72770620.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/d53f03b5f885c454.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/f33536cb7a64911a.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
-=== 26 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/f38d296e65efce2f.svelte	error.txt
-Exponent must be positive
-
-=== 42 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/faf95531bc451aa2.svelte	error.txt
-Cannot convert a BigInt value to a number
-
-=== 42 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/fb93c1f8400ba356.svelte	error.txt
-Cannot convert a BigInt value to a number
-
 === 135 bigint_constant_fold_3539/the_non_bigint_folds_are_unchanged/019ac59230992ac1.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -14040,18 +13658,6 @@ export default function E7d09ceb73eccb83($$renderer, $$props) {
 		$.bind_props($$props, { p });
 	});
 }
-=== 301 bindable_rune_default_3615/rune_identifier_defaults_are_proxied_lazily/0a4afed7c6de59de.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _a4afed7c6de59de($$renderer, $$props) {
-	$$renderer.component(($$renderer) => {
-		let s = $.derived(() => 1);
-		let { p = s()() } = $$props;
-
-		$$renderer.push(`<b>${$.escape(typeof p)}</b>`);
-		$.bind_props($$props, { p });
-	});
-}
 === 280 bindable_rune_default_3615/rune_identifier_defaults_are_proxied_lazily/b539b95cfc6c0c70.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -14071,18 +13677,6 @@ export default function C8316523ced46016($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
 		let s = 1;
 		let { p = s } = $$props;
-
-		$$renderer.push(`<b>${$.escape(typeof p)}</b>`);
-		$.bind_props($$props, { p });
-	});
-}
-=== 301 bindable_rune_default_3615/rune_identifier_defaults_are_proxied_lazily/dedb2969507c2d84.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Dedb2969507c2d84($$renderer, $$props) {
-	$$renderer.component(($$renderer) => {
-		let s = $.derived(() => 1);
-		let { p = s()() } = $$props;
 
 		$$renderer.push(`<b>${$.escape(typeof p)}</b>`);
 		$.bind_props($$props, { p });
@@ -21142,28 +20736,6 @@ export default function _fa516510b0e3aa9($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
-=== 403 compiler/phases/phase2_analyze/store_subscriptions/tests/dollar_named_parameters_are_not_outer_store_subscriptions/620841e8ef148b9f.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _20841e8ef148b9f($$renderer) {
-	let work = { value: 1 };
-
-	function read($work) {
-		return $work.value;
-	}
-
-	const viewport = {
-		update(fn) {
-			fn({ width: 1 });
-		}
-	};
-
-	function update() {
-		viewport.update(($viewport) => {
-			$.store_mutate($$store_subs ??= {}, '$viewport', viewport, $viewport.width += read(work));
-		});
-	}
-}
 === 348 compiler/phases/phase2_analyze/store_subscriptions/tests/test_detect_store_subscriptions_integration/1fba641fe5f6afe0.svelte	js
 import * as $ from 'svelte/internal/server';
 import { writable } from 'svelte/store';
@@ -27636,62 +27208,6 @@ export default function Cc5a0170371ad564($$renderer) {
 		}
 	});
 }
-=== 222 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/ebed4d1b2bd8825d.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Ebed4d1b2bd8825d($$renderer, $$props) {
-	$$renderer.push(`<!--[-->`);
-	$.slot($$renderer, $$props, 'default', {}, null);
-	$$renderer.push(`<!--]-->`);
-}
-=== 328 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/ebed4d1b2bd8825d.svelte	warnings.json
-[
-	{
-		"code": "slot_element_deprecated",
-		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
-		"start": {
-			"line": 1,
-			"column": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 1,
-			"column": 17,
-			"character": 17
-		}
-	}
-]
-
-=== 270 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/f864cc9d8fba5124.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function F864cc9d8fba5124($$renderer, $$props) {
-	$$renderer.push(`<!--[-->`);
-
-	$.slot($$renderer, $$props, 'default', {}, () => {
-		$$renderer.push(`${$.escape(item)}`);
-	});
-
-	$$renderer.push(`<!--]-->`);
-}
-=== 328 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/f864cc9d8fba5124.svelte	warnings.json
-[
-	{
-		"code": "slot_element_deprecated",
-		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
-		"start": {
-			"line": 1,
-			"column": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 1,
-			"column": 28,
-			"character": 28
-		}
-	}
-]
-
 === 243 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_needs_context_wrapper/f728ba526fb6819a.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount } from 'svelte';
@@ -31636,12 +31152,6 @@ export default function _a7eb2dd32ffb7d7($$renderer) {
 	}
 ]
 
-=== 128 computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/12839e381b7e9d66.svelte	js
-import * as $ from 'svelte/internal/server';
-
-let o = { ["a‮b"]: 1 };
-
-export default function _2839e381b7e9d66($$renderer) {}
 === 133 computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/53a610167d17d55b.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -31668,12 +31178,6 @@ export default function _3a610167d17d55b($$renderer) {
 	}
 ]
 
-=== 130 computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/60efd40319cca749.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _0efd40319cca749($$renderer) {
-	let { ["a‮b"]: v } = {};
-}
 === 135 computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/9f66dcb10f9cf157.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -31698,14 +31202,6 @@ export default function _f66dcb10f9cf157($$renderer) {
 	}
 ]
 
-=== 133 computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/ed8c0c7fe07ced23.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Ed8c0c7fe07ced23($$renderer) {
-	class K {
-		["a‮b"] = 1;
-	}
-}
 === 212 computed_property_key_span_3345/a_template_expression_keeps_its_positions/743e8de38eab5c63.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -31732,12 +31228,6 @@ export default function _43e8de38eab5c63($$renderer, $$props) {
 	}
 ]
 
-=== 176 computed_property_key_span_3345/a_template_expression_keeps_its_positions/f9e1a8d36317a200.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function F9e1a8d36317a200($$renderer) {
-	$$renderer.push(`<b>${$.escape(JSON.stringify({ ["a‮b"]: 1 }))}</b>`);
-}
 === 181 computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/189c320cdfee9248.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -31764,12 +31254,6 @@ export default function _89c320cdfee9248($$renderer, $$props) {
 	}
 ]
 
-=== 127 computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/69872f6e8c224c02.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _9872f6e8c224c02($$renderer) {
-	let o = { k: "a‮b" };
-}
 === 120 computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/f89ba9cbae0f69c4.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -31794,12 +31278,6 @@ export default function F89ba9cbae0f69c4($$renderer) {
 	}
 ]
 
-=== 129 computed_property_key_span_3345/the_whole_key_subtree_moves_with_it/4f67cefb5b0ba2e9.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _f67cefb5b0ba2e9($$renderer) {
-	let o = { [`a‮b`]: 1 };
-}
 === 133 computed_property_key_span_3345/the_whole_key_subtree_moves_with_it/b6e7554f8c5692e2.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -34278,21 +33756,6 @@ export default function _6c9b0ea19c14243($$renderer) {
 		}
 
 		$$renderer.push(`<!--]--> <i>${$.escape(value)}</i>`);
-	}
-
-	$$renderer.push(`<!--]-->`);
-}
-=== 255 const_tag_cycle_error_span/const_tag_cycle_points_at_the_first_declaration_in_the_cycle/0be01fe38154ef62.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _be01fe38154ef62($$renderer) {
-	if (true) {
-		$$renderer.push('<!--[0-->');
-
-		const a = b;
-		const b = a;
-	} else {
-		$$renderer.push('<!--[-1-->');
 	}
 
 	$$renderer.push(`<!--]-->`);
@@ -36987,22 +36450,6 @@ export default function _ed0bbeac2ab695c($$renderer) {
 	}
 ]
 
-=== 247 css_empty_declaration_error_span/consecutive_semicolons_span_to_the_following_block_close/6ab50de7e6515fdc.svelte	error.json
-{
-	"code": "css_empty_declaration",
-	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
-	"start": {
-		"line": 3,
-		"column": 22,
-		"character": 48
-	},
-	"end": {
-		"line": 4,
-		"column": 2,
-		"character": 52
-	}
-}
-
 === 246 css_empty_declaration_error_span/empty_css_declaration_span_includes_following_whitespace/0aa90a07a903e4f3.svelte	error.json
 {
 	"code": "css_empty_declaration",
@@ -38535,32 +37982,6 @@ export default function _47a3c962534c57c($$renderer) {
 			"line": 2,
 			"column": 23,
 			"character": 79
-		}
-	}
-]
-
-=== 44 css_is_where_branch/is_descendant_no_match_reports_whole/c9eaf32a044209cb.svelte	css
-/* (unused) div :is(.a, .b) { color: red }*/
-=== 160 css_is_where_branch/is_descendant_no_match_reports_whole/c9eaf32a044209cb.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function C9eaf32a044209cb($$renderer) {
-	$$renderer.push(`<div class="a svelte-1tpin1j"></div>`);
-}
-=== 273 css_is_where_branch/is_descendant_no_match_reports_whole/c9eaf32a044209cb.svelte	warnings.json
-[
-	{
-		"code": "css_unused_selector",
-		"message": "Unused CSS selector \"div :is(.a, .b)\"\nhttps://svelte.dev/e/css_unused_selector",
-		"start": {
-			"line": 2,
-			"column": 7,
-			"character": 29
-		},
-		"end": {
-			"line": 2,
-			"column": 22,
-			"character": 44
 		}
 	}
 ]
@@ -40151,94 +39572,6 @@ export default function F18fd587018ddd2d($$renderer) {
 	}
 ]
 
-=== 43 css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/6e19c2606f952300.svelte	css
-
-	/* (unused) .a :has(.b) { color: red }*/
-
-=== 193 css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/6e19c2606f952300.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _e19c2606f952300($$renderer) {
-	$$renderer.push(`<div class="a svelte-1p47zwl"><b class="b svelte-1p47zwl">x</b></div>`);
-}
-=== 269 css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/6e19c2606f952300.svelte	warnings.json
-[
-	{
-		"code": "css_unused_selector",
-		"message": "Unused CSS selector \".a :has(.b)\"\nhttps://svelte.dev/e/css_unused_selector",
-		"start": {
-			"line": 3,
-			"column": 1,
-			"character": 49
-		},
-		"end": {
-			"line": 3,
-			"column": 12,
-			"character": 60
-		}
-	}
-]
-
-=== 45 css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/d194f58883e60cf4.svelte	css
-
-	/* (unused) .a > :has(.b) { color: red }*/
-
-=== 193 css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/d194f58883e60cf4.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function D194f58883e60cf4($$renderer) {
-	$$renderer.push(`<div class="a svelte-1dmffn4"><b class="b svelte-1dmffn4">x</b></div>`);
-}
-=== 271 css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/d194f58883e60cf4.svelte	warnings.json
-[
-	{
-		"code": "css_unused_selector",
-		"message": "Unused CSS selector \".a > :has(.b)\"\nhttps://svelte.dev/e/css_unused_selector",
-		"start": {
-			"line": 3,
-			"column": 1,
-			"character": 49
-		},
-		"end": {
-			"line": 3,
-			"column": 14,
-			"character": 62
-		}
-	}
-]
-
-=== 256 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/12c6b8beaa21d52d.svelte	error.json
-{
-	"code": "css_expected_identifier",
-	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
-	"start": {
-		"line": 3,
-		"column": 14,
-		"character": 44
-	},
-	"end": {
-		"line": 3,
-		"column": 14,
-		"character": 44
-	}
-}
-
-=== 256 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/1d52c2bf6295517c.svelte	error.json
-{
-	"code": "css_expected_identifier",
-	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
-	"start": {
-		"line": 3,
-		"column": 14,
-		"character": 44
-	},
-	"end": {
-		"line": 3,
-		"column": 14,
-		"character": 44
-	}
-}
-
 === 256 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/7733d0ce2f3be523.svelte	error.json
 {
 	"code": "css_expected_identifier",
@@ -40288,38 +39621,6 @@ export default function D194f58883e60cf4($$renderer) {
 }
 
 === 256 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/d0c7745dd73fa0f6.svelte	error.json
-{
-	"code": "css_expected_identifier",
-	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
-	"start": {
-		"line": 3,
-		"column": 14,
-		"character": 44
-	},
-	"end": {
-		"line": 3,
-		"column": 14,
-		"character": 44
-	}
-}
-
-=== 256 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/d19e82e3c15ba56b.svelte	error.json
-{
-	"code": "css_expected_identifier",
-	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
-	"start": {
-		"line": 3,
-		"column": 14,
-		"character": 44
-	},
-	"end": {
-		"line": 3,
-		"column": 14,
-		"character": 44
-	}
-}
-
-=== 256 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/e2a71600612d7577.svelte	error.json
 {
 	"code": "css_expected_identifier",
 	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
@@ -41277,54 +40578,6 @@ export default function _d91fc33e2dbd49e($$renderer) {
 		"line": 3,
 		"column": 12,
 		"character": 86
-	}
-}
-
-=== 221 css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/56850d42c980b1cc.svelte	error.json
-{
-	"code": "expected_token",
-	"message": "Expected token ]\nhttps://svelte.dev/e/expected_token",
-	"start": {
-		"line": 3,
-		"column": 5,
-		"character": 79
-	},
-	"end": {
-		"line": 3,
-		"column": 5,
-		"character": 79
-	}
-}
-
-=== 254 css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/d1817713cb279f42.svelte	error.json
-{
-	"code": "css_expected_identifier",
-	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
-	"start": {
-		"line": 3,
-		"column": 2,
-		"character": 76
-	},
-	"end": {
-		"line": 3,
-		"column": 2,
-		"character": 76
-	}
-}
-
-=== 254 css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/da7b20631d49c91b.svelte	error.json
-{
-	"code": "css_expected_identifier",
-	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
-	"start": {
-		"line": 3,
-		"column": 2,
-		"character": 76
-	},
-	"end": {
-		"line": 3,
-		"column": 2,
-		"character": 76
 	}
 }
 
@@ -42722,22 +41975,6 @@ export default function Bd7c893b9377b83c($$renderer) {
 	}
 }
 
-=== 254 css_trailing_combinator_parse/a_comment_after_a_combinator_is_an_expected_identifier_at_the_comment/6417a3f535e59cc1.svelte	error.json
-{
-	"code": "css_expected_identifier",
-	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
-	"start": {
-		"line": 3,
-		"column": 4,
-		"character": 37
-	},
-	"end": {
-		"line": 3,
-		"column": 4,
-		"character": 37
-	}
-}
-
 === 233 css_trailing_combinator_parse/a_nested_rule_reports_its_own_brace/2408ae21c5f87718.svelte	error.json
 {
 	"code": "css_selector_invalid",
@@ -43811,14 +43048,6 @@ export default function _dc4abe7c2e33cf0($$renderer) {}
 	}
 }
 
-=== 186 custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/3ba1c33cb1ffa0f4.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
 === 465 custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/62b6c0fd181fcbc3.svelte	error.json
 {
 	"code": "svelte_options_invalid_customelement_props",
@@ -43833,21 +43062,5 @@ export default function _dc4abe7c2e33cf0($$renderer) {}
 		"column": 68,
 		"character": 68
 	}
-}
-
-=== 186 custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/871423b006a5dcd9.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
-=== 186 custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/e0eea289ca0c9bbf.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
 }
 

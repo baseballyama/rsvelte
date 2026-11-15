@@ -113,22 +113,6 @@
 === 3 await_clauses/every_clause_survives_when_every_body_has_content/6579a73a43047880.svelte	json
 []
 
-=== 175 await_clauses/shorthand_headers_with_empty_bodies_lose_their_clause/326b22512122face.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Cannot overwrite across a split point",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
-
 === 3 await_clauses/shorthand_headers_with_empty_bodies_lose_their_clause/4c222d4ad7b660c5.svelte	json
 []
 
@@ -1229,22 +1213,6 @@
 	}
 ]
 
-=== 193 markup_cast_head_parens/declaration_name_head_matches_oracle/011aebbaa3dfa3f0.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 13
-		}
-	}
-]
-
 === 167 markup_cast_head_parens/declaration_name_head_matches_oracle/01356af444c5f3b5.svelte	json
 [
 	{
@@ -1949,46 +1917,6 @@
 	}
 ]
 
-=== 530 markup_cast_head_parens/declaration_name_head_matches_oracle/0ce4a229f2651289.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "',' expected.",
-		"start": {
-			"line": 2,
-			"character": 20
-		},
-		"end": {
-			"line": 2,
-			"character": 26
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'satisfies' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 10
-		},
-		"end": {
-			"line": 2,
-			"character": 19
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'string' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 20
-		},
-		"end": {
-			"line": 2,
-			"character": 26
-		}
-	}
-]
-
 === 164 markup_cast_head_parens/declaration_name_head_matches_oracle/0db534bc42eef49b.svelte	json
 [
 	{
@@ -2205,34 +2133,6 @@
 		"end": {
 			"line": 2,
 			"character": 20
-		}
-	}
-]
-
-=== 357 markup_cast_head_parens/declaration_name_head_matches_oracle/105f5e4e537fff6e.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'{' expected.",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 17
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'any' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 17
 		}
 	}
 ]
@@ -2761,34 +2661,6 @@
 	}
 ]
 
-=== 357 markup_cast_head_parens/declaration_name_head_matches_oracle/197185b2c1861f3a.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'{' expected.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 20
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'any' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 20
-		}
-	}
-]
-
 === 360 markup_cast_head_parens/declaration_name_head_matches_oracle/1981269e26ed17fc.svelte	json
 [
 	{
@@ -3089,58 +2961,6 @@
 		"end": {
 			"line": 2,
 			"character": 11
-		}
-	}
-]
-
-=== 713 markup_cast_head_parens/declaration_name_head_matches_oracle/1cbbc5495ab257c0.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 2,
-			"character": 4
-		},
-		"end": {
-			"line": 2,
-			"character": 12
-		}
-	},
-	{
-		"code": 1434,
-		"message": "Unexpected keyword or identifier.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'as'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'string' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 16
-		},
-		"end": {
-			"line": 2,
-			"character": 22
 		}
 	}
 ]
@@ -3505,94 +3325,6 @@
 	}
 ]
 
-=== 1199 markup_cast_head_parens/declaration_name_head_matches_oracle/2088c6c2660e45f8.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "',' expected.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 16
-		}
-	},
-	{
-		"code": 1005,
-		"message": "',' expected.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 26
-		}
-	},
-	{
-		"code": 1005,
-		"message": "',' expected.",
-		"start": {
-			"line": 2,
-			"character": 27
-		},
-		"end": {
-			"line": 2,
-			"character": 33
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'as' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 10
-		},
-		"end": {
-			"line": 2,
-			"character": 12
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'any' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 16
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'satisfies' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 26
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'string' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 27
-		},
-		"end": {
-			"line": 2,
-			"character": 33
-		}
-	}
-]
-
 === 1379 markup_cast_head_parens/declaration_name_head_matches_oracle/208e8058f2789ff5.svelte	json
 [
 	{
@@ -3877,46 +3609,6 @@
 		"end": {
 			"line": 2,
 			"character": 8
-		}
-	}
-]
-
-=== 642 markup_cast_head_parens/declaration_name_head_matches_oracle/25028b81b8e28046.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'{' expected.",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 17
-		}
-	},
-	{
-		"code": 2362,
-		"message": "The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 17
-		}
-	},
-	{
-		"code": 2363,
-		"message": "The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 20
-		},
-		"end": {
-			"line": 2,
-			"character": 23
 		}
 	}
 ]
@@ -4885,34 +4577,6 @@
 	}
 ]
 
-=== 360 markup_cast_head_parens/declaration_name_head_matches_oracle/2d30650b5d114ae5.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'{' expected.",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 20
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'string' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 20
-		}
-	}
-]
-
 === 165 markup_cast_head_parens/declaration_name_head_matches_oracle/2d5d422ffda3d092.svelte	json
 [
 	{
@@ -4925,22 +4589,6 @@
 		"end": {
 			"line": 2,
 			"character": 18
-		}
-	}
-]
-
-=== 193 markup_cast_head_parens/declaration_name_head_matches_oracle/2d77964ecb1f570d.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-		"start": {
-			"line": 2,
-			"character": 21
-		},
-		"end": {
-			"line": 2,
-			"character": 21
 		}
 	}
 ]
@@ -6009,34 +5657,6 @@
 	}
 ]
 
-=== 360 markup_cast_head_parens/declaration_name_head_matches_oracle/3d1398e90e495150.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'{' expected.",
-		"start": {
-			"line": 2,
-			"character": 21
-		},
-		"end": {
-			"line": 2,
-			"character": 27
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'string' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 21
-		},
-		"end": {
-			"line": 2,
-			"character": 27
-		}
-	}
-]
-
 === 309 markup_cast_head_parens/declaration_name_head_matches_oracle/3d89a7646de65737.svelte	json
 [
 	{
@@ -6977,58 +6597,6 @@
 	}
 ]
 
-=== 710 markup_cast_head_parens/declaration_name_head_matches_oracle/4bf8fbbf8830146f.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 2,
-			"character": 4
-		},
-		"end": {
-			"line": 2,
-			"character": 12
-		}
-	},
-	{
-		"code": 1434,
-		"message": "Unexpected keyword or identifier.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'as'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'any' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 16
-		},
-		"end": {
-			"line": 2,
-			"character": 19
-		}
-	}
-]
-
 === 168 markup_cast_head_parens/declaration_name_head_matches_oracle/4c0ea1f4eb9f204b.svelte	json
 [
 	{
@@ -7213,110 +6781,6 @@
 	}
 ]
 
-=== 642 markup_cast_head_parens/declaration_name_head_matches_oracle/4f23563c0c692a03.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'{' expected.",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 17
-		}
-	},
-	{
-		"code": 2362,
-		"message": "The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 17
-		}
-	},
-	{
-		"code": 2363,
-		"message": "The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 20
-		},
-		"end": {
-			"line": 2,
-			"character": 23
-		}
-	}
-]
-
-=== 995 markup_cast_head_parens/declaration_name_head_matches_oracle/4f7146b39cf1d315.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 2,
-			"character": 4
-		},
-		"end": {
-			"line": 2,
-			"character": 12
-		}
-	},
-	{
-		"code": 1434,
-		"message": "Unexpected keyword or identifier.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'as'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	},
-	{
-		"code": 2362,
-		"message": "The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 16
-		},
-		"end": {
-			"line": 2,
-			"character": 19
-		}
-	},
-	{
-		"code": 2363,
-		"message": "The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 22
-		},
-		"end": {
-			"line": 2,
-			"character": 25
-		}
-	}
-]
-
 === 167 markup_cast_head_parens/declaration_name_head_matches_oracle/4fae905d6d03d8b3.svelte	json
 [
 	{
@@ -7361,22 +6825,6 @@
 		"end": {
 			"line": 2,
 			"character": 21
-		}
-	}
-]
-
-=== 155 markup_cast_head_parens/declaration_name_head_matches_oracle/505123e771c673f6.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'=' expected.",
-		"start": {
-			"line": 2,
-			"character": 12
-		},
-		"end": {
-			"line": 2,
-			"character": 15
 		}
 	}
 ]
@@ -7581,22 +7029,6 @@
 	}
 ]
 
-=== 155 markup_cast_head_parens/declaration_name_head_matches_oracle/527567190b2f3584.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'=' expected.",
-		"start": {
-			"line": 2,
-			"character": 12
-		},
-		"end": {
-			"line": 2,
-			"character": 18
-		}
-	}
-]
-
 === 499 markup_cast_head_parens/declaration_name_head_matches_oracle/52a1ed052f4dcc97.svelte	json
 [
 	{
@@ -7757,22 +7189,6 @@
 		"end": {
 			"line": 2,
 			"character": 21
-		}
-	}
-]
-
-=== 193 markup_cast_head_parens/declaration_name_head_matches_oracle/54557b00a714b2a9.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-		"start": {
-			"line": 2,
-			"character": 24
-		},
-		"end": {
-			"line": 2,
-			"character": 24
 		}
 	}
 ]
@@ -9585,22 +9001,6 @@
 	}
 ]
 
-=== 155 markup_cast_head_parens/declaration_name_head_matches_oracle/6b8b369f7f2c97cd.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'=' expected.",
-		"start": {
-			"line": 2,
-			"character": 19
-		},
-		"end": {
-			"line": 2,
-			"character": 25
-		}
-	}
-]
-
 === 163 markup_cast_head_parens/declaration_name_head_matches_oracle/6bdb65c534307e9e.svelte	json
 [
 	{
@@ -9933,34 +9333,6 @@
 	}
 ]
 
-=== 357 markup_cast_head_parens/declaration_name_head_matches_oracle/6e7d251a74d9f9d1.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'{' expected.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 20
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'any' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 20
-		}
-	}
-]
-
 === 169 markup_cast_head_parens/declaration_name_head_matches_oracle/6ece3066473cc285.svelte	json
 [
 	{
@@ -10169,46 +9541,6 @@
 		"end": {
 			"line": 2,
 			"character": 10
-		}
-	}
-]
-
-=== 642 markup_cast_head_parens/declaration_name_head_matches_oracle/717fabcc869e137b.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'{' expected.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 20
-		}
-	},
-	{
-		"code": 2362,
-		"message": "The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 20
-		}
-	},
-	{
-		"code": 2363,
-		"message": "The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 23
-		},
-		"end": {
-			"line": 2,
-			"character": 26
 		}
 	}
 ]
@@ -10485,34 +9817,6 @@
 		"end": {
 			"line": 2,
 			"character": 24
-		}
-	}
-]
-
-=== 360 markup_cast_head_parens/declaration_name_head_matches_oracle/756b6441e9d40f62.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'{' expected.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 23
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'string' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 23
 		}
 	}
 ]
@@ -10801,22 +10105,6 @@
 		"end": {
 			"line": 2,
 			"character": 19
-		}
-	}
-]
-
-=== 155 markup_cast_head_parens/declaration_name_head_matches_oracle/799deeaa81aee0d7.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'=' expected.",
-		"start": {
-			"line": 2,
-			"character": 12
-		},
-		"end": {
-			"line": 2,
-			"character": 15
 		}
 	}
 ]
@@ -12377,58 +11665,6 @@
 	}
 ]
 
-=== 824 markup_cast_head_parens/declaration_name_head_matches_oracle/8b30be58e48c5674.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "',' expected.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 16
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'as' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 10
-		},
-		"end": {
-			"line": 2,
-			"character": 12
-		}
-	},
-	{
-		"code": 2362,
-		"message": "The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 16
-		}
-	},
-	{
-		"code": 2363,
-		"message": "The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 19
-		},
-		"end": {
-			"line": 2,
-			"character": 22
-		}
-	}
-]
-
 === 162 markup_cast_head_parens/declaration_name_head_matches_oracle/8b315b452b638459.svelte	json
 [
 	{
@@ -12565,22 +11801,6 @@
 		"end": {
 			"line": 2,
 			"character": 11
-		}
-	}
-]
-
-=== 193 markup_cast_head_parens/declaration_name_head_matches_oracle/8d74744ba580b1a1.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 14
 		}
 	}
 ]
@@ -12841,62 +12061,6 @@
 		"end": {
 			"line": 2,
 			"character": 20
-		}
-	}
-]
-
-=== 357 markup_cast_head_parens/declaration_name_head_matches_oracle/911c31ba02c7195d.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'{' expected.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 20
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'any' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 20
-		}
-	}
-]
-
-=== 357 markup_cast_head_parens/declaration_name_head_matches_oracle/916cce8c1237a738.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'{' expected.",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 17
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'any' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 17
 		}
 	}
 ]
@@ -13337,46 +12501,6 @@
 		"end": {
 			"line": 2,
 			"character": 10
-		}
-	}
-]
-
-=== 642 markup_cast_head_parens/declaration_name_head_matches_oracle/9793503ba907852b.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'{' expected.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 20
-		}
-	},
-	{
-		"code": 2362,
-		"message": "The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 20
-		}
-	},
-	{
-		"code": 2363,
-		"message": "The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 23
-		},
-		"end": {
-			"line": 2,
-			"character": 26
 		}
 	}
 ]
@@ -13825,82 +12949,6 @@
 		"end": {
 			"line": 2,
 			"character": 19
-		}
-	}
-]
-
-=== 993 markup_cast_head_parens/declaration_name_head_matches_oracle/9ce729b5a618721c.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "',' expected.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 16
-		}
-	},
-	{
-		"code": 1005,
-		"message": "',' expected.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 18
-		}
-	},
-	{
-		"code": 1134,
-		"message": "Variable declaration expected.",
-		"start": {
-			"line": 2,
-			"character": 19
-		},
-		"end": {
-			"line": 2,
-			"character": 20
-		}
-	},
-	{
-		"code": 1005,
-		"message": "';' expected.",
-		"start": {
-			"line": 2,
-			"character": 21
-		},
-		"end": {
-			"line": 2,
-			"character": 22
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'as' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 10
-		},
-		"end": {
-			"line": 2,
-			"character": 12
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'any' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 16
 		}
 	}
 ]
@@ -14569,34 +13617,6 @@
 		"end": {
 			"line": 2,
 			"character": 14
-		}
-	}
-]
-
-=== 360 markup_cast_head_parens/declaration_name_head_matches_oracle/a69db73b2d3feb98.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'{' expected.",
-		"start": {
-			"line": 2,
-			"character": 24
-		},
-		"end": {
-			"line": 2,
-			"character": 30
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'string' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 24
-		},
-		"end": {
-			"line": 2,
-			"character": 30
 		}
 	}
 ]
@@ -16081,46 +15101,6 @@
 	}
 ]
 
-=== 459 markup_cast_head_parens/declaration_name_head_matches_oracle/bd67bef563628fae.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'=' expected.",
-		"start": {
-			"line": 2,
-			"character": 12
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	},
-	{
-		"code": 1005,
-		"message": "';' expected.",
-		"start": {
-			"line": 2,
-			"character": 16
-		},
-		"end": {
-			"line": 2,
-			"character": 17
-		}
-	},
-	{
-		"code": 1005,
-		"message": "';' expected.",
-		"start": {
-			"line": 2,
-			"character": 20
-		},
-		"end": {
-			"line": 2,
-			"character": 21
-		}
-	}
-]
-
 === 358 markup_cast_head_parens/declaration_name_head_matches_oracle/bd75e9aa84337be9.svelte	json
 [
 	{
@@ -16321,70 +15301,6 @@
 		"end": {
 			"line": 2,
 			"character": 6
-		}
-	}
-]
-
-=== 995 markup_cast_head_parens/declaration_name_head_matches_oracle/bf213f92b9ac1b26.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 2,
-			"character": 4
-		},
-		"end": {
-			"line": 2,
-			"character": 12
-		}
-	},
-	{
-		"code": 1434,
-		"message": "Unexpected keyword or identifier.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'as'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	},
-	{
-		"code": 2362,
-		"message": "The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 16
-		},
-		"end": {
-			"line": 2,
-			"character": 19
-		}
-	},
-	{
-		"code": 2363,
-		"message": "The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 22
-		},
-		"end": {
-			"line": 2,
-			"character": 25
 		}
 	}
 ]
@@ -17417,58 +16333,6 @@
 	}
 ]
 
-=== 680 markup_cast_head_parens/declaration_name_head_matches_oracle/ce2f644bc2a7ffd5.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'=' expected.",
-		"start": {
-			"line": 2,
-			"character": 12
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	},
-	{
-		"code": 1005,
-		"message": "';' expected.",
-		"start": {
-			"line": 2,
-			"character": 16
-		},
-		"end": {
-			"line": 2,
-			"character": 25
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'satisfies'.",
-		"start": {
-			"line": 2,
-			"character": 16
-		},
-		"end": {
-			"line": 2,
-			"character": 25
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'string' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 26
-		},
-		"end": {
-			"line": 2,
-			"character": 32
-		}
-	}
-]
-
 === 168 markup_cast_head_parens/declaration_name_head_matches_oracle/ce6192ad13e4b9bd.svelte	json
 [
 	{
@@ -17997,58 +16861,6 @@
 	}
 ]
 
-=== 710 markup_cast_head_parens/declaration_name_head_matches_oracle/d4a11143b57fb727.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 2,
-			"character": 4
-		},
-		"end": {
-			"line": 2,
-			"character": 12
-		}
-	},
-	{
-		"code": 1434,
-		"message": "Unexpected keyword or identifier.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'as'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'any' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 16
-		},
-		"end": {
-			"line": 2,
-			"character": 19
-		}
-	}
-]
-
 === 167 markup_cast_head_parens/declaration_name_head_matches_oracle/d4cda713ca3b5a4a.svelte	json
 [
 	{
@@ -18321,58 +17133,6 @@
 		"end": {
 			"line": 2,
 			"character": 10
-		}
-	}
-]
-
-=== 710 markup_cast_head_parens/declaration_name_head_matches_oracle/d74fe9ecf5e686f2.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 2,
-			"character": 4
-		},
-		"end": {
-			"line": 2,
-			"character": 12
-		}
-	},
-	{
-		"code": 1434,
-		"message": "Unexpected keyword or identifier.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'as'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'any' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 16
-		},
-		"end": {
-			"line": 2,
-			"character": 19
 		}
 	}
 ]
@@ -18901,34 +17661,6 @@
 		"end": {
 			"line": 2,
 			"character": 15
-		}
-	}
-]
-
-=== 357 markup_cast_head_parens/declaration_name_head_matches_oracle/dda7faa5a56fc91e.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'{' expected.",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 17
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'any' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 14
-		},
-		"end": {
-			"line": 2,
-			"character": 17
 		}
 	}
 ]
@@ -19517,58 +18249,6 @@
 		"end": {
 			"line": 2,
 			"character": 7
-		}
-	}
-]
-
-=== 713 markup_cast_head_parens/declaration_name_head_matches_oracle/e71380241ab6323f.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'=' expected.",
-		"start": {
-			"line": 2,
-			"character": 12
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	},
-	{
-		"code": 1005,
-		"message": "';' expected.",
-		"start": {
-			"line": 2,
-			"character": 16
-		},
-		"end": {
-			"line": 2,
-			"character": 18
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'as' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 16
-		},
-		"end": {
-			"line": 2,
-			"character": 18
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'string' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 2,
-			"character": 19
-		},
-		"end": {
-			"line": 2,
-			"character": 25
 		}
 	}
 ]
@@ -20457,118 +19137,6 @@
 	}
 ]
 
-=== 1558 markup_cast_head_parens/declaration_name_head_matches_oracle/f3d50d82e5a04800.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "',' expected.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 16
-		}
-	},
-	{
-		"code": 1005,
-		"message": "',' expected.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 19
-		}
-	},
-	{
-		"code": 1005,
-		"message": "',' expected.",
-		"start": {
-			"line": 2,
-			"character": 20
-		},
-		"end": {
-			"line": 2,
-			"character": 26
-		}
-	},
-	{
-		"code": 2451,
-		"message": "Cannot redeclare block-scoped variable 'as'.",
-		"start": {
-			"line": 2,
-			"character": 10
-		},
-		"end": {
-			"line": 2,
-			"character": 12
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'as' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 10
-		},
-		"end": {
-			"line": 2,
-			"character": 12
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'any' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 16
-		}
-	},
-	{
-		"code": 2451,
-		"message": "Cannot redeclare block-scoped variable 'as'.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 19
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'as' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 17
-		},
-		"end": {
-			"line": 2,
-			"character": 19
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'string' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 20
-		},
-		"end": {
-			"line": 2,
-			"character": 26
-		}
-	}
-]
-
 === 165 markup_cast_head_parens/declaration_name_head_matches_oracle/f3eec93bff43bfcd.svelte	json
 [
 	{
@@ -20613,58 +19181,6 @@
 		"end": {
 			"line": 2,
 			"character": 11
-		}
-	}
-]
-
-=== 824 markup_cast_head_parens/declaration_name_head_matches_oracle/f5839bc3c2bb2e4e.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "',' expected.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 16
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'as' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 10
-		},
-		"end": {
-			"line": 2,
-			"character": 12
-		}
-	},
-	{
-		"code": 2362,
-		"message": "The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 16
-		}
-	},
-	{
-		"code": 2363,
-		"message": "The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 2,
-			"character": 19
-		},
-		"end": {
-			"line": 2,
-			"character": 22
 		}
 	}
 ]
@@ -21181,46 +19697,6 @@
 		"end": {
 			"line": 2,
 			"character": 21
-		}
-	}
-]
-
-=== 523 markup_cast_head_parens/declaration_name_head_matches_oracle/fcdce5f6704386ac.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "',' expected.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 19
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'as' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 10
-		},
-		"end": {
-			"line": 2,
-			"character": 12
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'string' implicitly has an 'any' type.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 19
 		}
 	}
 ]
@@ -33211,46 +31687,6 @@
 === 3 style_directive_text_fill/a_collapsed_value_that_fits_puts_the_open_tag_on_one_line/87cf53320ccadf79.svelte	json
 []
 
-=== 485 style_directive_text_fill/a_collapsed_value_that_fits_puts_the_open_tag_on_one_line/c635ec0376937059.svelte	json
-[
-	{
-		"code": 1002,
-		"message": "Unterminated string literal.",
-		"start": {
-			"line": 1,
-			"character": 12
-		},
-		"end": {
-			"line": 1,
-			"character": 12
-		}
-	},
-	{
-		"code": 1005,
-		"message": "',' expected.",
-		"start": {
-			"line": 2,
-			"character": 2
-		},
-		"end": {
-			"line": 3,
-			"character": 7
-		}
-	},
-	{
-		"code": 1002,
-		"message": "Unterminated string literal.",
-		"start": {
-			"line": 3,
-			"character": 7
-		},
-		"end": {
-			"line": 3,
-			"character": 7
-		}
-	}
-]
-
 === 3 style_directive_text_fill/a_line_break_at_a_chunk_edge_is_a_hardline_at_the_attribute_indent/057e3f647ecc8fe0.svelte	json
 []
 
@@ -33426,22 +31862,6 @@
 === 3 typescript/const_tag_typed_annotation_round_trips/40157901cdaee7f9.svelte	json
 []
 
-=== 190 typescript/const_tag_typed_annotation_round_trips/83c927bbbf71c868.svelte	json
-[
-	{
-		"code": 2322,
-		"message": "Type 'number' is not assignable to type 'never'.",
-		"start": {
-			"line": 2,
-			"character": 12
-		},
-		"end": {
-			"line": 2,
-			"character": 13
-		}
-	}
-]
-
 === 330 typescript/const_tag_typed_annotation_round_trips/a9b366f90b9b929a.svelte	json
 [
 	{
@@ -33499,9 +31919,6 @@
 ]
 
 === 3 typescript/const_tag_untyped_still_normalizes/9d3f9bdda42a9f02.svelte	json
-[]
-
-=== 3 typescript/const_tag_untyped_still_normalizes/a102e715fb6d3738.svelte	json
 []
 
 === 167 typescript/directive_shorthand_collapse_still_applies_without_a_cast/8dba82b34c1237e8.svelte	json
@@ -33716,38 +32133,6 @@
 		"end": {
 			"line": 0,
 			"character": 36
-		}
-	}
-]
-
-=== 267 typescript/mustache_ts_casts_round_trip/c904afe9a2df46cb.svelte	json
-[
-	{
-		"code": 1355,
-		"message": "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals.",
-		"start": {
-			"line": 0,
-			"character": 31
-		},
-		"end": {
-			"line": 0,
-			"character": 32
-		}
-	}
-]
-
-=== 330 typescript/mustache_ts_casts_round_trip/ddab471432ec6493.svelte	json
-[
-	{
-		"code": 2352,
-		"message": "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
-		"start": {
-			"line": 0,
-			"character": 32
-		},
-		"end": {
-			"line": 0,
-			"character": 43
 		}
 	}
 ]
@@ -34214,34 +32599,6 @@
 === 3 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/ff14a907a86b8623.svelte	json
 []
 
-=== 336 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/00b9f98ed10382e1.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 8,
-			"character": 15
-		},
-		"end": {
-			"line": 8,
-			"character": 16
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'a'.",
-		"start": {
-			"line": 8,
-			"character": 16
-		},
-		"end": {
-			"line": 8,
-			"character": 17
-		}
-	}
-]
-
 === 3 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/069298e257c1455e.svelte	json
 []
 
@@ -34263,58 +32620,6 @@
 
 === 3 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/0ce0b58de04caebd.svelte	json
 []
-
-=== 713 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/0f945bdc236517ed.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 8,
-			"character": 4
-		},
-		"end": {
-			"line": 8,
-			"character": 12
-		}
-	},
-	{
-		"code": 1434,
-		"message": "Unexpected keyword or identifier.",
-		"start": {
-			"line": 8,
-			"character": 13
-		},
-		"end": {
-			"line": 8,
-			"character": 15
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'as'.",
-		"start": {
-			"line": 8,
-			"character": 13
-		},
-		"end": {
-			"line": 8,
-			"character": 15
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'string' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 8,
-			"character": 16
-		},
-		"end": {
-			"line": 8,
-			"character": 22
-		}
-	}
-]
 
 === 386 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/1c1a52e4cbc72216.svelte	json
 [
@@ -34344,52 +32649,8 @@
 	}
 ]
 
-=== 155 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/257a80f582aa7e45.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'=' expected.",
-		"start": {
-			"line": 8,
-			"character": 22
-		},
-		"end": {
-			"line": 8,
-			"character": 28
-		}
-	}
-]
-
 === 3 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/2e2df576837e3928.svelte	json
 []
-
-=== 336 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/2ecb7ed3138f65ee.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 8,
-			"character": 14
-		},
-		"end": {
-			"line": 8,
-			"character": 15
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'a'.",
-		"start": {
-			"line": 8,
-			"character": 15
-		},
-		"end": {
-			"line": 8,
-			"character": 16
-		}
-	}
-]
 
 === 189 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/34f23ef4a12217f7.svelte	json
 [
@@ -34451,58 +32712,6 @@
 === 3 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/54a8b801d8e3241e.svelte	json
 []
 
-=== 713 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/56fffd0c2fbc97e4.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 8,
-			"character": 7
-		},
-		"end": {
-			"line": 8,
-			"character": 15
-		}
-	},
-	{
-		"code": 1434,
-		"message": "Unexpected keyword or identifier.",
-		"start": {
-			"line": 8,
-			"character": 16
-		},
-		"end": {
-			"line": 8,
-			"character": 18
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'as'.",
-		"start": {
-			"line": 8,
-			"character": 16
-		},
-		"end": {
-			"line": 8,
-			"character": 18
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'string' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 8,
-			"character": 19
-		},
-		"end": {
-			"line": 8,
-			"character": 25
-		}
-	}
-]
-
 === 203 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/5f644b7863659b90.svelte	json
 [
 	{
@@ -34550,22 +32759,6 @@
 		"end": {
 			"line": 8,
 			"character": 28
-		}
-	}
-]
-
-=== 155 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/6f6f7ca9d3f29f54.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'=' expected.",
-		"start": {
-			"line": 8,
-			"character": 21
-		},
-		"end": {
-			"line": 8,
-			"character": 27
 		}
 	}
 ]
@@ -34652,58 +32845,6 @@
 	}
 ]
 
-=== 713 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/ca63fda154f4bfbe.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 8,
-			"character": 6
-		},
-		"end": {
-			"line": 8,
-			"character": 14
-		}
-	},
-	{
-		"code": 1434,
-		"message": "Unexpected keyword or identifier.",
-		"start": {
-			"line": 8,
-			"character": 15
-		},
-		"end": {
-			"line": 8,
-			"character": 17
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'as'.",
-		"start": {
-			"line": 8,
-			"character": 15
-		},
-		"end": {
-			"line": 8,
-			"character": 17
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'string' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 8,
-			"character": 18
-		},
-		"end": {
-			"line": 8,
-			"character": 24
-		}
-	}
-]
-
 === 3 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/d0bb128835d1cc66.svelte	json
 []
 
@@ -34760,22 +32901,6 @@
 		"end": {
 			"line": 8,
 			"character": 13
-		}
-	}
-]
-
-=== 155 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/ec823872202ae4e8.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'=' expected.",
-		"start": {
-			"line": 8,
-			"character": 19
-		},
-		"end": {
-			"line": 8,
-			"character": 25
 		}
 	}
 ]

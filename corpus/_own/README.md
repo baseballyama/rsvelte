@@ -41,8 +41,13 @@ Put the file in the directory under `rsvelte/` of the tool whose bug it pins, th
 ```sh
 F=tools/oracle/oracle.ts
 mise exec -- node $F import --source rsvelte
-mise exec -- node $F regen --source rsvelte
+mise exec -- node $F regen --source rsvelte --path 'svelte/rsvelte/pattern/<file>'
 UPDATE_EXPECT=1 cargo test -p rsvelte_command_line --test corpus
 ```
+
+`--path` takes a unit key (`<family>/<source>/<path>`, as the ledgers print it) or a glob over
+unit keys, and may be repeated. Regen runs the units it selects and leaves every other entry of
+the packs untouched. The type check still reads the whole source, because it checks a source as
+one project.
 
 A file with the same content as a unit of another source is dropped as a duplicate.

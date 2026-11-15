@@ -1630,14 +1630,6 @@
 13:39 14:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 16:15 17:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 
-=== 499 lint/html-closing-bracket-new-line/12-u2028-before-bracket.svelte	lint.txt
-1:1 3:13 svelte/no-unused-class-name "Unused class \"c\"."
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:11 3:12 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
-3:11 4:2 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
-3:11 4:1 no-irregular-whitespace "Irregular whitespace not allowed."
-
 === 501 lint/html-closing-bracket-new-line/13-feff-before-bracket.svelte	lint.txt
 1:1 3:13 svelte/no-unused-class-name "Unused class \"c\"."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1645,29 +1637,6 @@
 3:11 3:12 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 3:11 3:13 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
 3:11 3:12 no-irregular-whitespace "Irregular whitespace not allowed."
-
-=== 1773 lint/html-closing-bracket-new-line/14-exotic-ws-before-bracket.svelte	lint.txt
-1:1 3:13 svelte/no-unused-class-name "Unused class \"c\"."
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:11 3:12 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
-3:11 4:2 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
-3:11 4:1 no-irregular-whitespace "Irregular whitespace not allowed."
-4:1 6:13 svelte/no-unused-class-name "Unused class \"c\"."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:11 6:12 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
-7:1 9:13 svelte/no-unused-class-name "Unused class \"c\"."
-7:11 7:13 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
-7:11 7:12 no-irregular-whitespace "Irregular whitespace not allowed."
-9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-9:11 9:12 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
-10:1 12:13 svelte/no-unused-class-name "Unused class \"c\"."
-10:11 10:13 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
-10:11 10:12 no-irregular-whitespace "Irregular whitespace not allowed."
-12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-12:11 12:12 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
-13:11 13:13 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
-13:11 13:12 no-irregular-whitespace "Irregular whitespace not allowed."
 
 === 1090 lint/html-closing-bracket-new-line/15-this-scan-failures.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1771,18 +1740,6 @@
 1:5 1:7 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
 1:5 1:6 no-irregular-whitespace "Irregular whitespace not allowed."
 2:6 2:9 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
-
-=== 292 lint/html-closing-bracket-spacing/11-u2028-line-shift.svelte	lint.txt
-1:7 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-2:1 2:24 svelte/no-unused-class-name "Unused class \"c\"."
-2:13 2:22 svelte/max-attributes-per-line "'class' should be on a new line."
-3:22 3:24 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
-
-=== 292 lint/html-closing-bracket-spacing/12-u2029-line-shift.svelte	lint.txt
-2:7 3:1 no-irregular-whitespace "Irregular whitespace not allowed."
-3:1 3:24 svelte/no-unused-class-name "Unused class \"c\"."
-3:13 3:22 svelte/max-attributes-per-line "'class' should be on a new line."
-4:22 4:24 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
 
 === 292 lint/html-closing-bracket-spacing/13-feff-line-control.svelte	lint.txt
 1:7 1:8 no-irregular-whitespace "Irregular whitespace not allowed."
@@ -2875,34 +2832,6 @@
 7:24 7:36 svelte/sort-attributes "Attribute 'this' should go before 'id'."
 7:29 7:31 svelte/mustache-spacing "Expected no space after '{', but found."
 7:34 7:36 svelte/mustache-spacing "Expected no space before '}', but found."
-
-=== 1891 lint/mustache-spacing/18-exotic-ws-controls.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-5:6 5:8 svelte/mustache-spacing "Expected no space after '{', but found."
-5:7 5:8 no-irregular-whitespace "Irregular whitespace not allowed."
-5:9 5:11 svelte/mustache-spacing "Expected no space before '}', but found."
-5:9 5:10 no-irregular-whitespace "Irregular whitespace not allowed."
-6:6 6:8 svelte/mustache-spacing "Expected no space after '{', but found."
-6:7 6:8 no-irregular-whitespace "Irregular whitespace not allowed."
-6:9 6:11 svelte/mustache-spacing "Expected no space before '}', but found."
-6:9 6:10 no-irregular-whitespace "Irregular whitespace not allowed."
-7:6 7:8 svelte/mustache-spacing "Expected no space after '{', but found."
-7:7 7:8 no-irregular-whitespace "Irregular whitespace not allowed."
-7:9 7:11 svelte/mustache-spacing "Expected no space before '}', but found."
-7:9 7:10 no-irregular-whitespace "Irregular whitespace not allowed."
-8:6 8:8 svelte/mustache-spacing "Expected no space after '{', but found."
-8:7 9:1 no-irregular-whitespace "Irregular whitespace not allowed."
-8:9 8:11 svelte/mustache-spacing "Expected no space before '}', but found."
-9:2 10:1 no-irregular-whitespace "Irregular whitespace not allowed."
-9:6 9:8 svelte/mustache-spacing "Expected no space after '{', but found."
-9:9 9:11 svelte/mustache-spacing "Expected no space before '}', but found."
-10:6 10:8 svelte/mustache-spacing "Expected no space after '{', but found."
-10:9 10:11 svelte/mustache-spacing "Expected no space before '}', but found."
-11:7 11:8 no-irregular-whitespace "Irregular whitespace not allowed."
-11:9 11:10 no-irregular-whitespace "Irregular whitespace not allowed."
-12:7 12:8 no-irregular-whitespace "Irregular whitespace not allowed."
-12:9 12:10 no-irregular-whitespace "Irregular whitespace not allowed."
 
 === 1227 lint/mustache-spacing/opt-key-attrs-always.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 0 spaces but found 1 whitespace."
@@ -4481,15 +4410,6 @@
 7:23 7:49 svelte/no-dupe-on-directives "This `on:click` directive is the same and duplicate directives in L7."
 7:50 7:80 svelte/no-dupe-on-directives "This `on:click` directive is the same and duplicate directives in L7."
 
-=== 591 lint/no-dupe-on-directives/15-line-comment-u2028.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
-5:9 5:22 svelte/first-attribute-linebreak "Expected a linebreak before this attribute."
-5:23 7:3 svelte/max-attributes-per-line "'on:click' should be on a new line."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:6 7:1 no-irregular-whitespace "Irregular whitespace not allowed."
-8:3 8:3 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
-
 === 743 lint/no-dupe-on-directives/16-cr-only-lineno.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'h' is never reassigned. Use 'const' instead."
@@ -4996,14 +4916,6 @@
 6:1 6:6 svelte/no-dupe-use-directives "This `use:a` directive is the same and duplicate directives in L5."
 6:1 6:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 6:6 6:6 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
-
-=== 510 lint/no-dupe-use-directives/12-line-comment-u2028.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 7:3 svelte/first-attribute-linebreak "Expected a linebreak before this attribute."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:6 7:1 no-irregular-whitespace "Irregular whitespace not allowed."
-7:4 8:3 svelte/max-attributes-per-line "'use:a' should be on a new line."
-8:3 8:3 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
 === 1650 lint/no-dupe-use-directives/13-hosts-and-token-controls.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9305,12 +9217,6 @@
 3:7 3:11 svelte/prefer-const "'gone' is never reassigned. Use 'const' instead."
 7:1 7:17 svelte/no-unused-class-name "Unused class \"gone\"."
 
-=== 301 lint/no-unused-class-name/03-empty-name-quirk.svelte	lint.txt
-2:7 2:8 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-3:7 3:8 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
-6:1 6:22 svelte/no-unused-class-name "Unused class \"\"."
-11:3 11:8 svelte/consistent-selector-style "Selector should select by ID instead of class"
-
 === 868 lint/no-unused-class-name/04-selector-shapes.svelte	lint.txt
 8:5 8:7 svelte/consistent-selector-style "Selector should select by element type instead of class"
 12:8 12:10 svelte/consistent-selector-style "Selector should select by element type instead of class"
@@ -9398,18 +9304,6 @@
 10:1 10:62 svelte/valid-compile "`<svelte:fragment>` must be the direct child of a component\nhttps://svelte.dev/e/svelte_fragment_invalid_placement(svelte_fragment_invalid_placement)"
 10:18 10:39 svelte/no-unused-class-name "Unused class \"fragclass\"."
 13:2 13:7 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
-=== 736 lint/no-unused-class-name/17-attribute-and-expression-forms.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:10 svelte/prefer-const "'cond' is never reassigned. Use 'const' instead."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:9 svelte/prefer-const "'dyn' is never reassigned. Use 'const' instead."
-8:1 8:32 svelte/no-unused-class-name "Unused class \"lit-b\"."
-9:1 9:26 svelte/no-unused-class-name "Unused class \"\"."
-10:1 10:39 svelte/no-unused-class-name "Unused class \"dir-a\"."
-10:1 10:39 svelte/no-unused-class-name "Unused class \"lit-c\"."
-10:25 10:38 svelte/max-attributes-per-line "'class' should be on a new line."
-10:25 10:38 svelte/sort-attributes "Attribute 'class' should go before 'class:dir-a'."
 
 === 241 lint/no-unused-class-name/18-unicode-and-crlf-columns.svelte	lint.txt
 1:1 1:30 svelte/no-unused-class-name "Unused class \"日本語-クラス\"."
@@ -10093,19 +9987,6 @@
 7:1 7:27 svelte/no-unused-class-name "Unused class \":\"."
 7:1 7:27 svelte/no-unused-class-name "Unused class \"''\"."
 
-=== 844 lint/prefer-class-directive/10-multiple-mustaches.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:7 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
-6:1 6:44 svelte/no-unused-class-name "Unused class \"\"."
-6:13 6:27 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-6:28 6:42 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-7:1 7:54 svelte/no-unused-class-name "Unused class \"base\"."
-7:1 7:54 svelte/no-unused-class-name "Unused class \"tail\"."
-7:18 7:32 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-7:38 7:52 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-
 === 821 lint/prefer-class-directive/11-negation-shapes.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
@@ -10191,19 +10072,6 @@
 12:12 12:29 svelte/html-quotes "Unexpected to be enclosed by any quotes."
 12:13 12:28 svelte/prefer-class-directive "Unexpected class using the ternary operator."
 
-=== 880 lint/prefer-class-directive/15-adjacent-parts.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
-6:1 6:44 svelte/no-unused-class-name "Unused class \"\"."
-6:13 6:27 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-6:28 6:42 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-7:1 7:32 svelte/no-unused-class-name "Unused class \"pre\"."
-8:1 8:33 svelte/no-unused-class-name "Unused class \"post\"."
-9:13 9:26 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-9:26 9:40 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-10:27 10:34 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-11:12 11:26 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-
 === 1178 lint/prefer-class-directive/16-nested-and-map-size.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
@@ -10274,22 +10142,6 @@
 12:13 12:29 svelte/prefer-class-directive "Unexpected class using the ternary operator."
 13:12 13:29 svelte/html-quotes "Unexpected to be enclosed by any quotes."
 13:13 13:28 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-
-=== 1005 lint/prefer-class-directive/20-line-separator.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
-5:1 5:33 svelte/no-unused-class-name "Unused class \"a\"."
-5:1 5:33 svelte/no-unused-class-name "Unused class \"b\"."
-5:14 6:1 no-irregular-whitespace "Irregular whitespace not allowed."
-5:15 5:29 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-6:1 6:33 svelte/no-unused-class-name "Unused class \"a\"."
-6:1 6:33 svelte/no-unused-class-name "Unused class \"b\"."
-6:15 6:29 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-6:15 7:1 no-irregular-whitespace "Irregular whitespace not allowed."
-7:13 7:27 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-8:14 9:1 no-irregular-whitespace "Irregular whitespace not allowed."
-9:15 10:1 no-irregular-whitespace "Irregular whitespace not allowed."
-11:12 11:28 svelte/html-quotes "Unexpected to be enclosed by any quotes."
 
 === 752 lint/prefer-class-directive/opt-key-prefer-empty.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 0 spaces but found 1 whitespace."
@@ -10506,14 +10358,6 @@
 14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
-=== 489 lint/prefer-const/17-module-script-props-scope.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:14 svelte/prefer-const "'internal' is never reassigned. Use 'const' instead."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
 === 660 lint/prefer-const/18-context-module-props-scope.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -13804,11 +13648,6 @@
 2:1 2:13 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
 4:1 4:24 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
 
-=== 236 lint/spaced-html-comment/11-u2028-lines.svelte	lint.txt
-1:7 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-2:1 2:9 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
-2:1 2:9 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
-
 === 680 lint/spaced-html-comment/12-exotic-ws-controls.svelte	lint.txt
 1:5 1:6 no-irregular-whitespace "Irregular whitespace not allowed."
 1:7 1:8 no-irregular-whitespace "Irregular whitespace not allowed."
@@ -15791,9 +15630,6 @@
 20:1 20:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 42 pattern/adversarial/control-flow/await-non-promise-expressions.svelte	lint.txt
-59:140 - - "Parsing error: ',' expected."
-
 === 1063 pattern/adversarial/control-flow/await-shape-hostile.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -16933,19 +16769,6 @@
 4:2 4:7 svelte/consistent-selector-style "Selector should select by element type instead of class"
 4:8 4:26 svelte/valid-compile "`:global(...)` can be at the start or end of a selector sequence, but not in the middle\nhttps://svelte.dev/e/css_global_invalid_placement(css_global_invalid_placement)"
 4:27 4:29 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
-=== 873 pattern/adversarial/css/scoped-class-merge.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:10 svelte/prefer-const "'kind' is never reassigned. Use 'const' instead."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:11 svelte/prefer-const "'extra' is never reassigned. Use 'const' instead."
-6:1 6:71 svelte/button-has-type "Missing an explicit type attribute for button."
-6:1 6:71 svelte/no-unused-class-name "Unused class \"\"."
-6:27 6:49 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-6:51 6:70 svelte/max-attributes-per-line "'class:ready' should be on a new line."
-7:1 7:21 svelte/button-has-type "Missing an explicit type attribute for button."
-8:1 8:22 svelte/button-has-type "Missing an explicit type attribute for button."
-9:1 9:9 svelte/button-has-type "Missing an explicit type attribute for button."
 
 === 1152 pattern/adversarial/css/scoping-through-slotted-containers.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -21737,18 +21560,6 @@
 10:7 10:11 svelte/prefer-const "'href' is never reassigned. Use 'const' instead."
 13:20 13:42 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 
-=== 898 pattern/adversarial/text-and-entities/text-entity-shapes.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-16:4 16:9 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-16:9 16:14 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-17:4 17:18 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-17:5 18:1 no-irregular-whitespace "Irregular whitespace not allowed."
-19:4 19:12 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-20:1 20:36 svelte/button-has-type "Missing an explicit type attribute for button."
-
 === 687 pattern/adversarial/text-and-entities/text-expression-adjacency.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
@@ -21779,25 +21590,6 @@
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:1 13:23 svelte/button-has-type "Missing an explicit type attribute for button."
-
-=== 451 pattern/adversarial/text-and-entities/unicode-line-separators.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:10 svelte/prefer-const "'text' is never reassigned. Use 'const' instead."
-4:15 5:1 no-irregular-whitespace "Irregular whitespace not allowed."
-6:26 7:1 no-irregular-whitespace "Irregular whitespace not allowed."
-11:10 12:1 no-irregular-whitespace "Irregular whitespace not allowed."
-
-=== 1189 pattern/adversarial/text-and-entities/unicode-text-hostile.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-9:12 9:13 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
-9:21 9:22 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
-12:4 12:9 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-12:9 12:14 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-13:5 14:1 no-irregular-whitespace "Irregular whitespace not allowed."
 
 === 76 pattern/adversarial/text-and-entities/unicode-text-shapes.svelte	lint.txt
 2:7 2:8 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
@@ -23343,13 +23135,6 @@
 13:3 13:5 svelte/consistent-selector-style "Selector should select by element type instead of class"
 16:3 16:5 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 511 pattern/issues/3130-pseudo-class-argument-comments.svelte	lint.txt
-4:10 4:12 svelte/consistent-selector-style "Selector should select by element type instead of class"
-7:14 7:16 svelte/consistent-selector-style "Selector should select by element type instead of class"
-10:11 10:13 svelte/consistent-selector-style "Selector should select by element type instead of class"
-10:16 10:18 svelte/consistent-selector-style "Selector should select by element type instead of class"
-13:11 13:13 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
 === 833 pattern/issues/3131-svelte-element-directive-order.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -24825,15 +24610,6 @@
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 572 pattern/issues/3315-parenthesised-rune-module-script.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-11:6 11:10 svelte/prefer-const "'base' is never reassigned. Use 'const' instead."
-
 === 839 pattern/issues/3315-parenthesised-rune-statements.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:10 svelte/prefer-const "'base' is never reassigned. Use 'const' instead."
@@ -25786,9 +25562,6 @@
 
 === 101 pattern/issues/3690-universal-before-global.svelte	lint.txt
 11:4 11:6 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
-=== 41 pattern/issues/3691-const-tag-parse-error.svelte	lint.txt
-61:72 - - "Parsing error: ')' expected."
 
 === 1736 pattern/issues/3692-declaration-tag-keyword.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -29032,15 +28805,6 @@ Rule: "no-unused-vars"
 106:1 106:45 svelte/button-has-type "Missing an explicit type attribute for button."
 107:1 107:47 svelte/button-has-type "Missing an explicit type attribute for button."
 108:1 108:37 svelte/button-has-type "Missing an explicit type attribute for button."
-
-=== 641 pattern/issues/whitespace-body-inline-element-breaks-before-close.svelte	lint.txt
-6:3 10:4 svelte/no-unused-class-name "Unused class \"wx-icon\"."
-6:3 10:4 svelte/no-unused-class-name "Unused class \"\"."
-6:3 10:4 svelte/no-unused-class-name "Unused class \"wx-icon-padding\"."
-7:34 9:12 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-14:3 14:77 svelte/no-unused-class-name "Unused class \"wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"."
-16:3 16:76 svelte/no-unused-class-name "Unused class \"wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"."
-19:13 19:79 svelte/no-unused-class-name "Unused class \"wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"."
 
 === 652 pattern/leading-line-comment-destructure-init.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
