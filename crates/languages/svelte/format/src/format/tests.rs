@@ -198,19 +198,32 @@ fn a_root_assignment_or_sequence_keeps_the_parentheses_the_plugin_wraps_it_in() 
 }
 
 #[test]
-fn modifiers_the_plugin_would_drop_are_refused() {
-    for source_text in [
-        "<div use:a|x={b}></div>\n",
-        "<div bind:value|x={v}></div>\n",
-        "<div class:a|x={b}></div>\n",
-        "<div animate:a|x></div>\n",
-        "<div let:a|x></div>\n",
+fn modifiers_the_plugin_drops_are_dropped() {
+    // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    for (input, expected) in [
+        ("<div use:a|x={b}></div>\n", "<div use:a={b}></div>\n"),
+        (
+            "<div bind:value|x={v}></div>\n",
+            "<div bind:value={v}></div>\n",
+        ),
+        (
+            "<div bind:value|x={value}></div>\n",
+            "<div bind:value></div>\n",
+        ),
+        ("<div class:a|x={b}></div>\n", "<div class:a={b}></div>\n"),
+        ("<div class:on|once></div>\n", "<div class:on></div>\n"),
+        ("<div animate:a|x></div>\n", "<div animate:a></div>\n"),
+        ("<div let:a|x></div>\n", "<div let:a></div>\n"),
+        (
+            "<div on:click|once={f}></div>\n",
+            "<div on:click|once={f}></div>\n",
+        ),
+        (
+            "<div style:color|important=\"red\"></div>\n",
+            "<div style:color|important=\"red\"></div>\n",
+        ),
     ] {
-        assert_eq!(
-            refusal(source_text).0,
-            "modifiers on this directive",
-            "{source_text}"
-        );
+        assert_eq!(formatted(input), expected, "{input}");
     }
 }
 
