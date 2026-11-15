@@ -70,6 +70,22 @@ fn acorn_reports_each_error_in_its_own_words_and_place() {
             "Unexpected token",
             21,
         ),
+        (
+            "{#if x}<p>a</p>{{/if}",
+            "Unterminated regular expression",
+            18,
+        ),
+        ("{{/if}</p>}", "Invalid regular expression flag", 3),
+        ("{{/x/q}", "Invalid regular expression flag", 3),
+        ("{{/x/gg}", "Duplicate regular expression flag", 3),
+        ("{{/x/uv}", "Invalid regular expression flag", 3),
+        ("{{/x/g}", "Unexpected token", 2),
+        ("{{a, /[/]/z}", "Invalid regular expression flag", 6),
+        (
+            "<script>let o = {/x\n};</script>",
+            "Unterminated regular expression",
+            18,
+        ),
     ] {
         let error = parse(source).expect_err(source);
         assert_eq!(error.code, "js_parse_error", "{source:?}");
