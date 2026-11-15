@@ -112,7 +112,8 @@ impl<'a> Template<'a> {
             Owner::Head
         } else if slotted
             || matches!(name, "svelte:fragment" | "svelte:boundary")
-            || tag == Tag::Component
+            // Upstream does not let `{@const}` stand directly in `<svelte:self>`.
+            || (tag == Tag::Component && name != "svelte:self")
         {
             Owner::Declarations
         } else {

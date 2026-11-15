@@ -673,3 +673,12 @@ fn a_slot_beside_a_render_tag_is_a_conflict() {
     );
     assert_eq!(errors(render), Vec::<String>::new());
 }
+
+#[test]
+fn a_const_tag_directly_in_svelte_self_is_misplaced() {
+    let errors = |code: &str| compiled_with_errors(code, None).1;
+    assert_eq!(
+        errors("{#if true}<svelte:self>{@const a = 1}{a}</svelte:self>{/if}\n"),
+        ["const_tag_invalid_placement"]
+    );
+}

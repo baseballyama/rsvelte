@@ -1,4 +1,4 @@
-# svelte.lint/default: 37171 match
+# svelte.lint/default: 37173 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -94,7 +94,6 @@ svelte/rsvelte-tests-core-2/declaration_tag_keyword_3692/a_type_alias_is_a_decla
 svelte/rsvelte-tests-core-2/declaration_tag_keyword_3692/a_type_alias_is_a_declaration_only_in_typescript/b275deab1b0ff83c.svelte	mismatch
 svelte/rsvelte-tests-core-2/declaration_tag_missing_initializer_3705/neighbouring_declaration_shapes_keep_their_existing_outcomes/79df455b3881d80f.svelte	mismatch
 svelte/rsvelte-tests-core-2/dev_ownership_validator_template/svelte_ignore_suppresses_handler_validation/78c3feef578a75e8.svelte	mismatch
-svelte/rsvelte-tests-core-2/direct_component_parent_3141/const_tag_placement_still_separates_the_two/4538b5b50e0bf370.svelte	mismatch
 svelte/rsvelte-tests-core-2/each_fallback_const_scope_3377/a_body_const_reusing_the_item_name_is_still_a_duplicate/7a32d86a9055b1e1.svelte	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/early_errors_reach_a_typescript_script_too/1f4d960367ca688a.svelte	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/1592ab866ba0bb0c.svelte	refused
@@ -454,7 +453,6 @@ svelte/rsvelte/pattern/adversarial/css/rejected-global-keyframes-selector.svelte
 svelte/rsvelte/pattern/adversarial/typescript/ts-decorator-and-modifiers.svelte	mismatch
 svelte/rsvelte/pattern/css/empty-declaration.svelte	mismatch
 svelte/rsvelte/pattern/issues/3129-comment-between-compounds.svelte	mismatch
-svelte/rsvelte/pattern/issues/3141-const-in-svelte-self.svelte	mismatch
 svelte/rsvelte/pattern/issues/3189-unbound-dollar-still-rejected.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-invalid-escape.svelte	mismatch
