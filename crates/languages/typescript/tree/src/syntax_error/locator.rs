@@ -15,6 +15,8 @@ pub struct Locator {
     /// function or a parameter list. A template's pattern and `{@const}` are none of these, and
     /// upstream hands each to acorn as the target of an assignment.
     pub(super) declares: bool,
+    /// Whether a type alias or an interface declares the first name of [`Find::Redeclared`].
+    first_type: bool,
 }
 
 /// What decides how acorn reads an optional rest element, from the nodes around it.
@@ -67,8 +69,9 @@ pub(super) enum Find {
     Jump,
     /// The `delete` around the label.
     Unary,
-    /// The parameter list around the label.
-    Parameters,
+    /// The parameter list around the label, or the type alias the label names after a type alias
+    /// or an interface named at `first`, which acorn's TypeScript plugin keeps apart.
+    Redeclared { first: oxc_span::Span },
     /// The innermost method, class field, static block or other function around the label, which
     /// decides whether acorn allows `super` there.
     SuperHome,
@@ -81,6 +84,7 @@ impl Locator {
             find,
             found: None,
             declares: false,
+            first_type: false,
             rest: AroundRest {
                 ambient: false,
                 reading: Reading::Binding,
@@ -149,6 +153,26 @@ impl Locator {
             }
             return;
         }
+        if let Find::Redeclared { first } = self.find {
+            match kind {
+                AstKind::TSTypeAliasDeclaration(it) if it.id.span == first => {
+                    self.first_type = true;
+                }
+                AstKind::TSInterfaceDeclaration(it) if it.id.span == first => {
+                    self.first_type = true;
+                }
+                AstKind::TSTypeAliasDeclaration(it) if it.id.span == self.label => {
+                    if self.first_type {
+                        self.found = Some((it.span.start, kind.ty()));
+                    }
+                }
+                AstKind::FormalParameters(it) if around => {
+                    self.found = Some((it.span.start, kind.ty()));
+                }
+                _ => {}
+            }
+            return;
+        }
         let found = match (self.find, kind) {
             // A method's function is the method, which comes first in the walk.
             (Find::SuperHome, AstKind::MethodDefinition(it)) if around => it.value.span.start,
@@ -182,7 +206,6 @@ impl Locator {
             )
             | (Find::Jump, AstKind::BreakStatement(_) | AstKind::ContinueStatement(_))
             | (Find::Unary, AstKind::UnaryExpression(_))
-            | (Find::Parameters, AstKind::FormalParameters(_))
             | (
                 Find::SuperHome,
                 AstKind::PropertyDefinition(_)
