@@ -4146,3 +4146,138 @@
 "svelte.compile" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a string, and parses them with ` => {}` appended, so it rejects a valid header"
 "svelte.check" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a string, and parses them with ` => {}` appended, so it rejects a valid header, which svelte-check reports"
 "svelte.lint" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a string, and parses them with ` => {}` appended, so it rejects a valid header, which svelte/valid-compile reports"
+
+["svelte/flowbite-svelte/src/lib/forms/tags/Tags.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/layercake/src/routes/_site-components/Nav.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/layerchart/docs/src/examples/components/Treemap/stacked-zoom.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/networking-toolbox/src/lib/components/tools/NetworkVisualizer.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/networking-toolbox/src/lib/components/tools/SupernetCalculator.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/originui-svelte/src/lib/components/tables/table-20.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/primo/src/lib/builder/components/Content.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/primo/src/lib/builder/components/Fields/FieldsContent.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/primo/src/lib/builder/views/editor/LocaleSelector.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/primo/src/lib/builder/views/editor/Page.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/primo/src/lib/components/app-sidebar.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte-tests-formatter/block_header_call_args/a_long_iterable_pushes_the_key_over_the_width/03834301bec484ba.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte-tests-formatter/block_header_call_args/each_header_settles_iterable_before_key/b6419b2fd1f57a4a.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte-tests-formatter/block_header_call_args/each_key_expression_expands_too/99247f18ab44c03d.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte-tests-formatter/block_header_call_args/else_if_header_expands_with_its_wider_opener/530ceb38d342486b.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte-tests-formatter/block_header_call_args/expansion_reaches_calls_inside_a_logical_operand/4660aad264210604.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte-tests-formatter/block_header_call_args/expansion_recurses_through_nested_calls/44ec62e6cba7464c.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte-tests-formatter/block_header_call_args/indent_depth_counts_toward_the_trigger/f72a8d49c0b52f18.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte-tests-formatter/block_header_call_args/key_and_await_headers_expand_too/23ec7d1b2a0f629b.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte-tests-formatter/block_header_call_args/key_and_await_headers_expand_too/ece768fae241ef4f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte-tests-formatter/block_header_call_args/overflowing_each_header_expands_grouped_call/82fea2324da313f7.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte-tests-formatter/block_header_call_args/suffix_width_counts_toward_the_trigger/2633d12c10eec40b.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte-tests-formatter/real_world_parity/each_call_chain_accounts_for_full_header_width/0c3b36f4216117f8.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte-tests-formatter/real_world_parity/each_call_chain_accounts_for_full_header_width/fe4d8406e2f8a9e0.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte-tests-formatter/real_world_parity/each_expanded_call_accounts_for_full_header_width/cbe59922e85dae1c.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/rsvelte-tests-formatter/real_world_parity/each_expanded_call_accounts_for_full_header_width/e62ad98b7234a594.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/shadcn-svelte/docs/src/lib/registry/examples/data-table-demo.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/chart-color-picker.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/theme-picker.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/examples/tasks/components/data-table-faceted-filter.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/examples/tasks/components/data-table-view-options.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/skeleton/playgrounds/skeleton-svelte/src/routes/components/date-picker/+page.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/date-picker/svelte/controlled.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/date-picker/svelte/default.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/date-picker/svelte/disabled.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/date-picker/svelte/inline.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/date-picker/svelte/min-max.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/date-picker/svelte/presets.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/date-picker/svelte/range.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/date-picker/svelte/with-selects.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/syntaxfm-website/src/lib/ShowCard.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/syntaxfm-website/src/routes/(site)/admin/shows/+page.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/syntaxfm-website/src/routes/(site)/admin/videos/+page.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/syntaxfm-website/src/routes/(site)/admin/videos/import/+page.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
