@@ -5,7 +5,7 @@ use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Range};
 
 use super::binding::Binding;
 use super::directive::Directives;
-use super::{Builder, Result, refuse};
+use super::{Builder, Node, Result, refuse};
 
 /// What kind of tag the attributes are on.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -99,11 +99,22 @@ impl Builder<'_> {
                     if (host.kind == Kind::Slot && attribute.name.text(self.source) == "name")
                         || (host.dynamic && attribute.name.text(self.source) == "this") => {}
                 _ => {
-                    let property = self.attribute(
+                    let mut property = self.attribute(
                         attribute,
                         host.intrinsic(),
                         matches!(host.kind, Kind::Element { custom: true }),
                     );
+                    // A component's CSS custom property is no prop: svelte2tsx's `cssProp`.
+                    if host.is_component() && attribute.name.text(self.source).starts_with("--") {
+                        let properties = self.tree.list(&[property]);
+                        let object = self.tree.push(Node::Object { properties });
+                        let callee = self.tree.push(Node::Identifier("__sveltets_2_cssProp"));
+                        let arguments = self.tree.list(&[object]);
+                        let value = self.tree.push(Node::Call { callee, arguments });
+                        let at = attribute.span.start_offset;
+                        let dots = Span::new(at, at);
+                        property = self.tree.push(Node::Spread { value, dots });
+                    }
                     self.scratch.push(property);
                 }
             }

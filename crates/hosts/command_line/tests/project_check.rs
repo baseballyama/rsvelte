@@ -221,3 +221,32 @@ fn a_bindable_prop_only_written_is_not_unused() {
     // svelte-check reads each bindable prop once, so only `plain` is unused.
     assert_eq!(project.check(), ["src/Drawer.svelte TS6133"]);
 }
+
+#[test]
+fn a_css_custom_property_given_to_a_component_is_not_a_prop() {
+    let project = Project::new(
+        "css-custom-property",
+        &[
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","strict":true,
+"skipLibCheck":true,"noEmit":true,"types":[]},"include":["src"]}"#,
+            ),
+            (
+                "src/Child.svelte",
+                "<script lang=\"ts\">\n  let { size }: { size?: number } = $props();\n</script>\n{size}\n",
+            ),
+            (
+                "src/App.svelte",
+                concat!(
+                    "<script lang=\"ts\">\n",
+                    "  import Child from './Child.svelte';\n",
+                    "</script>\n",
+                    "<Child --color=\"red\" --gap={missing} size={1} />\n",
+                ),
+            ),
+        ],
+    );
+    // svelte-check checks the value, but no prop `--color`.
+    assert_eq!(project.check(), ["src/App.svelte TS2304"]);
+}

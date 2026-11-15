@@ -14,8 +14,12 @@ const __rsvelte_public_props0 = __rsvelte_props({
 async () => {
   {
     __rsvelte_component(C)(__rsvelte_internals(), {
-      "--color": color,
-      "--size": "2px",
+      ...(__sveltets_2_cssProp({
+        "--color": color,
+      })),
+      ...(__sveltets_2_cssProp({
+        "--size": "2px",
+      })),
       "a": 1,
     });
   }
@@ -23,15 +27,21 @@ async () => {
     svelteHTML.createElement("svg", {});
     {
       __rsvelte_component(C)(__rsvelte_internals(), {
-        "--fill": "blue",
-        "--w": n,
+        ...(__sveltets_2_cssProp({
+          "--fill": "blue",
+        })),
+        ...(__sveltets_2_cssProp({
+          "--w": n,
+        })),
       });
     }
   }
   {
     __rsvelte_component(Dyn)(__rsvelte_internals(), {
       children: __rsvelte_children,
-      "--x": "1",
+      ...(__sveltets_2_cssProp({
+        "--x": "1",
+      })),
     });
     {
       svelteHTML.createElement("p", {});
@@ -40,7 +50,9 @@ async () => {
   }
   {
     __rsvelte_component(Dyn)(__rsvelte_internals(), {
-      "--y": n,
+      ...(__sveltets_2_cssProp({
+        "--y": n,
+      })),
     });
   }
 };
