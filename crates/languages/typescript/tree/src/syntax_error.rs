@@ -214,10 +214,14 @@ pub(crate) fn acorn(
         "1109" if text.get(start as usize..end as usize)?.starts_with('(') => {
             Some(fails("Unexpected token", end.checked_sub(1)?))
         }
-        // A second modifier: acorn reads the first as the name and fails at this one. A numeric
-        // enum member, a class's `implements` and a token where an expression or a type belongs
-        // are where acorn fails too.
-        "1029" | "2452" | "8005" | "1109" | "1110" => Some(fails("Unexpected token", start)),
+        // Modifiers out of order: acorn fails after the member's first word after `static`.
+        "1029" => Some(fails(
+            "Unexpected token",
+            after_member_name(start, end, read(), visit)?,
+        )),
+        // A numeric enum member, a class's `implements` and a token where an expression or a type
+        // belongs are where acorn fails.
+        "2452" | "8005" | "1109" | "1110" => Some(fails("Unexpected token", start)),
         // oxc labels the slash, and acorn reports the body after it.
         "1161" => Some(fails("Unterminated regular expression", start + 1)),
         // A missing token: acorn fails at the next token from where oxc labels it.
@@ -238,18 +242,6 @@ pub(crate) fn acorn(
             token(end, None)?,
         )),
         "1096" => Some(fails("Unexpected token", token(start, Some(Kind::Comma))?)),
-        "1101" => Some(fails("'with' in strict mode", start)),
-        "2660" => Some(fails("'super' keyword outside a method", start)),
-        // `super()` where it is not allowed: acorn first asks whether `super` is allowed at all.
-        "2337" | "2335" => match locate(start, end, Find::SuperHome, visit) {
-            None | Some((_, AstType::Function)) => {
-                Some(fails("'super' keyword outside a method", start))
-            }
-            Some(_) => Some(fails(
-                "super() call outside constructor of a subclass",
-                start,
-            )),
-        },
         // The lexer's errors: acorn reads a template's body and a regular expression's from the
         // byte after the opening, and a shorthand's initializer from its `=`.
         "1002" => Some(fails("Unterminated string constant", start)),
@@ -267,12 +259,6 @@ pub(crate) fn acorn(
             "Shorthand property assignments are valid only in destructuring patterns",
             token(start, Some(Kind::Eq))?,
         )),
-        "17013" => Some(fails(
-            "'new.target' can only be used in functions and class static block",
-            start,
-        )),
-        "2524" => Some(fails("Await expression cannot be a default value", start)),
-        "2523" => Some(fails("Yield expression cannot be a default value", start)),
         _ => early_error(error, number, text, (start, end), visit),
     }
 }
@@ -292,6 +278,24 @@ fn early_error(
         Some((start, text.get(start as usize..end as usize)?))
     };
     match number {
+        "1101" => Some(fails("'with' in strict mode", start)),
+        "2660" => Some(fails("'super' keyword outside a method", start)),
+        // `super()` where it is not allowed: acorn first asks whether `super` is allowed at all.
+        "2337" | "2335" => match locate(start, end, Find::SuperHome, visit) {
+            None | Some((_, AstType::Function)) => {
+                Some(fails("'super' keyword outside a method", start))
+            }
+            Some(_) => Some(fails(
+                "super() call outside constructor of a subclass",
+                start,
+            )),
+        },
+        "17013" => Some(fails(
+            "'new.target' can only be used in functions and class static block",
+            start,
+        )),
+        "2524" => Some(fails("Await expression cannot be a default value", start)),
+        "2523" => Some(fails("Yield expression cannot be a default value", start)),
         // A second declaration: oxc labels the first one first, and acorn fails at this one.
         "2300" => {
             let (at, name) = second()?;
@@ -398,6 +402,23 @@ fn optional_rest(
             rest.start,
         )),
     })
+}
+
+/// Where acorn fails at modifiers out of order labeled `start..end`: the token after the member's
+/// first word after `static`, or the label outside a class member.
+fn after_member_name(
+    start: u32,
+    end: u32,
+    tokens: impl Iterator<Item = Token>,
+    visit: impl FnOnce(&mut Locator),
+) -> Option<u32> {
+    let Some((member, _)) = locate(start, end, Find::Member, visit) else {
+        return Some(start);
+    };
+    let mut words = tokens
+        .skip_while(|token| token.start() < member)
+        .skip_while(|token| token.kind() == Kind::Static);
+    words.nth(1).map(|token| token.start())
 }
 
 const fn fails(message: &'static str, at: u32) -> Acorn {
