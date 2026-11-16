@@ -14,6 +14,13 @@ pub fn emit(tree: &SyntaxTree, source: &str) -> Emitter {
     emit_named(tree, source, "")
 }
 
+/// An emitter sized from the source, so that half the projections never grow: over the corpus, the
+/// median projection is 3.3 times its source's bytes, with a mapping per 16 bytes and an atom
+/// per 50.
+fn projection_emitter(source: usize) -> Emitter {
+    Emitter::with_capacity(source * 33 / 10, source / 16, source / 50)
+}
+
 /// The projection of the component at `path`, whose name its default export declares.
 #[must_use]
 pub fn emit_named(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
@@ -21,12 +28,14 @@ pub fn emit_named(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
         tree,
         source,
         path,
-        output: Emitter::new(),
+        output: projection_emitter(source.len()),
         indent: 0,
         in_type: false,
     };
     printer.output.push(";\n");
     printer.children(tree.root());
+    // The projection is kept, so it does not keep the text's spare room.
+    printer.output.out.shrink_to_fit();
     printer.output
 }
 
