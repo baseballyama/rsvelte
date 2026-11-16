@@ -1,4 +1,4 @@
-# svelte.check/default: 34975 match
+# svelte.check/default: 34978 match
 svelte/appwrite-console/src/routes/(public)/auth/preview/+page.svelte	mismatch
 svelte/carbon-components-svelte/tests/OverflowMenu/OverflowMenuItem.icons.test.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/attach-tag-output.svelte	mismatch
@@ -27,7 +27,6 @@ svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_wher
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/da266f625312c031.svelte	mismatch
 svelte/rsvelte-tests-core-2/import_export_parser_shapes/javascript_stamps_no_export_kind_on_a_default_export/dc3ff104ae7b3006.svelte	unexpected
 svelte/rsvelte-tests-core-2/import_export_parser_shapes/typescript_stamps_an_export_kind_on_a_default_export/dc1ebbb91be96717.svelte	unexpected
-svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/4e9145d6de0541b6.svelte	mismatch
 svelte/rsvelte-tests-core-2/malformed_snippet_header/balanced_literals_and_comments_in_a_header_compile/877d2d02e603fddb.svelte	mismatch
 svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/a_member_oxc_already_rejects_does_not_move/62f5fd2ac19278a6.svelte	mismatch
 svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/a_member_oxc_already_rejects_does_not_move/c17ea09d73673f96.svelte	mismatch
@@ -37,6 +36,7 @@ svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_compone
 svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/696aaefc0ff5653b.svelte	mismatch
 svelte/rsvelte-tests-core-3/root_fragment_scope_3375/a_top_level_snippet_may_shadow_a_module_script_const/8f79cd7fce7f75de.svelte	mismatch
 svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/a_textarea_closer_keeps_taking_everything_up_to_the_bracket/8c8524746c866ada.svelte	mismatch
+svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_content_mapper/tests/a_broken_script_body_is_left_for_typescript_to_report/33018fc5a929c17c.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/folding/tests/a_document_being_typed_still_folds/9a8f6b5e0cd9dd2d.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/folding/tests/no_input_panics/a7896b97746ed2b6.svelte	mismatch

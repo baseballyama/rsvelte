@@ -11039,6 +11039,34 @@
 === 3 pattern/issues/whitespace-body-inline-element-breaks-before-close.svelte	json
 []
 
+=== 389 pattern/javascript-accessor-optional-field.svelte	json
+[
+	{
+		"code": 8009,
+		"message": "The '?' modifier can only be used in TypeScript files.",
+		"start": {
+			"line": 2,
+			"character": 12
+		},
+		"end": {
+			"line": 2,
+			"character": 13
+		}
+	},
+	{
+		"code": 8010,
+		"message": "Type annotations can only be used in TypeScript files.",
+		"start": {
+			"line": 2,
+			"character": 15
+		},
+		"end": {
+			"line": 2,
+			"character": 21
+		}
+	}
+]
+
 === 3 pattern/leading-line-comment-destructure-init.svelte	json
 []
 

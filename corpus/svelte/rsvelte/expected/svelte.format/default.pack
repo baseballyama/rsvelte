@@ -2251,16 +2251,6 @@ b"
 
 <svelte:element this={tag} id="a" class="c">quoted</svelte:element>
 
-=== 158 lint/first-attribute-linebreak/12-this-comment-first.svelte	svelte
-<script>
-  import C from "./C.svelte";
-  let tag = "div";
-</script>
-
-<svelte:element this={/* c */ tag} /* c */ id="a" class="c"
-  >comment</svelte:element
->
-
 === 137 lint/first-attribute-linebreak/13-this-parens-first.svelte	svelte
 <script>
   import C from "./C.svelte";
@@ -2276,15 +2266,6 @@ b"
 </script>
 
 <svelte:element this={tag} id="a" class="c">nbsp</svelte:element>
-
-=== 202 lint/first-attribute-linebreak/15-this-scan-failures-last.svelte	svelte
-<script>
-  import C from "./C.svelte";
-  let tag = "div";
-</script>
-
-<svelte:element this={/* c */ tag} id="a" /* c */>comment</svelte:element>
-<svelte:element this={tag} id="b">parens</svelte:element>
 
 === 102 lint/first-attribute-linebreak/16-crlf-this-quoted.svelte	svelte
 <script>
@@ -2553,16 +2534,6 @@ b"
 <div>a﻿b</div>
 <div id="i" class="c"></div>
 
-=== 260 lint/html-closing-bracket-spacing/14-this-scan-failures.svelte	svelte
-<script>
-  import C from "./C.svelte";
-  let tag = "div";
-</script>
-
-<svelte:element this={tag} id="a">quoted</svelte:element>
-<svelte:element this={/* c */ tag} id="b" /* c */>comment</svelte:element>
-<svelte:element this={tag} id="c">parens</svelte:element>
-
 === 147 lint/html-closing-bracket-spacing/opt-key-end-never.svelte	svelte
 <script>
   /* eslint svelte/html-closing-bracket-spacing: ["warn",{"endTag":"never"}] */
@@ -2717,15 +2688,6 @@ b"
 
 <svelte:element this={"div"} id="a">t</svelte:element>
 
-=== 202 lint/html-quotes/14-this-scan-failures.svelte	svelte
-<script>
-  import C from "./C.svelte";
-  let tag = "div";
-</script>
-
-<svelte:element this={tag} id="a">parens</svelte:element>
-<svelte:element this={/* c */ tag} id="b" /* c */>comment</svelte:element>
-
 === 125 lint/html-quotes/15-this-exotic-ws-eq.svelte	svelte
 <script>
   import C from "./C.svelte";
@@ -2862,17 +2824,6 @@ b"
 
 日本語🎉テキスト<Comp></Comp>絵文字🎉
 <div />
-
-=== 257 lint/html-self-closing/13-this-scan-failures.svelte	svelte
-<script>
-  import C from "./C.svelte";
-  let tag = "div";
-</script>
-
-<svelte:element this={tag}></svelte:element>
-<svelte:element this={/* c */ tag}></svelte:element>
-<svelte:element this={tag}></svelte:element>
-<svelte:element this={tag}></svelte:element>
 
 === 129 lint/html-self-closing/14-exotic-ws-children.svelte	svelte
 <div>　</div>
@@ -3364,14 +3315,6 @@ b"
 
 <svelte:element this={tag} id="a">t</svelte:element>
 <svelte:component this={C} id="b" />
-
-=== 138 lint/max-attributes-per-line/13-this-comment-in-value.svelte	svelte
-<script>
-  import C from "./C.svelte";
-  let tag = "div";
-</script>
-
-<svelte:element this={/* c */ tag} id="a" /* c */>t</svelte:element>
 
 === 122 lint/max-attributes-per-line/14-this-parenthesized.svelte	svelte
 <script>
@@ -10155,15 +10098,6 @@ transition: none"
 <svelte:element this={tag} id="b">formfeed</svelte:element>
 <svelte:component this={C} id="c" />
 
-=== 202 lint/no-spaces-around-equal-signs-in-attribute/12-this-scan-failures.svelte	svelte
-<script>
-  import C from "./C.svelte";
-  let tag = "div";
-</script>
-
-<svelte:element this={tag} id="a">parens</svelte:element>
-<svelte:element this={/* c */ tag} id="b" /* c */>comment</svelte:element>
-
 === 99 lint/no-spaces-around-equal-signs-in-attribute/13-exotic-ws-controls.svelte	svelte
 <div id="a">ideographic</div>
 <div id="b">feff</div>
@@ -16354,15 +16288,6 @@ ${b}`}
 <svelte:element this={tag} id="b">u</svelte:element>
 <svelte:component this={C} id="c" />
 
-=== 191 lint/sort-attributes/18-this-comment-in-value.svelte	svelte
-<script>
-  import C from "./C.svelte";
-  let tag = "div";
-</script>
-
-<svelte:element this={/* c */ tag} id="a" /* c */>t</svelte:element>
-<svelte:component this={/* c */ C} id="b" /* c */ />
-
 === 159 lint/sort-attributes/19-this-parenthesized.svelte	svelte
 <script>
   import C from "./C.svelte";
@@ -16371,17 +16296,6 @@ ${b}`}
 
 <svelte:element this={tag} id="a">t</svelte:element>
 <svelte:component this={C} id="b" />
-
-=== 385 lint/sort-attributes/22-this-controls.svelte	svelte
-<script>
-  import C from "./C.svelte";
-  let tag = "div";
-</script>
-
-<svelte:element this={1 > 2 ? "div" : "span"} id="a">gt in expr</svelte:element>
-<svelte:element this={tag} id="b" /* c */>trailing comment</svelte:element>
-<svelte:element this={tag} id="c">the word this appears here</svelte:element>
-<svelte:element this={tag} id="d" data-x="this={q}">decoy value</svelte:element>
 
 === 145 lint/sort-attributes/23-crlf-this-quoted.svelte	svelte
 <script>
@@ -45717,6 +45631,18 @@ unknown node type: UnaryExpression
   some text <i class="wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa">
   </i>
 </div>
+
+=== 56 pattern/javascript-accessor-optional-field.svelte	svelte
+<script>
+	class C {
+		accessor x?: number;
+	}
+</script>
+
+=== 37 pattern/javascript-name-escape-of-a-space.svelte	svelte
+<script>
+	let a\u0020 = 1;
+</script>
 
 === 585 pattern/leading-line-comment-destructure-init.svelte	svelte
 <script>

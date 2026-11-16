@@ -29,7 +29,7 @@ impl Printer<'_, '_, '_> {
             let comments = self.leading_comments(&mut root, script.span.start_offset);
             let body = if self.ignores(&comments)
                 || self.unsupported(&script.attributes)
-                || self.unparsed_script == Some(script.content)
+                || self.unparsed_scripts.contains(&script.content)
             {
                 self.preformatted(script.content)
             } else {

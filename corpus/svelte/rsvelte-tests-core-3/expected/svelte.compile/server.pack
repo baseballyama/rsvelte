@@ -65009,6 +65009,41 @@ export default function Cac5edaa93e04d7d($$renderer) {
 	}
 }
 
+=== 168 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _1b9b41071bc4d80($$renderer) {
+	let accessor;
+
+	$$renderer.push(`<p>${$.escape(accessor)}</p>`);
+}
+=== 182 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ad65fdf7d6a621fb.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Ad65fdf7d6a621fb($$renderer) {
+	let accessor;
+	const q = accessor;
+
+	$$renderer.push(`<p>${$.escape(q)}</p>`);
+}
+=== 397 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Ba198887ad071d57($$renderer) {
+	let accessor;
+
+	$$renderer.push(`<!--[-->`);
+
+	const each_array = $.ensure_array_like(accessor);
+
+	for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+		let z = each_array[$$index];
+
+		$$renderer.push(`<!---->${$.escape(z)}`);
+	}
+
+	$$renderer.push(`<!--]-->`);
+}
 === 172 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/c4d11c011f319b87.svelte	js
 import * as $ from 'svelte/internal/server';
 
