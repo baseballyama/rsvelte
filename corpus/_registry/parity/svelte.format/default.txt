@@ -1,4 +1,4 @@
-# svelte.format/default: 34527 match
+# svelte.format/default: 34530 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -688,9 +688,7 @@ svelte/svelte-commerce/src/routes/(www)/checkout/payment/payment.svelte	mismatch
 svelte/svelte-commerce/src/routes/(www)/checkout/success/+page.svelte	mismatch
 svelte/svelte-confetti/src/routes/+page.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/integrations/type-info-tests/plugin-issue254-input.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/function-binding-with-comment01-input.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/function-binding-with-comment02-input.svelte	refused
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/non-function-binding02-input.svelte	refused
 svelte/svelte-fa/src/routes/components/sections/additional-styling.svelte	mismatch
 svelte/svelte-fa/src/routes/components/sections/installation.svelte	mismatch
 svelte/svelte-gantt/packages/demo/src/routes/+page.svelte	mismatch
@@ -744,7 +742,6 @@ svelte/svelte-ux/packages/svelte-ux/src/routes/+page.svelte	mismatch
 svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/TableOfContents/+page.svelte	mismatch
 svelte/svelte/packages/svelte/tests/css/samples/comment-html/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/hydration/samples/claim-text/Layout.svelte	mismatch
-svelte/svelte/packages/svelte/tests/parser-modern/samples/comment-before-function-binding/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/empty-block/input.svelte	mismatch
 svelte/sveltepress/packages/theme-default/src/components/GlobalLayout.svelte	mismatch
 svelte/sveltepress/packages/vite/__tests__/real-world.svelte	mismatch
