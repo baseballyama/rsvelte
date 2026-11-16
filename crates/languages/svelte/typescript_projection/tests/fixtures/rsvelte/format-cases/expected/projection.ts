@@ -19,13 +19,13 @@ let total=$derived(items.length*2+1)
       });
       {
         svelteHTML.createElement("h2", {});
-        (title);
+        title;
       }
       if (items.length>0) {
         {
           svelteHTML.createElement("p", {});
-          (total);
-          (items[0]);
+          total;
+          items[0];
         }
       } else {
         {

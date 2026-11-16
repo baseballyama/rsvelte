@@ -27,7 +27,7 @@ function $$render() {
           __rsvelte_component(Option)(__rsvelte_internals(), {});
         }
       }
-      (html);
+      html;
     }
     {
       svelteHTML.createElement("select", {
@@ -40,7 +40,7 @@ function $$render() {
         svelteHTML.createElement("option", {});
         {
           svelteHTML.createElement("b", {});
-          (x);
+          x;
         }
       }
     }

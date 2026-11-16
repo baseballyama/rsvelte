@@ -27,7 +27,7 @@ function $$render() {
               "value": option,
             });
             (option === current);
-            (option);
+            option;
           }
         }
       }

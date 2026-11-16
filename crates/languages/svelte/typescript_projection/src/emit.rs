@@ -210,6 +210,10 @@ impl Printer<'_> {
                 }
                 self.program_end();
             }
+            Node::Bare(value) => {
+                self.source_expression(value);
+                self.output.push(";\n");
+            }
             Node::SourceCopy { span, .. } => {
                 self.output.copy(self.source, span);
                 self.output.mark(span.end_offset);

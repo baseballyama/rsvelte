@@ -73,6 +73,9 @@ pub enum Node {
         declared: Range,
     },
     Expression(SourceExpression),
+    /// `value;` without parentheses, as svelte2tsx writes a mustache tag, so TypeScript reads a
+    /// function or class there as a declaration and reports what it lacks.
+    Bare(SourceExpression),
     Statement(NodeIdentifier),
     Identifier(&'static str),
     /// The component `<svelte:self>` renders, whose props svelte2tsx does not check.

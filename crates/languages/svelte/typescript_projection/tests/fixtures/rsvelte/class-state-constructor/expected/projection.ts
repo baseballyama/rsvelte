@@ -26,9 +26,9 @@ function $$render() {
       svelteHTML.createElement("button", {
         "onclick": () => c.inc(),
       });
-      (c.count);
-      (c.doubled);
-      (c.p);
+      c.count;
+      c.doubled;
+      c.p;
     }
   };
   return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();

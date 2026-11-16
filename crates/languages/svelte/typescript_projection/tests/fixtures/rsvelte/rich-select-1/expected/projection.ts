@@ -10,7 +10,7 @@ function $$render() {
         svelteHTML.createElement("option", {});
         {
           svelteHTML.createElement("span", {});
-          (x);
+          x;
         }
       }
       {

@@ -17,12 +17,12 @@ function $$render() {
         const { label: title, ...extra } = item;
         {
           svelteHTML.createElement("p", {});
-          (width);
-          (height);
-          (first);
-          (second);
-          (title);
-          (extra.note);
+          width;
+          height;
+          first;
+          second;
+          title;
+          extra.note;
         }
       }
     }

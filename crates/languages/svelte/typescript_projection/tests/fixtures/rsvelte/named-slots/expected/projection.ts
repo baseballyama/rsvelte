@@ -27,9 +27,9 @@ function $$render() {
         svelteHTML.createElement("div", {
           "slot": "a",
         });
-        (x);
+        x;
       }
-      (x);
+      x;
       {
         __rsvelte_component(C)(__rsvelte_internals(), {
           "slot": "1",
@@ -52,7 +52,7 @@ function $$render() {
         });
         {
           svelteHTML.createElement("span", {});
-          (x);
+          x;
         }
       }
       {
@@ -74,7 +74,7 @@ function $$render() {
       });
       {
         svelteHTML.createElement("svelte:fragment", {});
-        (x);
+        x;
       }
       C;
     }

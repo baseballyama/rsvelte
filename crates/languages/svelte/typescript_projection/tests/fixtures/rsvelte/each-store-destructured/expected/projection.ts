@@ -17,9 +17,9 @@ function $$render() {
         (name);
         {
           svelteHTML.createElement("p", {});
-          (name);
-          (icon);
-          (i);
+          name;
+          icon;
+          i;
         }
       }
     }
@@ -29,8 +29,8 @@ function $$render() {
           svelteHTML.createElement("button", {
             "onclick": () => { a.x = 1; },
           });
-          (a);
-          (b);
+          a;
+          b;
         }
       }
     }

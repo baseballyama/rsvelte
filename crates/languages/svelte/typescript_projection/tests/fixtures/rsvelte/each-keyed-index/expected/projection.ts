@@ -13,8 +13,8 @@ function $$render() {
           (row.id);
           {
             svelteHTML.createElement("span", {});
-            (index);
-            (row.id);
+            index;
+            row.id;
           }
         }
       }

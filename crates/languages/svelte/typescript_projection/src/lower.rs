@@ -18,7 +18,7 @@ pub use script_kind::checked_as_typescript;
 mod tag;
 mod type_assertion;
 
-use oxc_ast::ast::Expression;
+use oxc_ast::ast::{AssignmentTarget, ChainElement, Expression};
 use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
@@ -174,6 +174,48 @@ fn source_expression(at: oxc_span::Span, end: Option<u32>) -> SourceExpression {
     }
 }
 
+/// Whether `e`'s first token is the `{` of an object literal.
+fn starts_with_object(mut e: &Expression<'_>) -> bool {
+    let start = e.span().start;
+    loop {
+        let next = match e {
+            Expression::ObjectExpression(_) => return true,
+            Expression::StaticMemberExpression(m) => &m.object,
+            Expression::ComputedMemberExpression(m) => &m.object,
+            Expression::PrivateFieldExpression(m) => &m.object,
+            Expression::CallExpression(c) => &c.callee,
+            Expression::TaggedTemplateExpression(t) => &t.tag,
+            Expression::BinaryExpression(b) => &b.left,
+            Expression::LogicalExpression(l) => &l.left,
+            Expression::ConditionalExpression(c) => &c.test,
+            Expression::SequenceExpression(s) => match s.expressions.first() {
+                Some(first) => first,
+                None => return false,
+            },
+            Expression::ChainExpression(c) => match c.expression.as_member_expression() {
+                Some(member) => member.object(),
+                None => match &c.expression {
+                    ChainElement::CallExpression(call) => &call.callee,
+                    _ => return false,
+                },
+            },
+            Expression::TSAsExpression(t) => &t.expression,
+            Expression::TSSatisfiesExpression(t) => &t.expression,
+            Expression::TSNonNullExpression(t) => &t.expression,
+            Expression::AssignmentExpression(a) => {
+                return matches!(a.left, AssignmentTarget::ObjectAssignmentTarget(_))
+                    && a.left.span().start == start;
+            }
+            _ => return false,
+        };
+        // A part that starts later sits after a parenthesis the tree drops.
+        if next.span().start != start {
+            return false;
+        }
+        e = next;
+    }
+}
+
 /// The document position of an oxc node.
 const fn span(span: oxc_span::Span) -> Span {
     Span::new(span.start, span.end)
@@ -265,8 +307,15 @@ impl Builder<'_> {
             TemplateNode::Text { .. } | TemplateNode::Comment { .. } => return Ok(None),
             TemplateNode::Expression { expression, span }
             | TemplateNode::Html { expression, span } => {
-                let at = self.expression(expression).span();
-                Node::Expression(source_expression(at, Some(span.end_offset - 1)))
+                let expression = self.expression(expression);
+                let value = source_expression(expression.span(), Some(span.end_offset - 1));
+                // svelte2tsx parenthesizes only a tag that starts with `{`, which would open a
+                // block.
+                if starts_with_object(expression) {
+                    Node::Expression(value)
+                } else {
+                    Node::Bare(value)
+                }
             }
             TemplateNode::Element {
                 name,

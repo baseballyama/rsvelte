@@ -12,7 +12,7 @@ function $$render() {
     }
     {
       svelteHTML.createElement("p", {});
-      (host);
+      host;
     }
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();

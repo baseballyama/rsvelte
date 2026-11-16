@@ -18,7 +18,7 @@ function $$render() {
           "slot": "a",
         });
         const twice = k * 2;
-        (twice);
+        twice;
       }
       C;
     }

@@ -1,7 +1,6 @@
-# svelte.check/default: 34971 match
+# svelte.check/default: 34975 match
 svelte/appwrite-console/src/routes/(public)/auth/preview/+page.svelte	mismatch
 svelte/carbon-components-svelte/tests/OverflowMenu/OverflowMenuItem.icons.test.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-object-in-text-mustaches/invalid/function01-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/attach-tag-output.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events-usage/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events/input.svelte	mismatch
@@ -60,9 +59,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_asy
 svelte/rsvelte/lint/html-closing-bracket-new-line/05-script-style-tags.svelte	mismatch
 svelte/rsvelte/lint/html-closing-bracket-spacing/04-script-style-tags.svelte	mismatch
 svelte/rsvelte/lint/no-dupe-on-directives/19-ts-casts-and-generics.svelte	mismatch
-svelte/rsvelte/lint/no-object-in-text-mustaches/01-basic.svelte	mismatch
-svelte/rsvelte/lint/no-object-in-text-mustaches/09-class-and-function-expressions.svelte	mismatch
-svelte/rsvelte/lint/no-object-in-text-mustaches/17-async-and-generator.svelte	mismatch
 svelte/rsvelte/lint/no-useless-children-snippet/06-boundary-and-self.svelte	mismatch
 svelte/rsvelte/lint/require-each-key/13-key-expression-forms.svelte	mismatch
 svelte/rsvelte/pattern/issues/3164-on-directive-inner-init.svelte	mismatch

@@ -44,9 +44,9 @@ function $$render() {
     }
     {
       svelteHTML.createElement("p", {});
-      (w);
-      (h);
-      (item.w);
+      w;
+      h;
+      item.w;
     }
   };
   return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();

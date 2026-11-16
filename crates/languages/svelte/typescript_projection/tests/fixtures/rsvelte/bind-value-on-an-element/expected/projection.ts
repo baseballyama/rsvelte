@@ -8,7 +8,7 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("p", {});
-      (v);
+      v;
     }
     {
       svelteHTML.createElement("input", {

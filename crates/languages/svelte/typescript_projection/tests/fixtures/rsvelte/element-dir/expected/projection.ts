@@ -8,7 +8,7 @@ function $$render() {
       svelteHTML.createElement("div", {
         "dir": "auto",
       });
-      (count);
+      count;
     }
     {
       svelteHTML.createElement("p", {

@@ -14,12 +14,12 @@ function $$render() {
         if (task.done) {
           {
             svelteHTML.createElement("s", {});
-            (task.text);
+            task.text;
           }
         } else {
           {
             svelteHTML.createElement("b", {});
-            (task.text);
+            task.text;
           }
         }
       }

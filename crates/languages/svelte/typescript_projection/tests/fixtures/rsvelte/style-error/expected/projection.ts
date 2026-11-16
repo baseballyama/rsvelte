@@ -13,7 +13,7 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("h1", {});
-      (title.toFixed());
+      title.toFixed();
     }
   };
   return __rsvelte_export_component<$$ComponentProps, {}, "">();

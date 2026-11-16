@@ -18,19 +18,19 @@ function $$render() {
           svelteHTML.createElement("button", {
             "onclick": () => (picked = item),
           });
-          (item);
+          item;
         }
         {
           svelteHTML.createElement("button", {
             "onclick": () => remove(item),
           });
-          (i);
+          i;
         }
       }
     }
     {
       svelteHTML.createElement("p", {});
-      (picked);
+      picked;
     }
   };
   return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();

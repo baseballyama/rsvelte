@@ -10,7 +10,7 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("p", {});
-      (state.data.n);
+      state.data.n;
     }
   };
   return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();

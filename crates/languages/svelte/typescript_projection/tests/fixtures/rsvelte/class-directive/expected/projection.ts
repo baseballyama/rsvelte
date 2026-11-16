@@ -49,7 +49,7 @@ function $$render() {
       svelteHTML.createElement("button", {
         "onclick": () => count++,
       });
-      (count);
+      count;
     }
     {
       svelteHTML.createElement("button", {

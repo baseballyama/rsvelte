@@ -11,7 +11,7 @@ function $$render() {
     }
     {
       svelteHTML.createElement("p", {});
-      (props.value);
+      props.value;
     }
   };
   return (/** @type {typeof __rsvelte_export_component<any, {}, "">} */ (__rsvelte_export_component))();

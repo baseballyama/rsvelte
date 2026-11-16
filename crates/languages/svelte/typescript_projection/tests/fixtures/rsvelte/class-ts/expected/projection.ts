@@ -22,7 +22,7 @@ function $$render() {
       svelteHTML.createElement("button", {
         "onclick": () => level++,
       });
-      (level);
+      level;
     }
   };
   return __rsvelte_export_component<__rsvelte_no_props, {}, "">();

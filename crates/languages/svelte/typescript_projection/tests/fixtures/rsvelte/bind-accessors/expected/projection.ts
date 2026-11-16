@@ -10,7 +10,7 @@ function $$render() {
     async () => {
       {
         svelteHTML.createElement("i", {});
-        (v);
+        v;
       }
     };
     return __rsvelte_snippet_return;
@@ -47,7 +47,7 @@ function $$render() {
           children: __rsvelte_children,
           "open": __rsvelte_get_set(() => v, (x) => (v = x)),
         });
-        (v);
+        v;
         C;
       }
     }

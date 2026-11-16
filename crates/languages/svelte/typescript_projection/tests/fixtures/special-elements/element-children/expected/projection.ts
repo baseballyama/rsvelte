@@ -10,7 +10,7 @@ function $$render() {
       });
       {
         svelteHTML.createElement("p", {});
-        (text);
+        text;
       }
     }
   };

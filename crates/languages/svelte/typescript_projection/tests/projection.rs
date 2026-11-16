@@ -203,7 +203,7 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
             "          \"title\": text,\n",
             "          \"data-label\": `café\n  🚀`,\n",
             "        });\n",
-            "        (text);\n",
+            "        text;\n",
             "      }\n",
             "    }\n",
             "  };\n",
