@@ -148,6 +148,9 @@ pub enum TypeScriptDocument {
         store_reads: Vec<(Span, Vec<Span>)>,
         /// The findings svelte-check hides.
         hidden: Vec<Hidden>,
+        /// Whether a finding with no source range is dropped, as svelte-check drops it, instead
+        /// of refusing the document: only where the projection writes svelte2tsx's own code.
+        drops_unmapped: bool,
     },
 }
 
@@ -326,6 +329,7 @@ struct Prepared {
     imports: Vec<(Span, String)>,
     store_reads: Vec<(Span, Vec<Span>)>,
     hidden: Vec<Hidden>,
+    drops_unmapped: bool,
 }
 
 impl FinishTask for Check {
@@ -390,6 +394,7 @@ impl FinishTask for Check {
                 imports,
                 store_reads,
                 hidden,
+                drops_unmapped,
             }) => Some(Box::new(Prepared {
                 path: context.document.path.clone(),
                 projection: Emitter {
@@ -404,6 +409,7 @@ impl FinishTask for Check {
                 imports: imports.clone(),
                 store_reads: store_reads.clone(),
                 hidden: hidden.clone(),
+                drops_unmapped: *drops_unmapped,
             })),
         }
     }

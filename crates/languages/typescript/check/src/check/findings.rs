@@ -36,7 +36,9 @@ pub(super) fn write_findings(
     for f in found {
         let d = &docs[f.file];
         let Some(span) = f.span else {
-            unmapped[f.file].push(format!("TS{}: {}", f.code, f.message));
+            if !d.drops_unmapped {
+                unmapped[f.file].push(format!("TS{}: {}", f.code, f.message));
+            }
             continue;
         };
         let bom = byte_order_mark(&d.source_text);
