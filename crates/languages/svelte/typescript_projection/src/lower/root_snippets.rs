@@ -46,13 +46,15 @@ impl Builder<'_> {
         }))
     }
 
-    /// Without an instance script: the root snippets svelte2tsx moves into the module script, put
-    /// in `module_snippets`, while the others stay in place.
-    pub(super) fn module_snippets(&mut self) -> Result<Vec<u32>> {
+    /// Without an instance script: the root snippets svelte2tsx moves into the module script,
+    /// which go in `module_snippets`. The others stay in place.
+    pub(super) fn snippets_moved_to_module(&mut self) -> Result<Vec<u32>> {
         let moved = self.moved_snippets();
-        let mut nodes = Vec::new();
+        let mut nodes = Vec::with_capacity(moved.len());
         for &identifier in &moved {
-            nodes.extend(self.node(identifier)?);
+            if let Some(node) = self.node(identifier)? {
+                nodes.push(node);
+            }
         }
         if !nodes.is_empty() {
             let list = self.tree.list(&nodes);

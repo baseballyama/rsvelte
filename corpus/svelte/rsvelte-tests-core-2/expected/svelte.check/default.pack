@@ -15931,22 +15931,6 @@
 	}
 ]
 
-=== 202 plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/0987dd6e6407d320.svelte	json
-[
-	{
-		"code": 8017,
-		"message": "Signature declarations can only be used in TypeScript files.",
-		"start": {
-			"line": 1,
-			"character": 10
-		},
-		"end": {
-			"line": 1,
-			"character": 11
-		}
-	}
-]
-
 === 197 plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/20d491fc9d358155.svelte	json
 [
 	{
