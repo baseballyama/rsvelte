@@ -268,6 +268,17 @@ impl Builder<'_> {
         self.expression_source(identifier, end)
     }
 
+    /// A tag's `copied;`, which svelte2tsx parenthesizes only when it starts with `{`, which would
+    /// open a block.
+    fn mustache(&self, expression: ExpressionIdentifier, copied: Span, end: u32) -> Node {
+        let value = SourceExpression { span: copied, end };
+        if starts_with_object(self.expression(expression)) {
+            Node::Expression(value)
+        } else {
+            Node::Bare(value)
+        }
+    }
+
     fn finish_list(&mut self, start: usize) -> Range {
         let range = self.tree.list(&self.scratch[start..]);
         self.scratch.truncate(start);
@@ -305,17 +316,17 @@ impl Builder<'_> {
     fn node(&mut self, identifier: u32) -> Result<Option<NodeIdentifier>> {
         let node = match *self.component.node(identifier) {
             TemplateNode::Text { .. } | TemplateNode::Comment { .. } => return Ok(None),
-            TemplateNode::Expression { expression, span }
-            | TemplateNode::Html { expression, span } => {
-                let expression = self.expression(expression);
-                let value = source_expression(expression.span(), Some(span.end_offset - 1));
-                // svelte2tsx parenthesizes only a tag that starts with `{`, which would open a
-                // block.
-                if starts_with_object(expression) {
-                    Node::Expression(value)
-                } else {
-                    Node::Bare(value)
-                }
+            TemplateNode::Expression { expression, span } => {
+                // svelte2tsx copies all between the braces, the parentheses included.
+                let inside = Span::new(span.start_offset + 1, span.end_offset - 1);
+                self.mustache(expression, inside, span.end_offset - 1)
+            }
+            TemplateNode::Html {
+                expression,
+                span: tag,
+            } => {
+                let at = span(self.expression(expression).span());
+                self.mustache(expression, at, tag.end_offset - 1)
             }
             TemplateNode::Element {
                 name,

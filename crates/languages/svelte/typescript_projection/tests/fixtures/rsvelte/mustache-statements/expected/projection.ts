@@ -6,7 +6,7 @@ function $$render() {
 ;
 
   async () => {
-    ({a: 1});
+    ( {a: 1} );
     ({ a }.a);
     a, a;
     function () {};
