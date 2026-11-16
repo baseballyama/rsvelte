@@ -101,18 +101,24 @@ pub fn lower<'a>(
         module_snippets: None,
     };
     builder.tree.javascript = !checked_as_typescript(component, source);
-    // svelte2tsx moves the root's snippets after the instance script's imports, or leaves them in
-    // place without an instance script.
+    // svelte2tsx moves the root's snippets after the instance script's imports. Without one it
+    // moves those it may into the module script and leaves the rest in place.
     let instance = component.instance.is_some();
-    if instance {
+    let moved = if instance {
         builder.root_snippets = builder.root_snippets()?;
-    }
+        Vec::new()
+    } else {
+        builder.snippets_moved_to_module()?
+    };
     let (contract, generics) = builder.scripts()?;
     let start = builder.scratch.len();
     if instance {
         builder.append_matching(component.root, false)?;
     } else {
         for &identifier in component.children(component.root) {
+            if moved.contains(&identifier) {
+                continue;
+            }
             if let Some(node) = builder.node(identifier)? {
                 builder.scratch.push(node);
             }

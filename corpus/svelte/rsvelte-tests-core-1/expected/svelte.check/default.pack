@@ -8065,34 +8065,6 @@
 	}
 ]
 
-=== 399 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/35efd90757e6abdb.svelte	json
-[
-	{
-		"code": 8010,
-		"message": "Type annotations can only be used in TypeScript files.",
-		"start": {
-			"line": 0,
-			"character": 30
-		},
-		"end": {
-			"line": 0,
-			"character": 36
-		}
-	},
-	{
-		"code": 8016,
-		"message": "Type assertion expressions can only be used in TypeScript files.",
-		"start": {
-			"line": 0,
-			"character": 59
-		},
-		"end": {
-			"line": 0,
-			"character": 65
-		}
-	}
-]
-
 === 193 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/9096b19bedcfe51e.svelte	json
 [
 	{
