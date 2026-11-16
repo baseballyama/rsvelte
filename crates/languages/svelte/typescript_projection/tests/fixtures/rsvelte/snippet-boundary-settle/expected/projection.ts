@@ -22,13 +22,15 @@ function $$render() {
 
   async () => {
     {
-      __rsvelte_component(Input)(__rsvelte_internals(), {
+      const __rsvelte_component_0 = __rsvelte_component(Input);
+      __rsvelte_component_0(__rsvelte_internals(), {
         value,
       });
       () => {
         // @ts-ignore
         value = __rsvelte_untyped_prop();
       };
+      __rsvelte_bindings(__rsvelte_component_0).$$bindings = "value";
     }
     {
       svelteHTML.createElement("svelte:boundary", {

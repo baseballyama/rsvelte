@@ -14,7 +14,8 @@ function $$render() {
 
   async () => {
     {
-      for (let [, cheese] of __rsvelte_each(cheese)) {
+      const __rsvelte_iterable0 = __rsvelte_each(cheese);
+      for (let [, cheese] of __rsvelte_iterable0) {
         {
           svelteHTML.createElement("li", {});
           cheese;

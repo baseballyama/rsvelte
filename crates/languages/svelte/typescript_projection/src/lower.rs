@@ -6,8 +6,10 @@ mod call;
 mod children;
 mod contract;
 mod directive;
+mod each;
 mod element;
 mod generic;
+mod names;
 mod namespace;
 pub use contract::store_reads;
 pub use generic::{UnparsedScript, unparsed_script};
@@ -322,6 +324,7 @@ impl Builder<'_> {
                 attributes,
                 children,
                 start_tag,
+                self_closing,
                 end_tag,
                 span,
                 ..
@@ -330,8 +333,9 @@ impl Builder<'_> {
                 let end_name = (end_tag && component.is_some())
                     .then(|| self.end_tag_name(name, span))
                     .flatten();
+                let tag = (start_tag, self_closing);
                 return self
-                    .element(name, start_tag, component, attributes, children, end_name)
+                    .element(name, tag, component, attributes, children, end_name)
                     .map(Some);
             }
             TemplateNode::If {
@@ -349,47 +353,7 @@ impl Builder<'_> {
                     alternate,
                 }
             }
-            TemplateNode::Each {
-                expression,
-                context,
-                index,
-                key,
-                body,
-                fallback,
-                has_fallback,
-                ..
-            } => {
-                let start = self.scratch.len();
-                let expression = self.expression_source(expression, None);
-                let callee = self.tree.push(Node::Identifier("__rsvelte_each"));
-                let arguments = self.tree.list(&[expression]);
-                let iterable = self.tree.push(Node::Call { callee, arguments });
-                let javascript = &self.component.javascript;
-                let index = index.map(|index| javascript.get_pattern(index).span);
-                let index = index.map(|at| self.source(at, None));
-                // svelte2tsx drops a context's type annotation, and `for…of` takes none.
-                let value = context.map(|context| javascript.get_pattern(context).pattern.span());
-                let value = value.map(|at| self.source(at, None));
-                let binding = self.tree.push(Node::ArrayPattern { index, value });
-                if let Some(key) = key {
-                    let value = source_expression(self.expression(key).span(), None);
-                    self.scratch.push(self.tree.push(Node::Expression(value)));
-                }
-                self.append_children(body)?;
-                let body = self.finish_list(start);
-                let loop_node = self.tree.push(Node::ForOf {
-                    binding,
-                    iterable,
-                    body,
-                });
-                self.scratch.push(loop_node);
-                if has_fallback {
-                    let body = self.children(fallback)?;
-                    self.scratch.push(self.tree.push(Node::Block { body }));
-                }
-                let body = self.finish_list(start);
-                Node::Block { body }
-            }
+            TemplateNode::Each { .. } => self.each_block(identifier)?,
             TemplateNode::Const { declaration, .. }
             | TemplateNode::Declaration { declaration, .. } => {
                 let at = self.component.javascript.get_declaration(declaration).span;
@@ -416,35 +380,6 @@ impl Builder<'_> {
             .find(|token| token.kind == TokenType::EndTagOpen)?;
         let start = open.span.end_offset;
         Some(Span::new(start, start + name.len()))
-    }
-
-    /// Whether the component binds `name`, a type included.
-    fn declares(&self, name: &str) -> bool {
-        (self.resolution)()
-            .is_some_and(|resolution| resolution.scoping().symbol_names().any(|n| n == name))
-    }
-
-    /// A name for generated code that no binding or reference of the component uses.
-    fn unused_name(&mut self, prefix: &'static str) -> NodeIdentifier {
-        self.unused_name_from(prefix, 0)
-    }
-
-    /// [`Self::unused_name`] with an index of at least `from`, so names generated into one
-    /// scope differ.
-    fn unused_name_from(&mut self, prefix: &'static str, from: u32) -> NodeIdentifier {
-        let taken = |name: &str| {
-            (self.resolution)().is_some_and(|resolution| {
-                let scoping = resolution.scoping();
-                scoping.symbol_names().any(|n| n == name)
-                    || resolution.unresolved_names().any(|n| n == name)
-            })
-        };
-        let mut index = from;
-        while taken(&format!("{prefix}{index}")) {
-            index += 1;
-        }
-        let prefix = self.tree.push(Node::Identifier(prefix));
-        self.tree.push(Node::GeneratedIdentifier { prefix, index })
     }
 
     fn element_callee(&mut self) -> NodeIdentifier {

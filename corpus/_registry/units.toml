@@ -63,6 +63,7 @@
 
 ["svelte/primo/src/lib/builder/views/modal/SitePages/Item.svelte".skip]
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+"svelte.check" = "upstream bug: svelte2tsx types a forwarded event from the component itself through its own render function, so svelte-check reports 7023 on `$$render` and drops the props errors of the self-reference"
 
 ["svelte/svelte-commerce/src/lib/core/components/plugins/whatsapp-chat-button.svelte".skip]
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
@@ -4873,13 +4874,7 @@
 ["svelte/kite-public/src/lib/components/contribute/ContributeHistory.svelte".skip]
 "svelte.check" = "checker: TS 7 shortens a long type in a message otherwise than TS 6, writing `...` for a member TS 6 writes as `{ ...; }`"
 
-["svelte/threlte/apps/docs/src/examples/rapier/attractor/AdvancedScene.svelte".skip]
-"svelte.check" = "checker: TS 7 shortens a long type in a message otherwise than TS 6, writing `...` for a member TS 6 writes as `{ ...; }`"
-
 ["svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte".skip]
-"svelte.check" = "checker: TS 7's lib.dom differs from TS 6's, so the message lists other missing properties"
-
-["svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte".skip]
 "svelte.check" = "checker: TS 7's lib.dom differs from TS 6's, so the message lists other missing properties"
 
 ["svelte/rsvelte/pattern/issues/var-derived-outlives-the-statement-it-declared-it.svelte".skip]
@@ -4956,6 +4951,19 @@
 
 ["svelte/rsvelte-tests-core-3/ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/a58bedf4d6742a23.svelte".skip]
 "svelte.format" = "oxc ast: AccessorProperty has no `declare` modifier, so oxc cannot print `declare accessor a`, which Prettier 3.9.10 keeps"
+
+["svelte/layerchart/packages/layerchart/src/lib/components/charts/__fixtures__/ArcChartTooltip.svelte".skip]
+"svelte.check" = "checker: TS 7 lists the keys of a `Pick` in its own order and cuts the props' type at other points than TS 6; the projection also reports the generic component's props as 2345 at its name, where svelte-check reports 2322 with no length"
+
+
+["svelte/melt-ui/docs/src/components/motion.svelte".skip]
+"svelte.check" = "checker: TS 7 reports 7031 on a binding element whose default is `{}` and whose contextual type comes from an unresolved import, where TS 6 reports nothing"
+
+["svelte/threlte/apps/docs/src/examples/rapier/attractor/AdvancedScene.svelte".skip]
+"svelte.check" = "checker: TS 7 truncates a long type's last property to `...` where TS 6 prints `{ ...; }`, so the message differs"
+
+["svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte".skip]
+"svelte.check" = "checker: TS 7's lib.dom gives HTMLElement one more member than TS 6's, so a message counting its missing properties says 316 where TS 6 says 315"
 
 ["svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_not_check_are_not_parse_errors/3fbf11608512c3ee.svelte".skip]
 "svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"

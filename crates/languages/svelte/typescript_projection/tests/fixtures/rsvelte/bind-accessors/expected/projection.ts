@@ -26,7 +26,8 @@ function $$render() {
       svelteHTML.createElement("p", {});
     }
     {
-      __rsvelte_component(C)(__rsvelte_internals(), {
+      const __rsvelte_component_0 = __rsvelte_component(C);
+      __rsvelte_component_0(__rsvelte_internals(), {
         "a": 1,
         "value": __rsvelte_get_set(() => v, (x) => (v = x)),
         ...(rest),
@@ -37,16 +38,20 @@ function $$render() {
         // @ts-ignore
         v = __rsvelte_untyped_prop();
       };
+      __rsvelte_bindings(__rsvelte_component_0).$$bindings = "value";
+      __rsvelte_bindings(__rsvelte_component_0).$$bindings = "other";
     }
     if (v) {
       {
         svelteHTML.createElement("span", {});
       }
       {
-        __rsvelte_component(C)(__rsvelte_internals(), {
+        const __rsvelte_component_0 = __rsvelte_component(C);
+        __rsvelte_component_0(__rsvelte_internals(), {
           children: __rsvelte_children,
           "open": __rsvelte_get_set(() => v, (x) => (v = x)),
         });
+        __rsvelte_bindings(__rsvelte_component_0).$$bindings = "open";
         v;
         C;
       }

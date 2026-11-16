@@ -23,7 +23,7 @@ function $$render() {
       $later;
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
 }
 const StoreThatIsNotAStore__SvelteComponent_ = $$render();
 type StoreThatIsNotAStore__SvelteComponent_ = ReturnType<typeof StoreThatIsNotAStore__SvelteComponent_>;

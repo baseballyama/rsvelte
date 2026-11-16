@@ -76,7 +76,12 @@ impl Printer<'_> {
             }
         }
         self.output.push("\"");
-        self.output.atom_since(start, name);
+        // An `end` inside the name shortens what a finding on it covers.
+        let original = match end {
+            Some(end) if end < name.end_offset => Span::new(name.start_offset, end),
+            _ => name,
+        };
+        self.output.atom_since(start, original);
         if let Some(end) = end {
             self.output.mark(end);
         }
@@ -233,10 +238,15 @@ impl Printer<'_> {
                 }
                 self.output.atom_since(start, span);
             }
-            Node::Located { value, open, close } => match self.tree.node(value) {
-                Node::Object { properties } => self.object(properties, Some((open, close))),
-                _ => self.node(value),
-            },
+            Node::Located { value, open, close } => {
+                if let Node::Object { properties } = self.tree.node(value) {
+                    self.object(properties, Some((open, close)));
+                } else {
+                    let start = self.output.out.len() as u32;
+                    self.node(value);
+                    self.output.atom_since(start, open);
+                }
+            }
             Node::StoreSubscription(store) => self.store_subscription(store),
             Node::GeneratedIdentifier { prefix, index } => {
                 self.node(prefix);

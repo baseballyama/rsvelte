@@ -18,7 +18,7 @@ function $$render() {
     };
     __rsvelte_ensure_snippet(t(() => 1));
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, string>} */ (__rsvelte_export_component))();
 }
 const SnippetParameterDefaults__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof SnippetParameterDefaults__SvelteComponent_>} */ (SnippetParameterDefaults__SvelteComponent_);

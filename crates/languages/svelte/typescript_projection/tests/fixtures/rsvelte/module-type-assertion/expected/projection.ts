@@ -20,7 +20,7 @@ function $$render() {
       kept;
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
 }
 const ModuleTypeAssertion__SvelteComponent_ = $$render();
 type ModuleTypeAssertion__SvelteComponent_ = ReturnType<typeof ModuleTypeAssertion__SvelteComponent_>;

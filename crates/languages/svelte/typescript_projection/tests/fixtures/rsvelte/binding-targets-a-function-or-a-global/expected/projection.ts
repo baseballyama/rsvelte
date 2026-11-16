@@ -39,9 +39,11 @@ function $$render() {
     }
     a;
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {
+  return (/** @type {typeof __rsvelte_export_component<Partial<{
     a: typeof a;
-  }, "">} */ (__rsvelte_export_component))();
+  }>, {
+    a: typeof a;
+  }, string>} */ (__rsvelte_export_component))();
 }
 const BindingTargetsAFunctionOrAGlobal__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof BindingTargetsAFunctionOrAGlobal__SvelteComponent_>} */ (BindingTargetsAFunctionOrAGlobal__SvelteComponent_);

@@ -11,7 +11,7 @@ function $$render() {
     a, a;
     function () {};
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
 }
 const MustacheStatements__SvelteComponent_ = $$render();
 type MustacheStatements__SvelteComponent_ = ReturnType<typeof MustacheStatements__SvelteComponent_>;

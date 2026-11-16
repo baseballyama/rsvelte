@@ -78,13 +78,15 @@ function $$render() {
       }
     }
     {
-      __rsvelte_component(C)(__rsvelte_internals(), {
+      const __rsvelte_component_0 = __rsvelte_component(C);
+      __rsvelte_component_0(__rsvelte_internals(), {
         "group": one,
       });
       () => {
         // @ts-ignore
         one = __rsvelte_untyped_prop();
       };
+      __rsvelte_bindings(__rsvelte_component_0).$$bindings = "group";
     }
   };
   return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();

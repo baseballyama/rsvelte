@@ -29,7 +29,7 @@ function $$render() {
       });
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
 }
 const ElementAttributesFinding__SvelteComponent_ = $$render();
 type ElementAttributesFinding__SvelteComponent_ = ReturnType<typeof ElementAttributesFinding__SvelteComponent_>;
