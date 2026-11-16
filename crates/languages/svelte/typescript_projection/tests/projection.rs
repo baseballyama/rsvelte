@@ -110,7 +110,10 @@ fn element_and_attachment_semantics_are_lowered_before_printing() {
         tree.node(property),
         Node::Identifier("createElement")
     ));
-    let Node::Object { properties } = tree.node(tree.children(arguments)[1]) else {
+    let Node::Located { value, .. } = tree.node(tree.children(arguments)[1]) else {
+        panic!("element attributes are located at the tag name");
+    };
+    let Node::Object { properties } = tree.node(value) else {
         panic!("element attributes form an object expression");
     };
     let Node::ComputedProperty { key, value } = tree.node(tree.children(properties)[0]) else {

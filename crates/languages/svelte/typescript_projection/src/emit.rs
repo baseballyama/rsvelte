@@ -229,8 +229,8 @@ impl Printer<'_> {
                 }
                 self.output.atom_since(start, span);
             }
-            Node::Located { value, at } => match self.tree.node(value) {
-                Node::Object { properties } => self.object(properties, Some(at)),
+            Node::Located { value, open, close } => match self.tree.node(value) {
+                Node::Object { properties } => self.object(properties, Some((open, close))),
                 _ => self.node(value),
             },
             Node::StoreSubscription(store) => self.store_subscription(store),
@@ -492,19 +492,22 @@ impl Printer<'_> {
         self.indentation();
     }
 
-    /// The object of `properties`, whose braces map to `at`, so that a finding on all of it does.
-    fn object(&mut self, properties: Range, at: Option<Span>) {
-        let brace = |output: &mut Emitter, text: &str| match at {
+    /// The object of `properties`, whose braces map to `at`'s spans, so that a finding on all of
+    /// it does.
+    fn object(&mut self, properties: Range, at: Option<(Span, Option<Span>)>) {
+        let brace = |output: &mut Emitter, text: &str, at: Option<Span>| match at {
             Some(at) => output.atom(text, at),
             None => output.push(text),
         };
+        let (open, close) = at.map_or((None, None), |(open, close)| (Some(open), close));
         if self.tree.children(properties).is_empty() {
-            brace(&mut self.output, "{}");
+            brace(&mut self.output, "{", open);
+            brace(&mut self.output, "}", close.or(open));
         } else {
-            brace(&mut self.output, "{");
+            brace(&mut self.output, "{", open);
             self.output.push("\n");
             self.body(properties);
-            brace(&mut self.output, "}");
+            brace(&mut self.output, "}", close);
         }
     }
 

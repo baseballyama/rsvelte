@@ -159,10 +159,13 @@ pub enum Node {
         template: bool,
     },
     Text(Span),
-    /// `value`, where a finding on all of it maps to `at`, and a finding inside it as usual.
+    /// The object `value`, whose opening brace maps to `open` and closing brace to `close`, so
+    /// that a finding on all of it starts and ends there. Without `close`, it ends where the last
+    /// property does.
     Located {
         value: NodeIdentifier,
-        at: Span,
+        open: Span,
+        close: Option<Span>,
     },
     /// Text that needs no escape as a string literal, which a finding on the literal locates.
     QuotedText(Span),

@@ -44,10 +44,30 @@ impl Builder<'_> {
     pub(super) fn element_call(
         &mut self,
         name: Span,
+        start: u32,
         attributes: Range,
         actions: &[NodeIdentifier],
         properties: NodeIdentifier,
     ) -> NodeIdentifier {
+        // svelte-check starts a finding on all of an element's attributes at its name's last
+        // character, or at a `<svelte:element>`'s `<`, and ends it with the last attribute.
+        let tag = name.text(self.source);
+        let open = match tag {
+            "svelte:element" => Some(Span::new(start, start + 1)),
+            _ if tag.starts_with("svelte:") => None,
+            _ => tag
+                .chars()
+                .next_back()
+                .map(|last| Span::new(name.end_offset - last.len_utf8() as u32, name.end_offset)),
+        };
+        let properties = match open {
+            Some(open) => self.tree.push(Node::Located {
+                value: properties,
+                open,
+                close: None,
+            }),
+            None => properties,
+        };
         let enhancers = (!actions.is_empty()).then(|| {
             let callee = self.tree.push(Node::Identifier("__sveltets_2_union"));
             let arguments = self.tree.list(actions);
