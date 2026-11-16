@@ -122,17 +122,16 @@ impl Printer<'_, '_, '_> {
             variant,
             ..oxc_formatter_css::CssFormatOptions::default()
         };
-        #[expect(
-            clippy::map_err_ignore,
-            reason = "oxc's diagnostic points into the sheet, not the component"
-        )]
-        let ir = oxc_formatter_css::format_to_ir(
+        // oxc-css-parser rejects what the language's grammar owner rejects, and oxc prints a part
+        // it does not format as written, as the plugin does with a sheet postcss throws on.
+        let Ok(ir) = oxc_formatter_css::format_to_ir(
             self.embedder.embedding.session(),
             &text,
             options,
             Some(oxc_formatter_css::CssEmbeddedIn::StyleElement),
-        )
-        .map_err(|_| Unsupported::at("CSS that oxc's formatter does not format", content))?;
+        ) else {
+            return Ok(self.preformatted(content));
+        };
         let body = self.keep(ir.ir);
         Ok(self.indented_body(body))
     }

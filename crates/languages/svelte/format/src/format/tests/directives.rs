@@ -1,4 +1,5 @@
-//! Directive names and block patterns, which the plugin prints from what Svelte reads.
+//! Directive names, block patterns and style sheets the parsers reject: what the plugin prints of
+//! them.
 
 use super::*;
 
@@ -40,5 +41,23 @@ fn a_regular_expression_or_a_bigint_default_in_a_block_pattern_prints_as_written
         "{#each items as { a = 1n }}x{/each}\n",
     ] {
         assert_eq!(formatted(source_text), source_text);
+    }
+}
+
+#[test]
+fn a_style_sheet_the_css_parser_rejects_prints_as_written() {
+    // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1, whose postcss
+    // throws on these too.
+    for (input, expected) in [
+        (
+            "<p>x</p>\n<style>\n  .broken { color:red;\n</style>\n",
+            "<p>x</p>\n\n<style>\n  .broken { color:red;\n</style>\n",
+        ),
+        (
+            "<svg><style>{x}</style></svg>\n",
+            "<svg\n  ><style>\n{x}\n  </style></svg\n>\n",
+        ),
+    ] {
+        assert_eq!(formatted(input), expected, "{input}");
     }
 }
