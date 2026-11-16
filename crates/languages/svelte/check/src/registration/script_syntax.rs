@@ -56,6 +56,10 @@ pub(super) fn view<'e>(
             from = at.end_offset;
         }
         projection.copy(source_text, Span::new(from, instance.content.end_offset));
+        // svelte2tsx ends the script with a `;` at its end tag, where a script cut short fails.
+        let end = instance.content.end_offset;
+        projection.push("\n");
+        projection.atom(";", Span::new(end, end + 1));
         projection.push("\n}\n");
     }
     projection.push("export {};\n");
