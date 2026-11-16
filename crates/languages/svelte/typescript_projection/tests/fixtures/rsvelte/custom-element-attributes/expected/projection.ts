@@ -35,7 +35,7 @@ function $$render() {
       });
       {
         svelteHTML.createElement("span", {});
-        (s);
+        s;
       }
     }
     {

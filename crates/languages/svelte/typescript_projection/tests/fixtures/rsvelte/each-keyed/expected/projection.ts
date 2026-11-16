@@ -14,7 +14,7 @@ function $$render() {
         (person.id);
         {
           svelteHTML.createElement("p", {});
-          (person.name);
+          person.name;
         }
       }
     }

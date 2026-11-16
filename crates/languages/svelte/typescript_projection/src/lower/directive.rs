@@ -24,6 +24,8 @@ pub(super) struct Directives {
     pub(super) slot_lets: Vec<NodeIdentifier>,
     /// svelte2tsx's `const { … } = parent.$$slot_def["name"]` of those, before the element.
     pub(super) slot_let: Option<NodeIdentifier>,
+    /// A component's `bind:` directives other than `bind:this`: the name and the directive.
+    pub(super) bindable: Vec<(Span, Span)>,
 }
 
 impl Directives {
@@ -35,6 +37,7 @@ impl Directives {
         self.lets.clear();
         self.slot_lets.clear();
         self.slot_let = None;
+        self.bindable.clear();
     }
 }
 

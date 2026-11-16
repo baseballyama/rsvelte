@@ -10,7 +10,7 @@ function $$render() {
       });
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
 }
 const Assertions__SvelteComponent_ = $$render();
 type Assertions__SvelteComponent_ = ReturnType<typeof Assertions__SvelteComponent_>;

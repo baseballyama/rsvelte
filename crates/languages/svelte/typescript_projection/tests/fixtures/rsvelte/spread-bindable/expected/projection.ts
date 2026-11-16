@@ -18,13 +18,13 @@ function $$render() {
         ...(properties),
         "onclick": () => value++,
       });
-      (value);
+      value;
     }
     {
       svelteHTML.createElement("p", {
         "title": text,
       });
-      (text);
+      text;
     }
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "value" | "text">} */ (__rsvelte_export_component))();

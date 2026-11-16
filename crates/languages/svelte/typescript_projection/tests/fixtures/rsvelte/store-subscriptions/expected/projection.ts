@@ -27,10 +27,10 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("p", {});
-      ($count);
-      ($store);
-      ($obj.a);
-      (d);
+      $count;
+      $store;
+      $obj.a;
+      d;
     }
     {
       svelteHTML.createElement("input", {
@@ -48,7 +48,7 @@ function $$render() {
     }
     {
       for (let [, item] of __rsvelte_each($obj.list)) {
-        (item);
+        item;
       }
     }
   };

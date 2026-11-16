@@ -12,19 +12,19 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("div", {});
-      (value);
+      value;
     }
     {
       svelteHTML.createElement("div", {});
-      ($state.eager(value));
+      $state.eager(value);
     }
     {
       svelteHTML.createElement("button", {
         "onclick": () => n++,
       });
-      (e);
-      (f());
-      ($state.eager(n));
+      e;
+      f();
+      $state.eager(n);
     }
   };
   return (/** @type {typeof __rsvelte_export_component<any, {}, "">} */ (__rsvelte_export_component))();

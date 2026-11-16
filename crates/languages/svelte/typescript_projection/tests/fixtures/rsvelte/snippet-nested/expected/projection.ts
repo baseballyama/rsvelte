@@ -16,8 +16,8 @@ function $$render() {
         async () => {
           {
             svelteHTML.createElement("li", {});
-            (index);
-            (item.label);
+            index;
+            item.label;
           }
         };
         return __rsvelte_snippet_return;
@@ -33,8 +33,8 @@ function $$render() {
         async () => {
           {
             svelteHTML.createElement("p", {});
-            (title);
-            (count);
+            title;
+            count;
           }
         };
         return __rsvelte_snippet_return;

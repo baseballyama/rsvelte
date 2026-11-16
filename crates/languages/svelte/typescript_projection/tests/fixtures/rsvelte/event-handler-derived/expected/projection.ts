@@ -13,7 +13,7 @@ function $$render() {
       svelteHTML.createElement("button", {
         "on:click": make(),
       });
-      (d);
+      d;
     }
     {
       const __rsvelte_action0 = __sveltets_2_ensureAction(action(svelteHTML.mapElementTag("input")));

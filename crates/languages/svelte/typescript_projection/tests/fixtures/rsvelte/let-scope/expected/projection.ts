@@ -20,10 +20,10 @@ function $$render() {
         const {
           x,
         } = __rsvelte_instance(__rsvelte_component_0).$$slot_def.default;
-        (x);
+        x;
         {
           svelteHTML.createElement("p", {});
-          (x);
+          x;
         }
         {
           const {
@@ -33,8 +33,8 @@ function $$render() {
             children: __rsvelte_children,
             "slot": "b",
           });
-          (x);
-          (y);
+          x;
+          y;
           C;
         }
       }

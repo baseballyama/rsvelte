@@ -12,8 +12,8 @@ function $$render() {
       svelteHTML.createElement("button", {
         "onclick": f,
       });
-      (o.a);
-      (r.length);
+      o.a;
+      r.length;
     }
   };
   return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {

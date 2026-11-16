@@ -15,7 +15,7 @@ function $$render() {
         for (let [, entry] of __rsvelte_each(list)) {
           {
             svelteHTML.createElement("span", {});
-            (entry);
+            entry;
           }
         }
       }

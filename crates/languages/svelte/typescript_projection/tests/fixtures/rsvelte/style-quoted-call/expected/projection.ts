@@ -39,7 +39,7 @@ function $$render() {
         {
           svelteHTML.createElement("span", {});
           __sveltets_2_ensureType(String, Number, `${f(item.x)}px`);
-          (item.k);
+          item.k;
         }
       }
     }

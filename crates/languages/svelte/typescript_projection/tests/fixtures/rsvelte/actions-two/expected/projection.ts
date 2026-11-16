@@ -21,7 +21,7 @@ function $$render() {
       svelteHTML.createElement("input", __sveltets_2_union(__rsvelte_action0), {});
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
 }
 const ActionsTwo__SvelteComponent_ = $$render();
 type ActionsTwo__SvelteComponent_ = ReturnType<typeof ActionsTwo__SvelteComponent_>;

@@ -27,7 +27,7 @@ function $$render() {
       });
       {
         svelteHTML.createElement("p", {});
-        (count);
+        count;
       }
     }
     {

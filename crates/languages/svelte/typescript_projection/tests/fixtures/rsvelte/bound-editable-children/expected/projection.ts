@@ -16,7 +16,7 @@ function $$render() {
         // @ts-ignore
         value = __rsvelte_untyped_prop();
       };
-      (value);
+      value;
     }
     {
       svelteHTML.createElement("div", {
@@ -31,8 +31,8 @@ function $$render() {
         async () => {
           {
             svelteHTML.createElement("p", {});
-            (value);
-            (other);
+            value;
+            other;
           }
         };
         return __rsvelte_snippet_return;
@@ -40,7 +40,7 @@ function $$render() {
       __rsvelte_ensure_snippet(raw());
       {
         svelteHTML.createElement("span", {});
-        (other);
+        other;
       }
     }
     {
@@ -52,11 +52,11 @@ function $$render() {
         // @ts-ignore
         other = __rsvelte_untyped_prop();
       };
-      (other);
+      other;
     }
     {
       svelteHTML.createElement("p", {});
-      (value);
+      value;
     }
   };
   return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();

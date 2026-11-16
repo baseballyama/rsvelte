@@ -2253,34 +2253,6 @@
 	}
 ]
 
-=== 1522 markup_cast_head_parens/declaration_name_head_matches_oracle/128daf0370152b62.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to parameter of type 'HTMLProps<\"button\", HTMLAttributes<any>>'.\n  Type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to type 'Omit<HTMLButtonAttributes, never>'.\n    Property '[Symbol.iterator]' is incompatible with index signature.\n      Type '() => ArrayIterator<string>' is not assignable to type 'false | Attachment<HTMLButtonElement> | null | undefined'.\n        Type '() => ArrayIterator<string>' is not assignable to type 'Attachment<HTMLButtonElement>'.\n          Type 'ArrayIterator<string>' is not assignable to type 'void | (() => void)'.",
-		"start": {
-			"line": 2,
-			"character": 6
-		},
-		"end": {
-			"line": 2,
-			"character": 30
-		}
-	},
-	{
-		"code": 2591,
-		"message": "Cannot find name 'module'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 19
-		}
-	}
-]
-
 === 351 markup_cast_head_parens/declaration_name_head_matches_oracle/128f263e38f28ca0.svelte	json
 [
 	{
@@ -3297,62 +3269,6 @@
 	}
 ]
 
-=== 1377 markup_cast_head_parens/declaration_name_head_matches_oracle/206e74c7dccafa7e.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to parameter of type 'HTMLProps<\"button\", HTMLAttributes<any>>'.\n  Type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to type 'Omit<HTMLButtonAttributes, never>'.\n    Property '[Symbol.iterator]' is incompatible with index signature.\n      Type '() => ArrayIterator<string>' is not assignable to type 'false | Attachment<HTMLButtonElement> | null | undefined'.\n        Type '() => ArrayIterator<string>' is not assignable to type 'Attachment<HTMLButtonElement>'.\n          Type 'ArrayIterator<string>' is not assignable to type 'void | (() => void)'.",
-		"start": {
-			"line": 2,
-			"character": 6
-		},
-		"end": {
-			"line": 2,
-			"character": 27
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'foo'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 16
-		}
-	}
-]
-
-=== 1379 markup_cast_head_parens/declaration_name_head_matches_oracle/208e8058f2789ff5.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to parameter of type 'HTMLProps<\"button\", HTMLAttributes<any>>'.\n  Type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to type 'Omit<HTMLButtonAttributes, never>'.\n    Property '[Symbol.iterator]' is incompatible with index signature.\n      Type '() => ArrayIterator<string>' is not assignable to type 'false | Attachment<HTMLButtonElement> | null | undefined'.\n        Type '() => ArrayIterator<string>' is not assignable to type 'Attachment<HTMLButtonElement>'.\n          Type 'ArrayIterator<string>' is not assignable to type 'void | (() => void)'.",
-		"start": {
-			"line": 2,
-			"character": 6
-		},
-		"end": {
-			"line": 2,
-			"character": 29
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'using'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 18
-		}
-	}
-]
-
 === 170 markup_cast_head_parens/declaration_name_head_matches_oracle/208ed109f048b975.svelte	json
 [
 	{
@@ -4237,34 +4153,6 @@
 	}
 ]
 
-=== 1378 markup_cast_head_parens/declaration_name_head_matches_oracle/2b7a3bf6f4dda84c.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to parameter of type 'HTMLProps<\"button\", HTMLAttributes<any>>'.\n  Type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to type 'Omit<HTMLButtonAttributes, never>'.\n    Property '[Symbol.iterator]' is incompatible with index signature.\n      Type '() => ArrayIterator<string>' is not assignable to type 'false | Attachment<HTMLButtonElement> | null | undefined'.\n        Type '() => ArrayIterator<string>' is not assignable to type 'Attachment<HTMLButtonElement>'.\n          Type 'ArrayIterator<string>' is not assignable to type 'void | (() => void)'.",
-		"start": {
-			"line": 2,
-			"character": 6
-		},
-		"end": {
-			"line": 2,
-			"character": 28
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'hook'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 17
-		}
-	}
-]
-
 === 163 markup_cast_head_parens/declaration_name_head_matches_oracle/2b7b57ddd04b7c33.svelte	json
 [
 	{
@@ -4457,34 +4345,6 @@
 		"end": {
 			"line": 2,
 			"character": 23
-		}
-	}
-]
-
-=== 1383 markup_cast_head_parens/declaration_name_head_matches_oracle/2cb3c44dbfa2dfd9.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to parameter of type 'HTMLProps<\"button\", HTMLAttributes<any>>'.\n  Type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to type 'Omit<HTMLButtonAttributes, never>'.\n    Property '[Symbol.iterator]' is incompatible with index signature.\n      Type '() => ArrayIterator<string>' is not assignable to type 'false | Attachment<HTMLButtonElement> | null | undefined'.\n        Type '() => ArrayIterator<string>' is not assignable to type 'Attachment<HTMLButtonElement>'.\n          Type 'ArrayIterator<string>' is not assignable to type 'void | (() => void)'.",
-		"start": {
-			"line": 2,
-			"character": 6
-		},
-		"end": {
-			"line": 2,
-			"character": 33
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'namespace'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 22
 		}
 	}
 ]
@@ -5865,34 +5725,6 @@
 		"end": {
 			"line": 2,
 			"character": 19
-		}
-	}
-]
-
-=== 1378 markup_cast_head_parens/declaration_name_head_matches_oracle/3ff4cdc0e418febd.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to parameter of type 'HTMLProps<\"button\", HTMLAttributes<any>>'.\n  Type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to type 'Omit<HTMLButtonAttributes, never>'.\n    Property '[Symbol.iterator]' is incompatible with index signature.\n      Type '() => ArrayIterator<string>' is not assignable to type 'false | Attachment<HTMLButtonElement> | null | undefined'.\n        Type '() => ArrayIterator<string>' is not assignable to type 'Attachment<HTMLButtonElement>'.\n          Type 'ArrayIterator<string>' is not assignable to type 'void | (() => void)'.",
-		"start": {
-			"line": 2,
-			"character": 6
-		},
-		"end": {
-			"line": 2,
-			"character": 28
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'type'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 17
 		}
 	}
 ]
@@ -8169,34 +8001,6 @@
 		"end": {
 			"line": 2,
 			"character": 18
-		}
-	}
-]
-
-=== 1381 markup_cast_head_parens/declaration_name_head_matches_oracle/604c759e974b7b37.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to parameter of type 'HTMLProps<\"button\", HTMLAttributes<any>>'.\n  Type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to type 'Omit<HTMLButtonAttributes, never>'.\n    Property '[Symbol.iterator]' is incompatible with index signature.\n      Type '() => ArrayIterator<string>' is not assignable to type 'false | Attachment<HTMLButtonElement> | null | undefined'.\n        Type '() => ArrayIterator<string>' is not assignable to type 'Attachment<HTMLButtonElement>'.\n          Type 'ArrayIterator<string>' is not assignable to type 'void | (() => void)'.",
-		"start": {
-			"line": 2,
-			"character": 6
-		},
-		"end": {
-			"line": 2,
-			"character": 31
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'declare'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 20
 		}
 	}
 ]
@@ -10585,34 +10389,6 @@
 	}
 ]
 
-=== 1376 markup_cast_head_parens/declaration_name_head_matches_oracle/7efd2325017e0405.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to parameter of type 'HTMLProps<\"button\", HTMLAttributes<any>>'.\n  Type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to type 'Omit<HTMLButtonAttributes, never>'.\n    Property '[Symbol.iterator]' is incompatible with index signature.\n      Type '() => ArrayIterator<string>' is not assignable to type 'false | Attachment<HTMLButtonElement> | null | undefined'.\n        Type '() => ArrayIterator<string>' is not assignable to type 'Attachment<HTMLButtonElement>'.\n          Type 'ArrayIterator<string>' is not assignable to type 'void | (() => void)'.",
-		"start": {
-			"line": 2,
-			"character": 6
-		},
-		"end": {
-			"line": 2,
-			"character": 26
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'of'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 15
-		}
-	}
-]
-
 === 167 markup_cast_head_parens/declaration_name_head_matches_oracle/7f37a353f49a9049.svelte	json
 [
 	{
@@ -11293,34 +11069,6 @@
 	}
 ]
 
-=== 1382 markup_cast_head_parens/declaration_name_head_matches_oracle/8721a6b434a131f7.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to parameter of type 'HTMLProps<\"button\", HTMLAttributes<any>>'.\n  Type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to type 'Omit<HTMLButtonAttributes, never>'.\n    Property '[Symbol.iterator]' is incompatible with index signature.\n      Type '() => ArrayIterator<string>' is not assignable to type 'false | Attachment<HTMLButtonElement> | null | undefined'.\n        Type '() => ArrayIterator<string>' is not assignable to type 'Attachment<HTMLButtonElement>'.\n          Type 'ArrayIterator<string>' is not assignable to type 'void | (() => void)'.",
-		"start": {
-			"line": 2,
-			"character": 6
-		},
-		"end": {
-			"line": 2,
-			"character": 32
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'accessor'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 21
-		}
-	}
-]
-
 === 353 markup_cast_head_parens/declaration_name_head_matches_oracle/875cfa436da5778c.svelte	json
 [
 	{
@@ -11633,34 +11381,6 @@
 		"end": {
 			"line": 2,
 			"character": 11
-		}
-	}
-]
-
-=== 1380 markup_cast_head_parens/declaration_name_head_matches_oracle/8b2f138617feb45c.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to parameter of type 'HTMLProps<\"button\", HTMLAttributes<any>>'.\n  Type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to type 'Omit<HTMLButtonAttributes, never>'.\n    Property '[Symbol.iterator]' is incompatible with index signature.\n      Type '() => ArrayIterator<string>' is not assignable to type 'false | Attachment<HTMLButtonElement> | null | undefined'.\n        Type '() => ArrayIterator<string>' is not assignable to type 'Attachment<HTMLButtonElement>'.\n          Type 'ArrayIterator<string>' is not assignable to type 'void | (() => void)'.",
-		"start": {
-			"line": 2,
-			"character": 6
-		},
-		"end": {
-			"line": 2,
-			"character": 30
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'global'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 19
 		}
 	}
 ]
@@ -17061,34 +16781,6 @@
 	}
 ]
 
-=== 1383 markup_cast_head_parens/declaration_name_head_matches_oracle/d692c48bdf4b706c.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to parameter of type 'HTMLProps<\"button\", HTMLAttributes<any>>'.\n  Type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to type 'Omit<HTMLButtonAttributes, never>'.\n    Property '[Symbol.iterator]' is incompatible with index signature.\n      Type '() => ArrayIterator<string>' is not assignable to type 'false | Attachment<HTMLButtonElement> | null | undefined'.\n        Type '() => ArrayIterator<string>' is not assignable to type 'Attachment<HTMLButtonElement>'.\n          Type 'ArrayIterator<string>' is not assignable to type 'void | (() => void)'.",
-		"start": {
-			"line": 2,
-			"character": 6
-		},
-		"end": {
-			"line": 2,
-			"character": 33
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'component'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 22
-		}
-	}
-]
-
 === 166 markup_cast_head_parens/declaration_name_head_matches_oracle/d6ba694d4c7260cb.svelte	json
 [
 	{
@@ -17913,34 +17605,6 @@
 		"end": {
 			"line": 2,
 			"character": 14
-		}
-	}
-]
-
-=== 1383 markup_cast_head_parens/declaration_name_head_matches_oracle/e05fefbf8d487c03.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to parameter of type 'HTMLProps<\"button\", HTMLAttributes<any>>'.\n  Type '{ [n: number]: string; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to type 'Omit<HTMLButtonAttributes, never>'.\n    Property '[Symbol.iterator]' is incompatible with index signature.\n      Type '() => ArrayIterator<string>' is not assignable to type 'false | Attachment<HTMLButtonElement> | null | undefined'.\n        Type '() => ArrayIterator<string>' is not assignable to type 'Attachment<HTMLButtonElement>'.\n          Type 'ArrayIterator<string>' is not assignable to type 'void | (() => void)'.",
-		"start": {
-			"line": 2,
-			"character": 6
-		},
-		"end": {
-			"line": 2,
-			"character": 33
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'satisfies'.",
-		"start": {
-			"line": 2,
-			"character": 13
-		},
-		"end": {
-			"line": 2,
-			"character": 22
 		}
 	}
 ]
@@ -20781,22 +20445,6 @@
 	}
 ]
 
-=== 1215 markup_cast_head_parens/type_operator_operand_matches_oracle/11ba9a4dcfd4ca3a.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ [n: number]: number; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to parameter of type 'HTMLProps<\"button\", HTMLAttributes<any>>'.\n  Type '{ [n: number]: number; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to type 'Omit<HTMLButtonAttributes, never>'.\n    Property '[Symbol.iterator]' is incompatible with index signature.\n      Type '() => ArrayIterator<number>' is not assignable to type 'false | Attachment<HTMLButtonElement> | null | undefined'.\n        Type '() => ArrayIterator<number>' is not assignable to type 'Attachment<HTMLButtonElement>'.\n          Type 'ArrayIterator<number>' is not assignable to type 'void | (() => void)'.",
-		"start": {
-			"line": 2,
-			"character": 6
-		},
-		"end": {
-			"line": 2,
-			"character": 18
-		}
-	}
-]
-
 === 330 markup_cast_head_parens/type_operator_operand_matches_oracle/127e8bec9208221e.svelte	json
 [
 	{
@@ -21648,34 +21296,6 @@
 		"end": {
 			"line": 2,
 			"character": 20
-		}
-	}
-]
-
-=== 1414 markup_cast_head_parens/type_operator_operand_matches_oracle/2747c6d54d9941b7.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ [n: number]: number; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to parameter of type 'HTMLProps<\"button\", HTMLAttributes<any>>'.\n  Type '{ [n: number]: number; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to type 'Omit<HTMLButtonAttributes, never>'.\n    Property '[Symbol.iterator]' is incompatible with index signature.\n      Type '() => ArrayIterator<number>' is not assignable to type 'false | Attachment<HTMLButtonElement> | null | undefined'.\n        Type '() => ArrayIterator<number>' is not assignable to type 'Attachment<HTMLButtonElement>'.\n          Type 'ArrayIterator<number>' is not assignable to type 'void | (() => void)'.",
-		"start": {
-			"line": 2,
-			"character": 6
-		},
-		"end": {
-			"line": 2,
-			"character": 35
-		}
-	},
-	{
-		"code": 1360,
-		"message": "Type 'number[]' does not satisfy the expected type 'string'.",
-		"start": {
-			"line": 2,
-			"character": 19
-		},
-		"end": {
-			"line": 2,
-			"character": 28
 		}
 	}
 ]
@@ -22902,22 +22522,6 @@
 		"end": {
 			"line": 2,
 			"character": 9
-		}
-	}
-]
-
-=== 1215 markup_cast_head_parens/type_operator_operand_matches_oracle/3f98a0deb6534381.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ [n: number]: number; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to parameter of type 'HTMLProps<\"button\", HTMLAttributes<any>>'.\n  Type '{ [n: number]: number; length: number; toString(): string; toLocaleString(): string; toLocaleString(locales: string | string[], options?: Intl.NumberFormatOptions & Intl.DateTimeFormatOptions): string; ... 37 more ...; [Symbol.unscopables]: { ...; }; }' is not assignable to type 'Omit<HTMLButtonAttributes, never>'.\n    Property '[Symbol.iterator]' is incompatible with index signature.\n      Type '() => ArrayIterator<number>' is not assignable to type 'false | Attachment<HTMLButtonElement> | null | undefined'.\n        Type '() => ArrayIterator<number>' is not assignable to type 'Attachment<HTMLButtonElement>'.\n          Type 'ArrayIterator<number>' is not assignable to type 'void | (() => void)'.",
-		"start": {
-			"line": 2,
-			"character": 6
-		},
-		"end": {
-			"line": 2,
-			"character": 19
 		}
 	}
 ]

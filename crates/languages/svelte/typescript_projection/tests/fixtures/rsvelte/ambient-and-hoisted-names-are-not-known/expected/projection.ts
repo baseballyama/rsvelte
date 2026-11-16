@@ -19,31 +19,31 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("b", {});
-      (f());
+      f();
     }
     {
       svelteHTML.createElement("i", {});
-      (C);
+      C;
     }
     {
       svelteHTML.createElement("s", {});
-      (v);
+      v;
     }
     {
       svelteHTML.createElement("u", {});
-      (real);
+      real;
     }
     {
       svelteHTML.createElement("span", {});
-      (deep);
+      deep;
     }
     {
       svelteHTML.createElement("em", {});
-      (top);
+      top;
     }
     {
       svelteHTML.createElement("q", {});
-      (typeof injected);
+      typeof injected;
     }
   };
   return __rsvelte_export_component<any, {}, "">();
