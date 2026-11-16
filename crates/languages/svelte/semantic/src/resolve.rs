@@ -542,5 +542,15 @@ fn has_props_rune(
     })
 }
 
+/// Each name of a `let:` value under a default value, which assigns it where the directive
+/// declares it.
+pub fn let_names_under_a_default(value: &Expression<'_>, mut f: impl FnMut(Span)) {
+    host::for_each_target(value, false, &mut |span, _, default| {
+        if default {
+            f(span);
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests;

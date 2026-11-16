@@ -10,7 +10,7 @@ use super::{Find, Locator, SyntaxError, locate};
 
 /// The message of a code, where `{0}` stands for the name or token oxc's message quotes. Those of
 /// 1070, 1071, 1090, 1267, 2404, 2483 and 2499 are typescript-eslint's words, the others tsc's.
-const MESSAGES: [(u32, &str); 30] = [
+const MESSAGES: [(u32, &str); 32] = [
     (1005, "'{0}' expected."),
     (
         1024,
@@ -75,6 +75,8 @@ const MESSAGES: [(u32, &str); 30] = [
         "Interface declaration can only extend an identifier/qualified name with optional type \
          arguments.",
     ),
+    (17008, "JSX element '{0}' has no corresponding closing tag."),
+    (17014, "JSX fragment has no corresponding closing tag."),
 ];
 
 /// The codes of errors oxc reports that typescript-eslint does not throw from the parse.

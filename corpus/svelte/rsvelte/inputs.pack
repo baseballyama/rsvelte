@@ -48672,6 +48672,26 @@ export function pin(then) {
 	);
 }
 
+=== 60 pattern/self-closing-block-in-a-string.svelte	svelte	runes	neutral
+<script>
+  const tag = "<style />";
+</script>
+
+<p>{tag}</p>
+
+=== 33 pattern/self-closing-script-lang-ts.svelte	svelte	runes	rejected
+<script lang="ts" />
+
+<p>{1}</p>
+
+=== 18 pattern/self-closing-style-block-without-space.svelte	svelte	runes	rejected
+<p>x</p>
+<style/>
+
+=== 41 pattern/self-closing-style-block.svelte	svelte	runes	rejected
+<p class="a">x</p>
+<style lang="scss" />
+
 === 245 pattern/state-wrapped-store-reference.svelte	svelte	runes	runes
 <script>
 	import { writable } from 'svelte/store';
@@ -48707,4 +48727,23 @@ export function pin(then) {
 		<option value={o}>{o}</option>
 	{/each}
 </select>
+
+=== 118 pattern/ts-class-generator-method-overload.svelte	svelte	runes	rejected
+<script lang="ts">
+	class C {
+		*m(): Generator<number>;
+		*m() {
+			yield 1;
+		}
+	}
+	console.log(new C());
+</script>
+
+=== 68 pattern/ts-class-generator-method-signature.svelte	svelte	runes	neutral
+<script lang="ts">
+	class C {
+		*m();
+	}
+	console.log(C);
+</script>
 
