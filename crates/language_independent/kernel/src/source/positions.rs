@@ -262,6 +262,92 @@ impl Drop for LineIndex {
     }
 }
 
+/// [`LineIndex::line_column`] of offsets that mostly move forward, as a source map's points do: it
+/// reads the text on from the last offset, and asks an index only for a jump back or far ahead.
+#[derive(Debug)]
+pub struct LineCursor<'t> {
+    text: &'t str,
+    breaks: LineBreaks,
+    /// The text's index, if the caller has one; otherwise built at the first jump back.
+    index: Option<&'t LineIndex>,
+    built: Option<LineIndex>,
+    byte: u32,
+    line: u32,
+    column: u32,
+    character: u32,
+}
+
+impl<'t> LineCursor<'t> {
+    /// Past this many bytes ahead, an index answers in O(log n) instead of a read.
+    const READ_AHEAD: u32 = 256;
+
+    /// A cursor at the start of `text`, whose lines end as `breaks` says; `index` must be
+    /// `text`'s, with the same breaks.
+    #[must_use]
+    pub const fn new(text: &'t str, breaks: LineBreaks, index: Option<&'t LineIndex>) -> Self {
+        Self {
+            text,
+            breaks,
+            index,
+            built: None,
+            byte: 0,
+            line: 1,
+            column: 0,
+            character: 0,
+        }
+    }
+
+    /// The line and column of `byte`, rounded as [`LineIndex::utf16`] rounds.
+    pub fn line_column(&mut self, byte: u32) -> LineColumn {
+        let mut target = byte.min(self.text.len() as u32);
+        while !self.text.is_char_boundary(target as usize) {
+            target -= 1;
+        }
+        let indexed = self.index.is_some() || self.built.is_some();
+        if target >= self.byte && !(indexed && target - self.byte > Self::READ_AHEAD) {
+            self.read_to(target);
+        } else {
+            let index = match self.index {
+                Some(index) => index,
+                None => (self.built)
+                    .get_or_insert_with(|| LineIndex::with_breaks(self.text, self.breaks)),
+            };
+            let at = index.line_column(target);
+            (self.byte, self.line, self.column, self.character) =
+                (target, at.line, at.column, at.character);
+        }
+        LineColumn {
+            line: self.line,
+            column: self.column,
+            character: self.character,
+        }
+    }
+
+    fn read_to(&mut self, target: u32) {
+        let start = self.byte as usize;
+        let bytes = self.text.as_bytes();
+        let ecmascript = self.breaks == LineBreaks::Ecmascript;
+        for (i, ch) in self.text[start..target as usize].char_indices() {
+            let units = ch.len_utf16() as u32;
+            self.character += units;
+            let ends_line = match ch {
+                '\n' => true,
+                // A CRLF ends at its LF, which keeps the CR in the line as the index does.
+                '\r' => ecmascript && bytes.get(start + i + 1) != Some(&b'\n'),
+                '\u{2028}' | '\u{2029}' => ecmascript,
+                _ => false,
+            };
+            if ends_line {
+                self.line += 1;
+                self.column = 0;
+            } else {
+                self.column += units;
+            }
+        }
+        self.byte = target;
+    }
+}
+
 // Positions are in every node of every tree; the sizes are part of the layout, not incidental.
 const _: () = assert!(size_of::<Span>() == 8, "`Span` is 8 bytes");
 const _: () = assert!(
