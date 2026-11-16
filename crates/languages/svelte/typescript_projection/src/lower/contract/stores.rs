@@ -2,6 +2,7 @@
 //! `$x`.
 
 use oxc_ast::AstKind;
+use oxc_ast::ast::Statement;
 use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::resolve::Resolution;
 
@@ -72,9 +73,26 @@ impl Builder<'_> {
             })
         };
         if let Some(script) = &self.component.module {
-            let edits: Vec<Edit> = after(script.content)
+            let mut edits: Vec<Edit> = after(script.content)
                 .map(|(end, store)| self.store_edit(end, store))
                 .collect();
+            // Without an instance script, svelte2tsx moves snippets after the module's imports.
+            if self.component.instance.is_none()
+                && let Some(snippets) = self.module_snippets.take()
+            {
+                let program = self.component.javascript.get_program(script.program);
+                let at = program
+                    .body
+                    .iter()
+                    .take_while(|s| matches!(s, Statement::ImportDeclaration(_)))
+                    .last()
+                    .map_or(script.content.start_offset, |s| s.span().end);
+                edits.push(Edit {
+                    span: Span::new(at, at),
+                    replacement: Some(snippets),
+                });
+                edits.sort_by_key(|edit| edit.span.start_offset);
+            }
             self.script_parts(script.content, &edits);
         }
         let render_start = self.scratch.len();
