@@ -46776,6 +46776,38 @@ b`;
 
 <p>{direct.constructor.name} {member.constructor.name}</p>
 
+=== 60 pattern/self-closing-block-in-a-string.svelte	svelte
+<script>
+  const tag = "<style />";
+</script>
+
+<p>{tag}</p>
+
+=== 134 pattern/self-closing-script-lang-ts.svelte	error.txt
+Expected token >
+https://svelte.dev/e/expected_token
+> 1 | <script lang="ts" />
+    |                  ^
+  2 |
+  3 | <p>{1}</p>
+  4 |
+
+=== 102 pattern/self-closing-style-block-without-space.svelte	error.txt
+Expected token >
+https://svelte.dev/e/expected_token
+  1 | <p>x</p>
+> 2 | <style/>
+    |      ^
+  3 |
+
+=== 138 pattern/self-closing-style-block.svelte	error.txt
+Expected token >
+https://svelte.dev/e/expected_token
+  1 | <p class="a">x</p>
+> 2 | <style lang="scss" />
+    |                   ^
+  3 |
+
 === 251 pattern/state-wrapped-store-reference.svelte	svelte
 <script>
   import { writable } from "svelte/store";

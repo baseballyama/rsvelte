@@ -101963,6 +101963,67 @@ export default function Reactive_new_callee($$anchor, $$props) {
 	}
 ]
 
+=== 291 pattern/self-closing-block-in-a-string.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p></p>`);
+
+export default function Self_closing_block_in_a_string($$anchor) {
+	const tag = "<style />";
+	var p = root();
+
+	p.textContent = '<style />';
+	$.append($$anchor, p);
+}
+=== 223 pattern/self-closing-script-lang-ts.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 18,
+		"character": 18
+	},
+	"end": {
+		"line": 1,
+		"column": 18,
+		"character": 18
+	}
+}
+
+=== 221 pattern/self-closing-style-block-without-space.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 2,
+		"column": 6,
+		"character": 15
+	},
+	"end": {
+		"line": 2,
+		"column": 6,
+		"character": 15
+	}
+}
+
+=== 223 pattern/self-closing-style-block.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 2,
+		"column": 19,
+		"character": 38
+	},
+	"end": {
+		"line": 2,
+		"column": 19,
+		"character": 38
+	}
+}
+
 === 894 pattern/state-wrapped-store-reference.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';

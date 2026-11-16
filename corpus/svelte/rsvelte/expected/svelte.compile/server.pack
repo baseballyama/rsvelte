@@ -69810,6 +69810,62 @@ export default function Reactive_new_callee($$renderer, $$props) {
 	}
 ]
 
+=== 184 pattern/self-closing-block-in-a-string.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Self_closing_block_in_a_string($$renderer) {
+	const tag = "<style />";
+
+	$$renderer.push(`<p>&lt;style /></p>`);
+}
+=== 223 pattern/self-closing-script-lang-ts.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 18,
+		"character": 18
+	},
+	"end": {
+		"line": 1,
+		"column": 18,
+		"character": 18
+	}
+}
+
+=== 221 pattern/self-closing-style-block-without-space.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 2,
+		"column": 6,
+		"character": 15
+	},
+	"end": {
+		"line": 2,
+		"column": 6,
+		"character": 15
+	}
+}
+
+=== 223 pattern/self-closing-style-block.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 2,
+		"column": 19,
+		"character": 38
+	},
+	"end": {
+		"line": 2,
+		"column": 19,
+		"character": 38
+	}
+}
+
 === 616 pattern/state-wrapped-store-reference.svelte	js
 import * as $ from 'svelte/internal/server';
 import { writable } from 'svelte/store';
