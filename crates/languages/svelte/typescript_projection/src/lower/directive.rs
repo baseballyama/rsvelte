@@ -245,9 +245,23 @@ impl Builder<'_> {
             },
         };
         let element = self.map_element_tag(tag);
+        // svelte-check maps a finding on the movement to where svelte2tsx's last mapping before it
+        // starts: the name's last character, or the name's end when parameters follow.
         let movement = (attribute.kind == AttributeKind::Animate).then(|| {
-            self.tree
-                .push(Node::Identifier("__sveltets_2_AnimationMove"))
+            let value = self
+                .tree
+                .push(Node::Identifier("__sveltets_2_AnimationMove"));
+            let last = match argument {
+                Some(_) => 0,
+                None => name
+                    .text(self.source)
+                    .chars()
+                    .last()
+                    .map_or(0, char::len_utf8),
+            };
+            let at = name.end_offset - last as u32;
+            let at = Span::new(at, at);
+            self.tree.push(Node::Located { value, at })
         });
         let callee = self.tree.push(Node::Source(SourceExpression {
             span: name,

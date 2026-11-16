@@ -4934,3 +4934,6 @@
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_class_style_directive/style_shorthand_modifier_does_not_become_an_identifier/57a171812e529726.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx writes a shorthand `style:color|important` as the expression `color|important`, so TypeScript reports the bitwise or and the name `important`"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_directive_suffix_map_4464/a_directive_name_and_its_parameters_carry_a_mapping/6131d61eb07dbc8c.svelte".skip]
+"svelte.check" = "checker: TS 7 reports a missing-properties 2740 where TS 6 reports 2345 for an argument whose type lacks the parameter type's properties"

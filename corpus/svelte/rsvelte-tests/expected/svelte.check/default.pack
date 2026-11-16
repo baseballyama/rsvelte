@@ -7805,22 +7805,6 @@
 === 3 rsvelte_projection/svelte2tsx_directive_shorthand_comma/style_directive_then_shorthand_no_double_comma/ad5e52d168bc3689.svelte	json
 []
 
-=== 374 rsvelte_projection/svelte2tsx_directive_suffix_map_4464/a_directive_name_and_its_parameters_carry_a_mapping/6131d61eb07dbc8c.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ from: DOMRect; to: DOMRect; }' is not assignable to parameter of type 'DOMRect'.\n  Type '{ from: DOMRect; to: DOMRect; }' is missing the following properties from type 'DOMRect': height, width, x, y, and 5 more.",
-		"start": {
-			"line": 6,
-			"character": 67
-		},
-		"end": {
-			"line": 6,
-			"character": 67
-		}
-	}
-]
-
 === 202 rsvelte_projection/svelte2tsx_dollar_generic/a_dollar_generic_in_the_module_script_is_rejected/78dd777f789e77c1.svelte	json
 [
 	{

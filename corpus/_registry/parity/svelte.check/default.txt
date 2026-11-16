@@ -1,4 +1,4 @@
-# svelte.check/default: 35000 match
+# svelte.check/default: 35001 match
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-object-in-text-mustaches/invalid/function01-input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events-usage/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events/input.svelte	mismatch
@@ -45,7 +45,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/nodes/snippet_hoisting/tests/
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_module_nested_arrow_assertion_uses_collected_facts/b4dfac757edb153a.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_bind_suffix_map_4103/a_one_way_binding_not_on_the_element_carries_its_own_map_segments/ee00fd9be3022ca2.svelte	unexpected
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_broken_script_3232/an_unrepairable_script_still_converts/b434122470689786.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_directive_suffix_map_4464/a_directive_name_and_its_parameters_carry_a_mapping/6131d61eb07dbc8c.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/4fd47e2cba0dad6e.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/583f2b2edcebe57c.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/ad7d90b669ae5faf.svelte	mismatch
