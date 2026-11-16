@@ -325,6 +325,7 @@ fn main() -> ExitCode {
                     )
                     .into(),
                 ),
+                processes: None,
             },
             content_mapper: rsvelte_test_harness::content_mapper(),
             svelte: packages.package("svelte"),

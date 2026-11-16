@@ -111,6 +111,9 @@ pub struct Tsc {
     pub checker: TypeChecker,
     /// The project's tsconfig.json; the check extends it.
     pub tsconfig: Option<PathBuf>,
+    /// How many checker processes share the documents. The checker's API checks with one
+    /// thread, so by default a larger batch takes more processes.
+    pub processes: Option<std::num::NonZeroUsize>,
 }
 
 /// A document as the type checker sees it: the [`Facet`] each language provides, so one [`Check`]
