@@ -3130,20 +3130,11 @@
 "svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 reads `assert {` after a line break as import attributes, where the grammar forbids a line break before assert and TypeScript rejects it"
 
 ["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte".skip]
-"svelte.check" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects, so svelte-check reports no Svelte error"
 "svelte.lint" = "upstream bug: svelte-eslint-parser reports typescript-eslint's error in the code it generates for the script at that code's line and column, past the end of the file"
-"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
-"svelte.format" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
 
 ["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ad65fdf7d6a621fb.svelte".skip]
-"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
-"svelte.format" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
-
-["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte".skip]
-"svelte.lint" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects, so svelte-eslint-parser reports no parsing error"
-"svelte.check" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects, so svelte-check reports no Svelte error"
-"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
-"svelte.format" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
+"svelte.format" = "upstream bug: TypeScript 6.0.3 reads `(accessor satisfies T)` as the start of an arrow function, as after a modifier and a name it excepts only `as`, and prettier parses the script with it, so it keeps the script as written"
+"svelte.lint" = "upstream bug: TypeScript 6.0.3 reads `(accessor satisfies T)` as the start of an arrow function, as after a modifier and a name it excepts only `as`, and svelte-eslint-parser parses the script with typescript-eslint, so it reports TypeScript's error"
 
 ["svelte/rsvelte/pattern/issues/ts-bodiless-method-alone.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 erases a bodiless class method's types but keeps the signature, printing `m(a);`, which is not JavaScript"
@@ -4855,3 +4846,6 @@
 
 ["svelte/rsvelte/pattern/ts-class-generator-method-signature.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 removes only abstract methods with the types, so a method signature without a body, such as `*m();`, stays in the output, which does not parse"
+
+["svelte/rsvelte/pattern/javascript-name-escape-of-a-space.svelte".skip]
+"svelte.check" = "checker: TS 7 spans an invalid character in a name's escape over one character, where TS 6 gives it no length"

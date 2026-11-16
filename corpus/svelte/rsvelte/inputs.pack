@@ -47594,6 +47594,18 @@ export function unbraced(cond) {
   </i>
 </div>
 
+=== 56 pattern/javascript-accessor-optional-field.svelte	svelte	runes	rejected
+<script>
+	class C {
+		accessor x?: number;
+	}
+</script>
+
+=== 37 pattern/javascript-name-escape-of-a-space.svelte	svelte	runes	rejected
+<script>
+	let a\u0020 = 1;
+</script>
+
 === 576 pattern/leading-line-comment-destructure-init.svelte	svelte	runes	rejected
 <script>
 	export let focusIndex = -1;

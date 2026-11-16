@@ -61,9 +61,63 @@ fn acorn_reports_each_error_in_its_own_words_and_place() {
         ),
         ("<script>function f(a?) {}</script>", "Unexpected token", 20),
         (
+            "<script>class C { accessor x?: number; }</script>",
+            "Unexpected token",
+            27,
+        ),
+        (
             "<script>class K { m(a?) {} }</script>",
             "Unexpected token",
             21,
+        ),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert_eq!(error.code, "js_parse_error", "{source:?}");
+        assert_eq!(error.message.lines().next(), Some(message), "{source:?}");
+        assert_eq!(error.span.start_offset, at, "{source:?}");
+    }
+}
+
+#[test]
+fn acorn_lexes_regular_expressions_and_escaped_names() {
+    // What svelte 5.57.3 reports, in bytes of each source.
+    for (source, message, at) in [
+        (
+            "{#if x}<p>a</p>{{/if}",
+            "Unterminated regular expression",
+            18,
+        ),
+        ("{{/if}</p>}", "Invalid regular expression flag", 3),
+        ("{{/x/q}", "Invalid regular expression flag", 3),
+        (
+            "<script>let a\\u0020 = 1;</script>",
+            "Invalid Unicode escape",
+            13,
+        ),
+        (
+            "<script>let \\u0020a = 1;</script>",
+            "Invalid Unicode escape",
+            12,
+        ),
+        (
+            "<script lang=\"ts\">let a\\u0020 = 1;</script>",
+            "Invalid Unicode escape",
+            23,
+        ),
+        ("{a\\u0020}", "Invalid Unicode escape", 2),
+        (
+            "<script>let a\\u{20} = 1;</script>",
+            "Invalid Unicode escape",
+            13,
+        ),
+        ("{{/x/gg}", "Duplicate regular expression flag", 3),
+        ("{{/x/uv}", "Invalid regular expression flag", 3),
+        ("{{/x/g}", "Unexpected token", 2),
+        ("{{a, /[/]/z}", "Invalid regular expression flag", 6),
+        (
+            "<script>let o = {/x\n};</script>",
+            "Unterminated regular expression",
+            18,
         ),
     ] {
         let error = parse(source).expect_err(source);

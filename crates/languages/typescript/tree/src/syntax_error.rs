@@ -191,7 +191,9 @@ pub(crate) fn acorn(
     };
     if error.code.scope.as_deref() != Some("TS") {
         // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.
-        return reserved(start).filter(|_| kind_at(start) == Some(Kind::Enum));
+        return regular_expression(text, start, read())
+            .or_else(|| invalid_escape(text, (start, end), read()))
+            .or_else(|| reserved(start).filter(|_| kind_at(start) == Some(Kind::Enum)));
     }
     let token = |after: u32, kind: Option<Kind>| {
         read()
@@ -213,9 +215,8 @@ pub(crate) fn acorn(
             Some(Kind::Satisfies),
         )
         .map(Acorn::Stops),
-        // An optional member: acorn reads the name and fails at the `?` oxc labels.
         "8009" if text.get(start as usize..end as usize) == Some("?") => {
-            Some(fails("Unexpected token", start))
+            Some(fails("Unexpected token", optional_member(start, read())))
         }
         // A parameter's modifier is a binding to acorn, so a reserved one fails where it starts.
         "8012" if reserved(start).is_some() => reserved(start),
@@ -429,6 +430,16 @@ fn early_error(
         _ => None,
     }
 }
+/// Where acorn fails at an optional member whose `?` is at `start`: at the `?`, after the name it
+/// reads, or at the name after `accessor`, which acorn reads as the name.
+fn optional_member(start: u32, tokens: impl Iterator<Item = Token>) -> u32 {
+    let (modifier, name) = tokens
+        .take_while(|token| token.start() < start)
+        .fold((None, None), |(_, previous), token| (previous, Some(token)));
+    let accessor = modifier.is_some_and(|token: Token| token.kind() == Kind::Accessor);
+    name.filter(|_| accessor).map_or(start, |name| name.start())
+}
+
 /// The token acorn fails at where oxc finds one missing at `start`. In a parenthesized expression
 /// acorn reads an optional parameter's `?` as a conditional, so it fails at the token after it.
 fn missing<I: Iterator<Item = Token>>(
@@ -565,6 +576,8 @@ const fn fails(message: &'static str, at: u32) -> Acorn {
     }
 }
 
+mod lexer;
+use lexer::{invalid_escape, regular_expression};
 mod locator;
 mod readers;
 mod typescript_eslint;
