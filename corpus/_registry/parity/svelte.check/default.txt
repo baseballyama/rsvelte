@@ -11,7 +11,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ts-ignore-attribute.v5/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	mismatch
-svelte/layerchart/packages/layerchart/src/lib/components/charts/__fixtures__/ArcChartTooltip.svelte	mismatch
 svelte/melt-ui/docs/src/components/motion.svelte	mismatch
 svelte/primo/src/lib/builder/views/modal/SitePages/Item.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	mismatch
