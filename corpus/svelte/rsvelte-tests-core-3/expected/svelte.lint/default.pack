@@ -26023,8 +26023,10 @@
 === 80 wrapper_only_parse_error_4083/the_retry_widens_nothing_upstream_rejects/db135fba37917270.svelte	lint.txt
 1:30 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
 
-=== 40 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ad65fdf7d6a621fb.svelte	lint.txt
-1:67 - - "Parsing error: ',' expected."
+=== 247 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte	lint.txt
+1:1 1:46 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+1:23 1:36 no-unassigned-vars "'accessor' is always 'undefined' because it's never assigned."
+1:46 1:86 svelte/require-each-key "Each block should have a key"
 
 === 177 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/c4d11c011f319b87.svelte	lint.txt
 1:1 1:75 svelte/block-lang "The lang attribute of the <script> block should be omitted."

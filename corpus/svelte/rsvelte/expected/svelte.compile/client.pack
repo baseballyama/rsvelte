@@ -99866,6 +99866,38 @@ export default function Whitespace_body_inline_element_breaks_before_close($$anc
 	$.append($$anchor, fragment);
 	$.pop();
 }
+=== 223 pattern/javascript-accessor-optional-field.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 3,
+		"column": 11,
+		"character": 31
+	},
+	"end": {
+		"line": 3,
+		"column": 11,
+		"character": 31
+	}
+}
+
+=== 227 pattern/javascript-name-escape-of-a-space.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Invalid Unicode escape\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 6,
+		"character": 15
+	},
+	"end": {
+		"line": 2,
+		"column": 6,
+		"character": 15
+	}
+}
+
 === 284 pattern/leading-line-comment-destructure-init.svelte	error.json
 {
 	"code": "legacy_export_invalid",

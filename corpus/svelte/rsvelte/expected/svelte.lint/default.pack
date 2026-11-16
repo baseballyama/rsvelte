@@ -28321,6 +28321,16 @@
 107:1 107:47 svelte/button-has-type "Missing an explicit type attribute for button."
 108:1 108:37 svelte/button-has-type "Missing an explicit type attribute for button."
 
+=== 403 pattern/javascript-accessor-optional-field.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:8 2:9 no-unused-vars "'C' is defined but never used."
+3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+3:12 3:12 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 44 pattern/javascript-name-escape-of-a-space.svelte	lint.txt
+2:6 - - "Parsing error: Invalid character."
+
 === 652 pattern/leading-line-comment-destructure-init.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
