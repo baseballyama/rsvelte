@@ -10403,46 +10403,6 @@
 === 3 tag_scanning_3393_3395_3450/a_textarea_closer_keeps_taking_everything_up_to_the_bracket/21f7e0187e3cc3c9.svelte	json
 []
 
-=== 507 tag_scanning_3393_3395_3450/a_textarea_closer_keeps_taking_everything_up_to_the_bracket/8c8524746c866ada.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 0,
-			"character": 11
-		},
-		"end": {
-			"line": 0,
-			"character": 13
-		}
-	},
-	{
-		"code": 1434,
-		"message": "Unexpected keyword or identifier.",
-		"start": {
-			"line": 0,
-			"character": 13
-		},
-		"end": {
-			"line": 0,
-			"character": 21
-		}
-	},
-	{
-		"code": 1109,
-		"message": "Expression expected.",
-		"start": {
-			"line": 0,
-			"character": 23
-		},
-		"end": {
-			"line": 0,
-			"character": 24
-		}
-	}
-]
-
 === 196 tag_scanning_3393_3395_3450/details_figure_and_figcaption_do_not_close_a_paragraph/53545a5d44cf766f.svelte	json
 [
 	{
