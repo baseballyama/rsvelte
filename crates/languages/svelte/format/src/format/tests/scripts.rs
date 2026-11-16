@@ -48,11 +48,41 @@ fn a_script_babel_rejects_is_kept_as_written_and_the_rest_formatted() {
         formatted("<script lang=\"ts\">\n\tfunction f() { continue; }\n</script>\n<p>x</p>\n"),
         "<script lang=\"ts\">\n  function f() {\n    continue;\n  }\n</script>\n\n<p>x</p>\n"
     );
-    // A name declared twice in the template, which the plugin's parser does not check.
-    assert_eq!(
-        refusal("{#each xs as x}{@const a = x}{@const a = x}{/each}\n").0,
-        "code a module rejects"
-    );
+}
+
+#[test]
+fn a_name_declared_twice_in_the_template_is_formatted_where_svelte_s_parser_reads_it() {
+    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1: Svelte's parser
+    // checks no pattern, nor two tags against each other, nor a script against the template.
+    for (source_text, expected) in [
+        (
+            "{#each xs as x}{@const a = x}{@const a = x}{/each}\n",
+            "{#each xs as x}{@const a = x}{@const a = x}{/each}\n",
+        ),
+        (
+            "{@const a = x}{@const a = x}\n",
+            "{@const a = x}{@const a = x}\n",
+        ),
+        ("{@const {a, a} = x}\n", "{@const { a, a } = x}\n"),
+        (
+            "{#each xs as {a, b: a}}{/each}\n",
+            "{#each xs as { a, b: a }}{/each}\n",
+        ),
+        (
+            "<script>let a;</script>{@const a = 1}\n",
+            "<script>\n  let a;\n</script>\n\n{@const a = 1}\n",
+        ),
+    ] {
+        assert_eq!(formatted(source_text), expected, "{source_text:?}");
+    }
+    // It checks the names of a function and of a snippet's parameters, and throws.
+    for source_text in [
+        "{#snippet s(a, a)}{/snippet}\n",
+        "{@const f = () => { let a; let a; }}\n",
+        "{#each xs as {a = () => { let b; let b; }}}{/each}\n",
+    ] {
+        refusal(source_text);
+    }
 }
 
 #[test]

@@ -1,10 +1,11 @@
 //! The scripts the plugin prints as they are, because its parser for them throws.
 
 use oxc_ast::ast::{
-    AccessorProperty, Class, ClassElement, Function, PrivateIdentifier, Program,
-    PropertyDefinition, StaticBlock, Super, WithClause, WithClauseKeyword,
+    AccessorProperty, ArrowFunctionExpression, Class, ClassElement, Function, PrivateIdentifier,
+    Program, PropertyDefinition, StaticBlock, Super, WithClause, WithClauseKeyword,
 };
 use oxc_ast_visit::{Visit, walk};
+use oxc_span::GetSpan;
 use oxc_syntax::scope::ScopeFlags;
 use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
 use rsvelte_typescript_tree::{Reader, Recorded, SyntaxError};
@@ -19,6 +20,7 @@ pub(super) fn unparsed_scripts(
     rejected: Option<&SyntaxError>,
 ) -> R<Vec<Span>> {
     let mut unparsed_scripts = thrown_scripts(c, source_text)?;
+    let rejected = rejected.filter(|rejected| !read_in_template(c, rejected));
     let unparsed = |span: Span| {
         (unparsed_scripts.iter()).any(|body| {
             body.start_offset <= span.start_offset && span.end_offset <= body.end_offset
@@ -84,6 +86,71 @@ fn thrown_scripts(c: &Component, source_text: &str) -> R<Vec<Span>> {
         }
     }
     Ok(thrown)
+}
+
+/// Whether `rejected` declares a name again in the template where Svelte's parser reads it. That
+/// parser reads each part of the template apart, and checks the names of a function and of a
+/// snippet's parameters, but not those of a pattern.
+fn read_in_template(c: &Component, rejected: &SyntaxError) -> bool {
+    // A name declared twice.
+    const DUPLICATE_IDENTIFIER: u32 = 2300;
+    struct Find {
+        names: oxc_span::Span,
+        found: bool,
+    }
+    impl Find {
+        const fn holds(&self, span: oxc_span::Span) -> bool {
+            span.start <= self.names.start && self.names.end <= span.end
+        }
+    }
+    impl<'a> Visit<'a> for Find {
+        fn visit_function(&mut self, it: &Function<'a>, flags: ScopeFlags) {
+            self.found |= self.holds(it.span);
+            walk::walk_function(self, it, flags);
+        }
+
+        fn visit_arrow_function_expression(&mut self, it: &ArrowFunctionExpression<'a>) {
+            self.found |= self.holds(it.span);
+            walk::walk_arrow_function_expression(self, it);
+        }
+    }
+    if rejected.typescript_code != Some(DUPLICATE_IDENTIFIER) {
+        return false;
+    }
+    // oxc labels the first declaration, and acorn reports the second.
+    let (first, second) = (rejected.diagnostic.span.start_offset, rejected.acorn_at());
+    let in_script = (c.module.iter().chain(&c.instance))
+        .any(|script| script.content.start_offset <= second && second <= script.content.end_offset);
+    if in_script {
+        return false;
+    }
+    let mut find = Find {
+        names: oxc_span::Span::new(first.min(second), first.max(second)),
+        found: false,
+    };
+    let tree = &c.javascript;
+    if tree
+        .parameters()
+        .any(|(_, parameters)| find.holds(parameters.span))
+    {
+        return false;
+    }
+    for (_, expression) in tree.expressions() {
+        if find.holds(expression.span()) {
+            find.visit_expression(expression);
+        }
+    }
+    for (_, declaration) in tree.declarations() {
+        if find.holds(declaration.span) {
+            find.visit_variable_declaration(declaration);
+        }
+    }
+    for (_, pattern) in tree.patterns() {
+        if find.holds(pattern.span) {
+            find.visit_formal_parameter(pattern);
+        }
+    }
+    !find.found
 }
 
 /// The body of the JavaScript script whose tree holds an `assert { … }` import attribute clause,
