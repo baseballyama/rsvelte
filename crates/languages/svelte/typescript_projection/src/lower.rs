@@ -6,6 +6,7 @@ mod call;
 mod children;
 mod contract;
 mod directive;
+mod each;
 mod generic;
 mod namespace;
 pub use contract::store_reads;
@@ -315,9 +316,10 @@ impl Builder<'_> {
                 ..
             } => {
                 let start = self.scratch.len();
-                let expression = self.expression_source(expression, None);
+                let bound = [context, index];
+                let iterable = self.expression_source(expression, None);
                 let callee = self.tree.push(Node::Identifier("__rsvelte_each"));
-                let arguments = self.tree.list(&[expression]);
+                let arguments = self.tree.list(&[iterable]);
                 let iterable = self.tree.push(Node::Call { callee, arguments });
                 let javascript = &self.component.javascript;
                 let index = index.map(|index| javascript.get_pattern(index).span);
@@ -332,6 +334,7 @@ impl Builder<'_> {
                 }
                 self.append_children(body)?;
                 let body = self.finish_list(start);
+                let iterable = self.each_iterable(iterable, expression, bound);
                 let loop_node = self.tree.push(Node::ForOf {
                     binding,
                     iterable,
