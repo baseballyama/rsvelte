@@ -26,7 +26,7 @@ npm package (or editor integration) that replaces it.
 | `eslint-plugin-svelte` (+ `svelte-eslint-parser`) | `rsvelte_lint`, `rsvelte_lint_types` (type-aware, own workspace), `rsvelte_lint_bindings` | `@rsvelte/lint`, `@rsvelte/oxlint-plugin` |
 | `prettier-plugin-svelte` / `oxfmt` | `rsvelte_formatter`, `rsvelte_fmt` (CLI: `.svelte` here, other files to oxfmt), `rsvelte_fmt_wasm`, `tailwind_class_order` | `@rsvelte/fmt` (+ native platform packages) |
 | `svelte-preprocess` family | `rsvelte_preprocess` (sass via `grass`, less, switch-case, …) | consumed by `rsvelte_lint`; `@rsvelte/vite-plugin-svelte`'s `preprocess` binding |
-| — | `rsvelte_diagnostics` (shared records/renderers), `rsvelte_ast_equiv` (semantic JS comparison), `rsvelte_devtools`, `rsvelte_bench` | repository tooling |
+| — | `rsvelte_diagnostics` (shared records/renderers), `rsvelte_svelte_config` (project `compilerOptions` reader shared by check, lint and the language server), `rsvelte_ast_equiv` (semantic JS comparison), `rsvelte_devtools`, `rsvelte_bench` | repository tooling |
 
 Every non-compiler tool consumes `rsvelte_core` directly (its AST, scope analysis and
 diagnostics) rather than shelling out to a compiler, which is what makes them fast — and is why
