@@ -52,7 +52,7 @@ fn a_line_comment_in_a_block_header_ends_its_line_inside_the_header() {
 
 // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1, whose typescript
 // parser lets each error pass.
-const RECOVERED: [(u32, &str, &str); 17] = [
+const RECOVERED: [(u32, &str, &str); 18] = [
     (
         1015,
         "function f(a?: number = 1) {}",
@@ -126,6 +126,11 @@ const RECOVERED: [(u32, &str, &str); 17] = [
         "<script lang=\"ts\">\n  type T = [a?: string, b: string];\n</script>\n",
     ),
     (
+        1308,
+        "class A { x = await f(); }",
+        "<script lang=\"ts\">\n  class A {\n    x = await f();\n  }\n</script>\n",
+    ),
+    (
         2368,
         "type T<number> = number;",
         "<script lang=\"ts\">\n  type T<number> = number;\n</script>\n",
@@ -155,12 +160,10 @@ fn a_program_oxc_recovers_whole_prints_as_prettier_prints_the_code() {
 
 #[test]
 fn a_program_oxc_recovers_with_code_missing_is_refused() {
-    // oxc's tree holds one index signature parameter and no `declare` on an accessor, and it reads
-    // `await (f())` where `await` is a name as an await expression (1308).
+    // oxc's tree holds one index signature parameter and no `declare` on an accessor.
     for text in [
         "interface I { [a: string, b: string]: number }",
         "class C { declare accessor a; }",
-        "class A { x = await (f()); }",
     ] {
         let source_text = format!("<script lang=\"ts\">\n{text}\n</script>\n");
         let refused = crate::task::format(&source_text, &Options::default()).expect_err(text);
