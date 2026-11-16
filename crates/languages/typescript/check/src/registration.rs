@@ -38,6 +38,7 @@ pub fn register(registry: &mut Registry) {
             imports: Vec::new(),
             store_reads: Vec::new(),
             hidden: Vec::new(),
+            drops_unmapped: false,
         })
     });
 }

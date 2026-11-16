@@ -12,6 +12,7 @@ fn main() -> ExitCode {
     let tsc = rsvelte_typescript_check::Tsc {
         checker: rsvelte_typescript_check::TypeChecker { program, arguments },
         tsconfig: Some(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into()),
+        processes: None,
     };
     let svelte = rsvelte_svelte_check::Configuration {
         check: Some(rsvelte_svelte_check::TypeCheckConfiguration {

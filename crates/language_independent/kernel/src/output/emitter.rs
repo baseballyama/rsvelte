@@ -36,6 +36,16 @@ impl Emitter {
         Self::default()
     }
 
+    /// An emitter with room for `out` bytes, `mappings` mappings and `atoms` atoms.
+    #[must_use]
+    pub fn with_capacity(out: usize, mappings: usize, atoms: usize) -> Self {
+        Self {
+            out: String::with_capacity(out),
+            mappings: Vec::with_capacity(mappings),
+            atoms: Vec::with_capacity(atoms),
+        }
+    }
+
     #[inline]
     pub fn push(&mut self, s: &str) {
         self.out.push_str(s);

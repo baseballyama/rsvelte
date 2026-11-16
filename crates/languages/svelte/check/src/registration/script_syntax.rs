@@ -60,7 +60,11 @@ pub(super) fn view<'e>(
         let end = instance.content.end_offset;
         projection.push("\n");
         projection.atom(";", Span::new(end, end + 1));
-        projection.push("\n}\n");
+        projection.push("\n");
+        // The template's function, whose head svelte2tsx maps to the end tag; read as JSX after a
+        // cut-short element, its `=>` is where TypeScript reports the stray `>`.
+        projection.atom("async () => {", Span::new(end, end + 1));
+        projection.push("\n};\n}\n");
     }
     projection.push("export {};\n");
     Some(Ok(TypeScriptDocument::Checked {
@@ -71,5 +75,7 @@ pub(super) fn view<'e>(
         imports: Vec::new(),
         store_reads: Vec::new(),
         hidden: Vec::new(),
+        // svelte2tsx's code after the scripts has no source, so svelte-check drops its findings.
+        drops_unmapped: true,
     }))
 }

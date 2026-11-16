@@ -11,6 +11,7 @@ fn shell(script: &str, own: &[&str]) -> Tsc {
             arguments,
         },
         tsconfig: None,
+        processes: None,
     }
 }
 

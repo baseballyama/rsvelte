@@ -25,42 +25,42 @@ const ONE_WAY: &[&str] = &[
 ];
 
 /// svelte2tsx's `oneWayBindingAttributesNotOnElement`: a value of this type is assigned, with a
-/// `JSDoc` cast in JavaScript. svelte2tsx ignores the findings of its `null as T`, which is not
-/// comparable under `strictNullChecks`, so the cast goes through `unknown`.
+/// `JSDoc` cast in JavaScript. `null!` keeps TypeScript from reporting the cast, which
+/// svelte2tsx marks for svelte-check to ignore.
 const NOT_ON_ELEMENT: &[(&str, &str, &str)] = &[
     (
         "contentRect",
-        "null as unknown as DOMRectReadOnly",
+        "null! as DOMRectReadOnly",
         "/** @type {DOMRectReadOnly} */ (null)",
     ),
     (
         "contentBoxSize",
-        "null as unknown as ResizeObserverSize[]",
+        "null! as ResizeObserverSize[]",
         "/** @type {ResizeObserverSize[]} */ (null)",
     ),
     (
         "borderBoxSize",
-        "null as unknown as ResizeObserverSize[]",
+        "null! as ResizeObserverSize[]",
         "/** @type {ResizeObserverSize[]} */ (null)",
     ),
     (
         "devicePixelContentBoxSize",
-        "null as unknown as ResizeObserverSize[]",
+        "null! as ResizeObserverSize[]",
         "/** @type {ResizeObserverSize[]} */ (null)",
     ),
     (
         "buffered",
-        "null as unknown as import('svelte/elements').SvelteMediaTimeRange[]",
+        "null! as import('svelte/elements').SvelteMediaTimeRange[]",
         "/** @type {import('svelte/elements').SvelteMediaTimeRange[]} */ (null)",
     ),
     (
         "played",
-        "null as unknown as import('svelte/elements').SvelteMediaTimeRange[]",
+        "null! as import('svelte/elements').SvelteMediaTimeRange[]",
         "/** @type {import('svelte/elements').SvelteMediaTimeRange[]} */ (null)",
     ),
     (
         "seekable",
-        "null as unknown as import('svelte/elements').SvelteMediaTimeRange[]",
+        "null! as import('svelte/elements').SvelteMediaTimeRange[]",
         "/** @type {import('svelte/elements').SvelteMediaTimeRange[]} */ (null)",
     ),
 ];

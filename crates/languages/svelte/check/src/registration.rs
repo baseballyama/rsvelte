@@ -214,6 +214,7 @@ fn typescript_view(
             .map(store_reads)
             .unwrap_or_default(),
         hidden: hidden(component, &context.document.text),
+        drops_unmapped: false,
     })
 }
 
