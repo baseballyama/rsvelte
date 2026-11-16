@@ -74,12 +74,13 @@ impl Builder<'_> {
         attribute: &Attribute,
         property: NodeIdentifier,
     ) -> NodeIdentifier {
+        let name = attribute.name.start_offset;
         let shorthand = attribute.kind == AttributeKind::Attribute
             && matches!(
                 attribute.value,
                 AttributeValue::Parts(parts) if matches!(
                     self.component.parts(parts),
-                    [Part::Expression { span, .. }] if span.start_offset <= attribute.name.start_offset
+                    [Part::Expression { span, .. }] if span.start_offset <= name
                 )
             );
         let gap = Span::new(after, attribute.span.start_offset);
