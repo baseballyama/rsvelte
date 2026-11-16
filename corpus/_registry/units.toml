@@ -4846,3 +4846,9 @@
 
 ["svelte/rsvelte/pattern/javascript-name-escape-of-a-space.svelte".skip]
 "svelte.check" = "checker: TS 7 spans an invalid character in a name's escape over one character, where TS 6 gives it no length"
+
+["svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/a_member_oxc_already_rejects_does_not_move/62f5fd2ac19278a6.svelte".skip]
+"svelte.check" = "checker: TS 7 reports 8009 on a modifier of a JavaScript class member and spans 8017 over the member, where TS 6 reports only 8017 at its name"
+
+["svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/a_member_oxc_already_rejects_does_not_move/c17ea09d73673f96.svelte".skip]
+"svelte.check" = "checker: TS 7 reports 8009 on a modifier of a JavaScript class member and spans 8017 over the member, where TS 6 reports only 8017 at its name"
