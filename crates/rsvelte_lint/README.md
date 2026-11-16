@@ -71,6 +71,18 @@ A rule value is a severity scalar (`"off"`/`"warn"`/`"error"` or `0`/`1`/`2`) or
 a `[severity, ...options]` pair. `extends: ["none"]` starts from an empty
 baseline.
 
+### Svelte compiler options
+
+Components are compiled with their project's Svelte `compilerOptions`
+(`experimental.async` and `runes`), so top-level `await` in a project that
+enables it is not an `experimental_async` error. They are read the way
+rsvelte-check reads them, from the nearest directory above each file holding a
+`svelte.config.*` or `vite.config.*`: `compilerOptions` in `svelte.config.*`,
+overridden by the inline `svelte({ compilerOptions })` /
+`sveltekit({ compilerOptions })` plugin options in `vite.config.*` (an inline
+`sveltekit({...})` config replaces `svelte.config.*`). Only literal values are
+read. Linting a monorepo root resolves each app's own config.
+
 ## Coexisting with ESLint
 
 rsvelte-lint ships as a **complement** to ESLint, not (yet) a replacement. Run

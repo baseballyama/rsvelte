@@ -496,21 +496,27 @@ fn rule_is_implemented(_rule_id: &str) -> bool {
     true
 }
 
-/// Lint a file on disk.
+/// Lint a file on disk. `options` are its project's compiler options
+/// ([`crate::ProjectOptionsCache`]).
 ///
 /// # Errors
 ///
 /// Returns an error when the file cannot be read.
-pub fn lint_file(path: &Path, config: &LintConfig) -> std::io::Result<Vec<Diagnostic>> {
+pub fn lint_file(
+    path: &Path,
+    options: &CompileOptions,
+    config: &LintConfig,
+) -> std::io::Result<Vec<Diagnostic>> {
     let source = std::fs::read_to_string(path)?;
     let options = CompileOptions {
         filename: Some(path.display().to_string()),
-        ..Default::default()
+        ..options.clone()
     };
     Ok(lint_source(&source, path, &options, config))
 }
 
 /// Lint a file on disk, keeping each finding's `fix` / `suggestions` payload.
+/// `options` are its project's compiler options ([`crate::ProjectOptionsCache`]).
 ///
 /// # Errors
 ///
@@ -518,12 +524,13 @@ pub fn lint_file(path: &Path, config: &LintConfig) -> std::io::Result<Vec<Diagno
 #[cfg(feature = "native")]
 pub fn lint_file_messages(
     path: &Path,
+    options: &CompileOptions,
     config: &LintConfig,
 ) -> std::io::Result<Vec<crate::diagnostic::LintMessage>> {
     let source = std::fs::read_to_string(path)?;
     let options = CompileOptions {
         filename: Some(path.display().to_string()),
-        ..Default::default()
+        ..options.clone()
     };
     Ok(lint_source_messages(&source, path, &options, config))
 }

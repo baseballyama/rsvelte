@@ -20,7 +20,8 @@ use rsvelte_diagnostics::{Diagnostic, DiagnosticSeverity};
 
 use rsvelte_lint::rule::Severity;
 use rsvelte_lint::{
-    LintConfig, LintFormat, LintMessage, fix_all, lint_file_messages, presets, render_messages,
+    LintConfig, LintFormat, LintMessage, ProjectOptionsCache, fix_all, lint_file_messages, presets,
+    render_messages,
 };
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -204,9 +205,10 @@ fn main() -> ExitCode {
     // release/dist profiles set `panic = "abort"`, so distribution builds must
     // use `--profile dist-lint` (release + `panic = "unwind"`) for this
     // isolation to hold; under an aborting build a panic still ends the run.
+    let project_options = ProjectOptionsCache::default();
     let per_file: Vec<Vec<LintMessage>> = files
         .par_iter()
-        .map(|f| lint_file_safe(f, &config))
+        .map(|f| lint_file_safe(f, &project_options, &config))
         .collect();
     let all: Vec<LintMessage> = per_file.into_iter().flatten().collect();
 
@@ -238,9 +240,16 @@ fn main() -> ExitCode {
 /// the whole run; the panic surfaces as a diagnostic instead. Effective only in
 /// an unwinding build (see `--profile dist-lint`); a `panic = "abort"` build
 /// cannot recover here.
-fn lint_file_safe(file: &Path, config: &LintConfig) -> Vec<LintMessage> {
+fn lint_file_safe(
+    file: &Path,
+    project_options: &ProjectOptionsCache,
+    config: &LintConfig,
+) -> Vec<LintMessage> {
     use std::panic::{AssertUnwindSafe, catch_unwind};
-    match catch_unwind(AssertUnwindSafe(|| lint_file_messages(file, config))) {
+    let options = project_options.for_file(file);
+    match catch_unwind(AssertUnwindSafe(|| {
+        lint_file_messages(file, &options, config)
+    })) {
         Ok(Ok(msgs)) => msgs,
         Ok(Err(e)) => vec![LintMessage::from(read_error(file, &e))],
         Err(_) => vec![LintMessage::from(internal_error(file))],

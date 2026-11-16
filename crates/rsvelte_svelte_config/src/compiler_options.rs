@@ -112,6 +112,17 @@ const VITE_CONFIG_CANDIDATES: &[&str] = &[
     "vite.config.cts",
 ];
 
+/// Does `dir` hold a `svelte.config.*` or `vite.config.*` that
+/// [`load_compiler_options`] would read? Lets a caller that starts from a file
+/// find the directory its project's config lives in.
+#[must_use]
+pub fn has_project_config(dir: &Path) -> bool {
+    SVELTE_CONFIG_CANDIDATES
+        .iter()
+        .chain(VITE_CONFIG_CANDIDATES)
+        .any(|name| dir.join(name).is_file())
+}
+
 /// Should an explicit `--config` be read as a **Vite** config?
 ///
 /// `--config` exists to name a config whose filename is non-standard, so the
@@ -631,6 +642,18 @@ mod tests {
         let s = load_compiler_options(&dir);
         assert!(!s.experimental_async);
         assert_eq!(s.runes, None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn project_config_is_either_file() {
+        let dir = workspace("has_config");
+        assert!(!has_project_config(&dir));
+        write(&dir, "vite.config.ts", "export default {};");
+        assert!(has_project_config(&dir));
+        std::fs::remove_file(dir.join("vite.config.ts")).unwrap();
+        write(&dir, "svelte.config.js", "export default {};");
+        assert!(has_project_config(&dir));
         let _ = std::fs::remove_dir_all(&dir);
     }
 

@@ -2864,6 +2864,7 @@ dependencies = [
  "rsvelte_core",
  "rsvelte_diagnostics",
  "rsvelte_preprocess",
+ "rsvelte_svelte_config",
  "serde",
  "serde_json",
  "serde_yaml",

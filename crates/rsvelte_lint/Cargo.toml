@@ -32,9 +32,10 @@ default = ["cli"]
 # The CLI: native compiler backend + ESLint-config import + the bin's runtime
 # deps (clap/walkdir/rayon).
 cli = ["dep:mimalloc", "native", "eslint-import", "dep:clap", "dep:walkdir", "dep:rayon"]
-# Native product surface (CLI diagnostics, validation, and source-scan rules).
+# Native product surface (CLI diagnostics, validation, source-scan rules, and
+# reading the project's Svelte `compilerOptions` from disk).
 # Compiler parallelism is an independent opt-in owned by binary callers.
-native = ["dep:rsvelte_preprocess"]
+native = ["dep:rsvelte_preprocess", "dep:rsvelte_svelte_config"]
 # `--config-from-eslint` importer (OXC). Off in the wasm build.
 eslint-import = []
 
@@ -44,6 +45,7 @@ rsvelte_diagnostics = { path = "../rsvelte_diagnostics" }
 rsvelte_preprocess = { path = "../rsvelte_preprocess", default-features = false, features = [
     "svelte-preprocess",
 ], optional = true }
+rsvelte_svelte_config = { path = "../rsvelte_svelte_config", optional = true }
 anyhow = "1.0"
 bytecount = "0.6"
 compact_str = { version = "0.10", features = ["serde"] }
@@ -84,6 +86,11 @@ criterion = { version = "6.0.0", features = [
 serde_json = "1.0"
 # Parse eslint-plugin-svelte `*-errors.yaml` fixtures in the compat oracle.
 serde_yaml = "0.9"
+
+# Drives the `rsvelte-lint` binary, which needs the `cli` feature.
+[[test]]
+name = "project_compiler_options"
+required-features = ["cli"]
 
 [[bench]]
 name = "linter"

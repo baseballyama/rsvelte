@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use rsvelte_core::CompileOptions;
 use rsvelte_diagnostics::Diagnostic;
-use rsvelte_lint::{LintConfig, lint_source};
+use rsvelte_lint::{LintConfig, ProjectOptionsCache, lint_source};
 
 /// Config file names, in the order a directory is probed — the same two
 /// `rsvelte-lint` itself discovers. An `ESLint` config is deliberately *not*
@@ -15,12 +15,13 @@ use rsvelte_lint::{LintConfig, lint_source};
 /// editor than the same project's CI does.
 const CONFIG_NAMES: &[&str] = &["rsvelte-lint.json", ".rsvelte-lintrc.json"];
 
-/// Resolved lint configs, keyed by the directory discovery started from.
-/// Discovery walks to the filesystem root, so it is cached rather than redone
-/// on every keystroke.
+/// Resolved lint configs and project compiler options, keyed by the directory
+/// discovery started from. Discovery walks to the filesystem root, so it is
+/// cached rather than redone on every keystroke.
 #[derive(Default)]
 pub struct LintConfigCache {
     by_dir: HashMap<PathBuf, Arc<LintConfig>>,
+    compile_options: ProjectOptionsCache,
 }
 
 impl LintConfigCache {
@@ -34,8 +35,15 @@ impl LintConfigCache {
         config
     }
 
+    /// The Svelte `compilerOptions` of the project a document in `dir`
+    /// belongs to, read from its `svelte.config.*` / `vite.config.*`.
+    pub fn compile_options(&self, dir: &Path) -> Arc<CompileOptions> {
+        self.compile_options.for_dir(dir)
+    }
+
     pub fn clear(&mut self) {
         self.by_dir.clear();
+        self.compile_options.clear();
     }
 }
 
@@ -69,9 +77,21 @@ fn discover(start: &Path) -> Option<LintConfig> {
 /// `eslint-disable`) and inline rule config are applied inside `lint_source`.
 #[must_use]
 pub fn lint(path: &Path, source: &str, config: &LintConfig) -> Vec<Diagnostic> {
+    lint_with_options(path, source, &CompileOptions::default(), config)
+}
+
+/// [`lint`] under the project's compiler options
+/// ([`LintConfigCache::compile_options`]).
+#[must_use]
+pub fn lint_with_options(
+    path: &Path,
+    source: &str,
+    options: &CompileOptions,
+    config: &LintConfig,
+) -> Vec<Diagnostic> {
     let options = CompileOptions {
         filename: Some(path.display().to_string()),
-        ..Default::default()
+        ..options.clone()
     };
     lint_source(source, path, &options, config)
 }
@@ -117,6 +137,42 @@ mod tests {
             .filter_map(|d| d.code)
             .collect();
         assert!(!codes.iter().any(|c| c == "svelte/no-at-html-tags"));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_project_compiler_option_reaches_the_lint_pass() {
+        let dir = std::env::temp_dir().join(format!(
+            "rsvelte-ls-lint-compile-options-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let source = "<script>\n\tconst data = await load();\n</script>\n\n<p>{data}</p>";
+        let codes = |cache: &LintConfigCache| -> Vec<String> {
+            let options = cache.compile_options(&dir);
+            lint_with_options(
+                &dir.join("App.svelte"),
+                source,
+                &options,
+                &LintConfig::recommended(),
+            )
+            .into_iter()
+            .filter_map(|d| d.code)
+            .collect()
+        };
+
+        let mut cache = LintConfigCache::default();
+        assert!(codes(&cache).iter().any(|c| c == "experimental_async"));
+
+        std::fs::write(
+            dir.join("vite.config.ts"),
+            "export default { plugins: [sveltekit({ compilerOptions: { experimental: { async: true } } })] };",
+        )
+        .unwrap();
+        cache.clear();
+        assert!(!codes(&cache).iter().any(|c| c == "experimental_async"));
 
         std::fs::remove_dir_all(&dir).ok();
     }

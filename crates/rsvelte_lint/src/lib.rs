@@ -50,6 +50,8 @@ pub mod eslint_import;
 #[cfg(feature = "native")]
 pub mod output;
 #[cfg(feature = "native")]
+pub mod project_options;
+#[cfg(feature = "native")]
 pub mod runner;
 #[cfg(feature = "native")]
 pub mod validator;
@@ -73,6 +75,8 @@ pub use rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 pub use output::render_messages;
 #[cfg(feature = "native")]
 pub use output::{LintFormat, render};
+#[cfg(feature = "native")]
+pub use project_options::ProjectOptionsCache;
 #[cfg(feature = "native")]
 pub use runner::lint_file_messages;
 #[cfg(feature = "native")]
