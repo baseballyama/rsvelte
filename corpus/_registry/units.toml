@@ -4904,3 +4904,6 @@
 ["svelte/layerchart/packages/layerchart/src/lib/components/charts/__fixtures__/ArcChartTooltip.svelte".skip]
 "svelte.check" = "checker: TS 7 lists the keys of a `Pick` in its own order and cuts the props' type at other points than TS 6; the projection also reports the generic component's props as 2345 at its name, where svelte-check reports 2322 with no length"
 
+
+["svelte/melt-ui/docs/src/components/motion.svelte".skip]
+"svelte.check" = "checker: TS 7 reports 7031 on a binding element whose default is `{}` and whose contextual type comes from an unresolved import, where TS 6 reports nothing"
