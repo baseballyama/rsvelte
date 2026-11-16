@@ -14,10 +14,9 @@ pub fn emit(tree: &SyntaxTree, source: &str) -> Emitter {
     emit_named(tree, source, "")
 }
 
-/// An emitter sized from the source, so that half the projections never grow: over the corpus, the
-/// median projection is 3.3 times its source's bytes, with a mapping per 16 bytes and an atom
-/// per 50.
+/// An emitter sized from the source, so that half the projections never grow.
 fn projection_emitter(source: usize) -> Emitter {
+    // Corpus medians: 3.3 bytes per source byte, a mapping per 16 bytes, an atom per 50.
     Emitter::with_capacity(source * 33 / 10, source / 16, source / 50)
 }
 
@@ -34,7 +33,7 @@ pub fn emit_named(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
     };
     printer.output.push(";\n");
     printer.children(tree.root());
-    // The projection is kept, so it does not keep the text's spare room.
+    // The database keeps the projection, so spare room would stay live: 3.6% more peak memory.
     printer.output.out.shrink_to_fit();
     printer.output
 }
