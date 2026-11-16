@@ -107,11 +107,24 @@ impl Builder<'_> {
                         plain,
                         matches!(host.kind, Kind::Element { custom: true }),
                     );
-                    // A component's CSS custom property is no prop: svelte2tsx's `cssProp`.
-                    if host.is_component() && attribute.name.text(self.source).starts_with("--") {
+                    let name = attribute.name.text(self.source);
+                    // svelte2tsx keeps a component's CSS custom property out of its props, and an
+                    // element's `data-` attribute, other than SvelteKit's, out of its types.
+                    let wrapper = if host.is_component() && name.starts_with("--") {
+                        Some("__sveltets_2_cssProp")
+                    } else if host.intrinsic()
+                        && attribute.kind == AttributeKind::Attribute
+                        && name.starts_with("data-")
+                        && !name.starts_with("data-sveltekit-")
+                    {
+                        Some("__sveltets_2_empty")
+                    } else {
+                        None
+                    };
+                    if let Some(wrapper) = wrapper {
                         let properties = self.tree.list(&[property]);
                         let object = self.tree.push(Node::Object { properties });
-                        let callee = self.tree.push(Node::Identifier("__sveltets_2_cssProp"));
+                        let callee = self.tree.push(Node::Identifier(wrapper));
                         let arguments = self.tree.list(&[object]);
                         let value = self.tree.push(Node::Call { callee, arguments });
                         let at = attribute.span.start_offset;

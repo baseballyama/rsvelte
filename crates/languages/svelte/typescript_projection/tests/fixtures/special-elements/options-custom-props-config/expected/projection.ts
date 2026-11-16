@@ -11,7 +11,7 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("svelte:options", {
-        "customelement": {tag:"my-element",props:{enabled:{reflect:true},count:{type:"Number",attribute:"data-count"}}},
+        "customElement": {tag:"my-element",props:{enabled:{reflect:true},count:{type:"Number",attribute:"data-count"}}},
       });
     }
     {

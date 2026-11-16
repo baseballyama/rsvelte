@@ -12,7 +12,7 @@ function change() { rest.other=1; rest.count++; let x; x=rest.other; return rest
   async () => {
     {
       svelteHTML.createElement("svelte:options", {
-        "customelement": "my-element",
+        "customElement": "my-element",
       });
     }
     {

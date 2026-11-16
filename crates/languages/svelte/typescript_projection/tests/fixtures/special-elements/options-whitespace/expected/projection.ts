@@ -3,7 +3,7 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("svelte:options", {
-        "preservewhitespace": true,
+        "preserveWhitespace": true,
       });
     }
     {

@@ -10,7 +10,9 @@ function $$render() {
         svelteHTML.createElement("script", {
           "async": true,
           "src": "https://x/y.js",
-          "data-v": v,
+          ...(__sveltets_2_empty({
+            "data-v": v,
+          })),
         });
       }
       {
