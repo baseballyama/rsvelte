@@ -4864,3 +4864,12 @@
 
 ["svelte/primo/src/lib/builder/components/Sidebar/Sidebar_Symbol.svelte".skip]
 "svelte.check" = "checker: TS 7 reports an argument its parameter rejects with the inner reason's code, such as 2740, where TS 6 reports 2345 with that reason under it"
+
+["svelte/kite-public/src/lib/components/contribute/ContributeHistory.svelte".skip]
+"svelte.check" = "checker: TS 7 truncates a long type's last property to `...` where TS 6 prints `{ ...; }`, so the message differs"
+
+["svelte/flowbite-svelte/src/lib/device-mockups/DeviceMockup.svelte".skip]
+"svelte.check" = "checker: TS 7 truncates a long type at another point than TS 6, so the message differs"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte".skip]
+"svelte.check" = "checker: TS 7 prints `boolean | void` as `void | boolean` where TS 6 keeps the written order, so the message differs"
