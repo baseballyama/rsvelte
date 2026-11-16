@@ -85,12 +85,8 @@ impl Builder<'_> {
             },
         };
         let handler = handler.unwrap_or_else(|| self.tree.push(Node::Identifier("() => {}")));
-        let text = self.tree.push(Node::Text(name));
-        let parts = self.tree.list(&[text]);
-        let name = self.tree.push(Node::String {
-            parts,
-            template: false,
-        });
+        // An event name needs no escape; a finding on it falls on the name, as svelte-check's does.
+        let name = self.tree.push(Node::QuotedText(name));
         Ok(self.tree.list(&[name, handler]))
     }
 
