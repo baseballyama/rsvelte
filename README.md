@@ -5,6 +5,8 @@ and type check. It reads each file once and keeps immutable trees and a database
 from them. A task computes only what it needs, one file per thread. The old port on `main` is
 only a diff oracle and a performance baseline.
 
+![ESLint, then `rsvelte lint` with the same rules, on a large open-source Svelte project](.github/assets/lint.gif)
+
 ## Layout
 
 | Directory                           | What it holds                                                                 |

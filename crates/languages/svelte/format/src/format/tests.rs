@@ -477,6 +477,26 @@ fn a_script_babel_rejects_is_kept_as_written_and_the_rest_formatted() {
 }
 
 #[test]
+fn each_script_the_plugin_s_parser_throws_on_is_kept_as_written() {
+    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1: `babel-ts` throws on
+    // both modifier orders, which the compiler rejects too.
+    let module = "<script module>\n\tclass C { readonly static a = 1; }\n</script>\n";
+    let instance = "<script>\n\tclass D { static private b = 1; }\n\tlet   x =  1\n</script>\n";
+    let source_text = format!("{module}{instance}<p   >{{x}}</p>\n");
+    assert_eq!(
+        crate::task::format(&source_text, &Options::default()).expect("prints"),
+        format!("{module}\n{instance}\n<p>{{x}}</p>\n")
+    );
+    // Babel throws on some of the modifier pairs tsc reports as 1243, not on this one.
+    let source_text = "<script>\n\tclass C { declare accessor a; }\n</script>\n";
+    let refused = crate::task::format(source_text, &Options::default()).expect_err("refused");
+    assert_eq!(
+        refused.message,
+        "not supported by the formatter yet: a TypeScript error the plugin's parser may throw on"
+    );
+}
+
+#[test]
 fn a_lone_carriage_return_is_a_line_break_as_prettier_reads_it() {
     // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
     assert_eq!(

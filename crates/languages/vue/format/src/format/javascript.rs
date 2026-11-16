@@ -105,6 +105,7 @@ impl Printer<'_, '_, '_> {
         let embedded_in = JsEmbeddedIn {
             in_html_attribute: false,
             inlines_code: true,
+            keeps_recovered: None,
         };
         self.javascript(Span::new(start, end), root, embedded_in)
     }
@@ -118,6 +119,7 @@ impl Printer<'_, '_, '_> {
         let embedded_in = JsEmbeddedIn {
             in_html_attribute: true,
             inlines_code: true,
+            keeps_recovered: None,
         };
         let root = match name {
             DirectiveName::Bind => {
@@ -159,6 +161,7 @@ impl Printer<'_, '_, '_> {
         let embedded_in = JsEmbeddedIn {
             in_html_attribute: true,
             inlines_code: true,
+            keeps_recovered: None,
         };
         let parameters = self.c.javascript.get_parameters(parameters);
         let first = parameters.items.first().map(|p| p.span.start);

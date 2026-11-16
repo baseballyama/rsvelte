@@ -114,13 +114,10 @@ fn thrown_of_all(text: &str) -> Option<(String, u32)> {
 
 #[test]
 fn tsc_s_parser_error_wins_over_a_check_oxc_reported_first() {
-    let text = "let accessor: any; const q = (accessor satisfies string);";
+    let text = "interface I { public a: string } const q = f(1 2);";
     assert_eq!(
         thrown_of_all(text),
-        Some((
-            "',' expected.".to_owned(),
-            text.find("string").unwrap() as u32
-        ))
+        Some(("',' expected.".to_owned(), text.find("2)").unwrap() as u32))
     );
 }
 

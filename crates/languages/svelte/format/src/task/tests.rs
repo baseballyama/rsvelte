@@ -89,12 +89,11 @@ fn a_script_the_compiler_rejects_is_formatted_as_the_plugin_reads_it() {
         let text = format(source_text, &Options::default()).expect(source_text);
         assert_eq!(text, formatted, "{source_text}");
     }
+    // TypeScript rejects it too, so the plugin prints it as written.
     let source_text = "<script>\n\tlet x = ;\n</script>\n";
-    let error = format(source_text, &Options::default()).expect_err("TypeScript rejects it too");
     assert_eq!(
-        error.span.start_offset,
-        source_text.find(';').expect("the stop") as u32
+        format(source_text, &Options::default()).expect(source_text),
+        source_text
     );
-    let output = task_output(source_text);
-    assert_eq!(output.diagnostics[0].span, error.span);
+    assert_eq!(task_output(source_text).files[0].text, source_text);
 }

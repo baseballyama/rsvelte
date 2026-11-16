@@ -227,7 +227,7 @@ pass	printer/unicode-element.html
 pass	printer/unicode-mustache.html
 pass	printer/unicode-script.html
 pass	printer/unicode-style.html
-fail	printer/unsupported-language.html
+pass	printer/unsupported-language.html
 pass	formatting/all-elements-ignore-whitespace
 pass	formatting/all-elements-strict-whitespace
 pass	formatting/allow-shorthand-false
@@ -296,7 +296,7 @@ pass	formatting/svelte-await-block-break
 pass	formatting/svelte-each-block-break
 pass	formatting/svelte-if-block-break
 pass	formatting/svelte-key-block-break
-fail	formatting/syntax-error
+pass	formatting/syntax-error
 pass	formatting/top-level-comments
 pass	formatting/trim-leading-whitespace
 pass	formatting/trim-line-breaks-elements
