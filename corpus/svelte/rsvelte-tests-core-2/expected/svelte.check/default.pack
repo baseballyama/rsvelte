@@ -12361,22 +12361,6 @@
 === 3 malformed_snippet_header/balanced_literals_and_comments_in_a_header_compile/86694d4fc5f9bbf9.svelte	json
 []
 
-=== 208 malformed_snippet_header/balanced_literals_and_comments_in_a_header_compile/877d2d02e603fddb.svelte	json
-[
-	{
-		"code": 2339,
-		"message": "Property 'b' does not exist on type '{ a?: number | undefined; }'.",
-		"start": {
-			"line": 1,
-			"character": 23
-		},
-		"end": {
-			"line": 1,
-			"character": 24
-		}
-	}
-]
-
 === 3 malformed_snippet_header/balanced_literals_and_comments_in_a_header_compile/88fd777b751b3c9a.svelte	json
 []
 

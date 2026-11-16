@@ -4991,3 +4991,6 @@
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/716a6da8d466f8b2.svelte".skip]
 "svelte.check" = "checker: svelte-check 4.7.8 reports 2503 for `Z` when it checks this file alone, as rsvelte does, but not in the shared workspace of this source, where other files of the program change it"
+
+["svelte/rsvelte-tests-core-2/malformed_snippet_header/balanced_literals_and_comments_in_a_header_compile/877d2d02e603fddb.svelte".skip]
+"svelte.check" = "checker: TS 7 reports no 2339 for a property of a destructured parameter that its default `{}` lacks, where TS 6 does"
