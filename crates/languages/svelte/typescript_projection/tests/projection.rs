@@ -187,7 +187,7 @@ fn the_independent_parser_detects_a_broken_generated_call() {
 
 #[test]
 fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
-    let source = "{#if ready}<p title={text} data-label={`café\n  🚀`}>{text}</p>{/if}";
+    let source = "{#if ready}<p title={text} aria-label={`café\n  🚀`}>{text}</p>{/if}";
     let (_, output) = project(source);
     assert_eq!(
         output.out,
@@ -198,7 +198,7 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
             "      {\n",
             "        svelteHTML.createElement(\"p\", {\n",
             "          \"title\": text,\n",
-            "          \"data-label\": `café\n  🚀`,\n",
+            "          \"aria-label\": `café\n  🚀`,\n",
             "        });\n",
             "        (text);\n",
             "      }\n",
