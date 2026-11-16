@@ -5001,3 +5001,15 @@
 
 ["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/a_textarea_closer_keeps_taking_everything_up_to_the_bracket/8c8524746c866ada.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx removes an end tag only when the text between `</` and `>` is the element's name, so it leaves `</textarea x>` in its TSX and svelte-check reports syntax errors in a component Svelte compiles"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte".skip]
+"svelte.check" = "oracle: Svelte 5.57.3 rejects the script (js_parse_error); the last three 1005 fall in the markup that svelte2tsx copies as text after the script's unclosed JSX, which the projection does not lay out as text"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_value0_rule/degenerate_slot_names_stay_on_the_default_fallback/0cfb2b8120add6c6.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes `<slot name=\"\" />` as `__sveltets_createSlot(, { })`, so TypeScript reports 1135"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_svelte_self_bindings_2171/svelte_self_snippet_children_become_props/906566aee5544f9c.svelte".skip]
+"svelte.check" = "oracle: Svelte 5.57.3 rejects a top-level `<svelte:self>` (svelte_self_invalid_placement); there svelte2tsx leaves the tag of one with a snippet child in its TSX, which TypeScript reports as unclosed JSX"
+
+["svelte/rsvelte/lint/html-closing-bracket-spacing/04-script-style-tags.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks a script and a style sheet with regular expressions that need `</script>` and `</style>`, so at `</script >` and `</style >` it leaves them in its TSX and TypeScript reports them as JSX"
