@@ -1,4 +1,4 @@
-# svelte.check/default: 35019 match
+# svelte.check/default: 35020 match
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ts-ignore-attribute.v5/input.svelte	mismatch
@@ -9,7 +9,6 @@ svelte/rsvelte-tests-core-2/import_export_parser_shapes/typescript_stamps_an_exp
 svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/05b2487cbe722987.svelte	mismatch
 svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/696aaefc0ff5653b.svelte	mismatch
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_bind_suffix_map_4103/a_one_way_binding_not_on_the_element_carries_its_own_map_segments/ee00fd9be3022ca2.svelte	unexpected
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/4fd47e2cba0dad6e.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/583f2b2edcebe57c.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/ad7d90b669ae5faf.svelte	mismatch

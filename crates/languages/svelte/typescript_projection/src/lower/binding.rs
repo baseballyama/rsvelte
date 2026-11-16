@@ -25,41 +25,42 @@ const ONE_WAY: &[&str] = &[
 ];
 
 /// svelte2tsx's `oneWayBindingAttributesNotOnElement`: a value of this type is assigned, with a
-/// `JSDoc` cast in JavaScript.
+/// `JSDoc` cast in JavaScript. svelte2tsx ignores the findings of its `null as T`, which is not
+/// comparable under `strictNullChecks`, so the cast goes through `unknown`.
 const NOT_ON_ELEMENT: &[(&str, &str, &str)] = &[
     (
         "contentRect",
-        "null as DOMRectReadOnly",
+        "null as unknown as DOMRectReadOnly",
         "/** @type {DOMRectReadOnly} */ (null)",
     ),
     (
         "contentBoxSize",
-        "null as ResizeObserverSize[]",
+        "null as unknown as ResizeObserverSize[]",
         "/** @type {ResizeObserverSize[]} */ (null)",
     ),
     (
         "borderBoxSize",
-        "null as ResizeObserverSize[]",
+        "null as unknown as ResizeObserverSize[]",
         "/** @type {ResizeObserverSize[]} */ (null)",
     ),
     (
         "devicePixelContentBoxSize",
-        "null as ResizeObserverSize[]",
+        "null as unknown as ResizeObserverSize[]",
         "/** @type {ResizeObserverSize[]} */ (null)",
     ),
     (
         "buffered",
-        "null as import('svelte/elements').SvelteMediaTimeRange[]",
+        "null as unknown as import('svelte/elements').SvelteMediaTimeRange[]",
         "/** @type {import('svelte/elements').SvelteMediaTimeRange[]} */ (null)",
     ),
     (
         "played",
-        "null as import('svelte/elements').SvelteMediaTimeRange[]",
+        "null as unknown as import('svelte/elements').SvelteMediaTimeRange[]",
         "/** @type {import('svelte/elements').SvelteMediaTimeRange[]} */ (null)",
     ),
     (
         "seekable",
-        "null as import('svelte/elements').SvelteMediaTimeRange[]",
+        "null as unknown as import('svelte/elements').SvelteMediaTimeRange[]",
         "/** @type {import('svelte/elements').SvelteMediaTimeRange[]} */ (null)",
     ),
 ];
