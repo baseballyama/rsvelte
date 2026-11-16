@@ -66,5 +66,6 @@ pub(super) fn view<'e>(
         extension: if typescript { ".tsx" } else { ".jsx" },
         imports: Vec::new(),
         store_reads: Vec::new(),
+        hidden: Vec::new(),
     }))
 }

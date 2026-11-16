@@ -9,10 +9,12 @@ use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::Resolved;
 use rsvelte_svelte_syntax::Parsed;
-use rsvelte_svelte_syntax::syntax_tree::Component;
+use rsvelte_svelte_syntax::syntax_tree::{
+    AttributeKind, AttributeValue, Component, Part, TemplateNode,
+};
 use rsvelte_svelte_typescript_projection::{Printed, THROWN, checked_as_typescript, store_reads};
 use rsvelte_typescript_check::{
-    Check, Documents, MappedLanguage, MappedLanguages, TypeScriptDocument, TypeScriptEnv,
+    Check, Documents, Hidden, MappedLanguage, MappedLanguages, TypeScriptDocument, TypeScriptEnv,
     TypeScriptStandIn, TypeScriptView,
 };
 
@@ -194,7 +196,97 @@ fn typescript_view(
             .as_ref()
             .map(store_reads)
             .unwrap_or_default(),
+        hidden: hidden(component, &context.document.text),
     })
+}
+
+/// The findings svelte-check's `isNoFalsePositive` hides in `component`.
+fn hidden(component: &Component, source_text: &str) -> Vec<Hidden> {
+    // A name an element, `<svelte:window>` or `<svelte:body>` gives twice: svelte2tsx writes
+    // each of its attributes and event handlers as a property.
+    const NAME_GIVEN_TWICE: &[u32] = &[1117, 2300];
+    // Never read, and all imports unused: svelte-check cannot see a pug template's reads.
+    const UNREAD: &[u32] = &[6133, 6192];
+    let mut hidden = Vec::new();
+    for node in &component.nodes {
+        let TemplateNode::Element {
+            name,
+            component: None,
+            attributes,
+            ..
+        } = node
+        else {
+            continue;
+        };
+        let name = name.text(source_text);
+        let element = !name.starts_with("svelte:") && name != "slot";
+        if !(element || matches!(name, "svelte:element" | "svelte:window" | "svelte:body")) {
+            continue;
+        }
+        let names = component
+            .attributes(*attributes)
+            .iter()
+            .filter(|attribute| {
+                matches!(attribute.kind, AttributeKind::Attribute | AttributeKind::On)
+            });
+        hidden.extend(names.map(|attribute| Hidden {
+            codes: NAME_GIVEN_TWICE,
+            at: attribute.name,
+            whole: false,
+        }));
+    }
+    if let Some(template) = pug_template(component, source_text) {
+        hidden.push(Hidden {
+            codes: &[],
+            at: template,
+            whole: true,
+        });
+        hidden.push(Hidden {
+            codes: UNREAD,
+            at: Span::new(0, source_text.len() as u32),
+            whole: false,
+        });
+    }
+    hidden
+}
+
+/// The content of the first top-level `<template>`, when its `lang`, or else its `type`, is pug.
+fn pug_template(component: &Component, source_text: &str) -> Option<Span> {
+    let template = component
+        .children(component.root)
+        .iter()
+        .find_map(|&child| match component.node(child) {
+            TemplateNode::Element {
+                name,
+                attributes,
+                start_tag,
+                end_tag: true,
+                span,
+                ..
+            } if name.text(source_text) == "template" => Some((*attributes, *start_tag, *span)),
+            _ => None,
+        })?;
+    let (attributes, start_tag, span) = template;
+    let value = |key: &str| {
+        let attribute = component.attributes(attributes).iter().find(|attribute| {
+            attribute.kind == AttributeKind::Attribute && attribute.name.text(source_text) == key
+        })?;
+        let AttributeValue::Parts(parts) = attribute.value else {
+            return None;
+        };
+        match component.parts(parts) {
+            [Part::Text(text)] => Some(text.text(source_text)),
+            _ => None,
+        }
+    };
+    let language = value("lang")
+        .filter(|lang| !lang.is_empty())
+        .or_else(|| value("type"))?;
+    if language.strip_prefix("text/").unwrap_or(language) != "pug" {
+        return None;
+    }
+    let end = span.text(source_text).rfind("</")? as u32 + span.start_offset;
+    Some(Span::new(start_tag.end_offset, end))
 }
 
 /// What svelte-check reports for the parse error svelte2tsx throws.

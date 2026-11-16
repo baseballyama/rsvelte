@@ -1,4 +1,4 @@
-# svelte.format/default: 34743 match
+# svelte.format/default: 34748 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -427,7 +427,6 @@ svelte/rsvelte/pattern/issues/3498-class-rune-linebreak-separators.svelte	mismat
 svelte/rsvelte/pattern/issues/3714-template-quoted-property-key.svelte	mismatch
 svelte/rsvelte/pattern/issues/acorn-unchecked-ts-grammar-rule-in-a-template.svelte	mismatch
 svelte/rsvelte/pattern/javascript-accessor-optional-field.svelte	refused
-svelte/rsvelte/pattern/javascript-name-escape-of-a-space.svelte	refused
 svelte/runed/sites/docs/src/lib/components/blueprint.svelte	mismatch
 svelte/shadcn-svelte-extras/src/lib/components/docs/installation-setup-tabs.svelte	mismatch
 svelte/shadcn-svelte-extras/src/lib/components/ui/chart/chart-tooltip.svelte	mismatch

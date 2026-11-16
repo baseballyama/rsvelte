@@ -49,7 +49,9 @@ function $$render() {
     }
     {
       svelteHTML.createElement("x-baz", {
-        "data-a": s,
+        ...(__sveltets_2_empty({
+          "data-a": s,
+        })),
       });
       __sveltets_2_ensureType(String, Number, "red");
       (s);
@@ -58,7 +60,9 @@ function $$render() {
       svelteHTML.createElement("p", {
         "title": "t",
         "is": "my-p",
-        "data-x": Math.max(v, 1),
+        ...(__sveltets_2_empty({
+          "data-x": Math.max(v, 1),
+        })),
         "fooBar": "Q",
       });
     }

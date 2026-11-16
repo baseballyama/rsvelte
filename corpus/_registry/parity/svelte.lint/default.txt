@@ -1,2 +1,1 @@
-# svelte.lint/default: 37586 match
-svelte/rsvelte/pattern/javascript-name-escape-of-a-space.svelte	refused
+# svelte.lint/default: 37591 match

@@ -149,6 +149,129 @@ import * as $ from 'svelte/internal/server';
 export default function _page($$renderer) {
 	$$renderer.push(`<h1>kit-load-augmentation-js</h1>`);
 }
+=== 266 check/kit-route-props-ts/project/src/routes/a/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { data, foo = 1, form } = $$props;
+		const n = data.x;
+		const s = foo;
+
+		[1].find((r) => r);
+		[].map((q) => q);
+	});
+}
+=== 712 check/kit-route-props-ts/project/src/routes/a/+page.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `data`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 3,
+			"column": 20,
+			"character": 81
+		},
+		"end": {
+			"line": 3,
+			"column": 24,
+			"character": 85
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `foo`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 4,
+			"column": 20,
+			"character": 109
+		},
+		"end": {
+			"line": 4,
+			"column": 23,
+			"character": 112
+		}
+	}
+]
+
+=== 164 check/kit-route-props-ts/project/src/routes/b/+layout.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _layout($$renderer, $$props) {
+	let { data, children, form } = $$props;
+	const s = children;
+}
+=== 361 check/kit-route-props-ts/project/src/routes/b/+layout.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `children`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 3,
+			"column": 20,
+			"character": 82
+		},
+		"end": {
+			"line": 3,
+			"column": 28,
+			"character": 90
+		}
+	}
+]
+
+=== 152 check/kit-route-props-ts/project/src/routes/c/+error.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _error($$renderer, $$props) {
+	let { error, other } = $$props;
+	const s = error;
+}
+=== 358 check/kit-route-props-ts/project/src/routes/c/+error.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `error`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 3,
+			"column": 20,
+			"character": 74
+		},
+		"end": {
+			"line": 3,
+			"column": 25,
+			"character": 79
+		}
+	}
+]
+
+=== 187 check/kit-route-props-ts/project/src/routes/d/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { data, foo } = $$props;
+
+		data.x;
+	});
+}
+=== 355 check/kit-route-props-ts/project/src/routes/d/+page.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `data`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 3,
+			"column": 2,
+			"character": 43
+		},
+		"end": {
+			"line": 3,
+			"column": 6,
+			"character": 47
+		}
+	}
+]
+
 === 264 check/no-tsconfig/project/src/App.svelte	js
 import * as $ from 'svelte/internal/server';
 
