@@ -26,11 +26,7 @@ pub(super) fn unparsed_scripts(
     };
     match rejected {
         Some(rejected) if unparsed(rejected.diagnostic.span) => {}
-        Some(rejected) => {
-            unparsed_scripts.extend(unparsed_script(c, source_text, rejected).ok_or_else(|| {
-                Unsupported::at("code a module rejects", rejected.diagnostic.span)
-            })?)
-        }
+        Some(rejected) => unparsed_scripts.extend(unparsed_script(c, source_text, rejected)?),
         None => unparsed_scripts
             .extend(overriding_script(c, source_text).or_else(|| assertion_script(c, source_text))),
     }
@@ -110,25 +106,24 @@ fn assertion_script(c: &Component, source_text: &str) -> Option<Span> {
 }
 
 /// The body of the script holding `rejected` when the plugin's parser for it throws on that error,
-/// so the plugin keeps the body as it is; `None` where that is not known. Otherwise the parser
-/// reads on, and as the error is the analysis's, the tree is the one oxc built.
-fn unparsed_script(
-    c: &Component,
-    source_text: &str,
-    rejected: &SyntaxError,
-) -> Option<Option<Span>> {
+/// so the plugin keeps the body as it is. Otherwise the parser reads on, and as the error is the
+/// analysis's, the tree is the one oxc built.
+fn unparsed_script(c: &Component, source_text: &str, rejected: &SyntaxError) -> R<Option<Span>> {
     // A name declared twice; Babel throws only on a private one.
     const DUPLICATE_IDENTIFIER: u32 = 2300;
     // `super` and `super()` where tsc does not allow them; Babel allows both outside every
     // function, as Prettier lets it.
     const SUPER: [u32; 2] = [2337, 2660];
     let span = rejected.diagnostic.span;
-    let script = (c.module.iter().chain(&c.instance)).find(|script| {
-        script.content.start_offset <= span.start_offset
-            && span.end_offset <= script.content.end_offset
-    })?;
+    let unknown = || Unsupported::at("code a module rejects", span);
+    let script = (c.module.iter().chain(&c.instance))
+        .find(|script| {
+            script.content.start_offset <= span.start_offset
+                && span.end_offset <= script.content.end_offset
+        })
+        .ok_or_else(unknown)?;
     let program = c.javascript.get_program(script.program);
-    let code = rejected.typescript_code?;
+    let code = rejected.typescript_code.ok_or_else(unknown)?;
     let throws = if in_typescript(script, source_text) {
         rsvelte_typescript_tree::typescript_estree_throws(code)
     } else if code == DUPLICATE_IDENTIFIER {
@@ -136,9 +131,9 @@ fn unparsed_script(
     } else if SUPER.contains(&code) {
         super_in_function(program, span.start_offset)
     } else {
-        rsvelte_typescript_tree::babel_typescript_throws(code)?
+        rsvelte_typescript_tree::babel_typescript_throws(code).ok_or_else(unknown)?
     };
-    Some(throws.then_some(script.content))
+    Ok(throws.then_some(script.content))
 }
 
 /// The body of a script `babel-ts` reads that has an `override` member in a class that extends

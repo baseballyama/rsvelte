@@ -94,9 +94,10 @@ pub fn babel_typescript_throws(code: u32) -> Option<bool> {
         .map(|&(_, _, throws)| throws)
 }
 
-/// Whether typescript-estree throws on an error of `code` that oxc's analysis reports: only on
-/// the errors tsc's parser reports and the ones typescript-eslint checks, as the others are the
-/// binder's and the checker's.
+/// Whether typescript-estree throws on an error of `code` that oxc's analysis reports.
+///
+/// It throws only on the errors tsc's parser reports and the ones typescript-eslint checks; the
+/// others are the binder's and the checker's.
 #[must_use]
 pub fn typescript_estree_throws(code: u32) -> bool {
     thrown(code)
