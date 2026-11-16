@@ -1,7 +1,6 @@
 use oxc_ast::ast::Expression;
 
 use super::Emitter;
-use crate::compilation::statements;
 use crate::template::CustomElementValues;
 
 impl<'o> Emitter<'_, 'o> {
@@ -43,7 +42,10 @@ impl<'o> Emitter<'_, 'o> {
             "createComponent",
             "createVaporApp",
         ]);
-        module.extend(statements(b, include_str!("custom_element.js")));
+        module.push(crate::compilation::prelude::marker(
+            b,
+            include_str!("custom_element.js"),
+        ));
         let element = b.call(
             b.id("$$custom_element"),
             [b.id("$$component"), b.object(fields)],

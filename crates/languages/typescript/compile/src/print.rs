@@ -3,7 +3,7 @@
 //! The corpus compares output as syntax trees, so the printer's layout is free.
 
 use oxc_ast::ast::Program;
-use oxc_codegen::{Codegen, CodegenOptions};
+use oxc_codegen::{Codegen, CodegenOptions, StatementExpansion};
 use rsvelte_kernel::output::emitter::{Emitter, Mapping};
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex};
 
@@ -26,6 +26,15 @@ fn printed<'a>(codegen: Codegen<'a>, program: &Program<'a>) -> oxc_codegen::Code
 #[must_use]
 pub fn print(program: &Program<'_>) -> String {
     printed(Codegen::new().with_options(options()), program).code
+}
+
+/// [`print()`], with the statements `expand` returns printed in place of a statement.
+#[must_use]
+pub fn print_expanding<'a>(program: &Program<'a>, expand: StatementExpansion<'a>) -> String {
+    let codegen = Codegen::new()
+        .with_options(options())
+        .with_statement_expansion(expand);
+    printed(codegen, program).code
 }
 
 /// Upstream's printer keeps a template literal's text as written, `</script` too.
