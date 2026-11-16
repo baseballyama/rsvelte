@@ -1634,6 +1634,7 @@ dependencies = [
  "oxc_diagnostics",
  "oxc_parser",
  "oxc_span",
+ "oxc_syntax",
  "rsvelte_kernel",
  "self_cell",
 ]
