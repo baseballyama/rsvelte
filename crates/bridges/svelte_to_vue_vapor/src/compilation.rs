@@ -10,7 +10,6 @@ use oxc_ast::ast::{
     PropertyKey, Statement, StringLiteral,
 };
 use oxc_span::{SPAN, SourceType};
-pub(crate) use prelude::statements;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::analyze::Analysis;

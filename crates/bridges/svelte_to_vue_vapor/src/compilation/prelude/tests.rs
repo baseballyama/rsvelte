@@ -1,7 +1,7 @@
 use oxc_ast::ast::{Expression, Statement};
 use rsvelte_typescript_compile::build::Builder;
 
-use super::{expand, expanded, marker, parsed, statements};
+use super::{expand, expanded, marker, parsed, remark};
 use crate::compilation::helpers;
 
 const SCRIPT: [&str; 9] = [
@@ -30,10 +30,23 @@ fn a_marker_expands_to_its_prelude_in_place() {
     let body = [b.const_("$$before", b.number(1.0)), marker(&b, source)];
     assert!(expand(&body[0]).is_none());
     let names: Vec<_> = expanded(&body).map(declared).collect();
-    let copied = statements(&b, source);
-    let prelude: Vec<_> = copied.iter().map(declared).collect();
+    let prelude: Vec<_> = parsed(source).iter().map(declared).collect();
     assert_eq!(names[0], "$$before");
     assert_eq!(names[1..], prelude[..]);
+}
+
+#[test]
+fn a_marker_copied_into_another_arena_marks_the_same_prelude() {
+    let (first, second) = (
+        oxc_allocator::Allocator::default(),
+        oxc_allocator::Allocator::default(),
+    );
+    let marked = marker(&Builder::new(&first), SCRIPT[3]);
+    let copied = remark(&Builder::new(&second), &marked).expect("a marker");
+    assert!(std::ptr::eq(
+        expand(&copied).expect("a marker"),
+        parsed(SCRIPT[3])
+    ));
 }
 
 #[test]
