@@ -5,7 +5,9 @@ function $$render() {
 
 ;
 
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {
+  return (/** @type {typeof __rsvelte_export_component<Partial<{
+    id: typeof id;
+  }>, {
     id: typeof id;
   }, "">} */ (__rsvelte_export_component))();
 }

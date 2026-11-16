@@ -39,7 +39,9 @@ function $$render() {
     }
     (a);
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {
+  return (/** @type {typeof __rsvelte_export_component<Partial<{
+    a: typeof a;
+  }>, {
     a: typeof a;
   }, "">} */ (__rsvelte_export_component))();
 }

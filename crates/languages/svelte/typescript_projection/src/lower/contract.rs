@@ -90,10 +90,8 @@ impl Builder<'_> {
             self.script_parts(script.content, &edits);
             self.scratch[generated_start..].rotate_right(1);
         }
-        let props = props.unwrap_or_else(|| {
-            // A name of the prelude's, which no `Record` of the component's own can shadow.
-            self.tree.push(Node::Identifier("__rsvelte_no_props"))
-        });
+        let props =
+            props.unwrap_or_else(|| self.props_without_rune(&exports, generics.asynchronous));
         let props = if self.has_default_slot() {
             let callee = self
                 .tree
@@ -490,6 +488,7 @@ impl Builder<'_> {
     }
 }
 
+mod legacy;
 mod props_alias;
 mod route;
 pub(super) use route::Route;
