@@ -73,4 +73,16 @@ fn each_script_the_plugin_s_parser_throws_on_is_kept_as_written() {
         crate::task::format(source_text, &Options::default()).expect("prints"),
         source_text
     );
+    // The compiler lets these pass. typescript-eslint throws on its own check of an initializer
+    // after `!` and of an ambient generator, and Babel on an optional accessor.
+    for source_text in [
+        "<script lang=\"ts\">\nlet x!: number = 1;\n</script>\n",
+        "<script lang=\"ts\">\ndeclare function* g(): void;\n</script>\n",
+        "<script>\n\tclass C {\n\t\taccessor x?: number;\n\t}\n</script>\n",
+    ] {
+        assert_eq!(
+            crate::task::format(source_text, &Options::default()).expect("prints"),
+            source_text
+        );
+    }
 }

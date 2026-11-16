@@ -52,7 +52,7 @@ fn a_line_comment_in_a_block_header_ends_its_line_inside_the_header() {
 
 // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1, whose typescript
 // parser lets each error pass.
-const RECOVERED: [(u32, &str, &str); 18] = [
+const RECOVERED: [(u32, &str, &str); 19] = [
     (
         1015,
         "function f(a?: number = 1) {}",
@@ -139,6 +139,11 @@ const RECOVERED: [(u32, &str, &str); 18] = [
         2681,
         "class C { constructor(this: C) {} }",
         "<script lang=\"ts\">\n  class C {\n    constructor(this: C) {}\n  }\n</script>\n",
+    ),
+    (
+        5085,
+        "type T = [...a?: string[]];",
+        "<script lang=\"ts\">\n  type T = [...a?: string[]];\n</script>\n",
     ),
     (
         18010,

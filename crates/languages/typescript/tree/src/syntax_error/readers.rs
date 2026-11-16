@@ -70,7 +70,7 @@ const BABEL_TYPESCRIPT: [(u32, Option<[Kind; 2]>, bool); 64] = [
     (1264, None, false),
     (1267, None, true),
     (1275, None, true),
-    (1308, None, true),
+    (1276, None, true),
     (1347, None, true),
     (1487, None, false),
     (1488, None, false),
@@ -107,14 +107,27 @@ pub fn typescript_estree_throws(code: u32) -> bool {
 /// Whether `babel-ts` throws on `error`, where `tokens` are the script's: for a code that depends
 /// on a pair of modifiers, the pair in the run of modifiers that holds the error.
 fn babel_typescript_throws_on(error: &SyntaxError, tokens: &[Recorded]) -> Option<bool> {
+    // `await` outside an async function; Babel reads `await (…)` there as a call, but not
+    // `for await (…)`.
+    const AWAIT_OUTSIDE_ASYNC: u32 = 1308;
     let code = error.typescript_code?;
+    let at = error.diagnostic.span.start_offset;
+    let index = || {
+        tokens
+            .iter()
+            .position(|token| token.span.start_offset == at)
+    };
+    if code == AWAIT_OUTSIDE_ASYNC {
+        let index = index()?;
+        let kind = |at: Option<usize>| at.and_then(|at| tokens.get(at)).and_then(|t| t.kind);
+        let call = kind(Some(index + 1)) == Some(Kind::LParen)
+            && kind(index.checked_sub(1)) != Some(Kind::For);
+        return Some(!call);
+    }
     if let Some(throws) = babel_typescript_throws(code) {
         return Some(throws);
     }
-    let at = error.diagnostic.span.start_offset;
-    let index = tokens
-        .iter()
-        .position(|token| token.span.start_offset == at)?;
+    let index = index()?;
     let modifier = |token: &Recorded| token.kind.is_some_and(Kind::is_modifier_kind);
     let start = index
         - tokens[..index]
@@ -147,7 +160,7 @@ impl Reader {
         self,
         tree: &Tree,
         program: ProgramIdentifier,
-        errors: &[SyntaxError],
+        errors: &[&SyntaxError],
         tokens: &[Recorded],
     ) -> Option<bool> {
         let codes = (errors.iter())
@@ -163,8 +176,9 @@ impl Reader {
                         || (TYPESCRIPT_ESLINT_UNCHECKED.iter())
                             .any(|number| number.parse() == Ok(code))
                 };
-                (codes.iter().all(|&code| passes(code)))
-                    .then(|| typescript_eslint_check(tree, errors, [program]).is_some())
+                (codes.iter().all(|&code| passes(code))).then(|| {
+                    typescript_eslint_check(tree, errors.iter().copied(), [program]).is_some()
+                })
             }
             Self::BabelTypescript => {
                 let verdicts: Vec<_> = (errors.iter())

@@ -93,8 +93,8 @@ struct Trees<'a> {
     rare: Option<Box<Rare>>,
     /// Behind a reference, so that it and the errors below take the place of one slice.
     unchecked: &'static &'static [&'static str],
-    /// The errors oxc reported in the parts that the host lets pass and typescript-eslint throws,
-    /// in order; boxed, as almost no document has one.
+    /// The errors oxc reported in the parts that the host lets pass, in order; boxed, as almost no
+    /// document has one.
     #[expect(
         clippy::box_collection,
         reason = "a thin pointer keeps every tree one word smaller"
@@ -232,7 +232,7 @@ impl Tree {
     }
 
     /// The syntax errors oxc reported in the parts that the host the builder read for lets pass,
-    /// that typescript-eslint checks itself, which [`typescript_eslint_check`] reads.
+    /// which another reader of them, such as typescript-eslint or Babel, may throw on.
     #[must_use]
     pub fn unchecked_errors(&self) -> &[SyntaxError] {
         self.0
