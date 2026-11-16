@@ -111,3 +111,34 @@ fn template_directives_keep_the_report_of_an_unused_javascript_directive() {
     let expected = stale("'no-undef'");
     assert_eq!(message(&found), [(UNUSED, 2, 7, expected.as_str())]);
 }
+
+// `ESLint` 10.14's `--fix` leaves these outputs, one pass each.
+#[test]
+fn javascript_removes_an_unused_directive_or_its_unused_names() {
+    let configuration = configuration("", LintSettings::default());
+    for (code, fixed) in [
+        (
+            "<script>\n/* eslint-disable no-undef, space-infix-ops */\nlet b;\n</script>\n",
+            "<script>\n \nlet b;\n</script>\n",
+        ),
+        (
+            "<script>\na; // eslint-disable-line no-undef, space-infix-ops -- why\n</script>\n",
+            "<script>\na; // eslint-disable-line no-undef -- why\n</script>\n",
+        ),
+        (
+            "<script>\na; // eslint-disable-line space-infix-ops , no-undef\n</script>\n",
+            "<script>\na; // eslint-disable-line no-undef\n</script>\n",
+        ),
+        (
+            "<script>\nlet b; // eslint-disable-line no-undef\n</script>\n",
+            "<script>\nlet b;  \n</script>\n",
+        ),
+    ] {
+        let found = super::lint_findings(code, &configuration);
+        assert_eq!(
+            rsvelte_lint_runner::finding::apply_fixes(code, &found),
+            fixed,
+            "{code}"
+        );
+    }
+}

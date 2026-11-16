@@ -12,6 +12,7 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
+use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 use serde_json::value::RawValue;
@@ -111,14 +112,17 @@ fn configuration(comment_directive: &str, settings: LintSettings) -> Configurati
 }
 
 /// `(rule, line, 1-based column, message)` of each finding.
-fn lint_with(code: &str, configuration: &Configuration) -> Vec<(String, u32, u32, String)> {
+fn lint_findings(code: &str, configuration: &Configuration) -> Vec<Finding> {
     let mut registry = Registry::new();
     crate::register_artifacts(&mut registry);
     let document = Document::new("test.svelte".to_owned(), code.to_owned()).expect("small");
     let context = DocumentContext::new(&document, registry.artifacts());
+    crate::lint(&context, configuration).expect("parses")
+}
+
+fn lint_with(code: &str, configuration: &Configuration) -> Vec<(String, u32, u32, String)> {
     let lines = LineIndex::new(code);
-    crate::lint(&context, configuration)
-        .expect("parses")
+    lint_findings(code, configuration)
         .into_iter()
         .map(|f| {
             let at = lines.line_column(f.diagnostic.span.start_offset);
