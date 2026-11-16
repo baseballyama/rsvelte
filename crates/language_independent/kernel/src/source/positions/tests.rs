@@ -124,3 +124,52 @@ fn a_line_span_leaves_out_the_terminator() {
     let newline = LineIndex::new(source_text);
     assert_eq!(newline.line_span(2).unwrap().text(source_text), "c\u{2028}");
 }
+
+#[test]
+fn a_cursor_agrees_with_the_index_on_any_order_of_offsets() {
+    let pieces = [
+        "a",
+        "bc",
+        "\n",
+        "\r\n",
+        "\r",
+        "é",
+        "😀",
+        "\u{2028}",
+        "x\u{2029}",
+        "    ",
+    ];
+    let mut state = 0x9E37_79B9_7F4A_7C15_u64;
+    let mut next = |n: u64| {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        state % n
+    };
+    for _ in 0..200 {
+        let text: String = (0..next(400)).map(|_| pieces[next(10) as usize]).collect();
+        let len = text.len() as u64;
+        for breaks in [LineBreaks::Newline, LineBreaks::Ecmascript] {
+            let index = LineIndex::with_breaks(&text, breaks);
+            for given in [Some(&index), None] {
+                let mut cursor = LineCursor::new(&text, breaks, given);
+                let mut at = 0_u64;
+                for _ in 0..300 {
+                    // Mostly small steps forward, sometimes a jump anywhere, past the end included.
+                    at = if next(8) == 0 {
+                        next(len + 2)
+                    } else {
+                        at + next(6)
+                    };
+                    let at = at as u32;
+                    let (want, got) = (index.line_column(at), cursor.line_column(at));
+                    assert_eq!(
+                        (got.line, got.column, got.character),
+                        (want.line, want.column, want.character),
+                        "{text:?} {breaks:?} at {at}"
+                    );
+                }
+            }
+        }
+    }
+}

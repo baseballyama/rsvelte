@@ -14,11 +14,14 @@ fn throws(reader: Reader, text: &str) -> Option<bool> {
         Ok((rejected.recovered.expect(text), rejected.errors, tokens))
     })
     .expect(text);
+    let errors: Vec<_> = errors.iter().collect();
     reader.throws(&tree, program, &errors, &tokens)
 }
 
 // What Prettier 3.9.10 does with each sample, with its `typescript` and `babel-ts` parsers.
-const SAMPLES: [(&str, bool, Option<bool>); 32] = [
+const SAMPLES: [(&str, bool, Option<bool>); 34] = [
+    ("class A { x = await f(); }", false, Some(true)),
+    ("class A { x = await (f()); }", false, Some(false)),
     ("function f(a?: number = 1) {}", false, Some(false)),
     ("function f(a?: number, b: number) {}", false, Some(false)),
     ("class K { readonly m() {} }", true, Some(true)),

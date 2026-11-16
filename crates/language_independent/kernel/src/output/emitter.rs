@@ -3,7 +3,7 @@
 //! An output buffer that records where each piece came from, source map v3 encoding, and reverse
 //! lookup (generated → original, for mapping diagnostics of a generated file back).
 
-use crate::source::positions::{LineIndex, Span};
+use crate::source::positions::{LineBreaks, LineCursor, LineIndex, Span};
 
 /// `len > 0`: `len` bytes copied verbatim from `source_text`, so offsets inside map 1:1.
 /// `len == 0`: a point mapping (the generated position corresponds to `source_text`).
@@ -209,10 +209,13 @@ impl Emitter {
     }
 
     /// Encodes the mappings as a source map v3 JSON document, one segment per mapped character.
-    /// `source` indexes the original text; a document's is cached in its `DocumentContext`.
+    /// `source` indexes `source_text` by [`LineBreaks::Newline`]; a document's is cached in its
+    /// `DocumentContext`.
     #[must_use]
-    pub fn source_map(&self, source: &LineIndex, source_name: &str) -> String {
-        let gen_index = LineIndex::new(&self.out);
+    pub fn source_map(&self, source_text: &str, source: &LineIndex, source_name: &str) -> String {
+        // The points come in generated order, so the output is read once and never indexed.
+        let mut generated_cursor = LineCursor::new(&self.out, LineBreaks::Newline, None);
+        let mut source_cursor = LineCursor::new(source_text, LineBreaks::Newline, Some(source));
         let mut json = String::from("{\"version\":3,\"sources\":[");
         crate::output::structured_data::write_string(&mut json, source_name);
         // The mappings are base64 digits, commas and semicolons, which JSON writes unescaped.
@@ -224,9 +227,9 @@ impl Emitter {
             mut prev_source_text_column,
         ) = (1u32, 0i64, 0i64, 0i64);
         let mut first_in_line = true;
-        self.points(|generated, source_text| {
-            let g = gen_index.line_column(generated);
-            let s = source.line_column(source_text);
+        self.points(|generated, original| {
+            let g = generated_cursor.line_column(generated);
+            let s = source_cursor.line_column(original);
             while prev_gen_line < g.line {
                 json.push(';');
                 prev_gen_line += 1;

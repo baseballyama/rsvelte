@@ -4913,3 +4913,21 @@
 
 ["svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte".skip]
 "svelte.check" = "checker: TS 7's lib.dom gives HTMLElement one more member than TS 6's, so a message counting its missing properties says 316 where TS 6 says 315"
+
+["svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_not_check_are_not_parse_errors/3fbf11608512c3ee.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+
+["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/0c496554d8d17116.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+
+["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/1cd3a29251cd502b.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+
+["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/3a060750f3a359a4.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+
+["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/fac06b787974b4dc.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+
+["svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/fd297002503b61c4.svelte".skip]
+"svelte.format" = "oxc ast: AccessorProperty has no `optional` modifier, so oxc cannot print `accessor x?: number`, which Prettier 3.9.10 keeps"

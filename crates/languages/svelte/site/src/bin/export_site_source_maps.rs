@@ -87,7 +87,11 @@ fn main() -> ExitCode {
     }
     w.end_array()
         .key("source_map")
-        .write_string(&e.source_map(context.lines(LineBreaks::Newline), name))
+        .write_string(&e.source_map(
+            context.source_text(),
+            context.lines(LineBreaks::Newline),
+            name,
+        ))
         .end_object();
     print!("{}", w.finish());
     ExitCode::SUCCESS
