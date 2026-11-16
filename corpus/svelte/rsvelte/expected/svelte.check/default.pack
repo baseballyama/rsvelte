@@ -4108,118 +4108,6 @@
 === 3 lint/no-useless-children-snippet/05-svelte-component.svelte	json
 []
 
-=== 1615 lint/no-useless-children-snippet/06-boundary-and-self.svelte	json
-[
-	{
-		"code": 17008,
-		"message": "JSX element 'svelte:self' has no corresponding closing tag.",
-		"start": {
-			"line": 6,
-			"character": 2
-		},
-		"end": {
-			"line": 6,
-			"character": 13
-		}
-	},
-	{
-		"code": 1109,
-		"message": "Expression expected.",
-		"start": {
-			"line": 6,
-			"character": 13
-		},
-		"end": {
-			"line": 6,
-			"character": 13
-		}
-	},
-	{
-		"code": 1005,
-		"message": "'}' expected.",
-		"start": {
-			"line": 7,
-			"character": 19
-		},
-		"end": {
-			"line": 7,
-			"character": 20
-		}
-	},
-	{
-		"code": 1382,
-		"message": "Unexpected token. Did you mean `{'>'}` or `&gt;`?",
-		"start": {
-			"line": 7,
-			"character": 19
-		},
-		"end": {
-			"line": 7,
-			"character": 20
-		}
-	},
-	{
-		"code": 1005,
-		"message": "'}' expected.",
-		"start": {
-			"line": 9,
-			"character": 2
-		},
-		"end": {
-			"line": 9,
-			"character": 3
-		}
-	},
-	{
-		"code": 1381,
-		"message": "Unexpected token. Did you mean `{'}'}` or `&rbrace;`?",
-		"start": {
-			"line": 9,
-			"character": 2
-		},
-		"end": {
-			"line": 9,
-			"character": 3
-		}
-	},
-	{
-		"code": 1381,
-		"message": "Unexpected token. Did you mean `{'}'}` or `&rbrace;`?",
-		"start": {
-			"line": 9,
-			"character": 2
-		},
-		"end": {
-			"line": 9,
-			"character": 3
-		}
-	},
-	{
-		"code": 1381,
-		"message": "Unexpected token. Did you mean `{'}'}` or `&rbrace;`?",
-		"start": {
-			"line": 10,
-			"character": 2
-		},
-		"end": {
-			"line": 10,
-			"character": 15
-		}
-	},
-	{
-		"code": 1381,
-		"message": "Unexpected token. Did you mean `{'}'}` or `&rbrace;`?",
-		"start": {
-			"line": 11,
-			"character": 0
-		},
-		"end": {
-			"line": 11,
-			"character": 5
-		}
-	}
-]
-
 === 3 lint/no-useless-children-snippet/07-non-element-parents.svelte	json
 []
 
@@ -4894,34 +4782,6 @@
 
 === 3 lint/require-each-key/12-multiline-header.svelte	json
 []
-
-=== 353 lint/require-each-key/13-key-expression-forms.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 16,
-			"character": 24
-		},
-		"end": {
-			"line": 16,
-			"character": 27
-		}
-	},
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 16,
-			"character": 33
-		},
-		"end": {
-			"line": 16,
-			"character": 34
-		}
-	}
-]
 
 === 3 lint/require-each-key/14-rest-and-default-patterns.svelte	json
 []
@@ -8339,34 +8199,6 @@
 === 3 pattern/issues/3160-special-host-block-child.svelte	json
 []
 
-=== 314 pattern/issues/3164-on-directive-inner-init.svelte	json
-[
-	{
-		"code": 1003,
-		"message": "Identifier expected.",
-		"start": {
-			"line": 8,
-			"character": 46
-		},
-		"end": {
-			"line": 8,
-			"character": 47
-		}
-	},
-	{
-		"code": 1005,
-		"message": "'{' expected.",
-		"start": {
-			"line": 8,
-			"character": 48
-		},
-		"end": {
-			"line": 8,
-			"character": 49
-		}
-	}
-]
-
 === 3 pattern/issues/3166-ancestor-scoped-by-other-rule.svelte	json
 []
 
@@ -8617,46 +8449,6 @@
 
 === 3 pattern/issues/3199-grammar-import-defer.svelte	json
 []
-
-=== 517 pattern/issues/3199-grammar-import-source.svelte	json
-[
-	{
-		"code": 8002,
-		"message": "'import ... =' can only be used in TypeScript files.",
-		"start": {
-			"line": 1,
-			"character": 1
-		},
-		"end": {
-			"line": 1,
-			"character": 22
-		}
-	},
-	{
-		"code": 1005,
-		"message": "'=' expected.",
-		"start": {
-			"line": 1,
-			"character": 15
-		},
-		"end": {
-			"line": 1,
-			"character": 21
-		}
-	},
-	{
-		"code": 1434,
-		"message": "Unexpected keyword or identifier.",
-		"start": {
-			"line": 1,
-			"character": 22
-		},
-		"end": {
-			"line": 1,
-			"character": 26
-		}
-	}
-]
 
 === 3 pattern/issues/3199-grammar-legal.svelte	json
 []

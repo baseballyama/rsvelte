@@ -4290,6 +4290,7 @@
 
 ["svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser places the end tag of a `<textarea>` at its last `</textarea`, where Svelte ends the content at the first"
+"svelte.check" = "upstream bug: svelte2tsx removes a `<textarea>` end tag from its last `</textarea`, where Svelte starts it at a `</textarea` followed by whitespace, so it leaves the rest in its TSX and svelte-check reports it as JSX"
 
 ["svelte/appwrite-console/src/lib/components/billing/planSelection.svelte".skip]
 "svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
@@ -4993,3 +4994,15 @@
 
 ["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/a_textarea_closer_keeps_taking_everything_up_to_the_bracket/8c8524746c866ada.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx removes an end tag only when the text between `</` and `>` is the element's name, so it leaves `</textarea x>` in its TSX and svelte-check reports syntax errors in a component Svelte compiles"
+
+["svelte/rsvelte/lint/require-each-key/13-key-expression-forms.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid object literal reads as a block and reports syntax errors"
+
+["svelte/rsvelte/pattern/issues/3164-on-directive-inner-init.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies an `on:` handler by its expression's range, which leaves out the parentheses of a sequence expression, so `(f(1), f(2))` becomes two properties and svelte-check reports syntax errors"
+
+["svelte/rsvelte/lint/no-useless-children-snippet/06-boundary-and-self.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx leaves the start tag of a `<svelte:self>` with a snippet child in its TSX, so svelte-check reports it as an unclosed JSX element"
+
+["svelte/rsvelte/pattern/issues/3199-grammar-import-source.svelte".skip]
+"svelte.check" = "checker: TS 6 reads `import source x from` as a malformed `import ... =`, which TS 7 parses"
