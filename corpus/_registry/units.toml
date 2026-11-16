@@ -2462,19 +2462,24 @@
 "svelte.compile" = "upstream bug: runes mode does not report `const_tag_cycle`: the client reads `b` in `a`'s derived before `b` is declared, and the server emits `const a = b; const b = a;`, which throws"
 
 ["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/expression_then_text_keeps_the_whole_value/c9f317fe9e598e4e.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 keeps only the first chunk of a `this` of text and expressions, as Svelte 5.57.3 reads it, so it deletes code"
 "svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
 
 ["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/single_quoted_value_with_an_expression_keeps_the_whole_value/d364396ec9b25275.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 keeps only the first chunk of a `this` of text and expressions, as Svelte 5.57.3 reads it, so it deletes code"
 "svelte.lint" = "upstream bug: svelte-eslint-parser reads a quoted <svelte:element> this value that holds a {...} as a static attribute that ends inside the value"
 "svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
 
 ["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/text_then_expression_keeps_the_whole_value/3a8bc92bcc84cfb8.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 keeps only the first chunk of a `this` of text and expressions, as Svelte 5.57.3 reads it, so it deletes code"
 "svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
 
 ["svelte/svelte/packages/svelte/tests/migrate/samples/svelte-element/input.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 keeps only the first chunk of a `this` of text and expressions, as Svelte 5.57.3 reads it, so it deletes code"
 "svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
 
 ["svelte/svelte/packages/svelte/tests/migrate/samples/svelte-element/output.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 keeps only the first chunk of a `this` of text and expressions, as Svelte 5.57.3 reads it, so it deletes code"
 "svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
 
 ["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte".skip]

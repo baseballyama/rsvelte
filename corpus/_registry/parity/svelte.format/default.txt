@@ -538,9 +538,6 @@ svelte/rsvelte-tests-formatter/prettier_ignore/prose_wraps_across_ignored_inline
 svelte/rsvelte-tests-formatter/prettier_ignore/prose_wraps_across_ignored_inline_node/e8e85bc6930d4424.svelte	mismatch
 svelte/rsvelte-tests-formatter/style_block/a_tab_indented_body_never_mixes_tabs_into_the_block_indent/1df5e59116f7f0aa.svelte	refused
 svelte/rsvelte-tests-formatter/style_block/tab_and_space_indented_bodies_format_identically/43b565c81ef722ff.svelte	refused
-svelte/rsvelte-tests-formatter/svelte_element_this_chunks/expression_then_text_keeps_the_whole_value/c9f317fe9e598e4e.svelte	refused
-svelte/rsvelte-tests-formatter/svelte_element_this_chunks/single_quoted_value_with_an_expression_keeps_the_whole_value/d364396ec9b25275.svelte	refused
-svelte/rsvelte-tests-formatter/svelte_element_this_chunks/text_then_expression_keeps_the_whole_value/3a8bc92bcc84cfb8.svelte	refused
 svelte/rsvelte-tests-formatter/typescript/reflow_does_not_touch_block_comment_with_sibling_as_union/34f277beb33d1857.svelte	mismatch
 svelte/rsvelte-tests-formatter/typescript/reflow_does_not_touch_template_literal_with_sibling_as_union/fa29eee57d07af16.svelte	mismatch
 svelte/rsvelte-tests-formatter/typescript/script_block_as_union_keeps_oxc_leading_pipe/3499973b5f4b77b2.svelte	mismatch
@@ -752,8 +749,6 @@ svelte/svelte-ux/packages/svelte-ux/src/routes/+page.svelte	mismatch
 svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/TableOfContents/+page.svelte	mismatch
 svelte/svelte/packages/svelte/tests/css/samples/comment-html/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/hydration/samples/claim-text/Layout.svelte	mismatch
-svelte/svelte/packages/svelte/tests/migrate/samples/svelte-element/input.svelte	refused
-svelte/svelte/packages/svelte/tests/migrate/samples/svelte-element/output.svelte	refused
 svelte/svelte/packages/svelte/tests/parser-modern/samples/comment-before-function-binding/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/empty-block/input.svelte	mismatch
 svelte/sveltepress/packages/theme-default/src/components/GlobalLayout.svelte	mismatch
