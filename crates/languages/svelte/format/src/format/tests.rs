@@ -470,8 +470,18 @@ fn a_script_babel_rejects_is_kept_as_written_and_the_rest_formatted() {
         format!("{script}\n<p>{{x}}</p>\n")
     );
     assert_eq!(
-        refusal("<script>\n\tlet a; let a;\n</script>\n<p>x</p>\n").0,
-        "code a module rejects"
+        formatted("<script>\n\tlet a; let a;\n</script>\n<p>x</p>\n"),
+        "<script>\n  let a;\n  let a;\n</script>\n\n<p>x</p>\n"
+    );
+    // Babel allows `super` outside every function, and not in one that is no method.
+    let script = "<script>\n\tclass C extends B { m() { return function () { super.m(); }; } }\n\tlet   x =  1\n</script>\n";
+    assert_eq!(
+        formatted(&format!("{script}<p>{{x}}</p>\n")),
+        format!("{script}\n<p>{{x}}</p>\n")
+    );
+    assert_eq!(
+        formatted("<script>\n\tsuper.m();\n\tlet   x =  1\n</script>\n<p>{x}</p>\n"),
+        "<script>\n  super.m();\n  let x = 1;\n</script>\n\n<p>{x}</p>\n"
     );
     // Babel no longer reads `assert` import attributes; Prettier's TypeScript parser does.
     let script = "<script>\n\timport d from './d.json' assert { type: 'json' };\n</script>\n";
@@ -485,9 +495,14 @@ fn a_script_babel_rejects_is_kept_as_written_and_the_rest_formatted() {
         ),
         "<script lang=\"ts\">\n  import d from \"./d.json\" assert { type: \"json\" };\n</script>\n"
     );
-    // Prettier's TypeScript parser recovers, and the port does not know what it prints.
+    // tsc's checker reports the error, which typescript-estree does not ask for.
     assert_eq!(
-        refusal("<script lang=\"ts\">\n\tfunction f() { continue; }\n</script>\n<p>x</p>\n").0,
+        formatted("<script lang=\"ts\">\n\tfunction f() { continue; }\n</script>\n<p>x</p>\n"),
+        "<script lang=\"ts\">\n  function f() {\n    continue;\n  }\n</script>\n\n<p>x</p>\n"
+    );
+    // A name declared twice in the template, which the plugin's parser does not check.
+    assert_eq!(
+        refusal("{#each xs as x}{@const a = x}{@const a = x}{/each}\n").0,
         "code a module rejects"
     );
 }

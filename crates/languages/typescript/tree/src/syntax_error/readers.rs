@@ -19,7 +19,7 @@ pub enum Reader {
 
 /// tsc's codes of errors oxc or the analysis reports, and whether `babel-ts` throws on each, as
 /// Prettier 3.9.10 does. Where that depends on a pair of modifiers, the pair is in source order.
-const BABEL_TYPESCRIPT: [(u32, Option<[Kind; 2]>, bool); 50] = [
+const BABEL_TYPESCRIPT: [(u32, Option<[Kind; 2]>, bool); 63] = [
     (1015, None, false),
     (1016, None, false),
     (1024, None, true),
@@ -36,12 +36,19 @@ const BABEL_TYPESCRIPT: [(u32, Option<[Kind; 2]>, bool); 50] = [
     (1095, None, false),
     (1096, None, true),
     (1098, None, true),
+    (1100, None, false),
+    (1101, None, false),
+    (1102, None, false),
     (1104, None, true),
     (1105, None, true),
     (1107, None, true),
+    (1111, None, false),
     (1114, None, true),
+    (1117, None, true),
+    (1121, None, false),
     (1147, None, true),
     (1194, None, true),
+    (1212, None, false),
     (1221, None, false),
     (1222, None, false),
     (1243, Some([Kind::Abstract, Kind::Async]), false),
@@ -55,6 +62,8 @@ const BABEL_TYPESCRIPT: [(u32, Option<[Kind; 2]>, bool); 50] = [
     (1243, Some([Kind::Private, Kind::Abstract]), false),
     (1243, Some([Kind::Readonly, Kind::Accessor]), false),
     (1243, Some([Kind::Static, Kind::Abstract]), true),
+    (1244, None, false),
+    (1253, None, false),
     (1257, None, true),
     (1263, None, false),
     (1264, None, false),
@@ -62,14 +71,18 @@ const BABEL_TYPESCRIPT: [(u32, Option<[Kind; 2]>, bool); 50] = [
     (1275, None, true),
     (1308, None, true),
     (1347, None, true),
+    (1487, None, false),
+    (1488, None, false),
     (2335, None, true),
     (2337, None, true),
     (2368, None, false),
+    (2392, None, false),
     (2523, None, true),
     (2524, None, true),
     (2681, None, false),
     (18010, None, true),
     (18011, None, true),
+    (18037, None, true),
 ];
 
 /// Whether `babel-ts` throws on an error of `code`, whatever the modifiers; `None` where that is
@@ -79,6 +92,14 @@ pub fn babel_typescript_throws(code: u32) -> Option<bool> {
     (BABEL_TYPESCRIPT.iter())
         .find(|(number, pair, _)| *number == code && pair.is_none())
         .map(|&(_, _, throws)| throws)
+}
+
+/// Whether typescript-estree throws on an error of `code` that oxc's analysis reports: only on
+/// the errors tsc's parser reports and the ones typescript-eslint checks, as the others are the
+/// binder's and the checker's.
+#[must_use]
+pub fn typescript_estree_throws(code: u32) -> bool {
+    thrown(code)
 }
 
 /// Whether `babel-ts` throws on `error`, where `tokens` are the script's: for a code that depends
