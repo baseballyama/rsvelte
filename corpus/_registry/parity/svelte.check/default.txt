@@ -1,4 +1,4 @@
-# svelte.check/default: 34979 match
+# svelte.check/default: 34980 match
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte	mismatch
 svelte/appwrite-console/src/routes/(public)/auth/preview/+page.svelte	mismatch
@@ -14,7 +14,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/input.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/pug/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/transition-options/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ts-ignore-attribute.v5/input.svelte	mismatch

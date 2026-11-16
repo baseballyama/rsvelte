@@ -11,8 +11,6 @@ use super::{Prepared, TypeScriptDiagnostic};
 const NO_OVERLOAD_MATCHES_CALL: u32 = 2769;
 const ARGUMENT_NOT_ASSIGNABLE: u32 = 2345;
 const USED_BEFORE_ASSIGNED: u32 = 2454;
-const MULTIPLE_PROPERTIES_OF_A_NAME: u32 = 1117;
-const DUPLICATE_IDENTIFIER: u32 = 2300;
 
 /// A finding located in its document, with what orders it.
 struct Finding {
@@ -87,13 +85,8 @@ pub(super) fn write_findings(
         {
             continue;
         }
-        // svelte-check's `isNoFalsePositive`: a name an element gives twice is two of
-        // svelte2tsx's properties.
         if let Some(span) = mapped
-            && (f.code == MULTIPLE_PROPERTIES_OF_A_NAME || f.code == DUPLICATE_IDENTIFIER)
-            && d.element_names
-                .iter()
-                .any(|name| (name.start_offset..=name.end_offset).contains(&span.start_offset))
+            && d.hidden.iter().any(|hidden| hidden.hides(f.code, span))
         {
             continue;
         }

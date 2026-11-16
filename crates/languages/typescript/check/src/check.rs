@@ -146,10 +146,27 @@ pub enum TypeScriptDocument {
         /// Each Svelte store by its name's range, with where the component reads `$store`:
         /// svelte-check reports a store that is no store at each of those reads.
         store_reads: Vec<(Span, Vec<Span>)>,
-        /// The names of the attributes and event handlers of the document's elements, where
-        /// svelte-check hides TypeScript's findings of a name given twice.
-        element_names: Vec<Span>,
+        /// The findings svelte-check hides.
+        hidden: Vec<Hidden>,
     },
+}
+
+/// Findings svelte-check hides: of `codes`, or of any code when it is empty, that start in `at`
+/// and, when `whole`, end in it too; both ends count.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Hidden {
+    pub codes: &'static [u32],
+    pub at: Span,
+    pub whole: bool,
+}
+
+impl Hidden {
+    fn hides(&self, code: u32, span: Span) -> bool {
+        let inside = |at: u32| (self.at.start_offset..=self.at.end_offset).contains(&at);
+        (self.codes.is_empty() || self.codes.contains(&code))
+            && inside(span.start_offset)
+            && (!self.whole || inside(span.end_offset))
+    }
 }
 
 /// What a language adds to the checked project besides its documents.
@@ -308,7 +325,7 @@ struct Prepared {
     extension: &'static str,
     imports: Vec<(Span, String)>,
     store_reads: Vec<(Span, Vec<Span>)>,
-    element_names: Vec<Span>,
+    hidden: Vec<Hidden>,
 }
 
 impl FinishTask for Check {
@@ -372,7 +389,7 @@ impl FinishTask for Check {
                 extension,
                 imports,
                 store_reads,
-                element_names,
+                hidden,
             }) => Some(Box::new(Prepared {
                 path: context.document.path.clone(),
                 projection: Emitter {
@@ -386,7 +403,7 @@ impl FinishTask for Check {
                 extension,
                 imports: imports.clone(),
                 store_reads: store_reads.clone(),
-                element_names: element_names.clone(),
+                hidden: hidden.clone(),
             })),
         }
     }
