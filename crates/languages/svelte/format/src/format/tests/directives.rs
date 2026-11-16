@@ -45,7 +45,7 @@ fn a_regular_expression_or_a_bigint_default_in_a_block_pattern_prints_as_written
 }
 
 #[test]
-fn a_stylesheet_the_css_parser_rejects_prints_as_written() {
+fn a_stylesheet_the_parser_rejects_prints_as_written() {
     // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1, whose postcss
     // throws on these too.
     for (input, expected) in [
