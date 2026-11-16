@@ -1,4 +1,4 @@
-# svelte.check/default: 35011 match
+# svelte.check/default: 35013 match
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events-usage/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots-usage/input.svelte	mismatch
@@ -9,8 +9,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/35efd90757e6abdb.svelte	mismatch
-svelte/rsvelte-tests-core-2/import_export_parser_shapes/javascript_stamps_no_export_kind_on_a_default_export/dc3ff104ae7b3006.svelte	unexpected
-svelte/rsvelte-tests-core-2/import_export_parser_shapes/typescript_stamps_an_export_kind_on_a_default_export/dc1ebbb91be96717.svelte	unexpected
 svelte/rsvelte-tests-core-2/malformed_snippet_header/balanced_literals_and_comments_in_a_header_compile/877d2d02e603fddb.svelte	mismatch
 svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/05b2487cbe722987.svelte	mismatch
 svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/0987dd6e6407d320.svelte	mismatch
