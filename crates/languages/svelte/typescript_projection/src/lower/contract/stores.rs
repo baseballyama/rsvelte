@@ -77,6 +77,23 @@ impl Builder<'_> {
                 .collect();
             let program = self.component.javascript.get_program(script.program);
             self.type_assertions(program, &mut edits);
+            // Without an instance script, svelte2tsx moves root snippets after the imports.
+            if self.component.instance.is_none()
+                && let Some(snippets) = self.module_snippets.take()
+            {
+                let at = (program.body.iter())
+                    .rfind(|statement| {
+                        matches!(statement, oxc_ast::ast::Statement::ImportDeclaration(_))
+                    })
+                    .map_or(script.content.start_offset, |import| {
+                        span(import.span()).end_offset
+                    });
+                edits.push(Edit {
+                    span: Span::new(at, at),
+                    replacement: Some(snippets),
+                });
+                edits.sort_by_key(|edit| edit.span.start_offset);
+            }
             self.script_parts(script.content, &edits);
         }
         let render_start = self.scratch.len();
