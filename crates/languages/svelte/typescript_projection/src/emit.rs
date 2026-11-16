@@ -226,10 +226,15 @@ impl Printer<'_> {
                 }
                 self.output.atom_since(start, span);
             }
-            Node::Located { value, at } => match self.tree.node(value) {
-                Node::Object { properties } => self.object(properties, Some(at)),
-                _ => self.node(value),
-            },
+            Node::Located { value, at } => {
+                if let Node::Object { properties } = self.tree.node(value) {
+                    self.object(properties, Some(at));
+                } else {
+                    let start = self.output.out.len() as u32;
+                    self.node(value);
+                    self.output.atom_since(start, at);
+                }
+            }
             Node::StoreSubscription(store) => self.store_subscription(store),
             Node::GeneratedIdentifier { prefix, index } => {
                 self.node(prefix);

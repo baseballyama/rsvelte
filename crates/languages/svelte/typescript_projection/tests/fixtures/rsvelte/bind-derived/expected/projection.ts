@@ -33,13 +33,15 @@ function $$render() {
       };
     }
     {
-      __rsvelte_component(C)(__rsvelte_internals(), {
+      const __rsvelte_component_0 = __rsvelte_component(C);
+      __rsvelte_component_0(__rsvelte_internals(), {
         "value": e,
       });
       () => {
         // @ts-ignore
         e = __rsvelte_untyped_prop();
       };
+      __rsvelte_bindings(__rsvelte_component_0).$$bindings = "value";
     }
     {
       d = svelteHTML.createElement("div", {});

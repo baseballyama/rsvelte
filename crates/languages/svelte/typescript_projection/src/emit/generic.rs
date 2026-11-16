@@ -41,10 +41,16 @@ impl Printer<'_> {
             arguments,
             ">['props']>): ReturnType<__rsvelte_Render<",
             arguments,
-            ">['exports']>; element?: typeof HTMLElement; z_$$bindings?: any; }\nconst ",
+            ">['exports']>; element?: typeof HTMLElement; z_$$bindings?: \
+                NonNullable<Awaited<ReturnType<typeof $$render<",
         ] {
             self.output.push(part);
         }
+        // svelte2tsx's `__sveltets_Render<any>`: the bindings of any instantiation.
+        for index in 0..self.tree.children(names).len() {
+            self.output.push(if index == 0 { "any" } else { ", any" });
+        }
+        self.output.push(">>>['__rsvelte_bindings']>; }\nconst ");
         self.component_name();
         self.output
             .push(": __rsvelte_generic_component = null as any;\n// @ts-ignore\ntype ");

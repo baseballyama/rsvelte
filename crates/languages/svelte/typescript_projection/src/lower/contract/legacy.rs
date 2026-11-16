@@ -6,14 +6,14 @@ use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
 use super::super::{Builder, Node, NodeIdentifier};
 
 impl Builder<'_> {
-    /// svelte2tsx's props of a component without `$props()`: outside runes mode, each export is
-    /// an optional prop; otherwise, or without exports, it takes none.
+    /// svelte2tsx's props of a component without `$props()`: outside `runes` mode, each export
+    /// is an optional prop; otherwise, or without exports, it takes none.
     pub(super) fn props_without_rune(
         &mut self,
         exports: &[NodeIdentifier],
-        asynchronous: bool,
+        runes: bool,
     ) -> NodeIdentifier {
-        if exports.is_empty() || self.runes_mode(asynchronous) {
+        if exports.is_empty() || runes {
             // A name of the prelude's, which no `Record` of the component's own can shadow.
             return self.tree.push(Node::Identifier("__rsvelte_no_props"));
         }
@@ -26,7 +26,7 @@ impl Builder<'_> {
 
     /// svelte2tsx's runes mode of a component without `$props()`: it reads `$state`, `$derived`
     /// or `$effect`, awaits at the top level, or `<svelte:options runes>` says so.
-    fn runes_mode(&self, asynchronous: bool) -> bool {
+    pub(super) fn runes_mode(&self, asynchronous: bool) -> bool {
         asynchronous
             || self.runes_option()
             || (self.resolution)().is_some_and(|resolution| {

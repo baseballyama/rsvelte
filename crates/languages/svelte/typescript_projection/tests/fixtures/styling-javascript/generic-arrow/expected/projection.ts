@@ -10,7 +10,7 @@ function $$render() {
       });
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
 }
 const GenericArrow__SvelteComponent_ = $$render();
 type GenericArrow__SvelteComponent_ = ReturnType<typeof GenericArrow__SvelteComponent_>;

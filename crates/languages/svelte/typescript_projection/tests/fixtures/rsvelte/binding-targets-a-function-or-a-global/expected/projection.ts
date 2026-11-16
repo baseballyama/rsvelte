@@ -43,7 +43,7 @@ function $$render() {
     a: typeof a;
   }>, {
     a: typeof a;
-  }, "">} */ (__rsvelte_export_component))();
+  }, string>} */ (__rsvelte_export_component))();
 }
 const BindingTargetsAFunctionOrAGlobal__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof BindingTargetsAFunctionOrAGlobal__SvelteComponent_>} */ (BindingTargetsAFunctionOrAGlobal__SvelteComponent_);

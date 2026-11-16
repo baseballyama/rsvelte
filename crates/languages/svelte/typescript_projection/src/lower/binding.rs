@@ -315,4 +315,21 @@ impl Builder<'_> {
                 .push(self.tree.push(Node::Statement(statement)));
         }
     }
+
+    /// svelte2tsx's `component.$$bindings = "name"` for each of `bindable`, whose finding
+    /// svelte-check moves onto the directive.
+    pub(super) fn bindable_checks(&mut self, component: NodeIdentifier, bindable: &[(Span, Span)]) {
+        for &(name, at) in bindable {
+            let callee = self.tree.push(Node::Identifier("__rsvelte_bindings"));
+            let arguments = self.tree.list(&[component]);
+            let object = self.tree.push(Node::Call { callee, arguments });
+            let property = self.tree.push(Node::Identifier("$$bindings"));
+            let value = self.tree.push(Node::Member { object, property });
+            let target = self.tree.push(Node::Located { value, at });
+            let value = self.tree.push(Node::QuotedText(name));
+            let assignment = self.tree.push(Node::Assignment { target, value });
+            self.scratch
+                .push(self.tree.push(Node::Statement(assignment)));
+        }
+    }
 }

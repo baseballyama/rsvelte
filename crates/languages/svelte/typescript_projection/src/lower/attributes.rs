@@ -1,7 +1,7 @@
 //! The attributes and directives of one element, a component or a slot, before its call.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, Range};
+use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range};
 
 use super::binding::Binding;
 use super::directive::Directives;
@@ -38,6 +38,14 @@ impl Host {
 }
 
 impl Builder<'_> {
+    /// The prop and the directive of a component's `bind:`, which svelte2tsx checks is bindable.
+    fn bindable(&self, host: &Host, attribute: &Attribute) -> Option<(Span, Span)> {
+        let name = attribute
+            .directive_name(&self.component.modifiers)
+            .filter(|name| host.is_component() && name.text(self.source) != "this")?;
+        Some((name, attribute.span))
+    }
+
     /// Pushes the properties, collects the directives, and returns the bindings.
     pub(super) fn element_attributes(
         &mut self,
@@ -53,6 +61,7 @@ impl Builder<'_> {
         for attribute in self.component.attributes(attributes) {
             match attribute.kind {
                 AttributeKind::Bind => {
+                    directives.bindable.extend(self.bindable(host, attribute));
                     bindings.push(self.binding(
                         attribute,
                         tag,

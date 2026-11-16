@@ -15,7 +15,7 @@ function $$render() {
       });
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
 }
 const DynamicElementIsAttribute__SvelteComponent_ = $$render();
 type DynamicElementIsAttribute__SvelteComponent_ = ReturnType<typeof DynamicElementIsAttribute__SvelteComponent_>;

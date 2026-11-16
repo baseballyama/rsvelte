@@ -434,6 +434,7 @@ impl Builder<'_> {
                 properties,
                 snippets,
                 !directives.events.is_empty()
+                    || !directives.bindable.is_empty()
                     || !directives.lets.is_empty()
                     || self.fills_slot_with_lets(children),
             )
@@ -493,6 +494,9 @@ impl Builder<'_> {
         self.scratch.extend(directives.slot_let);
         self.scratch.extend_from_slice(&directives.actions);
         self.bound_call(call, bindings);
+        if let Some(component) = named {
+            self.bindable_checks(component, &directives.bindable);
+        }
         self.scratch.extend_from_slice(&directives.checks);
         let component = named?;
         self.component_events(component, &directives.events);

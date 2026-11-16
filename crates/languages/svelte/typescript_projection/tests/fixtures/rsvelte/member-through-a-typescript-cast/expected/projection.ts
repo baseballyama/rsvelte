@@ -19,7 +19,7 @@ function $$render() {
       ((fn!)());
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
 }
 const MemberThroughATypescriptCast__SvelteComponent_ = $$render();
 type MemberThroughATypescriptCast__SvelteComponent_ = ReturnType<typeof MemberThroughATypescriptCast__SvelteComponent_>;
