@@ -23,6 +23,8 @@ pub(super) struct Host {
     pub(super) kind: Kind,
     /// `<svelte:component>` or `<svelte:element>`, whose `this` is not a prop.
     pub(super) dynamic: bool,
+    /// The `>` that ends the start tag, unless it is self-closing.
+    pub(super) closes_at: Option<u32>,
 }
 
 impl Host {
@@ -117,6 +119,7 @@ impl Builder<'_> {
                         attribute,
                         plain,
                         matches!(host.kind, Kind::Element { custom: true }),
+                        host.closes_at,
                     );
                     let name = attribute.name.text(self.source);
                     // svelte2tsx keeps a component's CSS custom property out of its props, and an

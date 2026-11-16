@@ -76,7 +76,12 @@ impl Printer<'_> {
             }
         }
         self.output.push("\"");
-        self.output.atom_since(start, name);
+        // An `end` inside the name shortens what a finding on it covers.
+        let original = match end {
+            Some(end) if end < name.end_offset => Span::new(name.start_offset, end),
+            _ => name,
+        };
+        self.output.atom_since(start, original);
         if let Some(end) = end {
             self.output.mark(end);
         }

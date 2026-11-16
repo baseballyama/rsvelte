@@ -1,6 +1,5 @@
-# svelte.check/default: 34997 match
+# svelte.check/default: 34998 match
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-object-in-text-mustaches/invalid/function01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/attach-tag-output.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events-usage/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots-usage/input.svelte	mismatch

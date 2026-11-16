@@ -278,6 +278,7 @@ impl Builder<'_> {
                 attributes,
                 children,
                 start_tag,
+                self_closing,
                 end_tag,
                 span,
                 ..
@@ -286,8 +287,9 @@ impl Builder<'_> {
                 let end_name = (end_tag && component.is_some())
                     .then(|| self.end_tag_name(name, span))
                     .flatten();
+                let tag = (start_tag, self_closing);
                 return self
-                    .element(name, start_tag, component, attributes, children, end_name)
+                    .element(name, tag, component, attributes, children, end_name)
                     .map(Some);
             }
             TemplateNode::If {
@@ -366,7 +368,7 @@ impl Builder<'_> {
     fn element(
         &mut self,
         name: Span,
-        start_tag: Span,
+        (start_tag, self_closing): (Span, bool),
         component: Option<ExpressionIdentifier>,
         attributes: Range,
         children: Range,
@@ -408,6 +410,7 @@ impl Builder<'_> {
             name,
             kind,
             dynamic,
+            closes_at: (!self_closing).then_some(start_tag.end_offset - 1),
         };
         let bindings = self.element_attributes(&host, attributes, &mut directives)?;
         self.slot_let(attributes, &mut directives)?;

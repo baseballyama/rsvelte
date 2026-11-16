@@ -167,6 +167,7 @@ impl Builder<'_> {
         attribute: &Attribute,
         intrinsic: bool,
         custom_element: bool,
+        closes_at: Option<u32>,
     ) -> NodeIdentifier {
         let parts = match attribute.value {
             AttributeValue::True => &[][..],
@@ -240,8 +241,13 @@ impl Builder<'_> {
                     Spelling::AsWritten
                 },
                 value,
-                end: (!matches!(attribute.value, AttributeValue::True))
-                    .then_some(attribute.name.end_offset),
+                end: match attribute.value {
+                    // svelte-check ends a finding on a name without a value one character early
+                    // where the start tag's `>` follows it.
+                    AttributeValue::True => (closes_at == Some(attribute.name.end_offset))
+                        .then(|| attribute.name.end_offset - 1),
+                    AttributeValue::Parts(_) => Some(attribute.name.end_offset),
+                },
             },
         };
         self.tree.push(node)
