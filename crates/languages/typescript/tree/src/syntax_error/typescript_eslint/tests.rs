@@ -9,10 +9,14 @@ fn thrown_at(error: &crate::SyntaxError) -> u32 {
 
 /// What typescript-eslint throws for `text`, a TypeScript program, and at which byte.
 fn thrown(text: &str) -> Option<(String, u32)> {
+    thrown_as(text, SourceType::ts())
+}
+
+fn thrown_as(text: &str, source_type: SourceType) -> Option<(String, u32)> {
     let mut thrown = None;
     let parsed = Tree::build(text, |builder| {
         let range = Span::new(0, text.len() as u32);
-        builder.program(range, SourceType::ts()).map_err(|error| {
+        builder.program(range, source_type).map_err(|error| {
             thrown = error
                 .typescript_eslint_message()
                 .map(|message| (message.into_owned(), thrown_at(&error)));
@@ -176,4 +180,23 @@ fn a_character_no_token_starts_is_thrown_where_it_is() {
             "{text:?}"
         );
     }
+}
+
+#[test]
+fn an_unclosed_jsx_tag_names_its_opening_tag() {
+    let jsx = SourceType::ts().with_jsx(true);
+    assert_eq!(
+        thrown_as("let v = <number>1;", jsx),
+        Some((
+            "JSX element 'number' has no corresponding closing tag.".to_owned(),
+            9
+        ))
+    );
+    assert_eq!(
+        thrown_as("let v = <>1;", jsx),
+        Some((
+            "JSX fragment has no corresponding closing tag.".to_owned(),
+            8
+        ))
+    );
 }
