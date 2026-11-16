@@ -9,6 +9,9 @@ use crate::syntax_tree::{
     AttributeKind, AttributeValue, Part, Range, TemplateNode, TemplateNodeIdentifier, TokenType,
 };
 
+#[cfg(test)]
+mod tests;
+
 /// Upstream `read_tag_name`: up to whitespace, `/` or `>`.
 pub(super) fn peek_tag_name(s: &str) -> &str {
     let end = s
@@ -59,7 +62,10 @@ impl<'a> Parser<'a, '_> {
         if name.is_empty() {
             return self.err("tag_invalid_name", TAG_INVALID_NAME);
         }
-        if at_root && matches!(name_text, "script" | "style") {
+        if at_root
+            && matches!(name_text, "script" | "style")
+            && !(self.self_closing_blocks && self.self_closing_block_ahead())
+        {
             self.script_or_style(start_offset, name_text)?;
             return Ok(None);
         }
@@ -230,6 +236,59 @@ impl<'a> Parser<'a, '_> {
         }
         self.eat_token(TokenType::TagEnd, 1);
         Ok(Closed::EndTag)
+    }
+
+    /// Whether the start tag after this name ends in `/>`, as svelte-eslint-parser's
+    /// `parseAttributes` scans it: a name must be followed by whitespace.
+    fn self_closing_block_ahead(&self) -> bool {
+        let rest = self.rest().as_bytes();
+        if !rest.first().is_some_and(u8::is_ascii_whitespace) {
+            return false;
+        }
+        let at_end = |i: usize| rest.get(i) == Some(&b'>') || rest[i..].starts_with(b"/>");
+        let mut i = 0;
+        loop {
+            while rest.get(i).is_some_and(u8::is_ascii_whitespace) {
+                i += 1;
+            }
+            match rest.get(i) {
+                None | Some(b'>') => return false,
+                Some(_) if rest[i..].starts_with(b"/>") => return true,
+                Some(_) => {}
+            }
+            // The key: its first byte is always read.
+            i += 1;
+            while i < rest.len() && rest[i] != b'=' && !rest[i].is_ascii_whitespace() && !at_end(i)
+            {
+                i += 1;
+            }
+            let mut j = i;
+            while rest.get(j).is_some_and(u8::is_ascii_whitespace) {
+                j += 1;
+            }
+            if rest.get(j) != Some(&b'=') {
+                continue;
+            }
+            j += 1;
+            while rest.get(j).is_some_and(u8::is_ascii_whitespace) {
+                j += 1;
+            }
+            i = match rest.get(j) {
+                None => return false,
+                Some(&quote @ (b'"' | b'\'')) => match memchr::memchr(quote, &rest[j + 1..]) {
+                    Some(len) => j + 1 + len + 1,
+                    None => return false,
+                },
+                // An unquoted value, a mustache's included, ends at whitespace or the tag's end.
+                Some(_) => {
+                    let mut k = j + 1;
+                    while k < rest.len() && !rest[k].is_ascii_whitespace() && !at_end(k) {
+                        k += 1;
+                    }
+                    k
+                }
+            };
+        }
     }
 
     fn textarea_children(&mut self) -> ParseResult<(Range, Closed)> {

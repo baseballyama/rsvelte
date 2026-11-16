@@ -13034,9 +13034,6 @@ world</pre>
   - var(--pad))"
 ></div>
 
-=== 46 svelte_element_this_chunks/expression_then_text_keeps_the_whole_value/c9f317fe9e598e4e.svelte	svelte
-<svelte:element this={tag}>x</svelte:element>
-
 === 46 svelte_element_this_chunks/single_chunk_values_are_still_formatted/5d22401724c21d5a.svelte	svelte
 <svelte:element this={tag}>x</svelte:element>
 
@@ -13045,12 +13042,6 @@ world</pre>
 
 === 46 svelte_element_this_chunks/single_chunk_values_are_still_formatted/e936c409d65e1d00.svelte	svelte
 <svelte:element this={tag}>x</svelte:element>
-
-=== 54 svelte_element_this_chunks/single_quoted_value_with_an_expression_keeps_the_whole_value/d364396ec9b25275.svelte	svelte
-<svelte:element this="h" class="a">x</svelte:element>
-
-=== 44 svelte_element_this_chunks/text_then_expression_keeps_the_whole_value/3a8bc92bcc84cfb8.svelte	svelte
-<svelte:element this="h">x</svelte:element>
 
 === 208 tab_visual_width/space_indent_pre_block_reformat_keeps_element_direct_tabs_and_configured_spaces/e9786825fd1dc85f.svelte	svelte
 <div class="ast-view">

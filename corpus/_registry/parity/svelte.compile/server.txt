@@ -1,2 +1,1 @@
-# svelte.compile/server: 35145 match
-svelte/rsvelte-tests-formatter/markup_patterns/let_directive_value_is_formatted_as_an_expression/ac7edb54ecf01f25.svelte	refused
+# svelte.compile/server: 35151 match

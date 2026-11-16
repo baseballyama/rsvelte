@@ -6,7 +6,7 @@ use oxc_semantic::{AstNodes, NodeId, Reference, ReferenceId, ScopeId, Scoping, S
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, NodeKind};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{AttributeValue, ElementKind, NodeKind};
 use rsvelte_svelte_semantic::legacy::{TopLevel, Variable};
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -53,14 +53,39 @@ fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     component_snippets(file, &mut skipped);
     shared_names(file, &mut skipped);
     let bodies = snippet_bodies(file);
+    // Few components have unused `let:` names, so the walk waits for the first.
+    let defaulted_lets = std::cell::OnceCell::new();
     rsvelte_typescript_lint::no_unused_variables(
         file.semantic(),
         |symbol| !skipped.contains(&symbol),
         |symbol| reads.get(&symbol).map_or(&[], Vec::as_slice),
         |symbol| bodies.get(&symbol).copied(),
+        |symbol| {
+            let starts = defaulted_lets.get_or_init(|| defaulted_let_starts(file));
+            let scoping = file.semantic().scoping();
+            starts.contains(&scoping.symbol_span(symbol).start)
+        },
         reporter,
     );
     reactive_declarations(file, reporter);
+}
+
+/// Where each `let:` name under a default value starts: svelte-eslint-parser reads the value as a
+/// parameter pattern, whose defaults assign the names.
+fn defaulted_let_starts(file: &File<'_>) -> FxHashSet<u32> {
+    let mut starts = FxHashSet::default();
+    let Some(tree) = file.normalized() else {
+        return starts;
+    };
+    for attribute in &tree.attributes {
+        if let AttributeValue::Let(Some(value)) = attribute.value {
+            let value = file.javascript().get_expression(value);
+            rsvelte_svelte_semantic::resolve::let_names_under_a_default(value, |span| {
+                starts.insert(span.start);
+            });
+        }
+    }
+    starts
 }
 
 /// `analyzeReactiveScope`: a top-level `$: name = …` that assigns an undeclared name declares it,

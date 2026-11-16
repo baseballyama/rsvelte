@@ -31,7 +31,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 None => directive.prop,
                 Some(Expression::Identifier(name)) => name.name.as_str(),
                 Some(value) => {
-                    let pattern = pattern(b, &directive, value)?;
+                    // Upstream's client declares no name of a pattern that holds a default.
+                    let pattern = pattern(b, &directive, value, false)?;
                     let mut names = Vec::new();
                     bound_names(&pattern, false, &mut |binding, _| {
                         names.push(b.str(&binding.name));

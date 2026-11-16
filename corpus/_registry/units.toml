@@ -2462,19 +2462,24 @@
 "svelte.compile" = "upstream bug: runes mode does not report `const_tag_cycle`: the client reads `b` in `a`'s derived before `b` is declared, and the server emits `const a = b; const b = a;`, which throws"
 
 ["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/expression_then_text_keeps_the_whole_value/c9f317fe9e598e4e.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 keeps only the first chunk of a `this` of text and expressions, as Svelte 5.57.3 reads it, so it deletes code"
 "svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
 
 ["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/single_quoted_value_with_an_expression_keeps_the_whole_value/d364396ec9b25275.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 keeps only the first chunk of a `this` of text and expressions, as Svelte 5.57.3 reads it, so it deletes code"
 "svelte.lint" = "upstream bug: svelte-eslint-parser reads a quoted <svelte:element> this value that holds a {...} as a static attribute that ends inside the value"
 "svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
 
 ["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/text_then_expression_keeps_the_whole_value/3a8bc92bcc84cfb8.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 keeps only the first chunk of a `this` of text and expressions, as Svelte 5.57.3 reads it, so it deletes code"
 "svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
 
 ["svelte/svelte/packages/svelte/tests/migrate/samples/svelte-element/input.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 keeps only the first chunk of a `this` of text and expressions, as Svelte 5.57.3 reads it, so it deletes code"
 "svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
 
 ["svelte/svelte/packages/svelte/tests/migrate/samples/svelte-element/output.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 keeps only the first chunk of a `this` of text and expressions, as Svelte 5.57.3 reads it, so it deletes code"
 "svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
 
 ["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte".skip]
@@ -2639,6 +2644,15 @@
 
 ["svelte/rsvelte-tests-core-1/block_header_pattern_validation/legal_neighbours_still_compile/8a80c229fe285e83.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block's pattern from its nodes (expandNode), so it deletes a comment in it"
+
+["svelte/rsvelte/pattern/adversarial/control-flow/each-destructure-exotic.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a renamed property with a default in a block's pattern without its key, so `{ x: b = 42 }` reads `b` and `{ a: { b } = {} }` does not parse"
+
+["svelte/rsvelte/pattern/issues/3035-destructure-defaults.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a renamed property with a default in a block's pattern without its key, so `{ x: b = 42 }` reads `b` and `{ a: { b } = {} }` does not parse"
+
+["svelte/svelte-eslint-parser/tests/fixtures/integrations/type-info-tests/await-with-same-id-input.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a renamed property with a default in a block's pattern without its key, so `{ x: b = 42 }` reads `b` and `{ a: { b } = {} }` does not parse"
 
 ["svelte/rsvelte-tests-core-1/block_header_pattern_validation/legal_neighbours_still_compile/f4a2e74dbb010935.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
@@ -4844,6 +4858,9 @@
 ["svelte/rsvelte/pattern/class-member-name.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
+["svelte/rsvelte/pattern/ts-class-generator-method-signature.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 removes only abstract methods with the types, so a method signature without a body, such as `*m();`, stays in the output, which does not parse"
+
 ["svelte/rsvelte/pattern/javascript-name-escape-of-a-space.svelte".skip]
 "svelte.check" = "checker: TS 7 spans an invalid character in a name's escape over one character, where TS 6 gives it no length"
 
@@ -4873,3 +4890,12 @@
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte".skip]
 "svelte.check" = "checker: TS 7 prints `boolean | void` as `void | boolean` where TS 6 keeps the written order, so the message differs"
+
+["svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/af2787da59b35a7f.svelte".skip]
+"svelte.format" = "oxc ast: TSIndexSignature holds one parameter, so oxc cannot print the second of `[a: string, b: string]`, which Prettier 3.9.10 keeps"
+
+["svelte/rsvelte-tests-core-3/ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/9821f5a456e274f8.svelte".skip]
+"svelte.format" = "oxc ast: AccessorProperty has no `declare` modifier, so oxc cannot print `declare accessor a`, which Prettier 3.9.10 keeps"
+
+["svelte/rsvelte-tests-core-3/ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/a58bedf4d6742a23.svelte".skip]
+"svelte.format" = "oxc ast: AccessorProperty has no `declare` modifier, so oxc cannot print `declare accessor a`, which Prettier 3.9.10 keeps"

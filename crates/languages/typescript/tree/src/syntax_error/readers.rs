@@ -1,9 +1,11 @@
 //! Whether the parser a host reads a script with after oxc throws on the errors oxc recovered
 //! from in it.
 
+use oxc_parser::Kind;
+
 use super::typescript_eslint::{checks, thrown};
 use super::{SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, typescript_eslint_check};
-use crate::{ProgramIdentifier, Tree};
+use crate::{ProgramIdentifier, Recorded, Tree};
 
 /// A parser that reads a script oxc read.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -16,66 +18,137 @@ pub enum Reader {
 }
 
 /// tsc's codes of errors oxc or the analysis reports, and whether `babel-ts` throws on each, as
-/// Prettier 3.9.10 does.
-const BABEL_TYPESCRIPT: [(u32, bool); 39] = [
-    (1015, false),
-    (1016, false),
-    (1024, true),
-    (1029, true),
-    (1031, true),
-    (1038, false),
-    (1039, true),
-    (1047, false),
-    (1049, true),
-    (1051, false),
-    (1093, false),
-    (1094, false),
-    (1095, false),
-    (1096, true),
-    (1098, true),
-    (1104, true),
-    (1105, true),
-    (1107, true),
-    (1114, true),
-    (1127, true),
-    (1147, true),
-    (1194, true),
-    (1221, false),
-    (1222, false),
-    (1257, true),
-    (1263, false),
-    (1264, false),
-    (1267, true),
-    (1275, true),
-    (1308, true),
-    (1347, true),
-    (2335, true),
-    (2337, true),
-    (2368, false),
-    (2523, true),
-    (2524, true),
-    (2681, false),
-    (18010, true),
-    (18011, true),
+/// Prettier 3.9.10 does. Where that depends on a pair of modifiers, the pair is in source order.
+const BABEL_TYPESCRIPT: [(u32, Option<[Kind; 2]>, bool); 64] = [
+    (1015, None, false),
+    (1016, None, false),
+    (1024, None, true),
+    (1029, None, true),
+    (1031, None, true),
+    (1038, None, false),
+    (1039, None, true),
+    (1040, Some([Kind::Override, Kind::Declare]), true),
+    (1047, None, false),
+    (1049, None, true),
+    (1051, None, false),
+    (1093, None, false),
+    (1094, None, false),
+    (1095, None, false),
+    (1096, None, true),
+    (1098, None, true),
+    (1100, None, false),
+    (1101, None, false),
+    (1102, None, false),
+    (1104, None, true),
+    (1105, None, true),
+    (1107, None, true),
+    (1111, None, false),
+    (1114, None, true),
+    (1117, None, true),
+    (1121, None, false),
+    (1127, None, true),
+    (1147, None, true),
+    (1194, None, true),
+    (1212, None, false),
+    (1221, None, false),
+    (1222, None, false),
+    (1243, Some([Kind::Abstract, Kind::Async]), false),
+    (1243, Some([Kind::Abstract, Kind::Private]), false),
+    (1243, Some([Kind::Abstract, Kind::Static]), true),
+    (1243, Some([Kind::Accessor, Kind::Declare]), true),
+    (1243, Some([Kind::Accessor, Kind::Readonly]), true),
+    (1243, Some([Kind::Async, Kind::Abstract]), true),
+    (1243, Some([Kind::Declare, Kind::Accessor]), false),
+    (1243, Some([Kind::Declare, Kind::Override]), true),
+    (1243, Some([Kind::Private, Kind::Abstract]), false),
+    (1243, Some([Kind::Readonly, Kind::Accessor]), false),
+    (1243, Some([Kind::Static, Kind::Abstract]), true),
+    (1244, None, false),
+    (1253, None, false),
+    (1257, None, true),
+    (1263, None, false),
+    (1264, None, false),
+    (1267, None, true),
+    (1275, None, true),
+    (1308, None, true),
+    (1347, None, true),
+    (1487, None, false),
+    (1488, None, false),
+    (2335, None, true),
+    (2337, None, true),
+    (2368, None, false),
+    (2392, None, false),
+    (2523, None, true),
+    (2524, None, true),
+    (2681, None, false),
+    (18010, None, true),
+    (18011, None, true),
+    (18037, None, true),
 ];
 
-/// Whether `babel-ts` throws on an error of `code`; `None` where that is not known.
+/// Whether `babel-ts` throws on an error of `code`, whatever the modifiers; `None` where that is
+/// not known.
 #[must_use]
 pub fn babel_typescript_throws(code: u32) -> Option<bool> {
     (BABEL_TYPESCRIPT.iter())
-        .find(|(number, _)| *number == code)
-        .map(|&(_, throws)| throws)
+        .find(|(number, pair, _)| *number == code && pair.is_none())
+        .map(|&(_, _, throws)| throws)
+}
+
+/// Whether typescript-estree throws on an error of `code` that oxc's analysis reports.
+///
+/// It throws only on the errors tsc's parser reports and the ones typescript-eslint checks; the
+/// others are the binder's and the checker's.
+#[must_use]
+pub fn typescript_estree_throws(code: u32) -> bool {
+    thrown(code)
+}
+
+/// Whether `babel-ts` throws on `error`, where `tokens` are the script's: for a code that depends
+/// on a pair of modifiers, the pair in the run of modifiers that holds the error.
+fn babel_typescript_throws_on(error: &SyntaxError, tokens: &[Recorded]) -> Option<bool> {
+    let code = error.typescript_code?;
+    if let Some(throws) = babel_typescript_throws(code) {
+        return Some(throws);
+    }
+    let at = error.diagnostic.span.start_offset;
+    let index = tokens
+        .iter()
+        .position(|token| token.span.start_offset == at)?;
+    let modifier = |token: &Recorded| token.kind.is_some_and(Kind::is_modifier_kind);
+    let start = index
+        - tokens[..index]
+            .iter()
+            .rev()
+            .take_while(|t| modifier(t))
+            .count();
+    let end = index + tokens[index..].iter().take_while(|t| modifier(t)).count();
+    let run: Vec<Kind> = tokens[start..end]
+        .iter()
+        .filter_map(|token| token.kind)
+        .collect();
+    let before = |a: Kind, b: Kind| {
+        let position = |kind| run.iter().position(|&k| k == kind);
+        position(a).zip(position(b)).is_some_and(|(a, b)| a < b)
+    };
+    let mut verdicts = (BABEL_TYPESCRIPT.iter()).filter_map(|&(number, pair, throws)| {
+        let [a, b] = pair?;
+        (number == code && before(a, b)).then_some(throws)
+    });
+    let throws = verdicts.next()?;
+    verdicts.all(|other| other == throws).then_some(throws)
 }
 
 impl Reader {
-    /// Whether it throws on `errors`, oxc's errors in `program` of `tree`, which oxc recovered;
-    /// `None` where that is not known.
+    /// Whether it throws on `errors`, oxc's errors in `program` of `tree`, which oxc recovered
+    /// and read as `tokens`; `None` where that is not known.
     #[must_use]
     pub fn throws(
         self,
         tree: &Tree,
         program: ProgramIdentifier,
         errors: &[SyntaxError],
+        tokens: &[Recorded],
     ) -> Option<bool> {
         let codes = (errors.iter())
             .map(|error| error.typescript_code)
@@ -94,9 +167,8 @@ impl Reader {
                     .then(|| typescript_eslint_check(tree, errors, [program]).is_some())
             }
             Self::BabelTypescript => {
-                let verdicts: Vec<_> = codes
-                    .iter()
-                    .map(|&code| babel_typescript_throws(code))
+                let verdicts: Vec<_> = (errors.iter())
+                    .map(|error| babel_typescript_throws_on(error, tokens))
                     .collect();
                 if verdicts.contains(&Some(true)) {
                     Some(true)
