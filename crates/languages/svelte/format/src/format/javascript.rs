@@ -162,7 +162,10 @@ const RECOVERED_WHOLE: [u32; 19] = [
 ];
 
 /// Whether oxc's program recovered from `error` holds all of the code.
-fn keeps_recovered(error: &oxc_diagnostics::OxcDiagnostic) -> bool {
+fn keeps_recovered(
+    error: &oxc_diagnostics::OxcDiagnostic,
+    _program: &oxc_ast::ast::Program<'_>,
+) -> bool {
     error.code.scope.as_deref() == Some("TS")
         && (error.code.number.as_deref())
             .and_then(|number| number.parse().ok())
