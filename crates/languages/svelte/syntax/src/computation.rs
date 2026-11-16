@@ -53,22 +53,23 @@ impl Artifact for ParsedAsTypeScript {
     }
 }
 
-/// The component as Prettier's Svelte plugin reads it: a script the compiler rejects is read as
-/// TypeScript, and a style sheet's error does not count, as the plugin takes the sheet out first.
+/// The component as Prettier's Svelte plugin reads it.
+///
+/// A script the compiler rejects is read as TypeScript, with its errors in
+/// [`Component::script_typescript_errors`]. A style sheet's error does not count, as the plugin
+/// takes the sheet out first.
 ///
 /// # Errors
 ///
-/// The parse error outside the scripts, or TypeScript's first error in a script.
+/// The parse error outside the scripts.
 pub fn parsed_reading_scripts_as_typescript<'a>(
     context: &'a DocumentContext<'_>,
 ) -> Result<&'a Component, &'a Diagnostic> {
     // Most documents parse, and are read once.
-    let component = match context.get::<Parsed>() {
-        Ok(component) => component,
-        Err(_) => context.get::<ParsedAsTypeScript>().as_ref()?,
-    };
-    (component.script_typescript_errors.first())
-        .map_or(Ok(component), |error| Err(&error.diagnostic))
+    context
+        .get::<Parsed>()
+        .as_ref()
+        .map_or_else(|_| context.get::<ParsedAsTypeScript>().as_ref(), Ok)
 }
 
 pub static PLUGIN: Plugin = Plugin {

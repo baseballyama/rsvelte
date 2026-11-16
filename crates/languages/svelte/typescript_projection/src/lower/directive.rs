@@ -5,6 +5,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range};
 
 use super::{Builder, Node, NodeIdentifier, Result, SourceExpression, refuse};
+use crate::syntax_tree::Spelling;
 
 /// What an element's directives add around its `createElement` call.
 #[derive(Default)]
@@ -57,8 +58,8 @@ impl Builder<'_> {
         let end = value.map(|_| name.end_offset);
         let value = value.unwrap_or_else(|| self.tree.push(Node::Identifier("undefined")));
         Ok(self.tree.push(Node::Property {
-            name: Span::new(name.start_offset - "on:".len() as u32, name.end_offset),
-            lowercase: false,
+            name,
+            spelling: Spelling::Event,
             value,
             end,
         }))
@@ -115,7 +116,7 @@ impl Builder<'_> {
         };
         Ok(self.tree.push(Node::Property {
             name,
-            lowercase: false,
+            spelling: Spelling::AsWritten,
             value,
             end: None,
         }))

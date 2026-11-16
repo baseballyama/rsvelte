@@ -7,7 +7,7 @@ use oxc_span::SourceType;
 use super::{Builder, Part};
 use crate::acorn_grammar::{Unsupported, rejection, whitespace};
 use crate::syntax_error::{
-    Locator, SyntaxError, TYPESCRIPT_ESLINT_CHECKS, acorn, reported, syntax_error, typescript_code,
+    Locator, SyntaxError, acorn, checks, reported, syntax_error, typescript_code,
     typescript_eslint_at,
 };
 
@@ -56,10 +56,7 @@ impl<'a> Builder<'a> {
         // typescript-eslint throws some of what this host lets pass, from its own checks.
         (self.unchecked_errors).extend(
             (diagnostics.iter())
-                .filter(|error| {
-                    typescript_code(error)
-                        .is_some_and(|code| TYPESCRIPT_ESLINT_CHECKS.contains(&code))
-                })
+                .filter(|error| typescript_code(error).is_some_and(checks))
                 .map(|error| syntax_error([error.clone()], text, tokens, fallback, shift)),
         );
         Ok(())

@@ -8,6 +8,7 @@ use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeValue, Part};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{Builder, Node, NodeIdentifier, Result, refuse};
+use crate::syntax_tree::Spelling;
 
 /// svelte2tsx's `oneWayBindingAttributes`: the element's property of the same name is assigned.
 const ONE_WAY: &[&str] = &[
@@ -228,7 +229,7 @@ impl Builder<'_> {
             Node::Property {
                 // A component's prop is named without the prefix; an element's keeps it.
                 name: if is_component { name } else { attribute.name },
-                lowercase: false,
+                spelling: Spelling::AsWritten,
                 value,
                 end: (!attribute.shorthand).then_some(attribute.name.end_offset),
             }

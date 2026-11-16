@@ -10,7 +10,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::Resolved;
 use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::Component;
-use rsvelte_svelte_typescript_projection::{Printed, THROWN, store_reads};
+use rsvelte_svelte_typescript_projection::{Printed, THROWN, checked_as_typescript, store_reads};
 use rsvelte_typescript_check::{
     Check, Documents, MappedLanguage, MappedLanguages, TypeScriptDocument, TypeScriptEnv,
     TypeScriptStandIn, TypeScriptView,
@@ -161,10 +161,7 @@ fn typescript_view(
         return Ok(rejected(&error));
     }
     // svelte-check reads the component as TypeScript when either script is, else as JavaScript.
-    let typescript = [&component.instance, &component.module]
-        .into_iter()
-        .flatten()
-        .any(|script| script.typescript);
+    let typescript = checked_as_typescript(component, &context.document.text);
     let projection = match context.get::<Printed>() {
         Ok(projection) => projection,
         Err(thrown) if thrown.code == THROWN => {
@@ -178,12 +175,16 @@ fn typescript_view(
         Err(diagnostic) => return Err(diagnostic.clone()),
     };
     let env = env_of(env)?;
-    Ok(TypeScriptDocument::Checked {
-        projection: Emitter {
+    let projection = directive::of(component, &context.document.text).map_or_else(
+        || Emitter {
             out: projection.out.clone(),
             mappings: projection.mappings.clone(),
             atoms: projection.atoms.clone(),
         },
+        |line| directive::prepended(line, projection),
+    );
+    Ok(TypeScriptDocument::Checked {
+        projection,
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),
         extension: if typescript { ".ts" } else { ".js" },
@@ -243,6 +244,7 @@ fn env_of(
         .map_err(|why| Diagnostic::error("check_unconfigured", why, Span::new(0, 0)))
 }
 
+mod directive;
 mod script_syntax;
 
 #[cfg(test)]

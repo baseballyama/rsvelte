@@ -15,10 +15,6 @@
 use std::borrow::Cow;
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{
-    Class, ClassElement, PrivateIdentifier, Program, WithClause, WithClauseKeyword,
-};
-use oxc_ast_visit::{Visit, walk};
 use oxc_formatter::{BracketSameLine, JsFormatOptions, QuoteStyle};
 use oxc_formatter_core::{CoreFormatOptions, IndentStyle, IndentWidth, LineEnding, LineWidth};
 use rsvelte_document_printer::{
@@ -94,13 +90,7 @@ pub(crate) fn format(
             "an emoji sequence oxc's printer measures otherwise than Prettier",
         ));
     }
-    let unparsed_script =
-        match rejected {
-            Some(rejected) => Some(unparsed_script(c, source_text, rejected).ok_or_else(|| {
-                Unsupported::at("code a module rejects", rejected.diagnostic.span)
-            })?),
-            None => overriding_script(c, source_text).or_else(|| assertion_script(c, source_text)),
-        };
+    let unparsed_scripts = unparsed::unparsed_scripts(c, source_text, rejected)?;
 
     let core = core_options(options)?;
     let printed = rsvelte_typescript_tree::with_scratch_arena(|allocator| {
@@ -110,7 +100,7 @@ pub(crate) fn format(
             source_text,
             text,
             core,
-            unparsed_script,
+            unparsed_scripts,
             allocator,
         )
     })?;
@@ -136,11 +126,7 @@ pub(crate) fn format(
 /// The component as the plugin reads it, as
 /// [`rsvelte_svelte_syntax::parsed_reading_scripts_as_typescript`] does.
 pub(crate) fn parsed(source_text: &str) -> Result<Component, Diagnostic> {
-    let component = rsvelte_svelte_syntax::parse::parse_reading_scripts_as_typescript(source_text)?;
-    if let Some(error) = component.script_typescript_errors.first() {
-        return Err(error.diagnostic.clone());
-    }
-    Ok(component)
+    rsvelte_svelte_syntax::parse::parse_reading_scripts_as_typescript(source_text)
 }
 
 /// `guessEndOfLine`: the first line ending decides.
@@ -170,7 +156,7 @@ fn print(
     source_text: &str,
     text: &str,
     core: CoreFormatOptions,
-    unparsed_script: Option<Span>,
+    unparsed_scripts: Vec<Span>,
     allocator: &Allocator,
 ) -> R<String> {
     let mut docs = LayoutInstructions::new();
@@ -193,7 +179,7 @@ fn print(
         last_in_block: None,
         buffers: Vec::new(),
         ignore: Ignore::default(),
-        unparsed_script,
+        unparsed_scripts,
         comments: (c.tokens.iter())
             .filter(|t| t.kind == TokenType::JavaScriptComment)
             .map(|t| t.span)
@@ -256,56 +242,6 @@ fn is_typescript(c: &Component, source_text: &str) -> bool {
     (c.module.iter().chain(&c.instance)).any(|script| in_typescript(script, source_text))
 }
 
-/// The body of the JavaScript script whose tree holds an `assert { … }` import attribute clause,
-/// which `babel-ts` throws on, so the plugin keeps that body as it is.
-fn assertion_script(c: &Component, source_text: &str) -> Option<Span> {
-    struct Find(bool);
-    impl<'a> Visit<'a> for Find {
-        fn visit_with_clause(&mut self, it: &WithClause<'a>) {
-            self.0 |= it.keyword == WithClauseKeyword::Assert;
-        }
-    }
-    let script = (c.module.iter().chain(&c.instance)).find(|script| {
-        let mut find = Find(false);
-        find.visit_program(c.javascript.get_program(script.program));
-        find.0 && !in_typescript(script, source_text)
-    })?;
-    Some(script.content)
-}
-
-/// The body of the JavaScript script holding `rejected`, an error Babel does not recover from
-/// either, so the plugin keeps that body as it is. Babel recovers from the others, and Prettier's
-/// TypeScript parser from more.
-fn unparsed_script(c: &Component, source_text: &str, rejected: &SyntaxError) -> Option<Span> {
-    // tsc's numbers for the errors Babel throws on instead of recovering from.
-    const BABEL_REJECTS: [u32; 10] = [
-        2524,  // `await` in a parameter
-        2523,  // `yield` in a parameter
-        2337,  // a `super` call outside a constructor
-        2335,  // `super` outside a derived class
-        1347,  // `'use strict'` beside non-simple parameters
-        1104,  // a misplaced `continue`
-        1105,  // a misplaced `break`
-        1107,  // a jump out of a function
-        18011, // `delete` of a private name
-        1114,  // a label declared twice
-    ];
-    // A name declared twice; Babel throws only on a private one.
-    const DUPLICATE_IDENTIFIER: u32 = 2300;
-    let span = rejected.diagnostic.span;
-    let script = (c.module.iter().chain(&c.instance)).find(|script| {
-        script.content.start_offset <= span.start_offset
-            && span.end_offset <= script.content.end_offset
-    })?;
-    let rejects = match rejected.typescript_code? {
-        DUPLICATE_IDENTIFIER => {
-            private_name_at(c.javascript.get_program(script.program), span.start_offset)
-        }
-        code => BABEL_REJECTS.contains(&code),
-    };
-    (rejects && !in_typescript(script, source_text)).then_some(script.content)
-}
-
 /// Whether the plugin reads `script` with Prettier's TypeScript parser: its `lang` starts with
 /// `ts`. Any other script goes to `babel-ts`.
 fn in_typescript(script: &Script, source_text: &str) -> bool {
@@ -313,46 +249,6 @@ fn in_typescript(script: &Script, source_text: &str) -> bool {
         name.text(source_text) == "lang"
             && value.is_some_and(|v| v.text(source_text).starts_with("ts"))
     })
-}
-
-/// The body of a script `babel-ts` reads that has an `override` member in a class that extends
-/// none: Babel throws on it, so the plugin keeps that body as it is. Only TypeScript has the
-/// modifier.
-fn overriding_script(c: &Component, source_text: &str) -> Option<Span> {
-    struct Find(bool);
-    impl<'a> Visit<'a> for Find {
-        fn visit_class(&mut self, it: &Class<'a>) {
-            self.0 |= it.heritage.is_none()
-                && it.body.body.iter().any(|element| match element {
-                    ClassElement::MethodDefinition(member) => member.r#override,
-                    ClassElement::PropertyDefinition(member) => member.r#override,
-                    ClassElement::AccessorProperty(member) => member.r#override,
-                    ClassElement::StaticBlock(_) | ClassElement::TSIndexSignature(_) => false,
-                });
-            walk::walk_class(self, it);
-        }
-    }
-    let script = (c.module.iter().chain(&c.instance)).find(|script| {
-        script.typescript && !in_typescript(script, source_text) && {
-            let mut find = Find(false);
-            find.visit_program(c.javascript.get_program(script.program));
-            find.0
-        }
-    })?;
-    Some(script.content)
-}
-
-/// Whether a private name starts at `offset` in `program`.
-fn private_name_at(program: &Program<'_>, offset: u32) -> bool {
-    struct Find(u32, bool);
-    impl<'a> Visit<'a> for Find {
-        fn visit_private_identifier(&mut self, it: &PrivateIdentifier<'a>) {
-            self.1 |= it.span.start == self.0;
-        }
-    }
-    let mut find = Find(offset, false);
-    find.visit_program(program);
-    find.1
 }
 
 /// The plugin's `hasPragma`: `/^\s*<!--\s*@(format|prettier)\W/`.
@@ -481,8 +377,8 @@ struct Printer<'a, 'd, 'x> {
     /// Emptied lists of child layouts, kept so each text node and child list does not allocate.
     buffers: Vec<Vec<LayoutInstructionIdentifier>>,
     ignore: Ignore,
-    /// The body of the script Babel would reject, which the plugin prints as it is.
-    unparsed_script: Option<Span>,
+    /// The bodies of the scripts the plugin's parser throws on, which it prints as they are.
+    unparsed_scripts: Vec<Span>,
     /// Every JavaScript comment's span, in order.
     comments: Vec<Span>,
 }
@@ -561,6 +457,7 @@ mod expressions;
 mod javascript;
 mod patterns;
 mod tree;
+mod unparsed;
 
 #[cfg(test)]
 mod tests;

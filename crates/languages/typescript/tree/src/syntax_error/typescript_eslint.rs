@@ -88,10 +88,6 @@ pub const TYPESCRIPT_ESLINT_UNCHECKED: &[&str] = &[
     "2681", "5085", "18010",
 ];
 
-/// The codes of the errors that typescript-eslint throws from its own check of the tree, which tsc
-/// reports from its checker and a host may let pass.
-pub const TYPESCRIPT_ESLINT_CHECKS: [u32; 6] = [1039, 1221, 1222, 1263, 1264, 1267];
-
 /// The codes of TypeScript 6.0.3's parser and scanner, whose first error typescript-eslint throws
 /// before it checks anything itself.
 const PARSER_CODES: [u32; 141] = [
@@ -157,8 +153,7 @@ pub fn typescript_eslint_error(errors: &[SyntaxError]) -> Option<&SyntaxError> {
             .filter(|error| error.typescript_code.is_some_and(keep))
             .min_by_key(at)
     };
-    let thrown = first(&|code| PARSER_CODES.contains(&code))
-        .or_else(|| first(&|code| MESSAGES.iter().any(|(number, _)| *number == code)));
+    let thrown = first(&|code| PARSER_CODES.contains(&code)).or_else(|| first(&has_message));
     let unknown = errors
         .iter()
         .filter(|error| error.typescript_code.is_none())
@@ -170,6 +165,16 @@ pub fn typescript_eslint_error(errors: &[SyntaxError]) -> Option<&SyntaxError> {
     }
 }
 
+/// Whether typescript-eslint throws an error of `code`: tsc's parser reports it, or
+/// typescript-eslint checks it with these words.
+pub(crate) fn thrown(code: u32) -> bool {
+    PARSER_CODES.contains(&code) || has_message(code)
+}
+
+fn has_message(code: u32) -> bool {
+    MESSAGES.iter().any(|(number, _)| *number == code)
+}
+
 /// The first part of `message` between a pair of `'` or of `` ` ``.
 fn first_quoted(message: &str) -> Option<&str> {
     let (open, rest) = message
@@ -178,6 +183,10 @@ fn first_quoted(message: &str) -> Option<&str> {
         .map(|(at, c)| (c, &message[at + 1..]))?;
     rest.split_once(open).map(|(quoted, _)| quoted)
 }
+
+mod checks;
+pub(crate) use checks::checks;
+pub use checks::typescript_eslint_check;
 
 #[cfg(test)]
 mod tests;

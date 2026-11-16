@@ -579,12 +579,14 @@ const fn fails(message: &'static str, at: u32) -> Acorn {
 mod lexer;
 use lexer::{invalid_escape, regular_expression};
 mod locator;
+mod readers;
 mod typescript_eslint;
 
-pub(crate) use typescript_eslint::typescript_eslint_at;
+pub use readers::{Reader, babel_typescript_throws};
 pub use typescript_eslint::{
-    TYPESCRIPT_ESLINT_CHECKS, TYPESCRIPT_ESLINT_UNCHECKED, typescript_eslint_error,
+    TYPESCRIPT_ESLINT_UNCHECKED, typescript_eslint_check, typescript_eslint_error,
 };
+pub(crate) use typescript_eslint::{checks, typescript_eslint_at};
 
 #[cfg(test)]
 mod tests;
