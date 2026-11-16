@@ -16,7 +16,7 @@ pub(super) struct Edit {
 
 impl Edit {
     /// Removes the text at `span`.
-    const fn removal(span: Span) -> Self {
+    pub(super) const fn removal(span: Span) -> Self {
         Self {
             span,
             replacement: None,
@@ -90,10 +90,8 @@ impl Builder<'_> {
             self.script_parts(script.content, &edits);
             self.scratch[generated_start..].rotate_right(1);
         }
-        let props = props.unwrap_or_else(|| {
-            // A name of the prelude's, which no `Record` of the component's own can shadow.
-            self.tree.push(Node::Identifier("__rsvelte_no_props"))
-        });
+        let runes = props.is_some() || self.runes_mode(generics.asynchronous);
+        let props = props.unwrap_or_else(|| self.props_without_rune(&exports, runes));
         let props = if self.has_default_slot() {
             let callee = self
                 .tree
@@ -105,7 +103,10 @@ impl Builder<'_> {
         };
         let exports = self.tree.list(&exports);
         let exports = self.tree.push(Node::TypeLiteral(exports));
-        let bindings = if bindings.is_empty() {
+        // Outside runes mode svelte2tsx's `bindings: ""` widens to `string`, so any prop binds.
+        let bindings = if !runes {
+            self.tree.push(Node::Identifier("string"))
+        } else if bindings.is_empty() {
             self.tree.push(Node::StringLiteral(""))
         } else {
             let parts = self.tree.list(&bindings);
@@ -490,6 +491,7 @@ impl Builder<'_> {
     }
 }
 
+mod legacy;
 mod props_alias;
 mod route;
 pub(super) use route::Route;

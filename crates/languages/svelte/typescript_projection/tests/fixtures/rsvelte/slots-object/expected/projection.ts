@@ -23,8 +23,8 @@ function $$render() {
       svelteHTML.createElement("h1", {
         ...(rest),
       });
-      (title);
-      (named);
+      title;
+      named;
     }
     {
       __rsvelte_slots()("default", {});

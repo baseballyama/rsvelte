@@ -76,11 +76,11 @@ impl Builder<'_> {
             let mut edits: Vec<Edit> = after(script.content)
                 .map(|(end, store)| self.store_edit(end, store))
                 .collect();
+            let program = self.component.javascript.get_program(script.program);
             // Without an instance script, svelte2tsx moves snippets after the module's imports.
             if self.component.instance.is_none()
                 && let Some(snippets) = self.module_snippets.take()
             {
-                let program = self.component.javascript.get_program(script.program);
                 let at = program
                     .body
                     .iter()
@@ -91,8 +91,8 @@ impl Builder<'_> {
                     span: Span::new(at, at),
                     replacement: Some(snippets),
                 });
-                edits.sort_by_key(|edit| edit.span.start_offset);
             }
+            self.type_assertions(program, &mut edits);
             self.script_parts(script.content, &edits);
         }
         let render_start = self.scratch.len();

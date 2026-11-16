@@ -7,7 +7,7 @@ function $$render() {
           async () => {
             {
               svelteHTML.createElement("p", {});
-              (message);
+              message;
             }
             {
               svelteHTML.createElement("button", {
@@ -23,7 +23,7 @@ function $$render() {
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, string>} */ (__rsvelte_export_component))();
 }
 const BoundaryFailedDefault__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof BoundaryFailedDefault__SvelteComponent_>} */ (BoundaryFailedDefault__SvelteComponent_);

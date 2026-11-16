@@ -3,7 +3,7 @@ function $$render() {
   
   const s = (q = 2n) => {
     async () => {
-      (q);
+      q;
     };
     return __rsvelte_snippet_return;
   };
@@ -17,7 +17,7 @@ function $$render() {
   }, false);
   async () => {
     __rsvelte_ensure_snippet(s());
-    (p);
+    p;
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }

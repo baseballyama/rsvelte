@@ -4,9 +4,9 @@ function $$render() {
     let [a] = $state([1]), b = $state(2), { c } = $derived({ c: a + b });
     {
       svelteHTML.createElement("p", {});
-      (a);
-      (b);
-      (c);
+      a;
+      b;
+      c;
     }
     {
       svelteHTML.createElement("button", {

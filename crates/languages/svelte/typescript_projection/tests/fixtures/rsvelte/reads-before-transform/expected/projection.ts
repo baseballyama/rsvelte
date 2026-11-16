@@ -3,10 +3,10 @@ function $$render() {
   
   const s = ({ p = q, q }, r = q, t) => {
     async () => {
-      (p);
-      (q);
-      (r);
-      (t);
+      p;
+      q;
+      r;
+      t;
     };
     return __rsvelte_snippet_return;
   };
@@ -25,24 +25,24 @@ function $$render() {
       const b = items.length;
       {
         svelteHTML.createElement("h1", {});
-        (a);
-        (f());
+        a;
+        f();
       }
     }
     {
       for (let [, { a, b = c, c, d = a, e = e }] of __rsvelte_each(items)) {
-        (a);
-        (b);
-        (c);
-        (d);
-        (e);
+        a;
+        b;
+        c;
+        d;
+        e;
       }
     }
     {
       for (let [, [x, y = z, z = x]] of __rsvelte_each(items)) {
-        (x);
-        (y);
-        (z);
+        x;
+        y;
+        z;
       }
     }
     __rsvelte_ensure_snippet(s(items));

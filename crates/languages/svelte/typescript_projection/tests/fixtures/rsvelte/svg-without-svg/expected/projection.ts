@@ -31,7 +31,7 @@ function $$render() {
               "dominant-baseline": "hanging",
               "textLength": 10,
             });
-            (item);
+            item;
           }
         }
       }

@@ -10963,22 +10963,6 @@
 === 3 pattern/issues/value-sequence-rebuild.svelte	json
 []
 
-=== 172 pattern/issues/var-derived-outlives-the-statement-it-declared-it.svelte	json
-[
-	{
-		"code": 1344,
-		"message": "'A label is not allowed here.",
-		"start": {
-			"line": 18,
-			"character": 2
-		},
-		"end": {
-			"line": 18,
-			"character": 13
-		}
-	}
-]
-
 === 3 pattern/issues/whitespace-body-inline-element-breaks-before-close.svelte	json
 []
 

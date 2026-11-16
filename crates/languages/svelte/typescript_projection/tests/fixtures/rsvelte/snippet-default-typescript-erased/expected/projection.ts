@@ -3,9 +3,9 @@ function $$render() {
   
   const s = (p = obj!, q = n as number, r = <string>"x"): ReturnType<import('svelte').Snippet> => {
     async () => {
-      (p);
-      (q);
-      (r);
+      p;
+      q;
+      r;
     };
     return __rsvelte_snippet_return;
   };

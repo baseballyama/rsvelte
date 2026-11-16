@@ -1931,34 +1931,6 @@
 === 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/strictEvents.svelte	json
 []
 
-=== 560 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	json
-[
-	{
-		"code": 2740,
-		"message": "Type 'HTMLDivElement' is missing the following properties from type 'HTMLAnchorElement': charset, coords, download, hreflang, and 21 more.",
-		"start": {
-			"line": 22,
-			"character": 38
-		},
-		"end": {
-			"line": 22,
-			"character": 51
-		}
-	},
-	{
-		"code": 2353,
-		"message": "Object literal may only specify known properties, and '\"cellpadding\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
-		"start": {
-			"line": 23,
-			"character": 27
-		},
-		"end": {
-			"line": 23,
-			"character": 38
-		}
-	}
-]
-
 === 1096 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-native/input.svelte	json
 [
 	{

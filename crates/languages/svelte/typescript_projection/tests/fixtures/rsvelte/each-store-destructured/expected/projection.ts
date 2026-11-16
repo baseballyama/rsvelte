@@ -17,9 +17,9 @@ function $$render() {
         (name);
         {
           svelteHTML.createElement("p", {});
-          (name);
-          (icon);
-          (i);
+          name;
+          icon;
+          i;
         }
       }
     }
@@ -29,8 +29,8 @@ function $$render() {
           svelteHTML.createElement("button", {
             "onclick": () => { a.x = 1; },
           });
-          (a);
-          (b);
+          a;
+          b;
         }
       }
     }
@@ -48,7 +48,7 @@ function $$render() {
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, string>} */ (__rsvelte_export_component))();
 }
 const EachStoreDestructured__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof EachStoreDestructured__SvelteComponent_>} */ (EachStoreDestructured__SvelteComponent_);

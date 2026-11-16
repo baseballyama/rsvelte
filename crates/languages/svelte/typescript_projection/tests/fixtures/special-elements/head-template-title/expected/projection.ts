@@ -12,8 +12,8 @@ function $$render() {
       svelteHTML.createElement("svelte:head", {});
       {
         svelteHTML.createElement("title", {});
-        (status);
-        (error?.message);
+        status;
+        error?.message;
       }
     }
   };

@@ -17,9 +17,9 @@ function change() { rest.other=1; rest.count++; let x; x=rest.other; return rest
     }
     {
       svelteHTML.createElement("p", {});
-      (rest.other);
-      (rest.value);
-      (rest['other']);
+      rest.other;
+      rest.value;
+      rest['other'];
     }
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
