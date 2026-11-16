@@ -10,6 +10,7 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineIndex;
+use rsvelte_lint_runner::finding::UNUSED_DIRECTIVE;
 
 use super::files;
 use crate::usage;
@@ -46,24 +47,37 @@ pub(crate) fn lint(reg: &Registry, paths: &[&str], tasks: &[&str]) -> ExitCode {
 fn report(documents: &[Document], results: &[DocumentResult], colors: bool) -> (String, usize) {
     let mut out = String::new();
     let (mut errors, mut warnings) = (0, 0);
+    let (mut fixable_errors, mut fixable_warnings) = (0, 0);
     for (document, result) in documents.iter().zip(results) {
         if let Some(panic) = &result.panic {
             writeln!(out, "\n{}\n  rsvelte panicked: {panic}", document.path)
                 .expect("writing to a String");
             errors += 1;
         }
-        let mut problems: Vec<&Diagnostic> = (result.outputs.iter())
+        // Each problem, and whether `ESLint` would count it as fixable. `ESLint` fixes an unused
+        // directive by deleting it, a fix rsvelte does not attach.
+        let mut problems: Vec<(&Diagnostic, bool)> = (result.outputs.iter())
             .flat_map(|(_, out)| {
-                (out.diagnostics.iter()).chain(out.findings.iter().map(|f| &f.diagnostic))
+                (out.diagnostics.iter().map(|d| (d, false))).chain(out.findings.iter().map(|f| {
+                    let d = &f.diagnostic;
+                    (d, !f.fix.is_empty() || d.code == UNUSED_DIRECTIVE)
+                }))
             })
             .collect();
         if problems.is_empty() {
             continue;
         }
-        problems.sort_by_key(|d| d.span.start_offset);
+        problems.sort_by_key(|(d, _)| d.span.start_offset);
+        for &(d, fixable) in &problems {
+            match (d.severity, fixable) {
+                (Severity::Error, true) => fixable_errors += 1,
+                (Severity::Warning, true) => fixable_warnings += 1,
+                _ => {}
+            }
+        }
         let lines = LineIndex::new(&document.text);
         let rows: Vec<[String; 5]> = (problems.iter())
-            .map(|d| {
+            .map(|&(d, _)| {
                 let at = lines.line_column(d.span.start_offset);
                 let severity = match d.severity {
                     Severity::Error => "error",
@@ -74,7 +88,12 @@ fn report(documents: &[Document], results: &[DocumentResult], colors: bool) -> (
                     (at.column + 1).to_string(),
                     severity.to_owned(),
                     shown_message(&d.message),
-                    d.code.to_string(),
+                    // An unused directive names no rule.
+                    if d.code == UNUSED_DIRECTIVE {
+                        String::new()
+                    } else {
+                        d.code.to_string()
+                    },
                 ]
             })
             .collect();
@@ -97,15 +116,15 @@ fn report(documents: &[Document], results: &[DocumentResult], colors: bool) -> (
             let tone = if severity == "error" { "31" } else { "33" };
             let padding = widths[1] - column.len();
             let message_width = widths[3];
-            writeln!(
-                out,
+            let row = format!(
                 "  {}{:padding$}  {}  {message:<message_width$}  {}",
                 paint(colors, "2", &format!("{line:>0$}:{column}", widths[0])),
                 "",
                 paint(colors, tone, &format!("{severity:<0$}", widths[2])),
                 paint(colors, "2", code),
-            )
-            .expect("writing to a String");
+            );
+            // A row with no rule ends at its message, as `text-table` trims it.
+            writeln!(out, "{}", row.trim_end()).expect("writing to a String");
         }
     }
     let total = errors + warnings;
@@ -117,8 +136,18 @@ fn report(documents: &[Document], results: &[DocumentResult], colors: bool) -> (
             plural(warnings, "warning"),
         );
         let tone = if errors > 0 { "1;31" } else { "1;33" };
+        writeln!(out, "\n{}", paint(colors, tone, &summary)).expect("writing to a String");
+        if fixable_errors > 0 || fixable_warnings > 0 {
+            let fixable = format!(
+                "  {fixable_errors} {} and {fixable_warnings} {} potentially fixable with the \
+                 `--fix` option.",
+                plural(fixable_errors, "error"),
+                plural(fixable_warnings, "warning"),
+            );
+            writeln!(out, "{}", paint(colors, tone, &fixable)).expect("writing to a String");
+        }
         // `ESLint` prints the report with `console.log`, which adds a line of its own.
-        writeln!(out, "\n{}\n", paint(colors, tone, &summary)).expect("writing to a String");
+        out.push('\n');
     }
     (out, errors)
 }
@@ -142,7 +171,8 @@ fn plural(count: usize, noun: &str) -> String {
 
 /// `text` in the SGR style `code` when `colors` is on.
 fn paint(colors: bool, code: &str, text: &str) -> String {
-    if colors {
+    // `chalk` leaves an empty text without codes.
+    if colors && !text.is_empty() {
         format!("\u{1b}[{code}m{text}\u{1b}[0m")
     } else {
         text.to_owned()

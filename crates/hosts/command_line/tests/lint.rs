@@ -92,3 +92,28 @@ fn lint_orders_files_and_aligns_positions_as_stylish_does() {
     assert!(stdout.contains("\n   2:7   error  "), "{stdout}");
     assert!(stdout.contains("\n  10:13  error  "), "{stdout}");
 }
+
+#[test]
+fn lint_prints_an_unused_directive_without_a_rule_and_counts_it_fixable() {
+    let project = Project::new();
+    let text = concat!(
+        "<script>\n",
+        "  // eslint-disable-next-line no-unused-vars\n",
+        "  export const used = 1;\n",
+        "</script>\n",
+    );
+    std::fs::write(project.0.join("src/Clean.svelte"), text).expect("file");
+    let output = project.lint(&["src/Clean.svelte"]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("(no problems were reported from 'no-unused-vars')\n"),
+        "the row ends at its message: {stdout}"
+    );
+    assert!(
+        stdout.ends_with(concat!(
+            "\u{2716} 1 problem (0 errors, 1 warning)\n",
+            "  0 errors and 1 warning potentially fixable with the `--fix` option.\n\n",
+        )),
+        "{stdout}"
+    );
+}
