@@ -189,6 +189,7 @@ impl Printer<'_> {
                 self.output.push(",\n");
             }
             Node::UnmappedSource(span) => self.output.push(span.text(self.source)),
+            Node::Commented { comments, value } => self.commented(comments, value),
             Node::Ignored(statement) => {
                 self.output.push("// @ts-ignore\n");
                 self.indentation();
@@ -213,6 +214,14 @@ impl Printer<'_> {
             Node::TypeParameter { .. } => unreachable!("type parameters are printed as a list"),
             node => self.contract_node(node),
         }
+    }
+
+    /// `value` after `comments`, each on lines of their own.
+    fn commented(&mut self, comments: Span, value: NodeIdentifier) {
+        self.output.push("\n");
+        self.output.atom(comments.text(self.source), comments);
+        self.output.push("\n");
+        self.node(value);
     }
 
     fn contract_node(&mut self, node: Node) {

@@ -1,11 +1,14 @@
 //! The attributes and directives of one element, a component or a slot, before its call.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range};
+use rsvelte_kernel::source::tokens::Token;
+use rsvelte_svelte_syntax::syntax_tree::{
+    Attribute, AttributeKind, AttributeValue, Part, Range, TokenType,
+};
 
 use super::binding::Binding;
 use super::directive::Directives;
-use super::{Builder, Node, Result, refuse};
+use super::{Builder, Node, NodeIdentifier, Result, refuse};
 
 /// What kind of tag the attributes are on.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -46,6 +49,57 @@ impl Builder<'_> {
         Some((name, attribute.span))
     }
 
+    /// svelte2tsx keeps a component's CSS custom property out of its props, and an element's
+    /// `data-` attribute, other than a `data-sveltekit-` one, out of its types.
+    fn wrapper(&self, host: &Host, attribute: &Attribute) -> Option<&'static str> {
+        let name = attribute.name.text(self.source);
+        if host.is_component() && name.starts_with("--") {
+            Some("__sveltets_2_cssProp")
+        } else if host.intrinsic()
+            && attribute.kind == AttributeKind::Attribute
+            && name.starts_with("data-")
+            && !name.starts_with("data-sveltekit-")
+        {
+            Some("__sveltets_2_empty")
+        } else {
+            None
+        }
+    }
+
+    /// `property` after the comments between `after` and `attribute`, which svelte2tsx writes
+    /// before it, except before a shorthand `{x}`.
+    fn commented(
+        &mut self,
+        after: u32,
+        attribute: &Attribute,
+        property: NodeIdentifier,
+    ) -> NodeIdentifier {
+        let name = attribute.name.start_offset;
+        let shorthand = attribute.kind == AttributeKind::Attribute
+            && matches!(
+                attribute.value,
+                AttributeValue::Parts(parts) if matches!(
+                    self.component.parts(parts),
+                    [Part::Expression { span, .. }] if span.start_offset <= name
+                )
+            );
+        let gap = Span::new(after, attribute.span.start_offset);
+        let tokens = self.component.tokens.within(gap);
+        let comment = |token: &&Token<TokenType>| token.kind == TokenType::JavaScriptComment;
+        let (Some(first), Some(last), false) = (
+            tokens.iter().find(comment),
+            tokens.iter().rfind(comment),
+            shorthand,
+        ) else {
+            return property;
+        };
+        let comments = Span::new(first.span.start_offset, last.span.end_offset);
+        self.tree.push(Node::Commented {
+            comments,
+            value: property,
+        })
+    }
+
     /// Pushes the properties, collects the directives, and returns the bindings.
     pub(super) fn element_attributes(
         &mut self,
@@ -58,7 +112,9 @@ impl Builder<'_> {
         // written, as Svelte's tree gives that tag a type of its own.
         let plain = host.intrinsic() && (!tag.starts_with("svelte:") || tag == "svelte:element");
         let mut bindings = Vec::new();
+        let mut after = host.name.end_offset;
         for attribute in self.component.attributes(attributes) {
+            let previous = std::mem::replace(&mut after, attribute.span.end_offset);
             match attribute.kind {
                 AttributeKind::Bind => {
                     directives.bindable.extend(self.bindable(host, attribute));
@@ -71,6 +127,7 @@ impl Builder<'_> {
                 }
                 AttributeKind::On if host.intrinsic() => {
                     let property = self.event_property(attribute)?;
+                    let property = self.commented(previous, attribute, property);
                     self.scratch.push(property);
                 }
                 AttributeKind::On if host.is_component() => {
@@ -130,21 +187,7 @@ impl Builder<'_> {
                         matches!(host.kind, Kind::Element { custom: true }),
                         host.closes_at,
                     );
-                    let name = attribute.name.text(self.source);
-                    // svelte2tsx keeps a component's CSS custom property out of its props, and an
-                    // element's `data-` attribute, other than SvelteKit's, out of its types.
-                    let wrapper = if host.is_component() && name.starts_with("--") {
-                        Some("__sveltets_2_cssProp")
-                    } else if host.intrinsic()
-                        && attribute.kind == AttributeKind::Attribute
-                        && name.starts_with("data-")
-                        && !name.starts_with("data-sveltekit-")
-                    {
-                        Some("__sveltets_2_empty")
-                    } else {
-                        None
-                    };
-                    if let Some(wrapper) = wrapper {
+                    if let Some(wrapper) = self.wrapper(host, attribute) {
                         let properties = self.tree.list(&[property]);
                         let object = self.tree.push(Node::Object { properties });
                         let callee = self.tree.push(Node::Identifier(wrapper));
@@ -154,6 +197,7 @@ impl Builder<'_> {
                         let dots = Span::new(at, at);
                         property = self.tree.push(Node::Spread { value, dots });
                     }
+                    let property = self.commented(previous, attribute, property);
                     self.scratch.push(property);
                 }
             }
