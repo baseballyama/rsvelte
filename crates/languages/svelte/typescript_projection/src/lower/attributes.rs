@@ -1,7 +1,7 @@
 //! The attributes and directives of one element, a component or a slot, before its call.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Range};
+use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, Range};
 
 use super::binding::Binding;
 use super::directive::Directives;
@@ -101,6 +101,17 @@ impl Builder<'_> {
                 AttributeKind::Attribute
                     if (host.kind == Kind::Slot && attribute.name.text(self.source) == "name")
                         || (host.dynamic && attribute.name.text(self.source) == "this") => {}
+                // A component's child names the slot it fills with a text `slot`, which svelte2tsx
+                // reads as that slot rather than as a property.
+                AttributeKind::Attribute
+                    if host.intrinsic()
+                        && self.component_parent
+                        && attribute.name.text(self.source) == "slot"
+                        && matches!(
+                            attribute.value,
+                            AttributeValue::Parts(parts)
+                                if matches!(self.component.parts(parts), [Part::Text(_)])
+                        ) => {}
                 _ => {
                     let mut property = self.attribute(
                         attribute,

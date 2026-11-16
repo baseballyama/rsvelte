@@ -22,9 +22,7 @@ function $$render() {
         } = __rsvelte_instance(__rsvelte_component_0).$$slot_def.default;
         (x);
         {
-          svelteHTML.createElement("p", {
-            "slot": "a",
-          });
+          svelteHTML.createElement("p", {});
           (x);
         }
         {

@@ -90,6 +90,7 @@ pub fn lower<'a>(
         directives: directive::Directives::default(),
         root_snippets: None,
         slot_parent: None,
+        component_parent: false,
         props_hoisted: false,
         module_snippets: None,
     };
@@ -159,6 +160,8 @@ struct Builder<'a> {
     root_snippets: Option<NodeIdentifier>,
     /// The component whose children are being lowered, whose named slots their `let:` read.
     slot_parent: Option<NodeIdentifier>,
+    /// Whether the children being lowered are a component's, through any blocks.
+    component_parent: bool,
     /// Whether `$$ComponentProps` moved before the render function.
     props_hoisted: bool,
     /// The root snippets svelte2tsx moves before the render function.
@@ -458,8 +461,10 @@ impl Builder<'_> {
         self.directives = directives;
         self.class_expressions(attributes);
         let parent = std::mem::replace(&mut self.slot_parent, named);
+        let component_parent = std::mem::replace(&mut self.component_parent, is_component);
         self.element_children(children, snippet_props, lets)?;
         self.slot_parent = parent;
+        self.component_parent = component_parent;
         if let Some(end_name) = end_name {
             let name = self.source(
                 oxc_span::Span::new(end_name.start_offset, end_name.end_offset),

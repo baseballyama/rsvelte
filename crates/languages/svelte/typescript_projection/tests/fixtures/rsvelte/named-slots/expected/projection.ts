@@ -24,9 +24,7 @@ function $$render() {
       const { foo } = __rsvelte_component_props(__rsvelte_component_0);
       foo;
       {
-        svelteHTML.createElement("div", {
-          "slot": "a",
-        });
+        svelteHTML.createElement("div", {});
         (x);
       }
       (x);
@@ -37,9 +35,7 @@ function $$render() {
         });
       }
       {
-        svelteHTML.createElement("span", {
-          "slot": "0",
-        });
+        svelteHTML.createElement("span", {});
         (x);
       }
       C;
@@ -47,18 +43,14 @@ function $$render() {
     {
       __rsvelte_component(C)(__rsvelte_internals(), {});
       {
-        svelteHTML.createElement("svelte:fragment", {
-          "slot": "b",
-        });
+        svelteHTML.createElement("svelte:fragment", {});
         {
           svelteHTML.createElement("span", {});
           (x);
         }
       }
       {
-        svelteHTML.createElement("svelte:fragment", {
-          "slot": "c",
-        });
+        svelteHTML.createElement("svelte:fragment", {});
         {
           svelteHTML.createElement("svg", {});
           {
