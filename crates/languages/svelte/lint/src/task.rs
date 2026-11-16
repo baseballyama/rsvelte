@@ -217,9 +217,11 @@ fn parse_verdict<'a>(context: &'a DocumentContext<'_>) -> Verdict<'a> {
 /// What typescript-eslint throws in a component Svelte's parser reads whole: what that lets pass.
 fn unchecked_verdict(component: &Component) -> Verdict<'static> {
     let tree = &component.javascript;
-    if let Some((message, at)) =
-        grammar::rejection(tree, tree.unchecked_errors(), grammar::scripts(component))
-    {
+    if let Some((message, at)) = rsvelte_typescript_tree::typescript_eslint_check(
+        tree,
+        tree.unchecked_errors(),
+        grammar::scripts(component),
+    ) {
         return Verdict::Throws(Cow::Borrowed(message), at);
     }
     if let Some(at) = grammar::optional_private_name(component) {
@@ -323,7 +325,7 @@ fn missing_at_the_end(
 fn grammar_verdict<'a>(component: &Component) -> TypescriptEslint<'a> {
     let tree = &component.javascript;
     let errors = (component.script_typescript_errors.iter()).chain(tree.unchecked_errors());
-    grammar::rejection(tree, errors, grammar::scripts(component))
+    rsvelte_typescript_tree::typescript_eslint_check(tree, errors, grammar::scripts(component))
         .map_or(TypescriptEslint::Parses, |(message, at)| {
             TypescriptEslint::Throws(Cow::Borrowed(message), at)
         })
@@ -338,7 +340,11 @@ fn module_rejection<'a>(context: &'a DocumentContext<'_>) -> Option<(Cow<'a, str
     let errors = match context.get::<ModuleAsTypeScript>() {
         Ok(module) => {
             let tree = &module.tree;
-            let (message, at) = grammar::rejection(tree, tree.unchecked_errors(), [module.root])?;
+            let (message, at) = rsvelte_typescript_tree::typescript_eslint_check(
+                tree,
+                tree.unchecked_errors(),
+                [module.root],
+            )?;
             return Some((Cow::Borrowed(message), at));
         }
         Err(errors) => errors,

@@ -44,7 +44,7 @@ struct Analysis<'a> {
 pub(super) fn hoisted<'a>(
     module: Option<&'a Program<'a>>,
     instance: &'a Program<'a>,
-    props: Option<&'a TSType<'a>>,
+    props: &'a TSType<'a>,
     stores: &[&'a str],
 ) -> Vec<Hoisted> {
     let mut analysis = Analysis::default();
@@ -55,9 +55,6 @@ pub(super) fn hoisted<'a>(
         analysis.instance_statement(statement);
     }
     analysis.disallowed_values.extend_from_slice(stores);
-    let Some(props) = props else {
-        return Vec::new();
-    };
     let (props_hoistable, hoistable, component_props) = match props {
         TSType::TSTypeReference(reference) => {
             let Some(name) = root(&reference.type_name) else {
