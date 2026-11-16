@@ -149,6 +149,7 @@ impl Task for CountCoverage {
                         });
                     !unchecked
                         && !in_generics
+                        && !in_tag(component, projection, &d.labels)
                         && !script_error(
                             d.code.number.as_deref(),
                             d.labels.first().map(oxc_span::LabeledSpan::offset),
@@ -183,6 +184,31 @@ impl Task for CountCoverage {
             Err(_) => count(&self.0.unsupported),
         };
     }
+}
+
+/// Whether one of `labels` lies in the copy of a tag's expression, which the projection writes as a
+/// statement, as svelte2tsx does, so that a function, class or keyword there is the source's own
+/// error.
+fn in_tag(
+    component: &rsvelte_svelte_syntax::syntax_tree::Component,
+    projection: &rsvelte_kernel::output::emitter::Emitter,
+    labels: &[oxc_span::LabeledSpan],
+) -> bool {
+    use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
+    let in_a_tag = |at: u32| {
+        component.nodes.iter().any(|node| match *node {
+            TemplateNode::Expression { span, .. } | TemplateNode::Html { span, .. } => {
+                span.start_offset < at && at < span.end_offset
+            }
+            _ => false,
+        })
+    };
+    labels.iter().any(|label| {
+        projection.mappings.iter().any(|m| {
+            (m.generated..m.generated + m.len).contains(&label.offset())
+                && in_a_tag(m.source_text + (label.offset() - m.generated))
+        })
+    })
 }
 
 /// Whether JavaScript's grammar rejects a projection svelte-check reads as JavaScript beyond

@@ -44,7 +44,7 @@ function $$render() {
         });
         {
           svelteHTML.createElement("b", {});
-          (c);
+          c;
         }
       }
     }

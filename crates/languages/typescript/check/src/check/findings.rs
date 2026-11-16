@@ -12,6 +12,7 @@ const NO_OVERLOAD_MATCHES_CALL: u32 = 2769;
 const ARGUMENT_NOT_ASSIGNABLE: u32 = 2345;
 const USED_BEFORE_ASSIGNED: u32 = 2454;
 const EXPECTED_ARGUMENTS: u32 = 2554;
+const NOT_ASSIGNABLE: u32 = 2322;
 
 /// A finding located in its document, with what orders it.
 struct Finding {
@@ -101,6 +102,7 @@ pub(super) fn write_findings(
         {
             continue;
         }
+        let message = not_bindable(&d.projection.out, generated, f.code, f.message);
         if let Some(span) = mapped {
             per_doc[f.file].push(Finding {
                 // TypeScript 7 parses some grammar errors that TypeScript 6 checks, such as
@@ -110,8 +112,8 @@ pub(super) fn write_findings(
                 span,
                 code: f.code,
                 message: match d.env.notes.iter().find(|(code, _)| *code == f.code) {
-                    Some((_, note)) => format!("{}\n{note}", f.message),
-                    None => f.message,
+                    Some((_, note)) => format!("{message}\n{note}"),
+                    None => message,
                 },
             });
         }
@@ -194,4 +196,25 @@ pub(crate) fn render_findings(lines: &LineIndex, found: &[(Span, i64, String)]) 
     }
     w.end_array();
     w.finish()
+}
+
+/// svelte-check's message for a `bind:` of a prop that the component does not declare bindable,
+/// where `generated` is svelte2tsx's `$$bindings` check in `projection`.
+fn not_bindable(projection: &str, generated: u32, code: u32, message: String) -> String {
+    const LEAD: &str = "Cannot use 'bind:' with this property. It is declared as non-bindable \
+                        inside the component.\nTo mark a property as bindable: ";
+    if code != NOT_ASSIGNABLE
+        || !(projection.get(generated as usize..))
+            .is_some_and(|after| after.starts_with("__rsvelte_bindings("))
+    {
+        return message;
+    }
+    if message.contains("is not assignable to type '")
+        && let Some(name) =
+            (message.strip_prefix("Type '\"")).and_then(|rest| rest.split('"').next())
+    {
+        format!("{LEAD}'let {{ {name} = $bindable() }} = $props()'")
+    } else {
+        format!("{LEAD}'let {{ prop = $bindable() }} = $props()'\n\n{message}")
+    }
 }

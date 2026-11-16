@@ -26,7 +26,7 @@ function $$render() {
                 "class": { current: item.id === selected },
                 "onclick": () => (selected = item.id),
               });
-              (item.name);
+              item.name;
             }
           }
         }

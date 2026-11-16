@@ -71404,46 +71404,6 @@
 === 3 packages/layerchart/src/lib/components/charts/ScatterChart/ScatterChart.svg.svelte	json
 []
 
-=== 1549 packages/layerchart/src/lib/components/charts/__fixtures__/ArcChartTooltip.svelte	json
-[
-	{
-		"code": 2322,
-		"message": "Type '{ data: { browser: string; visitors: number; color: string; }[]; label: string; value: string; innerRadius: number; outerRadius: number; height: number; width: number; series: { key: string; label: string; color: string; data: { ...; }[]; }[]; tooltip: ({ context }: { ...; }) => any; }' is not assignable to type 'ArcChartProps<{ browser: string; visitors: number; color: string; }>'.\n  Type '{ data: { browser: string; visitors: number; color: string; }[]; label: string; value: string; innerRadius: number; outerRadius: number; height: number; width: number; series: { key: string; label: string; color: string; data: { ...; }[]; }[]; tooltip: ({ context }: { ...; }) => any; }' is missing the following properties from type 'Pick<any, \"range\" | \"outerRadius\" | \"cornerRadius\" | \"trackCornerRadius\" | \"padAngle\" | \"trackPadAngle\" | \"trackStartAngle\" | \"trackEndAngle\" | \"trackInnerRadius\" | \"trackOuterRadius\" | \"innerRadius\">': range, cornerRadius, trackCornerRadius, padAngle, and 5 more.",
-		"start": {
-			"line": 19,
-			"character": 8
-		},
-		"end": {
-			"line": 19,
-			"character": 8
-		}
-	},
-	{
-		"code": 7031,
-		"message": "Binding element 'context' implicitly has an 'any' type.",
-		"start": {
-			"line": 29,
-			"character": 22
-		},
-		"end": {
-			"line": 29,
-			"character": 29
-		}
-	},
-	{
-		"code": 7006,
-		"message": "Parameter 'series' implicitly has an 'any' type.",
-		"start": {
-			"line": 30,
-			"character": 59
-		},
-		"end": {
-			"line": 30,
-			"character": 65
-		}
-	}
-]
-
 === 3 packages/layerchart/src/lib/components/charts/__fixtures__/LineChartCustomMarks.svelte	json
 []
 

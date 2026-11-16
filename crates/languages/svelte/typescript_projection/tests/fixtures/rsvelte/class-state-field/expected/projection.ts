@@ -14,7 +14,7 @@ function $$render() {
       svelteHTML.createElement("button", {
         "onclick": () => counter.count++,
       });
-      (counter.count);
+      counter.count;
     }
   };
   return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();

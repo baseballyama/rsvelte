@@ -24,7 +24,7 @@ function $$render() {
       });
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
 }
 const CheckGeneratedNames__SvelteComponent_ = $$render();
 type CheckGeneratedNames__SvelteComponent_ = ReturnType<typeof CheckGeneratedNames__SvelteComponent_>;

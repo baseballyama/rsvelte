@@ -22,11 +22,11 @@ function $$render() {
         svelteHTML.createElement("option", {
           "value": picked + 1,
         });
-        (label);
+        label;
       }
       {
         svelteHTML.createElement("option", {});
-        (label);
+        label;
       }
     }
     {

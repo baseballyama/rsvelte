@@ -28,12 +28,12 @@ function $$render() {
               svelteHTML.createElement("p", {
                 "onclick": () => k++,
               });
-              (x);
-              (i);
-              (a);
-              (c);
-              (rest.d);
-              (k);
+              x;
+              i;
+              a;
+              c;
+              rest.d;
+              k;
             }
           }
         }
@@ -42,14 +42,14 @@ function $$render() {
             x,
           } = __rsvelte_instance(__rsvelte_component_0).$$slot_def["named"];
           svelteHTML.createElement("div", {});
-          (x);
+          x;
         }
         {
           const {
             "y": { z },
           } = __rsvelte_instance(__rsvelte_component_0).$$slot_def["f"];
           svelteHTML.createElement("svelte:fragment", {});
-          (z);
+          z;
         }
         {
           const {
@@ -60,7 +60,7 @@ function $$render() {
             "slot": "comp",
             "foo": w,
           });
-          (w);
+          w;
           C;
         }
         {
@@ -69,7 +69,7 @@ function $$render() {
           } = __rsvelte_instance(__rsvelte_component_0).$$slot_def["consts"];
           svelteHTML.createElement("p", {});
           const twice = v * 2;
-          (twice);
+          twice;
         }
       }
       C;
@@ -84,7 +84,7 @@ function $$render() {
           v,
         } = __rsvelte_instance(__rsvelte_component_0).$$slot_def.default;
         svelteHTML.createElement("svelte:fragment", {});
-        (v);
+        v;
       }
       C;
     }
@@ -98,7 +98,7 @@ function $$render() {
           u,
         } = __rsvelte_instance(__rsvelte_component_0).$$slot_def["default"];
         svelteHTML.createElement("svelte:fragment", {});
-        (u);
+        u;
       }
       C;
     }

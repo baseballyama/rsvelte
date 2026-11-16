@@ -72,9 +72,11 @@ impl Builder<'_> {
             })
         };
         if let Some(script) = &self.component.module {
-            let edits: Vec<Edit> = after(script.content)
+            let mut edits: Vec<Edit> = after(script.content)
                 .map(|(end, store)| self.store_edit(end, store))
                 .collect();
+            let program = self.component.javascript.get_program(script.program);
+            self.type_assertions(program, &mut edits);
             self.script_parts(script.content, &edits);
         }
         let render_start = self.scratch.len();

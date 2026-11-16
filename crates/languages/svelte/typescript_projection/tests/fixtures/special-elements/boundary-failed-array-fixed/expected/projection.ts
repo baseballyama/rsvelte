@@ -7,8 +7,8 @@ function $$render() {
           async () => {
             {
               svelteHTML.createElement("p", {});
-              (first);
-              (third);
+              first;
+              third;
             }
           };
           return __rsvelte_snippet_return;
@@ -19,7 +19,7 @@ function $$render() {
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, string>} */ (__rsvelte_export_component))();
 }
 const BoundaryFailedArrayFixed__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof BoundaryFailedArrayFixed__SvelteComponent_>} */ (BoundaryFailedArrayFixed__SvelteComponent_);

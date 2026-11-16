@@ -6,10 +6,10 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("p", {});
-      (x);
+      x;
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
 }
 const ByteOrderMark__SvelteComponent_ = $$render();
 type ByteOrderMark__SvelteComponent_ = ReturnType<typeof ByteOrderMark__SvelteComponent_>;

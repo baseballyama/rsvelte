@@ -15,7 +15,7 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("p", {});
-      (header ? 'with header' : 'no header');
+      header ? 'with header' : 'no header';
     }
   };
   return __rsvelte_export_component<$$ComponentProps, {}, "">();

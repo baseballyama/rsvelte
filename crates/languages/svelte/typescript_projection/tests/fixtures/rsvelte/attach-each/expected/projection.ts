@@ -21,7 +21,7 @@ function $$render() {
             svelteHTML.createElement("li", {
               [Symbol("@attach")]: highlight(item),
             });
-            (item.label);
+            item.label;
           }
         }
       }

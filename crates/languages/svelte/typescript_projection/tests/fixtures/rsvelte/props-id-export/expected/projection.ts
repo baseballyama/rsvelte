@@ -5,9 +5,11 @@ function $$render() {
 
 ;
 
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {
+  return (/** @type {typeof __rsvelte_export_component<Partial<{
     id: typeof id;
-  }, "">} */ (__rsvelte_export_component))();
+  }>, {
+    id: typeof id;
+  }, string>} */ (__rsvelte_export_component))();
 }
 const PropsIdExport__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof PropsIdExport__SvelteComponent_>} */ (PropsIdExport__SvelteComponent_);

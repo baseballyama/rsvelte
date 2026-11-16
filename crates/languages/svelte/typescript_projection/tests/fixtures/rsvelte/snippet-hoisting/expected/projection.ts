@@ -16,7 +16,7 @@ function $$render() {
     async () => {
       {
         svelteHTML.createElement("p", {});
-        (name);
+        name;
       }
     };
     return __rsvelte_snippet_return;
@@ -25,7 +25,7 @@ function $$render() {
     async () => {
       {
         svelteHTML.createElement("p", {});
-        (item.label);
+        item.label;
       }
     };
     return __rsvelte_snippet_return;

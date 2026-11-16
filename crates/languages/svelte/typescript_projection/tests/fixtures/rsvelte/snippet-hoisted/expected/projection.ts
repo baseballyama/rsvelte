@@ -9,7 +9,7 @@ const plain = () => {
     {
       __rsvelte_component(Icon)(__rsvelte_internals(), {});
     }
-    (greeting);
+    greeting;
   };
   return __rsvelte_snippet_return;
 };
@@ -28,7 +28,7 @@ function $$render() {
     async () => {
       {
         svelteHTML.createElement("b", {});
-        (name);
+        name;
       }
     };
     return __rsvelte_snippet_return;

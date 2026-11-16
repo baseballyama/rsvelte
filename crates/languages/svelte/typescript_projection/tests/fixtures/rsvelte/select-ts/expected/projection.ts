@@ -29,7 +29,7 @@ function $$render() {
       });
       {
         svelteHTML.createElement("option", {});
-        (name);
+        name;
       }
     }
   };

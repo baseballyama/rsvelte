@@ -110,7 +110,10 @@ fn element_and_attachment_semantics_are_lowered_before_printing() {
         tree.node(property),
         Node::Identifier("createElement")
     ));
-    let Node::Object { properties } = tree.node(tree.children(arguments)[1]) else {
+    let Node::Located { value, .. } = tree.node(tree.children(arguments)[1]) else {
+        panic!("element attributes are located at the tag name");
+    };
+    let Node::Object { properties } = tree.node(value) else {
         panic!("element attributes form an object expression");
     };
     let Node::ComputedProperty { key, value } = tree.node(tree.children(properties)[0]) else {
@@ -200,13 +203,13 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
             "          \"title\": text,\n",
             "          \"aria-label\": `café\n  🚀`,\n",
             "        });\n",
-            "        (text);\n",
+            "        text;\n",
             "      }\n",
             "    }\n",
             "  };\n",
             // A component without a TypeScript script projects to JavaScript, its types in JSDoc.
             "  return (/** @type {typeof __rsvelte_export_component<",
-            "__rsvelte_no_props, {}, \"\">} */ (__rsvelte_export_component))();\n",
+            "__rsvelte_no_props, {}, string>} */ (__rsvelte_export_component))();\n",
             "}\n",
             "const $$Component = $$render();\n",
             "export default /** @type {__rsvelte_javascript_export<typeof $$Component>} */ ",

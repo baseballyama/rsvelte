@@ -35,7 +35,8 @@ function $$render() {
       };
     }
     {
-      __rsvelte_component(Child)(__rsvelte_internals(), {
+      const __rsvelte_component_0 = __rsvelte_component(Child);
+      __rsvelte_component_0(__rsvelte_internals(), {
         "value": $count,
         "other": $obj.a,
       });
@@ -47,6 +48,8 @@ function $$render() {
         // @ts-ignore
         $obj.a = __rsvelte_untyped_prop();
       };
+      __rsvelte_bindings(__rsvelte_component_0).$$bindings = "value";
+      __rsvelte_bindings(__rsvelte_component_0).$$bindings = "other";
     }
     {
       for (let [, item] of __rsvelte_each($obj.list)) {
@@ -67,7 +70,7 @@ function $$render() {
       });
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, string>} */ (__rsvelte_export_component))();
 }
 const StoreBindings__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof StoreBindings__SvelteComponent_>} */ (StoreBindings__SvelteComponent_);

@@ -49,7 +49,7 @@ function $$render() {
         ...({ role: 'status' }),
         "aria-live": "polite",
       });
-      (count);
+      count;
     }
     {
       svelteHTML.createElement("button", {

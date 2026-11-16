@@ -174,37 +174,41 @@ impl Emitter {
         found
     }
 
-    /// Calls `f` with every mapped character as (generated, original): one point per character of
-    /// a copy, one per point mapping and per atom, which maps from its start; a later mapping at
-    /// the same generated offset replaces an earlier one. Both lists are in output order, so
-    /// merging them, mappings first on a tie, is the order a stable sort of the two would give.
-    fn points(&self, mut f: impl FnMut(u32, u32)) {
-        let mut last: Option<(u32, u32)> = None;
-        let mut put = |generated: u32, source_text: u32| {
-            if let Some(point) = last.filter(|&(g, _)| g != generated) {
-                f(point.0, point.1);
+    /// Calls `f` with every mapped character as (generated, original, step): one point per
+    /// character of a copy, one per point mapping and per atom, which maps from its start; a later
+    /// mapping at the same generated offset replaces an earlier one. `step` is the character a copy
+    /// advanced by since the point before, which it follows on both sides. Both lists are in output
+    /// order, so merging them, mappings first on a tie, is the order a stable sort of the two would
+    /// give.
+    fn points(&self, mut f: impl FnMut(u32, u32, Option<char>)) {
+        let mut last: Option<(u32, u32, Option<char>)> = None;
+        let mut put = |generated: u32, source_text: u32, step: Option<char>| {
+            if let Some(point) = last.filter(|&(g, ..)| g != generated) {
+                f(point.0, point.1, point.2);
             }
-            last = Some((generated, source_text));
+            last = Some((generated, source_text, step));
         };
         let mut atoms = self.atoms.iter().peekable();
         for m in &self.mappings {
             while let Some(a) = atoms.next_if(|a| a.generated.start_offset < m.generated) {
-                put(a.generated.start_offset, a.original.start_offset);
+                put(a.generated.start_offset, a.original.start_offset, None);
             }
             if m.len == 0 {
-                put(m.generated, m.source_text);
+                put(m.generated, m.source_text, None);
                 continue;
             }
             let copied = &self.out[m.generated as usize..(m.generated + m.len) as usize];
-            for (i, _) in copied.char_indices() {
-                put(m.generated + i as u32, m.source_text + i as u32);
+            let mut step = None;
+            for (i, c) in copied.char_indices() {
+                put(m.generated + i as u32, m.source_text + i as u32, step);
+                step = Some(c);
             }
         }
         for a in atoms {
-            put(a.generated.start_offset, a.original.start_offset);
+            put(a.generated.start_offset, a.original.start_offset, None);
         }
-        if let Some((generated, source_text)) = last {
-            f(generated, source_text);
+        if let Some((generated, source_text, step)) = last {
+            f(generated, source_text, step);
         }
     }
 
@@ -227,7 +231,18 @@ impl Emitter {
             mut prev_source_text_column,
         ) = (1u32, 0i64, 0i64, 0i64);
         let mut first_in_line = true;
-        self.points(|generated, original| {
+        self.points(|generated, original, step| {
+            // A character of a copy on the line of the one before moves both columns alike.
+            if let Some(c) = step.filter(|&c| c != '\n') {
+                let units = if u32::from(c) > 0xFFFF { 2 } else { 1 };
+                json.push(',');
+                vlq(&mut json, units);
+                json.push_str("AA");
+                vlq(&mut json, units);
+                prev_gen_column += units;
+                prev_source_text_column += units;
+                return;
+            }
             let g = generated_cursor.line_column(generated);
             let s = source_cursor.line_column(original);
             while prev_gen_line < g.line {

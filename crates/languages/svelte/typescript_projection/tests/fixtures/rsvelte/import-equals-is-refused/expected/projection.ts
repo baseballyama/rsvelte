@@ -9,11 +9,11 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("p", {});
-      (r);
-      (y);
+      r;
+      y;
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
 }
 const ImportEqualsIsRefused__SvelteComponent_ = $$render();
 type ImportEqualsIsRefused__SvelteComponent_ = ReturnType<typeof ImportEqualsIsRefused__SvelteComponent_>;

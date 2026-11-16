@@ -18,7 +18,7 @@ use rsvelte_vue_semantic::resolve::Resolution;
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::{Translation, helpers, program, statements};
+use super::{Translation, helpers, prelude, program};
 
 mod blocks;
 mod components;
@@ -57,7 +57,7 @@ fn compile_in(t: &Translation, res: &Resolution, allocator: &Allocator) -> Strin
             ));
         }
         module.push(helpers::boolean_names("$$boolean_names", &b));
-        module.extend(statements(&b, include_str!("vapor/server.js")));
+        module.push(prelude::marker(&b, include_str!("vapor/server.js")));
     }
     if t.template.helpers.contains(&helpers::Helper::Group) && !t.server {
         body.insert(b.const_("$$instance_groups", b.object([])));
@@ -76,7 +76,7 @@ fn compile_in(t: &Translation, res: &Resolution, allocator: &Allocator) -> Strin
         !o.shadow_root
     });
     if !t.server && t.stylesheet.is_some() && injected {
-        module.extend(statements(&b, include_str!("vapor/styles.js")));
+        module.push(prelude::marker(&b, include_str!("vapor/styles.js")));
         let instance = e.call("getCurrentInstance", []);
         let [hash, stylesheet] = e.stylesheet_values();
         let call = b.call(b.id("$$inject_styles"), [instance, hash, stylesheet]);
@@ -107,7 +107,9 @@ fn compile_in(t: &Translation, res: &Resolution, allocator: &Allocator) -> Strin
     module.insert(0, e.import());
     module.push(export);
     let source_text = b.str(t.javascript.source_text());
-    rsvelte_typescript_compile::print::print(&program(&b, source_text, module))
+    let expand: &dyn for<'s, 'x> Fn(&'s Statement<'x>) -> Option<&'s [Statement<'s>]> =
+        &|s| prelude::expand(s);
+    rsvelte_typescript_compile::print::print_expanding(&program(&b, source_text, module), expand)
 }
 
 /// `name(params) { body }`, from a function expression.

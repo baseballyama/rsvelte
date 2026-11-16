@@ -73,6 +73,9 @@ pub enum Node {
         declared: Range,
     },
     Expression(SourceExpression),
+    /// `value;` without parentheses, as svelte2tsx writes a mustache tag, so TypeScript reads a
+    /// function or class there as a declaration and reports what it lacks.
+    Bare(SourceExpression),
     Statement(NodeIdentifier),
     Identifier(&'static str),
     /// The component `<svelte:self>` renders, whose props svelte2tsx does not check.
@@ -159,15 +162,23 @@ pub enum Node {
         template: bool,
     },
     Text(Span),
-    /// `value`, where a finding on all of it maps to `at`, and a finding inside it as usual.
+    /// The object `value`, whose opening brace maps to `open` and closing brace to `close`, so
+    /// that a finding on all of it starts and ends there. Without `close`, it ends where the last
+    /// property does.
     Located {
         value: NodeIdentifier,
-        at: Span,
+        open: Span,
+        close: Option<Span>,
     },
     /// Text that needs no escape as a string literal, which a finding on the literal locates.
     QuotedText(Span),
     /// Source text without a mapping, so neither findings nor typed lint see this copy.
     UnmappedSource(Span),
+    /// `(parts) as written`, as svelte2tsx writes a type assertion `<written>parts`.
+    AsType {
+        parts: Range,
+        written: Span,
+    },
     /// A `$$Generic` alias as svelte2tsx's unmapped type parameter, `name extends constraint`.
     TypeParameter {
         name: Span,
