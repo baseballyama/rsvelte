@@ -50,9 +50,22 @@ fn an_await_prettier_reads_otherwise_is_refused() {
             "function h() { for await (const x of y) {} }",
             " lang=\"ts\"",
         ),
-        ("class A { x = await f(); }", ""),
     ] {
         let refused = format(script, lang).expect_err(script);
         assert!(refused.contains("await"), "{script}: {refused}");
     }
+}
+
+#[test]
+fn a_script_babel_throws_on_for_its_await_is_kept_as_written() {
+    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    let script = "class A { x = await f(); }";
+    assert_eq!(
+        format(script, ""),
+        Ok(format!("<script>\n{script}\n</script>\n"))
+    );
+    // Babel reads `await (…)` there as a call, which oxc reads otherwise.
+    let script = "class A { x = await (f()); }";
+    let refused = format(script, "").expect_err(script);
+    assert!(refused.contains("await"), "{script}: {refused}");
 }
