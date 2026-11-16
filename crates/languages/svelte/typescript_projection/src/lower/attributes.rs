@@ -44,6 +44,9 @@ impl Builder<'_> {
         directives: &mut Directives,
     ) -> Result<Vec<Binding>> {
         let tag = host.name.text(self.source);
+        // svelte2tsx keeps the attributes of a `<svelte:…>` tag other than `<svelte:element>` as
+        // written, as Svelte's tree gives that tag a type of its own.
+        let plain = host.intrinsic() && (!tag.starts_with("svelte:") || tag == "svelte:element");
         let mut bindings = Vec::new();
         for attribute in self.component.attributes(attributes) {
             match attribute.kind {
@@ -101,7 +104,7 @@ impl Builder<'_> {
                 _ => {
                     let mut property = self.attribute(
                         attribute,
-                        host.intrinsic(),
+                        plain,
                         matches!(host.kind, Kind::Element { custom: true }),
                     );
                     // A component's CSS custom property is no prop: svelte2tsx's `cssProp`.
