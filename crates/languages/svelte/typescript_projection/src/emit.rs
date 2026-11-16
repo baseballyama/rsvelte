@@ -365,17 +365,20 @@ impl Printer<'_> {
             Some(TypeParameters::Attribute(span)) => {
                 self.output.push("<");
                 self.output.copy(self.source, span);
-                self.output.push(">");
+                // svelte2tsx maps the rest of the line to the character after the value, its
+                // closing quote.
+                let after = Span::new(span.end_offset, span.end_offset + 1);
+                self.output.atom(">() {", after);
+                self.output.push("\n");
             }
             Some(parameters @ TypeParameters::Declared(_)) => {
                 let parameters = self.type_parameters(parameters);
                 self.output.push("<");
                 self.output.push(&parameters);
-                self.output.push(">");
+                self.output.push(">() {\n");
             }
-            None => {}
+            None => self.output.push("() {\n"),
         }
-        self.output.push("() {\n");
         self.body(body);
         self.output.push("}\n");
     }

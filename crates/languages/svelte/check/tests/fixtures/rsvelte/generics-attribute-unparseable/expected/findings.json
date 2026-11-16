@@ -1,0 +1,50 @@
+[
+	{
+		"code": 1139,
+		"message": "Type parameter declaration expected.",
+		"start": {
+			"line": 0,
+			"character": 28
+		},
+		"end": {
+			"line": 0,
+			"character": 29
+		}
+	},
+	{
+		"code": 1109,
+		"message": "Expression expected.",
+		"start": {
+			"line": 0,
+			"character": 29
+		},
+		"end": {
+			"line": 0,
+			"character": 30
+		}
+	},
+	{
+		"code": 1005,
+		"message": "';' expected.",
+		"start": {
+			"line": 0,
+			"character": 29
+		},
+		"end": {
+			"line": 0,
+			"character": 30
+		}
+	},
+	{
+		"code": 7010,
+		"message": "'$$render', which lacks return-type annotation, implicitly has an 'any' return type.",
+		"start": {
+			"line": 0,
+			"character": 1
+		},
+		"end": {
+			"line": 0,
+			"character": 27
+		}
+	}
+]
