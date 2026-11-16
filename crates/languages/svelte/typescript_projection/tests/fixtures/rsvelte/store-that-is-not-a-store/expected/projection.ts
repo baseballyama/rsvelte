@@ -18,9 +18,9 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("p", {});
-      ($count);
-      (doubled);
-      ($later);
+      $count;
+      doubled;
+      $later;
     }
   };
   return __rsvelte_export_component<__rsvelte_no_props, {}, string>();

@@ -37,7 +37,7 @@ function $$render() {
     {
       window.__el = svelteHTML.createElement("p", {});
     }
-    (a);
+    a;
   };
   return (/** @type {typeof __rsvelte_export_component<Partial<{
     a: typeof a;

@@ -18,11 +18,11 @@ function $$render() {
         "type": "button",
         "onclick": () => items.push(items.length),
       });
-      (items.length);
+      items.length;
     }
     {
       svelteHTML.createElement("p", {});
-      (config.open);
+      config.open;
     }
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "items" | "config">} */ (__rsvelte_export_component))();

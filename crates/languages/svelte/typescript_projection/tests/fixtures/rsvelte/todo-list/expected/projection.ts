@@ -82,7 +82,7 @@ function $$render() {
     }
     {
       svelteHTML.createElement("p", {});
-      (remaining);
+      remaining;
     }
     {
       svelteHTML.createElement("button", {

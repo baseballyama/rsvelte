@@ -1,1 +1,1 @@
-{"version":3,"sources":["rsvelte/bind-value-on-an-element.svelte"],"names":[],"mappings":";;EAAQ;AACR,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;;;;;;gCAGnB;OAAG,CAAC;;;gCACiB,CAAC,CAAC,CAAC,CAAC;QAAG,YAAU,EAAE,CAAC"}
+{"version":3,"sources":["rsvelte/bind-value-on-an-element.svelte"],"names":[],"mappings":";;EAAQ;AACR,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;;;;;;gCAGnB,IAAA,CAAA;MAAG,CAAC;;;gCACiB,CAAC,CAAC,CAAC,CAAC,IAA1B;QAA6B,YAAU,EAAE,CAAC"}

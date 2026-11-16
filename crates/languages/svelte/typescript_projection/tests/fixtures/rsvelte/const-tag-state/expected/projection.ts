@@ -8,7 +8,7 @@ function $$render() {
   async () => {
     if (n) {
       const [a] = $state([1]);
-      (a);
+      a;
     }
   };
   return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();

@@ -13,8 +13,8 @@ function $$render() {
 ;
 
   async () => {
-    (y);
-    (x);
+    y;
+    x;
   };
   return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
 }

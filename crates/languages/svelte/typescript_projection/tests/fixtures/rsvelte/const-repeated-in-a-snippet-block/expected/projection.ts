@@ -15,7 +15,7 @@ function $$render() {
         svelteHTML.createElement("div", {});
         const s = () => {
           async () => {
-            (h);
+            h;
           };
           return __rsvelte_snippet_return;
         };
@@ -30,7 +30,7 @@ function $$render() {
           svelteHTML.createElement("p", {});
           const t = () => {
             async () => {
-              (k);
+              k;
             };
             return __rsvelte_snippet_return;
           };

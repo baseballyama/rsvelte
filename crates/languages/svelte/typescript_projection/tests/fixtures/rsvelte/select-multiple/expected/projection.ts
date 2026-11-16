@@ -22,14 +22,14 @@ function $$render() {
             svelteHTML.createElement("option", {
               "value": flavour,
             });
-            (flavour);
+            flavour;
           }
         }
       }
     }
     {
       svelteHTML.createElement("p", {});
-      (flavours.join(', '));
+      flavours.join(', ');
     }
   };
   return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();

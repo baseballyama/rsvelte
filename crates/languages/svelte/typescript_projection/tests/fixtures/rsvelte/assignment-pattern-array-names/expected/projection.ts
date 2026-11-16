@@ -18,7 +18,7 @@ function $$render() {
       for (let [, cheese] of __rsvelte_iterable0) {
         {
           svelteHTML.createElement("li", {});
-          (cheese);
+          cheese;
         }
       }
     }

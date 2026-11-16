@@ -10,7 +10,7 @@ function $$render() {
           async () => {
             {
               svelteHTML.createElement("p", {});
-              (message);
+              message;
             }
           };
           return __rsvelte_snippet_return;

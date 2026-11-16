@@ -7,8 +7,8 @@ function $$render() {
           async () => {
             {
               svelteHTML.createElement("p", {});
-              (message);
-              (rest.name);
+              message;
+              rest.name;
             }
           };
           return __rsvelte_snippet_return;

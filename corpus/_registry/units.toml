@@ -4859,6 +4859,72 @@
 ["svelte/rsvelte/pattern/class-member-name.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
+["svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/bits-ui/packages/bits-ui/src/lib/bits/select/components/select.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/flowbite-svelte/src/lib/device-mockups/DeviceMockup.svelte".skip]
+"svelte.check" = "checker: TS 7 shortens a long type in a message otherwise than TS 6, writing `...` for a member TS 6 writes as `{ ...; }`"
+
+["svelte/kite-public/src/lib/components/contribute/ContributeHistory.svelte".skip]
+"svelte.check" = "checker: TS 7 shortens a long type in a message otherwise than TS 6, writing `...` for a member TS 6 writes as `{ ...; }`"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte".skip]
+"svelte.check" = "checker: TS 7's lib.dom differs from TS 6's, so the message lists other missing properties"
+
+["svelte/rsvelte/pattern/issues/var-derived-outlives-the-statement-it-declared-it.svelte".skip]
+"svelte.check" = "checker: TS 6's message for 1344 starts with a stray quote, `'A label is not allowed here.`, which TS 7 drops"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/128daf0370152b62.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/206e74c7dccafa7e.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/208e8058f2789ff5.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/2b7a3bf6f4dda84c.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/2cb3c44dbfa2dfd9.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/3ff4cdc0e418febd.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/604c759e974b7b37.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/7efd2325017e0405.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/8721a6b434a131f7.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/8b2f138617feb45c.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/d692c48bdf4b706c.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/e05fefbf8d487c03.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/type_operator_operand_matches_oracle/11ba9a4dcfd4ca3a.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/type_operator_operand_matches_oracle/2747c6d54d9941b7.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/type_operator_operand_matches_oracle/3f98a0deb6534381.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
 ["svelte/rsvelte/pattern/ts-class-generator-method-signature.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 removes only abstract methods with the types, so a method signature without a body, such as `*m();`, stays in the output, which does not parse"
 
@@ -4871,26 +4937,11 @@
 ["svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/a_member_oxc_already_rejects_does_not_move/c17ea09d73673f96.svelte".skip]
 "svelte.check" = "checker: TS 7 reports 8009 on a modifier of a JavaScript class member and spans 8017 over the member, where TS 6 reports only 8017 at its name"
 
-["svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte".skip]
-"svelte.check" = "checker: TS 7 prints a union's literal members in its own order where TS 6 keeps the written order, so the message lists them differently"
-
-["svelte/bits-ui/packages/bits-ui/src/lib/bits/select/components/select.svelte".skip]
-"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
-
 ["svelte/layerchart/packages/layerchart/src/lib/components/geo/GeoRaster/GeoRaster.svelte".skip]
 "svelte.check" = "checker: TS 7's lib.dom types HTMLImageElement's crossOrigin as \"anonymous\" | \"use-credentials\" | null where TS 6's types it string | null, so assigning a string fails only in TS 7"
 
 ["svelte/primo/src/lib/builder/components/Sidebar/Sidebar_Symbol.svelte".skip]
 "svelte.check" = "checker: TS 7 reports an argument its parameter rejects with the inner reason's code, such as 2740, where TS 6 reports 2345 with that reason under it"
-
-["svelte/kite-public/src/lib/components/contribute/ContributeHistory.svelte".skip]
-"svelte.check" = "checker: TS 7 truncates a long type's last property to `...` where TS 6 prints `{ ...; }`, so the message differs"
-
-["svelte/flowbite-svelte/src/lib/device-mockups/DeviceMockup.svelte".skip]
-"svelte.check" = "checker: TS 7 truncates a long type at another point than TS 6, so the message differs"
-
-["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte".skip]
-"svelte.check" = "checker: TS 7 prints `boolean | void` as `void | boolean` where TS 6 keeps the written order, so the message differs"
 
 ["svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/af2787da59b35a7f.svelte".skip]
 "svelte.format" = "oxc ast: TSIndexSignature holds one parameter, so oxc cannot print the second of `[a: string, b: string]`, which Prettier 3.9.10 keeps"

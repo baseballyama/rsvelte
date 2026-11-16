@@ -8,7 +8,7 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("pre", {});
-      (text);
+      text;
     }
     {
       svelteHTML.createElement("pre", {});
@@ -17,7 +17,7 @@ function $$render() {
       svelteHTML.createElement("pre", {});
       {
         svelteHTML.createElement("code", {});
-        (text);
+        text;
       }
     }
     {

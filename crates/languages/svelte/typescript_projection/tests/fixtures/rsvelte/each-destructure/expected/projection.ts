@@ -18,10 +18,10 @@ function $$render() {
         (id);
         {
           svelteHTML.createElement("p", {});
-          (id);
-          (name);
-          (size);
-          (rest.extra);
+          id;
+          name;
+          size;
+          rest.extra;
         }
       }
     }
@@ -29,9 +29,9 @@ function $$render() {
       for (let [i, [key, value]] of __rsvelte_each(pairs)) {
         {
           svelteHTML.createElement("span", {});
-          (i);
-          (key);
-          (value);
+          i;
+          key;
+          value;
         }
       }
     }
@@ -39,8 +39,8 @@ function $$render() {
       for (let [, { name, tags: [first = fallback] }] of __rsvelte_each(plain)) {
         {
           svelteHTML.createElement("b", {});
-          (name);
-          (first);
+          name;
+          first;
         }
       }
     }
@@ -48,7 +48,7 @@ function $$render() {
       for (let [, { label }] of __rsvelte_each(fixed)) {
         {
           svelteHTML.createElement("i", {});
-          (label);
+          label;
         }
       }
     }

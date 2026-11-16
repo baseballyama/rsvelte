@@ -12,8 +12,8 @@ function $$render() {
       svelteHTML.createElement("button", {
         "onclick": () => n++,
       });
-      (n);
-      (twice);
+      n;
+      twice;
     }
     if (shown) {
       let box = $state({ v: start });
@@ -22,8 +22,8 @@ function $$render() {
         svelteHTML.createElement("p", {
           "onclick": () => box.v++,
         });
-        (label);
-        (box.v);
+        label;
+        box.v;
       }
       {
         svelteHTML.createElement("section", {});
@@ -31,8 +31,8 @@ function $$render() {
         let t = $derived(twice + 1);
         {
           svelteHTML.createElement("i", {});
-          (label);
-          (t);
+          label;
+          t;
         }
       }
     }
@@ -41,7 +41,7 @@ function $$render() {
         let el = $state();
         {
           el = svelteHTML.createElement("b", {});
-          (item);
+          item;
         }
       }
     }

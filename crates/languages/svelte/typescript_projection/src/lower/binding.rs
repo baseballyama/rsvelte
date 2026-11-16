@@ -325,7 +325,11 @@ impl Builder<'_> {
             let object = self.tree.push(Node::Call { callee, arguments });
             let property = self.tree.push(Node::Identifier("$$bindings"));
             let value = self.tree.push(Node::Member { object, property });
-            let target = self.tree.push(Node::Located { value, at });
+            let target = self.tree.push(Node::Located {
+                value,
+                open: at,
+                close: None,
+            });
             let value = self.tree.push(Node::QuotedText(name));
             let assignment = self.tree.push(Node::Assignment { target, value });
             self.scratch

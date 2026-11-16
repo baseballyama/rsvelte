@@ -20,7 +20,7 @@ function $$render() {
         "class": "a",
         "onclick": () => x++,
       });
-      (x);
+      x;
     }
     __rsvelte_ensure_snippet(children?.());
   };

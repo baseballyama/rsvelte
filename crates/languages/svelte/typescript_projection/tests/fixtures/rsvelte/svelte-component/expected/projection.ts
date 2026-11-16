@@ -27,7 +27,7 @@ function $$render() {
       __rsvelte_component(other ?? A)(__rsvelte_internals(), {
         children: __rsvelte_children,
       });
-      (depth);
+      depth;
     }
     if (depth < 3) {
       {

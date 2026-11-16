@@ -16,7 +16,7 @@ function $$render() {
       {
         svelteHTML.createElement("p", {});
         const twice = k * 2;
-        (twice);
+        twice;
       }
       C;
     }

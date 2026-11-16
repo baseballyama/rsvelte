@@ -18,8 +18,8 @@ function $$render() {
     }
     {
       svelteHTML.createElement("p", {});
-      (doubled);
-      (label);
+      doubled;
+      label;
     }
   };
   return __rsvelte_export_component<__rsvelte_no_props, {}, string>();

@@ -10,9 +10,9 @@ function $$render() {
   async () => {
     const t = (p, v = p(), w = g(), z = g(1)) => {
       async () => {
-        (v);
-        (w);
-        (z);
+        v;
+        w;
+        z;
       };
       return __rsvelte_snippet_return;
     };

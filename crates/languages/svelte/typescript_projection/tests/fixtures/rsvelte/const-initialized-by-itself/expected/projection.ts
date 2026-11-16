@@ -10,7 +10,7 @@ function $$render() {
       svelteHTML.createElement("div", {
         "id": cyclic,
       });
-      (cyclic);
+      cyclic;
     }
   };
   return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, string>} */ (__rsvelte_export_component))();

@@ -18,20 +18,20 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("p", {});
-      (a);
-      (x);
-      (y);
-      (rest);
-      (p);
-      (q);
-      (r);
-      (k);
-      (z);
-      (one);
-      (title);
-      (slots);
-      (cast);
-      (element);
+      a;
+      x;
+      y;
+      rest;
+      p;
+      q;
+      r;
+      k;
+      z;
+      one;
+      title;
+      slots;
+      cast;
+      element;
     }
   };
   return __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();

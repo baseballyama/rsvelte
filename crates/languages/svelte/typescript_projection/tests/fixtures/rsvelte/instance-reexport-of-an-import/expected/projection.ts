@@ -15,7 +15,7 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("span", {});
-      (label);
+      label;
     }
   };
   return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, string>} */ (__rsvelte_export_component))();

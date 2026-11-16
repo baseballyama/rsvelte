@@ -20,7 +20,7 @@ function $$render() {
       svelteHTML.createElement("button", {
         "onclick": () => console.log(copy(), cleanup),
       });
-      (copy().length);
+      copy().length;
     }
   };
   return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();

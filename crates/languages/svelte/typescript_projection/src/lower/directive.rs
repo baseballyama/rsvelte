@@ -261,7 +261,11 @@ impl Builder<'_> {
             };
             let at = name.end_offset - last as u32;
             let at = Span::new(at, at);
-            self.tree.push(Node::Located { value, at })
+            self.tree.push(Node::Located {
+                value,
+                open: at,
+                close: None,
+            })
         });
         let callee = self.tree.push(Node::Source(SourceExpression {
             span: name,

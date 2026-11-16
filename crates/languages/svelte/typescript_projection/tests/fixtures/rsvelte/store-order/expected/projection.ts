@@ -8,7 +8,7 @@ function $$render() {
 	
   const s = () => {
     async () => {
-      ($a);
+      $a;
     };
     return __rsvelte_snippet_return;
   };
@@ -31,20 +31,20 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement($tag, {});
-      ($a);
+      $a;
     }
     {
       for (let [, x] of __rsvelte_each($xs)) {
-        (x);
+        x;
       }
       {
-        ($c);
+        $c;
       }
     }
     {
       const __rsvelte_action0 = __sveltets_2_ensureAction($action(svelteHTML.mapElementTag("p")));
       svelteHTML.createElement("p", __sveltets_2_union(__rsvelte_action0), {});
-      ($b);
+      $b;
     }
     __rsvelte_ensure_snippet(s());
   };

@@ -14,7 +14,7 @@ function $$render() {
     }
     {
       svelteHTML.createElement("p", {});
-      (n);
+      n;
     }
     {
       svelteHTML.createElement("p", {

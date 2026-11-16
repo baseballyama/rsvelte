@@ -7,7 +7,7 @@ function $$render() {
           async () => {
             {
               svelteHTML.createElement("p", {});
-              (message);
+              message;
             }
             {
               svelteHTML.createElement("button", {

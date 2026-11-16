@@ -42,7 +42,7 @@ function $$render() {
             })),
             "c": item,
           });
-          (item);
+          item;
           C;
         }
       }
