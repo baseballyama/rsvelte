@@ -1,3 +1,4 @@
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
 use rsvelte_kernel::computation::registry::{ProjectFiles, Registry};
@@ -26,6 +27,8 @@ struct Options {
     command: Vec<String>,
     /// The project's tsconfig.json; by default `tsconfig.json` next to the options, if any.
     tsconfig: Option<PathBuf>,
+    /// How many checker processes share the documents; see [`Tsc::processes`].
+    processes: Option<NonZeroUsize>,
 }
 
 fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallError> {
@@ -86,7 +89,11 @@ pub fn type_checker(settings: &mut Settings, runs: bool) -> Result<Option<Tsc>, 
             checker.identify().map_err(CallError)
         })?;
     }
-    Ok(Some(Tsc { checker, tsconfig }))
+    Ok(Some(Tsc {
+        checker,
+        tsconfig,
+        processes: options.value.processes,
+    }))
 }
 
 #[cfg(test)]

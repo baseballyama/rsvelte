@@ -13,6 +13,7 @@ fn main() -> ExitCode {
                 tsconfig: Some(
                     concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into(),
                 ),
+                processes: None,
             },
             vue: packages.package("vue"),
         }),

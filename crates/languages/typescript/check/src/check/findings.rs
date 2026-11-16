@@ -13,6 +13,7 @@ const ARGUMENT_NOT_ASSIGNABLE: u32 = 2345;
 const USED_BEFORE_ASSIGNED: u32 = 2454;
 const EXPECTED_ARGUMENTS: u32 = 2554;
 const NOT_ASSIGNABLE: u32 = 2322;
+const MULTIPLE_DEFAULT_EXPORTS: u32 = 2528;
 
 /// A finding located in its document, with what orders it.
 struct Finding {
@@ -36,7 +37,11 @@ pub(super) fn write_findings(
     for f in found {
         let d = &docs[f.file];
         let Some(span) = f.span else {
-            unmapped[f.file].push(format!("TS{}: {}", f.code, f.message));
+            // The projection's own default export repeats a script's, and TypeScript reports
+            // both: the script's copy maps, and svelte-check drops the other, which does not.
+            if !d.drops_unmapped && f.code != MULTIPLE_DEFAULT_EXPORTS {
+                unmapped[f.file].push(format!("TS{}: {}", f.code, f.message));
+            }
             continue;
         };
         let bom = byte_order_mark(&d.source_text);
@@ -106,8 +111,9 @@ pub(super) fn write_findings(
         if let Some(span) = mapped {
             per_doc[f.file].push(Finding {
                 // TypeScript 7 parses some grammar errors that TypeScript 6 checks, such as
-                // TS2880; svelte-check lists those with the semantic findings.
-                semantic: !f.syntactic || f.code >= 2000,
+                // TS2880; svelte-check lists those with the semantic findings. JSX's parse
+                // errors, such as TS17008, are syntax errors in both.
+                semantic: !f.syntactic || (f.code >= 2000 && !(17000..18000).contains(&f.code)),
                 generated,
                 span,
                 code: f.code,

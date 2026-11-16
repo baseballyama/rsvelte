@@ -140,6 +140,7 @@ impl Tsc {
             .collect();
         let failed = |e: String| format!("{e}; rsvelte needs {CONTRACT}");
         let _p = measurement::phase("ts.tsc");
+        let helpers = self.start_helpers(paths.len(), &root);
         let mut session = Session::start(&self.checker.program, &self.checker.arguments, &root)
             .map_err(failed)?;
         // The project's own root files, as its tsconfig selects them; the overlay keeps them.
@@ -154,6 +155,12 @@ impl Tsc {
             layer.files.push(declaration);
         }
         roots.extend(paths.iter().cloned());
+        // Upstream's project holds every component, so one that is not checked still declares
+        // its globals.
+        roots.extend(req.stand_ins(&root).map(|(path, _)| path).filter(|path| {
+            (req.script_modules.iter())
+                .any(|extension| path.as_os_str().to_string_lossy().ends_with(extension))
+        }));
         roots.extend(declarations);
         roots.extend(req.include.iter().cloned());
         let config = overlay.join("tsconfig.json");
@@ -161,23 +168,15 @@ impl Tsc {
             config.clone(),
             tsconfig_json(base.as_deref(), req, &own, &roots, &store),
         ));
-        let project = session.open(&[&config], &layer).map_err(failed)?.remove(0);
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
-        let program = session
-            .diagnostics(&project, DiagnosticKind::Program, None)
-            .map_err(failed)?;
-        let syntactic = session
-            .diagnostics(&project, DiagnosticKind::Syntactic, Some(&files))
-            .map_err(failed)?;
-        let semantic = session
-            .diagnostics(&project, DiagnosticKind::Semantic, Some(&files))
-            .map_err(failed)?;
+        let [program, syntactic, semantic] =
+            check_shares(&mut session, helpers, &config, &layer, &files).map_err(failed)?;
         let untyped = if own.untyped {
             untyped::imports(req, &root, &paths)
         } else {
             Vec::new()
         };
-        session.release(project.snapshot).map_err(failed)?;
+        // The session ends when it drops, which frees the snapshot with the process.
         let lines: Vec<LineIndex> = req
             .files
             .iter()
@@ -205,6 +204,86 @@ impl Tsc {
             .chain(untyped.into_iter().map(Ok))
             .collect()
     }
+
+    /// How many checker processes share `files` documents: as many as asked, else one per
+    /// `FILES_PER_PROCESS`, at most `MOST_PROCESSES` and the CPUs.
+    fn processes(&self, files: usize) -> usize {
+        let chosen = self.processes.map_or_else(
+            || {
+                let cpus = std::thread::available_parallelism().map_or(1, usize::from);
+                files
+                    .div_ceil(FILES_PER_PROCESS)
+                    .min(MOST_PROCESSES)
+                    .min(cpus)
+            },
+            usize::from,
+        );
+        chosen.clamp(1, files.max(1))
+    }
+
+    /// Checker processes besides the first, started at once so that they are ready when the
+    /// project is.
+    fn start_helpers(&self, files: usize, root: &Path) -> Vec<Helper> {
+        (1..self.processes(files))
+            .map(|_| {
+                let checker = self.checker.clone();
+                let root = root.to_owned();
+                std::thread::spawn(move || {
+                    Session::start(&checker.program, &checker.arguments, &root)
+                })
+            })
+            .collect()
+    }
+}
+
+/// Each process parses the whole program again, so a few documents are not worth one more.
+const FILES_PER_PROCESS: usize = 50;
+/// Each process opens the project again, so more of them cost more than they save.
+const MOST_PROCESSES: usize = 4;
+
+type Helper = std::thread::JoinHandle<Result<Session, String>>;
+type Found = Vec<rsvelte_typescript_api::Diagnostic>;
+
+/// The program, syntactic and semantic findings of `files` in the project of `config`. Every
+/// process opens the project at the same time; `session` checks the first share of the files and
+/// each helper one more.
+fn check_shares(
+    session: &mut Session,
+    helpers: Vec<Helper>,
+    config: &Path,
+    layer: &Layer,
+    files: &[&Path],
+) -> Result<[Found; 3], String> {
+    let share = files.len().div_ceil(helpers.len() + 1).max(1);
+    let mut shares = files.chunks(share);
+    let own = shares.next().unwrap_or_default();
+    std::thread::scope(|scope| {
+        let running: Vec<_> = helpers
+            .into_iter()
+            .zip(shares)
+            .map(|(helper, share)| {
+                scope.spawn(move || {
+                    let mut helper = helper
+                        .join()
+                        .unwrap_or_else(|panic| std::panic::resume_unwind(panic))?;
+                    let project = helper.open(&[config], layer)?.remove(0);
+                    helper.diagnostics(&project, DiagnosticKind::Semantic, Some(share))
+                })
+            })
+            .collect();
+        let project = session.open(&[config], layer)?.remove(0);
+        let program = session.diagnostics(&project, DiagnosticKind::Program, None)?;
+        let syntactic = session.diagnostics(&project, DiagnosticKind::Syntactic, Some(files))?;
+        let mut semantic = session.diagnostics(&project, DiagnosticKind::Semantic, Some(own))?;
+        for helper in running {
+            semantic.extend(
+                helper
+                    .join()
+                    .unwrap_or_else(|panic| std::panic::resume_unwind(panic))?,
+            );
+        }
+        Ok([program, syntactic, semantic])
+    })
 }
 
 fn tsconfig_json(

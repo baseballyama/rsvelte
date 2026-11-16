@@ -3,9 +3,15 @@
 
 use oxc_ast::AstKind;
 use oxc_span::GetSpan;
+use oxc_syntax::symbol::SymbolId;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 
 use super::{Builder, Node, NodeIdentifier, Result};
+
+/// A root snippet: its node, its span, its name's binding and its name.
+type Snippet<'a> = (u32, Span, Option<SymbolId>, &'a str);
 
 impl Builder<'_> {
     /// The root snippets that stay in the render function, and puts the others, which svelte2tsx
@@ -64,7 +70,7 @@ impl Builder<'_> {
             return Vec::new();
         };
         let scoping = resolution.scoping();
-        let snippets: Vec<(u32, rsvelte_kernel::source::positions::Span, oxc_span::Span)> = self
+        let snippets: Vec<(u32, Span, oxc_span::Span)> = self
             .component
             .children(self.component.root)
             .iter()
@@ -90,12 +96,15 @@ impl Builder<'_> {
         let snippets: Vec<_> = snippets
             .into_iter()
             .zip(symbols)
-            .map(|((identifier, span, _), symbol)| (identifier, span, symbol))
+            .map(|((identifier, span, name), symbol)| {
+                let name = &self.source[name.start as usize..name.end as usize];
+                (identifier, span, symbol, name)
+            })
             .collect();
         if snippets.is_empty() {
             return Vec::new();
         }
-        let is_snippet = |symbol| snippets.iter().any(|&(_, _, s)| s == Some(symbol));
+        let is_snippet = |symbol| snippets.iter().any(|&(_, _, s, _)| s == Some(symbol));
         // Where the template reads a value svelte2tsx disallows, in source order.
         let mut reads: Vec<u32> = Vec::new();
         let mut disallowed: Vec<&str> = Vec::new();
@@ -131,31 +140,7 @@ impl Builder<'_> {
                 );
             }
         }
-        reads.sort_unstable();
-        let reads_in = |reads: &[u32], span: rsvelte_kernel::source::positions::Span| {
-            let first = reads.partition_point(|&at| at < span.start_offset);
-            reads.get(first).is_some_and(|&at| at < span.end_offset)
-        };
-        let mut staying: Vec<bool> = vec![false; snippets.len()];
-        // A snippet that reads a staying snippet stays too, until nothing changes.
-        loop {
-            let mut changed = false;
-            for (index, &(_, span, _)) in snippets.iter().enumerate() {
-                if !staying[index] && reads_in(&reads, span) {
-                    staying[index] = true;
-                    changed = true;
-                    if let Some(symbol) = snippets[index].2 {
-                        for &reference in scoping.get_resolved_reference_ids(symbol) {
-                            reads.push(resolution.reference_span(reference).start);
-                        }
-                        reads.sort_unstable();
-                    }
-                }
-            }
-            if !changed {
-                break;
-            }
-        }
+        let staying = staying(&snippets, reads, resolution);
         snippets
             .iter()
             .zip(&staying)
@@ -163,4 +148,46 @@ impl Builder<'_> {
             .map(|(&(identifier, ..), _)| identifier)
             .collect()
     }
+}
+
+/// Which of `snippets` stay in the render function: each that reads at one of `reads`, or reads a
+/// snippet that stays.
+fn staying(snippets: &[Snippet<'_>], mut reads: Vec<u32>, resolution: &Resolution) -> Vec<bool> {
+    let scoping = resolution.scoping();
+    reads.sort_unstable();
+    let reads_in = |reads: &[u32], span: Span| {
+        let first = reads.partition_point(|&at| at < span.start_offset);
+        reads.get(first).is_some_and(|&at| at < span.end_offset)
+    };
+    let mut staying: Vec<bool> = vec![false; snippets.len()];
+    // A snippet that reads a staying snippet stays too, until nothing changes.
+    loop {
+        let mut changed = false;
+        for (index, &(_, span, symbol, name)) in snippets.iter().enumerate() {
+            if !staying[index] && reads_in(&reads, span) {
+                staying[index] = true;
+                changed = true;
+                let Some(symbol) = symbol else {
+                    continue;
+                };
+                // svelte2tsx goes by name, and a snippet's own name is not among its reads.
+                let own = |at: u32| {
+                    snippets.iter().any(|&(_, span, _, other)| {
+                        other == name && span.start_offset <= at && at < span.end_offset
+                    })
+                };
+                for &reference in scoping.get_resolved_reference_ids(symbol) {
+                    let at = resolution.reference_span(reference).start;
+                    if !own(at) {
+                        reads.push(at);
+                    }
+                }
+                reads.sort_unstable();
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    staying
 }

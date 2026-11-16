@@ -21,15 +21,23 @@ impl Project {
 
     /// Each finding of the check, as `<file> TS<code>`.
     fn check(&self) -> Vec<String> {
+        self.check_in(None)
+    }
+
+    /// [`Self::check`] with `processes` checker processes, or as many as rsvelte chooses.
+    fn check_in(&self, processes: Option<usize>) -> Vec<String> {
         let packages = NodePackages::locate();
         let (program, arguments) = packages.type_checker();
         let command: Vec<String> = std::iter::once(program.to_string_lossy().into_owned())
             .chain(arguments)
             .collect();
-        let tsc = serde_json::json!({
+        let mut tsc = serde_json::json!({
             "command": command,
             "tsconfig": self.0.join("tsconfig.json"),
         });
+        if let Some(processes) = processes {
+            tsc["processes"] = processes.into();
+        }
         let svelte = serde_json::json!({
             "svelte": packages.package("svelte"),
             "contentMapper": rsvelte_test_harness::content_mapper(),
@@ -255,4 +263,24 @@ fn a_stylesheet_custom_property_given_to_a_component_is_not_a_prop() {
     );
     // svelte-check checks the value, but no prop `--color`.
     assert_eq!(project.check(), ["src/App.svelte TS2304"]);
+}
+
+#[test]
+fn checker_processes_that_share_the_documents_report_each_finding_once() {
+    let wrong =
+        |n: u32| format!("<script lang=\"ts\">\n\tconst wrong: number = '{n}';\n</script>\n");
+    let components: Vec<(String, String)> = (0..5)
+        .map(|n| (format!("src/C{n}.svelte"), wrong(n)))
+        .collect();
+    let mut files: Vec<(&str, &str)> = components
+        .iter()
+        .map(|(path, text)| (path.as_str(), text.as_str()))
+        .collect();
+    files.push(("src/m.ts", "export const wrong: number = 'm';\n"));
+    files.push(("tsconfig.json", NODENEXT));
+    let project = Project::new("processes", &files);
+    let one = project.check_in(Some(1));
+    assert_eq!(one.len(), 6, "{one:?}");
+    assert_eq!(project.check_in(Some(3)), one);
+    assert_eq!(project.check_in(Some(9)), one);
 }
