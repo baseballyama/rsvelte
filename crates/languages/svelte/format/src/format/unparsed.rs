@@ -188,6 +188,15 @@ fn unparsed_script(c: &Component, source_text: &str, rejected: &SyntaxError) -> 
         })
         .ok_or_else(unknown)?;
     let program = c.javascript.get_program(script.program);
+    // tsc reports no error for a function declared as a statement's body, which a module does
+    // not allow; Babel throws only on an async one.
+    if let Some(is_async) = (rejected.typescript_code.is_none())
+        .then(|| rsvelte_typescript_tree::function_as_body(program, span.start_offset))
+        .flatten()
+    {
+        let throws = is_async && !in_typescript(script, source_text);
+        return Ok(throws.then_some(script.content));
+    }
     let code = rejected.typescript_code.ok_or_else(unknown)?;
     let throws = if in_typescript(script, source_text) {
         rsvelte_typescript_tree::typescript_estree_throws(code)

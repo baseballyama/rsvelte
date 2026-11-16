@@ -1,4 +1,4 @@
-# svelte.format/default: 34759 match
+# svelte.format/default: 34760 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -404,7 +404,6 @@ svelte/rsvelte/pattern/adversarial/css/rejected-global-keyframes-selector.svelte
 svelte/rsvelte/pattern/adversarial/elements/very-long-text-runs.svelte	mismatch
 svelte/rsvelte/pattern/css/consecutive-and-column-combinators.svelte	mismatch
 svelte/rsvelte/pattern/css/value-ends-outside-strings-and-urls.svelte	mismatch
-svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte	refused
 svelte/rsvelte/pattern/issues/3404-repeated-combinators.svelte	mismatch
 svelte/rsvelte/pattern/issues/3404-unhandled-combinator-scope.svelte	mismatch
 svelte/rsvelte/pattern/issues/3498-class-rune-linebreak-separators.svelte	mismatch

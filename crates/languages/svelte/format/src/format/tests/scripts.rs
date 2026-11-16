@@ -116,3 +116,54 @@ fn each_script_the_plugin_s_parser_throws_on_is_kept_as_written() {
         );
     }
 }
+
+#[test]
+fn a_function_declared_as_a_statement_s_body_is_formatted_unless_babel_throws_on_it() {
+    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    for (body, expected) in [
+        ("if (true) function g() {}", "if (true) function g() {}"),
+        ("lbl: function g() {}", "lbl: function g() {}"),
+        ("for (;;) function g() {}", "for (;;) function g() {}"),
+        ("if (x) function* g() {}", "if (x) function* g() {}"),
+        (
+            "if (x) function g() {} else function h() {}",
+            "if (x) function g() {}\n  else function h() {}",
+        ),
+    ] {
+        assert_eq!(
+            crate::task::format(
+                &format!("<script>\n\t{body}\n\tlet   x =  1\n</script>\n"),
+                &Options::default()
+            )
+            .expect("prints"),
+            format!("<script>\n  {expected}\n  let x = 1;\n</script>\n"),
+            "{body:?}"
+        );
+    }
+    // Babel throws on an async one, so the plugin keeps the script as written; typescript-estree
+    // does not.
+    for body in ["if (x) async function g() {}", "lbl: async function g() {}"] {
+        let script = format!("<script>\n\t{body}\n\tlet   x =  1\n</script>\n");
+        assert_eq!(
+            crate::task::format(&script, &Options::default()).expect("prints"),
+            script,
+            "{body:?}"
+        );
+    }
+    for (source_text, expected) in [
+        (
+            "<script lang=\"ts\">\n\tif (x) async function g() {}\n</script>\n",
+            "<script lang=\"ts\">\n  if (x) async function g() {}\n</script>\n",
+        ),
+        (
+            "<script lang=\"ts\">\n\tif (x) declare function f(): void;\n</script>\n",
+            "<script lang=\"ts\">\n  if (x) declare function f(): void;\n</script>\n",
+        ),
+    ] {
+        assert_eq!(
+            crate::task::format(source_text, &Options::default()).expect("prints"),
+            expected,
+            "{source_text:?}"
+        );
+    }
+}

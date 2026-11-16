@@ -161,15 +161,21 @@ const RECOVERED_WHOLE: [u32; 19] = [
     2681, 5085, 18010,
 ];
 
-/// Whether oxc's program recovered from `error` holds all of the code.
+/// Whether oxc's `program` recovered from `error` holds all of the code. A function declared as a
+/// statement's body, which oxc reports without a code, stays in the program.
 fn keeps_recovered(
     error: &oxc_diagnostics::OxcDiagnostic,
-    _program: &oxc_ast::ast::Program<'_>,
+    program: &oxc_ast::ast::Program<'_>,
 ) -> bool {
-    error.code.scope.as_deref() == Some("TS")
-        && (error.code.number.as_deref())
-            .and_then(|number| number.parse().ok())
-            .is_some_and(|code: u32| RECOVERED_WHOLE.contains(&code))
+    if error.code.scope.as_deref() != Some("TS") {
+        return error.code.number.is_none()
+            && (error.labels.first()).is_some_and(|label| {
+                rsvelte_typescript_tree::function_as_body(program, label.offset()).is_some()
+            });
+    }
+    (error.code.number.as_deref())
+        .and_then(|number| number.parse().ok())
+        .is_some_and(|code: u32| RECOVERED_WHOLE.contains(&code))
 }
 
 /// Takes `function ` off the start of a function declaration's layout and ` {}` off its end.
