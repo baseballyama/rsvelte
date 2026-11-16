@@ -12,7 +12,7 @@ use rsvelte_vue_semantic::resolve::call_name;
 use super::expressions::script_getter;
 use super::{Body, Emitter};
 use crate::compilation::asynchronous::program_has_await;
-use crate::compilation::{prelude, statements};
+use crate::compilation::prelude;
 
 const EFFECT_WATCH: [&str; 4] = [
     "currentInstance",
@@ -35,78 +35,75 @@ impl<'o> Emitter<'_, 'o> {
         let call = define_props.map(|d| d.call.node_id.get());
         let mut module = Vec::new();
         let mut fields = Vec::new();
-        for s in prelude::expanded(&program.body) {
-            if let Statement::FunctionDeclaration(f) = s
-                && f.id
-                    .as_ref()
-                    .is_some_and(|id| id.name.starts_with("$$snippet_"))
+        for marked in &program.body {
+            let prelude = prelude::expand(marked);
+            // A prelude bound for the module whole stays a marker, which the printer expands.
+            if let Some(prelude) = prelude
+                && prelude.iter().all(module_level)
             {
+                for s in prelude {
+                    self.note_helpers(s);
+                }
+                module.push(prelude::remark(b, marked).expect("a prelude's marker"));
                 continue;
             }
-            if !self.t.server && declares(s, |name| name == "$$on_mount") {
-                self.helpers.insert("currentInstance");
-            }
-            if !self.t.server && declares(s, |name| name == "$$effect_watch") {
-                self.helpers.extend(EFFECT_WATCH);
-            }
-            let hoisted = match s {
-                Statement::VariableDeclaration(d) => d.declarations.iter().all(|d| {
-                    d.id.get_binding_identifier().is_some_and(|id| {
-                        id.name.starts_with("$$")
-                            && !id.name.starts_with("$$pattern_")
-                            && !matches!(
-                                id.name.as_str(),
-                                "$$props" | "$$attrs" | "$$host" | "$$host_value"
-                            )
-                    })
-                }),
-                _ => false,
-            };
-            if matches!(s, Statement::ImportDeclaration(_)) || hoisted {
-                module.push(s.clone_in(b.allocator()));
-                continue;
-            }
-            if let Statement::ExpressionStatement(e) = s
-                && let Expression::CallExpression(c) = &e.expression
-            {
-                match call_name(&e.expression) {
-                    Some("defineOptions") => {
-                        let Some(Expression::ObjectExpression(options)) =
-                            c.arguments.first().and_then(|a| a.as_expression())
-                        else {
-                            unreachable!("defineOptions takes an object")
-                        };
-                        fields.extend(options.properties.iter().map(|p| p.clone_in(b.allocator())));
-                        continue;
-                    }
-                    Some("defineExpose") => {
-                        let value = c.arguments[0].to_expression();
-                        if self.t.template.custom_element.is_some() {
-                            let call = b.call(
-                                b.id("$$custom_element_exports"),
+            for s in prelude.unwrap_or_else(|| std::slice::from_ref(marked)) {
+                if let Statement::FunctionDeclaration(f) = s
+                    && f.id
+                        .as_ref()
+                        .is_some_and(|id| id.name.starts_with("$$snippet_"))
+                {
+                    continue;
+                }
+                self.note_helpers(s);
+                if module_level(s) {
+                    module.push(s.clone_in(b.allocator()));
+                    continue;
+                }
+                if let Statement::ExpressionStatement(e) = s
+                    && let Expression::CallExpression(c) = &e.expression
+                {
+                    match call_name(&e.expression) {
+                        Some("defineOptions") => {
+                            let Some(Expression::ObjectExpression(options)) =
+                                c.arguments.first().and_then(|a| a.as_expression())
+                            else {
+                                unreachable!("defineOptions takes an object")
+                            };
+                            fields.extend(
+                                options.properties.iter().map(|p| p.clone_in(b.allocator())),
+                            );
+                            continue;
+                        }
+                        Some("defineExpose") => {
+                            let value = c.arguments[0].to_expression();
+                            if self.t.template.custom_element.is_some() {
+                                let call = b.call(
+                                    b.id("$$custom_element_exports"),
+                                    [value.clone_in(b.allocator())],
+                                );
+                                body.push(b.statement(call));
+                            }
+                            let expose = b.call(
+                                b.member(b.id("$$setup_context"), "expose"),
                                 [value.clone_in(b.allocator())],
                             );
-                            body.push(b.statement(call));
+                            body.push(b.statement(expose));
+                            self.exposed = true;
+                            continue;
                         }
-                        let expose = b.call(
-                            b.member(b.id("$$setup_context"), "expose"),
-                            [value.clone_in(b.allocator())],
-                        );
-                        body.push(b.statement(expose));
-                        self.exposed = true;
-                        continue;
+                        _ => {}
                     }
-                    _ => {}
                 }
+                let mut statement = s.clone_in_with_semantic_ids(b.allocator());
+                PropsRewrite {
+                    b,
+                    call,
+                    server: self.t.server,
+                }
+                .visit_statement(&mut statement);
+                body.push(statement);
             }
-            let mut statement = s.clone_in_with_semantic_ids(b.allocator());
-            PropsRewrite {
-                b,
-                call,
-                server: self.t.server,
-            }
-            .visit_statement(&mut statement);
-            body.push(statement);
         }
         if let Some(runtime) = define_props.and_then(|d| d.runtime) {
             fields.push(b.init("props", runtime.clone_in(b.allocator())));
@@ -116,6 +113,16 @@ impl<'o> Emitter<'_, 'o> {
             module.extend(program.body.iter().map(|s| s.clone_in(b.allocator())));
         }
         (module, fields)
+    }
+
+    /// The runtime helpers a declaration of the script needs.
+    fn note_helpers(&mut self, s: &Statement<'_>) {
+        if !self.t.server && declares(s, |name| name == "$$on_mount") {
+            self.helpers.insert("currentInstance");
+        }
+        if !self.t.server && declares(s, |name| name == "$$effect_watch") {
+            self.helpers.extend(EFFECT_WATCH);
+        }
     }
 
     /// `function (__props, $$setup_context) { body }`, which runs the setup in an async context
@@ -131,7 +138,7 @@ impl<'o> Emitter<'_, 'o> {
         if asynchronous {
             if self.t.server {
                 self.helpers.insert("withAsyncContext");
-                module.extend(statements(b, include_str!("async_server.js")));
+                module.push(prelude::marker(b, include_str!("async_server.js")));
                 let context = b.call(b.id("$$server_async_context"), []);
                 body.insert(0, b.const_("$$async_context", context));
             } else {
@@ -168,7 +175,7 @@ impl<'o> Emitter<'_, 'o> {
             "handleError",
             "queuePostFlushCb",
         ]);
-        module.extend(statements(b, include_str!("async_setup.js")));
+        module.push(prelude::marker(b, include_str!("async_setup.js")));
         let finish = b.statement(b.call(b.member(b.id("$$async_context"), "finish"), []));
         let statement = Statement::new_try_statement(
             SPAN,
@@ -179,6 +186,25 @@ impl<'o> Emitter<'_, 'o> {
         );
         let task = b.arrow_block(b.parameters(["$$async_context"]), [statement], true);
         vec![b.return_(Some(b.call(b.id("$$async_setup"), [task])))]
+    }
+}
+
+/// Whether a statement of the script goes to the module: an import, or a declaration of `$$`
+/// names only that are not the component's own.
+fn module_level(s: &Statement<'_>) -> bool {
+    match s {
+        Statement::ImportDeclaration(_) => true,
+        Statement::VariableDeclaration(d) => d.declarations.iter().all(|d| {
+            d.id.get_binding_identifier().is_some_and(|id| {
+                id.name.starts_with("$$")
+                    && !id.name.starts_with("$$pattern_")
+                    && !matches!(
+                        id.name.as_str(),
+                        "$$props" | "$$attrs" | "$$host" | "$$host_value"
+                    )
+            })
+        }),
+        _ => false,
     }
 }
 

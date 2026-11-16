@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use super::*;
 
 #[test]
@@ -166,4 +168,78 @@ fn a_span_inside_an_atom_maps_to_the_atom_s_original_range() {
     // A span outside every atom maps as before: through the copy.
     let value = Span::new(at("x"), at("x") + 1);
     assert_eq!(e.lookup_overlap(value), Some(Span::new(9, 10)));
+}
+
+/// The mappings of `e` as every point's line and column, each read from an index.
+fn segments_by_index(e: &Emitter, source_text: &str) -> String {
+    let (generated, source) = (LineIndex::new(&e.out), LineIndex::new(source_text));
+    let mut out = String::new();
+    e.points(|g, o, _| {
+        let (g, o) = (generated.line_column(g), source.line_column(o));
+        write!(out, "{}:{}>{}:{} ", g.line, g.column, o.line, o.column)
+            .expect("a String takes any write");
+    });
+    out
+}
+
+/// `map`'s segments decoded to absolute positions, in the format of [`segments_by_index`].
+fn decoded(map: &str) -> String {
+    let mappings = map.split("\"mappings\":\"").nth(1).expect("mappings");
+    let mappings = &mappings[..mappings.find('"').expect("closing quote")];
+    let digit = |c: u8| {
+        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+            .iter()
+            .position(|&d| d == c)
+            .and_then(|d| i64::try_from(d).ok())
+            .expect("base64")
+    };
+    let (mut out, mut source_line, mut source_column) = (String::new(), 0, 0);
+    for (line, text) in mappings.split(';').enumerate() {
+        let mut column = 0;
+        for segment in text.split(',').filter(|s| !s.is_empty()) {
+            let (mut fields, mut value, mut shift) = (Vec::new(), 0i64, 0);
+            for &c in segment.as_bytes() {
+                let d = digit(c);
+                value |= (d & 31) << shift;
+                shift += 5;
+                if d & 32 == 0 {
+                    fields.push(if value & 1 == 1 {
+                        -(value >> 1)
+                    } else {
+                        value >> 1
+                    });
+                    (value, shift) = (0, 0);
+                }
+            }
+            column += fields[0];
+            source_line += fields[2];
+            source_column += fields[3];
+            write!(
+                out,
+                "{}:{}>{}:{} ",
+                line + 1,
+                column,
+                source_line + 1,
+                source_column
+            )
+            .expect("a String takes any write");
+        }
+    }
+    out
+}
+
+#[test]
+fn a_copy_s_characters_map_as_each_point_read_from_an_index_maps() {
+    let source_text = "a😀b\r\nc\n\né\u{2028}d\re 😀\nf";
+    let mut e = Emitter::new();
+    e.push("x\n");
+    e.copy(source_text, Span::new(0, source_text.len() as u32));
+    e.push(";\n");
+    e.mark(3);
+    e.push("y");
+    e.copy(source_text, Span::new(7, 13));
+    e.atom("z", Span::new(1, 5));
+    e.copy(source_text, Span::new(13, source_text.len() as u32));
+    let map = e.source_map(source_text, &LineIndex::new(source_text), "App.svelte");
+    assert_eq!(decoded(&map), segments_by_index(&e, source_text));
 }
