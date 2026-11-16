@@ -4991,7 +4991,7 @@
 "svelte.check" = "checker: TS 7 reports a missing-properties 2740 where TS 6 reports 2345 for an argument whose type lacks the parameter type's properties"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/716a6da8d466f8b2.svelte".skip]
-"svelte.check" = "checker: svelte-check 4.7.8 reports 2503 for `Z` when it checks this file alone, as rsvelte does, but not in the shared workspace of this source, where other files of the program change it"
+"svelte.check" = "oracle: svelte-check 4.7.8 reports 2503 on this file alone, as rsvelte does, and also beside the one other unit that reads `Z`; the shared corpus workspace drops it (mechanism unknown)"
 
 ["svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/0987dd6e6407d320.svelte".skip]
 "svelte.check" = "checker: TS 7 spans 8017 over a JavaScript overload signature and adds 8010 for its parameter type, where TS 6 reports only 8017 at its name"
