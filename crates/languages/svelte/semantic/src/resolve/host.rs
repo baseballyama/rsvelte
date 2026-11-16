@@ -35,8 +35,6 @@ pub(super) struct ComponentHost<'t, 'a> {
 pub(super) struct Names<'a> {
     snippets: FxHashMap<CompilerNodeIdentifier, &'a BindingIdentifier<'a>>,
     lets: FxHashMap<AttributeIdentifier, Vec<&'a BindingIdentifier<'a>>>,
-    /// The `let:` names under a default value, which assigns them where they are declared.
-    defaulted_lets: Vec<&'a BindingIdentifier<'a>>,
     /// The type parameters of snippets, which their own scopes declare.
     snippet_generics: FxHashSet<TypeParametersIdentifier>,
 }
@@ -52,7 +50,6 @@ impl<'a> Names<'a> {
         let mut names = Self {
             snippets: FxHashMap::default(),
             lets: FxHashMap::default(),
-            defaulted_lets: Vec::new(),
             snippet_generics: FxHashSet::default(),
         };
         for (identifier, node) in compiler_syntax_tree.nodes.iter_enumerated() {
@@ -72,14 +69,9 @@ impl<'a> Names<'a> {
                         };
                         let mut bindings = Vec::new();
                         if let Some(value) = value {
-                            let defaulted = &mut names.defaulted_lets;
-                            let mut add = |span: oxc_span::Span, name: &'a str, default: bool| {
-                                let binding =
-                                    &*allocator.alloc(BindingIdentifier::new(span, name, &nodes));
-                                bindings.push(binding);
-                                if default {
-                                    defaulted.push(binding);
-                                }
+                            let mut add = |span: oxc_span::Span, name: &'a str, _: bool| {
+                                let binding = BindingIdentifier::new(span, name, &nodes);
+                                bindings.push(&*allocator.alloc(binding));
                             };
                             for_each_target(tree.get_expression(value), false, &mut add);
                         } else {
@@ -123,18 +115,13 @@ impl<'a> Names<'a> {
                     )
                 })
                 .collect(),
-            defaulted_lets: self
-                .defaulted_lets
-                .iter()
-                .filter_map(|b| symbol(b))
-                .collect(),
         }
     }
 }
 
 /// Upstream `extract_identifiers` of a `let:` value, which is written as an expression; `default`
 /// says the name sits under a default value.
-fn for_each_target<'a>(
+pub(super) fn for_each_target<'a>(
     e: &'a Expression<'a>,
     default: bool,
     f: &mut impl FnMut(oxc_span::Span, &'a str, bool),
