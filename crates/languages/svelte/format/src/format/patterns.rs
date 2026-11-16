@@ -190,10 +190,13 @@ impl Printer<'_, '_, '_> {
                 out.push(' ');
                 out.push_str(identifier.name.as_str());
             }
+            // ESTree's `Literal`, which `_expandNode` prints as its `raw`.
             Expression::NumericLiteral(_)
             | Expression::StringLiteral(_)
             | Expression::BooleanLiteral(_)
-            | Expression::NullLiteral(_) => {
+            | Expression::NullLiteral(_)
+            | Expression::BigIntLiteral(_)
+            | Expression::RegExpLiteral(_) => {
                 out.push(' ');
                 out.push_str(span(e.span()).text(self.source_text));
             }

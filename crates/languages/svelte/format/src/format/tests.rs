@@ -585,3 +585,14 @@ fn a_pug_template_keeps_its_body() {
         assert_eq!(formatted(source_text), expected, "{source_text}");
     }
 }
+
+#[test]
+fn a_regular_expression_or_a_bigint_default_in_a_block_pattern_prints_as_written() {
+    // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    for source_text in [
+        "{#each items as { a = /a/g }}x{/each}\n",
+        "{#each items as { a = 1n }}x{/each}\n",
+    ] {
+        assert_eq!(formatted(source_text), source_text);
+    }
+}
