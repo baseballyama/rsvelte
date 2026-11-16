@@ -558,15 +558,21 @@ impl Builder<'_> {
     /// [`Self::unused_name`] with an index of at least `from`, so names generated into one
     /// scope differ.
     fn unused_name_from(&mut self, prefix: &'static str, from: u32) -> NodeIdentifier {
-        let taken = |name: &str| {
+        // Compares in place: a name written out per candidate allocates for each component.
+        let is = |n: &str, index: u32| {
+            n.strip_prefix(prefix).is_some_and(|rest| {
+                (rest == "0" || !rest.starts_with(['0', '+'])) && rest.parse() == Ok(index)
+            })
+        };
+        let taken = |index: u32| {
             (self.resolution)().is_some_and(|resolution| {
                 let scoping = resolution.scoping();
-                scoping.symbol_names().any(|n| n == name)
-                    || resolution.unresolved_names().any(|n| n == name)
+                scoping.symbol_names().any(|n| is(n, index))
+                    || resolution.unresolved_names().any(|n| is(n, index))
             })
         };
         let mut index = from;
-        while taken(&format!("{prefix}{index}")) {
+        while taken(index) {
             index += 1;
         }
         let prefix = self.tree.push(Node::Identifier(prefix));
