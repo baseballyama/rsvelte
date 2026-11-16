@@ -146,6 +146,9 @@ pub enum TypeScriptDocument {
         /// Each Svelte store by its name's range, with where the component reads `$store`:
         /// svelte-check reports a store that is no store at each of those reads.
         store_reads: Vec<(Span, Vec<Span>)>,
+        /// The names of the attributes and event handlers of the document's elements, where
+        /// svelte-check hides TypeScript's findings of a name given twice.
+        element_names: Vec<Span>,
     },
 }
 
@@ -305,6 +308,7 @@ struct Prepared {
     extension: &'static str,
     imports: Vec<(Span, String)>,
     store_reads: Vec<(Span, Vec<Span>)>,
+    element_names: Vec<Span>,
 }
 
 impl FinishTask for Check {
@@ -368,6 +372,7 @@ impl FinishTask for Check {
                 extension,
                 imports,
                 store_reads,
+                element_names,
             }) => Some(Box::new(Prepared {
                 path: context.document.path.clone(),
                 projection: Emitter {
@@ -381,6 +386,7 @@ impl FinishTask for Check {
                 extension,
                 imports: imports.clone(),
                 store_reads: store_reads.clone(),
+                element_names: element_names.clone(),
             })),
         }
     }

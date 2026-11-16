@@ -9,7 +9,7 @@ use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::Resolved;
 use rsvelte_svelte_syntax::Parsed;
-use rsvelte_svelte_syntax::syntax_tree::Component;
+use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Component, TemplateNode};
 use rsvelte_svelte_typescript_projection::{Printed, THROWN, checked_as_typescript, store_reads};
 use rsvelte_typescript_check::{
     Check, Documents, MappedLanguage, MappedLanguages, TypeScriptDocument, TypeScriptEnv,
@@ -194,7 +194,41 @@ fn typescript_view(
             .as_ref()
             .map(store_reads)
             .unwrap_or_default(),
+        element_names: element_names(component, &context.document.text),
     })
+}
+
+/// The names of the attributes and event handlers on an element, `<svelte:window>` or
+/// `<svelte:body>`: svelte-check hides TypeScript's findings of a name given twice at those, as
+/// svelte2tsx writes each of them as a property.
+fn element_names(component: &Component, source_text: &str) -> Vec<Span> {
+    let mut names = Vec::new();
+    for node in &component.nodes {
+        let TemplateNode::Element {
+            name,
+            component: None,
+            attributes,
+            ..
+        } = node
+        else {
+            continue;
+        };
+        let name = name.text(source_text);
+        let element = !name.starts_with("svelte:") && name != "slot";
+        if !(element || matches!(name, "svelte:element" | "svelte:window" | "svelte:body")) {
+            continue;
+        }
+        names.extend(
+            component
+                .attributes(*attributes)
+                .iter()
+                .filter(|attribute| {
+                    matches!(attribute.kind, AttributeKind::Attribute | AttributeKind::On)
+                })
+                .map(|attribute| attribute.name),
+        );
+    }
+    names
 }
 
 /// What svelte-check reports for the parse error svelte2tsx throws.

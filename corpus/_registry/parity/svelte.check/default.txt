@@ -1,4 +1,4 @@
-# svelte.check/default: 34977 match
+# svelte.check/default: 34979 match
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte	mismatch
 svelte/appwrite-console/src/routes/(public)/auth/preview/+page.svelte	mismatch
@@ -12,7 +12,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots-usage/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/input.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/element-events/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/pug/input.svelte	mismatch
@@ -76,7 +75,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_svelte_self_bindings_2171/sve
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/716a6da8d466f8b2.svelte	mismatch
 svelte/rsvelte/lint/html-closing-bracket-new-line/05-script-style-tags.svelte	mismatch
 svelte/rsvelte/lint/html-closing-bracket-spacing/04-script-style-tags.svelte	mismatch
-svelte/rsvelte/lint/no-dupe-on-directives/19-ts-casts-and-generics.svelte	mismatch
 svelte/rsvelte/lint/no-object-in-text-mustaches/01-basic.svelte	mismatch
 svelte/rsvelte/lint/no-object-in-text-mustaches/09-class-and-function-expressions.svelte	mismatch
 svelte/rsvelte/lint/no-object-in-text-mustaches/17-async-and-generator.svelte	mismatch
