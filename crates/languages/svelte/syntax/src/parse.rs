@@ -66,7 +66,7 @@ pub const ACORN_UNCHECKED_TYPESCRIPT_RULES: &[&str] = &[
 /// sheet's error alone is kept on [`Style::sheet`](crate::syntax_tree::Style::sheet);
 /// [`crate::fully_parsed`] reports it.
 pub fn parse(source_text: &str) -> ParseResult<Component> {
-    parse_with(source_text, Scripts::Read)
+    parse_with(source_text, Scripts::Read, false)
 }
 
 /// The component as svelte2tsx parses it: with each script's content left out, so a script's
@@ -76,7 +76,7 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
 ///
 /// As [`parse`], for the markup.
 pub fn parse_without_scripts(source_text: &str) -> ParseResult<Component> {
-    parse_with(source_text, Scripts::Left)
+    parse_with(source_text, Scripts::Left, false)
 }
 
 /// The component as Prettier's Svelte plugin reads it.
@@ -89,7 +89,18 @@ pub fn parse_without_scripts(source_text: &str) -> ParseResult<Component> {
 ///
 /// As [`parse`], outside the scripts.
 pub fn parse_reading_scripts_as_typescript(source_text: &str) -> ParseResult<Component> {
-    parse_with(source_text, Scripts::ReadAsTypeScript)
+    parse_with(source_text, Scripts::ReadAsTypeScript, false)
+}
+
+/// The component as svelte-eslint-parser reads it: as
+/// [`parse_reading_scripts_as_typescript`], with a self-closing `<script …/>` or `<style …/>`
+/// at the root read as a plain element, which the compiler rejects.
+///
+/// # Errors
+///
+/// As [`parse_reading_scripts_as_typescript`].
+pub fn parse_as_svelte_eslint_parser(source_text: &str) -> ParseResult<Component> {
+    parse_with(source_text, Scripts::ReadAsTypeScript, true)
 }
 
 /// How the parser reads each script's content.
@@ -103,16 +114,20 @@ enum Scripts {
     ReadAsTypeScript,
 }
 
-fn parse_with(source_text: &str, scripts: Scripts) -> ParseResult<Component> {
+fn parse_with(
+    source_text: &str,
+    scripts: Scripts,
+    self_closing_blocks: bool,
+) -> ParseResult<Component> {
     let guess = rsvelte_markup_syntax::script_language::guess_typescript(source_text);
-    let (parsed, lang_read) = parse_as(source_text, scripts, guess);
+    let (parsed, lang_read) = parse_as(source_text, scripts, self_closing_blocks, guess);
     // Without a script element's `lang` the component is JavaScript, unless the parse stopped
     // before one could be read.
     let typescript = lang_read.unwrap_or_else(|| guess && parsed.is_err());
     if typescript == guess {
         return parsed;
     }
-    parse_as(source_text, scripts, typescript).0
+    parse_as(source_text, scripts, self_closing_blocks, typescript).0
 }
 
 /// The component, its expressions read as TypeScript or not, and the language its first script
@@ -120,6 +135,7 @@ fn parse_with(source_text: &str, scripts: Scripts) -> ParseResult<Component> {
 fn parse_as(
     source_text: &str,
     scripts: Scripts,
+    self_closing_blocks: bool,
     typescript: bool,
 ) -> (ParseResult<Component>, Option<bool>) {
     let mut lang_read = None;
@@ -142,6 +158,7 @@ fn parse_as(
             meta_tags: 0,
             depth: 0,
             scripts,
+            self_closing_blocks,
         };
         // Upstream removes a leading byte order mark before parsing, so no node covers it.
         if source_text.starts_with('\u{feff}') {
@@ -339,6 +356,8 @@ struct Parser<'a, 'b> {
     /// How many fragments are open.
     depth: u32,
     scripts: Scripts,
+    /// Whether a self-closing `<script …/>` or `<style …/>` at the root is a plain element.
+    self_closing_blocks: bool,
 }
 
 impl<'a> Parser<'a, '_> {

@@ -11505,9 +11505,116 @@ ENOSPC: no space left on device, mkdtemp '/var/folders/1t/sbjc_qrd47nfm6ggb_qz32
 === 3 pattern/reactive-new-callee.svelte	json
 []
 
+=== 3 pattern/self-closing-block-in-a-string.svelte	json
+[]
+
+=== 193 pattern/self-closing-script-lang-ts.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 0,
+			"character": 18
+		},
+		"end": {
+			"line": 0,
+			"character": 18
+		}
+	}
+]
+
+=== 191 pattern/self-closing-style-block-without-space.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 1,
+			"character": 6
+		},
+		"end": {
+			"line": 1,
+			"character": 6
+		}
+	}
+]
+
+=== 193 pattern/self-closing-style-block.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 19
+		}
+	}
+]
+
 === 3 pattern/state-wrapped-store-reference.svelte	json
 []
 
 === 3 pattern/store-member-write-invalidates-inner-signals.svelte	json
 []
+
+=== 196 pattern/ts-class-generator-method-overload.svelte	json
+[
+	{
+		"code": 1222,
+		"message": "An overload signature cannot be declared as a generator.",
+		"start": {
+			"line": 2,
+			"character": 2
+		},
+		"end": {
+			"line": 2,
+			"character": 3
+		}
+	}
+]
+
+=== 627 pattern/ts-class-generator-method-signature.svelte	json
+[
+	{
+		"code": 1222,
+		"message": "An overload signature cannot be declared as a generator.",
+		"start": {
+			"line": 2,
+			"character": 2
+		},
+		"end": {
+			"line": 2,
+			"character": 3
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 2,
+			"character": 3
+		},
+		"end": {
+			"line": 2,
+			"character": 4
+		}
+	},
+	{
+		"code": 7010,
+		"message": "'m', which lacks return-type annotation, implicitly has an 'any' return type.",
+		"start": {
+			"line": 2,
+			"character": 3
+		},
+		"end": {
+			"line": 2,
+			"character": 4
+		}
+	}
+]
 

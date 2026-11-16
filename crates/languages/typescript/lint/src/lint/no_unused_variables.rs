@@ -17,12 +17,14 @@ use super::{Facts, Use, identifier_range, span};
 /// the parameters of a signature too, which the core rule reports like any variable.
 /// `reads` are references a host resolves to a symbol as plain reads, such as Svelte's `$store`.
 /// `body` is the scope of a function a host declares outside JavaScript, such as a Svelte
-/// snippet, inside which a reference to it is a self-reference.
+/// snippet, inside which a reference to it is a self-reference. `assigned` names the symbols a
+/// host assigns where it declares them, such as a Svelte `let:` name under a default value.
 pub fn no_unused_variables<'r>(
     semantic: &Semantic,
     considered: impl Fn(SymbolId) -> bool,
     reads: impl Fn(SymbolId) -> &'r [ReferenceId],
     body: impl Fn(SymbolId) -> Option<ScopeId>,
+    assigned: impl Fn(SymbolId) -> bool,
     reporter: &mut Reporter<'_>,
 ) {
     let f = Facts::new(semantic);
@@ -85,7 +87,7 @@ pub fn no_unused_variables<'r>(
             .iter()
             .rfind(|u| u.write && f.variable_scope(u.scope) == variable_scope)
             .map_or_else(|| f.scoping.symbol_span(symbol), |u| u.span);
-        let action = if uses.iter().any(|u| u.write) {
+        let action = if assigned(symbol) || uses.iter().any(|u| u.write) {
             "assigned a value"
         } else {
             "defined"

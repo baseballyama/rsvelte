@@ -4,7 +4,7 @@
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::{LineColumn, LineIndex, Span};
-use rsvelte_lint_runner::finding::{Finding, UNUSED_DIRECTIVE};
+use rsvelte_lint_runner::finding::{Finding, Fix, UNUSED_DIRECTIVE};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Script, TemplateNode};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -115,9 +115,11 @@ type Rules<'a> = Vec<(&'a str, bool)>;
 
 /// A JavaScript directive comment.
 struct Comment<'a> {
-    start: u32,
+    span: Span,
     disable: bool,
     rules: Rules<'a>,
+    /// The rule names as written, without the surrounding whitespace.
+    list: &'a str,
 }
 
 /// Removes findings that `ESLint`'s own directive comments, in JavaScript comments, turn off, and
@@ -134,7 +136,7 @@ pub(crate) fn apply_javascript(
     let mut blocks: Vec<Applied> = Vec::new();
     let mut line_directives: Vec<Applied> = Vec::new();
     for &span in comments {
-        let Some((kind, block, rules)) = javascript_directive(span.text(source)) else {
+        let Some((kind, block, rules, list)) = javascript_directive(span.text(source)) else {
             continue;
         };
         let start = lines.line_column(span.start_offset);
@@ -167,9 +169,10 @@ pub(crate) fn apply_javascript(
             }
         }
         parsed.push(Comment {
-            start: span.start_offset,
+            span,
             disable: kind != Kind::Enable,
             rules,
+            list,
         });
     }
     if parsed.is_empty() {
@@ -193,12 +196,13 @@ pub(crate) fn apply_javascript(
     parsed
         .iter()
         .filter(|comment| comment.disable)
-        .flat_map(|comment| unused(comment, &running))
+        .flat_map(|comment| unused(comment, source, &running))
         .collect()
 }
 
-/// A directive comment's kind, whether it is a block comment, and the rules it names.
-fn javascript_directive(text: &str) -> Option<(Kind, bool, Rules<'_>)> {
+/// A directive comment's kind, whether it is a block comment, the rules it names, and their
+/// list as written.
+fn javascript_directive(text: &str) -> Option<(Kind, bool, Rules<'_>, &str)> {
     let (block, value) = text.strip_prefix("/*").map_or_else(
         || (false, text.strip_prefix("//").unwrap_or(text)),
         |inner| (true, inner.strip_suffix("*/").unwrap_or(inner)),
@@ -227,7 +231,7 @@ fn javascript_directive(text: &str) -> Option<(Kind, bool, Rules<'_>)> {
             rules.push((name, false));
         }
     }
-    Some((kind, block, rules))
+    Some((kind, block, rules, rest.trim()))
 }
 
 /// One pass of `applyDirectives`: the latest directive at or before a finding that names its
@@ -270,18 +274,21 @@ fn credit(
 
 /// `processUnusedDirectives` for one disable comment: one report naming every rule when none
 /// turned anything off, else one per unused rule.
-fn unused(comment: &Comment<'_>, running: &impl Fn(&str) -> bool) -> Vec<Finding> {
+fn unused(comment: &Comment<'_>, source: &str, running: &impl Fn(&str) -> bool) -> Vec<Finding> {
     let mut unused = comment.rules.iter().filter(|&&(_, used)| !used).peekable();
     // An unnamed directive also covers rules rsvelte does not run, which may have used it.
     if unused.peek().is_none() {
         return Vec::new();
     }
-    let report = |description: &str| {
+    let report = |description: &str, fix: Option<Fix>| {
         let message = format!(
             "Unused eslint-disable directive (no problems were reported from {description})."
         );
-        let at = Span::new(comment.start, comment.start);
-        Finding::from(Diagnostic::warning(UNUSED_DIRECTIVE, message, at).without_end())
+        let at = Span::new(comment.span.start_offset, comment.span.start_offset);
+        let mut finding =
+            Finding::from(Diagnostic::warning(UNUSED_DIRECTIVE, message, at).without_end());
+        finding.fix = fix;
+        finding
     };
     let all_run = comment.rules.iter().all(|&(rule, _)| running(rule));
     let any_used = comment.rules.iter().any(|&(_, used)| used);
@@ -297,15 +304,29 @@ fn unused(comment: &Comment<'_>, running: &impl Fn(&str) -> bool) -> Vec<Finding
             }
             _ => names.join(" or "),
         };
-        return vec![report(&description)];
+        return vec![report(&description, Some(Fix::replace(comment.span, " ")))];
     }
     // An unknown or non-running rule may have used it, which decides one report or one per rule.
     if !any_used {
         return Vec::new();
     }
+    // `ESLint` finds the list from the comment's start, as `indexOf` does.
+    let text = comment.span.text(source);
+    let list_start = text
+        .find(comment.list)
+        .map(|i| comment.span.start_offset as usize + i);
     unused
         .filter(|&&(rule, _)| running(rule))
-        .map(|(rule, _)| report(&format!("'{rule}'")))
+        .map(|(rule, _)| {
+            let fix = list_start.and_then(|start| {
+                let (from, to) = removal::rule_removal(comment.list, rule)?;
+                Some(Fix::remove(Span::new(
+                    (start + from) as u32,
+                    (start + to) as u32,
+                )))
+            });
+            report(&format!("'{rule}'"), fix)
+        })
         .collect()
 }
 
@@ -569,6 +590,8 @@ fn scripts(component: &Component) -> impl Iterator<Item = &Script> {
 const fn is_rule(target: Target<'_>) -> bool {
     matches!(target, Target::Rule(_))
 }
+
+mod removal;
 
 #[cfg(test)]
 mod tests;
