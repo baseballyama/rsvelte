@@ -55,7 +55,7 @@ fn check_lists_the_files_to_format_and_writes_nothing() {
     assert_eq!(output.status.code(), Some(1), "{stdout}");
     assert_eq!(
         stdout,
-        "[warn] ./src/A.svelte\n[warn] 1 of 2 files need formatting.\n"
+        "[warn] src/A.svelte\n[warn] 1 of 2 files need formatting.\n"
     );
     assert_eq!(project.read("src/A.svelte"), UNFORMATTED);
 }
@@ -65,7 +65,7 @@ fn format_writes_the_files_that_change_and_skips_node_modules() {
     let project = Project::new();
     let output = project.format(&[]);
     assert_eq!(output.status.code(), Some(0));
-    assert_eq!(String::from_utf8_lossy(&output.stdout), "./src/A.svelte\n");
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "src/A.svelte\n");
     assert_eq!(project.read("src/A.svelte"), FORMATTED);
     assert_eq!(project.read("node_modules/x/X.svelte"), UNFORMATTED);
     let again = project.format(&["--check"]);

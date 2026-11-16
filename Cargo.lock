@@ -1168,6 +1168,7 @@ dependencies = [
  "rsvelte_configuration_loading",
  "rsvelte_corpus",
  "rsvelte_kernel",
+ "rsvelte_lint_runner",
  "rsvelte_plugin_interface",
  "rsvelte_svelte_check",
  "rsvelte_svelte_compile",
