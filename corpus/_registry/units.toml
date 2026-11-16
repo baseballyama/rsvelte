@@ -4931,3 +4931,6 @@
 
 ["svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/fd297002503b61c4.svelte".skip]
 "svelte.format" = "oxc ast: AccessorProperty has no `optional` modifier, so oxc cannot print `accessor x?: number`, which Prettier 3.9.10 keeps"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_class_style_directive/style_shorthand_modifier_does_not_become_an_identifier/57a171812e529726.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a shorthand `style:color|important` as the expression `color|important`, so TypeScript reports the bitwise or and the name `important`"

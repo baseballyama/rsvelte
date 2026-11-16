@@ -7653,34 +7653,6 @@
 === 3 rsvelte_projection/svelte2tsx_class_style_directive/style_shorthand_directive_uses_ensure_type/1737884972b21152.svelte	json
 []
 
-=== 414 rsvelte_projection/svelte2tsx_class_style_directive/style_shorthand_modifier_does_not_become_an_identifier/57a171812e529726.svelte	json
-[
-	{
-		"code": 2362,
-		"message": "The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 3,
-			"character": 11
-		},
-		"end": {
-			"line": 3,
-			"character": 16
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'important'.",
-		"start": {
-			"line": 3,
-			"character": 17
-		},
-		"end": {
-			"line": 3,
-			"character": 26
-		}
-	}
-]
-
 === 3 rsvelte_projection/svelte2tsx_component_export_format/legacy_v5_component_export_suffix_is_exact/780696c4ae157c8e.svelte	json
 []
 
