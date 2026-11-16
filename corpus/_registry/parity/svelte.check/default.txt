@@ -1,13 +1,8 @@
 # svelte.check/default: 34971 match
-svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
-svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte	mismatch
 svelte/appwrite-console/src/routes/(public)/auth/preview/+page.svelte	mismatch
-svelte/bits-ui/packages/bits-ui/src/lib/bits/select/components/select.svelte	mismatch
 svelte/carbon-components-svelte/tests/OverflowMenu/OverflowMenuItem.icons.test.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-object-in-text-mustaches/invalid/function01-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/attach-tag-output.svelte	mismatch
-svelte/flowbite-svelte/src/lib/device-mockups/DeviceMockup.svelte	mismatch
-svelte/kite-public/src/lib/components/contribute/ContributeHistory.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events-usage/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots-usage/input.svelte	mismatch
@@ -16,7 +11,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/pug/input.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/transition-options/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ts-ignore-attribute.v5/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion.svelte	mismatch
@@ -44,21 +38,6 @@ svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_compone
 svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/696aaefc0ff5653b.svelte	mismatch
 svelte/rsvelte-tests-core-3/root_fragment_scope_3375/a_top_level_snippet_may_shadow_a_module_script_const/8f79cd7fce7f75de.svelte	mismatch
 svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/a_textarea_closer_keeps_taking_everything_up_to_the_bracket/8c8524746c866ada.svelte	mismatch
-svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/128daf0370152b62.svelte	mismatch
-svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/206e74c7dccafa7e.svelte	mismatch
-svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/208e8058f2789ff5.svelte	mismatch
-svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/2b7a3bf6f4dda84c.svelte	mismatch
-svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/2cb3c44dbfa2dfd9.svelte	mismatch
-svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/3ff4cdc0e418febd.svelte	mismatch
-svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/604c759e974b7b37.svelte	mismatch
-svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/7efd2325017e0405.svelte	mismatch
-svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/8721a6b434a131f7.svelte	mismatch
-svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/8b2f138617feb45c.svelte	mismatch
-svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/d692c48bdf4b706c.svelte	mismatch
-svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/e05fefbf8d487c03.svelte	mismatch
-svelte/rsvelte-tests-formatter/markup_cast_head_parens/type_operator_operand_matches_oracle/11ba9a4dcfd4ca3a.svelte	mismatch
-svelte/rsvelte-tests-formatter/markup_cast_head_parens/type_operator_operand_matches_oracle/2747c6d54d9941b7.svelte	mismatch
-svelte/rsvelte-tests-formatter/markup_cast_head_parens/type_operator_operand_matches_oracle/3f98a0deb6534381.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_content_mapper/tests/a_broken_script_body_is_left_for_typescript_to_report/33018fc5a929c17c.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/folding/tests/a_document_being_typed_still_folds/9a8f6b5e0cd9dd2d.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/folding/tests/no_input_panics/a7896b97746ed2b6.svelte	mismatch
@@ -88,13 +67,10 @@ svelte/rsvelte/lint/no-useless-children-snippet/06-boundary-and-self.svelte	mism
 svelte/rsvelte/lint/require-each-key/13-key-expression-forms.svelte	mismatch
 svelte/rsvelte/pattern/issues/3164-on-directive-inner-init.svelte	mismatch
 svelte/rsvelte/pattern/issues/3199-grammar-import-source.svelte	mismatch
-svelte/rsvelte/pattern/issues/var-derived-outlives-the-statement-it-declared-it.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store02-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store02-type-output.svelte	mismatch
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte	mismatch
 svelte/svelte-put/sites/docs/src/lib/notifications/components/Svelte5.svelte	mismatch
 svelte/svelte-sonner/src/lib/Toaster.svelte	mismatch
 svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-browser/custom-elements-samples/extend-with-ts/main.svelte	mismatch
-svelte/threlte/apps/docs/src/examples/rapier/attractor/AdvancedScene.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/rapier/collision-groups/App.svelte	mismatch

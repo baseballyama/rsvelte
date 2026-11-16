@@ -4817,3 +4817,75 @@
 
 ["svelte/rsvelte/pattern/class-member-name.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
+
+["svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/bits-ui/packages/bits-ui/src/lib/bits/select/components/select.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/flowbite-svelte/src/lib/device-mockups/DeviceMockup.svelte".skip]
+"svelte.check" = "checker: TS 7 shortens a long type in a message otherwise than TS 6, writing `...` for a member TS 6 writes as `{ ...; }`"
+
+["svelte/kite-public/src/lib/components/contribute/ContributeHistory.svelte".skip]
+"svelte.check" = "checker: TS 7 shortens a long type in a message otherwise than TS 6, writing `...` for a member TS 6 writes as `{ ...; }`"
+
+["svelte/threlte/apps/docs/src/examples/rapier/attractor/AdvancedScene.svelte".skip]
+"svelte.check" = "checker: TS 7 shortens a long type in a message otherwise than TS 6, writing `...` for a member TS 6 writes as `{ ...; }`"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte".skip]
+"svelte.check" = "checker: TS 7's lib.dom differs from TS 6's, so the message lists other missing properties"
+
+["svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte".skip]
+"svelte.check" = "checker: TS 7's lib.dom differs from TS 6's, so the message lists other missing properties"
+
+["svelte/rsvelte/pattern/issues/var-derived-outlives-the-statement-it-declared-it.svelte".skip]
+"svelte.check" = "checker: TS 6's message for 1344 starts with a stray quote, `'A label is not allowed here.`, which TS 7 drops"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/128daf0370152b62.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/206e74c7dccafa7e.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/208e8058f2789ff5.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/2b7a3bf6f4dda84c.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/2cb3c44dbfa2dfd9.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/3ff4cdc0e418febd.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/604c759e974b7b37.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/7efd2325017e0405.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/8721a6b434a131f7.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/8b2f138617feb45c.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/d692c48bdf4b706c.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/e05fefbf8d487c03.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/type_operator_operand_matches_oracle/11ba9a4dcfd4ca3a.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/type_operator_operand_matches_oracle/2747c6d54d9941b7.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/type_operator_operand_matches_oracle/3f98a0deb6534381.svelte".skip]
+"svelte.check" = "checker: TS 7 prints an array type's last shown member as `with(...)` where TS 6 prints `[Symbol.unscopables]`"

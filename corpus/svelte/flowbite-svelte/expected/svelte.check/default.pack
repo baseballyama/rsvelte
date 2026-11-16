@@ -2163,34 +2163,6 @@
 	}
 ]
 
-=== 743 src/lib/device-mockups/DeviceMockup.svelte	json
-[
-	{
-		"code": 2307,
-		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
-		"start": {
-			"line": 9,
-			"character": 41
-		},
-		"end": {
-			"line": 9,
-			"character": 53
-		}
-	},
-	{
-		"code": 7053,
-		"message": "Element implicitly has an 'any' type because expression of type 'DeviceMockupProps' can't be used to index type '{ android: Component<AndroidProps, {}, \"\">; ios: Component<IosProps, {}, \"\">; tablet: Component<TabletProps, {}, \"\">; default: Component<DefaultMockupProps, {}, \"\">; smartwatch: Component<SmartwatchProps, {}, \"\">; laptop: Component<...>; desktop: Component<...>; }'.",
-		"start": {
-			"line": 23,
-			"character": 44
-		},
-		"end": {
-			"line": 23,
-			"character": 61
-		}
-	}
-]
-
 === 839 src/lib/device-mockups/Ios.svelte	json
 [
 	{
