@@ -8,8 +8,8 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
 use rsvelte_svelte_semantic::legacy::Legacy;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_semantic::{Lowered, Resolved};
-use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::Component;
+use rsvelte_svelte_syntax::{Parsed, ParsedAsTypeScript};
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::{
     ProgramIdentifier, Script, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, Tree,
@@ -48,7 +48,7 @@ impl<'a> Linted<'a> {
     pub(crate) fn of(context: &'a DocumentContext<'a>) -> Result<Self, &'a Diagnostic> {
         let (component, as_typescript) = match context.get::<Parsed>() {
             Ok(component) => (component, false),
-            Err(_) => (context.get::<ParsedAsSvelteEslintParser>().as_ref()?, true),
+            Err(_) => (read_as_svelte_eslint_parser(context)?, true),
         };
         Ok(Self {
             context,
@@ -93,6 +93,26 @@ impl Artifact for ParsedAsSvelteEslintParser {
     }
 }
 
+/// The component as svelte-eslint-parser reads it, for a document [`Parsed`] rejects: the one read
+/// as TypeScript, which the formatter shares, unless that parse stopped at the `/>` of a
+/// self-closing `<script />` or `<style />`.
+///
+/// # Errors
+///
+/// The component does not parse that way either.
+pub(crate) fn read_as_svelte_eslint_parser<'a>(
+    context: &'a DocumentContext<'_>,
+) -> Result<&'a Component, &'a Diagnostic> {
+    match context.get::<ParsedAsTypeScript>() {
+        Err(error)
+            if context.source_text()[error.span.start_offset as usize..].starts_with("/>") =>
+        {
+            context.get::<ParsedAsSvelteEslintParser>().as_ref()
+        }
+        parsed => parsed.as_ref(),
+    }
+}
+
 /// [`Lowered`] of [`ParsedAsSvelteEslintParser`], which only lint reads.
 #[derive(Debug)]
 pub(crate) struct LoweredAsTypeScript;
@@ -104,7 +124,7 @@ impl Artifact for LoweredAsTypeScript {
     const NAME: &'static str = "svelte.lint.compiler_syntax_tree_as_typescript";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let component = context.get::<ParsedAsSvelteEslintParser>().as_ref().ok()?;
+        let component = read_as_svelte_eslint_parser(context).ok()?;
         Some(rsvelte_svelte_semantic::compiler_syntax_tree::lower(
             component,
             context.source_text(),
@@ -123,7 +143,7 @@ impl Artifact for ResolvedAsTypeScript {
     const NAME: &'static str = "svelte.lint.resolve_as_typescript";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let component = context.get::<ParsedAsSvelteEslintParser>().as_ref().ok()?;
+        let component = read_as_svelte_eslint_parser(context).ok()?;
         let lowered = context.get::<LoweredAsTypeScript>().as_ref()?;
         Some(rsvelte_svelte_semantic::resolve_component(
             component, lowered,

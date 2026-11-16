@@ -15,7 +15,7 @@ use crate::Configuration;
 use crate::computation::{
     ConditionTypes, LegacyReactivity, LintConfiguration, LoweredAsTypeScript, ModuleAsTypeScript,
     ModuleSemantic, NativeConditionTypes, ParsedAsSvelteEslintParser, PostcssConfigurationOnDisk,
-    ResolvedAsTypeScript, SameNamedFileOnDisk,
+    ResolvedAsTypeScript, SameNamedFileOnDisk, read_as_svelte_eslint_parser,
 };
 use crate::rules::style_attribute::InlineStyles;
 use crate::rules::style_sheet::{LintStyleSheet, StyleSheetVerdict};
@@ -199,7 +199,7 @@ fn parse_verdict<'a>(context: &'a DocumentContext<'_>) -> Verdict<'a> {
     if !rsvelte_svelte_syntax::parse::in_script_content(
         context.source_text(),
         error.span.start_offset,
-    ) && (component.is_some() || context.get::<ParsedAsSvelteEslintParser>().is_err())
+    ) && (component.is_some() || read_as_svelte_eslint_parser(context).is_err())
     {
         return Verdict::Throws(Cow::Owned(error.message.clone()), error.span.start_offset);
     }
@@ -245,7 +245,7 @@ enum TypescriptEslint<'a> {
 fn typescript_eslint_verdict<'a>(context: &'a DocumentContext<'_>) -> TypescriptEslint<'a> {
     // svelte-eslint-parser parses the template with the scripts blanked out first, so an error of
     // the template wins over the scripts'.
-    let component = match context.get::<ParsedAsSvelteEslintParser>() {
+    let component = match read_as_svelte_eslint_parser(context) {
         Ok(component) => component,
         Err(error) => {
             return TypescriptEslint::Throws(
