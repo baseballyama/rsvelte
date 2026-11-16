@@ -52,9 +52,10 @@ impl Printer<'_> {
         for part in [
             "<",
             plain,
-            "> = ReturnType<__rsvelte_Render<",
+            // svelte2tsx's instance type of the isomorphic component, which names its props.
+            "> = import('svelte').SvelteComponent<ReturnType<__rsvelte_Render<",
             arguments,
-            ">['exports']>;\nexport default ",
+            ">['props']>, {}, {}>;\nexport default ",
         ] {
             self.output.push(part);
         }
