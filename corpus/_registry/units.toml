@@ -4907,3 +4907,9 @@
 
 ["svelte/melt-ui/docs/src/components/motion.svelte".skip]
 "svelte.check" = "checker: TS 7 reports 7031 on a binding element whose default is `{}` and whose contextual type comes from an unresolved import, where TS 6 reports nothing"
+
+["svelte/threlte/apps/docs/src/examples/rapier/attractor/AdvancedScene.svelte".skip]
+"svelte.check" = "checker: TS 7 truncates a long type's last property to `...` where TS 6 prints `{ ...; }`, so the message differs"
+
+["svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte".skip]
+"svelte.check" = "checker: TS 7's lib.dom gives HTMLElement one more member than TS 6's, so a message counting its missing properties says 316 where TS 6 says 315"
