@@ -4988,3 +4988,6 @@
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_directive_suffix_map_4464/a_directive_name_and_its_parameters_carry_a_mapping/6131d61eb07dbc8c.svelte".skip]
 "svelte.check" = "checker: TS 7 reports a missing-properties 2740 where TS 6 reports 2345 for an argument whose type lacks the parameter type's properties"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/716a6da8d466f8b2.svelte".skip]
+"svelte.check" = "checker: svelte-check 4.7.8 reports 2503 for `Z` when it checks this file alone, as rsvelte does, but not in the shared workspace of this source, where other files of the program change it"

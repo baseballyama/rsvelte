@@ -17336,34 +17336,6 @@
 	}
 ]
 
-=== 381 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/716a6da8d466f8b2.svelte	json
-[
-	{
-		"code": 1232,
-		"message": "An import declaration can only be used at the top level of a namespace or module.",
-		"start": {
-			"line": 1,
-			"character": 0
-		},
-		"end": {
-			"line": 1,
-			"character": 6
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'f'.",
-		"start": {
-			"line": 2,
-			"character": 16
-		},
-		"end": {
-			"line": 2,
-			"character": 17
-		}
-	}
-]
-
 === 364 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/728f91be55af0298.svelte	json
 [
 	{
