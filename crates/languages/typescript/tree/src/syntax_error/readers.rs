@@ -17,7 +17,7 @@ pub enum Reader {
 
 /// tsc's codes of errors oxc or the analysis reports, and whether `babel-ts` throws on each, as
 /// Prettier 3.9.10 does.
-const BABEL_TYPESCRIPT: [(u32, bool); 38] = [
+const BABEL_TYPESCRIPT: [(u32, bool); 39] = [
     (1015, false),
     (1016, false),
     (1024, true),
@@ -37,6 +37,7 @@ const BABEL_TYPESCRIPT: [(u32, bool); 38] = [
     (1105, true),
     (1107, true),
     (1114, true),
+    (1127, true),
     (1147, true),
     (1194, true),
     (1221, false),

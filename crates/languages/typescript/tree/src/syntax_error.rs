@@ -192,7 +192,6 @@ pub(crate) fn acorn(
     if error.code.scope.as_deref() != Some("TS") {
         // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.
         return regular_expression(text, start, read())
-            .or_else(|| invalid_escape(text, (start, end), read()))
             .or_else(|| reserved(start).filter(|_| kind_at(start) == Some(Kind::Enum)));
     }
     let token = |after: u32, kind: Option<Kind>| {
@@ -515,6 +514,10 @@ fn unexpected_character(text: &str, start: u32, end: u32) -> Option<Acorn> {
         return (!escape.starts_with('u'))
             .then(|| fails("Expecting Unicode escape sequence \\uXXXX", start + 1));
     }
+    // An escape of a character no name holds, which oxc labels with no length at its `\`.
+    if label.is_empty() && text.get(start as usize..)?.starts_with("\\u") {
+        return Some(fails("Invalid Unicode escape", start));
+    }
     let at = start + u32::from(label.starts_with('#'));
     let character = text.get(at as usize..)?.chars().next()?;
     Some(Acorn::Fails {
@@ -577,7 +580,7 @@ const fn fails(message: &'static str, at: u32) -> Acorn {
 }
 
 mod lexer;
-use lexer::{invalid_escape, regular_expression};
+use lexer::regular_expression;
 mod locator;
 mod readers;
 mod typescript_eslint;

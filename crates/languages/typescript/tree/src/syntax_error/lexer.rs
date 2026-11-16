@@ -4,20 +4,6 @@ use oxc_parser::{Kind, Token};
 
 use super::{Acorn, fails};
 
-/// Where acorn rejects a name's escape of a character no name may hold: oxc labels the end of the
-/// escape, in the name's token among `tokens`, and acorn its `\`.
-pub(super) fn invalid_escape(
-    text: &str,
-    (start, end): (u32, u32),
-    tokens: impl Iterator<Item = Token>,
-) -> Option<Acorn> {
-    let name = tokens.take_while(|token| token.start() < start).last()?;
-    let read = text.get(name.start() as usize..start as usize)?;
-    let escape = read.rfind("\\u")?;
-    (start == end && name.end() >= start)
-        .then(|| fails("Invalid Unicode escape", name.start() + escape as u32))
-}
-
 /// Where acorn, which reads a `/` after a token of `tokens` that an expression may follow as a
 /// regular expression, fails to read one at `start` in `text`; `None` when it reads one.
 pub(super) fn regular_expression(
