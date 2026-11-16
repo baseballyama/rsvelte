@@ -12361,22 +12361,6 @@
 === 3 malformed_snippet_header/balanced_literals_and_comments_in_a_header_compile/86694d4fc5f9bbf9.svelte	json
 []
 
-=== 208 malformed_snippet_header/balanced_literals_and_comments_in_a_header_compile/877d2d02e603fddb.svelte	json
-[
-	{
-		"code": 2339,
-		"message": "Property 'b' does not exist on type '{ a?: number | undefined; }'.",
-		"start": {
-			"line": 1,
-			"character": 23
-		},
-		"end": {
-			"line": 1,
-			"character": 24
-		}
-	}
-]
-
 === 3 malformed_snippet_header/balanced_literals_and_comments_in_a_header_compile/88fd777b751b3c9a.svelte	json
 []
 
@@ -15943,22 +15927,6 @@
 		"end": {
 			"line": 2,
 			"character": 1
-		}
-	}
-]
-
-=== 202 plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/0987dd6e6407d320.svelte	json
-[
-	{
-		"code": 8017,
-		"message": "Signature declarations can only be used in TypeScript files.",
-		"start": {
-			"line": 1,
-			"character": 10
-		},
-		"end": {
-			"line": 1,
-			"character": 11
 		}
 	}
 ]

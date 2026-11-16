@@ -4418,6 +4418,7 @@
 
 ["svelte/rsvelte/lint/html-closing-bracket-new-line/05-script-style-tags.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser drops the attributes of a <style> whose closing tag has a space before >"
+"svelte.check" = "upstream bug: svelte2tsx blanks a style sheet with a regular expression that needs `</style>`, so at another closer it leaves the CSS in its TSX and TypeScript reports it as JSX"
 
 ["svelte/layerchart/docs/src/examples/components/Partition/flame-graph.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser reads a // comment in a start tag inside a block as tokens, not as a comment"
@@ -4804,6 +4805,7 @@
 "svelte.compile" = "upstream bug: svelte 5.57.3 picks the script language with a regex over the source text (`regex_lang_attribute`), so a `data-lang=\"ts\"` attribute makes it read this JavaScript component as TypeScript"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 picks the script language with a regex over the source text (`regex_lang_attribute`), so a `data-lang=\"ts\"` attribute makes it read this JavaScript component as TypeScript"
 "svelte.lint" = "upstream bug: svelte-eslint-parser parses the markup with svelte 5.57.3, which picks the script language with a regex over the source text (`regex_lang_attribute`), so a `data-lang=\"ts\"` attribute makes it read this JavaScript component as TypeScript"
+"svelte.check" = "upstream bug: svelte 5.57.3 picks the script language with a regex over the source text (`regex_lang_attribute`), so a `data-lang=\"ts\"` attribute lets svelte2tsx parse the template's `as` cast, and svelte-check reports TypeScript's JavaScript-file errors instead of Svelte's parse error"
 
 ["svelte/rsvelte-tests-core-1/compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/9096b19bedcfe51e.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 picks the script language with a regex over the source text (`regex_lang_attribute`), so a `lang=\"ts\"` inside a string makes it read this JavaScript component as TypeScript"
@@ -4899,3 +4901,12 @@
 
 ["svelte/rsvelte-tests-core-3/ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/a58bedf4d6742a23.svelte".skip]
 "svelte.format" = "oxc ast: AccessorProperty has no `declare` modifier, so oxc cannot print `declare accessor a`, which Prettier 3.9.10 keeps"
+
+["svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/0987dd6e6407d320.svelte".skip]
+"svelte.check" = "checker: TS 7 spans 8017 over a JavaScript overload signature and adds 8010 for its parameter type, where TS 6 reports only 8017 at its name"
+
+["svelte/rsvelte-tests-core-2/malformed_snippet_header/balanced_literals_and_comments_in_a_header_compile/877d2d02e603fddb.svelte".skip]
+"svelte.check" = "checker: TS 6 reports 2339 for a property a destructuring pattern reads from its default `{}`, where TS 7 reports nothing"
+
+["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/a_textarea_closer_keeps_taking_everything_up_to_the_bracket/8c8524746c866ada.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx removes an end tag only when the text between `</` and `>` is the element's name, so it leaves `</textarea x>` in its TSX and svelte-check reports syntax errors in a component Svelte compiles"
