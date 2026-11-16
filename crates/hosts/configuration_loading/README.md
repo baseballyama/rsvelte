@@ -51,7 +51,8 @@ from the configuration file.
 
 A program with a `/` starts from the configuration file. The host looks for a bare name in
 `node_modules/.bin` next to the file and in its parents, then in `PATH`. `tsconfig` defaults to
-the `tsconfig.json` next to the file, if there is one.
+the `tsconfig.json` next to the file, if there is one. `processes` of `typescript.check` sets how
+many checker processes share the documents; by default one per 50 documents, at most 4.
 
 ## Settings and functions
 
