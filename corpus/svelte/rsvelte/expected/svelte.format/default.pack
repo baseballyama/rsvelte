@@ -20819,23 +20819,6 @@ line two"
   <p>{late}</p>
 {/each}
 
-=== 350 pattern/adversarial/control-flow/each-destructure-exotic.svelte	svelte
-<script>
-  let pairs = $state([
-    [1, 2, 3],
-    [4, 5],
-  ]);
-  let objs = $state([{ id: 1, meta: { tags: ["a"] } }]);
-</script>
-
-{#each pairs as [first = 0, second = first, ...rest], i ([first, i])}
-  <p>{first},{second},{rest.length}</p>
-{/each}
-
-{#each objs as { id, { tags: [firstTag = 'none'] } = { } } (id)}
-  <p>{id}:{firstTag}</p>
-{/each}
-
 === 776 pattern/adversarial/control-flow/each-destructuring-defaults.svelte	svelte
 <script>
   let rows = $state([
@@ -35174,27 +35157,6 @@ b";
 </script>
 
 <button onclick={emit}>{label}:{count}</button>
-
-=== 492 pattern/issues/3035-destructure-defaults.svelte	svelte
-<script>
-  let pairs = $state([
-    [1, 2, 3],
-    [4, 5],
-  ]);
-  let objs = $state([{ id: 1, meta: { tags: ["a"] } }, { id: 2 }]);
-  let { config = {} } = $props();
-  let { sizes: [small = 1, ...bigger] = [] } = $derived(config);
-</script>
-
-{#each pairs as [first = 0, second = first, ...rest], i ([first, i])}
-  <p>{first},{second},{rest.length}</p>
-{/each}
-
-{#each objs as { id, { tags: [firstTag = 'none'] } = { } } (id)}
-  <p>{id}:{firstTag}</p>
-{/each}
-
-<p>{small}:{bigger.length}</p>
 
 === 243 pattern/issues/3036-class-derived-outer-read.svelte	svelte
 <script>

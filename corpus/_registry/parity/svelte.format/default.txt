@@ -620,13 +620,11 @@ svelte/rsvelte/lint/no-spaces-around-equal-signs-in-attribute/12-this-scan-failu
 svelte/rsvelte/lint/prefer-const/23-redeclared-let.svelte	refused
 svelte/rsvelte/lint/sort-attributes/18-this-comment-in-value.svelte	refused
 svelte/rsvelte/lint/sort-attributes/22-this-controls.svelte	refused
-svelte/rsvelte/pattern/adversarial/control-flow/each-destructure-exotic.svelte	refused
 svelte/rsvelte/pattern/adversarial/css/rejected-global-keyframes-selector.svelte	refused
 svelte/rsvelte/pattern/adversarial/elements/very-long-text-runs.svelte	mismatch
 svelte/rsvelte/pattern/css/consecutive-and-column-combinators.svelte	refused
 svelte/rsvelte/pattern/css/declaration-without-property-or-colon.svelte	refused
 svelte/rsvelte/pattern/css/value-ends-outside-strings-and-urls.svelte	mismatch
-svelte/rsvelte/pattern/issues/3035-destructure-defaults.svelte	refused
 svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte	refused
 svelte/rsvelte/pattern/issues/3194-strict-assign-eval.svelte	refused
 svelte/rsvelte/pattern/issues/3194-strict-bind-eval.svelte	refused
@@ -689,7 +687,6 @@ svelte/svelte-commerce/src/lib/components/product-catalogue/pincode-check.svelte
 svelte/svelte-commerce/src/routes/(www)/checkout/payment/payment.svelte	mismatch
 svelte/svelte-commerce/src/routes/(www)/checkout/success/+page.svelte	mismatch
 svelte/svelte-confetti/src/routes/+page.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/integrations/type-info-tests/await-with-same-id-input.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/integrations/type-info-tests/plugin-issue254-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/function-binding-with-comment01-input.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/function-binding-with-comment02-input.svelte	refused

@@ -2645,6 +2645,15 @@
 ["svelte/rsvelte-tests-core-1/block_header_pattern_validation/legal_neighbours_still_compile/8a80c229fe285e83.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block's pattern from its nodes (expandNode), so it deletes a comment in it"
 
+["svelte/rsvelte/pattern/adversarial/control-flow/each-destructure-exotic.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a renamed property with a default in a block's pattern without its key, so `{ x: b = 42 }` reads `b` and `{ a: { b } = {} }` does not parse"
+
+["svelte/rsvelte/pattern/issues/3035-destructure-defaults.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a renamed property with a default in a block's pattern without its key, so `{ x: b = 42 }` reads `b` and `{ a: { b } = {} }` does not parse"
+
+["svelte/svelte-eslint-parser/tests/fixtures/integrations/type-info-tests/await-with-same-id-input.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a renamed property with a default in a block's pattern without its key, so `{ x: b = 42 }` reads `b` and `{ a: { b } = {} }` does not parse"
+
 ["svelte/rsvelte-tests-core-1/block_header_pattern_validation/legal_neighbours_still_compile/f4a2e74dbb010935.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
