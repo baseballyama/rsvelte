@@ -110,6 +110,33 @@
 === 34 check/kit-load-augmentation-js/project/src/routes/+page.svelte	svelte
 <h1>kit-load-augmentation-js</h1>
 
+=== 177 check/kit-route-props-ts/project/src/routes/a/+page.svelte	svelte
+<script lang="ts">
+  let { data, foo = 1, form } = $props();
+  const n: number = data.x;
+  const s: string = foo;
+  [1].find((r) => r);
+  ([] as any[]).map((q) => q);
+</script>
+
+=== 102 check/kit-route-props-ts/project/src/routes/b/+layout.svelte	svelte
+<script lang="ts">
+  let { data, children, form } = $props();
+  const s: string = children;
+</script>
+
+=== 91 check/kit-route-props-ts/project/src/routes/c/+error.svelte	svelte
+<script lang="ts">
+  let { error, other } = $props();
+  const s: number = error;
+</script>
+
+=== 61 check/kit-route-props-ts/project/src/routes/d/+page.svelte	svelte
+<script>
+  let { data, foo } = $props();
+  data.x;
+</script>
+
 === 125 check/no-tsconfig/project/src/App.svelte	svelte
 <script lang="ts">
   const seen = new Set<string>(["a", "b"]);

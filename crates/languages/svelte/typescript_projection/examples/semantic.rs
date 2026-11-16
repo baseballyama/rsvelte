@@ -29,7 +29,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .write_string(&error.message);
             }
             Ok(component) => {
-                match rsvelte_svelte_typescript_projection::lower_alone(&component, &source) {
+                match rsvelte_svelte_typescript_projection::lower_alone(
+                    &component,
+                    &source,
+                    &file.to_string_lossy(),
+                ) {
                     Err(error) => {
                         record
                             .key("status")

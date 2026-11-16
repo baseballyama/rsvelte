@@ -76,6 +76,31 @@
 
 === 0 check/kit-load-augmentation-js/project/src/routes/+page.svelte	lint.txt
 
+=== 728 check/kit-route-props-ts/project/src/routes/a/+page.svelte	lint.txt
+1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+2:24 2:28 no-unused-vars "'form' is assigned a value but never used."
+3:9 3:18 no-unused-vars "'n' is assigned a value but never used."
+3:21 3:25 svelte/valid-compile "This reference only captures the initial value of `data`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
+4:9 4:18 no-unused-vars "'s' is assigned a value but never used."
+4:21 4:24 svelte/valid-compile "This reference only captures the initial value of `foo`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
+
+=== 517 check/kit-route-props-ts/project/src/routes/b/+layout.svelte	lint.txt
+1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+2:9 2:13 no-unused-vars "'data' is assigned a value but never used."
+2:25 2:29 no-unused-vars "'form' is assigned a value but never used."
+3:9 3:18 no-unused-vars "'s' is assigned a value but never used."
+3:21 3:29 svelte/valid-compile "This reference only captures the initial value of `children`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
+
+=== 446 check/kit-route-props-ts/project/src/routes/c/+error.svelte	lint.txt
+1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+2:16 2:21 no-unused-vars "'other' is assigned a value but never used."
+3:9 3:18 no-unused-vars "'s' is assigned a value but never used."
+3:21 3:26 svelte/valid-compile "This reference only captures the initial value of `error`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
+
+=== 286 check/kit-route-props-ts/project/src/routes/d/+page.svelte	lint.txt
+2:15 2:18 no-unused-vars "'foo' is assigned a value but never used."
+3:3 3:7 svelte/valid-compile "This reference only captures the initial value of `data`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
+
 === 251 check/no-tsconfig/project/src/App.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

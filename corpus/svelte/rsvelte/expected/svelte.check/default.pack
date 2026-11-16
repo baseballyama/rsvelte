@@ -111,6 +111,69 @@
 === 3 check/kit-load-augmentation-js/project/src/routes/+page.svelte	json
 []
 
+=== 199 check/kit-route-props-ts/project/src/routes/a/+page.svelte	json
+[
+	{
+		"code": 2339,
+		"message": "Property 'foo' does not exist on type '$$ComponentProps'.",
+		"start": {
+			"line": 1,
+			"character": 14
+		},
+		"end": {
+			"line": 1,
+			"character": 17
+		}
+	}
+]
+
+=== 391 check/kit-route-props-ts/project/src/routes/b/+layout.svelte	json
+[
+	{
+		"code": 2339,
+		"message": "Property 'form' does not exist on type '$$ComponentProps'.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 28
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'Snippet<[]>' is not assignable to type 'string'.",
+		"start": {
+			"line": 2,
+			"character": 8
+		},
+		"end": {
+			"line": 2,
+			"character": 9
+		}
+	}
+]
+
+=== 201 check/kit-route-props-ts/project/src/routes/c/+error.svelte	json
+[
+	{
+		"code": 2339,
+		"message": "Property 'other' does not exist on type '$$ComponentProps'.",
+		"start": {
+			"line": 1,
+			"character": 15
+		},
+		"end": {
+			"line": 1,
+			"character": 20
+		}
+	}
+]
+
+=== 3 check/kit-route-props-ts/project/src/routes/d/+page.svelte	json
+[]
+
 === 3 check/no-tsconfig/project/src/App.svelte	json
 []
 

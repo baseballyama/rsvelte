@@ -27,8 +27,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         };
         parsed += 1;
-        let Ok(tree) = rsvelte_svelte_typescript_projection::lower_alone(&component, &source)
-        else {
+        let Ok(tree) = rsvelte_svelte_typescript_projection::lower_alone(
+            &component,
+            &source,
+            &file.to_string_lossy(),
+        ) else {
             unsupported += 1;
             continue;
         };

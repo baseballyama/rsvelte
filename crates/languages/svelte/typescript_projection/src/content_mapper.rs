@@ -6,7 +6,7 @@ pub fn write_transform(path: &str, source: &str, output: &mut StructuredDataWrit
     let result = rsvelte_svelte_syntax::parse::parse(source)
         .map_err(|error| (1, error.message, error.span))
         .and_then(|component| {
-            crate::lower_alone(&component, source)
+            crate::lower_alone(&component, source, path)
                 .map(|tree| (tree.extension(), crate::emit_named(&tree, source, path)))
                 .map_err(|error| match error {
                     crate::Refusal::Unsupported(unsupported) => (

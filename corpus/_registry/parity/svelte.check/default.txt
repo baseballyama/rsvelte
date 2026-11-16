@@ -1,5 +1,4 @@
-# svelte.check/default: 34983 match
-svelte/appwrite-console/src/routes/(public)/auth/preview/+page.svelte	mismatch
+# svelte.check/default: 34988 match
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-object-in-text-mustaches/invalid/function01-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/attach-tag-output.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events-usage/input.svelte	mismatch

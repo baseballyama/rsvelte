@@ -12,6 +12,8 @@ pub use contract::store_reads;
 pub use generic::{UnparsedScript, unparsed_script};
 mod hoistable;
 mod root_snippets;
+mod standalone;
+pub use standalone::lower_alone;
 mod script_kind;
 pub use script_kind::checked_as_typescript;
 mod tag;
@@ -76,6 +78,7 @@ pub type Resolve<'a> = dyn Fn() -> Option<&'a Resolution> + 'a;
 pub fn lower<'a>(
     component: &'a Component,
     source: &'a str,
+    path: &str,
     resolution: &'a Resolve<'a>,
 ) -> Result<SyntaxTree> {
     let mut builder = Builder {
@@ -91,6 +94,7 @@ pub fn lower<'a>(
         root_snippets: None,
         slot_parent: None,
         component_parent: false,
+        route: contract::Route::of(path),
         props_hoisted: false,
         module_snippets: None,
     };
@@ -124,27 +128,6 @@ pub fn lower<'a>(
     Ok(builder.tree)
 }
 
-/// [`lower`] outside the artifact database: it analyzes the component itself, when it must.
-///
-/// # Errors
-///
-/// As [`lower`].
-pub fn lower_alone(component: &Component, source: &str) -> Result<SyntaxTree> {
-    let resolution = std::cell::OnceCell::new();
-    let resolve = || {
-        Some(resolution.get_or_init(|| {
-            let lowered = rsvelte_svelte_semantic::compiler_syntax_tree::lower(component, source);
-            rsvelte_svelte_semantic::resolve::resolve(
-                &component.javascript,
-                component.instance.as_ref().map(|s| s.program),
-                component.module.as_ref().map(|s| s.program),
-                &lowered,
-            )
-        }))
-    };
-    lower(component, source, &resolve)
-}
-
 struct Builder<'a> {
     component: &'a Component,
     resolution: &'a Resolve<'a>,
@@ -162,6 +145,8 @@ struct Builder<'a> {
     slot_parent: Option<NodeIdentifier>,
     /// Whether the children being lowered are a component's, through any blocks.
     component_parent: bool,
+    /// The `SvelteKit` route file the component is, whose untyped props svelte2tsx types.
+    route: Option<contract::Route>,
     /// Whether `$$ComponentProps` moved before the render function.
     props_hoisted: bool,
     /// The root snippets svelte2tsx moves before the render function.

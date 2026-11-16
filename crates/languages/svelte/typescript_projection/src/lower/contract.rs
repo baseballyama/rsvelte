@@ -292,6 +292,10 @@ impl Builder<'_> {
             // `any`.
             return Ok(self.tree.push(Node::Identifier("any")));
         };
+        // svelte2tsx types a route file's untyped props by their names alone.
+        let route = self
+            .route
+            .filter(|_| annotation.is_none() && !self.tree.javascript);
         let mut required = Buffer::new(0);
         let mut optional = Buffer::new(0);
         let rest = object.rest.is_some();
@@ -316,7 +320,7 @@ impl Builder<'_> {
                     reads.push(self.tree.push(Node::Statement(local)));
                 }
             }
-            if annotation.is_none() {
+            if annotation.is_none() && route.is_none() {
                 let name = self.source(property.key.span(), None);
                 let value = self.prop_default(default, &siblings);
                 let property = self.tree.push(Node::NamedProperty { name, value });
@@ -338,6 +342,9 @@ impl Builder<'_> {
         }
         if let Some((span, reference)) = annotation {
             return Ok(self.props_alias(span, reference, statement, edits));
+        }
+        if let Some(route) = route {
+            return Ok(self.route_props(route, object, (statement, pattern.span().end), edits));
         }
         let name = self.props_name();
         let required = self.tree.list(&required);
@@ -484,6 +491,8 @@ impl Builder<'_> {
 }
 
 mod props_alias;
+mod route;
+pub(super) use route::Route;
 mod siblings;
 mod slot_flags;
 mod stores;
