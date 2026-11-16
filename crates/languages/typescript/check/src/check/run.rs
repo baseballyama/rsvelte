@@ -154,6 +154,12 @@ impl Tsc {
             layer.files.push(declaration);
         }
         roots.extend(paths.iter().cloned());
+        // Upstream's project holds every component, so one that is not checked still declares
+        // its globals.
+        roots.extend(req.stand_ins(&root).map(|(path, _)| path).filter(|path| {
+            (req.script_modules.iter())
+                .any(|extension| path.as_os_str().to_string_lossy().ends_with(extension))
+        }));
         roots.extend(declarations);
         roots.extend(req.include.iter().cloned());
         let config = overlay.join("tsconfig.json");
