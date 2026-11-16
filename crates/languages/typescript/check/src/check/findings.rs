@@ -11,6 +11,7 @@ use super::{Prepared, TypeScriptDiagnostic};
 const NO_OVERLOAD_MATCHES_CALL: u32 = 2769;
 const ARGUMENT_NOT_ASSIGNABLE: u32 = 2345;
 const USED_BEFORE_ASSIGNED: u32 = 2454;
+const EXPECTED_ARGUMENTS: u32 = 2554;
 
 /// A finding located in its document, with what orders it.
 struct Finding {
@@ -87,6 +88,16 @@ pub(super) fn write_findings(
         }
         if let Some(span) = mapped
             && d.hidden.iter().any(|hidden| hidden.hides(f.code, span))
+        {
+            continue;
+        }
+        // svelte-check's `expectedTransitionThirdArgument`: Svelte passes a transition the third
+        // argument that svelte2tsx's call leaves out.
+        if f.code == EXPECTED_ARGUMENTS
+            && (f.message.starts_with("Expected 3 arguments")
+                || f.message.starts_with("Expected 3-"))
+            && (d.projection.out.get(..generated as usize))
+                .is_some_and(|before| before.ends_with("__sveltets_2_ensureTransition("))
         {
             continue;
         }
