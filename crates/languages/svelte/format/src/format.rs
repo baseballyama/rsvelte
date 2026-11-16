@@ -91,6 +91,7 @@ pub(crate) fn format(
         ));
     }
     let unparsed_scripts = unparsed::unparsed_scripts(c, source_text, rejected)?;
+    awaits::refuse_misread_awaits(c, source_text, &unparsed_scripts)?;
 
     let core = core_options(options)?;
     let printed = rsvelte_typescript_tree::with_scratch_arena(|allocator| {
@@ -449,6 +450,7 @@ fn ends_with_linebreak(s: &str, n: usize) -> bool {
 }
 
 mod attributes;
+mod awaits;
 mod blocks;
 mod children;
 mod elements;

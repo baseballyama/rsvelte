@@ -120,7 +120,7 @@ fn source_map_answers_what_lookup_answers() {
     e.push("$.text(");
     e.copy(source_text, Span::new(at("{é}") + 1, at("{é}") + 3));
     e.push(");\n}\n");
-    let map = e.source_map(&LineIndex::new(source_text), "App.svelte");
+    let map = e.source_map(source_text, &LineIndex::new(source_text), "App.svelte");
     let mut checked = 0;
     for (position, _) in e.out.char_indices().chain([(e.out.len(), ' ')]) {
         assert_eq!(

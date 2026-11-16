@@ -35,23 +35,21 @@ pub(super) fn unparsed_scripts(
 
 /// The bodies of the scripts whose TypeScript errors the plugin's parser for them throws on.
 fn thrown_scripts(c: &Component, source_text: &str) -> R<Vec<Span>> {
-    let errors = &c.script_typescript_errors;
     let mut thrown = Vec::new();
     for script in c.module.iter().chain(&c.instance) {
         let body = script.content;
-        let inside = |error: &SyntaxError| {
+        let inside = |error: &&SyntaxError| {
             let at = error.diagnostic.span.start_offset;
             body.start_offset <= at && at <= body.end_offset
         };
-        // Each script's errors follow one another.
-        let Some(start) = errors.iter().position(inside) else {
+        // The errors of a script oxc rejected, and the ones the compiler lets pass.
+        let errors: Vec<&SyntaxError> = (c.script_typescript_errors.iter())
+            .chain(c.javascript.unchecked_errors())
+            .filter(inside)
+            .collect();
+        let Some(first) = errors.first() else {
             continue;
         };
-        let len = errors[start..]
-            .iter()
-            .take_while(|error| inside(error))
-            .count();
-        let errors = &errors[start..start + len];
         let reader = if in_typescript(script, source_text) {
             Reader::TypescriptEstree
         } else {
@@ -74,11 +72,11 @@ fn thrown_scripts(c: &Component, source_text: &str) -> R<Vec<Span>> {
             .collect();
         let rejects = !recovered
             || reader
-                .throws(&c.javascript, script.program, errors, &tokens)
+                .throws(&c.javascript, script.program, &errors, &tokens)
                 .ok_or_else(|| {
                     Unsupported::at(
                         "a TypeScript error the plugin's parser may throw on",
-                        errors[0].diagnostic.span,
+                        first.diagnostic.span,
                     )
                 })?;
         if rejects {
