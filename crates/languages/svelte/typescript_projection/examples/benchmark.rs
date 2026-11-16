@@ -54,6 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             match rsvelte_svelte_typescript_projection::lower_alone(
                 black_box(&component),
                 black_box(&source),
+                "",
             ) {
                 Ok(tree) => {
                     maximum_heap_bytes = maximum_heap_bytes.max(tree.heap_bytes());

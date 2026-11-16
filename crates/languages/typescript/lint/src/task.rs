@@ -22,7 +22,7 @@ impl Rule<Semantic> for NoUnusedVariables {
     }
 
     fn check(&self, context: &Semantic, reporter: &mut Reporter<'_>) {
-        lint::no_unused_variables(context, |_| true, |_| &[], |_| None, reporter);
+        lint::no_unused_variables(context, |_| true, |_| &[], |_| None, |_| false, reporter);
     }
 }
 

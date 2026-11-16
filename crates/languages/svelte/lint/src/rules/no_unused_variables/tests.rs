@@ -486,3 +486,15 @@ fn a_reactive_assignment_declares_an_undeclared_name() {
         ]
     );
 }
+
+/// svelte-eslint-parser reads a `let:` value as a parameter pattern, whose defaults assign.
+#[test]
+fn a_let_name_under_a_default_is_assigned_a_value() {
+    assert_eq!(
+        unused("<Component let:item={{ a: [b = 'x'], c: { d } = {} }}>y</Component>\n"),
+        [
+            "'b' is assigned a value but never used.",
+            "'d' is assigned a value but never used.",
+        ]
+    );
+}

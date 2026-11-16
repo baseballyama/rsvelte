@@ -1302,25 +1302,6 @@ enum E { 1 = 1 }
   const x = <string>y;
 </script>
 
-=== 85 real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/af2787da59b35a7f.svelte	svelte
-<script lang="ts">
-  interface I {
-    [a: string, b: string]: number;
-  }
-</script>
-
-=== 70 real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/fd297002503b61c4.svelte	svelte
-<script lang="ts">
-  class C {
-    accessor x?: number;
-  }
-</script>
-
-=== 64 real_world_false_positives/typescript_grammar_rules_acorn_does_not_check_are_not_parse_errors/3fbf11608512c3ee.svelte	svelte
-<script lang="ts">
-  const f = (...a: string[]) => a;
-</script>
-
 === 75 real_world_false_positives/typescript_grammar_rules_acorn_does_not_check_are_not_parse_errors/466dd7c4e59dafa0.svelte	svelte
 <script lang="ts">
   class C {
@@ -32003,32 +31984,12 @@ https://svelte.dev/e/expected_token
 
 <p>{s ? "ok" : ""}</p>
 
-=== 112 ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/9821f5a456e274f8.svelte	svelte
-<script module>
-  class C {
-    declare accessor a;
-  }
-  export const s = C;
-</script>
-
-<p>{s ? "ok" : ""}</p>
-
 === 109 ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/9aefdd8665572722.svelte	svelte
 <script module>
 	class C {
 		static private a = 1;
 	}
 	export const s = C;
-</script>
-
-<p>{s ? "ok" : ""}</p>
-
-=== 98 ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/a58bedf4d6742a23.svelte	svelte
-<script>
-  class C {
-    declare accessor a;
-  }
-  const s = C;
 </script>
 
 <p>{s ? "ok" : ""}</p>
@@ -34112,44 +34073,6 @@ https://svelte.dev/e/expected_token
 </script>
 
 <script lang="ts">
-  let k = 1;
-</script>
-
-{k}
-
-=== 128 ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/0c496554d8d17116.svelte	svelte
-<script module lang="ts">
-  declare function h(...p: string[]): void;
-</script>
-
-<script lang="ts">
-  let k = 1;
-</script>
-
-{k}
-
-=== 120 ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/1cd3a29251cd502b.svelte	svelte
-<script module lang="ts">
-  const g = (...p: string[]) => {};
-</script>
-
-<script lang="ts">
-  let k = 1;
-</script>
-
-{k}
-
-=== 83 ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/3a060750f3a359a4.svelte	svelte
-<script lang="ts">
-  const g = (...p: string[]) => {};
-  let k = 1;
-</script>
-
-{k}
-
-=== 91 ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/fac06b787974b4dc.svelte	svelte
-<script lang="ts">
-  declare function h(...p: string[]): void;
   let k = 1;
 </script>
 

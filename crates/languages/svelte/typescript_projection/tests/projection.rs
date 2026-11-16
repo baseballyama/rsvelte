@@ -8,7 +8,7 @@ use rsvelte_svelte_typescript_projection::syntax_tree::{Node, NodeIdentifier, Sy
 fn project(source: &str) -> (SyntaxTree, rsvelte_kernel::output::emitter::Emitter) {
     let component = parse(source).expect("valid Svelte source");
     let before = format!("{component:?}");
-    let tree = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
+    let tree = rsvelte_svelte_typescript_projection::lower_alone(&component, source, "App.svelte")
         .expect("supported template");
     assert_eq!(
         format!("{component:?}"),
@@ -145,7 +145,7 @@ fn element_and_attachment_semantics_are_lowered_before_printing() {
 fn unsupported_semantics_are_reported_at_the_original_construct() {
     let source = "<script lang=\"ts\">import C from './C.svelte';</script><C transition:fade />";
     let component = parse(source).expect("valid Svelte source");
-    let error = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
+    let error = rsvelte_svelte_typescript_projection::lower_alone(&component, source, "App.svelte")
         .expect_err("a transition on a component has no type semantics yet");
     assert_eq!(error.span().text(source), "transition:fade");
 }
@@ -190,7 +190,7 @@ fn the_independent_parser_detects_a_broken_generated_call() {
 
 #[test]
 fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
-    let source = "{#if ready}<p title={text} data-label={`café\n  🚀`}>{text}</p>{/if}";
+    let source = "{#if ready}<p title={text} aria-label={`café\n  🚀`}>{text}</p>{/if}";
     let (_, output) = project(source);
     assert_eq!(
         output.out,
@@ -201,7 +201,7 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
             "      {\n",
             "        svelteHTML.createElement(\"p\", {\n",
             "          \"title\": text,\n",
-            "          \"data-label\": `café\n  🚀`,\n",
+            "          \"aria-label\": `café\n  🚀`,\n",
             "        });\n",
             "        text;\n",
             "      }\n",
@@ -540,7 +540,9 @@ fn a_sequence_keeps_parentheses_unless_svelte2tsx_reads_it_as_shorthand() {
 fn a_binding_typescript_cannot_assign_is_unsupported() {
     let source = "<script>let o = $state({ k: 1 });</script><div bind:this={o?.k}></div>";
     let component = parse(source).expect("valid Svelte source");
-    let Err(error) = rsvelte_svelte_typescript_projection::lower_alone(&component, source) else {
+    let Err(error) =
+        rsvelte_svelte_typescript_projection::lower_alone(&component, source, "App.svelte")
+    else {
         panic!("an optional chain is not an assignment target");
     };
     assert_eq!(error.what(), "bind: directives");
@@ -569,7 +571,7 @@ fn a_type_a_dollar_generic_constraint_names_moves_before_the_render_function() {
 fn a_generics_list_that_does_not_parse_is_copied_with_a_plain_export() {
     let source = "<script lang=\"ts\" generics=\"extends string\">let x = 1;</script>{x}";
     let component = parse(source).expect("valid Svelte source");
-    let tree = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
+    let tree = rsvelte_svelte_typescript_projection::lower_alone(&component, source, "App.svelte")
         .expect("supported template");
     // The copy keeps the list's own errors, so the output is not valid TypeScript.
     let output = rsvelte_svelte_typescript_projection::emit(&tree, source);

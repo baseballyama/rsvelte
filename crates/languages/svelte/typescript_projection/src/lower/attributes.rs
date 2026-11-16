@@ -1,7 +1,7 @@
 //! The attributes and directives of one element, a component or a slot, before its call.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Range};
+use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, Range};
 
 use super::binding::Binding;
 use super::directive::Directives;
@@ -44,6 +44,9 @@ impl Builder<'_> {
         directives: &mut Directives,
     ) -> Result<Vec<Binding>> {
         let tag = host.name.text(self.source);
+        // svelte2tsx keeps the attributes of a `<svelte:…>` tag other than `<svelte:element>` as
+        // written, as Svelte's tree gives that tag a type of its own.
+        let plain = host.intrinsic() && (!tag.starts_with("svelte:") || tag == "svelte:element");
         let mut bindings = Vec::new();
         for attribute in self.component.attributes(attributes) {
             match attribute.kind {
@@ -98,17 +101,41 @@ impl Builder<'_> {
                 AttributeKind::Attribute
                     if (host.kind == Kind::Slot && attribute.name.text(self.source) == "name")
                         || (host.dynamic && attribute.name.text(self.source) == "this") => {}
+                // A component's child names the slot it fills with a text `slot`, which svelte2tsx
+                // reads as that slot rather than as a property.
+                AttributeKind::Attribute
+                    if host.intrinsic()
+                        && self.component_parent
+                        && attribute.name.text(self.source) == "slot"
+                        && matches!(
+                            attribute.value,
+                            AttributeValue::Parts(parts)
+                                if matches!(self.component.parts(parts), [Part::Text(_)])
+                        ) => {}
                 _ => {
                     let mut property = self.attribute(
                         attribute,
-                        host.intrinsic(),
+                        plain,
                         matches!(host.kind, Kind::Element { custom: true }),
                     );
-                    // A component's CSS custom property is no prop: svelte2tsx's `cssProp`.
-                    if host.is_component() && attribute.name.text(self.source).starts_with("--") {
+                    let name = attribute.name.text(self.source);
+                    // svelte2tsx keeps a component's CSS custom property out of its props, and an
+                    // element's `data-` attribute, other than SvelteKit's, out of its types.
+                    let wrapper = if host.is_component() && name.starts_with("--") {
+                        Some("__sveltets_2_cssProp")
+                    } else if host.intrinsic()
+                        && attribute.kind == AttributeKind::Attribute
+                        && name.starts_with("data-")
+                        && !name.starts_with("data-sveltekit-")
+                    {
+                        Some("__sveltets_2_empty")
+                    } else {
+                        None
+                    };
+                    if let Some(wrapper) = wrapper {
                         let properties = self.tree.list(&[property]);
                         let object = self.tree.push(Node::Object { properties });
-                        let callee = self.tree.push(Node::Identifier("__sveltets_2_cssProp"));
+                        let callee = self.tree.push(Node::Identifier(wrapper));
                         let arguments = self.tree.list(&[object]);
                         let value = self.tree.push(Node::Call { callee, arguments });
                         let at = attribute.span.start_offset;

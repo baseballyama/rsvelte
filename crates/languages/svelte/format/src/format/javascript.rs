@@ -125,7 +125,10 @@ impl<'x> Printer<'_, '_, 'x> {
             source_type,
             options,
             root,
-            JsEmbeddedIn::default(),
+            JsEmbeddedIn {
+                keeps_recovered: Some(keeps_recovered),
+                ..JsEmbeddedIn::default()
+            },
         )
         .map_err(|_| Unsupported::at("code that oxc's formatter does not format", span))?;
         self.embedder.kept.push(span);
@@ -148,6 +151,22 @@ impl Printer<'_, '_, '_> {
         }
         Ok(self.keep(ir))
     }
+}
+
+/// tsc's codes of the errors after which oxc's recovered program prints as Prettier prints the
+/// code, measured on the samples in the tests: a recovered program can drop nodes or panic the
+/// printer.
+const RECOVERED_WHOLE: [u32; 19] = [
+    1015, 1016, 1029, 1038, 1039, 1049, 1051, 1093, 1094, 1095, 1147, 1194, 1222, 1257, 1308, 2368,
+    2681, 5085, 18010,
+];
+
+/// Whether oxc's program recovered from `error` holds all of the code.
+fn keeps_recovered(error: &oxc_diagnostics::OxcDiagnostic) -> bool {
+    error.code.scope.as_deref() == Some("TS")
+        && (error.code.number.as_deref())
+            .and_then(|number| number.parse().ok())
+            .is_some_and(|code: u32| RECOVERED_WHOLE.contains(&code))
 }
 
 /// Takes `function ` off the start of a function declaration's layout and ` {}` off its end.

@@ -14,8 +14,8 @@ use rsvelte_svelte_syntax::syntax_tree::Component;
 use crate::Configuration;
 use crate::computation::{
     ConditionTypes, LegacyReactivity, LintConfiguration, LoweredAsTypeScript, ModuleAsTypeScript,
-    ModuleSemantic, NativeConditionTypes, PostcssConfigurationOnDisk, ResolvedAsTypeScript,
-    SameNamedFileOnDisk,
+    ModuleSemantic, NativeConditionTypes, ParsedAsSvelteEslintParser, PostcssConfigurationOnDisk,
+    ResolvedAsTypeScript, SameNamedFileOnDisk, read_as_svelte_eslint_parser,
 };
 use crate::rules::style_attribute::InlineStyles;
 use crate::rules::style_sheet::{LintStyleSheet, StyleSheetVerdict};
@@ -53,6 +53,7 @@ pub fn register_artifacts(registry: &mut Registry) {
         .artifact::<InlineStyles>()
         .artifact::<StyleSheetVerdict>()
         .artifact::<LintStyleSheet>()
+        .artifact::<ParsedAsSvelteEslintParser>()
         .artifact::<LoweredAsTypeScript>()
         .artifact::<ResolvedAsTypeScript>()
         .artifact::<NativeConditionTypes>()
@@ -194,10 +195,12 @@ fn parse_verdict<'a>(context: &'a DocumentContext<'_>) -> Verdict<'a> {
             }
         }
     };
+    // svelte-eslint-parser reads a self-closing `<script …/>` or `<style …/>` as an element.
     if !rsvelte_svelte_syntax::parse::in_script_content(
         context.source_text(),
         error.span.start_offset,
-    ) {
+    ) && (component.is_some() || read_as_svelte_eslint_parser(context).is_err())
+    {
         return Verdict::Throws(Cow::Owned(error.message.clone()), error.span.start_offset);
     }
     match typescript_eslint_verdict(context) {
@@ -242,7 +245,7 @@ enum TypescriptEslint<'a> {
 fn typescript_eslint_verdict<'a>(context: &'a DocumentContext<'_>) -> TypescriptEslint<'a> {
     // svelte-eslint-parser parses the template with the scripts blanked out first, so an error of
     // the template wins over the scripts'.
-    let component = match context.get::<rsvelte_svelte_syntax::ParsedAsTypeScript>() {
+    let component = match read_as_svelte_eslint_parser(context) {
         Ok(component) => component,
         Err(error) => {
             return TypescriptEslint::Throws(

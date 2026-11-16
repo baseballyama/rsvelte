@@ -394,20 +394,31 @@ fn read_unparsed(program: &Program<'_>, offset: u32, module: bool) -> UnparsedSc
             ..UnparsedScript::default()
         };
     }
-    let mut script = UnparsedScript::default();
-    for statement in &program.body {
-        if let Statement::ImportDeclaration(import) = statement {
-            script.imports.push(shift(span(import.span)));
-        }
-        let mut imports = Vec::new();
-        super::namespace::nested_imports(statement, &mut imports);
-        script.imports.extend(imports.into_iter().map(shift));
-        script
-            .removed
-            .extend(super::namespace::removed_export(statement).map(shift));
-        super::namespace::namespace_exports(statement, &mut |at| script.removed.push(shift(at)));
+    let mut moved = Moved::default();
+    moved.visit_program(program);
+    UnparsedScript {
+        imports: moved.imports.into_iter().map(shift).collect(),
+        removed: moved.removed.into_iter().map(shift).collect(),
+        ..UnparsedScript::default()
     }
-    script
+}
+
+/// The imports svelte2tsx moves and the exports it removes in a script Svelte does not parse,
+/// where they may stand at any depth.
+#[derive(Default)]
+struct Moved {
+    imports: Vec<Span>,
+    removed: Vec<Span>,
+}
+
+impl<'a> Visit<'a> for Moved {
+    fn visit_statement(&mut self, it: &Statement<'a>) {
+        if let Statement::ImportDeclaration(import) = it {
+            self.imports.push(span(import.span));
+        }
+        self.removed.extend(super::namespace::removed_export(it));
+        walk::walk_statement(self, it);
+    }
 }
 
 /// The error for the first declaration in `program` that only the instance script may make, with

@@ -24,7 +24,9 @@ function $$render() {
         ...(rest),
         "class": className,
         "onclick": () => count++,
-        "data-count": count,
+        ...(__sveltets_2_empty({
+          "data-count": count,
+        })),
       });
     }
     {

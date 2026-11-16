@@ -14,9 +14,7 @@ function $$render() {
     {
       __rsvelte_component(C)(__rsvelte_internals(), {});
       {
-        svelteHTML.createElement("p", {
-          "slot": "a",
-        });
+        svelteHTML.createElement("p", {});
         const twice = k * 2;
         twice;
       }

@@ -28,8 +28,13 @@ impl Artifact for Projected {
         // svelte2tsx.
         let component = context.get::<Parsed>().as_ref().map_err(Clone::clone)?;
         let resolution = || context.get::<Resolved>().as_ref();
-        crate::lower(component, context.source_text(), &resolution).map_err(|refusal| match refusal
-        {
+        crate::lower(
+            component,
+            context.source_text(),
+            &context.document.path,
+            &resolution,
+        )
+        .map_err(|refusal| match refusal {
             Refusal::Unsupported(unsupported) => Diagnostic::error(
                 "check_unsupported",
                 format!(
@@ -105,8 +110,11 @@ impl Task for Project {
                 out.file("ts", projection.out.clone());
                 out.file(
                     "ts.map",
-                    projection
-                        .source_map(context.lines(LineBreaks::Newline), &context.document.path),
+                    projection.source_map(
+                        context.source_text(),
+                        context.lines(LineBreaks::Newline),
+                        &context.document.path,
+                    ),
                 );
             }
             Err(diagnostic) => out.diagnostics.push(diagnostic.clone()),

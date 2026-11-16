@@ -117,6 +117,33 @@ export default function makeCounter() {
 === 34 check/kit-load-augmentation-js/project/src/routes/+page.svelte	svelte	runes	neutral
 <h1>kit-load-augmentation-js</h1>
 
+=== 177 check/kit-route-props-ts/project/src/routes/a/+page.svelte	svelte	runes	runes
+<script lang="ts">
+  let { data, foo = 1, form } = $props();
+  const n: number = data.x;
+  const s: string = foo;
+  [1].find((r) => r);
+  ([] as any[]).map((q) => q);
+</script>
+
+=== 102 check/kit-route-props-ts/project/src/routes/b/+layout.svelte	svelte	runes	runes
+<script lang="ts">
+  let { data, children, form } = $props();
+  const s: string = children;
+</script>
+
+=== 91 check/kit-route-props-ts/project/src/routes/c/+error.svelte	svelte	runes	runes
+<script lang="ts">
+  let { error, other } = $props();
+  const s: number = error;
+</script>
+
+=== 61 check/kit-route-props-ts/project/src/routes/d/+page.svelte	svelte	runes	runes
+<script>
+  let { data, foo } = $props();
+  data.x;
+</script>
+
 === 123 check/no-tsconfig/project/src/App.svelte	svelte	runes	neutral
 <script lang="ts">
 	const seen = new Set<string>(['a', 'b']);
@@ -48672,6 +48699,26 @@ export function pin(then) {
 	);
 }
 
+=== 60 pattern/self-closing-block-in-a-string.svelte	svelte	runes	neutral
+<script>
+  const tag = "<style />";
+</script>
+
+<p>{tag}</p>
+
+=== 33 pattern/self-closing-script-lang-ts.svelte	svelte	runes	rejected
+<script lang="ts" />
+
+<p>{1}</p>
+
+=== 18 pattern/self-closing-style-block-without-space.svelte	svelte	runes	rejected
+<p>x</p>
+<style/>
+
+=== 41 pattern/self-closing-style-block.svelte	svelte	runes	rejected
+<p class="a">x</p>
+<style lang="scss" />
+
 === 245 pattern/state-wrapped-store-reference.svelte	svelte	runes	runes
 <script>
 	import { writable } from 'svelte/store';
@@ -48707,4 +48754,23 @@ export function pin(then) {
 		<option value={o}>{o}</option>
 	{/each}
 </select>
+
+=== 118 pattern/ts-class-generator-method-overload.svelte	svelte	runes	rejected
+<script lang="ts">
+	class C {
+		*m(): Generator<number>;
+		*m() {
+			yield 1;
+		}
+	}
+	console.log(new C());
+</script>
+
+=== 68 pattern/ts-class-generator-method-signature.svelte	svelte	runes	neutral
+<script lang="ts">
+	class C {
+		*m();
+	}
+	console.log(C);
+</script>
 

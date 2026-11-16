@@ -117,8 +117,10 @@ impl Builder<'_> {
         self.directives = directives;
         self.class_expressions(attributes);
         let parent = std::mem::replace(&mut self.slot_parent, named);
+        let component_parent = std::mem::replace(&mut self.component_parent, is_component);
         self.element_children(children, snippet_props, lets)?;
         self.slot_parent = parent;
+        self.component_parent = component_parent;
         if let Some(end_name) = end_name {
             let name = self.source(
                 oxc_span::Span::new(end_name.start_offset, end_name.end_offset),

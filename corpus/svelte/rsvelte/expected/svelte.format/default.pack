@@ -110,6 +110,33 @@
 === 34 check/kit-load-augmentation-js/project/src/routes/+page.svelte	svelte
 <h1>kit-load-augmentation-js</h1>
 
+=== 177 check/kit-route-props-ts/project/src/routes/a/+page.svelte	svelte
+<script lang="ts">
+  let { data, foo = 1, form } = $props();
+  const n: number = data.x;
+  const s: string = foo;
+  [1].find((r) => r);
+  ([] as any[]).map((q) => q);
+</script>
+
+=== 102 check/kit-route-props-ts/project/src/routes/b/+layout.svelte	svelte
+<script lang="ts">
+  let { data, children, form } = $props();
+  const s: string = children;
+</script>
+
+=== 91 check/kit-route-props-ts/project/src/routes/c/+error.svelte	svelte
+<script lang="ts">
+  let { error, other } = $props();
+  const s: number = error;
+</script>
+
+=== 61 check/kit-route-props-ts/project/src/routes/d/+page.svelte	svelte
+<script>
+  let { data, foo } = $props();
+  data.x;
+</script>
+
 === 125 check/no-tsconfig/project/src/App.svelte	svelte
 <script lang="ts">
   const seen = new Set<string>(["a", "b"]);
@@ -20733,23 +20760,6 @@ line two"
   <p>{late}</p>
 {/each}
 
-=== 350 pattern/adversarial/control-flow/each-destructure-exotic.svelte	svelte
-<script>
-  let pairs = $state([
-    [1, 2, 3],
-    [4, 5],
-  ]);
-  let objs = $state([{ id: 1, meta: { tags: ["a"] } }]);
-</script>
-
-{#each pairs as [first = 0, second = first, ...rest], i ([first, i])}
-  <p>{first},{second},{rest.length}</p>
-{/each}
-
-{#each objs as { id, { tags: [firstTag = 'none'] } = { } } (id)}
-  <p>{id}:{firstTag}</p>
-{/each}
-
 === 776 pattern/adversarial/control-flow/each-destructuring-defaults.svelte	svelte
 <script>
   let rows = $state([
@@ -35089,27 +35099,6 @@ b";
 
 <button onclick={emit}>{label}:{count}</button>
 
-=== 492 pattern/issues/3035-destructure-defaults.svelte	svelte
-<script>
-  let pairs = $state([
-    [1, 2, 3],
-    [4, 5],
-  ]);
-  let objs = $state([{ id: 1, meta: { tags: ["a"] } }, { id: 2 }]);
-  let { config = {} } = $props();
-  let { sizes: [small = 1, ...bigger] = [] } = $derived(config);
-</script>
-
-{#each pairs as [first = 0, second = first, ...rest], i ([first, i])}
-  <p>{first},{second},{rest.length}</p>
-{/each}
-
-{#each objs as { id, { tags: [firstTag = 'none'] } = { } } (id)}
-  <p>{id}:{firstTag}</p>
-{/each}
-
-<p>{small}:{bigger.length}</p>
-
 === 243 pattern/issues/3036-class-derived-outer-read.svelte	svelte
 <script>
   let base = $state(1);
@@ -46702,6 +46691,38 @@ b`;
 
 <p>{direct.constructor.name} {member.constructor.name}</p>
 
+=== 60 pattern/self-closing-block-in-a-string.svelte	svelte
+<script>
+  const tag = "<style />";
+</script>
+
+<p>{tag}</p>
+
+=== 134 pattern/self-closing-script-lang-ts.svelte	error.txt
+Expected token >
+https://svelte.dev/e/expected_token
+> 1 | <script lang="ts" />
+    |                  ^
+  2 |
+  3 | <p>{1}</p>
+  4 |
+
+=== 102 pattern/self-closing-style-block-without-space.svelte	error.txt
+Expected token >
+https://svelte.dev/e/expected_token
+  1 | <p>x</p>
+> 2 | <style/>
+    |      ^
+  3 |
+
+=== 138 pattern/self-closing-style-block.svelte	error.txt
+Expected token >
+https://svelte.dev/e/expected_token
+  1 | <p class="a">x</p>
+> 2 | <style lang="scss" />
+    |                   ^
+  3 |
+
 === 251 pattern/state-wrapped-store-reference.svelte	svelte
 <script>
   import { writable } from "svelte/store";
@@ -46737,4 +46758,23 @@ b`;
     <option value={o}>{o}</option>
   {/each}
 </select>
+
+=== 130 pattern/ts-class-generator-method-overload.svelte	svelte
+<script lang="ts">
+  class C {
+    *m(): Generator<number>;
+    *m() {
+      yield 1;
+    }
+  }
+  console.log(new C());
+</script>
+
+=== 73 pattern/ts-class-generator-method-signature.svelte	svelte
+<script lang="ts">
+  class C {
+    *m();
+  }
+  console.log(C);
+</script>
 

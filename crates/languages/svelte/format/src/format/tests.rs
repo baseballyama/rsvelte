@@ -198,23 +198,6 @@ fn a_root_assignment_or_sequence_keeps_the_parentheses_the_plugin_wraps_it_in() 
 }
 
 #[test]
-fn modifiers_the_plugin_would_drop_are_refused() {
-    for source_text in [
-        "<div use:a|x={b}></div>\n",
-        "<div bind:value|x={v}></div>\n",
-        "<div class:a|x={b}></div>\n",
-        "<div animate:a|x></div>\n",
-        "<div let:a|x></div>\n",
-    ] {
-        assert_eq!(
-            refusal(source_text).0,
-            "modifiers on this directive",
-            "{source_text}"
-        );
-    }
-}
-
-#[test]
 fn typescript_in_blocks_matches_the_plugin() {
     // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
     let typescript = "<script lang=\"ts\"></script>\n\n";
@@ -386,7 +369,9 @@ fn what_svelte_rejects_is_refused() {
 /// The `<title>` group fits only because the binary expression after it would break, a layout
 /// the expression printer does not build: Prettier prints `<title>x</title>{a +\n  b}`.
 mod comments;
+mod directives;
 mod review;
+mod scripts;
 
 #[test]
 fn prettier_ignore_keeps_the_next_sibling_as_the_plugin_does() {
@@ -453,63 +438,6 @@ fn a_script_or_style_inside_an_element_is_embedded_as_the_plugin_embeds_it() {
     ] {
         assert_eq!(formatted(input), expected, "{input:?}");
     }
-}
-
-#[test]
-fn a_script_babel_rejects_is_kept_as_written_and_the_rest_formatted() {
-    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
-    let script = "<script>\n\tfunction f() { continue; }\n\tlet   x =  1\n</script>\n";
-    assert_eq!(
-        formatted(&format!("{script}<div   class=\"a\"  >{{x+1}}</div>\n")),
-        format!("{script}\n<div class=\"a\">{{x + 1}}</div>\n")
-    );
-    // tsc gives both duplicates one code, and Babel throws only on the private name.
-    let script = "<script>\n\tclass A { #a; #a; }\n\tlet   x =  1\n</script>\n";
-    assert_eq!(
-        formatted(&format!("{script}<p>{{x}}</p>\n")),
-        format!("{script}\n<p>{{x}}</p>\n")
-    );
-    assert_eq!(
-        refusal("<script>\n\tlet a; let a;\n</script>\n<p>x</p>\n").0,
-        "code a module rejects"
-    );
-    // Babel no longer reads `assert` import attributes; Prettier's TypeScript parser does.
-    let script = "<script>\n\timport d from './d.json' assert { type: 'json' };\n</script>\n";
-    assert_eq!(
-        formatted(&format!("{script}<p>{{d}}</p>\n")),
-        format!("{script}\n<p>{{d}}</p>\n")
-    );
-    assert_eq!(
-        formatted(
-            "<script lang=\"ts\">\nimport d from './d.json' assert { type: 'json' };\n</script>\n"
-        ),
-        "<script lang=\"ts\">\n  import d from \"./d.json\" assert { type: \"json\" };\n</script>\n"
-    );
-    // Prettier's TypeScript parser recovers, and the port does not know what it prints.
-    assert_eq!(
-        refusal("<script lang=\"ts\">\n\tfunction f() { continue; }\n</script>\n<p>x</p>\n").0,
-        "code a module rejects"
-    );
-}
-
-#[test]
-fn each_script_the_plugin_s_parser_throws_on_is_kept_as_written() {
-    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1: `babel-ts` throws on
-    // both modifier orders, which the compiler rejects too.
-    let module = "<script module>\n\tclass C { readonly static a = 1; }\n</script>\n";
-    let instance = "<script>\n\tclass D { static private b = 1; }\n\tlet   x =  1\n</script>\n";
-    let source_text = format!("{module}{instance}<p   >{{x}}</p>\n");
-    assert_eq!(
-        crate::task::format(&source_text, &Options::default()).expect("prints"),
-        format!("{module}\n{instance}\n<p>{{x}}</p>\n")
-    );
-    // Babel throws on some of the modifier pairs tsc reports as 1243, not on this one.
-    let source_text = "<script>\n\tclass C { declare accessor a; }\n</script>\n";
-    let refused = crate::task::format(source_text, &Options::default()).expect_err("refused");
-    assert_eq!(
-        refused.message,
-        "not supported by the formatter yet: a TypeScript error the plugin's parser may throw on"
-    );
 }
 
 #[test]

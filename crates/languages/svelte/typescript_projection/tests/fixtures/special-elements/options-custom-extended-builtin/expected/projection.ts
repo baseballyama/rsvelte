@@ -10,7 +10,7 @@ function $$render() {
   async () => {
     {
       svelteHTML.createElement("svelte:options", {
-        "customelement": "my-element",
+        "customElement": "my-element",
       });
     }
     {

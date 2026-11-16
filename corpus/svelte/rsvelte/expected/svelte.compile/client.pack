@@ -218,6 +218,130 @@ export default function _page($$anchor) {
 
 	$.append($$anchor, h1);
 }
+=== 303 check/kit-route-props-ts/project/src/routes/a/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let foo = $.prop($$props, 'foo', 3, 1);
+	const n = $$props.data.x;
+	const s = foo();
+
+	[1].find((r) => r);
+	[].map((q) => q);
+	$.pop();
+}
+=== 712 check/kit-route-props-ts/project/src/routes/a/+page.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `data`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 3,
+			"column": 20,
+			"character": 81
+		},
+		"end": {
+			"line": 3,
+			"column": 24,
+			"character": 85
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `foo`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 4,
+			"column": 20,
+			"character": 109
+		},
+		"end": {
+			"line": 4,
+			"column": 23,
+			"character": 112
+		}
+	}
+]
+
+=== 172 check/kit-route-props-ts/project/src/routes/b/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function _layout($$anchor, $$props) {
+	const s = $$props.children;
+}
+=== 361 check/kit-route-props-ts/project/src/routes/b/+layout.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `children`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 3,
+			"column": 20,
+			"character": 82
+		},
+		"end": {
+			"line": 3,
+			"column": 28,
+			"character": 90
+		}
+	}
+]
+
+=== 168 check/kit-route-props-ts/project/src/routes/c/+error.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function _error($$anchor, $$props) {
+	const s = $$props.error;
+}
+=== 358 check/kit-route-props-ts/project/src/routes/c/+error.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `error`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 3,
+			"column": 20,
+			"character": 74
+		},
+		"end": {
+			"line": 3,
+			"column": 25,
+			"character": 79
+		}
+	}
+]
+
+=== 192 check/kit-route-props-ts/project/src/routes/d/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+	$$props.data.x;
+	$.pop();
+}
+=== 355 check/kit-route-props-ts/project/src/routes/d/+page.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `data`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 3,
+			"column": 2,
+			"character": 43
+		},
+		"end": {
+			"line": 3,
+			"column": 6,
+			"character": 47
+		}
+	}
+]
+
 === 409 check/no-tsconfig/project/src/App.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -101995,6 +102119,67 @@ export default function Reactive_new_callee($$anchor, $$props) {
 	}
 ]
 
+=== 291 pattern/self-closing-block-in-a-string.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p></p>`);
+
+export default function Self_closing_block_in_a_string($$anchor) {
+	const tag = "<style />";
+	var p = root();
+
+	p.textContent = '<style />';
+	$.append($$anchor, p);
+}
+=== 223 pattern/self-closing-script-lang-ts.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 18,
+		"character": 18
+	},
+	"end": {
+		"line": 1,
+		"column": 18,
+		"character": 18
+	}
+}
+
+=== 221 pattern/self-closing-style-block-without-space.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 2,
+		"column": 6,
+		"character": 15
+	},
+	"end": {
+		"line": 2,
+		"column": 6,
+		"character": 15
+	}
+}
+
+=== 223 pattern/self-closing-style-block.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 2,
+		"column": 19,
+		"character": 38
+	},
+	"end": {
+		"line": 2,
+		"column": 19,
+		"character": 38
+	}
+}
+
 === 894 pattern/state-wrapped-store-reference.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -102080,3 +102265,30 @@ export default function Store_member_write_invalidates_inner_signals($$anchor, $
 }
 
 $.delegate(['click']);
+=== 248 pattern/ts-class-generator-method-overload.svelte	error.json
+{
+	"code": "duplicate_class_field",
+	"message": "`m` has already been declared\nhttps://svelte.dev/e/duplicate_class_field",
+	"start": {
+		"line": 4,
+		"column": 2,
+		"character": 59
+	},
+	"end": {
+		"line": 6,
+		"column": 3,
+		"character": 81
+	}
+}
+
+=== 202 pattern/ts-class-generator-method-signature.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function Ts_class_generator_method_signature($$anchor) {
+	class C {
+		*m();
+	}
+
+	console.log(C);
+}

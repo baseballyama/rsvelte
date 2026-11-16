@@ -91,9 +91,11 @@ pub fn compile(source: &str, options: &CompileOptions) -> Result<CompileResult, 
     let document = document(&options.filename, source)?;
     let context = DocumentContext::new(&document, registry.artifacts());
     let compiled = crate::task::compiled(&context, options.generate, true)?;
-    let map = compiled
-        .javascript
-        .source_map(context.lines(LineBreaks::Newline), &options.filename);
+    let map = compiled.javascript.source_map(
+        context.source_text(),
+        context.lines(LineBreaks::Newline),
+        &options.filename,
+    );
     Ok(CompileResult {
         js: JavaScript {
             code: compiled.javascript.out,
@@ -124,7 +126,9 @@ pub fn compile_module(
         options.generate,
         Some(&lines),
     )?;
-    let map = module.javascript.source_map(&lines, &options.filename);
+    let map = module
+        .javascript
+        .source_map(source, &lines, &options.filename);
     Ok(CompileResult {
         js: JavaScript {
             code: module.javascript.out,

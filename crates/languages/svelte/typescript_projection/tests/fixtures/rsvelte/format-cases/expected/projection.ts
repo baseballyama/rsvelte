@@ -15,7 +15,9 @@ let total=$derived(items.length*2+1)
     {
       svelteHTML.createElement("section", {
         "class": "list",
-        "data-count": total,
+        ...(__sveltets_2_empty({
+          "data-count": total,
+        })),
       });
       {
         svelteHTML.createElement("h2", {});

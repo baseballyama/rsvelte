@@ -37,6 +37,7 @@ pub fn register(registry: &mut Registry) {
             extension: ".ts",
             imports: Vec::new(),
             store_reads: Vec::new(),
+            hidden: Vec::new(),
         })
     });
 }

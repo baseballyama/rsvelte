@@ -1,11 +1,13 @@
 //! The scripts the plugin prints as they are, because its parser for them throws.
 
 use oxc_ast::ast::{
-    Class, ClassElement, PrivateIdentifier, Program, WithClause, WithClauseKeyword,
+    AccessorProperty, Class, ClassElement, Function, PrivateIdentifier, Program,
+    PropertyDefinition, StaticBlock, Super, WithClause, WithClauseKeyword,
 };
 use oxc_ast_visit::{Visit, walk};
-use rsvelte_svelte_syntax::syntax_tree::Component;
-use rsvelte_typescript_tree::{Reader, SyntaxError};
+use oxc_syntax::scope::ScopeFlags;
+use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
+use rsvelte_typescript_tree::{Reader, Recorded, SyntaxError};
 
 use super::{R, Span, Unsupported, in_typescript};
 
@@ -24,11 +26,7 @@ pub(super) fn unparsed_scripts(
     };
     match rejected {
         Some(rejected) if unparsed(rejected.diagnostic.span) => {}
-        Some(rejected) => {
-            unparsed_scripts.push(unparsed_script(c, source_text, rejected).ok_or_else(|| {
-                Unsupported::at("code a module rejects", rejected.diagnostic.span)
-            })?);
-        }
+        Some(rejected) => unparsed_scripts.extend(unparsed_script(c, source_text, rejected)?),
         None => unparsed_scripts
             .extend(overriding_script(c, source_text).or_else(|| assertion_script(c, source_text))),
     }
@@ -37,23 +35,21 @@ pub(super) fn unparsed_scripts(
 
 /// The bodies of the scripts whose TypeScript errors the plugin's parser for them throws on.
 fn thrown_scripts(c: &Component, source_text: &str) -> R<Vec<Span>> {
-    let errors = &c.script_typescript_errors;
     let mut thrown = Vec::new();
     for script in c.module.iter().chain(&c.instance) {
         let body = script.content;
-        let inside = |error: &SyntaxError| {
+        let inside = |error: &&SyntaxError| {
             let at = error.diagnostic.span.start_offset;
             body.start_offset <= at && at <= body.end_offset
         };
-        // Each script's errors follow one another.
-        let Some(start) = errors.iter().position(inside) else {
+        // The errors of a script oxc rejected, and the ones the compiler lets pass.
+        let errors: Vec<&SyntaxError> = (c.script_typescript_errors.iter())
+            .chain(c.javascript.unchecked_errors())
+            .filter(inside)
+            .collect();
+        let Some(first) = errors.first() else {
             continue;
         };
-        let len = errors[start..]
-            .iter()
-            .take_while(|error| inside(error))
-            .count();
-        let errors = &errors[start..start + len];
         let reader = if in_typescript(script, source_text) {
             Reader::TypescriptEstree
         } else {
@@ -61,13 +57,26 @@ fn thrown_scripts(c: &Component, source_text: &str) -> R<Vec<Span>> {
         };
         // oxc recovered no program from an error that stopped it, and neither parser reads on.
         let recovered = !c.javascript.get_program(script.program).span.is_empty();
+        let tokens: Vec<Recorded> = (c.tokens.iter())
+            .filter(|token| {
+                body.start_offset <= token.span.start_offset
+                    && token.span.end_offset <= body.end_offset
+            })
+            .filter_map(|token| match token.kind {
+                TokenType::JavaScript(kind) => Some(Recorded {
+                    kind: Some(kind),
+                    span: token.span,
+                }),
+                _ => None,
+            })
+            .collect();
         let rejects = !recovered
             || reader
-                .throws(&c.javascript, script.program, errors)
+                .throws(&c.javascript, script.program, &errors, &tokens)
                 .ok_or_else(|| {
                     Unsupported::at(
                         "a TypeScript error the plugin's parser may throw on",
-                        errors[0].diagnostic.span,
+                        first.diagnostic.span,
                     )
                 })?;
         if rejects {
@@ -94,24 +103,35 @@ fn assertion_script(c: &Component, source_text: &str) -> Option<Span> {
     Some(script.content)
 }
 
-/// The body of the JavaScript script holding `rejected`, an error Babel does not recover from
-/// either, so the plugin keeps that body as it is. Babel recovers from the others, and Prettier's
-/// TypeScript parser from more.
-fn unparsed_script(c: &Component, source_text: &str, rejected: &SyntaxError) -> Option<Span> {
+/// The body of the script holding `rejected` when the plugin's parser for it throws on that error,
+/// so the plugin keeps the body as it is. Otherwise the parser reads on, and as the error is the
+/// analysis's, the tree is the one oxc built.
+fn unparsed_script(c: &Component, source_text: &str, rejected: &SyntaxError) -> R<Option<Span>> {
     // A name declared twice; Babel throws only on a private one.
     const DUPLICATE_IDENTIFIER: u32 = 2300;
+    // `super` and `super()` where tsc does not allow them; Babel allows both outside every
+    // function, as Prettier lets it.
+    const SUPER: [u32; 2] = [2337, 2660];
     let span = rejected.diagnostic.span;
-    let script = (c.module.iter().chain(&c.instance)).find(|script| {
-        script.content.start_offset <= span.start_offset
-            && span.end_offset <= script.content.end_offset
-    })?;
-    let rejects = match rejected.typescript_code? {
-        DUPLICATE_IDENTIFIER => {
-            private_name_at(c.javascript.get_program(script.program), span.start_offset)
-        }
-        code => rsvelte_typescript_tree::babel_typescript_throws(code) == Some(true),
+    let unknown = || Unsupported::at("code a module rejects", span);
+    let script = (c.module.iter().chain(&c.instance))
+        .find(|script| {
+            script.content.start_offset <= span.start_offset
+                && span.end_offset <= script.content.end_offset
+        })
+        .ok_or_else(unknown)?;
+    let program = c.javascript.get_program(script.program);
+    let code = rejected.typescript_code.ok_or_else(unknown)?;
+    let throws = if in_typescript(script, source_text) {
+        rsvelte_typescript_tree::typescript_estree_throws(code)
+    } else if code == DUPLICATE_IDENTIFIER {
+        private_name_at(program, span.start_offset)
+    } else if SUPER.contains(&code) {
+        super_in_function(program, span.start_offset)
+    } else {
+        rsvelte_typescript_tree::babel_typescript_throws(code).ok_or_else(unknown)?
     };
-    (rejects && !in_typescript(script, source_text)).then_some(script.content)
+    Ok(throws.then_some(script.content))
 }
 
 /// The body of a script `babel-ts` reads that has an `override` member in a class that extends
@@ -139,6 +159,58 @@ fn overriding_script(c: &Component, source_text: &str) -> Option<Span> {
         }
     })?;
     Some(script.content)
+}
+
+/// Whether a `super` that starts at `offset` in `program` is inside a function or a class
+/// member's initializer, where Babel's scope no longer allows it.
+fn super_in_function(program: &Program<'_>, offset: u32) -> bool {
+    struct Find {
+        offset: u32,
+        depth: u32,
+        found: bool,
+    }
+    impl<'a> Visit<'a> for Find {
+        fn visit_function(&mut self, it: &Function<'a>, flags: ScopeFlags) {
+            self.depth += 1;
+            walk::walk_function(self, it, flags);
+            self.depth -= 1;
+        }
+
+        fn visit_property_definition(&mut self, it: &PropertyDefinition<'a>) {
+            self.visit_property_key(&it.key);
+            self.depth += 1;
+            if let Some(value) = &it.value {
+                self.visit_expression(value);
+            }
+            self.depth -= 1;
+        }
+
+        fn visit_accessor_property(&mut self, it: &AccessorProperty<'a>) {
+            self.visit_property_key(&it.key);
+            self.depth += 1;
+            if let Some(value) = &it.value {
+                self.visit_expression(value);
+            }
+            self.depth -= 1;
+        }
+
+        fn visit_static_block(&mut self, it: &StaticBlock<'a>) {
+            self.depth += 1;
+            walk::walk_static_block(self, it);
+            self.depth -= 1;
+        }
+
+        fn visit_super(&mut self, it: &Super) {
+            self.found |= it.span.start == self.offset && self.depth > 0;
+        }
+    }
+    let mut find = Find {
+        offset,
+        depth: 0,
+        found: false,
+    };
+    find.visit_program(program);
+    find.found
 }
 
 /// Whether a private name starts at `offset` in `program`.
