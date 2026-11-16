@@ -8122,22 +8122,6 @@ what if i'm talking about `:has()` in my blog? ```css :has(.is_cool) ```
   </Nested>
 </Component>
 
-=== 183 packages/svelte/tests/migrate/samples/svelte-element/input.svelte	svelte
-<svelte:element this="div" />
-<svelte:element this="div" />
-<svelte:element this={"div"} />
-
-<!-- we don't try to fix this bug, we just leave it as-is -->
-<svelte:element this="h" />
-
-=== 187 packages/svelte/tests/migrate/samples/svelte-element/output.svelte	svelte
-<svelte:element this={"div"} />
-<svelte:element this={"div"} />
-<svelte:element this={"div"} />
-
-<!-- we don't try to fix this bug, we just leave it as-is -->
-<svelte:element this="h" />
-
 === 260 packages/svelte/tests/migrate/samples/svelte-ignore/input.svelte	svelte
 <script>
   function foo() {

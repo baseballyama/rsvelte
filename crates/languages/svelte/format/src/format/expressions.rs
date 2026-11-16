@@ -107,17 +107,21 @@ impl Printer<'_, '_, '_> {
             return self.unformatted_expression(e);
         }
         let expression = self.c.javascript.get_expression(e);
+        let sequence = bare_sequence && matches!(expression, Expression::SequenceExpression(_));
+        let written = span(expression.span());
+        // The plugin's `removeParentheses` keeps them after a lone block comment on one line.
+        let keeps_parentheses = sequence
+            && comments == Comments::AsThePlugin
+            && self.lone_inline_block_comment_before(written);
+        let span = if comments == Comments::AsThePlugin && (!sequence || keeps_parentheses) {
+            self.with_leading_comments(written)
+        } else {
+            written
+        };
         let adjust = Adjust {
             single_quote,
             single_line,
-            remove_parentheses: bare_sequence
-                && matches!(expression, Expression::SequenceExpression(_)),
-        };
-        // The parentheses come off only when the text starts with them.
-        let span = if comments == Comments::AsThePlugin && !adjust.remove_parentheses {
-            self.with_leading_comments(span(expression.span()))
-        } else {
-            span(expression.span())
+            remove_parentheses: sequence && !keeps_parentheses,
         };
         let d = self.embed(span, Part::Expression, adjust)?;
         // The plugin parses `(a = b\n)`, and Prettier keeps those parentheses; oxc keeps them
@@ -128,6 +132,24 @@ impl Printer<'_, '_, '_> {
         let open = self.lit("(");
         let close = self.lit(")");
         Ok(self.cat(&[open, d, close]))
+    }
+
+    /// Whether the only comment before `expression`, past its parentheses, is a block comment
+    /// on one line.
+    fn lone_inline_block_comment_before(&self, expression: Span) -> bool {
+        let mut comments = (self
+            .c
+            .tokens
+            .until_offset(expression.start_offset)
+            .iter()
+            .rev())
+        .take_while(|t| t.kind.is_trivia() || t.kind == TokenType::JavaScript(Kind::LParen))
+        .filter(|t| t.kind == TokenType::JavaScriptComment);
+        let Some(only) = comments.next() else {
+            return false;
+        };
+        let text = only.span.text(self.source_text);
+        comments.next().is_none() && text.starts_with("/*") && !text.contains(['\n', '\r'])
     }
 
     /// The plugin's `getText` of a template expression: from its first leading comment to its

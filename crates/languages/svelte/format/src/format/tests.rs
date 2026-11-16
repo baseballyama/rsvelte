@@ -198,23 +198,6 @@ fn a_root_assignment_or_sequence_keeps_the_parentheses_the_plugin_wraps_it_in() 
 }
 
 #[test]
-fn modifiers_the_plugin_would_drop_are_refused() {
-    for source_text in [
-        "<div use:a|x={b}></div>\n",
-        "<div bind:value|x={v}></div>\n",
-        "<div class:a|x={b}></div>\n",
-        "<div animate:a|x></div>\n",
-        "<div let:a|x></div>\n",
-    ] {
-        assert_eq!(
-            refusal(source_text).0,
-            "modifiers on this directive",
-            "{source_text}"
-        );
-    }
-}
-
-#[test]
 fn typescript_in_blocks_matches_the_plugin() {
     // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
     let typescript = "<script lang=\"ts\"></script>\n\n";
@@ -386,6 +369,7 @@ fn what_svelte_rejects_is_refused() {
 /// The `<title>` group fits only because the binary expression after it would break, a layout
 /// the expression printer does not build: Prettier prints `<title>x</title>{a +\n  b}`.
 mod comments;
+mod directives;
 mod review;
 mod scripts;
 

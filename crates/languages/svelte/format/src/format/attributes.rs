@@ -1,7 +1,7 @@
 use super::expressions::Comments;
 use super::{
     Attribute, AttributeKind, AttributeValue, Cow, ElementKind, LayoutInstructionIdentifier, Part,
-    Printer, R, Unsupported, only_ws,
+    Printer, R, Span, Unsupported, only_ws,
 };
 
 /// The plugin's whitespace normalization of a `class` attribute's text on a regular element.
@@ -53,15 +53,6 @@ fn normalize_class(raw: &str, is_last_part: bool) -> String {
     out
 }
 
-/// The plugin prints `|modifiers` only on `on:`, `transition:`, `in:`, `out:` and `style:`
-/// and drops them elsewhere, which would change the component.
-fn refuse_modifiers(a: &Attribute) -> R<()> {
-    if a.modifiers.len > 0 {
-        return Err(Unsupported::at("modifiers on this directive", a.name));
-    }
-    Ok(())
-}
-
 impl Printer<'_, '_, '_> {
     /// The plugin's `print` for an attribute, a spread, an attachment or a directive.
     pub(super) fn attribute(
@@ -70,8 +61,19 @@ impl Printer<'_, '_, '_> {
         element: ElementKind,
     ) -> R<LayoutInstructionIdentifier> {
         let (comp, source_text) = (self.c, self.source_text);
-        // As written: the directive's prefix, its name and, where kept, its `|modifiers`.
-        let name = a.name.text(source_text);
+        // As written: the directive's prefix, its name and, where kept, its `|modifiers`. The
+        // plugin keeps them only on `on:`, `transition:`, `in:`, `out:` and `style:`, and Svelte
+        // ignores them on the others.
+        let keeps_modifiers = matches!(
+            a.kind,
+            AttributeKind::On | AttributeKind::Transition { .. } | AttributeKind::Style
+        );
+        let name = match a.directive_name(&comp.modifiers) {
+            Some(n) if !keeps_modifiers => {
+                Span::new(a.name.start_offset, n.end_offset).text(source_text)
+            }
+            _ => a.name.text(source_text),
+        };
         let parts = match a.value {
             AttributeValue::True => &[][..],
             AttributeValue::Parts(r) => r.get(&comp.parts),
@@ -124,7 +126,6 @@ impl Printer<'_, '_, '_> {
                 self.named_value(name, parts, element, true)
             }
             AttributeKind::Bind | AttributeKind::Class => {
-                refuse_modifiers(a)?;
                 let property = directive.expect("a directive has a name");
                 // `class:foo-bar` alone: Svelte makes an identifier of the whole name.
                 let written_short = lone.is_some_and(|e| {
@@ -151,17 +152,13 @@ impl Printer<'_, '_, '_> {
                 Ok(self.cat(&[open, e, close]))
             }
             AttributeKind::Let => {
-                refuse_modifiers(a)?;
                 let property = directive.expect("a let directive has a name");
                 if parts.is_empty() || named_like(property) {
                     return Ok(self.d().text(name));
                 }
                 self.directive_value(a, name, lone)
             }
-            AttributeKind::Use | AttributeKind::Animate => {
-                refuse_modifiers(a)?;
-                self.directive_value(a, name, lone)
-            }
+            AttributeKind::Use | AttributeKind::Animate => self.directive_value(a, name, lone),
             AttributeKind::On | AttributeKind::Transition { .. } => {
                 self.directive_value(a, name, lone)
             }

@@ -100,3 +100,28 @@ fn a_template_expression_keeps_the_comments_before_it() {
         "{#if /* a */ x}<p></p>{/if}\n"
     );
 }
+
+#[test]
+fn a_comment_before_a_bound_sequence_keeps_the_parentheses_the_plugin_keeps() {
+    // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    for (input, expected) in [
+        (
+            "<input bind:value={/* Foo */ x, y} />\n",
+            "<input bind:value={/* Foo */ (x, y)} />\n",
+        ),
+        (
+            "<input bind:value={\n    /* Foo */\n    x,\n    y\n    }/>\n",
+            "<input bind:value={/* Foo */ (x, y)} />\n",
+        ),
+        (
+            "<input bind:value={\n    /** Foo */\n    x,\n    /** Bar */\n    y\n}/>\n",
+            "<input\n  bind:value={\n    /** Foo */\n    (x,\n    /** Bar */\n    y)\n  }\n/>\n",
+        ),
+        (
+            "<input bind:value={x, y} />\n",
+            "<input bind:value={x, y} />\n",
+        ),
+    ] {
+        assert_eq!(formatted(input), expected, "{input}");
+    }
+}
