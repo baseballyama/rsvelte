@@ -19,6 +19,25 @@ fn refusal_with<'s>(source_text: &'s str, options: &Options) -> (&'static str, O
 }
 
 #[test]
+fn a_refusal_points_at_the_construct_in_the_source_with_its_carriage_returns() {
+    // A `\r\n` and a lone `\r` before it, and a `\r\n` right before it.
+    for source_text in [
+        "<p>a</p>\r\n{#each xs as {a: b = 1}}{b}{/each}\n",
+        "<p>a</p>\r<p>b</p>\r\n{#each xs as {a: b = 1}}{b}{/each}\n",
+        "<p>a</p>\r\n{#each xs as\r\n{a: b = 1}}{b}{/each}\n",
+    ] {
+        assert_eq!(
+            refusal(source_text),
+            (
+                "a renamed property with a default in a block's pattern",
+                Some("a: b = 1")
+            ),
+            "{source_text:?}"
+        );
+    }
+}
+
+#[test]
 fn a_refusal_points_at_the_construct() {
     assert_eq!(
         refusal("{#each xs as {a: b = 1}}{b}{/each}\n"),

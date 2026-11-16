@@ -58,24 +58,25 @@ pub(crate) fn format(
     if text.trim_matches(is_ecmascript_whitespace).is_empty() {
         return Ok(bom.to_owned());
     }
-    // Prettier reads every line ending as `\n` before it parses. A lone `\r` becomes one in its
-    // place, so the spans stay, and the line ending is still guessed from the source.
-    if let Some(at) = text
-        .match_indices('\r')
-        .map(|(i, _)| i)
-        .find(|&i| !text[i + 1..].starts_with('\n'))
-    {
-        let at = (at + bom.len()) as u32;
-        let refused = || {
+    // Prettier reads every line ending as `\n` before it parses, so the tree of the source, whose
+    // spans hold the `\r`s, cannot serve; the line ending is still guessed from the source.
+    if let Some(first) = source_text.find('\r') {
+        let normalized = line_endings::Normalized::new(source_text);
+        let lone = (source_text.match_indices('\r').map(|(i, _)| i))
+            .find(|&i| !source_text[i + 1..].starts_with('\n'));
+        let at = lone.unwrap_or(first) as u32;
+        // Where the line feed breaks the parse, Prettier's parse fails too, with its own error.
+        let reparsed = parsed(&normalized.text).map_err(|_parse_error| {
             Unsupported::at(
-                "a carriage return without a line feed",
+                if lone.is_some() {
+                    "a carriage return without a line feed"
+                } else {
+                    "a line ending that parses otherwise as a line feed"
+                },
                 Span::new(at, at + 1),
             )
-        };
-        let normalized = lone_returns_as_feeds(source_text);
-        // Where the line feed breaks the parse, Prettier's parse fails too, with its own error.
-        let reparsed = parsed(&normalized).map_err(|_parse_error| refused())?;
-        let rejected = self::rejected(&reparsed, &normalized);
+        })?;
+        let rejected = self::rejected(&reparsed, &normalized.text);
         let options = Options {
             end_of_line: match options.end_of_line {
                 EndOfLine::Auto => guess_end_of_line(text),
@@ -83,7 +84,12 @@ pub(crate) fn format(
             },
             ..options.clone()
         };
-        return format(&reparsed, &normalized, &options, rejected.as_ref());
+        return format(&reparsed, &normalized.text, &options, rejected.as_ref()).map_err(
+            |u| match u.source_location.span() {
+                Some(span) => Unsupported::at(u.what, normalized.original(span)),
+                None => u,
+            },
+        );
     }
     if rsvelte_document_printer::emoji_measured_otherwise(text) {
         return Err(Unsupported::nowhere(
@@ -137,17 +143,6 @@ fn guess_end_of_line(text: &str) -> EndOfLine {
         Some(_) => EndOfLine::Cr,
         None => EndOfLine::Lf,
     }
-}
-
-/// `text` with each `\r` not before a `\n` as a `\n`, of the same length.
-fn lone_returns_as_feeds(text: &str) -> String {
-    let mut bytes = text.as_bytes().to_vec();
-    for i in 0..bytes.len() {
-        if bytes[i] == b'\r' && bytes.get(i + 1) != Some(&b'\n') {
-            bytes[i] = b'\n';
-        }
-    }
-    String::from_utf8(bytes).expect("an ASCII byte replaced by an ASCII byte")
 }
 
 /// Prints `text`, the source without its byte order mark, with arena trees built in `allocator`.
@@ -457,6 +452,7 @@ mod elements;
 mod embed;
 mod expressions;
 mod javascript;
+mod line_endings;
 mod patterns;
 mod tree;
 mod unparsed;

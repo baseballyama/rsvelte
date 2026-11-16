@@ -6,7 +6,7 @@ use oxc_formatter::{
     ExpressionLayout, ExpressionRoot, JsEmbeddedIn, JsFormatOptions, JsRoot, ProgramLayout,
     ProgramSemicolons, QuoteStyle,
 };
-use oxc_formatter_core::{FormatElement, LineMode, Tag, normalize_newlines};
+use oxc_formatter_core::{FormatElement, LineMode, Tag};
 use oxc_span::SourceType;
 use rsvelte_document_printer::{Embedding, LayoutInstructionIdentifier};
 use rsvelte_kernel::source::positions::Span;
@@ -55,8 +55,8 @@ impl<'x> Printer<'_, '_, 'x> {
         part: Part,
         adjust: Adjust,
     ) -> R<LayoutInstructionIdentifier> {
-        let text = normalize_newlines(span.text(self.source_text), ['\r']);
-        let ir = self.format_javascript(&text, span, part, adjust.single_quote)?;
+        let text = span.text(self.source_text);
+        let ir = self.format_javascript(text, span, part, adjust.single_quote)?;
         // Prettier's `removeLines` means flat; its expanded states that survive it are a quirk.
         let mut ir = if adjust.single_line {
             let mut ir = ir;
@@ -140,8 +140,7 @@ impl Printer<'_, '_, '_> {
     /// A snippet's `name(…)`, which the plugin formats as `function name(…) {}` and then takes
     /// the `function ` and the body off.
     pub(super) fn snippet_signature(&mut self, head: Span) -> R<LayoutInstructionIdentifier> {
-        let text = normalize_newlines(head.text(self.source_text), ['\r']);
-        let text = format!("function {text} {{}}");
+        let text = format!("function {} {{}}", head.text(self.source_text));
         let mut ir = self.format_javascript(&text, head, Part::Statement, false)?;
         if !strip_function(&mut ir) {
             return Err(Unsupported::at(

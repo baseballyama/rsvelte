@@ -321,7 +321,7 @@ impl Printer<'_, '_, '_> {
                     if j > 0 {
                         out.push(self.d().literalline());
                     }
-                    out.push(self.d().text(line.strip_suffix('\r').unwrap_or(line)));
+                    out.push(self.d().text(line));
                 }
             } else {
                 let d = self.node(c);

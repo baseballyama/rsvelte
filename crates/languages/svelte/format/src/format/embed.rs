@@ -311,7 +311,7 @@ impl Printer<'_, '_, '_> {
             if i > 0 {
                 parts.push(self.d().literalline());
             }
-            parts.push(self.d().text(line.strip_suffix('\r').unwrap_or(line)));
+            parts.push(self.d().text(line));
         }
         parts.push(self.d().hardline());
         self.cat(&parts)

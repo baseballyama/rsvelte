@@ -111,7 +111,6 @@ impl Printer<'_, '_, '_> {
                 self.d().hardline()
             });
         }
-        let text = oxc_formatter_core::normalize_newlines(text, ['\r']);
         let core = &self.embedder.options;
         let options = oxc_formatter_css::CssFormatOptions {
             indent_style: core.indent_style,
@@ -126,7 +125,7 @@ impl Printer<'_, '_, '_> {
         // it does not format as written, as the plugin does with a sheet postcss throws on.
         let Ok(ir) = oxc_formatter_css::format_to_ir(
             self.embedder.embedding.session(),
-            &text,
+            text,
             options,
             Some(oxc_formatter_css::CssEmbeddedIn::StyleElement),
         ) else {
