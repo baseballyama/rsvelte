@@ -4858,3 +4858,9 @@
 
 ["svelte/bits-ui/packages/bits-ui/src/lib/bits/select/components/select.svelte".skip]
 "svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/layerchart/packages/layerchart/src/lib/components/geo/GeoRaster/GeoRaster.svelte".skip]
+"svelte.check" = "checker: TS 7's lib.dom types HTMLImageElement's crossOrigin as \"anonymous\" | \"use-credentials\" | null where TS 6's types it string | null, so assigning a string fails only in TS 7"
+
+["svelte/primo/src/lib/builder/components/Sidebar/Sidebar_Symbol.svelte".skip]
+"svelte.check" = "checker: TS 7 reports an argument its parameter rejects with the inner reason's code, such as 2740, where TS 6 reports 2345 with that reason under it"
