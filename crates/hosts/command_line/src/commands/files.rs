@@ -5,7 +5,8 @@ use std::path::{Path, PathBuf};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::Document;
 
-/// The documents of every file below `paths` that a task of `tasks` reads, in path order.
+/// The documents of every file below `paths` that a task of `tasks` reads, in the order of their
+/// path strings, as `ESLint` lists them: `a-b/x` before `a/x`.
 pub(crate) fn load(
     reg: &Registry,
     paths: &[&str],
@@ -15,7 +16,7 @@ pub(crate) fn load(
     for path in paths {
         collect(reg, tasks, Path::new(path), &mut files)?;
     }
-    files.sort_unstable();
+    files.sort_unstable_by(|a, b| a.as_os_str().cmp(b.as_os_str()));
     files.dedup();
     files
         .into_iter()
