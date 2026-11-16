@@ -27,6 +27,7 @@ fn fixtures() -> rsvelte_test_harness::Fixtures {
                 tsconfig: Some(
                     concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into(),
                 ),
+                processes: None,
             },
             content_mapper: rsvelte_test_harness::content_mapper(),
             svelte: packages.package("svelte"),

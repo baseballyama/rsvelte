@@ -1,4 +1,4 @@
-# svelte.check/default: 35015 match
+# svelte.check/default: 35017 match
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events-usage/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots-usage/input.svelte	mismatch
@@ -8,8 +8,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	mismatch
-svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/05b2487cbe722987.svelte	mismatch
-svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/696aaefc0ff5653b.svelte	mismatch
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/nodes/snippet_hoisting/tests/duplicate_name_self_reference_does_not_inherit_blocked_peer/7a63d4879226079a.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_class_style_directive/style_shorthand_modifier_does_not_become_an_identifier/57a171812e529726.svelte	mismatch
