@@ -8,16 +8,16 @@ declare function __rsvelte_slots<Slots = Record<string, Record<string, any>>>():
 declare const __rsvelte_snippet_return: any;
 declare function __rsvelte_slot_flags<Key extends string>(): Record<Key, boolean>;
 declare function __rsvelte_component_props<C extends (internals: any, props: any) => unknown>(component: C): Parameters<C>[1] & Record<string, any>;
-declare function __rsvelte_instance<C>(component: C): C extends ConstructorOfATypedSvelteComponent ? InstanceType<C> : C extends { __rsvelte_events: infer Events } & import('svelte').Component<infer Props extends Record<string, any>, any, any> ? import('svelte').SvelteComponent<Props, Events, any> : C extends import('svelte').Component<infer Props extends Record<string, any>, any, any> ? import('svelte').SvelteComponent<Props, { [event: string]: CustomEvent<any> }, any> : any;
+declare function __rsvelte_instance<C>(component: C): C extends ConstructorOfATypedSvelteComponent ? InstanceType<C> : C extends { __rsvelte_events: infer Events; __rsvelte_slot_def: infer Slots } & import('svelte').Component<infer Props extends Record<string, any>, any, any> ? import('svelte').SvelteComponent<Props, Events, Slots> : C extends import('svelte').Component<infer Props extends Record<string, any>, any, any> ? import('svelte').SvelteComponent<Props, { [event: string]: CustomEvent<any> }, any> : any;
 // The props a component lets `bind:` pass, as svelte2tsx's `$$bindings`; a class component allows any.
 declare function __rsvelte_bindings<C>(component: C): { $$bindings: C extends import('svelte').Component<any, any, infer Bindings extends string> ? Bindings : string };
 declare function __rsvelte_internals(): Parameters<import('svelte').Component>[0];
 // As svelte2tsx's `__sveltets_2_fn_component`: `keyof Props` of a large union of props is too complex to represent.
 // @ts-ignore
 declare function __rsvelte_export_component<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string>(): import('svelte').Component<Props, Exports, Bindings>;
-// A component that declares `$$Events`, whose instance svelte2tsx types with exactly those events.
+// A component that declares `$$Events` or `$$Slots`, whose instance svelte2tsx types with exactly those.
 // @ts-ignore
-declare function __rsvelte_export_events<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string, Events>(): import('svelte').Component<Props, Exports, Bindings> & { __rsvelte_events: Events };
+declare function __rsvelte_export_typed<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string, Events, Slots>(): import('svelte').Component<Props, Exports, Bindings> & { __rsvelte_events: Events; __rsvelte_slot_def: Slots };
 declare function __rsvelte_export_generic<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings>(): import('svelte').Component<Props, Exports, any> & { __rsvelte_bindings?: Bindings };
 declare function __rsvelte_props<Required extends Record<string, unknown>, Optional extends Record<string, unknown>, Rest extends boolean>(required: Required, optional: Optional, rest: Rest): Required & Partial<Optional> & (Rest extends true ? Record<string, any> : {});
 declare function __rsvelte_untyped_prop(): any;

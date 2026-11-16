@@ -120,21 +120,29 @@ impl Builder<'_> {
     }
 
     /// The component the render function returns, typed by its contract's `parts`: its props,
-    /// exports and bindings.
+    /// exports and bindings, and its `$$Events` and `$$Slots` when it declares them.
     fn export(
         &mut self,
         generic: bool,
         events: bool,
         parts: [NodeIdentifier; 3],
     ) -> NodeIdentifier {
-        let helper = self.tree.push(Node::Identifier(match (generic, events) {
+        let slots = self.declares("$$Slots");
+        let typed = !generic && (events || slots);
+        let helper = self.tree.push(Node::Identifier(match (generic, typed) {
             (true, _) => "__rsvelte_export_generic",
-            (false, true) => "__rsvelte_export_events",
+            (false, true) => "__rsvelte_export_typed",
             (false, false) => "__rsvelte_export_component",
         }));
-        let arguments = if events && !generic {
-            let events = self.tree.push(Node::Identifier("$$Events"));
-            self.tree.list(&[parts[0], parts[1], parts[2], events])
+        let arguments = if typed {
+            let events = self.tree.push(Node::Identifier(if events {
+                "$$Events"
+            } else {
+                "{ [event: string]: CustomEvent<any> }"
+            }));
+            let slots = (self.tree).push(Node::Identifier(if slots { "$$Slots" } else { "any" }));
+            self.tree
+                .list(&[parts[0], parts[1], parts[2], events, slots])
         } else {
             self.tree.list(&parts)
         };
