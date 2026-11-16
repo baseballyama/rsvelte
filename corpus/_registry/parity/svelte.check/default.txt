@@ -12,7 +12,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	mismatch
 svelte/melt-ui/docs/src/components/motion.svelte	mismatch
-svelte/primo/src/lib/builder/views/modal/SitePages/Item.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/35efd90757e6abdb.svelte	mismatch
 svelte/rsvelte-tests-core-2/import_export_parser_shapes/javascript_stamps_no_export_kind_on_a_default_export/dc3ff104ae7b3006.svelte	unexpected
