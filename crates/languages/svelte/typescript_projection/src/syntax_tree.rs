@@ -186,6 +186,12 @@ pub enum Node {
     },
     /// A statement whose findings TypeScript drops, as svelte2tsx's ignore comments do.
     Ignored(NodeIdentifier),
+    /// A property after the comments written before its attribute, on lines of their own, so
+    /// that a `// @ts-ignore` among them covers it.
+    Commented {
+        comments: Span,
+        value: NodeIdentifier,
+    },
     Parenthesized(NodeIdentifier),
     /// The target of `target = value as T`, which svelte2tsx writes for a one-way binding to
     /// `target as T`: the assertion follows the value.

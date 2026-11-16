@@ -64,11 +64,28 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         typescript_view(context, env.as_ref())
     });
     reg.provide::<TypeScriptStandIn>("svelte", rsvelte_svelte_syntax::matches, |context| {
+        // svelte-check reads a component svelte2tsx throws on as its bare script, which declares
+        // globals for the whole project when it neither imports nor exports.
+        if let Some(Ok(TypeScriptDocument::Rejected { .. })) = context.facet::<TypeScriptView>() {
+            return Some(bare_script(&context.document.text));
+        }
         let own = context.get::<Parsed>().as_ref().ok().and_then(|component| {
             rsvelte_svelte_typescript_projection::stand_in(component, &context.document.text)
         });
         Some(own.unwrap_or_else(|| rsvelte_svelte_typescript_projection::STAND_IN.to_owned()))
     });
+}
+
+/// svelte-check's text of a component svelte2tsx throws on: its instance script, else its module
+/// script.
+fn bare_script(source_text: &str) -> String {
+    rsvelte_svelte_syntax::parse::parse_without_scripts(source_text)
+        .ok()
+        .and_then(|component| {
+            let script = component.instance.as_ref().or(component.module.as_ref())?;
+            Some(script.content.text(source_text).to_owned())
+        })
+        .unwrap_or_default()
 }
 
 /// A script a component may import, such as a `.svelte.ts` module.

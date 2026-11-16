@@ -4958,7 +4958,6 @@
 ["svelte/layerchart/packages/layerchart/src/lib/components/charts/__fixtures__/ArcChartTooltip.svelte".skip]
 "svelte.check" = "checker: TS 7 lists the keys of a `Pick` in its own order and cuts the props' type at other points than TS 6; the projection also reports the generic component's props as 2345 at its name, where svelte-check reports 2322 with no length"
 
-
 ["svelte/melt-ui/docs/src/components/motion.svelte".skip]
 "svelte.check" = "checker: TS 7 reports 7031 on a binding element whose default is `{}` and whose contextual type comes from an unresolved import, where TS 6 reports nothing"
 
@@ -4985,6 +4984,15 @@
 
 ["svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/fd297002503b61c4.svelte".skip]
 "svelte.format" = "oxc ast: AccessorProperty has no `optional` modifier, so oxc cannot print `accessor x?: number`, which Prettier 3.9.10 keeps"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_class_style_directive/style_shorthand_modifier_does_not_become_an_identifier/57a171812e529726.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a shorthand `style:color|important` as the expression `color|important`, so TypeScript reports the bitwise or and the name `important`"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_directive_suffix_map_4464/a_directive_name_and_its_parameters_carry_a_mapping/6131d61eb07dbc8c.svelte".skip]
+"svelte.check" = "checker: TS 7 reports a missing-properties 2740 where TS 6 reports 2345 for an argument whose type lacks the parameter type's properties"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/716a6da8d466f8b2.svelte".skip]
+"svelte.check" = "oracle: svelte-check 4.7.8 reports 2503 on this file alone, as rsvelte does, and also beside the one other unit that reads `Z`; the shared corpus workspace drops it (mechanism unknown)"
 
 ["svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/0987dd6e6407d320.svelte".skip]
 "svelte.check" = "checker: TS 7 spans 8017 over a JavaScript overload signature and adds 8010 for its parameter type, where TS 6 reports only 8017 at its name"
