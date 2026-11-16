@@ -83,6 +83,13 @@ const RULES = [
     requires: ['@rsvelte/svelte-check'],
   },
   {
+    prefix: 'crates/rsvelte_svelte_config/src/',
+    // The project `compilerOptions` reader is linked into three binaries in
+    // separate `fixed` groups, so naming one leaves the others reading config
+    // the old way.
+    requires: ['@rsvelte/svelte-check', '@rsvelte/lint', '@rsvelte/language-server'],
+  },
+  {
     prefix: 'crates/rsvelte_bindings_support/src/',
     // Only `rsvelte_napi` depends on it, and that ships only as the
     // `rsvelte.node` cdylib -- so this crate writes the binary parse envelope

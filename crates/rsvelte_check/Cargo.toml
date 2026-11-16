@@ -22,6 +22,7 @@ path = "src/main.rs"
 rsvelte_core = { path = "../rsvelte_core", default-features = false, features = ["parallel"] }
 rsvelte_diagnostics = { path = "../rsvelte_diagnostics" }
 rsvelte_projection = { path = "../rsvelte_projection" }
+rsvelte_svelte_config = { path = "../rsvelte_svelte_config" }
 clap = { version = "4.5", features = ["derive"] }
 # rsvelte's production allocator, for the same allocation-bound reason the
 # compiler CLI and the NAPI addon use it.

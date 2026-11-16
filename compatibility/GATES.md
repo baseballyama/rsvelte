@@ -3285,7 +3285,7 @@ Six scenarios now set a `compilerOptions` key (`svelte-config-namespace-{foreign
 whose two projects are byte-identical apart from that one value. That is what makes 12d's
 "essentially no explicit-config branch is exercised" one notch less true — but only for those
 keys. The compiler accepts 32 options
-(`crates/rsvelte_check/src/svelte_check/options_schema.rs`'s `COMPONENT_OPTIONS`, derived from
+(`crates/rsvelte_svelte_config/src/options_schema.rs`'s `COMPONENT_OPTIONS`, derived from
 `validate-options.js` by `schema_matches_upstream`), and the rest are compared against the
 oracle nowhere.
 

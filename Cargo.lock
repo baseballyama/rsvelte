@@ -2624,6 +2624,7 @@ dependencies = [
  "rsvelte_core",
  "rsvelte_diagnostics",
  "rsvelte_projection",
+ "rsvelte_svelte_config",
  "serde",
  "serde_json",
  "sourcemap",
@@ -2935,6 +2936,16 @@ dependencies = [
  "rustc-hash",
  "serde_json",
  "sourcemap",
+]
+
+[[package]]
+name = "rsvelte_svelte_config"
+version = "0.1.0"
+dependencies = [
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_parser",
+ "oxc_span",
 ]
 
 [[package]]

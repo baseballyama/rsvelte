@@ -28,7 +28,7 @@ use oxc_parser::Parser as OxcParser;
 use oxc_span::SourceType;
 use rayon::prelude::*;
 
-use super::config::CompilerOptionsSettings;
+use super::config::{CompilerOptionsSettings, ProjectionOptions};
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
 use super::kit_file::{self, AddedCode, KitFilesSettings};
 use super::manifest::{

@@ -23,6 +23,7 @@ members = [
     "crates/rsvelte_napi",
     "crates/rsvelte_preprocess",
     "crates/rsvelte_projection",
+    "crates/rsvelte_svelte_config",
     "crates/tailwind_class_order",
 ]
 

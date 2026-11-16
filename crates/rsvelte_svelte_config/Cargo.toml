@@ -1,0 +1,23 @@
+[package]
+name = "rsvelte_svelte_config"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+description = "Static reader for the Svelte compilerOptions a project's svelte.config.* / vite.config.* declare"
+license = "MIT"
+repository = "https://github.com/baseballyama/rsvelte"
+publish = false
+autobins = false
+autobenches = false
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+oxc_allocator = "0.157"
+oxc_ast = "0.157"
+oxc_parser = "0.157"
+oxc_span = "0.157"
+
+[lints]
+workspace = true

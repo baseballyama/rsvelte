@@ -13,6 +13,7 @@ use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
 
 use lsp_types::{Position, Range, Uri};
+use rsvelte_check::config::ProjectionOptions as _;
 use rsvelte_check::overlay::{
     CACHE_GITIGNORE, FallbackSvelteTypes, RootDirDefault, SHIM_FILES, SHIM_JSX_V4_NAME,
     fallback_svelte_types, global_type_files, overlay_root_dir,
