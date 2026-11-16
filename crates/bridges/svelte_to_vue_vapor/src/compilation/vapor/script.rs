@@ -41,7 +41,9 @@ impl<'o> Emitter<'_, 'o> {
             if let Some(prelude) = prelude
                 && prelude.iter().all(module_level)
             {
-                prelude.iter().for_each(|s| self.note_helpers(s));
+                for s in prelude {
+                    self.note_helpers(s);
+                }
                 module.push(prelude::remark(b, marked).expect("a prelude's marker"));
                 continue;
             }
