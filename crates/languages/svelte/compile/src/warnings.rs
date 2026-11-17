@@ -5,7 +5,7 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_kernel::source::positions::{LineColumn, LineIndex};
+use rsvelte_kernel::source::positions::{LineBreaks, LineColumn, LineIndex};
 use rsvelte_svelte_semantic::warnings::{self, Options};
 use rsvelte_svelte_semantic::{Analyzed, Lowered, Resolved};
 use rsvelte_svelte_syntax::Parsed;
@@ -73,7 +73,10 @@ impl Task for Warn {
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
         match context.get::<Warned>() {
             Ok(shown) if shown.is_empty() => {}
-            Ok(shown) => out.file("warnings.json", json(shown, context.source_text())),
+            Ok(shown) => out.file(
+                "warnings.json",
+                json(shown, context.lines(LineBreaks::Newline)),
+            ),
             Err(error) => out.diagnostics.push(error.clone()),
         }
     }
@@ -81,8 +84,7 @@ impl Task for Warn {
 
 /// `[{ code, message, start, end }]` with `{ line, column, character }` positions, as the
 /// compiler's `Warning`s serialize.
-fn json(found: &[Diagnostic], source: &str) -> String {
-    let index = LineIndex::new(source);
+fn json(found: &[Diagnostic], index: &LineIndex) -> String {
     let mut w = StructuredDataWriter::new(true);
     w.begin_array();
     for d in found {

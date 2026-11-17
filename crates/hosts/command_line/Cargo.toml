@@ -14,6 +14,7 @@ path = "src/main.rs"
 metrics = ["rsvelte_kernel/metrics"]
 
 [dependencies]
+mimalloc.workspace = true
 rsvelte_configuration_loading.workspace = true
 rsvelte_plugin_interface.workspace = true
 serde_json.workspace = true

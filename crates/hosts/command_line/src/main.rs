@@ -38,6 +38,11 @@ use commands::{benchmark, format, lint, performance};
 use input::load;
 use rsvelte_kernel::computation::registry::Registry;
 
+// The allocation counters need the counting allocator, so mimalloc only serves the plain build.
+#[cfg(not(feature = "metrics"))]
+#[global_allocator]
+static MIMALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 #[cfg(feature = "metrics")]
 #[global_allocator]
 static ALLOC: rsvelte_kernel::performance::measurement::CountingAllocator =
