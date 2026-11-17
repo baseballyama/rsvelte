@@ -229,45 +229,47 @@ impl TypeScriptEnv {
                 }
             }
         }
-        for d in &other.declarations {
-            match self.declarations.iter().find(|x| x.0 == d.0) {
-                None => self.declarations.push(*d),
-                Some(x) if x.1 == d.1 => {}
-                Some(_) => return Err(format!("two languages declare `{}` differently", d.0)),
-            }
-        }
-        for p in &other.paths {
-            match self.paths.iter().find(|x| x.0 == p.0) {
-                None => self.paths.push(p.clone()),
-                Some(x) if x.1 == p.1 => {}
-                Some(_) => return Err(format!("two languages map `{}` differently", p.0)),
-            }
-        }
-        for r in &other.replaced {
-            match self.replaced.iter().find(|x| x.0 == r.0) {
-                None => self.replaced.push(r.clone()),
-                Some(x) if x.1 == r.1 => {}
-                Some(_) => return Err(format!("two languages replace {}", r.0.display())),
-            }
-        }
-        for i in &other.include {
-            if !self.include.contains(i) {
-                self.include.push(i.clone());
-            }
-        }
-        for suffix in &other.script_modules {
-            if !self.script_modules.contains(suffix) {
-                self.script_modules.push(suffix);
-            }
-        }
-        for note in &other.notes {
-            match self.notes.iter().find(|x| x.0 == note.0) {
-                None => self.notes.push(*note),
-                Some(x) if x.1 == note.1 => {}
-                Some(_) => return Err(format!("two languages note TS{} differently", note.0)),
-            }
-        }
+        merge_keyed(&mut self.declarations, &other.declarations, |name| {
+            format!("two languages declare `{name}` differently")
+        })?;
+        merge_keyed(&mut self.paths, &other.paths, |specifier| {
+            format!("two languages map `{specifier}` differently")
+        })?;
+        merge_keyed(&mut self.replaced, &other.replaced, |path| {
+            format!("two languages replace {}", path.display())
+        })?;
+        merge_keyed(&mut self.notes, &other.notes, |code| {
+            format!("two languages note TS{code} differently")
+        })?;
+        merge_set(&mut self.include, &other.include);
+        merge_set(&mut self.script_modules, &other.script_modules);
         Ok(())
+    }
+}
+
+/// Adds each entry of `other` whose key `own` lacks. An entry under a key `own` holds must equal
+/// it, or the merge fails with `differs` of the key.
+fn merge_keyed<K: PartialEq + Clone, V: PartialEq + Clone>(
+    own: &mut Vec<(K, V)>,
+    other: &[(K, V)],
+    differs: impl Fn(&K) -> String,
+) -> Result<(), String> {
+    for (key, value) in other {
+        match own.iter().find(|(held, _)| held == key) {
+            None => own.push((key.clone(), value.clone())),
+            Some((_, held)) if held == value => {}
+            Some(_) => return Err(differs(key)),
+        }
+    }
+    Ok(())
+}
+
+/// Adds each item of `other` that `own` lacks.
+fn merge_set<T: PartialEq + Clone>(own: &mut Vec<T>, other: &[T]) {
+    for item in other {
+        if !own.contains(item) {
+            own.push(item.clone());
+        }
     }
 }
 
