@@ -183,9 +183,9 @@ impl<'a> Printer<'a, '_, '_> {
             }
     }
 
-    /// `isInlineElement`; `in_pre` is the path's `isPreTagContent`.
-    pub(super) fn is_inline(&self, identifier: TemplateNodeIdentifier, in_pre: bool) -> bool {
-        self.is_regular(identifier) && !self.is_block(identifier) && !in_pre
+    /// `isInlineElement` outside `<pre>`, the only place the children's printing asks it.
+    pub(super) fn is_inline(&self, identifier: TemplateNodeIdentifier) -> bool {
+        self.is_regular(identifier) && !self.is_block(identifier)
     }
 
     pub(super) fn children(

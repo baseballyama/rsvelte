@@ -92,8 +92,8 @@ impl Printer<'_, '_, '_> {
         matches!(c.child(), Child::Node(n) if self.is_block(n))
     }
 
-    fn child_is_inline(&self, c: impl AsChild, in_pre: bool) -> bool {
-        matches!(c.child(), Child::Node(n) if self.is_inline(n, in_pre))
+    fn child_is_inline(&self, c: impl AsChild) -> bool {
+        matches!(c.child(), Child::Node(n) if self.is_inline(n))
     }
 
     fn print_child(&mut self, c: impl AsChild) -> R<LayoutInstructionIdentifier> {
@@ -116,9 +116,8 @@ impl Printer<'_, '_, '_> {
     }
 
     fn print_list<C: AsChild>(&mut self, children: &[C]) -> R<Vec<LayoutInstructionIdentifier>> {
-        let in_pre = self.in_pre;
         // `printChildren` prints each node as it is inside `<pre>`.
-        if in_pre {
+        if self.in_pre {
             let mut docs = self.take_buffer();
             for &c in children {
                 docs.push(self.print_child(c)?);
@@ -155,7 +154,7 @@ impl Printer<'_, '_, '_> {
                 let prev = prepared[i - 1];
                 let next = prepared[i + 1];
                 if self.text_starts_ws(text) && !self.is_empty_text(text) {
-                    if self.child_is_inline(prev, in_pre) && !self.text_starts_linebreak(text) {
+                    if self.child_is_inline(prev) && !self.text_starts_linebreak(text) {
                         self.trim_left(text);
                         let last = docs.pop().expect("a previous child was printed");
                         let line = self.d().line();
@@ -166,7 +165,7 @@ impl Printer<'_, '_, '_> {
                     }
                 }
                 if self.text_ends_ws(text) {
-                    if self.child_is_inline(next, in_pre) && !self.text_ends_linebreak(text, 1) {
+                    if self.child_is_inline(next) && !self.text_ends_linebreak(text, 1) {
                         ws_of_prev_text = !self.child_is_block(prev);
                         self.trim_right(text);
                     }
@@ -190,7 +189,7 @@ impl Printer<'_, '_, '_> {
                 if let Some(&next) = prepared.get(i + 1) {
                     let followed_by_inline = prepared
                         .get(i + 2)
-                        .is_some_and(|&x| self.child_is_inline(x, in_pre));
+                        .is_some_and(|&x| self.child_is_inline(x));
                     if self.child_text(next).is_none_or(|t| {
                         (!self.is_empty_text(t) || followed_by_inline)
                             && !self.text_starts_linebreak(t)
@@ -199,7 +198,7 @@ impl Printer<'_, '_, '_> {
                     }
                 }
                 ws_of_prev_text = false;
-            } else if self.child_is_inline(child, in_pre) {
+            } else if self.child_is_inline(child) {
                 let d = self.print_child(child)?;
                 if ws_of_prev_text {
                     let line = self.d().line();
