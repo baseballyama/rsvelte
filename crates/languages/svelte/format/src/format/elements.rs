@@ -315,12 +315,8 @@ impl Printer<'_, '_, '_> {
         let mut out = Vec::new();
         for &c in children {
             if let TemplateNode::Text { span } = *self.c.node(c) {
-                for (j, line) in span.text(self.source_text).split('\n').enumerate() {
-                    if j > 0 {
-                        out.push(self.d().literalline());
-                    }
-                    out.push(self.d().text(line));
-                }
+                let text = span.text(self.source_text);
+                self.d().replace_end_of_line(text, &mut out);
             } else {
                 let d = self.node(c);
                 match d {

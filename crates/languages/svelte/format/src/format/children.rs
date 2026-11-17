@@ -248,12 +248,8 @@ impl Printer<'_, '_, '_> {
         // The JavaScript comments inside are printed with the rest of the source.
         self.embedder.kept.push(span);
         let mut out = self.take_buffer();
-        for (j, line) in span.text(self.source_text).split('\n').enumerate() {
-            if j > 0 {
-                out.push(self.d().literalline());
-            }
-            out.push(self.d().text(line));
-        }
+        let text = span.text(self.source_text);
+        self.d().replace_end_of_line(text, &mut out);
         let doc = self.cat(&out);
         self.give_buffer(out);
         doc

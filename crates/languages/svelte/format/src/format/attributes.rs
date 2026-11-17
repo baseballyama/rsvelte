@@ -261,12 +261,7 @@ impl Printer<'_, '_, '_> {
                     } else {
                         Cow::Borrowed(raw)
                     };
-                    for (j, line) in raw.split('\n').enumerate() {
-                        if j > 0 {
-                            value.push(self.d().literalline());
-                        }
-                        value.push(self.d().text(line));
-                    }
+                    self.d().replace_end_of_line(&raw, &mut value);
                 }
                 Part::Expression { expression, .. } => {
                     let e = self.expression(expression, false, !lone)?;

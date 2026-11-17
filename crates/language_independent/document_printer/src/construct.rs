@@ -157,6 +157,17 @@ impl LayoutInstructions {
         self.push(Node::IndentIfBreak { document, group })
     }
 
+    /// Prettier's `replaceEndOfLine(text, literalline)`: pushes the lines of `text` onto `out`
+    /// with a literal line between each two.
+    pub fn replace_end_of_line(&mut self, text: &str, out: &mut Vec<LayoutInstructionIdentifier>) {
+        for (i, line) in text.split('\n').enumerate() {
+            if i > 0 {
+                out.push(self.literalline());
+            }
+            out.push(self.text(line));
+        }
+    }
+
     /// Prettier's `join(sep, docs)`.
     #[must_use]
     pub fn join(

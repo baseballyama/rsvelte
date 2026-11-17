@@ -314,12 +314,7 @@ impl Printer<'_, '_, '_> {
             .filter(|&i| text[i..].starts_with('\n'))
             .unwrap_or(text.len());
         let mut parts = vec![self.d().literalline()];
-        for (i, line) in text[..end].split('\n').enumerate() {
-            if i > 0 {
-                parts.push(self.d().literalline());
-            }
-            parts.push(self.d().text(line));
-        }
+        self.d().replace_end_of_line(&text[..end], &mut parts);
         parts.push(self.d().hardline());
         self.cat(&parts)
     }
@@ -447,12 +442,8 @@ impl Printer<'_, '_, '_> {
                 Some(v) => {
                     let source_text = self.source_text;
                     let mut parts = vec![self.d().text(name.text(source_text)), self.lit("=\"")];
-                    for (j, line) in v.text(source_text).split('\n').enumerate() {
-                        if j > 0 {
-                            parts.push(self.d().literalline());
-                        }
-                        parts.push(self.d().text(line));
-                    }
+                    self.d()
+                        .replace_end_of_line(v.text(source_text), &mut parts);
                     parts.push(self.lit("\""));
                     self.cat(&parts)
                 }
