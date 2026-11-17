@@ -19,7 +19,7 @@ use oxc_allocator::Allocator;
 use oxc_formatter::JsFormatOptions;
 use oxc_formatter_core::{CoreFormatOptions, IndentStyle, IndentWidth, LineEnding, LineWidth};
 use rsvelte_document_printer::{
-    Embedding, GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions, Unprinted,
+    Embedding, GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions,
 };
 pub(crate) use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
@@ -63,9 +63,7 @@ pub(crate) fn format(c: &SingleFileComponent, source_text: &str, lines: &LineInd
     let h = p.d().hardline();
     let root = p.d().concat(&[body, h]);
     let embedding = p.embedding;
-    embedding
-        .print(&docs, root, source_text.len())
-        .map_err(|Unprinted| Unsupported::nowhere("a document oxc's printer rejects"))
+    embedding.print(&docs, root, source_text.len())
 }
 
 /// Prettier's defaults, which are the only options this port prints.

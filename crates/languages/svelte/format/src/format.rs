@@ -17,9 +17,7 @@ use std::borrow::Cow;
 use oxc_allocator::Allocator;
 use oxc_formatter::{BracketSameLine, JsFormatOptions, QuoteStyle};
 use oxc_formatter_core::{CoreFormatOptions, IndentStyle, IndentWidth, LineEnding, LineWidth};
-use rsvelte_document_printer::{
-    Embedding, LayoutInstructionIdentifier, LayoutInstructions, Unprinted,
-};
+use rsvelte_document_printer::{Embedding, LayoutInstructionIdentifier, LayoutInstructions};
 use rsvelte_kernel::diagnostics::{Diagnostic, Unsupported};
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
@@ -185,9 +183,7 @@ fn print(
     refuse_lost_comments(&f.comments, &f.embedder.kept, &f.embedder.dropped)?;
     let embedding = f.embedder.embedding;
     // Room for output a quarter longer than its source, so the buffer seldom grows.
-    embedding
-        .print(&docs, root, text.len() + text.len() / 4)
-        .map_err(|Unprinted| Unsupported::nowhere("a document oxc's printer rejects"))
+    embedding.print(&docs, root, text.len() + text.len() / 4)
 }
 
 /// The options oxc's printer and formatters share.

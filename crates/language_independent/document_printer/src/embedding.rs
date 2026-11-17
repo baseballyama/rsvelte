@@ -6,6 +6,7 @@ use oxc_formatter_core::{
     CoreFormatOptions, Document, FormatContext, FormatElement, FormatSession, FormatState,
     Formatter, InputKind, LineEnding, LineMode, PrintError, PrintWidth, PrinterOptions,
 };
+use rsvelte_kernel::diagnostics::Unsupported;
 
 use crate::{LayoutInstructionIdentifier, LayoutInstructions};
 
@@ -27,10 +28,6 @@ impl std::fmt::Debug for Embedding<'_> {
             .finish_non_exhaustive()
     }
 }
-
-/// oxc's printer rejected a document's elements.
-#[derive(Debug, PartialEq, Eq)]
-pub struct Unprinted;
 
 /// oxc's context for the elements a document writes itself: only the options.
 struct Context {
@@ -103,13 +100,13 @@ impl<'x> Embedding<'x> {
     ///
     /// # Errors
     ///
-    /// [`Unprinted`] when oxc's printer rejects the document.
+    /// [`Unsupported`] when oxc's printer rejects the document.
     pub fn print(
         self,
         docs: &LayoutInstructions,
         root: LayoutInstructionIdentifier,
         source_len: usize,
-    ) -> Result<String, Unprinted> {
+    ) -> Result<String, Unsupported> {
         let options = self.options;
         let context = Context { options };
         let mut state = FormatState::new_with_session(context, self.session);
@@ -123,7 +120,9 @@ impl<'x> Embedding<'x> {
             .with_line_ending(LineEnding::Lf);
         Ok(Document::new(elements, Vec::new())
             .print(source_len, print)
-            .map_err(|PrintError::InvalidDocument(_)| Unprinted)?
+            .map_err(|PrintError::InvalidDocument(_)| {
+                Unsupported::nowhere("a document oxc's printer rejects")
+            })?
             .into_code())
     }
 }

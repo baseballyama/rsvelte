@@ -15,7 +15,7 @@ mod lower;
 mod rewrite;
 mod width;
 
-pub use embedding::{Embedding, Unprinted};
+pub use embedding::Embedding;
 use rsvelte_kernel::performance::buffer_pool;
 pub use width::emoji_measured_otherwise;
 
