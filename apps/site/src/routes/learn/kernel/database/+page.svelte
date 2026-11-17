@@ -130,9 +130,9 @@
 <div class="prose-learn">
 	<p>
 		コード検査のタスクの本体は <code>Lint::run</code> です。指摘を JSON で書き出すときは、<code
-			>positions</code
+			>context.lines(LineBreaks::Ecmascript)</code
 		>
-		が <code>context.lines(LineBreaks::Ecmascript)</code> を使います。
+		で行と列を求めます。表は位置を書くときにだけ要るので、関数に包んで渡します。指摘も無効化コメントもないファイルでは表を作りません。
 	</p>
 </div>
 
