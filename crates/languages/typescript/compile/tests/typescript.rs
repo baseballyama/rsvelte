@@ -6,7 +6,7 @@ use oxc_ast_visit::VisitMut;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
 use rsvelte_typescript_compile::features::{
-    Feature, first_runtime_feature, first_svelte_runtime_feature,
+    Feature, first_runtime_feature, first_svelte_runtime_feature_where,
 };
 use rsvelte_typescript_compile::print::print;
 use rsvelte_typescript_compile::strip::Strip;
@@ -34,7 +34,9 @@ fn feature(source_text: &str) -> Option<(Feature, String)> {
 }
 
 fn svelte_feature(source_text: &str) -> Option<(Feature, String)> {
-    found(source_text, first_svelte_runtime_feature)
+    found(source_text, |program| {
+        first_svelte_runtime_feature_where(program, |_| true)
+    })
 }
 
 fn found(
