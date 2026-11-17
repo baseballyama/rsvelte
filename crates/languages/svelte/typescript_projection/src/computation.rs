@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
@@ -52,17 +54,17 @@ impl Artifact for Projected {
 pub struct Printed;
 
 impl Artifact for Printed {
-    type Output = Result<Emitter, Diagnostic>;
+    type Output = Result<Arc<Emitter>, Diagnostic>;
 
     const NAME: &'static str = "svelte.typescript_projection.emit";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let tree = context.get::<Projected>().as_ref().map_err(Clone::clone)?;
-        Ok(crate::emit_named(
+        Ok(Arc::new(crate::emit(
             tree,
             context.source_text(),
             &context.document.path,
-        ))
+        )))
     }
 }
 

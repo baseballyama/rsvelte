@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_document_printer"
-description = "Layout instructions and a printer that fits them to a width"
+description = "Layout instructions in Prettier's doc vocabulary, printed by oxc's printer"
 edition.workspace = true
 version.workspace = true
 license.workspace = true

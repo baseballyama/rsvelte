@@ -4,10 +4,11 @@ use super::escaped_text;
 use crate::lower::builder::Runtime;
 use crate::lower::is_custom_element_node;
 use crate::lower::server::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind, Piece, ServerCompilationContext,
-    capture_event, capture_load_events, event_attribute, is_behaviour, is_directive,
+    Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind, ServerCompilationContext,
+    Template, capture_event, capture_load_events, event_attribute, is_behaviour,
     push_captured_events,
 };
+use crate::lower::template::implicit_attributes;
 
 const ELEMENT_IS_INPUT: u32 = 1 << 2;
 
@@ -22,11 +23,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         identifier: CompilerNodeIdentifier,
         tag: &str,
         list: &'o [Attribute],
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
     ) {
         let (arguments, events) = self.spread_args(identifier, tag, list, false);
         let call = self.b.runtime_some("attributes", arguments);
-        template.push(Piece::Expression(call));
+        template.expression(call);
         push_captured_events(template, &events);
     }
 
@@ -106,16 +107,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             };
             props.push(b.init(&name, value));
         }
-        // Upstream's analysis appends `class=""` to such an element.
-        let has_class = list.iter().any(|a| {
-            !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case("class")
-        });
-        let has_spread = list
-            .iter()
-            .any(|a| matches!(a.value, AttributeValue::Spread(_)));
-        if !has_spread && !has_class && (self.an.scoped[identifier] || !class_directives.is_empty())
-        {
-            props.push(b.init("class", b.string("")));
+        let implicit = implicit_attributes(self.source_text, list, self.an.scoped[identifier]);
+        for (name, empty) in [("class", implicit.class), ("style", implicit.style)] {
+            if empty {
+                props.push(b.init(name, b.string("")));
+            }
         }
         let object = b.object(props);
         let classes = (!class_directives.is_empty()).then(|| {

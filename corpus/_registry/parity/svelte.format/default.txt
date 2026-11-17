@@ -1,4 +1,4 @@
-# svelte.format/default: 34763 match
+# svelte.format/default: 34767 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -263,7 +263,6 @@ svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_era
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/e195cc290681d465.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/ebefb4bf9018c6fd.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/f6621cf789a87120.svelte	mismatch
-svelte/rsvelte-tests-core-1/compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/35efd90757e6abdb.svelte	refused
 svelte/rsvelte-tests-core-1/css_identifier_required/a_class_or_id_needs_a_name/01f7a05eed159967.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_identifier_required/a_class_or_id_needs_a_name/c002d81d849002ce.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_identifier_required/a_class_or_id_needs_a_name/d88e01e136b4aa29.svelte	mismatch
@@ -315,7 +314,6 @@ svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/the_unreachable_
 svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/the_walk_resumes_on_handled_combinators_to_the_right/040cf6cdeaf5a855.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/the_walk_resumes_on_handled_combinators_to_the_right/8bd4e3ace705207b.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_value_scan_4046/a_brace_inside_any_bracket_but_url_still_ends_the_value/68ad7174e520e1fd.svelte	mismatch
-svelte/rsvelte-tests-core-2/directive_attribute_locations/multiline_attribute_comments_keep_exact_locations/d8488d50b4a17def.svelte	refused
 svelte/rsvelte-tests-core-2/import_span_comment_hoist/a_comment_after_the_from_keyword_survives/c8d5e10ffc3d371e.svelte	mismatch
 svelte/rsvelte-tests-core-2/parse_ts_node_estree_fields_4133/a_type_parameter_list_records_its_trailing_comma/64af1300d0378fd2.svelte	mismatch
 svelte/rsvelte-tests-core-2/parse_ts_node_estree_fields_4133/a_type_parameter_list_records_its_trailing_comma/d859cd936e28cb9d.svelte	mismatch
@@ -450,7 +448,6 @@ svelte/svelte-commerce/src/routes/(www)/checkout/payment/payment.svelte	mismatch
 svelte/svelte-commerce/src/routes/(www)/checkout/success/+page.svelte	mismatch
 svelte/svelte-confetti/src/routes/+page.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/integrations/type-info-tests/plugin-issue254-input.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/function-binding-with-comment02-input.svelte	refused
 svelte/svelte-fa/src/routes/components/sections/additional-styling.svelte	mismatch
 svelte/svelte-fa/src/routes/components/sections/installation.svelte	mismatch
 svelte/svelte-gantt/packages/demo/src/routes/+page.svelte	mismatch

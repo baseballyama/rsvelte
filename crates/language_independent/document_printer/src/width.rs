@@ -9,7 +9,7 @@ use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 /// counts as wide 2, and the others 1.
 #[inline]
 #[must_use]
-pub fn string_width(s: &str) -> usize {
+pub(crate) fn string_width(s: &str) -> usize {
     if is_printable_ascii(s) {
         return s.len();
     }
@@ -32,8 +32,8 @@ pub fn string_width(s: &str) -> usize {
 }
 
 /// Whether `s` holds an emoji sequence that oxc's printer, which measures text with
-/// `unicode-width`, measures otherwise than [`string_width`]: each run without spaces that holds
-/// one is compared.
+/// `unicode-width`, measures otherwise than Prettier's `getStringWidth`: each run without spaces
+/// that holds one is compared.
 #[must_use]
 pub fn emoji_measured_otherwise(s: &str) -> bool {
     if is_printable_ascii(s) {
@@ -66,7 +66,7 @@ pub fn emoji_measured_otherwise(s: &str) -> bool {
 }
 
 /// Whether `run`, which holds no whitespace, holds an emoji sequence that oxc's printer measures
-/// otherwise than [`string_width`].
+/// otherwise than Prettier's `getStringWidth`.
 fn run_measured_otherwise(run: &str) -> bool {
     let mut previous = None;
     let emoji = run.char_indices().any(|(i, c)| {

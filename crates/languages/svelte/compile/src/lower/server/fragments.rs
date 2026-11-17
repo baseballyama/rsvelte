@@ -1,11 +1,11 @@
-use oxc_ast::ast::{Expression, Statement};
+use oxc_ast::ast::Statement;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Children;
 
 use super::super::component::{Standalone, standalone};
-use super::{EMPTY_COMMENT, Piece, R, ServerCompilationContext};
+use super::{EMPTY_COMMENT, R, ServerCompilationContext, Template};
 use crate::render_plan::Region;
 
-impl<'o> ServerCompilationContext<'_, 'o> {
+impl<'c, 'o> ServerCompilationContext<'c, 'o> {
     pub(super) fn fragment(&mut self, children: Children) -> R<Vec<Statement<'o>>> {
         self.fragment_without(children, |_| false)
     }
@@ -41,18 +41,18 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let outer = std::mem::take(&mut self.snippets);
         let template = self.fragment_template(region, skipped);
         let snippets = std::mem::replace(&mut self.snippets, outer);
-        Ok((snippets, self.build_template(template?)))
+        Ok((snippets, template?.finish()))
     }
 
     fn fragment_template(
         &mut self,
         cleaned: &Region,
         skipped: fn(&str) -> bool,
-    ) -> R<Vec<Piece<'o>>> {
-        let mut template = Vec::new();
+    ) -> R<Template<'c, 'o>> {
+        let mut template = Template::new(self.b);
         self.hoisted_elements(&cleaned.hoisted, skipped, &mut template)?;
         if cleaned.text_first {
-            template.push(Piece::Text(EMPTY_COMMENT.into()));
+            template.text(EMPTY_COMMENT);
         }
         match standalone(
             self.compiler_syntax_tree,
@@ -68,54 +68,5 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             None => self.process_children(&cleaned.items, &mut template)?,
         }
         Ok(template)
-    }
-
-    /// Upstream `build_template`: adjacent pieces fold into one `$$renderer.push(`…`)`.
-    pub(super) fn build_template(&self, template: Vec<Piece<'o>>) -> Vec<Statement<'o>> {
-        let mut statements = Vec::new();
-        let mut strings: Vec<String> = Vec::new();
-        let mut expressions: Vec<Expression<'o>> = Vec::new();
-        for piece in template {
-            if let Piece::Statement(s) = piece {
-                if !strings.is_empty() {
-                    statements.push(self.push_call(
-                        &std::mem::take(&mut strings),
-                        std::mem::take(&mut expressions),
-                    ));
-                }
-                statements.push(s);
-                continue;
-            }
-            if strings.is_empty() {
-                strings.push(String::new());
-            }
-            match piece {
-                Piece::Text(t) => strings.last_mut().expect("never empty").push_str(&t),
-                Piece::Template(q, e) => {
-                    let mut q = q.into_iter();
-                    strings
-                        .last_mut()
-                        .expect("never empty")
-                        .push_str(&q.next().expect("at least one quasi"));
-                    strings.extend(q);
-                    expressions.extend(e);
-                }
-                Piece::Expression(e) => {
-                    expressions.push(e);
-                    strings.push(String::new());
-                }
-                Piece::Statement(_) => unreachable!("handled above"),
-            }
-        }
-        if !strings.is_empty() {
-            statements.push(self.push_call(&strings, expressions));
-        }
-        statements
-    }
-
-    fn push_call(&self, strings: &[String], expressions: Vec<Expression<'o>>) -> Statement<'o> {
-        let b = self.b;
-        let template = b.template(strings.iter().map(String::as_str), expressions);
-        b.statement(b.call(b.member(b.id("$$renderer"), "push"), [template]))
     }
 }

@@ -36,7 +36,7 @@ pass	printer/await-then-destruct-default.html
 pass	printer/await-then-destruct-object-reassignment.html
 pass	printer/await-then-destruct-object.html
 pass	printer/await-then-destruct-rest.html
-refused	printer/bind-sequence-leading-comment.html	comments in the template's JavaScript
+pass	printer/bind-sequence-leading-comment.html
 pass	printer/binding-get-set.html
 pass	printer/binding-shorthand.html
 pass	printer/binding.html

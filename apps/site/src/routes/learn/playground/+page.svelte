@@ -22,9 +22,7 @@
 	<nav aria-label="関連する解説">
 		<a href="/learn/kernel#overview">カーネルとプラグインの全体図</a><a
 			href="/learn/kernel/pipeline">パイプラインの仕組み</a
-		><a href="/learn/kernel/database">解析結果の共有</a><a href="/learn/playground/doc"
-			>整形の判断を試す</a
-		>
+		><a href="/learn/kernel/database">解析結果の共有</a>
 	</nav>
 </footer>
 

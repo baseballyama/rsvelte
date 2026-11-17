@@ -52,7 +52,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 pub use crate::input::{CompileInput, Target};
 pub(crate) use crate::markup::escape_markup;
 use crate::render_plan::RenderPlan;
-pub use crate::render_plan::{Cleaned, Item, Parent, clean_nodes};
+pub use crate::render_plan::{Cleaned, Item, Parent, Text, clean_nodes, template_end};
 
 /// # Errors
 /// Returns the first diagnostic from validation or target lowering.
@@ -227,13 +227,16 @@ pub(crate) fn validate_unit(
     {
         return Err(error);
     }
-    validation::check_awaits(input)?;
+    if res.awaits() {
+        validation::check_awaits(input)?;
+    }
     let special::SvelteOptions {
         custom_element,
         stylesheet_injected,
     } = special::validate(input)?;
+    let typescript = unit == Unit::Component && validation::has_typescript_feature(input);
     // Upstream erases the types right after it parses, before it analyzes.
-    if unit == Unit::Component {
+    if typescript {
         validation::check_typescript(input)?;
     }
     let names = stores::Names::new(input, res);
@@ -246,7 +249,7 @@ pub(crate) fn validate_unit(
     snippets::check_exports(input, res, &hoistable)?;
     const_cycles::check(input, res)?;
     // A refusal waits for the scripts' errors, which the rune checks raise only later.
-    let refused = (if unit == Unit::Component {
+    let refused = (if typescript {
         validation::refuse_typescript(input)
     } else {
         Ok(())

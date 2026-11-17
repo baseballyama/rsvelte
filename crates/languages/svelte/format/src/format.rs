@@ -187,10 +187,7 @@ fn print(
     // Room for output a quarter longer than its source, so the buffer seldom grows.
     embedding
         .print(&docs, root, text.len() + text.len() / 4)
-        .map_err(|unprinted| match unprinted {
-            Unprinted::FlatOnly => Unsupported::nowhere("a layout only checked flat"),
-            Unprinted::Rejected => Unsupported::nowhere("a document oxc's printer rejects"),
-        })
+        .map_err(|Unprinted| Unsupported::nowhere("a document oxc's printer rejects"))
 }
 
 /// The options oxc's printer and formatters share.

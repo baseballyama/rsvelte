@@ -26,7 +26,7 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 	},
 	'document_printer/width': {
 		title: '文字の表示幅',
-		summary: '文字が画面で占める幅を、Unicode の幅の規則で計算します。',
+		summary: 'Prettier と oxc で表示幅の数え方が違う絵文字の並びを見つけます。',
 	},
 	'kernel/source/document': {
 		title: '文書',
@@ -143,7 +143,7 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 	},
 	'document_printer/lib': {
 		title: 'コードの整形',
-		summary: '改行と字下げの指示を組み合わせ、指定した幅に合わせて文字列を作ります。',
+		summary: '改行と字下げの指示を組み合わせ、oxc のプリンタで指定した幅の文字列にします。',
 	},
 	'kernel/output/emitter': {
 		title: 'コードの出力と位置の対応',

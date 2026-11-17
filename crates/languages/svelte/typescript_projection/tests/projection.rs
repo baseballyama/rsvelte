@@ -15,7 +15,7 @@ fn project(source: &str) -> (SyntaxTree, rsvelte_kernel::output::emitter::Emitte
         before,
         "lowering must leave the source AST unchanged"
     );
-    let output = rsvelte_svelte_typescript_projection::emit(&tree, source);
+    let output = rsvelte_svelte_typescript_projection::emit(&tree, source, "");
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, &output.out, SourceType::ts()).parse();
     assert!(
@@ -574,7 +574,7 @@ fn a_generics_list_that_does_not_parse_is_copied_with_a_plain_export() {
     let tree = rsvelte_svelte_typescript_projection::lower_alone(&component, source, "App.svelte")
         .expect("supported template");
     // The copy keeps the list's own errors, so the output is not valid TypeScript.
-    let output = rsvelte_svelte_typescript_projection::emit(&tree, source);
+    let output = rsvelte_svelte_typescript_projection::emit(&tree, source, "");
     let at = output
         .out
         .find("function $$render<extends string>() {")

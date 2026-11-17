@@ -266,9 +266,15 @@ fn strip_function(ir: &mut ArenaVec<'_, FormatElement<'_>>) -> bool {
 /// The plugin's `removeParentheses` on a sequence oxc prints in parentheses (`(a, b)`).
 fn remove_parentheses(ir: &mut ArenaVec<'_, FormatElement<'_>>) {
     let token = |e: &FormatElement<'_>, s: &str| matches!(e, FormatElement::Token { text } if text.as_str() == s);
-    let start = ir
-        .iter()
-        .position(|e| !matches!(e, FormatElement::Tag(t) if t.is_start()));
+    // The comments before the sequence print as texts and lines ahead of its `(`.
+    let start = ir.iter().position(|e| match e {
+        FormatElement::Tag(_)
+        | FormatElement::Text { .. }
+        | FormatElement::Line(_)
+        | FormatElement::ExpandParent => false,
+        FormatElement::Token { text } => !text.as_str().trim().is_empty(),
+        _ => true,
+    });
     let end = ir
         .iter()
         .rposition(|e| !matches!(e, FormatElement::Tag(t) if t.is_end()));

@@ -109,15 +109,6 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     }
 }
 
-/// A class value with the stylesheet's hash, trimmed as upstream's `.trim()` does; the hash has
-/// no whitespace to trim.
-fn scoped_class(value: &str, hash: &str) -> String {
-    match value.trim_start_matches(is_ecmascript_whitespace) {
-        "" => hash.to_owned(),
-        value => format!("{value} {hash}"),
-    }
-}
-
 fn attribute_text(data: &str, trim: bool) -> String {
     if trim {
         collapse_ws(data)

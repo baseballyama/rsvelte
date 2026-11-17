@@ -214,6 +214,12 @@ fn state_invalid_placement<T>(rune: &str, span: Span) -> Result<T, Diagnostic> {
     )
 }
 
+/// Whether the scripts hold any feature [`check_typescript`] or [`refuse_typescript`] looks for,
+/// so that a component without one is walked once instead of once for each.
+pub(super) fn has_typescript_feature(input: &CompileInput<'_>) -> bool {
+    first_typescript_feature(input, |_| true).is_err()
+}
+
 /// Upstream's refusal of a TypeScript feature with a runtime value, which it raises as it erases
 /// the types, before it analyzes.
 pub(super) fn check_typescript(input: &CompileInput<'_>) -> Result<(), Diagnostic> {

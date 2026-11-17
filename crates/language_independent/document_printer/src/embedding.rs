@@ -3,12 +3,11 @@
 
 use oxc_allocator::{Allocator, ArenaVec};
 use oxc_formatter_core::{
-    CoreFormatOptions, Document, FormatContext, FormatElement, FormatElements, FormatSession,
-    FormatState, Formatter, InputKind, LineEnding, LineMode, PrintError, PrintWidth,
-    PrinterOptions,
+    CoreFormatOptions, Document, FormatContext, FormatElement, FormatSession, FormatState,
+    Formatter, InputKind, LineEnding, LineMode, PrintError, PrintWidth, PrinterOptions,
 };
 
-use crate::{LayoutInstructionIdentifier, LayoutInstructions, Unlowered};
+use crate::{LayoutInstructionIdentifier, LayoutInstructions};
 
 #[cfg(test)]
 mod tests;
@@ -29,14 +28,9 @@ impl std::fmt::Debug for Embedding<'_> {
     }
 }
 
-/// Why a document did not print.
+/// oxc's printer rejected a document's elements.
 #[derive(Debug, PartialEq, Eq)]
-pub enum Unprinted {
-    /// It holds a layout only this crate's printer prints: a flat-only one.
-    FlatOnly,
-    /// oxc's printer rejected the elements.
-    Rejected,
-}
+pub struct Unprinted;
 
 /// oxc's context for the elements a document writes itself: only the options.
 struct Context {
@@ -99,10 +93,9 @@ impl<'x> Embedding<'x> {
         mut layout: ArenaVec<'x, FormatElement<'x>>,
     ) -> LayoutInstructionIdentifier {
         strip_trailing_hard_lines(&mut layout);
-        let breaks = layout.iter().any(FormatElements::will_break);
         let index = self.layouts.len() as u32;
         self.layouts.push(layout.into_arena_slice());
-        docs.embedded(index, breaks)
+        docs.embedded(index)
     }
 
     /// Prints the document `root` of `docs` with every `\n` as a line feed. `source_len` is the
@@ -110,7 +103,7 @@ impl<'x> Embedding<'x> {
     ///
     /// # Errors
     ///
-    /// [`Unprinted`] when the document holds a flat-only layout or oxc's printer rejects it.
+    /// [`Unprinted`] when oxc's printer rejects the document.
     pub fn print(
         self,
         docs: &LayoutInstructions,
@@ -121,8 +114,7 @@ impl<'x> Embedding<'x> {
         let context = Context { options };
         let mut state = FormatState::new_with_session(context, self.session);
         let mut formatter = Formatter::new(&mut state);
-        docs.lower(root, &self.layouts, &mut formatter)
-            .map_err(|Unlowered| Unprinted::FlatOnly)?;
+        docs.lower(root, &self.layouts, &mut formatter);
         let elements = formatter.into_vec();
         let print = PrinterOptions::default()
             .with_print_width(PrintWidth::new(u32::from(options.line_width.value())))
@@ -131,7 +123,7 @@ impl<'x> Embedding<'x> {
             .with_line_ending(LineEnding::Lf);
         Ok(Document::new(elements, Vec::new())
             .print(source_len, print)
-            .map_err(|PrintError::InvalidDocument(_)| Unprinted::Rejected)?
+            .map_err(|PrintError::InvalidDocument(_)| Unprinted)?
             .into_code())
     }
 }

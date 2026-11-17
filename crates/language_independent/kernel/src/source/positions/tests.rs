@@ -138,6 +138,8 @@ fn a_cursor_agrees_with_the_index_on_any_order_of_offsets() {
         "\u{2028}",
         "x\u{2029}",
         "    ",
+        "abcdefghijklmnopqrstuvwxyz",
+        "\r\r\n\n",
     ];
     let mut state = 0x9E37_79B9_7F4A_7C15_u64;
     let mut next = |n: u64| {
@@ -147,31 +149,36 @@ fn a_cursor_agrees_with_the_index_on_any_order_of_offsets() {
         state % n
     };
     for _ in 0..200 {
-        let text: String = (0..next(400)).map(|_| pieces[next(10) as usize]).collect();
+        let text: String = (0..next(400)).map(|_| pieces[next(12) as usize]).collect();
         let len = text.len() as u64;
-        for breaks in [LineBreaks::Newline, LineBreaks::Ecmascript] {
-            let index = LineIndex::with_breaks(&text, breaks);
-            for given in [Some(&index), None] {
-                let mut cursor = LineCursor::new(&text, breaks, given);
-                let mut at = 0_u64;
-                for _ in 0..300 {
-                    // Mostly small steps forward, sometimes a jump anywhere, past the end included.
-                    at = if next(8) == 0 {
-                        next(len + 2)
-                    } else {
-                        at + next(6)
-                    };
-                    let at = at as u32;
-                    let (want, got) = (index.line_column(at), cursor.line_column(at));
-                    assert_eq!(
-                        (got.line, got.column, got.character),
-                        (want.line, want.column, want.character),
-                        "{text:?} {breaks:?} at {at}"
-                    );
-                }
+        let index = LineIndex::new(&text);
+        for given in [Some(&index), None] {
+            let mut cursor = LineCursor::new(&text, given);
+            let mut at = 0_u64;
+            for _ in 0..300 {
+                // Mostly small steps forward, sometimes a jump anywhere, past the end included.
+                at = if next(8) == 0 {
+                    next(len + 2)
+                } else {
+                    at + next(6)
+                };
+                let at = at as u32;
+                let want = index.line_column(at);
+                assert_eq!(
+                    cursor.line_column(at),
+                    (want.line, want.column),
+                    "{text:?} at {at}"
+                );
             }
         }
     }
+}
+
+#[test]
+#[should_panic(expected = "a line cursor reads lines that end at `\\n`")]
+fn a_cursor_refuses_an_index_of_other_line_breaks() {
+    let index = LineIndex::with_breaks("a\rb", LineBreaks::Ecmascript);
+    let _cursor = LineCursor::new("a\rb", Some(&index));
 }
 
 /// The line starts and long breaks of `text`, found by reading every byte.

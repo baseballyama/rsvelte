@@ -7,7 +7,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_check::{
-    Check, Documents, TypeScriptDocument, TypeScriptEnv, TypeScriptView,
+    Check, CheckedDocument, Documents, TypeScriptDocument, TypeScriptEnv, TypeScriptView,
 };
 use rsvelte_vue_semantic::Resolved;
 use rsvelte_vue_syntax::Parsed;
@@ -101,8 +101,8 @@ fn typescript_view(
                     Span::new(0, 0),
                 )
             })?;
-            Ok(TypeScriptDocument::Checked {
-                projection,
+            Ok(TypeScriptDocument::Checked(Arc::new(CheckedDocument {
+                projection: Arc::new(projection),
                 map_back: Emitter::lookup_overlap,
                 env: Arc::clone(env),
                 extension: ".ts",
@@ -110,7 +110,7 @@ fn typescript_view(
                 store_reads: Vec::new(),
                 hidden: Vec::new(),
                 drops_unmapped: false,
-            })
+            })))
         }
     }
 }

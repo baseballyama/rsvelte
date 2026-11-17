@@ -1,5 +1,17 @@
 use super::*;
 
+/// A request with no documents.
+#[cfg(unix)]
+fn empty(env: &TypeScriptEnv) -> CheckRequest<'_> {
+    CheckRequest {
+        documents: Vec::new(),
+        files: Vec::new(),
+        mapped_files: Vec::new(),
+        env,
+        stand_ins: Vec::new(),
+    }
+}
+
 /// `sh` stands in for a type checker: `$@` holds what rsvelte passed after the user's arguments.
 #[cfg(unix)]
 fn shell(script: &str, own: &[&str]) -> Tsc {
@@ -19,7 +31,7 @@ fn shell(script: &str, own: &[&str]) -> Tsc {
 #[test]
 fn the_type_checker_gets_its_own_arguments_before_the_contract() {
     let tsc = shell(r#"printf '%s|' "$@"; exit 1"#, &["launcher.js"]);
-    let error = tsc.check(&CheckRequest::default()).unwrap_err();
+    let error = tsc.check(&empty(&TypeScriptEnv::default())).unwrap_err();
     assert!(
         error.contains("launcher.js|--api|--cwd|") && error.contains("|--runExternalCode|"),
         "{error}"
@@ -33,7 +45,7 @@ fn a_type_checker_without_the_api_names_the_contract() {
         "echo \"error TS5023: Unknown compiler option '--api'.\"; exit 1",
         &[],
     );
-    let error = tsc.check(&CheckRequest::default()).unwrap_err();
+    let error = tsc.check(&empty(&TypeScriptEnv::default())).unwrap_err();
     assert!(
         error.contains(CONTRACT) && error.contains("TS5023"),
         "{error}"

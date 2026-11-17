@@ -6,7 +6,7 @@ use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::{is_typescript, matches};
 
-use crate::{TypeScriptDocument, TypeScriptEnv, TypeScriptView};
+use crate::{CheckedDocument, TypeScriptDocument, TypeScriptEnv, TypeScriptView};
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "typescript.check",
@@ -25,13 +25,13 @@ pub fn register(registry: &mut Registry) {
         if !is_typescript(context.document) {
             return Ok(TypeScriptDocument::Unchecked);
         }
-        let mut projection = Emitter::new();
+        let mut projection = Emitter::default();
         projection.copy(
             context.source_text(),
             Span::new(0, context.source_text().len() as u32),
         );
-        Ok(TypeScriptDocument::Checked {
-            projection,
+        Ok(TypeScriptDocument::Checked(Arc::new(CheckedDocument {
+            projection: Arc::new(projection),
             map_back: Emitter::lookup_overlap,
             env: Arc::clone(&env),
             extension: ".ts",
@@ -39,6 +39,6 @@ pub fn register(registry: &mut Registry) {
             store_reads: Vec::new(),
             hidden: Vec::new(),
             drops_unmapped: false,
-        })
+        })))
     });
 }
