@@ -60,17 +60,7 @@ impl Tsc {
             return Err("content-mapped inputs require a mapper executable".into());
         }
         // Only what the mapper process reads is on the disk: its package and the projections.
-        let dir = std::env::temp_dir().join(format!(
-            "rsvelte-tsc-{}-{}",
-            std::process::id(),
-            RUN.fetch_add(1, Ordering::Relaxed)
-        ));
-        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        let dir = std::fs::canonicalize(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        let result = self.check_with(&dir, req);
-        // Best effort: a leftover temporary directory does not affect the result.
-        drop(std::fs::remove_dir_all(&dir));
-        result
+        in_temporary_directory("rsvelte-tsc", |dir| self.check_with(dir, req))
     }
 
     /// The tsconfig, and where a document with a relative path is: beside the tsconfig, else in
@@ -220,6 +210,27 @@ impl Tsc {
             })
             .collect()
     }
+}
+
+/// Runs `work` in a new temporary directory, given by its real path, as the checker names files,
+/// and removes the directory after.
+fn in_temporary_directory<T>(
+    prefix: &str,
+    work: impl FnOnce(&Path) -> Result<T, String>,
+) -> Result<T, String> {
+    let dir = std::env::temp_dir().join(format!(
+        "{prefix}-{}-{}",
+        std::process::id(),
+        RUN.fetch_add(1, Ordering::Relaxed)
+    ));
+    let io = |e: std::io::Error| format!("{}: {e}", dir.display());
+    std::fs::create_dir_all(&dir).map_err(io)?;
+    let result = std::fs::canonicalize(&dir)
+        .map_err(io)
+        .and_then(|real| work(&real));
+    // Best effort: a leftover temporary directory does not affect the result.
+    drop(std::fs::remove_dir_all(&dir));
+    result
 }
 
 /// Each process parses the whole program again, so a few documents are not worth one more.

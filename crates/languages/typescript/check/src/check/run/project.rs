@@ -4,12 +4,11 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::atomic::Ordering;
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use serde::Deserialize;
 
-use super::RUN;
+use super::in_temporary_directory;
 use super::mapped::{normalized, package_json};
 use crate::check::{MappedLanguage, Tsc};
 
@@ -36,15 +35,9 @@ impl Tsc {
             .ok_or("a project check needs the `tsconfig` option of `typescript.check`")?;
         let config =
             std::fs::canonicalize(config).map_err(|e| format!("{}: {e}", config.display()))?;
-        let dir = std::env::temp_dir().join(format!(
-            "rsvelte-project-{}-{}",
-            std::process::id(),
-            RUN.fetch_add(1, Ordering::Relaxed)
-        ));
-        let result = shown_files(self, &config, languages, &dir);
-        // Best effort: a leftover temporary directory does not affect the result.
-        drop(std::fs::remove_dir_all(&dir));
-        result
+        in_temporary_directory("rsvelte-project", |dir| {
+            shown_files(self, &config, languages, dir)
+        })
     }
 }
 
@@ -55,9 +48,6 @@ fn shown_files(
     dir: &Path,
 ) -> Result<Vec<PathBuf>, String> {
     let io = |path: &Path, e: std::io::Error| format!("{}: {e}", path.display());
-    std::fs::create_dir_all(dir).map_err(|e| io(dir, e))?;
-    // The checker names files from the real path, such as `/private/var` for `/var`.
-    let dir = &std::fs::canonicalize(dir).map_err(|e| io(dir, e))?;
     let mut overlay = StructuredDataWriter::new(false);
     overlay
         .begin_object()

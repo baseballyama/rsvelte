@@ -106,32 +106,27 @@ impl CheckRequest<'_> {
 pub(super) fn store_json(req: &CheckRequest<'_>, root: &Path, paths: &[PathBuf]) -> String {
     let mut output = StructuredDataWriter::new(false);
     output.begin_object().key("files").begin_object();
+    let mut entry = |path: &Path, [source, text, extension]: [&str; 3], mappings, atoms| {
+        output
+            .key(&path.to_string_lossy())
+            .begin_object()
+            .key("source")
+            .write_string(source)
+            .key("text")
+            .write_string(text)
+            .key("extension")
+            .write_string(extension);
+        rsvelte_typescript_content_mapper::write_mappings(mappings, atoms, &mut output);
+        output.end_object();
+    };
     for ((file, text), path) in req.mapped_files.iter().zip(&req.files).zip(paths) {
         let Some(file) = file else { continue };
-        output
-            .key(&path.to_string_lossy())
-            .begin_object()
-            .key("source")
-            .write_string(&file.source)
-            .key("text")
-            .write_string(text)
-            .key("extension")
-            .write_string(file.generated_extension);
-        rsvelte_typescript_content_mapper::write_mappings(&file.mappings, &file.atoms, &mut output);
-        output.end_object();
+        let strings = [file.source.as_str(), text, file.generated_extension];
+        entry(path, strings, &file.mappings, &file.atoms);
     }
+    // A stand-in reads as the script it is.
     for (path, text) in req.stand_ins(root) {
-        output
-            .key(&path.to_string_lossy())
-            .begin_object()
-            .key("source")
-            .write_string(text)
-            .key("text")
-            .write_string(text)
-            .key("extension")
-            .write_string(".ts");
-        rsvelte_typescript_content_mapper::write_mappings(&[], &[], &mut output);
-        output.end_object();
+        entry(&path, [text, text, ".ts"], &[], &[]);
     }
     output.end_object().end_object();
     output.finish()
