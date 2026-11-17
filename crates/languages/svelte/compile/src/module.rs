@@ -106,13 +106,7 @@ pub(crate) fn compiled(
         found.compiled().cloned().collect()
     };
     let _p = measurement::phase("js.print");
-    let javascript = lines.map_or_else(
-        || Emitter {
-            out: print::print(&module),
-            ..Emitter::default()
-        },
-        |lines| print::print_mapped(&module, lines),
-    );
+    let javascript = print::emit(&module, lines);
     Ok(Module {
         javascript,
         warnings,
