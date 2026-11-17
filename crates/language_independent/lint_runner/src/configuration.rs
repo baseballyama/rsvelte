@@ -64,61 +64,6 @@ impl Visitor<'_> for LevelVisitor {
     }
 }
 
-/// `ESLint`'s `RuleEntry`: a level alone, or `[level]`, or `[level, options]`.
-#[derive(Debug)]
-pub struct RuleEntry<O> {
-    pub level: Level,
-    pub options: Option<O>,
-}
-
-impl<'de, O: Deserialize<'de>> Deserialize<'de> for RuleEntry<O> {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        deserializer.deserialize_any(EntryVisitor(PhantomData))
-    }
-}
-
-struct EntryVisitor<O>(PhantomData<O>);
-
-impl<O> EntryVisitor<O> {
-    const fn level(level: Level) -> RuleEntry<O> {
-        RuleEntry {
-            level,
-            options: None,
-        }
-    }
-}
-
-impl<'de, O: Deserialize<'de>> Visitor<'de> for EntryVisitor<O> {
-    type Value = RuleEntry<O>;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{LEVELS}, or an array of a level and options")
-    }
-
-    fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
-        Level::deserialize(v.into_deserializer()).map(Self::level)
-    }
-
-    fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value, E> {
-        Level::deserialize(v.into_deserializer()).map(Self::level)
-    }
-
-    fn visit_i64<E: de::Error>(self, v: i64) -> Result<Self::Value, E> {
-        Level::deserialize(v.into_deserializer()).map(Self::level)
-    }
-
-    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-        let level = seq
-            .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
-        let options = seq.next_element()?;
-        if seq.next_element::<de::IgnoredAny>()?.is_some() {
-            return Err(de::Error::invalid_length(3, &self));
-        }
-        Ok(RuleEntry { level, options })
-    }
-}
-
 /// `ESLint`'s `RuleEntry` for a rule with any number of options: a level alone, or `[level,
 /// ...options]`.
 #[derive(Debug)]
