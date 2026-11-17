@@ -28,13 +28,10 @@ impl SvelteRule for NoUselessChildrenSnippet {
                     span,
                     ..
                 } = *component.node(child)
-                    && parameters.is_none_or(|parameters| {
-                        component
-                            .javascript
-                            .get_parameters(parameters)
-                            .parameters_count()
-                            == 0
-                    })
+                    && (component.javascript)
+                        .get_parameters(parameters)
+                        .parameters_count()
+                        == 0
                     && nodes::is_named(component.javascript.get_expression(name), "children")
                 {
                     reporter.report(Report::range(

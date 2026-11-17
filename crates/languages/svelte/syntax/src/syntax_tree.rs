@@ -130,8 +130,7 @@ pub enum TemplateNode {
         type_parameters: Option<Span>,
         /// The type parameters of `type_parameters`, when they parse.
         generics: Option<TypeParametersIdentifier>,
-        /// Absent without parentheses (`{#snippet name}`).
-        parameters: Option<ParametersIdentifier>,
+        parameters: ParametersIdentifier,
         body: Range,
         span: Span,
     },

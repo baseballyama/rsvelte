@@ -45,7 +45,7 @@ impl Builder<'_> {
             } => {
                 let javascript = &self.component.javascript;
                 let name = javascript.get_expression(name).span();
-                let parameters = parameters.map(|p| javascript.get_parameters(p).span);
+                let parameters = Some(javascript.get_parameters(parameters).span);
                 let name = self.source(name, None);
                 let type_parameters = type_parameters.map(|span| {
                     self.tree.push(Node::Source(SourceExpression {

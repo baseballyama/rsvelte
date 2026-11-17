@@ -22,16 +22,15 @@ impl<'t> Template<'_, '_, 't> {
             .snippet(identifier)
             .expect("a snippet name has a symbol");
         let name = self.b.id(&self.snippet_names[&symbol]);
-        let parameters = match snippet.parameters {
-            Some(parameters) => {
-                let parameters = self.i.component.javascript.get_parameters(parameters);
-                if parameters.rest.is_some() {
-                    return Err(unsupported("a snippet with a rest parameter", at));
-                }
-                Some(parameters.items.iter().map(|p| self.parameter(p)).collect())
-            }
-            None => None,
-        };
+        let parameters = self
+            .i
+            .component
+            .javascript
+            .get_parameters(snippet.parameters);
+        if parameters.rest.is_some() {
+            return Err(unsupported("a snippet with a rest parameter", at));
+        }
+        let parameters = Some(parameters.items.iter().map(|p| self.parameter(p)).collect());
         self.snippet_body(
             name,
             parameters,

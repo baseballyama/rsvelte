@@ -208,9 +208,6 @@ impl Printer<'_, '_, '_> {
         // From the name to the `)`, the text the plugin formats as `function name(…) {}`.
         let name_start = self.javascript_span(name).start_offset;
         // The parameters' span holds their parentheses.
-        let Some(parameters) = parameters else {
-            return Err(Unsupported::at("a snippet without parameters' `)`", span));
-        };
         let head_end = c.javascript.get_parameters(parameters).span.end;
         let signature = self.snippet_signature(Span::new(name_start, head_end))?;
         let open = self.lit("{#snippet ");

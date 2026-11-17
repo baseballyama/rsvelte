@@ -254,9 +254,7 @@ fn node(
             if let Some(generics) = s.generics {
                 roots.type_parameters(generics);
             }
-            if let Some(parameters) = s.parameters {
-                roots.parameters(parameters);
-            }
+            roots.parameters(s.parameters);
             walk(compiler_syntax_tree, s.body, roots);
             roots.leave();
         }
