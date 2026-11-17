@@ -1,19 +1,10 @@
 use oxc_ast::ast::{Expression, IdentifierName};
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, is_valid_identifier};
 
 use super::identifier::identifier_len;
 use super::{ParseResult, Parser, javascript_failure};
 use crate::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part};
-
-/// Upstream `regex_valid_identifier`, which decides how `parse_directive_name` reads a member.
-fn is_valid_identifier(name: &str) -> bool {
-    let mut chars = name.chars();
-    chars
-        .next()
-        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
-        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
-}
 
 /// How many parentheses the text between a `{` and its expression opens outside a comment.
 fn parentheses_before(text: &str) -> u8 {

@@ -378,5 +378,16 @@ impl Tree {
 mod computation;
 pub use computation::{PLUGIN, Parsed, Script, is_jsx, is_typescript, matches, register};
 
+/// Upstream's `regex_is_valid_identifier` and `regex_valid_identifier`, both
+/// `/^[a-zA-Z_$][a-zA-Z_$0-9]*$/`: an ASCII-only name that can follow a `.`.
+#[must_use]
+pub fn is_valid_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    chars
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+}
+
 #[cfg(test)]
 mod tests;
