@@ -203,31 +203,12 @@
 <div class="prose-learn">
 	<H2 id="width" />
 	<p>
-		行が幅に収まるかは、文字の表示幅で決まります。oxc のプリンタは幅を <code>unicode-width</code>
-		で数え、Prettier は <code>getStringWidth</code>
-		で数えます。ほとんどの文字では同じ幅です。違うのは、ゼロ幅接合子（U+200D、絵文字どうしをつなぐ見えない文字）でつないだ絵文字や、肌の色を指定した絵文字の並びです。Prettier
-		はこうした並びを一文字（幅 2）と数えます。
-	</p>
-	<p>
-		<code>emoji_measured_otherwise</code>
-		は、二つの数え方で幅が変わる並びを探します。見つかった文書は、Svelte と Vue の整形が断ります。幅が違うと、Prettier
-		と違う位置で改行することがあるからです。
+		行が幅に収まるかは、文字の表示幅で決まります。幅は oxc のプリンタが <code>unicode-width</code>
+		で数えます。Prettier は <code>getStringWidth</code>
+		で数えるので、ゼロ幅接合子（U+200D）でつないだ絵文字の並びなどでは幅が違います。改行の位置が変わることもあります。そこでは
+		oxc の整形の方針（<code>FORMATTER_POLICY.md</code> の Text width）に従います。
 	</p>
 </div>
-
-<Code item={data.code.emojiMeasuredOtherwise} />
-
-<div class="prose-learn">
-	<p>
-		Prettier 側の幅は <code>string_width</code> が数えます。幅が 2 の文字の表（<code>WIDE</code
-		>）は、Prettier 3.9.10
-		で全スカラー値を測って作りました。表にない文字は、制御文字、結合文字、異体字セレクタが 0、残りが
-		1 です。キーキャップ、国旗、異体字セレクタ 16 で絵文字にした文字は、並び全体で 2
-		です。テストは、各文字列の幅を Prettier 3.9.10 で測った値と比べます。
-	</p>
-</div>
-
-<Code item={data.code.stringWidth} />
 
 <div class="prose-learn">
 	<H2 id="mutation" />

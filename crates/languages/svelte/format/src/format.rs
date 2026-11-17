@@ -89,11 +89,6 @@ pub(crate) fn format(
             },
         );
     }
-    if rsvelte_document_printer::emoji_measured_otherwise(text) {
-        return Err(Unsupported::nowhere(
-            "an emoji sequence oxc's printer measures otherwise than Prettier",
-        ));
-    }
     let unparsed_scripts = unparsed::unparsed_scripts(c, source_text, rejected)?;
     awaits::refuse_misread_awaits(c, source_text, &unparsed_scripts)?;
 

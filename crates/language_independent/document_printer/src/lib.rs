@@ -13,11 +13,9 @@ mod embedding;
 mod inspect;
 mod lower;
 mod rewrite;
-mod width;
 
 pub use embedding::Embedding;
 use rsvelte_kernel::performance::buffer_pool;
-pub use width::emoji_measured_otherwise;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct LayoutInstructionIdentifier(u32);

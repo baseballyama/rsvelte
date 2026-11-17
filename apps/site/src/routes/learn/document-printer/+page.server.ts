@@ -15,8 +15,6 @@ export const load = () => ({
 		hardlineTest: 'document_printer/tests/hardline_breaks_enclosing_groups',
 		keep: 'document_printer/embedding/Embedding::keep',
 		print: 'document_printer/embedding/Embedding::print',
-		emojiMeasuredOtherwise: 'document_printer/width/emoji_measured_otherwise',
-		stringWidth: 'document_printer/width/string_width',
 		setParts: 'document_printer/rewrite/LayoutInstructions::set_parts',
 	}),
 });

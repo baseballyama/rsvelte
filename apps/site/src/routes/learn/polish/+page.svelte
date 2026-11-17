@@ -336,13 +336,11 @@
 		'P8',
 		'絵文字やゼロ幅の文字の幅を数え違えた',
 		'fixed',
-		'document_printer · emoji_measured_otherwise',
+		'oxc_formatter_core · text_width',
 	)}
 	<p>
 		以前は、絵文字、異体字セレクタ、ゼロ幅の文字の幅を数え違えていました。今は oxc
-		のプリンタが幅を数えます。数え方が Prettier と違う絵文字の並びは、<code>string_width</code>
-		と比べて見つけます。<code>string_width</code> は Prettier 3.9.10 の
-		<code>getStringWidth</code> と同じに数えます。その並びを含む文書は、整形を断ります（<a
+		のプリンタが幅を数えます。数え方が Prettier と違う絵文字の並びも、oxc の数え方に従います（<a
 			href="/learn/document-printer#width">09 章</a
 		>）。
 	</p>

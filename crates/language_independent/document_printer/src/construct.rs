@@ -2,7 +2,6 @@
 
 use std::num::NonZeroU32;
 
-use crate::width::is_printable_ascii;
 use crate::{GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions, LineKind, Node};
 
 impl LayoutInstructions {
@@ -184,4 +183,12 @@ impl LayoutInstructions {
         }
         out
     }
+}
+
+/// Every byte is in `' '..='\x7F'`, so the text is its own static node.
+#[inline]
+fn is_printable_ascii(s: &str) -> bool {
+    // No early exit, so the loop vectorizes; non-ASCII text is rare.
+    s.bytes()
+        .fold(true, |ascii, b| ascii & (b.wrapping_sub(b' ') < 96))
 }
