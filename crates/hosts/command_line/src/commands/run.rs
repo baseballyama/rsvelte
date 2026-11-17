@@ -94,9 +94,9 @@ pub(crate) fn run_files(reg: &Registry, files: &[&str], tasks: &[&str]) -> ExitC
             Ok(t) => t,
             Err(e) => return usage(&format!("{file}: {e}")),
         };
-        match reg.document(*file, text) {
+        match files::document(reg, (*file).into(), text) {
             Ok(document) => documents.push(document),
-            Err(e) => return usage(&format!("{file}: {e:?}")),
+            Err(e) => return usage(&e),
         }
     }
     let results = match files::run(reg, &documents, tasks) {
