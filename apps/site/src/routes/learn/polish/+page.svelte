@@ -327,7 +327,9 @@
 	<p>
 		最初から改行すると決めた group（<code>group_broken</code>。Prettier の
 		<code>shouldBreak</code>）が、親の group を改行させていませんでした。そのため Prettier
-		と違う出力になっていました（<a href="/learn/document-printer#lower">09 章</a>）。
+		と違う出力になっていました（<a href="/learn/document-printer#lower">09 章</a
+		>）。その後、どの整形器も
+		<code>group_broken</code> を使わなくなったので、関数ごと消しました。
 	</p>
 
 	{@render item(

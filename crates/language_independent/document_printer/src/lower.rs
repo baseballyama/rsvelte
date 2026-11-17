@@ -1,7 +1,7 @@
 //! Lowers a document to `oxc_formatter_core`'s elements, so that oxc's printer prints it together
 //! with the layouts oxc's own formatters build for the languages embedded in it.
 
-use oxc_formatter_core::tag::{Condition, DedentMode, Group, GroupMode, Tag};
+use oxc_formatter_core::tag::{Condition, DedentMode, Group, Tag};
 use oxc_formatter_core::{
     Format, FormatContext, FormatElement, FormatOptions, Formatter, GroupId, IndentWidth, LineMode,
     PrintMode, builders,
@@ -85,16 +85,10 @@ impl<'a> Lowering<'_, '_, 'a> {
             Node::Group {
                 start,
                 len,
-                breaks_line,
                 identifier,
             } => {
                 let id = identifier.map(|g| self.group(g, f));
-                let mode = if breaks_line {
-                    GroupMode::Expand
-                } else {
-                    GroupMode::Flat
-                };
-                let group = Group::new().with_id(id).with_mode(mode);
+                let group = Group::new().with_id(id);
                 self.open(f, Tag::StartGroup(group), Tag::EndGroup);
                 self.children(start, len, Step::Node);
             }
@@ -116,7 +110,7 @@ impl<'a> Lowering<'_, '_, 'a> {
                 flat,
                 group,
             } => {
-                let id = group.map(|g| self.group(g, f));
+                let id = Some(self.group(group, f));
                 // Pushed in this order, the broken branch is written first.
                 for (mode, d) in [(PrintMode::Flat, flat), (PrintMode::Expanded, broken)] {
                     self.stack.push(Step::Tag(Tag::EndConditionalContent));

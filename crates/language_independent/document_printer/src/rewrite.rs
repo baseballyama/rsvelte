@@ -39,11 +39,10 @@ impl LayoutInstructions {
             Node::Group {
                 start,
                 len,
-                breaks_line,
                 identifier,
             } => {
                 let children = self.mapped_children(start, len);
-                self.group_node(&children, breaks_line, identifier)
+                self.group_node(&children, identifier)
             }
         }
     }

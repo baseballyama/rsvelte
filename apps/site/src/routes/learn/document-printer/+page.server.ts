@@ -12,7 +12,7 @@ export const load = () => ({
 		lower: 'document_printer/lower/LayoutInstructions::lower',
 		lowerNode: 'document_printer/lower/Lowering::node',
 		lineMode: 'document_printer/lower/line_mode',
-		builtBrokenTest: 'document_printer/tests/a_group_built_broken_breaks_its_parent',
+		hardlineTest: 'document_printer/tests/hardline_breaks_enclosing_groups',
 		keep: 'document_printer/embedding/Embedding::keep',
 		print: 'document_printer/embedding/Embedding::print',
 		emojiMeasuredOtherwise: 'document_printer/width/emoji_measured_otherwise',

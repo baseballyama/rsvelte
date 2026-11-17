@@ -41,18 +41,6 @@ fn width(columns: u16) -> CoreFormatOptions {
     }
 }
 
-/// Prettier's `propagateBreaks` breaks a group around a group built broken, not only around
-/// hard lines: Prettier prints this `x\ny`.
-#[test]
-fn a_group_built_broken_breaks_its_parent() {
-    let mut d = LayoutInstructions::new();
-    let (x, y) = (d.lit("x"), d.lit("y"));
-    let inner = d.group_broken(&[y]);
-    let line = d.line();
-    let outer = d.group(&[x, line, inner]);
-    assert_eq!(print(&d, outer, width(80)), "x\ny");
-}
-
 /// Prettier propagates breaks at print time, after a trim: a hard line trimmed away breaks
 /// nothing, here or in the groups around it.
 #[test]
@@ -143,7 +131,8 @@ fn fill_breaks_the_separator_after_content_holding_a_broken_group() {
     let a = d.lit("a");
     let line = d.line();
     let b = d.lit("b");
-    let content = d.group_broken(&[a, line, b]);
+    let broken = d.break_parent();
+    let content = d.group(&[a, line, b, broken]);
     let sep = d.line();
     let c = d.lit("c");
     let filled = d.fill(&[content, sep, c]);

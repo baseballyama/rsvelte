@@ -107,9 +107,8 @@
 		<thead><tr><th>LayoutInstructions</th><th>oxc の要素</th></tr></thead>
 		<tbody>
 			<tr
-				><td><code>group</code>、<code>group_broken</code></td><td
-					><code>StartGroup</code>（<code>group_broken</code> は
-					<code>GroupMode::Expand</code>）</td
+				><td><code>group</code>、<code>group_with_identifier</code></td><td
+					><code>StartGroup</code></td
 				></tr
 			>
 			<tr
@@ -123,7 +122,7 @@
 				></tr
 			>
 			<tr
-				><td><code>if_break</code>、<code>if_break_of</code></td><td
+				><td><code>if_break_of</code></td><td
 					><code>StartConditionalContent</code> を二つ（broken 側と flat 側）</td
 				></tr
 			>
@@ -166,16 +165,13 @@
 		は再帰せず、自分のスタックで木をたどります。
 	</p>
 	<p>
-		どの group を改行するかは、oxc のプリンタが決めます。強制改行が外側の group
-		を改行させる処理（Prettier の <code>propagateBreaks</code>）も oxc が行います。<code
-			>group_broken</code
-		>
-		は、Prettier で最初から改行すると決めた group（<code>shouldBreak: true</code>）です。これも親の
-		group を改行させます。
+		どの group を改行するかは、oxc のプリンタが決めます。hardline や <code>break_parent</code>
+		は、外側の group も改行させます。この処理（Prettier の <code>propagateBreaks</code>）も oxc
+		が行います。
 	</p>
 </div>
 
-<Code item={data.code.builtBrokenTest} />
+<Code item={data.code.hardlineTest} />
 
 <div class="prose-learn">
 	<H2 id="embedded" />

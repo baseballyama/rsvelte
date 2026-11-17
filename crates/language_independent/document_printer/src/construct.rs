@@ -87,15 +87,7 @@ impl LayoutInstructions {
     }
 
     pub fn group(&mut self, items: &[LayoutInstructionIdentifier]) -> LayoutInstructionIdentifier {
-        self.group_node(items, false, None)
-    }
-
-    /// Prettier's `group(…, { shouldBreak: true })`.
-    pub fn group_broken(
-        &mut self,
-        items: &[LayoutInstructionIdentifier],
-    ) -> LayoutInstructionIdentifier {
-        self.group_node(items, true, None)
+        self.group_node(items, None)
     }
 
     /// # Panics
@@ -112,20 +104,18 @@ impl LayoutInstructions {
         items: &[LayoutInstructionIdentifier],
         identifier: GroupIdentifier,
     ) -> LayoutInstructionIdentifier {
-        self.group_node(items, false, Some(identifier))
+        self.group_node(items, Some(identifier))
     }
 
     pub(crate) fn group_node(
         &mut self,
         items: &[LayoutInstructionIdentifier],
-        breaks_line: bool,
         identifier: Option<GroupIdentifier>,
     ) -> LayoutInstructionIdentifier {
         let (start, len) = self.list(items);
         self.push(Node::Group {
             start,
             len,
-            breaks_line,
             identifier,
         })
     }
@@ -144,18 +134,6 @@ impl LayoutInstructions {
         self.push(Node::Dedent(d))
     }
 
-    pub fn if_break(
-        &mut self,
-        broken: LayoutInstructionIdentifier,
-        flat: LayoutInstructionIdentifier,
-    ) -> LayoutInstructionIdentifier {
-        self.push(Node::IfBreak {
-            broken,
-            flat,
-            group: None,
-        })
-    }
-
     /// `ifBreak(broken, flat, { groupIdentifier })`: follows the named group instead of the
     /// enclosing one.
     pub fn if_break_of(
@@ -167,7 +145,7 @@ impl LayoutInstructions {
         self.push(Node::IfBreak {
             broken,
             flat,
-            group: Some(group),
+            group,
         })
     }
 

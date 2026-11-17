@@ -22,13 +22,6 @@ pub use width::emoji_measured_otherwise;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct LayoutInstructionIdentifier(u32);
 
-impl LayoutInstructionIdentifier {
-    #[must_use]
-    pub const fn index(self) -> u32 {
-        self.0
-    }
-}
-
 /// Names a group so that [`LayoutInstructions::if_break_of`] and
 /// [`LayoutInstructions::indent_if_break`] can follow its mode.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -62,7 +55,6 @@ enum Node {
     Group {
         start: u32,
         len: u32,
-        breaks_line: bool,
         identifier: Option<GroupIdentifier>,
     },
     Fill {
@@ -75,7 +67,7 @@ enum Node {
     IfBreak {
         broken: LayoutInstructionIdentifier,
         flat: LayoutInstructionIdentifier,
-        group: Option<GroupIdentifier>,
+        group: GroupIdentifier,
     },
     IndentIfBreak {
         document: LayoutInstructionIdentifier,
