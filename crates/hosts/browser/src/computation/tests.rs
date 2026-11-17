@@ -9,7 +9,7 @@ fn bounded_debug(value: &impl fmt::Debug) -> String {
 #[test]
 fn disabled_plugins_and_empty_operations_run_nothing() {
     for (plugins, tasks) in [("", "format"), ("svelte", ""), ("vue", "format")] {
-        let json = run("<p>Hello</p>", "App.svelte", plugins, tasks, true);
+        let json = run_pipeline("<p>Hello</p>", "App.svelte", plugins, tasks, true);
         assert!(json.contains(r#""steps":[]"#), "{json}");
     }
 }
@@ -32,7 +32,7 @@ fn real_plugins_compile_each_language() {
         ),
         ("App.svelte", "<p>Hello</p>", "vuelte", "vuelte.check"),
     ] {
-        let json = run(source, file, plugin, "compile-client", true);
+        let json = run_pipeline(source, file, plugin, "compile-client", true);
         assert!(json.contains(r#""name":"js""#), "{json}");
         assert!(json.contains(artifact), "{json}");
     }
@@ -50,14 +50,14 @@ fn snapshots_stop_at_the_character_limit() {
 
 #[test]
 fn input_errors_are_reported() {
-    let json = run("<p>", "App.svelte", "svelte", "format", true);
+    let json = run_pipeline("<p>", "App.svelte", "svelte", "format", true);
     assert!(json.contains(r#""diagnostics":[{"code":"#), "{json}");
-    let json = run("", "App.svelte", "unknown", "format", true);
+    let json = run_pipeline("", "App.svelte", "unknown", "format", true);
     assert!(json.contains(r#""ok":false"#), "{json}");
 }
 
 #[test]
 fn a_page_lints() {
-    let json = run("<button></button>", "App.svelte", "svelte", "lint", true);
+    let json = run_pipeline("<button></button>", "App.svelte", "svelte", "lint", true);
     assert!(json.contains("svelte/button-has-type"), "{json}");
 }

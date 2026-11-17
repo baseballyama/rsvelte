@@ -23,7 +23,19 @@ pub fn run_pipeline(
     tasks: &str,
     shared: bool,
 ) -> String {
-    run(source, filename, plugins, tasks, shared)
+    match execute(source, filename, plugins, tasks, shared) {
+        Ok(json) => json,
+        Err(message) => {
+            let mut json = StructuredDataWriter::new(false);
+            json.begin_object()
+                .key("ok")
+                .write_boolean(false)
+                .key("message")
+                .write_string(&message)
+                .end_object();
+            json.finish()
+        }
+    }
 }
 
 const MAX_INPUT_BYTES: usize = 64 * 1024;
@@ -181,22 +193,6 @@ fn selections<'a>(input: &'a str, known: &[&str]) -> Result<Vec<&'a str>, String
         }
     }
     Ok(selected)
-}
-
-fn run(source: &str, filename: &str, plugins: &str, tasks: &str, shared: bool) -> String {
-    match execute(source, filename, plugins, tasks, shared) {
-        Ok(json) => json,
-        Err(message) => {
-            let mut json = StructuredDataWriter::new(false);
-            json.begin_object()
-                .key("ok")
-                .write_boolean(false)
-                .key("message")
-                .write_string(&message)
-                .end_object();
-            json.finish()
-        }
-    }
 }
 
 fn execute(
