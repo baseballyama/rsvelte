@@ -295,17 +295,6 @@ impl Resolution {
         self.0.borrow_dependent().names.snippets.get(&node).copied()
     }
 
-    /// The symbols the `let:` directive `attribute` declares.
-    #[must_use]
-    pub fn let_names(&self, attribute: AttributeIdentifier) -> &[SymbolId] {
-        self.0
-            .borrow_dependent()
-            .names
-            .lets
-            .get(&attribute)
-            .map_or(&[], Vec::as_slice)
-    }
-
     /// The instance calls `$props()` (upstream `needs_props`).
     #[must_use]
     pub fn uses_props(&self) -> bool {
