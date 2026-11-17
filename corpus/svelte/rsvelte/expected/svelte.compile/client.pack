@@ -102135,6 +102135,38 @@ export default function Reactive_new_callee($$anchor, $$props) {
 	}
 ]
 
+=== 233 pattern/script-top-level-return-ts.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "'return' outside of function\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 34
+	},
+	"end": {
+		"line": 3,
+		"column": 1,
+		"character": 34
+	}
+}
+
+=== 233 pattern/script-top-level-return.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "'return' outside of function\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 24
+	},
+	"end": {
+		"line": 3,
+		"column": 1,
+		"character": 24
+	}
+}
+
 === 291 pattern/self-closing-block-in-a-string.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';

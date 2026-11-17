@@ -15,7 +15,7 @@ use rustc_hash::FxHashSet;
 
 use super::found::{Found, Stage};
 use super::{Phase, Raised, Section, error, span, warning};
-use crate::resolve::{RUNES, Resolution};
+use crate::resolve::{Resolution, is_rune};
 
 /// Svelte's runes mode: `<svelte:options runes>`, or else a top-level `await` or a reference to
 /// a rune that is not a store subscription.
@@ -47,7 +47,7 @@ pub(super) fn runes(
     }
     resolution
         .unresolved_names()
-        .any(|name| RUNES.contains(&name) && !resolution.is_store_subscription(name))
+        .any(|name| is_rune(name) && !resolution.is_store_subscription(name))
 }
 
 /// The value of attribute `name` of `<svelte:options>`.
@@ -423,6 +423,14 @@ fn props_calls(resolution: &Resolution, program: &Program<'_>) -> Vec<oxc_span::
             }
             walk::walk_expression(self, it);
         }
+    }
+    // A call is `$props()` only through a global reference or an ambient declaration of that
+    // name, which most components lack, so the walk is skipped without either.
+    let scoping = resolution.scoping();
+    if !scoping.root_unresolved_references().contains_key("$props")
+        && !scoping.symbol_names().any(|name| name == "$props")
+    {
+        return Vec::new();
     }
     let mut calls = Calls {
         resolution,

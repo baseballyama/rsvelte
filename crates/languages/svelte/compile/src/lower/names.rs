@@ -6,6 +6,9 @@ use std::cell::RefCell;
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
+#[cfg(test)]
+mod tests;
+
 /// Shared by every rewrite of one compile, as upstream's one `ScopeRoot` is: a name is taken
 /// inside a single call, so a rewrite that nests another never holds it.
 #[derive(Debug)]
@@ -72,7 +75,7 @@ impl<'r> Names<'r> {
             preferred.to_owned()
         } else {
             n += 1;
-            format!("{preferred}_{}", n - 1)
+            suffixed(preferred, n - 1)
         };
         while self.declared.contains(name.as_str())
             || taken.generated.contains(name.as_str())
@@ -130,7 +133,7 @@ impl<'r> Names<'r> {
                             | "yield"
                     )))
         {
-            name = format!("{preferred}_{n}");
+            name = suffixed(preferred, n);
             n += 1;
         }
         // Boxes the key only the first time a name is preferred.
@@ -141,4 +144,26 @@ impl<'r> Names<'r> {
         taken.generated.insert(name.as_str().into());
         name
     }
+}
+
+/// `{preferred}_{n}`, written without the formatting machinery, which names cost most of.
+fn suffixed(preferred: &str, n: u32) -> String {
+    let mut digits = [0u8; 10];
+    let mut start = digits.len();
+    let mut rest = n;
+    loop {
+        start -= 1;
+        digits[start] = b'0' + (rest % 10) as u8;
+        rest /= 10;
+        if rest == 0 {
+            break;
+        }
+    }
+    let mut name = String::with_capacity(preferred.len() + 1 + digits.len() - start);
+    name.push_str(preferred);
+    name.push('_');
+    for &digit in &digits[start..] {
+        name.push(char::from(digit));
+    }
+    name
 }

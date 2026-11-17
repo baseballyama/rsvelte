@@ -243,11 +243,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             crate::render_plan::Namespace::Svg => "svg",
             crate::render_plan::Namespace::Mathml => "mathml",
         };
-        let key = format!("{namespace} {flags} {markup}");
+        let key = (namespace, flags, markup);
         if let Some(existing) = self.templates.get(&key) {
             return b.id(existing);
         }
-        let t = b.template([markup.as_str()], []);
+        let t = b.template([key.2.as_str()], []);
         let flags_arg = (flags != 0).then(|| b.number(f64::from(flags)));
         let call = b.runtime_some(
             match namespace {

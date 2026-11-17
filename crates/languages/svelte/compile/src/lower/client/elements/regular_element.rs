@@ -24,13 +24,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         let mut lets = self.let_directives(identifier, el)?;
         l.lets.append(&mut lets);
-        let tag = el.name.text(self.source_text).to_lowercase();
         let custom_element = is_custom_element_node(compiler_syntax_tree, self.source_text, el);
         let is_markup = self.is_markup(identifier);
+        let name = el.name.text(self.source_text);
         let tag = if is_markup {
-            tag
+            super::super::lowercase(name)
         } else {
-            el.name.text(self.source_text).to_owned()
+            name.into()
         };
         frag.tpl.push_element(&tag, is_markup);
         if tag == "noscript" {

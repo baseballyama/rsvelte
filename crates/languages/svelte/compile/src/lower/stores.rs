@@ -6,7 +6,7 @@ use oxc_semantic::ReferenceId;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, ElementKind, MetadataTag, NodeKind,
 };
-use rsvelte_svelte_semantic::resolve::RUNES;
+use rsvelte_svelte_semantic::resolve::is_rune;
 use rustc_hash::FxHashSet;
 
 use super::validation::unbound;
@@ -150,7 +150,7 @@ impl<'r> Names<'r> {
                 return global_reference_invalid(name, span);
             }
             let store = Ident::from(&name[1..]);
-            if !RUNES.contains(name)
+            if !is_rune(name)
                 && scoping
                     .find_binding(scoping.root_scope_id(), store)
                     .is_some()
