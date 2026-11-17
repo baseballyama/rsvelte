@@ -369,6 +369,33 @@ impl Resolution {
             .map(oxc_ast::ast::Ident::as_str)
     }
 
+    /// Each name no binding declares that `wanted` takes, with its value references. Upstream
+    /// erases a `declare`d name, so it declares nothing.
+    pub fn unbound(
+        &self,
+        wanted: impl Fn(&str) -> bool,
+    ) -> impl Iterator<Item = (&str, Vec<ReferenceId>)> {
+        let scoping = self.scoping();
+        let ambient = (scoping.symbol_ids())
+            .filter(|&s| scoping.symbol_flags(s).contains(SymbolFlags::Ambient))
+            .map(|s| {
+                (
+                    scoping.symbol_name(s),
+                    scoping.get_resolved_reference_ids(s),
+                )
+            });
+        (scoping.root_unresolved_references().iter())
+            .map(|(name, references)| (name.as_str(), references.as_slice()))
+            .chain(ambient)
+            .filter(move |(name, _)| wanted(name))
+            .map(|(name, references)| {
+                let values = (references.iter().copied())
+                    .filter(|&r| scoping.get_reference(r).flags().is_value())
+                    .collect();
+                (name, values)
+            })
+    }
+
     /// The node that declares `symbol`: a declarator, a function, an import specifier, ….
     #[must_use]
     pub fn declaration(&self, symbol: SymbolId) -> AstKind<'_> {

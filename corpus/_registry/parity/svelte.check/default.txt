@@ -1,2 +1,1 @@
 # svelte.check/default: 35038 match
-svelte/rsvelte/pattern/declared-legacy-props.svelte	mismatch
