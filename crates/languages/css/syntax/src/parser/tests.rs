@@ -243,3 +243,18 @@ fn a_stylesheet_for_lint_reads_selectors_as_postcss_selector_parser_does() {
     };
     assert_eq!(name.text(source), ".c\u{85}".get(1..).unwrap());
 }
+
+#[test]
+fn an_at_rule_knows_whether_it_is_keyframes_with_or_without_a_block_or_a_prefix() {
+    let keyframes = |source: &str| {
+        let sheet = parse(source, Span::new(0, source.len() as u32)).expect("parses");
+        match sheet.rules[0].kind {
+            RuleKind::At { keyframes, .. } => keyframes,
+            RuleKind::Style { .. } | RuleKind::Keyframe { .. } => panic!("not an at-rule"),
+        }
+    };
+    assert!(keyframes("@keyframes a { from { b: c } }"));
+    assert!(keyframes("@-webkit-keyframes a { }"));
+    assert!(keyframes("@keyframes a;"));
+    assert!(!keyframes("@media x { }"));
+}

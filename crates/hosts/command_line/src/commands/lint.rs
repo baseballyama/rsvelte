@@ -5,7 +5,7 @@ use std::fmt::Write as _;
 use std::io::{IsTerminal, Write as _};
 use std::process::ExitCode;
 
-use rsvelte_kernel::computation::pipeline::{self, DocumentResult, RunOptions, Sharing};
+use rsvelte_kernel::computation::pipeline::DocumentResult;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
 use rsvelte_kernel::source::document::Document;
@@ -24,14 +24,9 @@ pub(crate) fn lint(reg: &Registry, paths: &[&str], tasks: &[&str]) -> ExitCode {
         Ok(documents) => documents,
         Err(e) => return usage(&e),
     };
-    let options = RunOptions {
-        tasks,
-        sharing: Sharing::Shared,
-        threads: None,
-    };
-    let results = match pipeline::run(reg, &documents, &options) {
+    let results = match files::run(reg, &documents, tasks) {
         Ok(results) => results,
-        Err(e) => return usage(&e.to_string()),
+        Err(code) => return code,
     };
     let (text, errors) = report(&documents, &results, std::io::stdout().is_terminal());
     // A closed pipe, as `| head` closes it, only cuts the report short.
@@ -79,14 +74,10 @@ fn report(documents: &[Document], results: &[DocumentResult], colors: bool) -> (
         let rows: Vec<[String; 5]> = (problems.iter())
             .map(|&(d, _)| {
                 let at = lines.line_column(d.span.start_offset);
-                let severity = match d.severity {
-                    Severity::Error => "error",
-                    Severity::Warning => "warning",
-                };
                 [
                     at.line.to_string(),
                     (at.column + 1).to_string(),
-                    severity.to_owned(),
+                    d.severity.as_str().to_owned(),
                     shown_message(&d.message),
                     // An unused directive names no rule.
                     if d.code == UNUSED_DIRECTIVE {

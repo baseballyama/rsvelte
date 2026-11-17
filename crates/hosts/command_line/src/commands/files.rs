@@ -1,9 +1,14 @@
-//! Finding the files a command such as `lint` or `format` runs on below the paths it is given.
+//! Finding the files a command such as `lint` or `format` runs on below the paths it is given,
+//! and running its tasks over them.
 
 use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 
+use rsvelte_kernel::computation::pipeline::{self, DocumentResult, RunOptions, Sharing};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::Document;
+
+use crate::usage;
 
 /// The documents of every file below `paths` that a task of `tasks` reads, in the order of their
 /// path strings, as `ESLint` lists them: `a-b/x` before `a/x`.
@@ -23,12 +28,31 @@ pub(crate) fn load(
         .map(|file| {
             let text =
                 std::fs::read_to_string(&file).map_err(|e| format!("{}: {e}", file.display()))?;
-            let document = reg
-                .document(file.to_string_lossy().into_owned(), text)
-                .map_err(|e| format!("{}: {e:?}", file.display()))?;
-            Ok(document.read_from(file))
+            document(reg, file, text)
         })
         .collect()
+}
+
+/// The document of `text`, read from `file`.
+pub(crate) fn document(reg: &Registry, file: PathBuf, text: String) -> Result<Document, String> {
+    let document = reg
+        .document(file.to_string_lossy().into_owned(), text)
+        .map_err(|e| format!("{}: {e:?}", file.display()))?;
+    Ok(document.read_from(file))
+}
+
+/// Runs `tasks` over `documents` in one run, with the exit code of its error.
+pub(crate) fn run(
+    reg: &Registry,
+    documents: &[Document],
+    tasks: &[&str],
+) -> Result<Vec<DocumentResult>, ExitCode> {
+    let options = RunOptions {
+        tasks,
+        sharing: Sharing::Shared,
+        threads: None,
+    };
+    pipeline::run(reg, documents, &options).map_err(|e| usage(&e.to_string()))
 }
 
 /// The files below `path` that a task of `tasks` reads, skipping what `ESLint` skips by default:

@@ -2,10 +2,11 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use rsvelte_corpus::task_files::diagnostics_json;
-use rsvelte_kernel::computation::pipeline::{DocumentResult, RunOptions, Sharing};
+use rsvelte_kernel::computation::pipeline::DocumentResult;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::{Severity, apply_fixes};
 
+use super::files;
 use crate::usage;
 
 /// `ESLint`'s bound on fixing passes, which stops fixes that keep producing fixes.
@@ -93,19 +94,14 @@ pub(crate) fn run_files(reg: &Registry, files: &[&str], tasks: &[&str]) -> ExitC
             Ok(t) => t,
             Err(e) => return usage(&format!("{file}: {e}")),
         };
-        match reg.document(*file, text) {
+        match files::document(reg, (*file).into(), text) {
             Ok(document) => documents.push(document),
-            Err(e) => return usage(&format!("{file}: {e:?}")),
+            Err(e) => return usage(&e),
         }
     }
-    let options = RunOptions {
-        tasks,
-        sharing: Sharing::Shared,
-        threads: None,
-    };
-    let results = match rsvelte_kernel::computation::pipeline::run(reg, &documents, &options) {
+    let results = match files::run(reg, &documents, tasks) {
         Ok(results) => results,
-        Err(e) => return usage(&e.to_string()),
+        Err(code) => return code,
     };
     let mut failed = false;
     for (document, result) in documents.iter().zip(&results) {
@@ -144,16 +140,6 @@ fn run_once(
     text: &str,
     tasks: &[&str],
 ) -> Result<DocumentResult, ExitCode> {
-    let document = reg
-        .document(file.to_string_lossy().into_owned(), text.to_owned())
-        .map_err(|e| usage(&format!("{}: {e:?}", file.display())))?
-        .read_from(file.to_owned());
-    let options = RunOptions {
-        tasks,
-        sharing: Sharing::Shared,
-        threads: None,
-    };
-    rsvelte_kernel::computation::pipeline::run(reg, std::slice::from_ref(&document), &options)
-        .map(|mut results| results.remove(0))
-        .map_err(|e| usage(&e.to_string()))
+    let document = files::document(reg, file.to_owned(), text.to_owned()).map_err(|e| usage(&e))?;
+    files::run(reg, std::slice::from_ref(&document), tasks).map(|mut results| results.remove(0))
 }

@@ -197,7 +197,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel#life',
 		source: {
 			path: 'crates/hosts/browser/src/computation.rs',
-			line: 252,
+			line: 248,
 			text: 'pipeline::run(&reg',
 		},
 		box: { x: 790, y: 162, w: 176, h: height },
@@ -324,7 +324,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [560, 0],
 		source: {
 			path: 'crates/hosts/browser/src/computation.rs',
-			line: 154,
+			line: 166,
 			text: 'rsvelte_plugin_interface::install(&mut reg, &extensions, &mut settings)',
 		},
 	},

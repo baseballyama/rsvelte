@@ -61,6 +61,42 @@ impl Project {
     }
 }
 
+impl Project {
+    /// The rules that report on each of `files`, linted together in one run with `rule` on.
+    fn rules_of_files(&self, files: &[&str], rule: &str) -> Vec<Vec<String>> {
+        let options = format!(r#"{{"rules":{{"svelte/{rule}":"error"}}}}"#);
+        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+            .current_dir(&self.0)
+            .arg("run")
+            .args(files)
+            .args(["--task", "svelte.lint/default"])
+            .args(["--options", "svelte.lint", &options])
+            .output()
+            .expect("run CLI");
+        let stdout = String::from_utf8(output.stdout).expect("UTF-8");
+        assert!(
+            matches!(output.status.code(), Some(0 | 1)),
+            "{stdout}{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        // Each file's report follows a `// <file> <task> lint.json` line.
+        stdout
+            .split("\n// ")
+            .map(|report| {
+                let start = report.find('{').expect("a report");
+                let report: serde_json::Value =
+                    serde_json::from_str(&report[start..]).expect("the report is JSON");
+                report["findings"]
+                    .as_array()
+                    .expect("findings")
+                    .iter()
+                    .map(|finding| finding["rule"].as_str().expect("a rule").to_owned())
+                    .collect()
+            })
+            .collect()
+    }
+}
+
 impl Drop for Project {
     fn drop(&mut self) {
         std::fs::remove_dir_all(&self.0).expect("remove project");
@@ -89,6 +125,27 @@ fn the_routes_directory_comes_from_svelte_config() {
     assert_eq!(
         project.rules(".", "src/routes/x/+page.svelte", &[VALID_PROPS]),
         [""; 0]
+    );
+}
+
+/// Files linted together in one run read the `svelte.config.js` around them, as one file does.
+#[test]
+fn files_run_together_read_svelte_config() {
+    let project = Project::new(&[
+        ("package.json", KIT_2),
+        (
+            "svelte.config.js",
+            "export default { kit: { files: { routes: 'src/pages' } } };",
+        ),
+        ("src/pages/x/+page.svelte", PROP),
+        ("src/routes/x/+page.svelte", PROP),
+    ]);
+    assert_eq!(
+        project.rules_of_files(
+            &["src/pages/x/+page.svelte", "src/routes/x/+page.svelte"],
+            VALID_PROPS
+        ),
+        [vec![format!("svelte/{VALID_PROPS}")], vec![]]
     );
 }
 

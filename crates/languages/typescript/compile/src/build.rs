@@ -13,6 +13,7 @@ use oxc_ast::ast::{
 use oxc_ast::builder::{AstBuilder, GetAstBuilder};
 use oxc_span::{SPAN, Span};
 use oxc_syntax::number::NumberBase;
+use rsvelte_typescript_tree::is_valid_identifier;
 
 mod functions;
 
@@ -433,16 +434,6 @@ impl<'o> Builder<'o> {
     pub fn parenthesized(&self, e: Expression<'o>) -> Expression<'o> {
         Expression::new_parenthesized_expression(SPAN, e, self)
     }
-}
-
-/// Upstream `regex_is_valid_identifier`: `/^[a-zA-Z_$][a-zA-Z_$0-9]*$/`.
-#[must_use]
-pub fn is_valid_identifier(name: &str) -> bool {
-    let mut chars = name.chars();
-    chars
-        .next()
-        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
-        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
 }
 
 /// The raw text of a template literal part whose cooked value is `s`.

@@ -383,6 +383,8 @@ impl P<'_> {
         let prelude_start_offset = self.position;
         self.skip_balanced_until(b"{;}")?;
         let prelude = trim(self.source_text, self.span(prelude_start_offset));
+        let keyframes =
+            crate::properties::without_browser_prefix(name.text(self.source_text)) == "keyframes";
         match self.peek() {
             Some(b';') => {
                 self.position += 1;
@@ -394,6 +396,7 @@ impl P<'_> {
                         name,
                         prelude,
                         block: None,
+                        keyframes,
                     },
                     declarations: Box::default(),
                     children: Box::default(),
@@ -402,13 +405,11 @@ impl P<'_> {
             Some(b'{') => {
                 let block_start_offset = self.position;
                 self.position += 1;
-                let name_text = name.text(self.source_text);
-                let (declarations, children) =
-                    if crate::properties::without_browser_prefix(name_text) == "keyframes" {
-                        (Vec::new(), self.keyframes()?)
-                    } else {
-                        self.body()?
-                    };
+                let (declarations, children) = if keyframes {
+                    (Vec::new(), self.keyframes()?)
+                } else {
+                    self.body()?
+                };
                 self.expect(b'}')?;
                 Ok(Rule {
                     identifier: None,
@@ -418,6 +419,7 @@ impl P<'_> {
                         name,
                         prelude,
                         block: Some(self.span(block_start_offset)),
+                        keyframes,
                     },
                     declarations: declarations.into_boxed_slice(),
                     children: children.into_boxed_slice(),

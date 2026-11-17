@@ -81,14 +81,13 @@ impl<'o> Builder<'o> {
         body: impl IntoIterator<Item = Statement<'o>>,
         is_async: bool,
     ) -> Expression<'o> {
-        let body = FunctionBody::boxed(SPAN, [], self.vec(body), self);
         Expression::new_arrow_function_expression(
             SPAN,
             is_async,
             None,
             parameters,
             None,
-            ArrowFunctionBody::FunctionBody(body),
+            ArrowFunctionBody::FunctionBody(self.function_body(body)),
             self,
         )
     }

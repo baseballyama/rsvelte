@@ -27,14 +27,9 @@ pub fn first_runtime_feature(program: &Program<'_>) -> Option<(Feature, Span)> {
     find(program, false, |_| true)
 }
 
-/// [`first_runtime_feature`] as Svelte's `remove_typescript_nodes` sees it: it keeps an import
-/// equals inside a namespace as a value, so it refuses the namespace instead.
-#[must_use]
-pub fn first_svelte_runtime_feature(program: &Program<'_>) -> Option<(Feature, Span)> {
-    first_svelte_runtime_feature_where(program, |_| true)
-}
-
-/// [`first_svelte_runtime_feature`] among the features `wanted` keeps.
+/// [`first_runtime_feature`] among the features `wanted` keeps, as Svelte's
+/// `remove_typescript_nodes` sees it: it keeps an import equals inside a namespace as a value, so
+/// it refuses the namespace instead.
 #[must_use]
 pub fn first_svelte_runtime_feature_where(
     program: &Program<'_>,

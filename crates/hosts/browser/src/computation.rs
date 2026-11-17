@@ -7,7 +7,7 @@ use rsvelte_kernel::computation::database::{ArtifactAccess, DocumentContext};
 use rsvelte_kernel::computation::pipeline::{self, RunOptions, Sharing};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
-use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineIndex;
@@ -23,7 +23,19 @@ pub fn run_pipeline(
     tasks: &str,
     shared: bool,
 ) -> String {
-    run(source, filename, plugins, tasks, shared)
+    match execute(source, filename, plugins, tasks, shared) {
+        Ok(json) => json,
+        Err(message) => {
+            let mut json = StructuredDataWriter::new(false);
+            json.begin_object()
+                .key("ok")
+                .write_boolean(false)
+                .key("message")
+                .write_string(&message)
+                .end_object();
+            json.finish()
+        }
+    }
 }
 
 const MAX_INPUT_BYTES: usize = 64 * 1024;
@@ -183,22 +195,6 @@ fn selections<'a>(input: &'a str, known: &[&str]) -> Result<Vec<&'a str>, String
     Ok(selected)
 }
 
-fn run(source: &str, filename: &str, plugins: &str, tasks: &str, shared: bool) -> String {
-    match execute(source, filename, plugins, tasks, shared) {
-        Ok(json) => json,
-        Err(message) => {
-            let mut json = StructuredDataWriter::new(false);
-            json.begin_object()
-                .key("ok")
-                .write_boolean(false)
-                .key("message")
-                .write_string(&message)
-                .end_object();
-            json.finish()
-        }
-    }
-}
-
 fn execute(
     source: &str,
     filename: &str,
@@ -332,10 +328,7 @@ fn diagnostic_json(json: &mut StructuredDataWriter, diagnostic: &Diagnostic, ind
         .key("message")
         .write_string(&diagnostic.message)
         .key("severity")
-        .write_string(match diagnostic.severity {
-            Severity::Error => "error",
-            Severity::Warning => "warning",
-        })
+        .write_string(diagnostic.severity.as_str())
         .key("line")
         .write_number(at.line)
         .key("column")

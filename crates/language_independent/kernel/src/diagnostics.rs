@@ -11,6 +11,17 @@ pub enum Severity {
     Warning,
 }
 
+impl Severity {
+    /// The word every output prints for the severity.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Error => "error",
+            Self::Warning => "warning",
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Diagnostic {
     pub severity: Severity,

@@ -65,24 +65,14 @@ pub(crate) fn relative(root: &Path, dir: &Path) -> String {
 /// Every readable, size-checked document below `roots`, the directory each one's outputs go to,
 /// and the number that could not be loaded. A root inside the corpus is read from its packs.
 ///
-/// # Errors
-///
-/// A root that is not a directory: its walk would find no units and look like an empty corpus.
-pub(crate) fn load(
-    reg: &Registry,
-    roots: &[&Path],
-) -> Result<(Vec<Document>, Vec<PathBuf>, usize), String> {
-    load_sample(reg, roots, 1)
-}
-
-/// [`load`] of one unit in `every`, picked by an FNV-1a hash of its output directory below its
+/// Only one unit in `every` is kept, picked by an FNV-1a hash of its output directory below its
 /// root, so that adding a unit never changes which of the others are kept. The pick comes before
 /// a unit is read, so loading counts only the units measured.
 ///
 /// # Errors
 ///
-/// As [`load`].
-pub(crate) fn load_sample(
+/// A root that is not a directory: its walk would find no units and look like an empty corpus.
+pub(crate) fn load(
     reg: &Registry,
     roots: &[&Path],
     every: u64,

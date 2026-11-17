@@ -1,7 +1,7 @@
 use rsvelte_kernel::output::edits::BorrowedEdits as Edits;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_stylesheet_semantic::matcher::{is_explicitly_global, is_global};
-use rsvelte_stylesheet_syntax::properties::{names_keyframes, without_browser_prefix};
+use rsvelte_stylesheet_syntax::properties::names_keyframes;
 use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
 
 mod keyframes;
@@ -230,9 +230,11 @@ impl Renderer<'_> {
                     });
                 }
             }
-            RuleKind::At { name, prelude, .. }
-                if without_browser_prefix(name.text(self.source)) == "keyframes" =>
-            {
+            RuleKind::At {
+                prelude,
+                keyframes: true,
+                ..
+            } => {
                 self.keyframes.rename(*prelude, global, &mut self.edits);
                 return;
             }

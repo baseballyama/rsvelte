@@ -76,6 +76,8 @@ pub enum RuleKind {
         name: Span,
         prelude: Span,
         block: Option<Span>,
+        /// `@keyframes`, with or without a browser prefix.
+        keyframes: bool,
     },
 }
 
