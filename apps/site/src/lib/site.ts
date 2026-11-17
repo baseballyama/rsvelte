@@ -182,7 +182,7 @@ export const chapters: Chapter[] = [
 			s('ir', '整形用のデータ構造と保存領域'),
 			s('lower', 'oxc のプリンタに渡す'),
 			s('embedded', 'oxc の整形器が作った部分を入れる'),
-			s('width', '文字の表示幅の違いを見つける'),
+			s('width', '文字の表示幅は oxc に合わせる'),
 			s('mutation', '保存した整形指示を書き換える'),
 		],
 	},

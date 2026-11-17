@@ -273,12 +273,6 @@ export const sharedParts: SharedPart[] = [
 		href: '/learn/kernel#modules',
 	},
 	{
-		id: 'width',
-		label: '文字の表示幅',
-		module: 'document_printer/width',
-		href: '/learn/document-printer',
-	},
-	{
 		id: 'measurement',
 		label: '計測',
 		module: 'kernel/performance/measurement',
@@ -473,7 +467,6 @@ export const chapterPositions: Record<string, string[]> = {
 		'part:emitter',
 		'part:positions',
 		'part:document',
-		'part:width',
 		'part:structured_data',
 		'part:diagnostics',
 		'part:measurement',

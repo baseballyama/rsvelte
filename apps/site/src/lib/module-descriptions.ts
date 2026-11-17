@@ -24,10 +24,6 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		title: '性能の計測と改善',
 		summary: '時間とメモリの計測と、作業用メモリの再利用を扱います。',
 	},
-	'document_printer/width': {
-		title: '文字の表示幅',
-		summary: 'Prettier と oxc で表示幅の数え方が違う絵文字の並びを見つけます。',
-	},
 	'kernel/source/document': {
 		title: '文書',
 		summary: '処理する文書のパスと本文を持ち、大きさの上限を入口で一度だけ確かめます。',
