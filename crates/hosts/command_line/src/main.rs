@@ -35,7 +35,6 @@ use std::process::ExitCode;
 use commands::corpus::corpus;
 use commands::run::{run_file, run_files, run_project};
 use commands::{benchmark, format, lint, performance};
-use input::load;
 use rsvelte_kernel::computation::registry::Registry;
 
 // The allocation counters need the counting allocator, so mimalloc only serves the plain build.
