@@ -159,7 +159,7 @@ impl Printer<'_, '_, '_> {
         }
         if !lone {
             return Err(Unsupported::at(
-                "comments before a `bind:` sequence, after which the plugin removes only its closing parenthesis",
+                "comments before a `bind:` sequence the plugin leaves unbalanced",
                 first.span,
             ));
         }

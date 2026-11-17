@@ -154,7 +154,7 @@ fn comments_before_a_bound_sequence_the_plugin_leaves_unbalanced_are_refused() {
         assert_eq!(
             refusal(input),
             (
-                "comments before a `bind:` sequence, after which the plugin removes only its closing parenthesis",
+                "comments before a `bind:` sequence the plugin leaves unbalanced",
                 Some(at)
             ),
             "{input}"
