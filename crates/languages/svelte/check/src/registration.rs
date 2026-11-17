@@ -14,8 +14,8 @@ use rsvelte_svelte_syntax::syntax_tree::{
 };
 use rsvelte_svelte_typescript_projection::{Printed, THROWN, checked_as_typescript, store_reads};
 use rsvelte_typescript_check::{
-    Check, Documents, Hidden, MappedLanguage, MappedLanguages, TypeScriptDocument, TypeScriptEnv,
-    TypeScriptStandIn, TypeScriptView,
+    Check, Documents, Hidden, Import, MappedLanguage, MappedLanguages, TypeScriptDocument,
+    TypeScriptEnv, TypeScriptStandIn, TypeScriptView,
 };
 
 use crate::Configuration;
@@ -320,7 +320,7 @@ fn rejected(error: &Diagnostic) -> TypeScriptDocument {
 }
 
 /// Each relative module specifier the scripts import or re-export from, by its string literal.
-fn relative_imports(component: &Component) -> Vec<(Span, String)> {
+fn relative_imports(component: &Component) -> Vec<Import> {
     let mut found = Vec::new();
     for script in [&component.instance, &component.module]
         .into_iter()
@@ -328,19 +328,26 @@ fn relative_imports(component: &Component) -> Vec<(Span, String)> {
     {
         let program = component.javascript.get_program(script.program);
         for statement in &program.body {
-            let source = match statement {
-                Statement::ImportDeclaration(import) => Some(&import.source),
-                Statement::ExportFromDeclaration(export) => Some(&export.source),
-                Statement::ExportAllDeclaration(export) => Some(&export.source),
-                _ => None,
+            let (source, names) = match statement {
+                Statement::ImportDeclaration(import) => (
+                    &import.source,
+                    (import.specifiers.iter().flatten())
+                        .map(|specifier| specifier.local().name.as_str().to_owned())
+                        .collect(),
+                ),
+                Statement::ExportFromDeclaration(export) => (&export.source, Vec::new()),
+                Statement::ExportAllDeclaration(export) => (&export.source, Vec::new()),
+                _ => continue,
             };
             // A specifier with a lone surrogate names no file.
-            let relative = source
-                .and_then(|source| Some((source.span, source.value.as_str()?)))
-                .filter(|(_, specifier)| specifier.starts_with('.'));
-            if let Some((span, specifier)) = relative {
-                found.push((Span::new(span.start, span.end), specifier.to_owned()));
-            }
+            let Some(specifier) = source.value.as_str().filter(|s| s.starts_with('.')) else {
+                continue;
+            };
+            found.push(Import {
+                at: Span::new(source.span.start, source.span.end),
+                specifier: specifier.to_owned(),
+                names,
+            });
         }
     }
     found

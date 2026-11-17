@@ -171,10 +171,10 @@ impl Tsc {
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
         let [program, syntactic, semantic] =
             check_shares(&mut session, helpers, &config, &layer, &files).map_err(failed)?;
-        let untyped = if own.untyped {
+        let (untyped, untyped_names) = if own.untyped {
             untyped::imports(req, &root, &paths)
         } else {
-            Vec::new()
+            (Vec::new(), Vec::new())
         };
         // The session ends when it drops, which frees the snapshot with the process.
         let lines: Vec<LineIndex> = req
@@ -200,6 +200,13 @@ impl Tsc {
             .map(|(syntactic, d)| {
                 located(&d, &root, &paths, &lines, syntactic)
                     .ok_or_else(|| unlocated(&self.checker, &d))
+            })
+            .filter(|found| {
+                !found.as_ref().is_ok_and(|found| {
+                    let source = req.mapped_files.get(found.file).and_then(Option::as_ref);
+                    source
+                        .is_some_and(|mapped| untyped::hides(found, &untyped_names, &mapped.source))
+                })
             })
             .chain(untyped.into_iter().map(Ok))
             .collect()
