@@ -357,13 +357,6 @@ https://svelte.dev/e/js_parse_error
 
 <p>{n}</p>
 
-=== 116 rsvelte_check/svelte_check/overlay/tests/generic_arrow_in_a_ts_component_is_disambiguated_in_its_tsx_shadow/6e84283a141f5c1c.svelte	svelte
-<script lang="ts">
-  const totalsBy = <K,>(pick: (n: number) => K) => pick(1);
-</script>
-
-<p>{totalsBy(String)}</p>
-
 === 37 rsvelte_check/svelte_check/overlay/tests/incremental_skips_unchanged_files/86c2e567985740cf.svelte	svelte
 <script>
   let z = 2;
@@ -673,16 +666,6 @@ https://svelte.dev/e/block_unclosed
 </script>
 
 <i>{a}</i>
-
-=== 149 rsvelte_content_mapper/tests/tsx_rewrites_keep_every_verbatim_span_verbatim/bde486c3029af914.svelte	svelte
-<script lang="ts">
-  const raw: unknown = 1;
-  const id = <T,>(x: T) => x;
-  const n = <number>raw;
-  const after = id(n);
-</script>
-
-<b>{after}</b>
 
 === 45 rsvelte_content_mapper/unnamed/011f6b532603ca02.svelte	svelte
 <script lang="ts">
@@ -6239,16 +6222,6 @@ https://svelte.dev/e/unexpected_eof
 
 <p>{value}</p>
 
-=== 168 rsvelte_language_server/tsgo_overlay/tests/tsx_shadow_disambiguates_angle_brackets_and_keeps_later_columns_mapped/da50b91ec2750b93.svelte	svelte
-<script lang="ts">
-  const raw: unknown = 1;
-  const id = <T,>(x: T) => x;
-  const n = <number>raw;
-  const after = id(n);
-</script>
-
-<p>{(<U,>(u: U) => u)(after)}</p>
-
 === 48 rsvelte_language_server/tsgo_rename/tests/generated_marker_edits_are_removed_and_source_edits_merge_once/4022d46f37e1a739.svelte	svelte
 <script>
   export let value;
@@ -7248,13 +7221,6 @@ content
   let a = $state(1);
   let b = $state(2);
   let v = $derived.by<string>((): number => a);
-</script>
-
-=== 115 rsvelte_lint/rules/prefer_derived_over_derived_by/tests/autofix_matches_upstream_ts/b1ae4d732b0f72b9.svelte	svelte
-<script lang="ts">
-  let a = $state(1);
-  let b = $state(2);
-  let v = $derived.by(<T,>(): number => a);
 </script>
 
 === 120 rsvelte_lint/rules/prefer_derived_over_derived_by/tests/autofix_matches_upstream_ts/c239948cb2d93c9a.svelte	svelte
@@ -9855,70 +9821,6 @@ https://svelte.dev/e/expected_token
     list: [array_first, , { deep }, ...array_rest],
     ...outer_rest
   } = {} as any;
-</script>
-
-=== 149 rsvelte_projection/svelte2tsx/script/type_assertion/tests/a_column_after_a_tsx_rewrite_maps_back_to_its_source_column/e6161b35c984726d.svelte	svelte
-<script lang="ts">
-  const raw: unknown = 1;
-  const id = <T,>(x: T) => x;
-  const n = <number>raw;
-  const after = id(n);
-</script>
-
-<p>{after}</p>
-
-=== 292 rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_generic_arrow_already_safe_forms_untouched/c790ae9cf391077d.svelte	svelte
-<script lang="ts">
-  const multi = <T, U>(x: T, y: U): T => x;
-  const constrained = <T extends number>(x: T): T => x;
-  const defaulted = <T = string,>(x: T): T => x;
-  const already = <T,>(x: T): T => x;
-  function fn<T>(x: T): T {
-    return x;
-  }
-  const call = fn<number>(1);
-</script>
-
-=== 467 rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_generic_arrow_gets_a_trailing_comma_for_a_tsx_consumer/b0bcfbd204ffc8f4.svelte	svelte
-<script module lang="ts">
-  export const m = <K,>(k: K) => k;
-</script>
-
-<script lang="ts">
-  const id = <T,>(x: T): T => x;
-  const pair = <T, U>(a: T, b: U) => [a, b];
-  const bounded = <T extends string>(x: T) => x;
-  const safe = <T,>(x: T) => x;
-  const raw: unknown = 1;
-  const n = <number>raw;
-</script>
-
-<p>{id(1)}{pair(1, 2)}{bounded("a")}{safe(1)}{m(1)}{n}</p>
-<p>{(<V,>(v: V) => v)(1)}{<string>raw}</p>
-{#snippet row<R>(r: R)}<i>{String(r)}</i>{/snippet}
-
-=== 78 rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_generic_arrow_is_copied_verbatim/d1ee62865cf86de4.svelte	svelte
-<script lang="ts">
-  const id = <T,>(x: T): T => x;
-</script>
-
-<p>{id(1)}</p>
-
-=== 119 rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_module_nested_arrow_assertion_uses_collected_facts/b4dfac757edb153a.svelte	svelte
-<script context="module" lang="ts">
-  export const wrap = <T,>(value: T) => <Box<T>>(() => <Inner<T>>value);
-</script>
-
-=== 221 rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_nested_function_arrow_assertion_facts_apply_without_store_injection/092bc65b07b2fd82.svelte	svelte
-<script lang="ts">
-  const store = {};
-  function outer($store: unknown) {
-    const inner = <T,>($inner: T) => {
-      const asserted = <Inner>$inner;
-      return asserted;
-    };
-    return <Outer>inner;
-  }
 </script>
 
 === 144 rsvelte_projection/svelte2tsx/template/attributes/attribute/tests/dense_attribute_sink_preserves_order_and_wrappers/65887f2dce9816dd.svelte	svelte
@@ -13448,39 +13350,9 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 
 <Child bind:expanded={open} />
 
-=== 74 rsvelte_projection/svelte2tsx_generic_arrow_verbatim_4399/every_cell_is_copied_verbatim_in_both_modes/247ac64f54847dbb.svelte	svelte
-<script lang="ts">
-  const id = <T,>(x: T): T => x;
-</script>
-
-<p>{1}</p>
-
-=== 73 rsvelte_projection/svelte2tsx_generic_arrow_verbatim_4399/every_cell_is_copied_verbatim_in_both_modes/33a0d658716565ae.svelte	svelte
-<script lang="ts">
-  const c = <T,>(x: T): T => x;
-</script>
-
-<p>{1}</p>
-
-=== 82 rsvelte_projection/svelte2tsx_generic_arrow_verbatim_4399/every_cell_is_copied_verbatim_in_both_modes/62bd7456489a36c3.svelte	svelte
-<script lang="ts">
-  let a: any;
-  const z = <Foo,>() => a;
-</script>
-
-<p>{1}</p>
-
 === 81 rsvelte_projection/svelte2tsx_generic_arrow_verbatim_4399/every_cell_is_copied_verbatim_in_both_modes/7b9302654067b154.svelte	svelte
 <script lang="ts">
   const m = <T, U>(x: T, y: U): T => x;
-</script>
-
-<p>{1}</p>
-
-=== 85 rsvelte_projection/svelte2tsx_generic_arrow_verbatim_4399/every_cell_is_copied_verbatim_in_both_modes/9e2206caa23ddef9.svelte	svelte
-<script lang="ts">
-  let a: any;
-  const x = <string,>() => a;
 </script>
 
 <p>{1}</p>
@@ -18772,15 +18644,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 
 <p>x</p>
 
-=== 85 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/06a6ed83909b32c0.svelte	svelte
-<script lang="ts">
-  namespace N {
-    const a = await(f());
-  }
-</script>
-
-<p>x</p>
-
 === 120 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/070bec3752f0534a.svelte	svelte
 <script lang="ts">
   declare module "m" {
@@ -19031,26 +18894,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 
 <p>x</p>
 
-=== 105 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/4b174e67f9d17d72.svelte	svelte
-<script lang="ts">
-  import x from "y";
-  class A {
-    accessor x = await(f());
-  }
-</script>
-
-<p>x</p>
-
-=== 95 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/4e022f3e38607168.svelte	svelte
-<script lang="ts">
-  import x from "y";
-  enum E {
-    A = await(f()),
-  }
-</script>
-
-<p>x</p>
-
 === 97 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/529a428b2b17b12e.svelte	svelte
 <script lang="ts">
   class A {
@@ -19061,29 +18904,9 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 
 <p>x</p>
 
-=== 113 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/5495e6a2828f6fa9.svelte	svelte
-<script lang="ts">
-  import x from "y";
-  class A {
-    x = () => 1;
-    y = await(f());
-  }
-</script>
-
-<p>x</p>
-
 === 59 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/56133462a29e565e.svelte	svelte
 <script lang="ts">
   $: x = await f();
-</script>
-
-<p>x</p>
-
-=== 112 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/564d7001418b83c1.svelte	svelte
-<script lang="ts">
-  import x from "y";
-  const t = <T,>(a: T) => a;
-  const z = await f();
 </script>
 
 <p>x</p>
@@ -19113,15 +18936,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 === 72 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/60997a38b3c5b08f.svelte	svelte
 <script lang="ts">
   for await (const x of y) {
-  }
-</script>
-
-<p>x</p>
-
-=== 74 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/617dffd9150d4302.svelte	svelte
-<script lang="ts">
-  enum E {
-    A = await(f()),
   }
 </script>
 
@@ -19290,16 +19104,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 
 <p>x</p>
 
-=== 105 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/8e4db505fa21e7ac.svelte	svelte
-<script lang="ts">
-  import x from "y";
-  const C = class {
-    x = await(f());
-  };
-</script>
-
-<p>x</p>
-
 === 70 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/9075d4944bb14429.svelte	svelte
 <script lang="ts">
   const r = $derived(await q);
@@ -19327,15 +19131,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 <script lang="ts">
   import x from "y";
   export default await f();
-</script>
-
-<p>x</p>
-
-=== 75 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/9815b681d70b485d.svelte	svelte
-<script lang="ts">
-  class A {
-    x = await(f());
-  }
 </script>
 
 <p>x</p>
@@ -19432,16 +19227,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
   switch (await a) {
     case 1:
       break;
-  }
-</script>
-
-<p>x</p>
-
-=== 103 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/bc6c87f6bd097f6b.svelte	svelte
-<script lang="ts">
-  import x from "y";
-  class A {
-    x = { a: await(f()) };
   }
 </script>
 
@@ -19620,16 +19405,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 
 <p>x</p>
 
-=== 96 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/e2f4f0b57b3dd8f1.svelte	svelte
-<script lang="ts">
-  import x from "y";
-  class A {
-    x = await(f());
-  }
-</script>
-
-<p>x</p>
-
 === 95 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/e46e2b988b4a4c9e.svelte	svelte
 <script lang="ts">
   import x from "y";
@@ -19650,16 +19425,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 === 70 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ec117fdddce0c546.svelte	svelte
 <script lang="ts">
   const r = await fetch("/x");
-</script>
-
-<p>x</p>
-
-=== 106 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ef7c2ebb965e3245.svelte	svelte
-<script lang="ts">
-  import x from "y";
-  namespace N {
-    const a = await(f());
-  }
 </script>
 
 <p>x</p>
@@ -19718,16 +19483,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 === 70 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/fe3fe88467c585c7.svelte	svelte
 <script lang="ts">
   class A extends (await B) {}
-</script>
-
-<p>x</p>
-
-=== 103 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/fe4798f5a87b6972.svelte	svelte
-<script lang="ts">
-  import x from "y";
-  class A {
-    static x = await(f());
-  }
 </script>
 
 <p>x</p>

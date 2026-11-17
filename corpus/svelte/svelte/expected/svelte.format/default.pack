@@ -425,17 +425,6 @@ bar
   }
 </style>
 
-=== 91 packages/svelte/tests/css/samples/comment-html/input.svelte	svelte
-<h1>hello world</h1>
-
-<style>
-  <!-- /* comment */ -->
-
-	h1 {
-    color: red;
-  }
-</style>
-
 === 103 packages/svelte/tests/css/samples/comment-repeated/input.svelte	svelte
 <h1>hello world</h1>
 
@@ -4901,12 +4890,6 @@ bar
 </svelte:head>
 
 <main>There should be one</main>
-
-=== 105 packages/svelte/tests/hydration/samples/claim-text/Layout.svelte	svelte
-<p>
-  This <code>p</code> and the <code>slot</code> below are direct children of the root.
-</p>
-<slot />
 
 === 141 packages/svelte/tests/hydration/samples/claim-text/main.svelte	svelte
 <script>

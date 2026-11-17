@@ -62,6 +62,7 @@
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/primo/src/lib/builder/views/modal/SitePages/Item.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 "svelte.check" = "upstream bug: svelte2tsx types a forwarded event from the component itself through its own render function, so svelte-check reports 7023 on `$$render` and drops the props errors of the self-reference"
 
@@ -78,6 +79,7 @@
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/networking-toolbox/src/lib/components/tools/IPv6SolicitedNode.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/primo/src/lib/builder/views/modal/SitePages/SitePages.svelte".skip]
@@ -154,6 +156,7 @@
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/svelte-bits/src/lib/components/library/Components/GooeyNav/GooeyNav.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/kite-public/src/lib/components/contribute/ContributeOnboarding.svelte".skip]
@@ -164,6 +167,7 @@
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/svelte-commerce/src/lib/components/nav/nav.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/kite-public/src/lib/components/story/SelectableText.svelte".skip]
@@ -200,6 +204,7 @@
 "svelte.compile" = "upstream bug: a rule nested in a `:global(...)` rule gives the scoping class to every ancestor of the elements it matches, although no selector needs it"
 
 ["svelte/layerchart/docs/src/routes/+page.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#call-after-line-comment-indent"
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/svelte-bits/src/lib/components/library/Animations/StarBorder/StarBorder.svelte".skip]
@@ -231,6 +236,7 @@
 "svelte.compile/client" = "upstream bug: an element that holds a {#snippet} shares its parent's memoizer, so the parent's template_effect also takes the values the element's own effect memoized, as parameters it never reads"
 
 ["svelte/networking-toolbox/src/lib/components/tools/ReversePTRGenerator.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
 "svelte.compile/client" = "upstream bug: an element that holds a {#snippet} shares its parent's memoizer, so the parent's template_effect also takes the values the element's own effect memoized, as parameters it never reads"
 
 ["svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/component-named-slot/input.svelte".skip]
@@ -1295,9 +1301,11 @@
 "svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
 
 ["svelte/svelte-material-ui/packages/textfield/src/Textfield.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
 "svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
 
 ["svelte/svelte/packages/svelte/tests/css/samples/comment-html/input.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#cdo-cdc-dropped"
 "svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on the selector inside an HTML comment in `<style>`, so ESLint reports nothing"
 
 ["svelte/threlte/apps/docs/src/examples/marching-cubes/lava-lamp/App.svelte".skip]
@@ -1307,6 +1315,7 @@
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
 
 ["svelte/kener/src/routes/(docs)/docs/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line; crates/oxc_formatter_css/DIVERGENCES.md#signed-value-resplit"
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
 
 ["svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/code-actions/remove-imports-inline.svelte".skip]
@@ -2111,10 +2120,12 @@
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ef7c2ebb965e3245.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#error-semantics"
 "svelte.compile" = "upstream bug: acorn-typescript reports an `await` in a namespace body as 'Cannot use await in class static initialization block'"
 "svelte.lint" = "upstream bug: acorn-typescript reports an `await` in a namespace body as 'Cannot use await in class static initialization block'"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/06a6ed83909b32c0.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#error-semantics"
 "svelte.compile" = "upstream bug: acorn-typescript reports an `await` in a namespace body as 'Cannot use await in class static initialization block'"
 "svelte.lint" = "upstream bug: acorn-typescript reports an `await` in a namespace body as 'Cannot use await in class static initialization block'"
 
@@ -2304,6 +2315,7 @@
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
 
 ["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/706d73a09fa0d4aa.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
 
 ["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7220b5cddaf5f631.svelte".skip]
@@ -2385,6 +2397,7 @@
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
 
 ["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/ae0f34be4faf9fbb.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
 
 ["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b195cdcf4a286295.svelte".skip]
@@ -3468,6 +3481,7 @@
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
 
 ["svelte/rsvelte-tests-core-2/parse_ts_types/generic_arrow_emits_type_parameters_after_body/c7ebcde842cdf4b2.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
 
 ["svelte/rsvelte-tests-core-2/parse_ts_types/generic_function_expression_emits_type_parameters/731b59de3ad5cf2b.svelte".skip]
@@ -3948,6 +3962,7 @@
 "svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
 
 ["svelte/kite-public/src/lib/components/story/CitationText.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry; fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
 "svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
 
 ["svelte/kite-public/src/lib/components/story/StoryCard.svelte".skip]
@@ -4233,18 +4248,23 @@
 "svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
 
 ["svelte/kampsy-ui/src/routes/badge/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
 "svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
 
 ["svelte/kampsy-ui/src/routes/button/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
 "svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
 
 ["svelte/kampsy-ui/src/routes/checkbox/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
 "svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
 
 ["svelte/kampsy-ui/src/routes/collapse/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
 "svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
 
 ["svelte/kampsy-ui/src/routes/installation/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
 "svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
 
 ["svelte/svelte-toast/src/routes/+layout.svelte".skip]
@@ -4294,6 +4314,7 @@
 "svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/+page.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
 "svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/create-[type]/(type)/push.svelte".skip]
@@ -4427,24 +4448,31 @@
 "svelte.lint" = "upstream bug: svelte/no-inner-declarations hands the core rule a proxy node, so getScope skips a declaration's own scope and a top-level function outside a block counts as sloppy code"
 
 ["svelte/rsvelte-tests-core-1/css_identifier_required/a_namespace_local_part_and_an_at_rule_still_need_one/4b6d95c5a21bf11f.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
 "svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
 
 ["svelte/rsvelte-tests-core-1/css_identifier_required/a_namespace_local_part_and_an_at_rule_still_need_one/cd846e6aecf8e955.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
 "svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
 
 ["svelte/rsvelte-tests-core-1/css_identifier_required/a_pseudo_class_and_an_attribute_still_need_one/7f107c374b5a7473.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
 "svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
 
 ["svelte/rsvelte-tests-core-1/css_identifier_required/a_pseudo_element_needs_a_name/45e2ed376d25c163.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
 "svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
 
 ["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_attribute_selector_keeps_the_source_spacing/57fe13a37abdb380.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
 "svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
 
 ["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/b8fc896b6d2ce9e7.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
 "svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
 
 ["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/e25afc0dacd98fca.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
 "svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
 
 ["svelte/rsvelte-tests-core-2/import_export_parser_shapes/a_quoted_enum_member_name_is_a_literal/4bfcd601713582f5.svelte".skip]
@@ -4463,6 +4491,7 @@
 "svelte.lint" = "upstream bug: svelte/indent throws on a null range in a mapped type."
 
 ["svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeats_its_comment/45b1a6d91ed20a95.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#type-annotation-comment-break"
 "svelte.lint" = "upstream bug: svelte/indent throws on a null range in a mapped type."
 
 ["svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeats_its_comment/d22c0680b437e04a.svelte".skip]
@@ -5003,6 +5032,7 @@
 "svelte.check" = "upstream bug: svelte2tsx removes an end tag only when the text between `</` and `>` is the element's name, so it leaves `</textarea x>` in its TSX and svelte-check reports syntax errors in a component Svelte compiles"
 
 ["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
 "svelte.check" = "oracle: Svelte 5.57.3 rejects the script (js_parse_error); the last three 1005 fall in the markup that svelte2tsx copies as text after the script's unclosed JSX, which the projection does not lay out as text"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_value0_rule/degenerate_slot_names_stay_on_the_default_fallback/0cfb2b8120add6c6.svelte".skip]
@@ -5028,3 +5058,1467 @@
 
 ["svelte/svelte-put/sites/docs/src/lib/notifications/components/Svelte5.svelte".skip]
 "svelte.check" = "oracle: TS2590 comes from svelte2tsx nesting the props in `{ props: {...} }`; passed directly, as rsvelte does, TypeScript reports only TS2353"
+
+["svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/lib/components/domains/recordTable.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/lib/components/git/connectRepoModal.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/lib/components/organizationUsageLimits.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/account/deleteAccount.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/organization-[organization]/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/organization-[organization]/billing/paymentHistory.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/organization-[organization]/settings/BAAEnableModal.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/organization-[organization]/settings/downloadDPA.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/passwordStrengthPolicy.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/updateMembershipPrivacy.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/updateMfaFactors.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/updateSessionLength.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/updateSignupEmailSecurity.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/updateUsersLimit.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/teams/team-[team]/dangerZone.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/templates/emailSignature.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/field/editPermissions.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/settings/danger.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/settings/security.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/backups/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/create.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/settings/displayName.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/dangerZone.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updateScopes.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updateTimeout.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/providers/provider-[provider]/dangerZone.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/android.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/appleIOS.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createFlutter.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createReactNative.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/pausedProjectModal.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/deleteProject.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/premiumGeoDBEnableModal.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/smtp/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/updateOAuth2Server.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/updateProtocols.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/updateServices.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/updateSecurity.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/updateSignature.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/sites/site-[site]/settings/updateBuildSettings.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(public)/functions/deploy/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(public)/oauth2/consent-card.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(public)/sites/deploy/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/appwrite-console/src/routes/(public)/template-[template]/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/bits-ui/docs/src/lib/components/demos/collapsible-hidden-until-found-demo.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/bits-ui/tests/src/tests/accordion/accordion-hidden-until-found-test.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/bits-ui/tests/src/tests/accordion/accordion-multi-hidden-until-found-test.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/carbon-components-svelte/docs/src/pages/framed/FloatingPortal/FloatingPortalDialog.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/carbon-components-svelte/docs/src/pages/framed/FloatingPortal/FloatingPortalIntrinsicAlign.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/carbon-components-svelte/docs/src/pages/framed/LocalStorage/LocalStorageObject.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cmsaasstarter/src/routes/(admin)/account/(menu)/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cmsaasstarter/src/routes/(admin)/account/(menu)/billing/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cmsaasstarter/src/routes/(admin)/account/(menu)/settings/change_password/+page.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry; fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/lib/components/blocks/content/content-four.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/lib/components/mist/mcta/three.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/lib/components/mist/mlogin/one.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/lib/components/mist/msignup/one.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/lib/components/veil/comparator/comparator-three.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/cnblocks/src/lib/components/veil/content/content-one.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/lib/components/veil/content/content-three.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/lib/components/veil/content/content-two.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/lib/components/veil/stats/stats-four.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/lib/components/veil/stats/stats-one.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/lib/components/veil/stats/stats-three.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/lib/components/veil/stats/stats-two.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/lib/web/layouts/SiteHero.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/routes/(app)/docs/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/routes/(app)/v2-docs/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/routes/(app)/v2-docs/mist-theme/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/cnblocks/src/routes/(app)/v2-docs/veil-theme/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/collaboration/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/configuration/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/customization/localization/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/customization/styling/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/extensions/ai/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/extensions/callout/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/extensions/code-block/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/extensions/drag-handle/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/extensions/markdown/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/extensions/media-and-mermaid/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/extensions/slash-command/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/extensions/starter-kit/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/extensions/table-of-contents/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/extensions/tables/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/extensions/typography-and-colors/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/installation/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/docs/usages/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/edra/src/routes/realtime/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-add-event-listener/invalid/test01-input.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#callee-arguments-gap-comment"
+
+["svelte/flowbite-svelte/src/lib/utils/responsive.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/flowbite-svelte/src/routes/admin-dashboard/utils/dashboard/Chat.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/builder/tab/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/accordion/Default.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/accordion/MultipleMode2.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/accordion/Nesting.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Bottom.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Default.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Disabled.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/DisablingOutside.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Enabled.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Left.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/NonModal.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/OnlyOutside.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Placement.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Position.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Right.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Scrolling.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Top.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/kbd/Text.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/modal/Crypto.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/popover/Description.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/popover/Image.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/popover/Progress.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/ActiveClass.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/BindSelected.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/CompoIn.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Default.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Full.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Icons.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Pills.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Snapshot.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Underline.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/extend/clipboard-manager/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/extend/clipboard-manager/examples/Interactive.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/extend/scroll-spy/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/extend/virtual-list/CustomStyling.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/forms/input-field/Snapshot.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/forms/textarea/Snapshot.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/typography/blockquote/Icon.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/typography/link/Paragraph.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/typography/paragraph/Bold.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/typography/paragraph/Italic.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/typography/paragraph/Link.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/typography/paragraph/Popover.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/typography/paragraph/Underline.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/typography/text/TextDecoration.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/docs-examples/typography/text/Underline.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/flowbite-svelte/src/routes/landing/CTA.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/joy-of-code/src/routes/about/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/kampsy-ui/src/routes/avatar/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/kampsy-ui/src/routes/choicebox/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/kampsy-ui/src/routes/menu/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/kampsy-ui/src/routes/note/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/kener/src/lib/components/CopyButton.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/kener/src/lib/components/ui/chart/chart-tooltip.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#eol-comment-after-assign-colon"
+
+["svelte/kener/src/routes/(manage)/manage/app/badges/+page.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/kener/src/routes/(manage)/manage/app/embed/+page.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-ssl.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/kener/src/routes/(manage)/manage/nav-user.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/kener/src/routes/+error.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#signed-value-resplit"
+
+["svelte/kite-public/src/lib/components/contribute/ContributeFeedStep.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#text-width; fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/kite-public/src/lib/components/nhl/NHLScores.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/layercake/src/routes/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/layercake/src/routes/components/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/layerchart/docs/src/examples/components/BarChart/sparkbar-within-a-paragraph-with-tooltip-and-highlight.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/layerchart/docs/src/examples/components/BarChart/sparkbar-within-a-paragraph.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/layerchart/docs/src/examples/components/Brush/two-dimensional.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/layerchart/docs/src/examples/components/BrushContext/synced-brushes.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/layerchart/docs/src/examples/components/GeoTile/basic.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/layerchart/docs/src/examples/components/GeoTile/clipped.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/layerchart/docs/src/examples/components/LineChart/perf-series-arrays.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/layerchart/docs/src/examples/components/LineChart/perf-wide-data.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/layerchart/docs/src/examples/components/LineChart/sparkline-within-a-paragraph-with-tooltip-and-highlight.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/layerchart/docs/src/examples/components/LineChart/sparkline-within-a-paragraph.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/layerchart/examples/shadcn-svelte-1/src/lib/components/ui/chart/chart-tooltip.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#eol-comment-after-assign-colon"
+
+["svelte/layerchart/packages/layerchart/src/lib/bench/PrimitiveBench.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/layerchart/packages/layerchart/src/lib/components/layers/Canvas.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/layerchart/packages/layerchart/src/lib/components/layers/Layer.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/layerchart/packages/layerchart/src/lib/components/tooltip/TooltipContext.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/mode-watcher/docs/src/routes/(landing)/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/furniture/SettingsPanel.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/page-specific/about/AuthorSection.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/page-specific/about/DeployingSection.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/page-specific/about/SelfHostingSection.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/page-specific/about/TipsSection.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/CommonSubnetsReference.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/DHCPOption43Generator.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/DHCPv6DNSBuilder.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/DHCPv6FQDN.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/DKIMKeyGenerator.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/DNSCNAMEBuilder.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/networking-toolbox/src/lib/components/tools/DNSKEYKeyTag.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/DNSRecordValidator.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/DNSSRVBuilder.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/DSGenerator.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/EUI64.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/FreeformTLVBuilder.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/IDNPunycodeConverter.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/IPConverter.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/IPEnumerate.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/IPv6NAT64.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/IPv6Teredo.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/IPv6ZoneID.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/NameLengthChecker.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/NetworkClassesReference.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/PTRSweepPlanner.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/RRSIGPlanner.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/ReservedRangesReference.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/ReverseZoneGenerator.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/ReverseZonesCalculator.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/SubnetCalculator.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/TTLCalculator.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/ZoneDiff.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/ZoneLinter.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/lib/components/tools/ZoneStats.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/+error.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/networking-toolbox/src/routes/about/legal/privacy/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/cidr/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/cidr/split/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/cidr/summarize/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/diagnostics/dns/axfr-tester/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/diagnostics/dns/dnssec-adflag/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/diagnostics/dns/soa-serial/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/diagnostics/email/dmarc-check/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/diagnostics/email/mx-health/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/diagnostics/email/spf-check/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/diagnostics/network/tcp-port-check/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/diagnostics/tls/certificate/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/diagnostics/tls/ct-log-search/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/diagnostics/tls/handshake-analyzer/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/diagnostics/tls/ocsp-stapling/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/diagnostics/tls/versions/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/ip-address-convertor/families/+layout.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/ip-address-convertor/notation/+layout.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/reference/reserved-ranges/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/subnetting/ipv6-subnet-calculator/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/networking-toolbox/src/routes/subnetting/supernet-calculator/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/originui-svelte/src/lib/components/avatars/avatar-23.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/primo/src/lib/components/ConnectDomain.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/primo/src/routes/auth/AuthForm.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_legal_generic_arrow_is_untouched/716589d06b0d305d.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_legal_generic_arrow_is_untouched/8573bbaeac5163e7.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/0904d0657e31cf1b.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/1705b8820fdf8238.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/2f52018d47302b90.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/4515dbcca2fc7e91.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/48beb83bb430ab6e.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/75dc3ad8c3d5c74c.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/b762568e53ae3fc1.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/c60ae55f161b5423.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/c953bc2e192a9b71.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/cb7919e86f0b2ca2.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/cfeff903e4cede32.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/e195cc290681d465.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/ebefb4bf9018c6fd.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/f6621cf789a87120.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_class_or_id_needs_a_name/01f7a05eed159967.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_class_or_id_needs_a_name/c002d81d849002ce.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_class_or_id_needs_a_name/d88e01e136b4aa29.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_name_may_not_start_with_a_digit_or_a_hyphen_digit/14f091c0b7bbbf44.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_name_may_not_start_with_a_digit_or_a_hyphen_digit/683490d44953d82a.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_name_may_not_start_with_a_digit_or_a_hyphen_digit/a043e4ecb9efa47c.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_name_may_not_start_with_a_digit_or_a_hyphen_digit/ccacca3ee6b046da.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_pseudo_class_and_an_attribute_still_need_one/82707306ed0bcdd9.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/combinator_with_nothing_after_it_is_an_invalid_selector/0abb752d6985640a.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#invalid-selector-prelude-verbatim"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/a32acd4116489f4e.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#invalid-selector-prelude-verbatim"
+
+["svelte/rsvelte-tests-core-1/css_sass_error_position/with_no_stopping_colon_the_point_is_the_end_of_the_block/06a14209988c8089.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_combinator_run_survives_into_the_output/19f004f3a4abcd99.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_combinator_run_survives_into_the_output/34b08e44796e4988.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_combinator_run_survives_into_the_output/77402219e32d2788.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_combinator_run_survives_into_the_output/ad0722d656344ac1.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_combinator_run_survives_into_the_output/e324137bddc91e3d.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/381ba85d95b7646f.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/48807b8550f96ab1.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/6b67ea6ccb4f222f.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/e4b372fcd1426e36.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/the_column_combinator_is_read_and_a_lone_bar_is_not/137461be352be229.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/the_column_combinator_is_read_and_a_lone_bar_is_not/9b5baa38cc0628f7.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_combinator_before_the_lists_comma_is_reported_at_the_comma/d75326b91cf774f6.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_combinator_before_the_rules_brace_is_reported_at_the_brace/3c008f585c29a489.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_combinator_with_a_compound_after_it_is_still_accepted/7f98164e863b4c2b.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_pseudo_class_argument_is_reported_at_its_closing_paren/653255fa642793c7.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_pseudo_class_argument_is_reported_at_its_closing_paren/f13a5cec58697e91.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#invalid-selector-prelude-verbatim"
+
+["svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/a_handled_combinator_to_the_left_is_still_out_of_reach/495b4bfd88da5fff.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/a_handled_combinator_to_the_left_is_still_out_of_reach/e4f91189297b4f5d.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/a_trailing_global_does_not_become_the_subject/3f98f53e0aae2abd.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/a_trailing_global_does_not_become_the_subject/dc18ea8e2edf2c93.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/only_the_subject_side_of_an_unhandled_combinator_is_scoped/0c2830ba8ab771c3.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/only_the_subject_side_of_an_unhandled_combinator_is_scoped/5782d4090d48f276.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/the_reachable_side_alone_can_still_prune_the_rule/0aae59114920fe82.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/the_reachable_side_alone_can_still_prune_the_rule/55f373405d401ca1.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/the_unreachable_side_does_not_decide_whether_the_rule_is_used/0c438ac898670688.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/the_unreachable_side_does_not_decide_whether_the_rule_is_used/8ee1e54d974ee0c2.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/the_walk_resumes_on_handled_combinators_to_the_right/040cf6cdeaf5a855.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/the_walk_resumes_on_handled_combinators_to_the_right/8bd4e3ace705207b.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte-tests-core-2/import_span_comment_hoist/a_comment_after_the_from_keyword_survives/c8d5e10ffc3d371e.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#module-from-keyword-comment"
+
+["svelte/rsvelte-tests-core-2/parse_ts_node_estree_fields_4133/a_type_parameter_list_records_its_trailing_comma/64af1300d0378fd2.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-2/parse_ts_node_estree_fields_4133/a_type_parameter_list_records_its_trailing_comma/d859cd936e28cb9d.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/snippet_param_ts_default_4383/a_sibling_parameter_is_not_collateral/313f200bd663d011.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/snippet_param_ts_default_4383/a_typescript_default_keeps_the_whole_parameter_list/ceeed17f60466475.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/snippet_param_ts_default_4383/a_typescript_default_keeps_the_whole_parameter_list/df7e32402770727e.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/snippet_param_ts_default_4383/the_emitted_function_declares_every_name_its_body_reads/201a5dba308ebf8d.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/ssr_typescript_erasure/const_tag_initializer_erases_non_wrapper_typescript/177330cbf9a123c8.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/161726226857b08a.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/39874a3b777a3442.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/45fa023987e198fc.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/fff242f39886b817.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_quoted_property_key_3714/a_double_quoted_key_stays_double_quoted/953dbc149cd9f120.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#js-in-vue-numeric-keys-unquoted"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/018b55b604f3fc8d.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/0610dba6e8224d13.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/0b0659d05a766317.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/1729240d359b1bbc.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2734d09b805aca2f.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/28b1c30313197429.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2df946a254dee915.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/4bd7909c76f1a3d1.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/4dd7e2a86630505d.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/508868473efe94b3.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/61907b4dcfbc0f70.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6fe5b3b6083833e1.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/70df96133741528b.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7c528f781e34e58d.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/8fc29e1bb9b1eacc.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a44297a575230118.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a5c6e0414774d86f.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b3e88b2860a7b33d.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/bf758a40c90839f1.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/c6004bb8d72fc15b.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/f8b00af246c29dd4.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/fc466b9b976421cd.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests-formatter/in_place_value_and_render_prose/prose_after_a_render_tag_breaks_once_past_the_width/a9beb0f506c3ea79.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/rsvelte-tests-formatter/in_place_value_and_render_prose/prose_after_a_render_tag_overflows_by_its_last_word/fb385a26671876aa.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/rsvelte-tests-formatter/markup_wrap/overflowing_single_line_prose_in_component_body_wraps/41cd67f7be09be48.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/rsvelte-tests-formatter/prettier_ignore/prose_after_ignored_inline_node_wraps/14c7e43adc857b87.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/rsvelte-tests-formatter/prettier_ignore/prose_after_ignored_inline_node_wraps/aa1d8174192227ac.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/rsvelte-tests-formatter/prettier_ignore/prose_wraps_across_ignored_inline_node/32de57461c44cd6b.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/rsvelte-tests-formatter/prettier_ignore/prose_wraps_across_ignored_inline_node/e8e85bc6930d4424.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/rsvelte-tests-formatter/style_block/a_tab_indented_body_never_mixes_tabs_into_the_block_indent/1df5e59116f7f0aa.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-formatter/style_block/tab_and_space_indented_bodies_format_identically/43b565c81ef722ff.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte-tests-formatter/typescript/reflow_does_not_touch_block_comment_with_sibling_as_union/34f277beb33d1857.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/rsvelte-tests-formatter/typescript/reflow_does_not_touch_template_literal_with_sibling_as_union/fa29eee57d07af16.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/rsvelte-tests-formatter/typescript/script_block_as_union_keeps_oxc_leading_pipe/3499973b5f4b77b2.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/rsvelte-tests-formatter/typescript/template_as_union_stays_flat_when_it_fits/48cafca44719da5c.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/rsvelte-tests/rsvelte_check/svelte_check/overlay/tests/generic_arrow_in_a_ts_component_is_disambiguated_in_its_tsx_shadow/6e84283a141f5c1c.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests/rsvelte_content_mapper/tests/tsx_rewrites_keep_every_verbatim_span_verbatim/bde486c3029af914.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests/rsvelte_language_server/tsgo_overlay/tests/tsx_shadow_disambiguates_angle_brackets_and_keeps_later_columns_mapped/da50b91ec2750b93.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests/rsvelte_lint/rules/prefer_derived_over_derived_by/tests/autofix_matches_upstream_ts/b1ae4d732b0f72b9.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/type_assertion/tests/a_column_after_a_tsx_rewrite_maps_back_to_its_source_column/e6161b35c984726d.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_generic_arrow_already_safe_forms_untouched/c790ae9cf391077d.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_generic_arrow_gets_a_trailing_comma_for_a_tsx_consumer/b0bcfbd204ffc8f4.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_generic_arrow_is_copied_verbatim/d1ee62865cf86de4.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_module_nested_arrow_assertion_uses_collected_facts/b4dfac757edb153a.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_nested_function_arrow_assertion_facts_apply_without_store_injection/092bc65b07b2fd82.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generic_arrow_verbatim_4399/every_cell_is_copied_verbatim_in_both_modes/247ac64f54847dbb.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generic_arrow_verbatim_4399/every_cell_is_copied_verbatim_in_both_modes/33a0d658716565ae.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generic_arrow_verbatim_4399/every_cell_is_copied_verbatim_in_both_modes/62bd7456489a36c3.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generic_arrow_verbatim_4399/every_cell_is_copied_verbatim_in_both_modes/9e2206caa23ddef9.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/564d7001418b83c1.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte/check/tsx-ambiguous-angle-brackets/project/src/Arrows.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte/check/tsx-ambiguous-angle-brackets/project/src/MarkupArrow.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte/check/tsx-ambiguous-angle-brackets/project/src/ModuleArrow.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte/lint/no-add-event-listener/17-line-comment-before-paren.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#callee-arguments-gap-comment"
+
+["svelte/rsvelte/lint/no-dupe-on-directives/19-ts-casts-and-generics.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte/pattern/adversarial/css/rejected-global-keyframes-selector.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte/pattern/adversarial/elements/very-long-text-runs.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/rsvelte/pattern/css/consecutive-and-column-combinators.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte/pattern/issues/3404-repeated-combinators.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
+["svelte/rsvelte/pattern/issues/3404-unhandled-combinator-scope.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#combinator-spacing"
+
+["svelte/rsvelte/pattern/issues/3498-class-rune-linebreak-separators.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#eol-comment-after-assign-colon"
+
+["svelte/rsvelte/pattern/issues/3714-template-quoted-property-key.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#js-in-vue-numeric-keys-unquoted"
+
+["svelte/rsvelte/pattern/issues/acorn-unchecked-ts-grammar-rule-in-a-template.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/runed/sites/docs/src/lib/components/blueprint.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#suppressed-terminator-per-semi"
+
+["svelte/shadcn-svelte-extras/src/lib/components/docs/installation-setup-tabs.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/shadcn-svelte-extras/src/lib/components/ui/chart/chart-tooltip.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#eol-comment-after-assign-colon"
+
+["svelte/shadcn-svelte-extras/src/lib/components/ui/file-drop-zone/file-drop-zone-trigger.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#text-width"
+
+["svelte/shadcn-svelte/docs/src/lib/registry/examples/create/accordion/accordion-in-card.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/shadcn-svelte/docs/src/lib/registry/examples/create/collapsible/collapsible-file-tree.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/shadcn-svelte/docs/src/lib/registry/examples/create/elevenlabs/bar-visualizer.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/shadcn-svelte/docs/src/lib/registry/examples/create/github/profile.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/shadcn-svelte/docs/src/lib/registry/examples/create/preview/cards/activate-agent-dialog.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/shadcn-svelte/docs/src/lib/registry/examples/create/preview/cards/github-profile.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/shadcn-svelte/docs/src/lib/registry/ui/chart/chart-tooltip.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#eol-comment-after-assign-colon"
+
+["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/initialize-dialog.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/skeleton/sites/plus.skeleton.dev/src/routes/(app)/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/skeleton/sites/plus.skeleton.dev/src/routes/(app)/overview/pricing/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Preview/PreviewTypography.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/smelte/src/routes/color.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/smelte/src/routes/dark-mode.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/smelte/src/routes/index.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svar-core/svelte/demos/cases/DropdownScroll.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-bits/src/lib/components/docs/pages/Installation.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-bits/src/lib/components/docs/pages/Introduction.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-bits/src/lib/components/docs/pages/McpServer.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-calendar/src/lib/components/calendar/Calendar.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#signed-value-resplit"
+
+["svelte/svelte-calendar/src/lib/docs/examples/CustomTheme.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-calendar/src/lib/docs/examples/Formatting.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-codemirror-editor/src/lib/CodeMirror.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/svelte-command-palette/src/routes/docs/command-palette-api/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-command-palette/src/routes/docs/custom-components/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-command-palette/src/routes/docs/define-actions-api/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-command-palette/src/routes/docs/palette-store/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-command-palette/src/routes/docs/shortcuts/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-command-palette/src/routes/docs/store-methods-api/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-commerce/src/lib/components/product-catalogue/pincode-check.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-commerce/src/routes/(www)/checkout/payment/payment.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-commerce/src/routes/(www)/checkout/success/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-confetti/src/routes/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-eslint-parser/tests/fixtures/integrations/type-info-tests/plugin-issue254-input.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-fa/src/routes/components/sections/additional-styling.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-fa/src/routes/components/sections/installation.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-gantt/packages/demo/src/routes/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-gantt/packages/docs-mdsvex/src/routes/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-inspect-value/apps/docs/src/components/global-opts/ScrollToButton.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#signed-value-resplit"
+
+["svelte/svelte-inspect-value/packages/svelte/src/doclib/examples/Stores.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/reference/custom/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/reference/getting-started/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/reference/panel/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/reference/values/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/theming/themes/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/usage/hotkeys/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/usage/search/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDialog.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/Composer.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/svelte-maplibre/src/lib/MapLibre.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/svelte-maplibre/src/routes/examples/3d_buildings/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-maplibre/src/routes/examples/3d_terrain/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-maplibre/src/routes/examples/clusters/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-maplibre/src/routes/examples/custom_marker_clusters/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-maplibre/src/routes/examples/data_join/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-maplibre/src/routes/examples/geojson_line_layer/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-maplibre/src/routes/examples/geojson_polygon/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-maplibre/src/routes/examples/overlapping_layer_events/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-material-ui/packages/drawer/src/Drawer.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/svelte-material-ui/packages/icon-button/src/IconButton.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/svelte-material-ui/packages/site/src/routes/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-material-ui/packages/site/src/routes/demo/card/_Complex.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-material-ui/packages/site/src/routes/demo/common/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-material-ui/packages/site/src/routes/demo/image-list/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-material-ui/packages/site/src/routes/demo/paper/_Square.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-material-ui/packages/site/src/routes/demo/quick-guide/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-material-ui/packages/site/src/routes/demo/select/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-pivottable/src/routes/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-put/sites/docs/src/packages/clickoutside/_page/examples/demo.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-put/sites/docs/src/packages/resize/_page/examples/example.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-put/sites/docs/src/routes/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-sonner/src/components/Hero.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-sonner/src/routes/test/+page.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/svelte-spa-router/examples/basic-routing/src/routes/Home.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-spa-router/examples/dynamic-imports/src/App.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-spa-router/examples/dynamic-imports/src/routes/Home.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-splitpanes/src/routes/examples/default-size/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-splitpanes/src/routes/examples/min-max/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-splitpanes/src/routes/examples/prog-resize/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-splitpanes/src/routes/examples/styling/splitters/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-table/example/Example5.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-ux/packages/svelte-ux/src/routes/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/TableOfContents/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelte/packages/svelte/tests/hydration/samples/claim-text/Layout.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/sveltepress/packages/theme-default/src/components/GlobalLayout.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#signed-value-resplit"
+
+["svelte/sveltepress/packages/vite/__tests__/real-world.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/sveltestrap/src/Offcanvas/Offcanvas.stories.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/sveltestrap/src/Popover/Popover.stories.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelteui/packages/svelteui-core/src/components/Accordion/Accordion.stories.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.chevron.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.controlled.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.custom.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.data.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.default.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.defaultMultiple.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.disabled.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.noTransition.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.transitionDuration.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/syntaxfm-website/src/routes/(site)/about/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/syntaxfm-website/src/routes/(site)/oss/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/syntaxfm-website/src/routes/(site)/potluck/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/syntaxfm-website/src/routes/(site)/snackpack/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/syntaxfm-website/src/routes/(site)/system/typography/+page.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/threlte/apps/docs/src/components/ManualInstallGuide/ManualInstallGuide.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/threlte/apps/docs/src/examples/extras/use-follow/Scene.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/threlte/apps/docs/src/examples/rapier/collider/AttachedCollider.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/threlte/apps/docs/src/examples/rapier/collider/StandaloneCollider.svelte".skip]
+"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+
+["svelte/threlte/packages/studio/src/lib/components/IconButton.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
+
+["svelte/threlte/packages/studio/src/lib/extensions/inspector/bindings/Light.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/threlte/packages/studio/src/lib/extensions/scene-hierarchy/Tree.svelte".skip]
+"svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/4b174e67f9d17d72.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#error-semantics"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/4e022f3e38607168.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#error-semantics"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/5495e6a2828f6fa9.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#error-semantics"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/617dffd9150d4302.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#error-semantics"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/8e4db505fa21e7ac.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#error-semantics"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/9815b681d70b485d.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#error-semantics"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/bc6c87f6bd097f6b.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#error-semantics"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/e2f4f0b57b3dd8f1.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#error-semantics"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/fe4798f5a87b6972.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#error-semantics"

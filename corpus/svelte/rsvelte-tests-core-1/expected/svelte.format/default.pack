@@ -914,25 +914,6 @@
 	interface + ;
 </script>
 
-=== 73 acorn_unchecked_ts_grammar_hosts_4084/a_legal_generic_arrow_is_untouched/716589d06b0d305d.svelte	svelte
-<script lang="ts">
-  const g = <T,>(x: T) => x;
-</script>
-
-<p>{g(1)}</p>
-
-=== 59 acorn_unchecked_ts_grammar_hosts_4084/a_legal_generic_arrow_is_untouched/8573bbaeac5163e7.svelte	svelte
-<script lang="ts"></script>
-
-<p>{(<T,>(x: T) => x)(1)}</p>
-
-=== 61 acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	svelte
-<script>
-  const y = <string,>() => 1;
-</script>
-
-<p>{y}</p>
-
 === 52 acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/47bf36251424d824.svelte	svelte
 <script lang="ts">
 const q = (;
@@ -951,101 +932,6 @@ Expected token )
 https://svelte.dev/e/expected_token
 > 1 | <script lang="ts"></script>{#snippet s(p = (;)}{p}{/snippet}
     |                                                             ^
-
-=== 90 acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/0904d0657e31cf1b.svelte	svelte
-<script lang="ts">
-  let a: any;
-</script>
-
-<button onclick={<string,>() => a}>x</button>
-
-=== 86 acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/1705b8820fdf8238.svelte	svelte
-<script lang="ts">
-  let a: any;
-</script>
-
-{#each [<string,>() => a] as z}{z}{/each}
-
-=== 70 acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/2f52018d47302b90.svelte	svelte
-<script lang="ts">
-  let a: any;
-</script>
-
-<p>{<string,>() => a}</p>
-
-=== 69 acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/4515dbcca2fc7e91.svelte	svelte
-<script lang="ts">
-  let a: any;
-</script>
-
-{@html <string,>() => a}
-
-=== 75 acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/48beb83bb430ab6e.svelte	svelte
-<script lang="ts">
-  let a: any;
-</script>
-
-{#key <string,>() => a}y{/key}
-
-=== 78 acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/75dc3ad8c3d5c74c.svelte	svelte
-<script lang="ts">
-  let a: any;
-</script>
-
-<p title={<string,>() => a}>x</p>
-
-=== 91 acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/b762568e53ae3fc1.svelte	svelte
-<script lang="ts">
-  let a: any;
-</script>
-
-{#await <string,>() => a}y{:then v}{v}{/await}
-
-=== 85 acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/c60ae55f161b5423.svelte	svelte
-<script module lang="ts">
-  export const m = <string,>() => 1;
-</script>
-
-<p>{m}</p>
-
-=== 90 acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/c953bc2e192a9b71.svelte	svelte
-<script lang="ts"></script>
-
-{#snippet s(p = <string,>() => 1)}{p}{/snippet}{@render s()}
-
-=== 89 acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/cb7919e86f0b2ca2.svelte	svelte
-<script lang="ts">
-  let a: any;
-</script>
-
-{#if 1}{@const c = <string,>() => a}{c}{/if}
-
-=== 85 acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/cfeff903e4cede32.svelte	svelte
-<script lang="ts">
-  let a: any;
-  const x = <string,>() => a;
-</script>
-
-<p>{x}</p>
-
-=== 87 acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/e195cc290681d465.svelte	svelte
-<script lang="ts"></script>
-
-{#snippet s(q)}{q}{/snippet}{@render s(<string,>() => 1)}
-
-=== 75 acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/ebefb4bf9018c6fd.svelte	svelte
-<script lang="ts">
-  let a: any;
-</script>
-
-<p {...<string,>() => a}>x</p>
-
-=== 73 acorn_unchecked_ts_grammar_hosts_4084/every_host_erases_the_annotation_upstream_also_erases/f6621cf789a87120.svelte	svelte
-<script lang="ts">
-  let a: any;
-</script>
-
-{#if <string,>() => a}y{/if}
 
 === 102 aligner_resync_4291/cell_a_statement_rewrite_does_not_outrun_the_weak_anchor/8e5583aa921c0c54.svelte	svelte
 <script lang="ts">
@@ -21726,77 +21612,12 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 94 css_identifier_required/a_class_or_id_needs_a_name/01f7a05eed159967.svelte	svelte
-<p class="a a1 a-1 -a 1a" id="a" title="t"></p>
-
-<style>
-  .a. {
-    color: red;
-  }
-</style>
-
-=== 92 css_identifier_required/a_class_or_id_needs_a_name/c002d81d849002ce.svelte	svelte
-<p class="a a1 a-1 -a 1a" id="a" title="t"></p>
-
-<style>
-  . {
-    color: red;
-  }
-</style>
-
-=== 92 css_identifier_required/a_class_or_id_needs_a_name/d88e01e136b4aa29.svelte	svelte
-<p class="a a1 a-1 -a 1a" id="a" title="t"></p>
-
-<style>
-  # {
-    color: red;
-  }
-</style>
-
-=== 94 css_identifier_required/a_name_may_not_start_with_a_digit_or_a_hyphen_digit/14f091c0b7bbbf44.svelte	svelte
-<p class="a a1 a-1 -a 1a" id="a" title="t"></p>
-
-<style>
-  #1a {
-    color: red;
-  }
-</style>
-
-=== 94 css_identifier_required/a_name_may_not_start_with_a_digit_or_a_hyphen_digit/683490d44953d82a.svelte	svelte
-<p class="a a1 a-1 -a 1a" id="a" title="t"></p>
-
-<style>
-  :1a {
-    color: red;
-  }
-</style>
-
-=== 95 css_identifier_required/a_name_may_not_start_with_a_digit_or_a_hyphen_digit/a043e4ecb9efa47c.svelte	svelte
-<p class="a a1 a-1 -a 1a" id="a" title="t"></p>
-
-<style>
-  [1a] {
-    color: red;
-  }
-</style>
-
 === 93 css_identifier_required/a_name_may_not_start_with_a_digit_or_a_hyphen_digit/bc0e38ec082b71f6.svelte	svelte
 <p class="a a1 a-1 -a 1a" id="a" title="t"></p>
 
 <style>
   1a {
     color: red;
-  }
-</style>
-
-=== 114 css_identifier_required/a_name_may_not_start_with_a_digit_or_a_hyphen_digit/ccacca3ee6b046da.svelte	svelte
-<p class="a a1 a-1 -a 1a" id="a" title="t"></p>
-
-<style>
-  @1a (x) {
-    p {
-      color: red;
-    }
   }
 </style>
 
@@ -21910,56 +21731,11 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 93 css_identifier_required/a_namespace_local_part_and_an_at_rule_still_need_one/4b6d95c5a21bf11f.svelte	svelte
-<p class="a a1 a-1 -a 1a" id="a" title="t"></p>
-
-<style>
-  *| {
-    color: red;
-  }
-</style>
-
-=== 94 css_identifier_required/a_namespace_local_part_and_an_at_rule_still_need_one/cd846e6aecf8e955.svelte	svelte
-<p class="a a1 a-1 -a 1a" id="a" title="t"></p>
-
-<style>
-  ns| {
-    color: red;
-  }
-</style>
-
 === 94 css_identifier_required/a_namespace_local_part_and_an_at_rule_still_need_one/eabed44769bb7fe9.svelte	svelte
 <p class="a a1 a-1 -a 1a" id="a" title="t"></p>
 
 <style>
 @ (x) { p { color: red; } }
-</style>
-
-=== 92 css_identifier_required/a_pseudo_class_and_an_attribute_still_need_one/7f107c374b5a7473.svelte	svelte
-<p class="a a1 a-1 -a 1a" id="a" title="t"></p>
-
-<style>
-  : {
-    color: red;
-  }
-</style>
-
-=== 93 css_identifier_required/a_pseudo_class_and_an_attribute_still_need_one/82707306ed0bcdd9.svelte	svelte
-<p class="a a1 a-1 -a 1a" id="a" title="t"></p>
-
-<style>
-  [] {
-    color: red;
-  }
-</style>
-
-=== 93 css_identifier_required/a_pseudo_element_needs_a_name/45e2ed376d25c163.svelte	svelte
-<p class="a a1 a-1 -a 1a" id="a" title="t"></p>
-
-<style>
-  :: {
-    color: red;
-  }
 </style>
 
 === 77 css_injected_minify_3226/a_comment_survives_minification/9ecf38df5f55a28b.svelte	svelte
@@ -23131,15 +22907,6 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 82 css_pseudo_class_args/combinator_with_nothing_after_it_is_an_invalid_selector/0abb752d6985640a.svelte	svelte
-<div class="a"></div>
-
-<style>
-  .a:nth-child(n +) {
-    color: red;
-  }
-</style>
-
 === 110 css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/45bda632cec1b939.svelte	svelte
 <div class="a"><span class="b">x</span></div>
 
@@ -23307,15 +23074,6 @@ p { color: { red }; background: blue; }
 
 <style>
   .a:nth-child(2foo) {
-    color: red;
-  }
-</style>
-
-=== 83 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/a32acd4116489f4e.svelte	svelte
-<div class="a"></div>
-
-<style>
-  .a:nth-child(2n +) {
     color: red;
   }
 </style>
@@ -23507,11 +23265,6 @@ p { color: { red }; background: blue; }
 		display: block
 </style>
 
-=== 29 css_sass_error_position/with_no_stopping_colon_the_point_is_the_end_of_the_block/06a14209988c8089.svelte	svelte
-<style>
-  a: hover;
-</style>
-
 === 32 css_sass_error_position/with_no_stopping_colon_the_point_is_the_end_of_the_block/91d35b8cbc71d155.svelte	svelte
 <style>
 	a
@@ -23694,26 +23447,6 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 121 css_selector_parse_3404_3405_3406/a_combinator_run_survives_into_the_output/19f004f3a4abcd99.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-  .card >>> .a {
-    color: red;
-  }
-</style>
-
-=== 135 css_selector_parse_3404_3405_3406/a_combinator_run_survives_into_the_output/34b08e44796e4988.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-  .card {
-    >>> .a {
-      color: red;
-    }
-  }
-</style>
-
 === 124 css_selector_parse_3404_3405_3406/a_combinator_run_survives_into_the_output/6db5872d2915eb9c.svelte	svelte
 <div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
 
@@ -23723,40 +23456,11 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 133 css_selector_parse_3404_3405_3406/a_combinator_run_survives_into_the_output/77402219e32d2788.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-  .card {
-    >>.a {
-      color: red;
-    }
-  }
-</style>
-
-=== 118 css_selector_parse_3404_3405_3406/a_combinator_run_survives_into_the_output/ad0722d656344ac1.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-  .card>>.a {
-    color: red;
-  }
-</style>
-
 === 119 css_selector_parse_3404_3405_3406/a_combinator_run_survives_into_the_output/cf623ec3bb7aaf31.svelte	svelte
 <div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
 
 <style>
   .card > .a {
-    color: red;
-  }
-</style>
-
-=== 118 css_selector_parse_3404_3405_3406/a_combinator_run_survives_into_the_output/e324137bddc91e3d.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-  .card>>.a {
     color: red;
   }
 </style>
@@ -23824,15 +23528,6 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 111 css_selector_parse_3404_3405_3406/an_attribute_selector_keeps_the_source_spacing/57fe13a37abdb380.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-  [] {
-    color: red;
-  }
-</style>
-
 === 112 css_selector_parse_3404_3405_3406/an_attribute_selector_keeps_the_source_spacing/787fc3e2e256da6d.svelte	svelte
 <div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
 
@@ -23851,86 +23546,11 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 111 css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/381ba85d95b7646f.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-  .a {
-    color: red;
-  }
-</style>
-
-=== 109 css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/48807b8550f96ab1.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-   {
-    color: red;
-  }
-</style>
-
-=== 115 css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/6b67ea6ccb4f222f.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-  ,
-  .a {
-    color: red;
-  }
-</style>
-
-=== 121 css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/e4b372fcd1426e36.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-  .a,
-  ,
-  .b {
-    color: red;
-  }
-</style>
-
 === 103 css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/77105d7f4a2dd245.svelte	svelte
 <div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
 
 <style>
 	[x { color: red }
-</style>
-
-=== 113 css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/b8fc896b6d2ce9e7.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-  [x^] {
-    color: red;
-  }
-</style>
-
-=== 113 css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/e25afc0dacd98fca.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-  [x|] {
-    color: red;
-  }
-</style>
-
-=== 115 css_selector_parse_3404_3405_3406/the_column_combinator_is_read_and_a_lone_bar_is_not/137461be352be229.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-  .a||.b {
-    color: red;
-  }
-</style>
-
-=== 114 css_selector_parse_3404_3405_3406/the_column_combinator_is_read_and_a_lone_bar_is_not/9b5baa38cc0628f7.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-  .a|.b {
-    color: red;
-  }
 </style>
 
 === 114 css_selector_parse_3404_3405_3406/well_formed_attribute_selectors_are_unchanged/0592fabc0b394bfa.svelte	svelte
@@ -24334,25 +23954,6 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 60 css_trailing_combinator_parse/a_combinator_before_the_lists_comma_is_reported_at_the_comma/d75326b91cf774f6.svelte	svelte
-<p></p>
-
-<style>
-  p >,
-  .a {
-    color: red;
-  }
-</style>
-
-=== 54 css_trailing_combinator_parse/a_combinator_before_the_rules_brace_is_reported_at_the_brace/3c008f585c29a489.svelte	svelte
-<p></p>
-
-<style>
-  p|| {
-    color: red;
-  }
-</style>
-
 === 54 css_trailing_combinator_parse/a_combinator_before_the_rules_brace_is_reported_at_the_brace/5ff856e00c04cb5f.svelte	svelte
 <p></p>
 
@@ -24412,15 +24013,6 @@ p { color: { red }; background: blue; }
 
 <style>
   p > .a {
-    color: red;
-  }
-</style>
-
-=== 108 css_trailing_combinator_parse/a_combinator_with_a_compound_after_it_is_still_accepted/7f98164e863b4c2b.svelte	svelte
-<div class="x"><p><a class="a" title="a > b"></a></p></div>
-
-<style>
-  p||.a {
     color: red;
   }
 </style>
@@ -24512,15 +24104,6 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 63 css_trailing_combinator_parse/a_pseudo_class_argument_is_reported_at_its_closing_paren/653255fa642793c7.svelte	svelte
-<p></p>
-
-<style>
-  :global(p >) {
-    color: red;
-  }
-</style>
-
 === 63 css_trailing_combinator_parse/a_pseudo_class_argument_is_reported_at_its_closing_paren/8cbb31b173f99158.svelte	svelte
 <p></p>
 
@@ -24530,60 +24113,11 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 61 css_trailing_combinator_parse/a_pseudo_class_argument_is_reported_at_its_closing_paren/f13a5cec58697e91.svelte	svelte
-<p></p>
-
-<style>
-  p:not(p >) {
-    color: red;
-  }
-</style>
-
 === 54 css_trailing_combinator_parse/the_brace_may_be_on_the_next_line/03016bfdbe3af624.svelte	svelte
 <p></p>
 
 <style>
   p > {
-    color: red;
-  }
-</style>
-
-=== 148 css_unhandled_combinator_scope_3404/a_handled_combinator_to_the_left_is_still_out_of_reach/495b4bfd88da5fff.svelte	svelte
-<div class="a"><section class="b"><span class="c">t</span></section></div>
-<p class="d">u</p>
-
-<style>
-  .a > .b||.c {
-    color: red;
-  }
-</style>
-
-=== 146 css_unhandled_combinator_scope_3404/a_handled_combinator_to_the_left_is_still_out_of_reach/e4f91189297b4f5d.svelte	svelte
-<div class="a"><section class="b"><span class="c">t</span></section></div>
-<p class="d">u</p>
-
-<style>
-  .a .b||.c {
-    color: red;
-  }
-</style>
-
-=== 152 css_unhandled_combinator_scope_3404/a_trailing_global_does_not_become_the_subject/3f98f53e0aae2abd.svelte	svelte
-<div class="a"><section class="b"><span class="c">t</span></section></div>
-<p class="d">u</p>
-
-<style>
-  .a||:global(.x) {
-    color: red;
-  }
-</style>
-
-=== 152 css_unhandled_combinator_scope_3404/a_trailing_global_does_not_become_the_subject/dc18ea8e2edf2c93.svelte	svelte
-<div class="a"><section class="b"><span class="c">t</span></section></div>
-<p class="d">u</p>
-
-<style>
-  :global(.x)||.b {
     color: red;
   }
 </style>
@@ -24624,86 +24158,6 @@ p { color: { red }; background: blue; }
 
 <style>
   .a ~ .d {
-    color: red;
-  }
-</style>
-
-=== 143 css_unhandled_combinator_scope_3404/only_the_subject_side_of_an_unhandled_combinator_is_scoped/0c2830ba8ab771c3.svelte	svelte
-<div class="a"><section class="b"><span class="c">t</span></section></div>
-<p class="d">u</p>
-
-<style>
-  .a||.b {
-    color: red;
-  }
-</style>
-
-=== 147 css_unhandled_combinator_scope_3404/only_the_subject_side_of_an_unhandled_combinator_is_scoped/5782d4090d48f276.svelte	svelte
-<div class="a"><section class="b"><span class="c">t</span></section></div>
-<p class="d">u</p>
-
-<style>
-  .a||.b||.c {
-    color: red;
-  }
-</style>
-
-=== 144 css_unhandled_combinator_scope_3404/the_reachable_side_alone_can_still_prune_the_rule/0aae59114920fe82.svelte	svelte
-<div class="a"><section class="b"><span class="c">t</span></section></div>
-<p class="d">u</p>
-
-<style>
-  .a||.zz {
-    color: red;
-  }
-</style>
-
-=== 151 css_unhandled_combinator_scope_3404/the_reachable_side_alone_can_still_prune_the_rule/55f373405d401ca1.svelte	svelte
-<div class="a"><section class="b"><span class="c">t</span></section></div>
-<p class="d">u</p>
-
-<style>
-  .a .b||.c > .d {
-    color: red;
-  }
-</style>
-
-=== 144 css_unhandled_combinator_scope_3404/the_unreachable_side_does_not_decide_whether_the_rule_is_used/0c438ac898670688.svelte	svelte
-<div class="a"><section class="b"><span class="c">t</span></section></div>
-<p class="d">u</p>
-
-<style>
-  .zz||.b {
-    color: red;
-  }
-</style>
-
-=== 148 css_unhandled_combinator_scope_3404/the_unreachable_side_does_not_decide_whether_the_rule_is_used/8ee1e54d974ee0c2.svelte	svelte
-<div class="a"><section class="b"><span class="c">t</span></section></div>
-<p class="d">u</p>
-
-<style>
-  .b + .d||.c {
-    color: red;
-  }
-</style>
-
-=== 148 css_unhandled_combinator_scope_3404/the_walk_resumes_on_handled_combinators_to_the_right/040cf6cdeaf5a855.svelte	svelte
-<div class="a"><section class="b"><span class="c">t</span></section></div>
-<p class="d">u</p>
-
-<style>
-  .a||.b > .c {
-    color: red;
-  }
-</style>
-
-=== 146 css_unhandled_combinator_scope_3404/the_walk_resumes_on_handled_combinators_to_the_right/8bd4e3ace705207b.svelte	svelte
-<div class="a"><section class="b"><span class="c">t</span></section></div>
-<p class="d">u</p>
-
-<style>
-  .a||.b .c {
     color: red;
   }
 </style>

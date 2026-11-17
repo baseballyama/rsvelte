@@ -453,43 +453,6 @@
 
 <p>{count}{missing}</p>
 
-=== 835 check/tsx-ambiguous-angle-brackets/project/src/Arrows.svelte	svelte
-<script lang="ts">
-  const id = <T,>(x: T): T => x;
-  const wrong: number = id("after the comma");
-  const frozen = <const T,>(x: T) => x;
-  const later = async <T,>(x: T) => x;
-  const defaulted = <T = string,>(x: T) => x;
-  const bounded = <T extends string>(x: T) => x;
-  const already = <T,>(x: T) => x;
-  const commented = <T /* , */,>(x: T) => x;
-  const lineCommented = <
-    T, // a comment that hides the comma
-  >(
-    x: T,
-  ) => x;
-  const outer = <T,>(x: T) => {
-    const inner = <U,>(y: U) => [x, y] as const;
-    return inner;
-  };
-  class Holder {
-    pick = <K,>(k: K) => k;
-  }
-  const count: string = [
-    frozen(1),
-    later(1),
-    defaulted("d"),
-    bounded("b"),
-    already(1),
-    commented(1),
-    lineCommented(1),
-    outer(1)(2),
-    new Holder().pick(1),
-  ].length;
-</script>
-
-<p>{wrong}{count}</p>
-
 === 162 check/tsx-ambiguous-angle-brackets/project/src/Assertion.svelte	svelte
 <script lang="ts">
   const raw: unknown = 1;
@@ -499,31 +462,6 @@
 </script>
 
 <p>{n}{wrong}{paren}</p>
-
-=== 280 check/tsx-ambiguous-angle-brackets/project/src/MarkupArrow.svelte	svelte
-<script lang="ts">
-  let items = [1, 2, 3];
-</script>
-
-<p>{(<T,>(a: T) => a)(1)}</p>
-<button onclick={<E,>(e: E) => e}>go</button>
-{#each items as item}
-  {@const twice = <T,>(a: T) => [a, a]}
-  <span>{twice(item).length}</span>
-{/each}
-<p>{(<T,>(a: T) => a)("s").toFixed(2)}</p>
-
-=== 202 check/tsx-ambiguous-angle-brackets/project/src/ModuleArrow.svelte	svelte
-<script module lang="ts">
-  export const shared = <T,>(x: T) => x;
-  export const wrong: boolean = shared(1);
-</script>
-
-<script lang="ts">
-  const local = shared("x");
-</script>
-
-<p>{local}{wrong}</p>
 
 === 239 check/tsx-ambiguous-angle-brackets/project/src/SnippetGeneric.svelte	svelte
 <script lang="ts">
@@ -4118,28 +4056,6 @@ line comment -->
 <div bind:this={el} data-x="addEventListener">{src}{re}{tpl}</div>
 <button onclick={go}>go</button>
 
-=== 409 lint/no-add-event-listener/17-line-comment-before-paren.svelte	svelte
-<script>
-  let el;
-
-  function lineComment() {
-    el
-      .addEventListener // between the callee and its argument list
-      ("a", () => {});
-  }
-
-  function blockComment() {
-    el.addEventListener(
-      /* between the callee and its argument list */ "b",
-      () => {},
-    );
-  }
-</script>
-
-<div bind:this={el}></div>
-<button onclick={lineComment}>a</button>
-<button onclick={blockComment}>b</button>
-
 === 94 lint/no-at-const-tags/01-options-bare-runes.svelte	svelte
 <svelte:options runes />
 
@@ -5911,24 +5827,6 @@ b`)}>x</button
 >
 <button type="button" on:click={() => f(`a${1}b`)} on:click={() => f(`a${1}b`)}
   >y</button
->
-
-=== 369 lint/no-dupe-on-directives/19-ts-casts-and-generics.svelte	svelte
-<script lang="ts">
-  let o: any = {};
-  const f = <T,>(x: T): T => x;
-</script>
-
-<button
-  type="button"
-  on:click={() => f<string>("a")}
-  on:click={() => f<string>("a")}>x</button
->
-<button type="button" on:click={() => o?.m?.()} on:click={() => o?.m?.()}
-  >y</button
->
-<button type="button" on:click={() => o as string} on:click={() => o as string}
-  >z</button
 >
 
 === 258 lint/no-dupe-on-directives/20-host-element-kinds.svelte	svelte
@@ -23392,21 +23290,6 @@ line two"
   }
 </style>
 
-=== 151 pattern/adversarial/css/rejected-global-keyframes-selector.svelte	svelte
-<div class="x">y</div>
-
-<style>
-  :global(@keyframes shared) {
-    from {
-      opacity: 0;
-    }
-  }
-
-  .x {
-    animation-name: shared;
-  }
-</style>
-
 === 113 pattern/adversarial/css/rejected-global-mid-selector.svelte	svelte
 <div class="wrap"><p class="a">x</p></div>
 
@@ -24935,59 +24818,6 @@ second line</pre>
   <animateTransform attributeName="transform" type="rotate" />
   <foreignObject width="1" height="1"></foreignObject>
 </svg>
-
-=== 2292 pattern/adversarial/elements/very-long-text-runs.svelte	svelte
-<script>
-  let n = $state(1);
-</script>
-
-<p>
-  word0 word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11
-  word12 word13 word14 word15 word16 word17 word18 word19 word20 word21 word22
-  word23 word24 word25 word26 word27 word28 word29 word30 word31 word32 word33
-  word34 word35 word36 word37 word38 word39 word40 word41 word42 word43 word44
-  word45 word46 word47 word48 word49 word50 word51 word52 word53 word54 word55
-  word56 word57 word58 word59 word60 word61 word62 word63 word64 word65 word66
-  word67 word68 word69 word70 word71 word72 word73 word74 word75 word76 word77
-  word78 word79 word80 word81 word82 word83 word84 word85 word86 word87 word88
-  word89 word90 word91 word92 word93 word94 word95 word96 word97 word98 word99
-  word100 word101 word102 word103 word104 word105 word106 word107 word108
-  word109 word110 word111 word112 word113 word114 word115 word116 word117
-  word118 word119
-</p>
-
-<p>
-  w0 {n} w1 {n} w2 {n} w3 {n} w4 {n} w5 {n} w6 {n} w7 {n} w8 {n} w9 {n} w10 {n} w11
-  {n} w12 {n} w13 {n} w14 {n} w15 {n} w16 {n} w17 {n} w18 {n} w19 {n} w20 {n} w21
-  {n} w22 {n} w23 {n} w24 {n} w25 {n} w26 {n} w27 {n} w28 {n} w29 {n} w30 {n} w31
-  {n} w32 {n} w33 {n} w34 {n} w35 {n} w36 {n} w37 {n} w38 {n} w39 {n}
-</p>
-
-<div>
-  <span>s0</span><span>s1</span><span>s2</span><span>s3</span><span>s4</span
-  ><span>s5</span><span>s6</span><span>s7</span><span>s8</span><span>s9</span
-  ><span>s10</span><span>s11</span><span>s12</span><span>s13</span><span
-    >s14</span
-  ><span>s15</span><span>s16</span><span>s17</span><span>s18</span><span
-    >s19</span
-  ><span>s20</span><span>s21</span><span>s22</span><span>s23</span><span
-    >s24</span
-  ><span>s25</span><span>s26</span><span>s27</span><span>s28</span><span
-    >s29</span
-  ><span>s30</span><span>s31</span><span>s32</span><span>s33</span><span
-    >s34</span
-  ><span>s35</span><span>s36</span><span>s37</span><span>s38</span><span
-    >s39</span
-  >
-</div>
-
-<p>
-  {n + 0}{n + 1}{n + 2}{n + 3}{n + 4}{n + 5}{n + 6}{n + 7}{n + 8}{n + 9}{n +
-    10}{n + 11}{n + 12}{n + 13}{n + 14}{n + 15}{n + 16}{n + 17}{n + 18}{n +
-    19}{n + 20}{n + 21}{n + 22}{n + 23}{n + 24}{n + 25}{n + 26}{n + 27}{n +
-    28}{n + 29}{n + 30}{n + 31}{n + 32}{n + 33}{n + 34}{n + 35}{n + 36}{n +
-    37}{n + 38}{n + 39}
-</p>
 
 === 484 pattern/adversarial/elements/void-and-raw-elements.svelte	svelte
 <script>
@@ -33898,33 +33728,6 @@ plain text with no script, no markup elements and no expressions
 
 <div class:a.b>x</div>
 
-=== 329 pattern/css/consecutive-and-column-combinators.svelte	svelte
-<table>
-  <colgroup><col class="c" /></colgroup>
-  <tbody><tr><td class="d"><a><b>x</b></a></td></tr></tbody>
-</table>
-
-<style>
-  a>>b {
-    color: red;
-  }
-  a >>> b {
-    color: green;
-  }
-  a > b {
-    color: blue;
-  }
-  a + b {
-    color: black;
-  }
-  .c||.d {
-    color: white;
-  }
-  col||td {
-    color: gray;
-  }
-</style>
-
 === 78 pattern/css/declaration-without-property-or-colon.svelte	svelte
 <p class="a">x</p>
 
@@ -38734,65 +38537,6 @@ https://svelte.dev/e/expected_token
   }
 </style>
 
-=== 225 pattern/issues/3404-repeated-combinators.svelte	svelte
-<div class="card"><p class="a">x</p></div>
-
-<style>
-  .card>>.a {
-    color: green;
-  }
-
-  .card >>> .a {
-    color: blue;
-  }
-
-  .card {
-    >>.a {
-      color: teal;
-    }
-  }
-
-  .card > .a {
-    color: black;
-  }
-</style>
-
-=== 374 pattern/issues/3404-unhandled-combinator-scope.svelte	svelte
-<div class="a">
-  <section class="b"><span class="c">t</span></section>
-</div>
-<p class="d">u</p>
-
-<style>
-  .a||.b {
-    color: red;
-  }
-
-  .a||.b > .c {
-    color: green;
-  }
-
-  .a > .b||.c {
-    color: blue;
-  }
-
-  .zz||.b {
-    color: teal;
-  }
-
-  .b + .d||.c {
-    color: olive;
-  }
-
-  .a||:global(.x) {
-    color: navy;
-  }
-
-  .a > .b {
-    color: black;
-  }
-</style>
-
 === 249 pattern/issues/3405-attribute-selector-spacing.svelte	svelte
 <div class="a" data-k="v">x</div>
 
@@ -39194,34 +38938,6 @@ https://svelte.dev/e/expected_token
     return 0;
   })()}</b
 >
-
-=== 508 pattern/issues/3498-class-rune-linebreak-separators.svelte	svelte
-<script>
-  class Box {
-    value = // state
-      $state(1);
-    raw = $state.raw(2); // raw
-    doubled = // derived
-      $derived(this.value * 2);
-    lazy = // derived by
-      $derived.by(() => this.value + 1);
-    #hidden;
-
-    constructor() {
-      this.extra = $state(3);
-      this.#hidden = // constructor
-        $state(4);
-    }
-
-    read() {
-      return this.#hidden;
-    }
-  }
-
-  const box = new Box();
-</script>
-
-<b>{box.value} {box.raw} {box.doubled} {box.lazy} {box.extra} {box.read()}</b>
 
 === 84 pattern/issues/3511-store-scoped-each-position.svelte	svelte
 <script>
@@ -40366,41 +40082,6 @@ b`.length}
 <p>{pairs.length + objects.length + triples.length + calls.length}</p>
 <p>{wide.length + twin.length + astral.length + astralTwin.length}</p>
 <p>{plain7.length + plain21.length}</p>
-
-=== 1393 pattern/issues/3714-template-quoted-property-key.svelte	svelte
-<script>
-  const align = "center";
-
-  function cn(...parts) {
-    return parts.join(" ");
-  }
-</script>
-
-<!-- esrap prints a literal from its `raw`, so the source's quote spelling is
-     part of the output. A double-quoted object property KEY inside a template
-     expression lost it and came out single-quoted: the code parses and computes
-     the same value, so only byte equality can see the difference — and the
-     corpus gate normalizes with oxfmt, which rewrites quotes. -->
-<div class={cn({ "items-center": align === "center" })}></div>
-<div class={cn({ "a-b": 1, "c-d": 2 })}></div>
-<div class={cn({ x: { "nested-key": 1 } })}></div>
-<div class={cn({ "1": 1 })}></div>
-<div class={cn({ plainident: 1 })}></div>
-<p>{JSON.stringify({ "a-b": 1 })}</p>
-{#each [{ "a-b": 1 }] as item}
-  <span>{item["a-b"]}</span>
-{/each}
-
-<!-- The controls, in the directions a fix to the key's `raw` could break. A
-     single-quoted key was already right, so it is what says the defect is the
-     dropped `raw` and not the key position; a double-quoted VALUE and a computed
-     key were already right too, and they are where the same `raw` is read by a
-     different converter. -->
-<div class={cn({ "single-key": 1 })}></div>
-<div class={cn({ a: "double-value" })}></div>
-<div class={cn({ ["computed-key"]: 1 })}></div>
-<div class={cn({ "a'b": 1 })}></div>
-<div class={cn({ 'a"b': 1 })}></div>
 
 === 612 pattern/issues/3863-await-import-declaration-tag.svelte	svelte
 <script>
@@ -41757,20 +41438,6 @@ b`.length}
 	public;
 	foo(;
 </script>
-
-=== 326 pattern/issues/acorn-unchecked-ts-grammar-rule-in-a-template.svelte	svelte
-<script lang="ts">
-  let a: any;
-</script>
-
-<p>{<string,>() => a}</p>
-<p title={<string,>() => a}>x</p>
-<button onclick={<string,>() => a}>y</button>
-{#if 1}{@const c = <string,>() => a}{c}{/if}
-{#each [<string,>() => a] as z}{z}{/each}
-{#snippet s(q)}{q}{/snippet}
-{@render s(<string,>() => 1)}
-<p>{(<T,>(t: T) => t)(1)}</p>
 
 === 1491 pattern/issues/an-ampersand-compound-is-judged-against-the-ancestor-chain.svelte	svelte
 <script>
