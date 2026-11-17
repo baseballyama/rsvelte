@@ -2,9 +2,12 @@ use oxc_ast::ast::{ArrowFunctionExpression, Expression, Function, IdentifierRefe
 use oxc_ast_visit::{Visit, walk};
 use oxc_syntax::scope::ScopeFlags;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{Attribute, AttributeValue, CompilerSyntaxTree, Element, NodeKind, Resolution, Target};
+use super::{
+    Attribute, AttributeValue, Builder, CompilerSyntaxTree, Element, NodeKind, Resolution, Target,
+};
 
 #[cfg(test)]
 mod tests;
@@ -173,6 +176,41 @@ pub(super) fn scoped_class(value: &str, hash: &str, target: Target) -> String {
         hash.to_owned()
     } else {
         format!("{value} {hash}")
+    }
+}
+
+/// Upstream's style directive object: `{ name: value }`, or `[normal, important]` when one is
+/// `|important`. The server's `build_attr_style` lowercases a name that is not a custom property;
+/// the client's `build_style_directives_object` keeps it as written.
+pub(super) fn style_directives_object<'o>(
+    b: &Builder<'o>,
+    source_text: &str,
+    directives: &[&Attribute],
+    target: Target,
+    mut value: impl FnMut(&Attribute) -> Expression<'o>,
+) -> Expression<'o> {
+    let mut normal = Vec::new();
+    let mut important = Vec::new();
+    for d in directives {
+        let AttributeValue::Style { modifiers, .. } = &d.value else {
+            unreachable!("style directives")
+        };
+        let name = d.name.text(source_text);
+        let property = if target == Target::Server && !name.starts_with("--") {
+            b.init(&name.to_lowercase(), value(d))
+        } else {
+            b.init(name, value(d))
+        };
+        if modifiers.contains(Modifiers::IMPORTANT) {
+            important.push(property);
+        } else {
+            normal.push(property);
+        }
+    }
+    if important.is_empty() {
+        b.object(normal)
+    } else {
+        b.array([b.object(normal), b.object(important)])
     }
 }
 
