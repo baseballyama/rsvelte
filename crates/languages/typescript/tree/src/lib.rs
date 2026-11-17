@@ -145,7 +145,7 @@ identifier!(
     ProgramIdentifier
 );
 identifier!(
-    /// An expression parsed by [`Builder::expression_at`].
+    /// An expression a [`Builder`] keeps.
     ExpressionIdentifier
 );
 identifier!(

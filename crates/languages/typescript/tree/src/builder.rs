@@ -163,34 +163,8 @@ impl<'a> Builder<'a> {
         self.recorded
     }
 
-    /// Parses the expression that starts at `start`, and returns where it ends.
-    ///
-    /// # Errors
-    ///
-    /// The first syntax error in the expression.
-    pub fn expression_at(
-        &mut self,
-        start: u32,
-        source_type: SourceType,
-    ) -> Result<(ExpressionIdentifier, u32), SyntaxError> {
-        let (expression, end) = self.read_expression_at(start, source_type)?;
-        Ok((self.keep_expression(expression), end))
-    }
-
-    /// [`Self::expression_at`], for a host that takes the expression apart.
-    ///
-    /// # Errors
-    ///
-    /// The first syntax error in the expression.
-    pub fn read_expression_at(
-        &mut self,
-        start: u32,
-        source_type: SourceType,
-    ) -> Result<(Expression<'a>, u32), SyntaxError> {
-        self.read_expression_before(start, self.source_text.len() as u32, source_type)
-    }
-
-    /// [`Self::read_expression_at`] in the document up to `limit`, as if it ended there.
+    /// Parses the expression that starts at `start` in the document up to `limit`, as if it
+    /// ended there, and returns where it ends.
     ///
     /// # Errors
     ///
