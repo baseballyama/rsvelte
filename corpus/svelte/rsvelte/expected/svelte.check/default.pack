@@ -11313,6 +11313,12 @@
 === 3 pattern/reactive-new-callee.svelte	json
 []
 
+=== 3 pattern/script-top-level-return-ts.svelte	json
+[]
+
+=== 3 pattern/script-top-level-return.svelte	json
+[]
+
 === 3 pattern/self-closing-block-in-a-string.svelte	json
 []
 

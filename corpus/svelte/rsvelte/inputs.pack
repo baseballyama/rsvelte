@@ -48715,6 +48715,22 @@ export function pin(then) {
 	);
 }
 
+=== 65 pattern/script-top-level-return-ts.svelte	svelte	runes	rejected
+<script lang="ts">
+	let   x =  1
+	return x
+</script>
+
+<p>{x}</p>
+
+=== 55 pattern/script-top-level-return.svelte	svelte	runes	rejected
+<script>
+	let   x =  1
+	return x
+</script>
+
+<p>{x}</p>
+
 === 60 pattern/self-closing-block-in-a-string.svelte	svelte	runes	neutral
 <script>
   const tag = "<style />";
