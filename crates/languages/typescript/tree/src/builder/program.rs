@@ -123,8 +123,7 @@ impl<'a> Builder<'a> {
         self.record(parsed.tokens.into_arena_slice(), comments, 0);
         // Its spans are the document's, so a task that reads text at a span reads the document.
         program.source_text = self.source_text;
-        let identifier = ProgramIdentifier::at(self.programs.len());
-        self.programs.push(program);
+        let identifier = crate::push(&mut self.programs, program);
         match rejection {
             None => Ok(identifier),
             Some(error) => Err(Box::new(Read {

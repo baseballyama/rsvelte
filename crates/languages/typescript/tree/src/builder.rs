@@ -302,8 +302,7 @@ impl<'a> Builder<'a> {
         source_type: SourceType,
     ) -> Result<ParametersIdentifier, SyntaxError> {
         let parameters = self.read_parameters(range, source_type)?;
-        let identifier = ParametersIdentifier::at(self.parameters.len());
-        self.parameters.push(parameters);
+        let identifier = crate::push(&mut self.parameters, parameters);
         Ok(identifier)
     }
 
@@ -338,8 +337,7 @@ impl<'a> Builder<'a> {
             return Err(refused("expected type parameters", range));
         };
         Shift(shift).visit_ts_type_parameter_declaration(&mut parameters);
-        let identifier = TypeParametersIdentifier::at(self.type_parameters.len());
-        self.type_parameters.push(parameters);
+        let identifier = crate::push(&mut self.type_parameters, parameters);
         Ok(identifier)
     }
 
@@ -446,39 +444,29 @@ impl<'a> Builder<'a> {
     }
 
     pub fn keep_expression(&mut self, expression: Expression<'a>) -> ExpressionIdentifier {
-        let identifier = ExpressionIdentifier::at(self.expressions.len());
-        self.expressions.push(expression);
-        identifier
+        crate::push(&mut self.expressions, expression)
     }
 
     /// Keeps a program built in [`Builder::nodes`]'s arena, such as one a compiler writes.
     pub fn keep_program(&mut self, program: Program<'a>) -> ProgramIdentifier {
-        let identifier = ProgramIdentifier::at(self.programs.len());
-        self.programs.push(program);
-        identifier
+        crate::push(&mut self.programs, program)
     }
 
     /// Keeps a parameter list built in [`Builder::nodes`]'s arena, such as aliases a compiler
     /// writes.
     pub fn keep_parameters(&mut self, parameters: FormalParameters<'a>) -> ParametersIdentifier {
-        let identifier = ParametersIdentifier::at(self.parameters.len());
-        self.parameters.push(parameters);
-        identifier
+        crate::push(&mut self.parameters, parameters)
     }
 
     pub fn keep_pattern(&mut self, pattern: FormalParameter<'a>) -> PatternIdentifier {
-        let identifier = PatternIdentifier::at(self.patterns.len());
-        self.patterns.push(pattern);
-        identifier
+        crate::push(&mut self.patterns, pattern)
     }
 
     pub fn keep_declaration(
         &mut self,
         declaration: VariableDeclaration<'a>,
     ) -> DeclarationIdentifier {
-        let identifier = DeclarationIdentifier::at(self.declarations.len());
-        self.declarations.push(declaration);
-        identifier
+        crate::push(&mut self.declarations, declaration)
     }
 
     /// Keeps `tokens` and `comments`, `shift` bytes later, as the part read last.
