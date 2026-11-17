@@ -1,6 +1,5 @@
 //! `css_unused_selector`: the selectors that no element matched.
 
-use rsvelte_stylesheet_syntax::properties::without_browser_prefix;
 use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple};
 use rsvelte_svelte_syntax::syntax_tree::Component;
 
@@ -29,8 +28,8 @@ pub(super) fn unused_selectors(rules: &[Rule], analysis: &Analysis, source: &str
     for rule in rules {
         match &rule.kind {
             RuleKind::Keyframe { .. } => {}
-            RuleKind::At { name, .. } => {
-                if without_browser_prefix(name.text(source)) != "keyframes" {
+            RuleKind::At { keyframes, .. } => {
+                if !keyframes {
                     unused_selectors(&rule.children, analysis, source, out);
                 }
             }

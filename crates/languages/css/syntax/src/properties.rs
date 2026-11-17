@@ -28,7 +28,7 @@ pub fn vendor_prefix(name: &str) -> &str {
 
 /// `name` without the browser prefix Svelte removes: `-webkit-`, `-moz-`, `-o-` or `-ms-`.
 #[must_use]
-pub fn without_browser_prefix(name: &str) -> &str {
+pub(crate) fn without_browser_prefix(name: &str) -> &str {
     BROWSER_PREFIXES
         .iter()
         .find_map(|prefix| name.strip_prefix(prefix))

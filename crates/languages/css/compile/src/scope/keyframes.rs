@@ -1,6 +1,6 @@
 use rsvelte_kernel::output::edits::BorrowedEdits as Edits;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_stylesheet_syntax::properties::{names_keyframes, without_browser_prefix};
+use rsvelte_stylesheet_syntax::properties::names_keyframes;
 use rsvelte_stylesheet_syntax::syntax_tree::{Declaration, Rule, RuleKind, StyleSheet};
 use rustc_hash::FxHashSet;
 
@@ -24,8 +24,11 @@ impl<'a> Names<'a> {
                 if let RuleKind::Style { selectors, .. } = &rule.kind {
                     global |= selectors.iter().any(|s| s.opens_global_block(source));
                 }
-                if let RuleKind::At { name, prelude, .. } = rule.kind
-                    && without_browser_prefix(name.text(source)) == "keyframes"
+                if let RuleKind::At {
+                    prelude,
+                    keyframes: true,
+                    ..
+                } = rule.kind
                     && !global
                     && !prelude.text(source).starts_with("-global-")
                 {
