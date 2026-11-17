@@ -334,6 +334,22 @@ impl<'t> LineCursor<'t> {
         let start = self.byte as usize;
         let bytes = self.text.as_bytes();
         let ecmascript = self.breaks == LineBreaks::Ecmascript;
+        let stretch = &bytes[start..target as usize];
+        // In ASCII every character is one byte and one unit, so only the `\n`s need finding; a
+        // `\r` keeps the loop, which knows when it ends a line.
+        if stretch.is_ascii() && !(ecmascript && memchr::memchr(b'\r', stretch).is_some()) {
+            let len = stretch.len() as u32;
+            self.character += len;
+            match memchr::memrchr(b'\n', stretch) {
+                Some(last) => {
+                    self.line += memchr::memchr_iter(b'\n', stretch).count() as u32;
+                    self.column = len - last as u32 - 1;
+                }
+                None => self.column += len,
+            }
+            self.byte = target;
+            return;
+        }
         for (i, ch) in self.text[start..target as usize].char_indices() {
             let units = ch.len_utf16() as u32;
             self.character += units;
