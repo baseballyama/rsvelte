@@ -39,26 +39,50 @@ pub fn emoji_measured_otherwise(s: &str) -> bool {
     if is_printable_ascii(s) {
         return false;
     }
-    s.split(is_ecmascript_whitespace).any(|run| {
-        if is_printable_ascii(run) {
-            return false;
+    // Every character of an emoji sequence is non-ASCII and no whitespace, so only the runs that
+    // hold a non-ASCII byte can hold one, and none spans two runs.
+    let mut at = 0;
+    while let Some(offset) = s.as_bytes()[at..].iter().position(|b| !b.is_ascii()) {
+        let first = at + offset;
+        let end = s[first..]
+            .char_indices()
+            .find(|&(_, c)| is_ecmascript_whitespace(c))
+            .map_or(s.len(), |(i, _)| first + i);
+        if end == first {
+            at = first + s[first..].chars().next().map_or(1, char::len_utf8);
+            continue;
         }
-        let mut previous = None;
-        let emoji = run.char_indices().any(|(i, c)| {
-            let next = run[i + c.len_utf8()..].chars().next();
-            // A zero width joiner between other characters is a format character, not an emoji.
-            let joiner =
-                c == '\u{200D}' && (previous.is_some_and(is_wide) || next.is_some_and(is_wide));
-            previous = Some(c);
-            joiner
-                || matches!(u32::from(c), 0xFE0F | 0x1F3FB..=0x1F3FF | 0xE0020..=0xE007F)
-                || emoji_sequence(&run[i..]).is_some()
-        });
-        emoji
-            && string_width(run)
-                != oxc_formatter_core::text_width(run, oxc_formatter_core::IndentWidth::default())
-                    as usize
-    })
+        let start = s[..first]
+            .char_indices()
+            .rev()
+            .find(|&(_, c)| is_ecmascript_whitespace(c))
+            .map_or(0, |(i, c)| i + c.len_utf8());
+        if run_measured_otherwise(&s[start..end]) {
+            return true;
+        }
+        at = end;
+    }
+    false
+}
+
+/// Whether `run`, which holds no whitespace, holds an emoji sequence that oxc's printer measures
+/// otherwise than [`string_width`].
+fn run_measured_otherwise(run: &str) -> bool {
+    let mut previous = None;
+    let emoji = run.char_indices().any(|(i, c)| {
+        let next = run[i + c.len_utf8()..].chars().next();
+        // A zero width joiner between other characters is a format character, not an emoji.
+        let joiner =
+            c == '\u{200D}' && (previous.is_some_and(is_wide) || next.is_some_and(is_wide));
+        previous = Some(c);
+        joiner
+            || matches!(u32::from(c), 0xFE0F | 0x1F3FB..=0x1F3FF | 0xE0020..=0xE007F)
+            || emoji_sequence(&run[i..]).is_some()
+    });
+    emoji
+        && string_width(run)
+            != oxc_formatter_core::text_width(run, oxc_formatter_core::IndentWidth::default())
+                as usize
 }
 
 /// The length of the longest emoji sequence of more than one character that `s` starts with.

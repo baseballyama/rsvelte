@@ -155,6 +155,12 @@ impl Tsc {
             layer.files.push(declaration);
         }
         roots.extend(paths.iter().cloned());
+        // Upstream's project holds every component, so one that is not checked still declares
+        // its globals.
+        roots.extend(req.stand_ins(&root).map(|(path, _)| path).filter(|path| {
+            (req.script_modules.iter())
+                .any(|extension| path.as_os_str().to_string_lossy().ends_with(extension))
+        }));
         roots.extend(declarations);
         roots.extend(req.include.iter().cloned());
         let config = overlay.join("tsconfig.json");
@@ -165,10 +171,10 @@ impl Tsc {
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
         let [program, syntactic, semantic] =
             check_shares(&mut session, helpers, &config, &layer, &files).map_err(failed)?;
-        let untyped = if own.untyped {
+        let (untyped, untyped_names) = if own.untyped {
             untyped::imports(req, &root, &paths)
         } else {
-            Vec::new()
+            (Vec::new(), Vec::new())
         };
         // The session ends when it drops, which frees the snapshot with the process.
         let lines: Vec<LineIndex> = req
@@ -194,6 +200,13 @@ impl Tsc {
             .map(|(syntactic, d)| {
                 located(&d, &root, &paths, &lines, syntactic)
                     .ok_or_else(|| unlocated(&self.checker, &d))
+            })
+            .filter(|found| {
+                !found.as_ref().is_ok_and(|found| {
+                    let source = req.mapped_files.get(found.file).and_then(Option::as_ref);
+                    source
+                        .is_some_and(|mapped| untyped::hides(found, &untyped_names, &mapped.source))
+                })
             })
             .chain(untyped.into_iter().map(Ok))
             .collect()
@@ -385,6 +398,9 @@ const ERROR: u8 = 1;
 /// The document and byte range of a diagnostic in one of `paths`, whose texts `lines` index. A
 /// path below `root` in the message drops that root, so the message does not depend on where the
 /// project is.
+/// What native TypeScript adds to a finding in code a content mapper synthesized.
+const VIRTUAL_CODE: &str = "This location is in virtual code produced by the content mapper";
+
 fn located(
     d: &rsvelte_typescript_api::Diagnostic,
     root: &Path,
@@ -397,17 +413,19 @@ fn located(
         let p = p?;
         lines[file].offset(p.line + 1, p.character)
     };
+    let message = d.flattened_message().replace(
+        &format!("{}{}", root.display(), std::path::MAIN_SEPARATOR),
+        "",
+    );
+    // A finding in synthesized code may still carry a nearby position, beside this note.
     let span = offset(d.start_position)
         .zip(offset(d.end_position))
-        .filter(|(start, end)| start <= end)
+        .filter(|(start, end)| start <= end && !message.contains(VIRTUAL_CODE))
         .map(|(start, end)| Span::new(start, end));
     Some(TypeScriptDiagnostic {
         file,
         code: d.code,
-        message: d.flattened_message().replace(
-            &format!("{}{}", root.display(), std::path::MAIN_SEPARATOR),
-            "",
-        ),
+        message,
         span,
         syntactic,
     })

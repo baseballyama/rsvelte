@@ -99,6 +99,8 @@ pub fn lower<'a>(
         route: contract::Route::of(path),
         props_hoisted: false,
         module_snippets: None,
+        slot_elements: Vec::new(),
+        slots_by_elements: false,
     };
     builder.tree.javascript = !checked_as_typescript(component, source);
     // svelte2tsx moves the root's snippets after the instance script's imports. Without one it
@@ -131,6 +133,7 @@ pub fn lower<'a>(
             .scratch
             .push(builder.tree.push(Node::Statement(value)));
     }
+    let contract = builder.with_slot_def(contract);
     builder.render(contract, generics);
     builder.tree.root = builder.finish_list(0);
     Ok(builder.tree)
@@ -159,6 +162,10 @@ struct Builder<'a> {
     props_hoisted: bool,
     /// The root snippets svelte2tsx moves before the render function.
     module_snippets: Option<NodeIdentifier>,
+    /// The attributes of each `<slot>` lowered, which type the slots when `slots_by_elements`.
+    slot_elements: Vec<Range>,
+    /// Whether the contract declares neither `$$Slots` nor `$$Events` and is not generic.
+    slots_by_elements: bool,
 }
 
 /// The source text at `at`, whose mapping ends at `end` when that is not its own end.

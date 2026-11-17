@@ -93,7 +93,14 @@ fn an_emoji_sequence_is_named_only_where_oxc_measures_it_otherwise() {
     {
         assert!(!emoji_measured_otherwise(text), "{text:?}");
     }
-    for text in ["a 👨‍👩‍ b", "🏴\u{E0067}", "1\u{FE0F}"] {
+    for text in [
+        "a 👨‍👩‍ b",
+        "🏴\u{E0067}",
+        "1\u{FE0F}",
+        "x\u{A0}1\u{FE0F}",
+        "日本 a 1\u{FE0F}",
+        "\u{3000}1\u{FE0F}\u{3000}",
+    ] {
         assert!(emoji_measured_otherwise(text), "{text:?}");
     }
 }
