@@ -171,7 +171,7 @@ impl<'a> P<'a, '_> {
     /// `start_offset..end_offset`, into the component's tokens.
     fn javascript_region(&mut self, start_offset: u32, end_offset: u32) {
         let mut at = start_offset;
-        for r in self.builder.recorded() {
+        for r in self.builder.recorded().iter() {
             self.c
                 .tokens
                 .push(TokenType::Whitespace, Span::new(at, r.span.start_offset));
@@ -196,8 +196,8 @@ impl<'a> P<'a, '_> {
         let read = self
             .builder
             .recorded()
-            .last()
-            .map_or(end, |r| r.span.end_offset.max(end));
+            .end()
+            .map_or(end, |recorded| recorded.max(end));
         let rest = Span::new(read, range.end_offset);
         if !rest.text(self.source_text).trim_ascii().is_empty() {
             return Err(Diagnostic::error(
