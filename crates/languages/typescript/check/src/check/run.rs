@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
-use rsvelte_typescript_api::{DiagnosticKind, Layer, Position, Session};
+use rsvelte_typescript_api::{DiagnosticKind, Layer, Position, Project, Session};
 
 use super::{CONTRACT, Tsc, TypeChecker};
 
@@ -254,8 +254,8 @@ type Helper = std::thread::JoinHandle<Result<Session, String>>;
 type Found = Vec<rsvelte_typescript_api::Diagnostic>;
 
 /// The program, syntactic and semantic findings of `files` in the project of `config`. Every
-/// process opens the project at the same time; `session` checks the first share of the files and
-/// each helper one more.
+/// process opens the project at the same time and takes shares of the files from `Shares` until
+/// none is left; `session` also asks for the program and syntactic findings.
 fn check_shares(
     session: &mut Session,
     helpers: Vec<Helper>,
@@ -263,27 +263,25 @@ fn check_shares(
     layer: &Layer,
     files: &[&Path],
 ) -> Result<[Found; 3], String> {
-    let share = files.len().div_ceil(helpers.len() + 1).max(1);
-    let mut shares = files.chunks(share);
-    let own = shares.next().unwrap_or_default();
+    let shares = Shares::new(files, helpers.len() + 1);
+    let shares = &shares;
     std::thread::scope(|scope| {
         let running: Vec<_> = helpers
             .into_iter()
-            .zip(shares)
-            .map(|(helper, share)| {
+            .map(|helper| {
                 scope.spawn(move || {
                     let mut helper = helper
                         .join()
                         .unwrap_or_else(|panic| std::panic::resume_unwind(panic))?;
                     let project = helper.open(&[config], layer)?.remove(0);
-                    helper.diagnostics(&project, DiagnosticKind::Semantic, Some(share))
+                    shares.check(&mut helper, &project)
                 })
             })
             .collect();
         let project = session.open(&[config], layer)?.remove(0);
         let program = session.diagnostics(&project, DiagnosticKind::Program, None)?;
         let syntactic = session.diagnostics(&project, DiagnosticKind::Syntactic, Some(files))?;
-        let mut semantic = session.diagnostics(&project, DiagnosticKind::Semantic, Some(own))?;
+        let mut semantic = shares.check(session, &project)?;
         for helper in running {
             semantic.extend(
                 helper
@@ -293,6 +291,47 @@ fn check_shares(
         }
         Ok([program, syntactic, semantic])
     })
+}
+
+/// The files no process has taken yet. A process takes half of its part of what is left, as in
+/// factoring scheduling: early shares are large, so few requests are made, and the last are
+/// single files, so the processes finish together however long each file takes.
+struct Shares<'a> {
+    files: &'a [&'a Path],
+    processes: usize,
+    taken: std::sync::Mutex<usize>,
+}
+
+impl<'a> Shares<'a> {
+    const fn new(files: &'a [&'a Path], processes: usize) -> Self {
+        Self {
+            files,
+            processes,
+            taken: std::sync::Mutex::new(0),
+        }
+    }
+
+    fn take(&self) -> Option<&'a [&'a Path]> {
+        let mut taken = self
+            .taken
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let start = *taken;
+        let left = self.files.len() - start;
+        *taken += left.div_ceil(2 * self.processes);
+        let end = *taken;
+        drop(taken);
+        (left != 0).then(|| &self.files[start..end])
+    }
+
+    /// The semantic findings of each share `session` takes.
+    fn check(&self, session: &mut Session, project: &Project) -> Result<Found, String> {
+        let mut found = Vec::new();
+        while let Some(share) = self.take() {
+            found.extend(session.diagnostics(project, DiagnosticKind::Semantic, Some(share))?);
+        }
+        Ok(found)
+    }
 }
 
 fn tsconfig_json(
@@ -458,3 +497,6 @@ mod project;
 mod script_module;
 mod untyped;
 pub(crate) use mapped::ContentMappedInput;
+
+#[cfg(test)]
+mod tests;
