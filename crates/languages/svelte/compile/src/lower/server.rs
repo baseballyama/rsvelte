@@ -207,7 +207,7 @@ pub(super) fn lower_prepared<'c, 'o>(
     }
     let function = b.function_declaration(&component_name, b.parameters(parameters), body, false);
     let function = super::script::with_prologue(b, function);
-    let mut program = vec![import(b, Some("$"), "svelte/internal/server")];
+    let mut program = vec![import(b, Some("$"), Target::Server.runtime())];
     program.extend(hoisted);
     program.append(&mut sx.hoisted_snippets);
     program.extend(module);

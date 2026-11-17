@@ -3,10 +3,8 @@ use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
-use rsvelte_kernel::source::positions::LineBreaks;
 use rsvelte_lint_runner::catalog::{Leveled, all, levels};
 use rsvelte_lint_runner::configuration::RuleLevels;
-use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::Parsed;
@@ -81,23 +79,6 @@ impl Task for Lint {
         };
         // This task is the only one that analyzes a standalone file's scopes.
         let semantic = Semantic::program(program.tree.clone(), program.root);
-        let mut findings = Findings::new();
-        findings.run(&self.rules, &semantic);
-        let findings = match findings.finish() {
-            Ok(findings) => findings,
-            Err(error) => {
-                out.diagnostics.push(error);
-                return;
-            }
-        };
-        rsvelte_lint_runner::output::report(
-            out,
-            rsvelte_lint_runner::output::Positions::new(
-                &|| context.lines(LineBreaks::Ecmascript),
-                context.source_text(),
-            ),
-            self.rules.iter().map(|rule| rule.rule.identifier()),
-            findings,
-        );
+        rsvelte_lint_runner::output::run(out, context, &self.rules, &semantic);
     }
 }

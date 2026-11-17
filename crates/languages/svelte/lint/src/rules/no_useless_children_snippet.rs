@@ -2,20 +2,15 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 
 use super::nodes;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-useless-children-snippet",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoUselessChildrenSnippet>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoUselessChildrenSnippet))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoUselessChildrenSnippet;
 
 impl SvelteRule for NoUselessChildrenSnippet {
@@ -33,19 +28,16 @@ impl SvelteRule for NoUselessChildrenSnippet {
                     span,
                     ..
                 } = *component.node(child)
-                    && parameters.is_none_or(|parameters| {
-                        component
-                            .javascript
-                            .get_parameters(parameters)
-                            .parameters_count()
-                            == 0
-                    })
+                    && (component.javascript)
+                        .get_parameters(parameters)
+                        .parameters_count()
+                        == 0
                     && nodes::is_named(component.javascript.get_expression(name), "children")
                 {
-                    reporter.report(
-                        Report::range("Found an unnecessary children snippet.", span)
-                            .message_id("uselessSnippet"),
-                    );
+                    reporter.report(Report::range(
+                        "Found an unnecessary children snippet.",
+                        span,
+                    ));
                 }
             }
         }

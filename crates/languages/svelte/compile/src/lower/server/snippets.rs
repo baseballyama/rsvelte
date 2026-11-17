@@ -75,9 +75,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let b = self.b;
         let body = self.fragment(snippet.body)?;
         let mut parameters = vec![b.parameter(b.binding("$$renderer"))];
-        if let Some(list) = snippet.parameters {
-            parameters.extend(self.parameters(list));
-        }
+        parameters.extend(self.parameters(snippet.parameters));
         Ok(b.function_declaration(
             self.snippet_name(snippet),
             b.formal_parameters(parameters),

@@ -24,18 +24,12 @@ pub fn reads_as_identifier(name: &str) -> bool {
 /// ```
 #[must_use]
 pub fn is_component_name(name: &str) -> bool {
-    let continues = |c: char| {
-        c == '$'
-            || c == '\u{200c}'
-            || c == '\u{200d}'
-            || unicode_identifier_start::is_id_continue(c)
-    };
     let mut chars = name.chars();
     let Some(first) = chars.next() else {
         return false;
     };
     let rest = chars.as_str();
-    if is_uppercase_letter(first) && rest.chars().all(|c| continues(c) || c == '.') {
+    if is_uppercase_letter(first) && rest.chars().all(|c| is_identifier_continue(c) || c == '.') {
         return true;
     }
     if !unicode_identifier_start::is_id_start(first) {
@@ -47,12 +41,12 @@ pub fn is_component_name(name: &str) -> bool {
     };
     let mut members = 0;
     for seg in segments {
-        if seg.is_empty() || !seg.chars().all(continues) {
+        if seg.is_empty() || !seg.chars().all(is_identifier_continue) {
             return false;
         }
         members += 1;
     }
-    members > 0 && head.chars().all(continues)
+    members > 0 && head.chars().all(is_identifier_continue)
 }
 
 /// `\p{Lu}`: Rust's `is_uppercase` is the Uppercase property, which adds `Other_Uppercase`.
@@ -89,6 +83,11 @@ pub(crate) fn is_valid_element_name(name: &str) -> bool {
     is_valid_tag_name(name)
 }
 
+/// ECMAScript's `IdentifierPartChar`, with `$`.
+pub(crate) fn is_identifier_continue(c: char) -> bool {
+    c == '$' || c == '\u{200c}' || c == '\u{200d}' || unicode_identifier_start::is_id_continue(c)
+}
+
 /// Upstream `REGEX_VALID_TAG_NAME`.
 fn is_valid_tag_name(name: &str) -> bool {
     let (head, tail) = name
@@ -101,17 +100,34 @@ fn is_valid_tag_name(name: &str) -> bool {
         return false;
     }
     tail.is_none_or(|t| {
-        t.chars().all(|c| {
-            c.is_ascii_alphanumeric()
-                || matches!(c, '.' | '-' | '_' | '\u{b7}')
-                || matches!(c, '\u{c0}'..='\u{d6}' | '\u{d8}'..='\u{f6}' | '\u{f8}'..='\u{37d}')
-                || matches!(c, '\u{37f}'..='\u{1fff}' | '\u{200c}'..='\u{200d}')
-                || matches!(c, '\u{203f}'..='\u{2040}' | '\u{2070}'..='\u{218f}')
-                || matches!(c, '\u{2c00}'..='\u{2fef}' | '\u{3001}'..='\u{d7ff}')
-                || matches!(c, '\u{f900}'..='\u{fdcf}' | '\u{fdf0}'..='\u{fffd}')
-                || matches!(c, '\u{10000}'..='\u{effff}')
-        })
+        t.chars()
+            .all(|c| c.is_ascii_uppercase() || is_tag_character(c))
     })
+}
+
+/// The HTML standard's `PCENChar`, and `-`.
+pub(crate) const fn is_tag_character(c: char) -> bool {
+    matches!(
+        c,
+        'a'..='z'
+            | '0'..='9'
+            | '_'
+            | '.'
+            | '-'
+            | '\u{b7}'
+            | '\u{c0}'..='\u{d6}'
+            | '\u{d8}'..='\u{f6}'
+            | '\u{f8}'..='\u{37d}'
+            | '\u{37f}'..='\u{1fff}'
+            | '\u{200c}'..='\u{200d}'
+            | '\u{203f}'..='\u{2040}'
+            | '\u{2070}'..='\u{218f}'
+            | '\u{2c00}'..='\u{2fef}'
+            | '\u{3001}'..='\u{d7ff}'
+            | '\u{f900}'..='\u{fdcf}'
+            | '\u{fdf0}'..='\u{fffd}'
+            | '\u{10000}'..='\u{effff}'
+    )
 }
 
 /// Upstream `meta_tags`: the `svelte:` elements.

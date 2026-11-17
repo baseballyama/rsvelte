@@ -14,7 +14,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use super::legacy_reactivity::legacy;
 use super::nodes;
 use super::runes::runes;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 #[cfg(test)]
 mod tests;
@@ -23,15 +23,10 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "no-unused-vars",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoUnusedVariables>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoUnusedVariables))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoUnusedVariables;
 
 impl SvelteRule for NoUnusedVariables {

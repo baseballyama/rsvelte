@@ -7375,6 +7375,46 @@
 === 3 pattern/css/value-ends-outside-strings-and-urls.svelte	json
 []
 
+=== 628 pattern/declared-legacy-props.svelte	json
+[
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable '$$props'.",
+		"start": {
+			"line": 0,
+			"character": 1
+		},
+		"end": {
+			"line": 0,
+			"character": 1
+		}
+	},
+	{
+		"code": 1184,
+		"message": "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script context=\"module\">..</script>",
+		"start": {
+			"line": 1,
+			"character": 1
+		},
+		"end": {
+			"line": 1,
+			"character": 8
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable '$$props'.",
+		"start": {
+			"line": 1,
+			"character": 13
+		},
+		"end": {
+			"line": 1,
+			"character": 20
+		}
+	}
+]
+
 === 191 pattern/deferred-interface-body-error.svelte	json
 [
 	{

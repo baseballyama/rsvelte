@@ -129,6 +129,10 @@ fn legacy_mode_syntax_that_runes_mode_rejects_makes_a_legacy_component() {
         ("<p {...$$props}></p>", "$$props"),
         ("<p {...$$restProps}></p>", "$$restProps"),
         (
+            "<script lang=\"ts\">declare let $$props: any;</script><p>{$$props.a}</p>",
+            "$$props",
+        ),
+        (
             "<svelte:options runes={false} />",
             "<svelte:options runes={false}>",
         ),

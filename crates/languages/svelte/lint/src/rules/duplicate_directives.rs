@@ -62,7 +62,7 @@ pub(super) fn report_duplicates<'s>(
             for (index, &span) in spans.iter().enumerate() {
                 let other = spans[usize::from(index == 0)];
                 let line = lines.line_column(other.start_offset).line;
-                reporter.report(Report::range(message(key, line), span).message_id("duplication"));
+                reporter.report(Report::range(message(key, line), span));
             }
         }
     }

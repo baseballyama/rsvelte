@@ -21,6 +21,24 @@ pub enum Target {
     Server,
 }
 
+impl Target {
+    /// The module the output imports Svelte's runtime from, as `$`.
+    pub(crate) const fn runtime(self) -> &'static str {
+        match self {
+            Self::Client => "svelte/internal/client",
+            Self::Server => "svelte/internal/server",
+        }
+    }
+
+    /// The measured phase that lowers to this target.
+    pub(crate) const fn lower_phase(self) -> &'static str {
+        match self {
+            Self::Client => "svelte.lower.client",
+            Self::Server => "svelte.lower.server",
+        }
+    }
+}
+
 pub(crate) fn static_string<'a>(
     input: &CompileInput<'a>,
     value: &'a rsvelte_svelte_semantic::compiler_syntax_tree::AttributeValue,

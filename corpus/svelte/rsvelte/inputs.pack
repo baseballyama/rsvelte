@@ -35863,6 +35863,13 @@ export const pair = $state({ a: 1, b: "two" });
 	}
 </style>
 
+=== 76 pattern/declared-legacy-props.svelte	svelte	runes	rejected
+<script lang="ts">
+	declare let $$props: any;
+</script>
+
+<p>{$$props.b}</p>
+
 === 43 pattern/deferred-interface-body-error.svelte	svelte	runes	rejected
 export interface Config {
   src: string;

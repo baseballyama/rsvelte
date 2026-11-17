@@ -948,6 +948,9 @@ version = "0.0.0"
 [[package]]
 name = "rsvelte_markup_syntax"
 version = "0.0.0"
+dependencies = [
+ "memchr",
+]
 
 [[package]]
 name = "rsvelte_plugin_interface"

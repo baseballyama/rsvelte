@@ -98,8 +98,8 @@ enum Selected {
     Type,
 }
 
-/// The message id and message to report, if any.
-type Verdict = Option<(&'static str, &'static str)>;
+/// The message to report, if any.
+type Verdict = Option<&'static str>;
 
 impl<'r> Check<'r, '_, '_> {
     fn rule_selectors(&mut self, rule: &Rule) {
@@ -184,9 +184,8 @@ impl<'r> Check<'r, '_, '_> {
             self.verdicts.insert((selected, name), verdict);
             verdict
         };
-        if let Some((id, message)) = verdict {
-            self.reporter
-                .report(Report::range(message, span).message_id(id));
+        if let Some(message) = verdict {
+            self.reporter.report(Report::range(message, span));
         }
     }
 
@@ -200,16 +199,10 @@ impl<'r> Check<'r, '_, '_> {
             match style {
                 Style::Class => return None,
                 Style::Id if template.can_use_id(selection.iter().map(|&(e, _)| e)) => {
-                    return Some((
-                        "classShouldBeId",
-                        "Selector should select by ID instead of class",
-                    ));
+                    return Some("Selector should select by ID instead of class");
                 }
                 Style::Type if template.can_use_type(&selection) => {
-                    return Some((
-                        "classShouldBeType",
-                        "Selector should select by element type instead of class",
-                    ));
+                    return Some("Selector should select by element type instead of class");
                 }
                 _ => {}
             }
@@ -226,17 +219,11 @@ impl<'r> Check<'r, '_, '_> {
         for &style in &self.rule.style {
             match style {
                 Style::Class => {
-                    return Some((
-                        "idShouldBeClass",
-                        "Selector should select by class instead of ID",
-                    ));
+                    return Some("Selector should select by class instead of ID");
                 }
                 Style::Id => return None,
                 Style::Type if template.can_use_type(&selection) => {
-                    return Some((
-                        "idShouldBeType",
-                        "Selector should select by element type instead of ID",
-                    ));
+                    return Some("Selector should select by element type instead of ID");
                 }
                 Style::Type => {}
             }
@@ -250,16 +237,10 @@ impl<'r> Check<'r, '_, '_> {
         for &style in &self.rule.style {
             match style {
                 Style::Class => {
-                    return Some((
-                        "typeShouldBeClass",
-                        "Selector should select by class instead of element type",
-                    ));
+                    return Some("Selector should select by class instead of element type");
                 }
                 Style::Id if template.can_use_id(selection.iter().copied()) => {
-                    return Some((
-                        "typeShouldBeId",
-                        "Selector should select by ID instead of element type",
-                    ));
+                    return Some("Selector should select by ID instead of element type");
                 }
                 Style::Type => return None,
                 Style::Id => {}

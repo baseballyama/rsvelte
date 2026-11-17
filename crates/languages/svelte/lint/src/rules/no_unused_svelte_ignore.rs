@@ -30,10 +30,10 @@ impl SvelteRule for NoUnusedSvelteIgnore {
         let source = file.source();
         let ignores = ignores(component, source);
         for &comment in &ignores.missing_code {
-            reporter.report(
-                Report::range("svelte-ignore comment must include the code", comment)
-                    .message_id("missingCode"),
-            );
+            reporter.report(Report::range(
+                "svelte-ignore comment must include the code",
+                comment,
+            ));
         }
         if ignores.items.is_empty() {
             return;
@@ -53,10 +53,10 @@ impl SvelteRule for NoUnusedSvelteIgnore {
         }
         for (item, used) in ignores.items.iter().zip(&applied.used) {
             if !used && decidable(item, source) {
-                reporter.report(
-                    Report::range("svelte-ignore comment is used, but not warned", item.code)
-                        .message_id("unused"),
-                );
+                reporter.report(Report::range(
+                    "svelte-ignore comment is used, but not warned",
+                    item.code,
+                ));
             }
         }
     }

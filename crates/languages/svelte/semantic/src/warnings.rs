@@ -17,7 +17,6 @@ mod a11y;
 mod awaits;
 mod exports;
 mod found;
-mod fuzzymatch;
 mod ignore;
 mod runes;
 mod script;

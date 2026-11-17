@@ -5,20 +5,15 @@ use rsvelte_svelte_syntax::syntax_tree::Part;
 use super::markup::{Holder, for_each_mustache, has_comment, parts};
 use super::nodes;
 use super::string_escape::has_useful_escape;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-attribute-interpolation",
     files: Files::Components,
-    configure,
+    configure: without_options::<PreferAttributeInterpolation>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(PreferAttributeInterpolation))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct PreferAttributeInterpolation;
 
 impl SvelteRule for PreferAttributeInterpolation {
@@ -48,13 +43,10 @@ impl SvelteRule for PreferAttributeInterpolation {
             }) {
                 return;
             }
-            reporter.report(
-                Report::range(
-                    "Prefer attribute interpolation over a template literal.",
-                    mustache.span,
-                )
-                .message_id("unexpected"),
-            );
+            reporter.report(Report::range(
+                "Prefer attribute interpolation over a template literal.",
+                mustache.span,
+            ));
         });
     }
 }

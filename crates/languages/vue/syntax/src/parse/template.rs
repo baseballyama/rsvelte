@@ -347,7 +347,7 @@ impl P<'_, '_> {
                 (trimmed_start_offset, trimmed_start_offset + trimmed.len())
             };
         self.position = v.start_offset as usize;
-        self.skip_to(at(trimmed_start_offset), TokenType::Whitespace);
+        self.skip_whitespace_to(at(trimmed_start_offset));
         if inner_start_offset > trimmed_start_offset {
             self.eat_token(TokenType::ForParen, 1);
         }
@@ -361,7 +361,7 @@ impl P<'_, '_> {
         if inner_start_offset > trimmed_start_offset {
             self.eat_token(TokenType::ForParen, 1);
         }
-        self.skip_to(at(kw_start_offset), TokenType::Whitespace);
+        self.skip_whitespace_to(at(kw_start_offset));
         self.eat_token(TokenType::ForKeyword, 2);
         let source = self.expression(Span::new(at(kw_start_offset + 2), v.end_offset))?;
         if self.builder.get_parameters(parameters).items.is_empty() {
@@ -370,9 +370,9 @@ impl P<'_, '_> {
         Ok(LoopExpression { parameters, source })
     }
 
-    pub(super) fn skip_to(&mut self, to: u32, kind: TokenType) {
+    fn skip_whitespace_to(&mut self, to: u32) {
         let start_offset = self.position;
         self.position = to as usize;
-        self.token(kind, start_offset);
+        self.token(TokenType::Whitespace, start_offset);
     }
 }

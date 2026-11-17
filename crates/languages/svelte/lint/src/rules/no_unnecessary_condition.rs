@@ -5,21 +5,16 @@ use oxc_syntax::operator::{LogicalOperator, UnaryOperator};
 use rsvelte_lint_runner::rule::Reporter;
 
 use super::nodes::span;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 use crate::types::TypeFacts;
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/@typescript-eslint/no-unnecessary-condition",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoUnnecessaryCondition>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoUnnecessaryCondition))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoUnnecessaryCondition;
 
 impl SvelteRule for NoUnnecessaryCondition {

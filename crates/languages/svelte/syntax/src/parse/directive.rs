@@ -126,7 +126,13 @@ impl<'a> Parser<'a, '_> {
 
     /// What a directive's name (`fade`, `actions.tooltip`) refers to, as upstream builds it.
     fn directive_target(&mut self, directive: Span) -> ExpressionIdentifier {
-        let text: &'a str = directive.text(self.source_text);
+        self.member_chain(directive, true)
+    }
+
+    /// The member chain `a.b.c` that `name` spells; a part that is no identifier is a computed
+    /// member where `computed`, as upstream builds a directive's target and not a component's.
+    pub(super) fn member_chain(&mut self, name: Span, computed: bool) -> ExpressionIdentifier {
+        let text: &'a str = name.text(self.source_text);
         let nodes = self.builder.nodes();
         let span_of = |offset: u32, part: &str| {
             let end = offset + u32::try_from(part.len()).expect("source positions use u32 bytes");
@@ -134,12 +140,12 @@ impl<'a> Parser<'a, '_> {
         };
         let mut parts = text.split('.');
         let first = parts.next().unwrap_or(text);
-        let mut span = span_of(directive.start_offset, first);
+        let mut span = span_of(name.start_offset, first);
         let mut target = Expression::new_identifier(span, first, &nodes);
         for part in parts {
             span = span_of(span.end + 1, part);
-            let whole = oxc_span::Span::new(directive.start_offset, span.end);
-            target = if is_valid_identifier(part) {
+            let whole = oxc_span::Span::new(name.start_offset, span.end);
+            target = if !computed || is_valid_identifier(part) {
                 let property = IdentifierName::new(span, part, &nodes);
                 Expression::new_static_member_expression(whole, target, property, false, &nodes)
             } else {

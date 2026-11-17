@@ -46,6 +46,18 @@ fn options() -> CodegenOptions {
     }
 }
 
+/// [`print_mapped`] when `lines` is given, else [`print()`] without mappings.
+#[must_use]
+pub fn emit(program: &Program<'_>, lines: Option<&LineIndex>) -> Emitter {
+    lines.map_or_else(
+        || Emitter {
+            out: print(program),
+            ..Emitter::default()
+        },
+        |lines| print_mapped(program, lines),
+    )
+}
+
 /// [`print()`], with a point mapping wherever the printer maps a node back into
 /// `program.source_text`, which `lines` indexes by `\n`.
 #[must_use]
@@ -71,7 +83,7 @@ pub fn print_mapped(program: &Program<'_>, lines: &LineIndex) -> Emitter {
         }),
         program,
     );
-    let mut emitter = Emitter::new();
+    let mut emitter = Emitter::default();
     if let Some(map) = printed.map {
         let mut generated = Cursor::new(&printed.code);
         emitter.mappings = map

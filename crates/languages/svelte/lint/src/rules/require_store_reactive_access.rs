@@ -13,24 +13,18 @@ use rsvelte_svelte_syntax::syntax_tree::{
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 use rustc_hash::FxHashMap;
 
-use super::javascript::walk;
 use super::legacy_reactivity::is_markup_element;
 use super::nodes::span;
 use super::svelte_store::store_calls;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/require-store-reactive-access",
     files: Files::Components,
-    configure,
+    configure: without_options::<RequireStoreReactiveAccess>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(RequireStoreReactiveAccess))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct RequireStoreReactiveAccess;
 
 impl SvelteRule for RequireStoreReactiveAccess {
@@ -63,7 +57,9 @@ impl SvelteRule for RequireStoreReactiveAccess {
             stores: &stores,
             reporter,
         };
-        walk(file, |node| check.javascript_node(node));
+        for node in file.nodes().iter() {
+            check.javascript_node(node);
+        }
         check.template(component);
     }
 }
@@ -111,8 +107,7 @@ impl Check<'_, '_, '_> {
             "Use the $ prefix or the get function to access reactive values instead of accessing \
              the raw store.",
             at,
-        )
-        .message_id("usingRawStoreInText");
+        );
         if fix {
             report = report.fix(Fix::insert(at.start_offset, "$"));
         }

@@ -3,6 +3,7 @@
 pub mod analyze;
 pub mod compiler_syntax_tree;
 pub mod evaluate;
+pub mod fuzzymatch;
 pub mod input;
 pub mod javascript_error;
 pub mod legacy;

@@ -60,7 +60,7 @@ impl Artifact for Printed {
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let tree = context.get::<Projected>().as_ref().map_err(Clone::clone)?;
-        Ok(Arc::new(crate::emit_named(
+        Ok(Arc::new(crate::emit(
             tree,
             context.source_text(),
             &context.document.path,

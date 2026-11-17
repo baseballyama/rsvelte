@@ -1,8 +1,8 @@
-use super::fuzzymatch;
+use rsvelte_svelte_semantic::fuzzymatch::fuzzymatch;
 
 #[test]
 fn a_misspelled_binding_is_matched_as_upstream_matches_it() {
-    let names: Vec<&str> = super::super::BINDINGS.iter().map(|&(n, _)| n).collect();
+    let names: Vec<&str> = super::BINDINGS.iter().map(|&(n, _)| n).collect();
     // From svelte 5.57.3's `fuzzymatch` over `Object.keys(binding_properties)`.
     for (query, expected) in [
         ("innerwidth", Some("innerWidth")),

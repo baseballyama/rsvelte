@@ -18,9 +18,8 @@ pub(super) struct Parameters<'o> {
 impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn snippet_parameters(&mut self, snippet: &Snippet) -> Parameters<'o> {
         let b = self.b;
-        let parameters: &'o [FormalParameter<'o>] = snippet
-            .parameters
-            .map_or(&[], |p| self.javascript.get_parameters(p).items.as_slice());
+        let parameters: &'o [FormalParameter<'o>] =
+            &self.javascript.get_parameters(snippet.parameters).items;
         let mut arguments = Vec::with_capacity(parameters.len() + 1);
         arguments.push(b.parameter(b.binding("$$anchor")));
         let mut result = Parameters {

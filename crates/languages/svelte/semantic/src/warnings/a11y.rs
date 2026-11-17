@@ -321,7 +321,7 @@ impl Element<'_, '_> {
                 self.warn("a11y_aria_attributes", &message, span);
             }
             if !tables::ARIA_ATTRIBUTES.contains(&property) {
-                let message = super::fuzzymatch::fuzzymatch(property, tables::ARIA_ATTRIBUTES)
+                let message = crate::fuzzymatch::fuzzymatch(property, tables::ARIA_ATTRIBUTES)
                     .map_or_else(
                         || format!("Unknown aria attribute 'aria-{property}'"),
                         |suggestion| {

@@ -43,37 +43,21 @@ impl SvelteRule for CommentDirective {
             let kind = directive.kind.keyword();
             let enable = directive.kind == Kind::Enable;
             if directive.rules.is_empty() {
-                let (id, message) = if enable {
-                    (
-                        "unusedEnable",
-                        format!("Unused {kind} directive (reporting is not suppressed)."),
-                    )
+                let message = if enable {
+                    format!("Unused {kind} directive (reporting is not suppressed).")
                 } else {
-                    (
-                        "unused",
-                        format!("Unused {kind} directive (no problems were reported)."),
-                    )
+                    format!("Unused {kind} directive (no problems were reported).")
                 };
-                reporter.report(Report::range(message, directive.comment).message_id(id));
+                reporter.report(Report::range(message, directive.comment));
             }
             for &rule in &directive.rules {
                 let name = rule.text(source);
-                let (id, message) = if enable {
-                    (
-                        "unusedEnableRule",
-                        format!(
-                            "Unused {kind} directive (reporting from '{name}' is not suppressed)."
-                        ),
-                    )
+                let message = if enable {
+                    format!("Unused {kind} directive (reporting from '{name}' is not suppressed).")
                 } else {
-                    (
-                        "unusedRule",
-                        format!(
-                            "Unused {kind} directive (no problems were reported from '{name}')."
-                        ),
-                    )
+                    format!("Unused {kind} directive (no problems were reported from '{name}').")
                 };
-                reporter.report(Report::range(message, rule).message_id(id));
+                reporter.report(Report::range(message, rule));
             }
         }
     }

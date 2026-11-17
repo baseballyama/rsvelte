@@ -6,20 +6,15 @@ use rsvelte_svelte_syntax::syntax_tree::TokenType;
 
 use super::nodes::span;
 use super::reactive_statements::{between, reactive_statements};
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-extra-reactive-curlies",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoExtraReactiveCurlies>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoExtraReactiveCurlies))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoExtraReactiveCurlies;
 
 impl SvelteRule for NoExtraReactiveCurlies {
@@ -36,8 +31,7 @@ impl SvelteRule for NoExtraReactiveCurlies {
             let mut report = Report::range(
                 "Do not wrap reactive statements in curly braces unless necessary.",
                 block,
-            )
-            .message_id("extraCurlies");
+            );
             // The tokens and comments of the block: `{`, the first after it, the last before
             // `}`, and `}`.
             let mut tokens = between(&component.tokens, block.start_offset, block.end_offset)
@@ -54,7 +48,6 @@ impl SvelteRule for NoExtraReactiveCurlies {
                 let mut fix = Fix::remove(Span::new(open.start_offset, second.start_offset));
                 fix.push(Span::new(penultimate.end_offset, close.end_offset), "");
                 report = report.suggest(Suggestion {
-                    message_id: Some("removeExtraCurlies".into()),
                     message: "Remove the unnecessary curly braces.".to_owned(),
                     fix,
                 });

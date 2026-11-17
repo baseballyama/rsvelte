@@ -1,15 +1,14 @@
 //! Whether the parser a host reads a script with after oxc throws on the errors oxc recovered
 //! from in it.
 
-use oxc_ast::ast::{
-    DoWhileStatement, ForInStatement, ForOfStatement, ForStatement, IfStatement, LabeledStatement,
-    Program, Statement, WhileStatement,
-};
-use oxc_ast_visit::{Visit, walk};
+use oxc_ast::AstKind;
+use oxc_ast::ast::{Program, Statement};
+use oxc_ast_visit::Visit;
 use oxc_parser::Kind;
 
 use super::typescript_eslint::{checks, thrown};
 use super::{SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, typescript_eslint_check};
+use crate::acorn_grammar::bodies;
 use crate::{ProgramIdentifier, Recorded, Tree};
 
 /// A parser that reads a script oxc read.
@@ -166,52 +165,19 @@ pub fn function_as_body(program: &Program<'_>, at: u32) -> Option<bool> {
         at: u32,
         found: Option<bool>,
     }
-    impl Find {
-        fn body(&mut self, body: &Statement<'_>) {
-            if let Statement::FunctionDeclaration(function) = body
-                && function.span.start == self.at
-            {
-                self.found = Some(function.r#async);
-            }
-        }
-    }
     impl<'a> Visit<'a> for Find {
-        fn visit_if_statement(&mut self, it: &IfStatement<'a>) {
-            self.body(&it.consequent);
-            if let Some(alternate) = &it.alternate {
-                self.body(alternate);
+        fn enter_node(&mut self, kind: AstKind<'a>) {
+            // Only acorn's rule counts a `with` statement's body.
+            if matches!(kind, AstKind::WithStatement(_)) {
+                return;
             }
-            walk::walk_if_statement(self, it);
-        }
-
-        fn visit_labeled_statement(&mut self, it: &LabeledStatement<'a>) {
-            self.body(&it.body);
-            walk::walk_labeled_statement(self, it);
-        }
-
-        fn visit_while_statement(&mut self, it: &WhileStatement<'a>) {
-            self.body(&it.body);
-            walk::walk_while_statement(self, it);
-        }
-
-        fn visit_do_while_statement(&mut self, it: &DoWhileStatement<'a>) {
-            self.body(&it.body);
-            walk::walk_do_while_statement(self, it);
-        }
-
-        fn visit_for_statement(&mut self, it: &ForStatement<'a>) {
-            self.body(&it.body);
-            walk::walk_for_statement(self, it);
-        }
-
-        fn visit_for_in_statement(&mut self, it: &ForInStatement<'a>) {
-            self.body(&it.body);
-            walk::walk_for_in_statement(self, it);
-        }
-
-        fn visit_for_of_statement(&mut self, it: &ForOfStatement<'a>) {
-            self.body(&it.body);
-            walk::walk_for_of_statement(self, it);
+            for body in bodies(kind).into_iter().flatten() {
+                if let Statement::FunctionDeclaration(function) = body
+                    && function.span.start == self.at
+                {
+                    self.found = Some(function.r#async);
+                }
+            }
         }
     }
     let mut find = Find { at, found: None };

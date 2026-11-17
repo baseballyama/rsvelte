@@ -48,18 +48,16 @@ pub(super) fn classify_template(
                 if let Some(&symbol) = names.snippets.get(&identifier) {
                     set(symbol, BindingKind::Normal, false);
                 }
-                if let Some(parameters) = s.parameters {
-                    let parameters = tree.get_parameters(parameters);
-                    for parameter in &parameters.items {
-                        for_each_binding(&parameter.pattern, &mut |s| {
-                            set(s, BindingKind::Snippet, false);
-                        });
-                    }
-                    if let Some(rest) = &parameters.rest {
-                        for_each_binding(&rest.rest.argument, &mut |s| {
-                            set(s, BindingKind::Snippet, false);
-                        });
-                    }
+                let parameters = tree.get_parameters(s.parameters);
+                for parameter in &parameters.items {
+                    for_each_binding(&parameter.pattern, &mut |s| {
+                        set(s, BindingKind::Snippet, false);
+                    });
+                }
+                if let Some(rest) = &parameters.rest {
+                    for_each_binding(&rest.rest.argument, &mut |s| {
+                        set(s, BindingKind::Snippet, false);
+                    });
                 }
             }
             &NodeKind::Const { declaration } => {

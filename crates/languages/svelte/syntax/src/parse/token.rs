@@ -1,6 +1,5 @@
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_kernel::source::tokens::Tokens;
 
 use super::Parser;
 use crate::syntax_tree::TokenType;
@@ -62,33 +61,15 @@ impl Parser<'_, '_> {
     pub(super) fn javascript_region(&mut self, start_offset: u32, end_offset: u32) {
         let recorded = self.builder.recorded();
         let end_offset = recorded.end().map_or(end_offset, |end| end.max(end_offset));
-        let recorded = recorded.iter().map(|r| {
-            let kind = r
-                .kind
-                .map_or(TokenType::JavaScriptComment, TokenType::JavaScript);
-            (kind, r.span)
-        });
-        append_javascript_region(
-            &mut self.component.tokens,
-            start_offset,
-            end_offset,
-            recorded,
-        );
+        let mut at = start_offset;
+        for r in recorded.iter() {
+            let tokens = &mut self.component.tokens;
+            tokens.push(TokenType::Whitespace, Span::new(at, r.span.start_offset));
+            let kind = (r.kind).map_or(TokenType::JavaScriptComment, TokenType::JavaScript);
+            tokens.push(kind, r.span);
+            at = r.span.end_offset;
+        }
+        (self.component.tokens).push(TokenType::Whitespace, Span::new(at, end_offset));
         self.position = end_offset as usize;
     }
-}
-
-fn append_javascript_region(
-    tokens: &mut Tokens<TokenType>,
-    start_offset: u32,
-    end_offset: u32,
-    recorded: impl Iterator<Item = (TokenType, Span)>,
-) {
-    let mut at = start_offset;
-    for (kind, span) in recorded {
-        tokens.push(TokenType::Whitespace, Span::new(at, span.start_offset));
-        tokens.push(kind, span);
-        at = span.end_offset;
-    }
-    tokens.push(TokenType::Whitespace, Span::new(at, end_offset));
 }
