@@ -2,9 +2,9 @@ use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 use super::children::Child;
 use super::{
-    Attribute, AttributeKind, AttributeValue, Cow, ElementKind, LayoutInstructionIdentifier,
-    LayoutInstructions, Part, Printer, R, Span, TagAttributes, TemplateNode,
-    TemplateNodeIdentifier, Unsupported, only_ws,
+    Attribute, AttributeKind, AttributeValue, Component, Cow, ElementKind,
+    LayoutInstructionIdentifier, LayoutInstructions, Part, Printer, R, Span, TagAttributes,
+    TemplateNode, TemplateNodeIdentifier, Unsupported, only_ws,
 };
 use crate::options::Part as SortPart;
 
@@ -14,13 +14,7 @@ impl Printer<'_, '_, '_> {
     pub(super) fn top_level(&mut self) -> R<LayoutInstructionIdentifier> {
         self.refuse_moved_comments()?;
         let c = self.c;
-        for span in c
-            .module
-            .iter()
-            .chain(&c.instance)
-            .map(|s| s.span)
-            .chain(c.style.iter().map(|s| s.span))
-        {
+        for span in hoisted(c) {
             self.refuse_unembedded(span)?;
         }
         let mut root = c.children(c.root).to_vec();
@@ -340,50 +334,36 @@ impl Printer<'_, '_, '_> {
 
     /// The plugin keeps `<!-- #endregion -->` below a `<script>`/`<style>`; that is not ported.
     pub(super) fn refuse_moved_comments(&self) -> R<()> {
-        let hoisted: Vec<Span> = self
-            .c
-            .module
-            .iter()
-            .chain(&self.c.instance)
-            .map(|s| s.span)
-            .chain(self.c.style.iter().map(|s| s.span))
-            .collect();
-        let options: Vec<Span> = self
-            .c
-            .children(self.c.root)
+        let c = self.c;
+        let options = c
+            .children(c.root)
             .iter()
             .filter(|&&n| self.element_name(n) == Some("svelte:options"))
-            .map(|&n| self.c.node(n).span())
+            .map(|&n| {
+                (
+                    c.node(n).span(),
+                    "`<!-- #endregion -->` after <svelte:options>",
+                )
+            });
+        let moved: Vec<(Span, &'static str)> = hoisted(c)
+            .map(|span| (span, "`<!-- #endregion -->` after <script> or <style>"))
+            .chain(options)
             .collect();
-        for &identifier in self.c.children(self.c.root) {
-            let TemplateNode::Comment { span, data } = *self.c.node(identifier) else {
+        for &identifier in c.children(c.root) {
+            let TemplateNode::Comment { span, data } = *c.node(identifier) else {
                 continue;
             };
-            let data = data
+            if !data
                 .text(self.source_text)
-                .trim_matches(is_ecmascript_whitespace);
-            for h in &hoisted {
-                let after = h.end_offset <= span.start_offset
-                    && only_ws(
-                        &self.source_text[h.end_offset as usize..span.start_offset as usize],
-                    );
-                if after && data.to_ascii_lowercase().contains("endregion") {
-                    return Err(Unsupported::at(
-                        "`<!-- #endregion -->` after <script> or <style>",
-                        span,
-                    ));
-                }
+                .to_ascii_lowercase()
+                .contains("endregion")
+            {
+                continue;
             }
-            for o in &options {
-                let after = o.end_offset <= span.start_offset
-                    && only_ws(
-                        &self.source_text[o.end_offset as usize..span.start_offset as usize],
-                    );
-                if after && data.to_ascii_lowercase().contains("endregion") {
-                    return Err(Unsupported::at(
-                        "`<!-- #endregion -->` after <svelte:options>",
-                        span,
-                    ));
+            for &(tag, message) in &moved {
+                let between = tag.end_offset as usize..span.start_offset as usize;
+                if tag.end_offset <= span.start_offset && only_ws(&self.source_text[between]) {
+                    return Err(Unsupported::at(message, span));
                 }
             }
         }
@@ -507,3 +487,9 @@ impl Printer<'_, '_, '_> {
 
 mod language;
 mod nested;
+
+/// The `<script>` and `<style>` tags the plugin prints apart from the markup.
+fn hoisted(c: &Component) -> impl Iterator<Item = Span> + '_ {
+    let scripts = c.module.iter().chain(&c.instance).map(|s| s.span);
+    scripts.chain(c.style.iter().map(|s| s.span))
+}
