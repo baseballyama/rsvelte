@@ -31,12 +31,23 @@ fn without_spaces(s: &str) -> &str {
     s.trim_start_matches([' ', '\t'])
 }
 
+/// Prettier's line terminators, `\r\n` before `\r`.
+const NEWLINES: [&str; 5] = ["\r\n", "\n", "\r", "\u{2028}", "\u{2029}"];
+
 /// Prettier's `skipNewline` on the start of `s`.
 fn without_newline(s: &str) -> &str {
-    ["\r\n", "\n", "\r", "\u{2028}", "\u{2029}"]
-        .iter()
-        .find_map(|n| s.strip_prefix(n))
-        .unwrap_or(s)
+    NEWLINES.iter().find_map(|n| s.strip_prefix(n)).unwrap_or(s)
+}
+
+/// Prettier's `skipNewline` backwards, on the end of `s`.
+fn without_trailing_newline(s: &str) -> &str {
+    NEWLINES.iter().find_map(|n| s.strip_suffix(n)).unwrap_or(s)
+}
+
+/// Prettier's `hasNewline` backwards: a newline ends `s` before its spaces and tabs.
+fn ends_with_newline(s: &str) -> bool {
+    s.trim_end_matches([' ', '\t'])
+        .ends_with(['\n', '\r', '\u{2028}', '\u{2029}'])
 }
 
 fn starts_with_newline(s: &str) -> bool {
@@ -121,10 +132,7 @@ impl Printer<'_, '_, '_> {
                 self.d().hardline()
             } else if !starts_with_newline(without_spaces(after)) {
                 self.d().text(" ")
-            } else if whitespace_before(c, source_text, comment)
-                .trim_end_matches([' ', '\t'])
-                .ends_with(['\n', '\r', '\u{2028}', '\u{2029}'])
-            {
+            } else if ends_with_newline(whitespace_before(c, source_text, comment)) {
                 self.d().hardline()
             } else {
                 self.d().line()
@@ -140,9 +148,7 @@ impl Printer<'_, '_, '_> {
             let text = comment.text(source_text);
             let block = is_block(text);
             let before = whitespace_before(c, source_text, comment);
-            let newline_before = before
-                .trim_end_matches([' ', '\t'])
-                .ends_with(['\n', '\r', '\u{2028}', '\u{2029}']);
+            let newline_before = ends_with_newline(before);
             let after_line = previous.is_some_and(|p| p.line_suffix && !p.block);
             let line_suffix =
                 after_line || newline_before || !block || previous.is_some_and(|p| p.line_suffix);
@@ -188,15 +194,7 @@ fn whitespace_before<'s>(c: &Component, source_text: &'s str, comment: Span) -> 
 
 /// Prettier's `isPreviousLineEmpty` on the whitespace before a comment.
 fn previous_line_empty(before: &str) -> bool {
-    let newline = |s: &str| {
-        ["\r\n", "\n", "\r", "\u{2028}", "\u{2029}"]
-            .iter()
-            .find_map(|n| s.strip_suffix(n))
-            .unwrap_or(s)
-            .len()
-    };
-    let s = before.trim_end_matches([' ', '\t']);
-    let s = &s[..newline(s)];
+    let s = without_trailing_newline(before.trim_end_matches([' ', '\t']));
     let s = s.trim_end_matches([' ', '\t']);
-    newline(s) != s.len()
+    without_trailing_newline(s).len() != s.len()
 }
