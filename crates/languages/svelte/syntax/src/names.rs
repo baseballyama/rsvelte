@@ -24,18 +24,12 @@ pub fn reads_as_identifier(name: &str) -> bool {
 /// ```
 #[must_use]
 pub fn is_component_name(name: &str) -> bool {
-    let continues = |c: char| {
-        c == '$'
-            || c == '\u{200c}'
-            || c == '\u{200d}'
-            || unicode_identifier_start::is_id_continue(c)
-    };
     let mut chars = name.chars();
     let Some(first) = chars.next() else {
         return false;
     };
     let rest = chars.as_str();
-    if is_uppercase_letter(first) && rest.chars().all(|c| continues(c) || c == '.') {
+    if is_uppercase_letter(first) && rest.chars().all(|c| is_identifier_continue(c) || c == '.') {
         return true;
     }
     if !unicode_identifier_start::is_id_start(first) {
@@ -47,12 +41,12 @@ pub fn is_component_name(name: &str) -> bool {
     };
     let mut members = 0;
     for seg in segments {
-        if seg.is_empty() || !seg.chars().all(continues) {
+        if seg.is_empty() || !seg.chars().all(is_identifier_continue) {
             return false;
         }
         members += 1;
     }
-    members > 0 && head.chars().all(continues)
+    members > 0 && head.chars().all(is_identifier_continue)
 }
 
 /// `\p{Lu}`: Rust's `is_uppercase` is the Uppercase property, which adds `Other_Uppercase`.
@@ -87,6 +81,11 @@ pub(crate) fn is_valid_element_name(name: &str) -> bool {
         return namespace_ok && local_ok;
     }
     is_valid_tag_name(name)
+}
+
+/// ECMAScript's `IdentifierPartChar`, with `$`.
+pub(crate) fn is_identifier_continue(c: char) -> bool {
+    c == '$' || c == '\u{200c}' || c == '\u{200d}' || unicode_identifier_start::is_id_continue(c)
 }
 
 /// Upstream `REGEX_VALID_TAG_NAME`.
