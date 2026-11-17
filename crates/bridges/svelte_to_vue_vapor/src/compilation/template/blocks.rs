@@ -3,8 +3,8 @@ use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
 
 use super::{
     CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Helper, Item, NodeKind, Parent, R,
-    Span, Template, clean_nodes, directive, known_string, sanitize_template_string, unsupported,
-    vue,
+    Span, Template, clean_nodes, directive, known_string, sanitize_template_string, template_end,
+    unsupported, vue,
 };
 
 impl<'t> Template<'_, '_, 't> {
@@ -31,6 +31,7 @@ impl<'t> Template<'_, '_, 't> {
             ids,
             preserve_whitespace,
             drops_whitespace,
+            template_end(source_text),
         );
         if let Some(&tag) = cleaned.hoisted.iter().find(|&&h| {
             !matches!(
@@ -329,6 +330,7 @@ impl<'t> Template<'_, '_, 't> {
             ids,
             false,
             false,
+            template_end(self.i.source_text),
         );
         if !cleaned.hoisted.is_empty() {
             return None;

@@ -7,6 +7,9 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 use rsvelte_svelte_syntax::syntax_tree::decode_text;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
+#[cfg(test)]
+mod tests;
+
 /// A node after whitespace cleaning; text may have been trimmed, so it carries its own strings.
 #[derive(Debug, Clone)]
 pub enum Item<'a> {
@@ -45,6 +48,13 @@ pub struct Cleaned<'a> {
     pub text_first: bool,
 }
 
+/// Where upstream's parser ends the template it reads, `template.trimEnd()`, which only
+/// `preserveWhitespace` can observe; [`clean_nodes`] takes it once per document.
+#[must_use]
+pub fn template_end(source_text: &str) -> usize {
+    source_text.trim_end_matches(is_ecmascript_whitespace).len()
+}
+
 /// Upstream's template whitespace, the set `regex_not_whitespace` excludes.
 pub(crate) const fn is_template_whitespace(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\r' | '\n')
@@ -66,9 +76,8 @@ pub fn clean_nodes<'a>(
     list: &[CompilerNodeIdentifier],
     preserve_ws: bool,
     drops_foreign_whitespace: bool,
+    end: usize,
 ) -> Cleaned<'a> {
-    // Upstream's parser reads `template.trimEnd()`; only `preserveWhitespace` can observe it.
-    let end = source_text.trim_end_matches(is_ecmascript_whitespace).len();
     let mut regular: Vec<Item<'a>> = Vec::with_capacity(list.len());
     let mut hoisted = Vec::new();
     for &identifier in list {
@@ -139,15 +148,13 @@ pub fn clean_nodes<'a>(
         let leading = regular.iter().take_while(|item| all_ws(item)).count();
         regular.drain(..leading);
         if let Some(Item::Text { data, raw }) = regular.first_mut() {
-            *data = collapse(std::mem::take(data), Some(""), None);
-            *raw = collapse(std::mem::take(raw), Some(""), None);
+            collapse_text(data, raw, Some(""), None);
         }
         while regular.last().is_some_and(all_ws) {
             regular.pop();
         }
         if let Some(Item::Text { data, raw }) = regular.last_mut() {
-            *data = collapse(std::mem::take(data), None, Some(""));
-            *raw = collapse(std::mem::take(raw), None, Some(""));
+            collapse_text(data, raw, None, Some(""));
         }
         let can_remove_entirely = drops_foreign_whitespace
             || matches!(
@@ -172,8 +179,7 @@ pub fn clean_nodes<'a>(
                 let lead =
                     (!prev_is_expression).then_some(if prev_text_ends_ws { "" } else { " " });
                 let trail = (!next_is_expression).then_some(" ");
-                *data = collapse(std::mem::take(data), lead, trail);
-                *raw = collapse(std::mem::take(raw), lead, trail);
+                collapse_text(data, raw, lead, trail);
             }
         }
         regular.retain(|item| {
@@ -216,6 +222,23 @@ pub fn clean_nodes<'a>(
 
 /// `s` with its leading template whitespace replaced by `lead`, then its trailing by `trail`, each
 /// when given and present; a borrowed `s` stays borrowed when the result is a slice of it.
+/// [`collapse`] over a text's data and raw, once when both are the same slice of the source.
+fn collapse_text<'a>(
+    data: &mut Cow<'a, str>,
+    raw: &mut Cow<'a, str>,
+    lead: Option<&'static str>,
+    trail: Option<&'static str>,
+) {
+    let same =
+        matches!((&*data, &*raw), (Cow::Borrowed(d), Cow::Borrowed(r)) if std::ptr::eq(*d, *r));
+    *data = collapse(std::mem::take(data), lead, trail);
+    *raw = if same {
+        data.clone()
+    } else {
+        collapse(std::mem::take(raw), lead, trail)
+    };
+}
+
 fn collapse<'a>(
     s: Cow<'a, str>,
     lead: Option<&'static str>,

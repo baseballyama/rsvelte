@@ -15,7 +15,7 @@ mod namespace;
 mod normalize;
 pub use namespace::{Namespace, Namespaces};
 pub(crate) use normalize::is_template_whitespace;
-pub use normalize::{Cleaned, Item, Parent, clean_nodes};
+pub use normalize::{Cleaned, Item, Parent, clean_nodes, template_end};
 
 newtype_index!(
     struct RegionIdentifier;
@@ -43,6 +43,8 @@ pub struct RenderPlan {
     /// The `{expression}` tags inside an element whose content is bound, which upstream's
     /// `bound_contenteditable` writes once instead of in the render effect.
     editable: FxHashSet<ExpressionIdentifier>,
+    /// [`template_end`] of the document.
+    template_end: usize,
 }
 
 impl RenderPlan {
@@ -54,6 +56,7 @@ impl RenderPlan {
             source_regions: FxHashMap::default(),
             slots: FxHashMap::default(),
             editable: bound_editable_tags(input),
+            template_end: template_end(input.component.source_text),
         };
         plan.region(
             input,
@@ -166,6 +169,7 @@ impl RenderPlan {
             nodes,
             preserve,
             drops_whitespace,
+            self.template_end,
         );
         let region = Region {
             hoisted: cleaned.hoisted,
