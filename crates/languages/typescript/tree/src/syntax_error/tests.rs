@@ -116,3 +116,12 @@ fn modifiers_out_of_order_fail_after_the_first_word_after_static() {
         );
     }
 }
+
+#[test]
+fn a_return_outside_every_function_fails_at_the_return() {
+    // What svelte 5.57.3 reports.
+    assert_eq!(
+        acorn_reads("let x = 1;\nreturn x;"),
+        Some(("'return' outside of function".to_owned(), 11))
+    );
+}
