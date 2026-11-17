@@ -327,6 +327,8 @@ pub struct Component {
     pub modifiers: Vec<Span>,
     /// The identifiers of `{@debug}` tags.
     pub debug_identifiers: Vec<ExpressionIdentifier>,
+    /// The `//` and `/* */` comments between the attributes of tags, in order.
+    pub tag_comments: Vec<Span>,
     pub root: Range,
     /// `<script module>`, whose program is in the same [`Tree`].
     pub module: Option<Script>,

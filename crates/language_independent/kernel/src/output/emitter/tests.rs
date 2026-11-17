@@ -170,14 +170,20 @@ fn a_span_inside_an_atom_maps_to_the_atom_s_original_range() {
     assert_eq!(e.lookup_overlap(value), Some(Span::new(9, 10)));
 }
 
-/// The mappings of `e` as every point's line and column, each read from an index.
+/// The mappings of `e` as every mapped character's line and column, each read from an index.
 fn segments_by_index(e: &Emitter, source_text: &str) -> String {
     let (generated, source) = (LineIndex::new(&e.out), LineIndex::new(source_text));
     let mut out = String::new();
-    e.points(|g, o, _| {
+    let mut write = |g: u32, o: u32| {
         let (g, o) = (generated.line_column(g), source.line_column(o));
         write!(out, "{}:{}>{}:{} ", g.line, g.column, o.line, o.column)
             .expect("a String takes any write");
+    };
+    e.points(|g, o, line| {
+        write(g, o);
+        for (i, _) in line.char_indices().skip(1) {
+            write(g + i as u32, o + i as u32);
+        }
     });
     out
 }
