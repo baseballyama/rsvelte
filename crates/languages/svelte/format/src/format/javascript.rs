@@ -234,14 +234,10 @@ fn keeps_recovered(error: &oxc_diagnostics::OxcDiagnostic, program: &Program<'_>
 
 /// Takes `function ` off the start of a function declaration's layout and ` {}` off its end.
 fn strip_function(ir: &mut ArenaVec<'_, FormatElement<'_>>) -> bool {
-    let token = |e: &FormatElement<'_>, s: &str| matches!(e, FormatElement::Token { text } if text.as_str() == s);
-    let Some(end) = ir
-        .iter()
-        .rposition(|e| !matches!(e, FormatElement::Tag(t) if t.is_end()))
-    else {
+    let Some(end) = last_content(ir) else {
         return false;
     };
-    if !(end >= 1 && token(&ir[end], "}") && token(&ir[end - 1], "{")) {
+    if !(end >= 1 && is_token(&ir[end], "}") && is_token(&ir[end - 1], "{")) {
         return false;
     }
     // oxc writes a space for the return type it does not have and one before the body.
@@ -255,7 +251,9 @@ fn strip_function(ir: &mut ArenaVec<'_, FormatElement<'_>>) -> bool {
     else {
         return false;
     };
-    if !(token(&ir[start], "function") && matches!(ir.get(start + 1), Some(FormatElement::Space))) {
+    if !(is_token(&ir[start], "function")
+        && matches!(ir.get(start + 1), Some(FormatElement::Space)))
+    {
         return false;
     }
     ir.drain(body..=end);
@@ -265,7 +263,6 @@ fn strip_function(ir: &mut ArenaVec<'_, FormatElement<'_>>) -> bool {
 
 /// The plugin's `removeParentheses` on a sequence oxc prints in parentheses (`(a, b)`).
 fn remove_parentheses(ir: &mut ArenaVec<'_, FormatElement<'_>>) {
-    let token = |e: &FormatElement<'_>, s: &str| matches!(e, FormatElement::Token { text } if text.as_str() == s);
     // The comments before the sequence print as texts and lines ahead of its `(`.
     let start = ir.iter().position(|e| match e {
         FormatElement::Tag(_)
@@ -275,13 +272,11 @@ fn remove_parentheses(ir: &mut ArenaVec<'_, FormatElement<'_>>) {
         FormatElement::Token { text } => !text.as_str().trim().is_empty(),
         _ => true,
     });
-    let end = ir
-        .iter()
-        .rposition(|e| !matches!(e, FormatElement::Tag(t) if t.is_end()));
+    let end = last_content(ir);
     if let (Some(start), Some(end)) = (start, end)
         && start < end
-        && token(&ir[start], "(")
-        && token(&ir[end], ")")
+        && is_token(&ir[start], "(")
+        && is_token(&ir[end], ")")
     {
         ir.remove(end);
         ir.remove(start);
@@ -342,14 +337,21 @@ fn flatten_interned<'a>(ir: &[FormatElement<'a>], flat: &mut Vec<FormatElement<'
 
 /// The plugin's `trimRight([docs], (d) => d === ';')` on a statement: drops the `;` it ends with.
 pub(super) fn trim_semicolon(ir: &mut ArenaVec<'_, FormatElement<'_>>) {
-    let last = ir
-        .iter()
-        .rposition(|e| !matches!(e, FormatElement::Tag(t) if t.is_end()));
-    if let Some(i) = last
-        && matches!(&ir[i], FormatElement::Token { text } if text.as_str() == ";")
+    if let Some(i) = last_content(ir)
+        && is_token(&ir[i], ";")
     {
         ir.remove(i);
     }
+}
+
+fn is_token(element: &FormatElement<'_>, token: &str) -> bool {
+    matches!(element, FormatElement::Token { text } if text.as_str() == token)
+}
+
+/// The last element that is not a closing tag.
+fn last_content(ir: &[FormatElement<'_>]) -> Option<usize> {
+    ir.iter()
+        .rposition(|e| !matches!(e, FormatElement::Tag(t) if t.is_end()))
 }
 
 #[cfg(test)]
