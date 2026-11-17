@@ -239,8 +239,8 @@ impl Printer<'_, '_, '_> {
                 span,
             ));
         }
-        let text = oxc_formatter_core::normalize_newlines(span.text(self.source_text), ['\r']);
-        let mut ir = self.format_javascript(&text, span, Part::Statement, false)?;
+        let text = span.text(self.source_text);
+        let mut ir = self.format_javascript(text, span, Part::Statement, false)?;
         if !plain {
             trim_semicolon(&mut ir);
         }
