@@ -72,10 +72,15 @@ impl<'a> Printer<'a, '_, '_> {
     pub(super) fn raw(&self, identifier: TemplateNodeIdentifier) -> &str {
         match &self.text[identifier as usize] {
             Some(t) => t,
-            None => match self.c.node(identifier) {
-                TemplateNode::Text { span } => span.text(self.source_text),
-                _ => unreachable!("only text nodes have text"),
-            },
+            None => self.source_text_of(identifier),
+        }
+    }
+
+    /// A text node's text as written, before the plugin rewrites it.
+    pub(super) fn source_text_of(&self, identifier: TemplateNodeIdentifier) -> &'a str {
+        match self.c.node(identifier) {
+            TemplateNode::Text { span } => span.text(self.source_text),
+            _ => unreachable!("only text nodes have text"),
         }
     }
 
@@ -107,13 +112,8 @@ impl<'a> Printer<'a, '_, '_> {
 
     // The caller stores the result back, so an owned string moves instead of being copied.
     fn take_raw(&mut self, identifier: TemplateNodeIdentifier) -> Cow<'a, str> {
-        match self.text[identifier as usize].take() {
-            Some(t) => t,
-            None => match self.c.node(identifier) {
-                TemplateNode::Text { span } => Cow::Borrowed(span.text(self.source_text)),
-                _ => unreachable!("only text nodes have text"),
-            },
-        }
+        let stored = self.text[identifier as usize].take();
+        stored.unwrap_or_else(|| Cow::Borrowed(self.source_text_of(identifier)))
     }
 
     pub(super) fn take_buffer(&mut self) -> Vec<LayoutInstructionIdentifier> {

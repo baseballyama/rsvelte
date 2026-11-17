@@ -350,12 +350,10 @@ impl Printer<'_, '_, '_> {
         identifier: TemplateNodeIdentifier,
     ) -> LayoutInstructionIdentifier {
         // Rewritten text is moved out and back, so printing it never copies it.
-        let (c, source_text) = (self.c, self.source_text);
         let stored = self.text[identifier as usize].take();
-        let raw: &str = match (&stored, c.node(identifier)) {
-            (Some(t), _) => t,
-            (None, TemplateNode::Text { span }) => span.text(source_text),
-            (None, _) => unreachable!("only text nodes have text"),
+        let raw: &str = match &stored {
+            Some(t) => t,
+            None => self.source_text_of(identifier),
         };
         let doc = if self.in_pre {
             self.d().text(raw)
