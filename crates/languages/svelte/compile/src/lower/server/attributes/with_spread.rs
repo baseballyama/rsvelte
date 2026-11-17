@@ -106,8 +106,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             };
             props.push(b.init(&name, value));
         }
-        if implicit_attributes(self.source_text, list, self.an.scoped[identifier]).class {
-            props.push(b.init("class", b.string("")));
+        let implicit = implicit_attributes(self.source_text, list, self.an.scoped[identifier]);
+        for (name, empty) in [("class", implicit.class), ("style", implicit.style)] {
+            if empty {
+                props.push(b.init(name, b.string("")));
+            }
         }
         let object = b.object(props);
         let classes = (!class_directives.is_empty()).then(|| {
