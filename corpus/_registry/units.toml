@@ -5027,3 +5027,6 @@
 
 ["svelte/rsvelte/pattern/issues/3199-grammar-import-source.svelte".skip]
 "svelte.check" = "checker: TS 6 reads `import source x from` as a malformed `import ... =`, which TS 7 parses"
+
+["svelte/svelte-put/sites/docs/src/lib/notifications/components/Svelte5.svelte".skip]
+"svelte.check" = "oracle: TS2590 comes from svelte2tsx nesting the props in `{ props: {...} }`; passed directly, as rsvelte does, TypeScript reports only TS2353"
