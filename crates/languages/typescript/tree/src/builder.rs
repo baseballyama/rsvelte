@@ -40,7 +40,6 @@ pub struct Builder<'a> {
     type_parameters: Vec<TSTypeParameterDeclaration<'a>>,
     comments: Vec<Comment>,
     recorded: RecordedPart<'a>,
-    wrapped: String,
     unchecked: &'static &'static [&'static str],
     unchecked_errors: Vec<SyntaxError>,
     as_acorn: bool,
@@ -92,7 +91,6 @@ impl<'a> Builder<'a> {
                 comments: &[],
                 shift: 0,
             },
-            wrapped: String::new(),
             unchecked: &NOTHING,
             unchecked_errors: Vec::new(),
             as_acorn: false,
@@ -383,11 +381,8 @@ impl<'a> Builder<'a> {
         let Some(shift) = range.start_offset.checked_sub(open.len() as u32) else {
             return Err(refused("a part cannot start the document", range));
         };
-        self.wrapped.clear();
-        self.wrapped.push_str(open);
-        self.wrapped.push_str(range.text(self.source_text));
-        self.wrapped.push_str(close);
-        let text = self.allocator.alloc_str(&self.wrapped);
+        let text =
+            (self.allocator).alloc_concat_strs_array([open, range.text(self.source_text), close]);
         let mut parsed = Parser::new(self.allocator, text, source_type)
             .with_options(parentheses::options(parenthesized))
             .with_config(TokensParserConfig)
