@@ -89,7 +89,7 @@ fn a_pattern_records_its_own_tokens_only() {
     let source = "{:then [x]}";
     let (_, recorded) = Tree::build(source, |builder| {
         builder.pattern(Span::new(7, 10), SourceType::mjs())?;
-        Ok(builder.recorded().to_vec())
+        Ok(builder.recorded().iter().collect::<Vec<_>>())
     })
     .expect("parses");
     let texts = recorded
@@ -147,7 +147,7 @@ fn generics_parse_in_place_with_their_own_tokens() {
     let source = "<script generics=\"T extends Item = Default, U\">";
     let (tree, (parameters, recorded)) = Tree::build(source, |builder| {
         let parameters = builder.type_parameters(Span::new(18, 45), SourceType::ts())?;
-        Ok((parameters, builder.recorded().to_vec()))
+        Ok((parameters, builder.recorded().iter().collect::<Vec<_>>()))
     })
     .expect("parses");
     let parameters = tree.get_type_parameters(parameters);

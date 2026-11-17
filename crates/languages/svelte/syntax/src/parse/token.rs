@@ -60,12 +60,9 @@ impl Parser<'_, '_> {
     /// `end_offset`, and the whitespace between them; the parser goes on after the last of them.
     /// A comment after the part (`{a /* c */}`) is one of them.
     pub(super) fn javascript_region(&mut self, start_offset: u32, end_offset: u32) {
-        let end_offset = self
-            .builder
-            .recorded()
-            .last()
-            .map_or(end_offset, |r| r.span.end_offset.max(end_offset));
-        let recorded = self.builder.recorded().iter().map(|r| {
+        let recorded = self.builder.recorded();
+        let end_offset = recorded.end().map_or(end_offset, |end| end.max(end_offset));
+        let recorded = recorded.iter().map(|r| {
             let kind = r
                 .kind
                 .map_or(TokenType::JavaScriptComment, TokenType::JavaScript);

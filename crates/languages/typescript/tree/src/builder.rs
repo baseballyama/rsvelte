@@ -14,7 +14,9 @@ use rsvelte_kernel::source::positions::Span;
 mod check;
 mod parentheses;
 mod program;
+mod recorded;
 pub use program::Rejected;
+pub use recorded::{Part as RecordedPart, Recorded};
 
 /// No rule unchecked: the list a host starts with.
 const NOTHING: &[&str] = &[];
@@ -25,14 +27,6 @@ use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
     ProgramIdentifier, Trees, TypeParametersIdentifier,
 };
-
-/// A token or a comment of the part a [`Builder`] read last.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Recorded {
-    /// The token's kind; `None` for a comment.
-    pub kind: Option<Kind>,
-    pub span: Span,
-}
 
 /// Parses parts of one document into its arena.
 pub struct Builder<'a> {
@@ -45,7 +39,7 @@ pub struct Builder<'a> {
     declarations: Vec<VariableDeclaration<'a>>,
     type_parameters: Vec<TSTypeParameterDeclaration<'a>>,
     comments: Vec<Comment>,
-    recorded: Vec<Recorded>,
+    recorded: RecordedPart<'a>,
     wrapped: String,
     unchecked: &'static &'static [&'static str],
     unchecked_errors: Vec<SyntaxError>,
@@ -93,7 +87,11 @@ impl<'a> Builder<'a> {
             declarations: Vec::new(),
             type_parameters: Vec::new(),
             comments: Vec::new(),
-            recorded: Vec::new(),
+            recorded: RecordedPart {
+                tokens: &[],
+                comments: &[],
+                shift: 0,
+            },
             wrapped: String::new(),
             unchecked: &NOTHING,
             unchecked_errors: Vec::new(),
@@ -161,8 +159,8 @@ impl<'a> Builder<'a> {
 
     /// The tokens and comments of the part read last, in document order.
     #[must_use]
-    pub fn recorded(&self) -> &[Recorded] {
-        &self.recorded
+    pub const fn recorded(&self) -> RecordedPart<'a> {
+        self.recorded
     }
 
     /// Parses the expression that starts at `start`, and returns where it ends.
@@ -229,8 +227,12 @@ impl<'a> Builder<'a> {
                 self.record_parentheses(sequence.span, u8::try_from(pairs).unwrap_or(u8::MAX));
             }
         }
-        self.record(&parsed.tokens, &parsed.comments, 0);
         self.comments.extend_from_slice(&parsed.comments);
+        self.record(
+            parsed.tokens.into_arena_slice(),
+            parsed.comments.into_arena_slice(),
+            0,
+        );
         Ok((parsed.expression, parsed.end))
     }
 
@@ -272,8 +274,12 @@ impl<'a> Builder<'a> {
             ),
             (part, source_type),
         )?;
-        self.record(&parsed.tokens, &parsed.comments, 0);
         self.comments.extend_from_slice(&parsed.comments);
+        self.record(
+            parsed.tokens.into_arena_slice(),
+            parsed.comments.into_arena_slice(),
+            0,
+        );
         Ok((parsed.statement, parsed.end))
     }
 
@@ -439,17 +445,17 @@ impl<'a> Builder<'a> {
                 Span::new(parsed.end + shift, range.end_offset),
             ));
         }
-        let tokens = &parsed.tokens;
+        let tokens = parsed.tokens.into_arena_slice();
         let inner = tokens
             .get(opening_tokens..tokens.len().saturating_sub(closing_tokens))
             .unwrap_or(&[]);
-        self.record(inner, &parsed.comments, shift);
         self.comments.extend(parsed.comments.iter().map(|comment| {
             let mut comment = comment.clone();
             Shift(shift).visit_span(&mut comment.span);
             comment.attached_to += shift;
             comment
         }));
+        self.record(inner, parsed.comments.into_arena_slice(), shift);
         Ok((parsed.expression, shift))
     }
 
@@ -502,25 +508,12 @@ impl<'a> Builder<'a> {
     }
 
     /// Keeps `tokens` and `comments`, `shift` bytes later, as the part read last.
-    fn record(&mut self, tokens: &[Token], comments: &[Comment], shift: u32) {
-        self.recorded.clear();
-        let mut comments = comments.iter().peekable();
-        for token in tokens {
-            while let Some(comment) = comments.next_if(|c| c.span.start < token.start()) {
-                self.recorded.push(Recorded {
-                    kind: None,
-                    span: span(comment.span, shift),
-                });
-            }
-            self.recorded.push(Recorded {
-                kind: Some(token.kind()),
-                span: span(token.span(), shift),
-            });
-        }
-        self.recorded.extend(comments.map(|comment| Recorded {
-            kind: None,
-            span: span(comment.span, shift),
-        }));
+    const fn record(&mut self, tokens: &'a [Token], comments: &'a [Comment], shift: u32) {
+        self.recorded = RecordedPart {
+            tokens,
+            comments,
+            shift,
+        };
     }
 }
 
@@ -543,8 +536,4 @@ impl VisitMut<'_> for Shift {
         it.start += self.0;
         it.end += self.0;
     }
-}
-
-const fn span(span: oxc_span::Span, shift: u32) -> Span {
-    Span::new(span.start + shift, span.end + shift)
 }

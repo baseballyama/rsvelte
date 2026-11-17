@@ -26,6 +26,7 @@ fn subscribed_stores(
     let scoping = resolution.scoping();
     resolution
         .unresolved_names()
+        .chain(declared_subscriptions(resolution).map(|symbol| scoping.symbol_name(symbol)))
         .filter(|name| resolution.is_store_subscription(name))
         .filter_map(move |name| {
             let symbol = scoping.find_binding(resolution.instance_scope(), name[1..].into())?;
@@ -39,6 +40,20 @@ fn subscribed_stores(
         })
 }
 
+/// Each `$x` the component declares itself at the top of a script and reads: svelte2tsx still
+/// declares a subscription for it, which TypeScript reports as declared twice.
+fn declared_subscriptions(
+    resolution: &Resolution,
+) -> impl Iterator<Item = oxc_syntax::symbol::SymbolId> {
+    let scoping = resolution.scoping();
+    let top = [resolution.instance_scope(), scoping.root_scope_id()];
+    scoping.symbol_ids().filter(move |&symbol| {
+        scoping.symbol_name(symbol).starts_with('$')
+            && top.contains(&scoping.symbol_scope_id(symbol))
+            && !scoping.get_resolved_reference_ids(symbol).is_empty()
+    })
+}
+
 /// Each store `x` that the projection reads as `$x`, by its name's range, with where the
 /// component reads `$x`.
 #[must_use]
@@ -46,11 +61,12 @@ pub fn store_reads(resolution: &Resolution) -> Vec<(Span, Vec<Span>)> {
     let scoping = resolution.scoping();
     subscribed_stores(resolution)
         .map(|(name, symbol, _)| {
-            let reads = scoping
-                .root_unresolved_references()
-                .get(name)
-                .into_iter()
+            let declared = declared_subscriptions(resolution)
+                .filter(|&own| scoping.symbol_name(own) == name)
+                .flat_map(|own| scoping.get_resolved_reference_ids(own));
+            let reads = (scoping.root_unresolved_references().get(name).into_iter())
                 .flatten()
+                .chain(declared)
                 .map(|&reference| span(resolution.reference_span(reference)))
                 .collect();
             (span(scoping.symbol_span(symbol)), reads)

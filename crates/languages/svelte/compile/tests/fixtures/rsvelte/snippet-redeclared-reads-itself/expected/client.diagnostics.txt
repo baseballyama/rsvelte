@@ -1,0 +1,2 @@
+error declaration_duplicate 4:11-4:15 `same` has already been declared
+    https://svelte.dev/e/declaration_duplicate

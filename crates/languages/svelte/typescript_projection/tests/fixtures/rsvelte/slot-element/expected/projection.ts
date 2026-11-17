@@ -44,7 +44,19 @@ function $$render() {
       });
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_props_with_children<typeof __rsvelte_public_props0>, {}, "">} */ (__rsvelte_export_component))();
+  return __rsvelte_with_slots((/** @type {typeof __rsvelte_export_component<__rsvelte_props_with_children<typeof __rsvelte_public_props0>, {}, "">} */ (__rsvelte_export_component))(), {
+    "default": {},
+    "header": {
+      title: "",
+      count: count,
+      total: items.length,
+      first: items.at(0),
+      ...(rest),
+    },
+    "footer": {
+      label: "",
+    },
+  });
 }
 const SlotElement__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof SlotElement__SvelteComponent_>} */ (SlotElement__SvelteComponent_);
