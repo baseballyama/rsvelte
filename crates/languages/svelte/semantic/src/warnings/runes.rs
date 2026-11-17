@@ -424,6 +424,14 @@ fn props_calls(resolution: &Resolution, program: &Program<'_>) -> Vec<oxc_span::
             walk::walk_expression(self, it);
         }
     }
+    // A call is `$props()` only through a global reference or an ambient declaration of that
+    // name, which most components lack, so the walk is skipped without either.
+    let scoping = resolution.scoping();
+    if !scoping.root_unresolved_references().contains_key("$props")
+        && !scoping.symbol_names().any(|name| name == "$props")
+    {
+        return Vec::new();
+    }
     let mut calls = Calls {
         resolution,
         out: Vec::new(),
