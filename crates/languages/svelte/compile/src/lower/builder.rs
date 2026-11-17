@@ -1,6 +1,10 @@
 //! Svelte's runtime calls, over the output tree's constructors that every compiler shares.
 
-use oxc_ast::ast::{Argument, ArrowFunctionBody, BindingPattern, Expression};
+use oxc_ast::ast::{
+    Argument, ArrowFunctionBody, BindingPattern, ExportDefaultDeclarationKind, Expression,
+    ImportDeclarationSpecifier, ImportOrExportKind, Statement, StringLiteral,
+};
+use oxc_span::SPAN;
 pub(crate) use rsvelte_typescript_compile::build::Builder;
 
 /// The constructors that name Svelte's runtime, `$`.
@@ -74,4 +78,36 @@ pub(crate) fn unthunk(arrow: Expression<'_>) -> Expression<'_> {
         unreachable!()
     };
     call.unbox().callee
+}
+
+/// `import 'source'`, or `import * as namespace from 'source'`.
+pub(super) fn import<'o>(b: &Builder<'o>, namespace: Option<&str>, source: &str) -> Statement<'o> {
+    let specifiers = namespace.map(|n| {
+        b.vec([ImportDeclarationSpecifier::new_import_namespace_specifier(
+            SPAN,
+            oxc_ast::ast::BindingIdentifier::new(SPAN, b.str(n), b),
+            b,
+        )])
+    });
+    Statement::new_import_declaration(
+        SPAN,
+        specifiers,
+        StringLiteral::new(SPAN, b.str(source), None, b),
+        None,
+        None,
+        ImportOrExportKind::Value,
+        b,
+    )
+}
+
+/// `export default function …`, from a function declaration.
+pub(super) fn export_default<'o>(b: &Builder<'o>, function: Statement<'o>) -> Statement<'o> {
+    let Statement::FunctionDeclaration(function) = function else {
+        unreachable!("the component is a function declaration")
+    };
+    Statement::new_export_default_declaration(
+        SPAN,
+        ExportDefaultDeclarationKind::FunctionDeclaration(function),
+        b,
+    )
 }
