@@ -1,6 +1,11 @@
 //! Whether the parser a host reads a script with after oxc throws on the errors oxc recovered
 //! from in it.
 
+use oxc_ast::ast::{
+    DoWhileStatement, ForInStatement, ForOfStatement, ForStatement, IfStatement, LabeledStatement,
+    Program, Statement, WhileStatement,
+};
+use oxc_ast_visit::{Visit, walk};
 use oxc_parser::Kind;
 
 use super::typescript_eslint::{checks, thrown};
@@ -152,6 +157,67 @@ fn babel_typescript_throws_on(error: &SyntaxError, tokens: &[Recorded]) -> Optio
     verdicts.all(|other| other == throws).then_some(throws)
 }
 
+/// Whether the function declaration that starts at `at` in `program` is async, where it is the
+/// body of a statement and not in a block, which a module does not allow.
+#[must_use]
+pub fn function_as_body(program: &Program<'_>, at: u32) -> Option<bool> {
+    struct Find {
+        at: u32,
+        found: Option<bool>,
+    }
+    impl Find {
+        fn body(&mut self, body: &Statement<'_>) {
+            if let Statement::FunctionDeclaration(function) = body
+                && function.span.start == self.at
+            {
+                self.found = Some(function.r#async);
+            }
+        }
+    }
+    impl<'a> Visit<'a> for Find {
+        fn visit_if_statement(&mut self, it: &IfStatement<'a>) {
+            self.body(&it.consequent);
+            if let Some(alternate) = &it.alternate {
+                self.body(alternate);
+            }
+            walk::walk_if_statement(self, it);
+        }
+
+        fn visit_labeled_statement(&mut self, it: &LabeledStatement<'a>) {
+            self.body(&it.body);
+            walk::walk_labeled_statement(self, it);
+        }
+
+        fn visit_while_statement(&mut self, it: &WhileStatement<'a>) {
+            self.body(&it.body);
+            walk::walk_while_statement(self, it);
+        }
+
+        fn visit_do_while_statement(&mut self, it: &DoWhileStatement<'a>) {
+            self.body(&it.body);
+            walk::walk_do_while_statement(self, it);
+        }
+
+        fn visit_for_statement(&mut self, it: &ForStatement<'a>) {
+            self.body(&it.body);
+            walk::walk_for_statement(self, it);
+        }
+
+        fn visit_for_in_statement(&mut self, it: &ForInStatement<'a>) {
+            self.body(&it.body);
+            walk::walk_for_in_statement(self, it);
+        }
+
+        fn visit_for_of_statement(&mut self, it: &ForOfStatement<'a>) {
+            self.body(&it.body);
+            walk::walk_for_of_statement(self, it);
+        }
+    }
+    let mut find = Find { at, found: None };
+    find.visit_program(program);
+    find.found
+}
+
 impl Reader {
     /// Whether it throws on `errors`, oxc's errors in `program` of `tree`, which oxc recovered
     /// and read as `tokens`; `None` where that is not known.
@@ -163,6 +229,30 @@ impl Reader {
         errors: &[&SyntaxError],
         tokens: &[Recorded],
     ) -> Option<bool> {
+        // A function declared as a statement's body, which oxc reports without tsc's code, as
+        // tsc reports nothing there: Babel throws only on an async one.
+        let body = |error: &SyntaxError| {
+            (error.typescript_code.is_none())
+                .then(|| {
+                    function_as_body(
+                        tree.get_program(program),
+                        error.diagnostic.span.start_offset,
+                    )
+                })
+                .flatten()
+        };
+        let mut bodies = Vec::new();
+        let mut others = Vec::new();
+        for &error in errors {
+            match body(error) {
+                Some(is_async) => bodies.push(is_async),
+                None => others.push(error),
+            }
+        }
+        let errors = others.as_slice();
+        if self == Self::BabelTypescript && bodies.contains(&true) {
+            return Some(true);
+        }
         let codes = (errors.iter())
             .map(|error| error.typescript_code)
             .collect::<Option<Vec<u32>>>()?;
