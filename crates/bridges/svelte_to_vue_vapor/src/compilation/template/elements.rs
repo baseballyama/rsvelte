@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use oxc_ast::ast::{BinaryOperator, Expression};
 
 use super::{
@@ -162,16 +160,17 @@ impl<'t> Template<'_, '_, 't> {
             }
             _ => unreachable!("textarea_value is text and expressions"),
         };
-        let items: Vec<Item<'_>> = parts
+        let items: Vec<Item> = parts
             .iter()
             .map(|part| match *part {
-                Part::Text(span) => {
-                    let raw = span.text(source_text);
-                    Item::Text {
-                        data: rsvelte_svelte_syntax::syntax_tree::decode_attribute(raw),
-                        raw: Cow::Borrowed(raw),
-                    }
-                }
+                Part::Text(span) => Item::Text {
+                    data: rsvelte_svelte_compile::lower::Text::transformed(
+                        span,
+                        source_text,
+                        rsvelte_svelte_syntax::syntax_tree::decode_attribute,
+                    ),
+                    raw: rsvelte_svelte_compile::lower::Text::Source(span),
+                },
                 Part::Expression { expression, .. } => Item::Expression(expression),
             })
             .collect();

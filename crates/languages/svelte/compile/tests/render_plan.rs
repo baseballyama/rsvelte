@@ -1,16 +1,17 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_compile::RenderPlan;
-use rsvelte_svelte_compile::lower::{self, Item, Target};
+use rsvelte_svelte_compile::lower::{self, Item, Target, Text};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerSyntaxTree, NodeKind};
 
-fn text(plan: &RenderPlan, children: Children) -> String {
+fn text(plan: &RenderPlan, children: Children, source: &str, tree: &CompilerSyntaxTree) -> String {
     plan.fragment(children)
         .items
         .iter()
         .filter_map(|item| match item {
-            Item::Text { data, .. } => Some(data.as_ref()),
+            Item::Text { data, .. } => Some(data.get(source, tree)),
             Item::Node(_) | Item::Expression(_) | Item::Comment => None,
         })
         .collect()
@@ -39,7 +40,10 @@ fn whitespace_context_follows_regions_and_does_not_escape_pre() {
         "App.svelte",
     ));
     let plan = RenderPlan::build(&input);
-    assert_eq!(text(&plan, element(&tree, source, "p")), "after");
+    assert_eq!(
+        text(&plan, element(&tree, source, "p"), source, &tree),
+        "after"
+    );
     for node in &tree.nodes {
         match &node.kind {
             NodeKind::If {
@@ -47,16 +51,19 @@ fn whitespace_context_follows_regions_and_does_not_escape_pre() {
                 otherwise,
             } => {
                 for branch in tree.branches(*branches) {
-                    assert_eq!(text(&plan, branch.body), "  yes  ");
+                    assert_eq!(text(&plan, branch.body, source, &tree), "  yes  ");
                     assert!(!plan.fragment(branch.body).text_first);
                 }
-                assert_eq!(text(&plan, otherwise.expect("has else")), "  no  ");
+                assert_eq!(
+                    text(&plan, otherwise.expect("has else"), source, &tree),
+                    "  no  "
+                );
             }
             NodeKind::Each(each) => {
-                assert_eq!(text(&plan, each.body), "    ");
+                assert_eq!(text(&plan, each.body, source, &tree), "    ");
                 assert!(plan.fragment(each.body).text_first);
                 assert_eq!(
-                    text(&plan, each.fallback.expect("has fallback")),
+                    text(&plan, each.fallback.expect("has fallback"), source, &tree),
                     "  empty  "
                 );
             }
@@ -66,8 +73,8 @@ fn whitespace_context_follows_regions_and_does_not_escape_pre() {
 }
 
 #[test]
-fn plans_keep_decoded_text_and_markup_separate_and_own_their_text() {
-    let (plan, children) = {
+fn plans_keep_decoded_text_and_markup_separate_and_outlive_the_parse() {
+    let (plan, children, source, tree) = {
         let source = String::from("<p>&amp; &#65;</p>");
         let component = rsvelte_svelte_syntax::parse::parse(&source).expect("parses");
         let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, &source);
@@ -75,14 +82,63 @@ fn plans_keep_decoded_text_and_markup_separate_and_own_their_text() {
         let plan = RenderPlan::build(&rsvelte_svelte_compile::CompileInput::from(
             rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "App.svelte"),
         ));
-        (plan, children)
+        (plan, children, source, tree)
     };
     let [Item::Text { data, raw }] = plan.fragment(children).items.as_ref() else {
         panic!("one text item")
     };
-    assert_eq!(data, "& A");
-    assert_eq!(raw, "&amp; &#65;");
+    assert_eq!(data.get(&source, &tree), "& A");
+    assert_eq!(raw.get(&source, &tree), "&amp; &#65;");
     send_sync(&plan);
+}
+
+/// Each text of `element`'s children: its data, then its raw.
+fn texts(source: &str, element_name: &str) -> Vec<(Text, Text)> {
+    let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
+    let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
+    let plan = RenderPlan::build(&rsvelte_svelte_compile::CompileInput::from(
+        rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "App.svelte"),
+    ));
+    (plan
+        .fragment(element(&tree, source, element_name))
+        .items
+        .iter())
+    .filter_map(|item| match item {
+        Item::Text { data, raw } => Some((data.clone(), raw.clone())),
+        Item::Node(_) | Item::Expression(_) | Item::Comment => None,
+    })
+    .collect()
+}
+
+#[test]
+fn plans_own_a_text_only_where_cleaning_changes_it() {
+    let at = |start, end| Text::Source(Span::new(start, end));
+    // Trimmed at both ends: a range of the source.
+    assert_eq!(texts("<p>  text  </p>", "p"), [(at(5, 9), at(5, 9))]);
+    // Collapsed to one space on each side, which the source has: still a range.
+    assert_eq!(
+        texts("<p><i></i> b <i></i></p>", "p"),
+        [(at(10, 13), at(10, 13))]
+    );
+    // The newlines become spaces, which no range of the source holds.
+    let owned = Text::Owned(" b ".into());
+    assert_eq!(
+        texts("<p><i></i>\nb\n<i></i></p>", "p"),
+        [(owned.clone(), owned)]
+    );
+    // A decoded reference is the compiler tree's string; its markup is still the source's.
+    let [
+        (
+            Text::Decoded {
+                start: 0, end: 1, ..
+            },
+            raw,
+        ),
+    ] = &*texts("<p>&amp;</p>", "p")
+    else {
+        panic!("one decoded text")
+    };
+    assert_eq!(*raw, at(3, 8));
 }
 
 #[test]
@@ -98,8 +154,8 @@ fn whitespace_options_produce_separate_plans_without_changing_the_compiler_synta
     let normal = RenderPlan::build(&input);
     input.preserve_whitespace = true;
     let preserved = RenderPlan::build(&input);
-    assert_eq!(text(&normal, children), "text");
-    assert_eq!(text(&preserved, children), "  text  ");
+    assert_eq!(text(&normal, children, source, &tree), "text");
+    assert_eq!(text(&preserved, children, source, &tree), "  text  ");
     assert_eq!(format!("{tree:?}"), before);
 }
 

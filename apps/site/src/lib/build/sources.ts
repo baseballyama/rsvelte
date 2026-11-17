@@ -40,7 +40,7 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 		[
 			'document_printer',
 			'language_independent/document_printer/src',
-			['lib', 'construct', 'printer', 'rewrite', 'tests', 'width'],
+			['lib', 'construct', 'lower', 'embedding', 'rewrite', 'tests', 'width'],
 		],
 		[
 			'typescript/check',

@@ -445,12 +445,16 @@ impl Printer<'_, '_, '_> {
                     self.d().text(name.text(source_text))
                 }
                 Some(v) => {
-                    let text = format!(
-                        "{}=\"{}\"",
-                        name.text(self.source_text),
-                        v.text(self.source_text)
-                    );
-                    self.d().text(&text)
+                    let source_text = self.source_text;
+                    let mut parts = vec![self.d().text(name.text(source_text)), self.lit("=\"")];
+                    for (j, line) in v.text(source_text).split('\n').enumerate() {
+                        if j > 0 {
+                            parts.push(self.d().literalline());
+                        }
+                        parts.push(self.d().text(line));
+                    }
+                    parts.push(self.lit("\""));
+                    self.cat(&parts)
                 }
             };
             inner.push(self.cat(&[line, a]));

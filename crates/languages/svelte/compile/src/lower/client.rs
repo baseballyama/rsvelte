@@ -29,12 +29,8 @@ mod tests;
 mod title;
 
 use oxc_allocator::ArenaBox;
-use oxc_ast::ast::{
-    Expression, FormalParameters, ImportDeclarationSpecifier, ImportOrExportKind, Statement,
-    StringLiteral,
-};
+use oxc_ast::ast::{Expression, FormalParameters, Statement};
 use oxc_semantic::{ReferenceId, ScopeId, SymbolId};
-use oxc_span::SPAN;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_markup_syntax::decode_attribute;
 use rsvelte_svelte_semantic::analyze::Analysis;
@@ -55,7 +51,7 @@ use super::{
     is_custom_element_node, is_customizable_select, is_directive, is_load_error_element,
     needs_clsx, synthetic_value, unsupported, uses_slots,
 };
-use crate::lower::builder::Runtime;
+use crate::lower::builder::{Runtime, export_default, import};
 use crate::render_plan::RenderPlan;
 
 const PASSIVE_EVENTS: &[&str] = &["touchstart", "touchmove"];
@@ -277,38 +273,6 @@ pub(super) fn lower_prepared<'c, 'o>(
     }
     program.extend(registration);
     Ok(program)
-}
-
-/// `import 'source'`, or `import * as namespace from 'source'`.
-pub(super) fn import<'o>(b: &Builder<'o>, namespace: Option<&str>, source: &str) -> Statement<'o> {
-    let specifiers = namespace.map(|n| {
-        b.vec([ImportDeclarationSpecifier::new_import_namespace_specifier(
-            SPAN,
-            oxc_ast::ast::BindingIdentifier::new(SPAN, b.str(n), b),
-            b,
-        )])
-    });
-    Statement::new_import_declaration(
-        SPAN,
-        specifiers,
-        StringLiteral::new(SPAN, b.str(source), None, b),
-        None,
-        None,
-        ImportOrExportKind::Value,
-        b,
-    )
-}
-
-/// `export default function …`, from a function declaration.
-fn export_default<'o>(b: &Builder<'o>, function: Statement<'o>) -> Statement<'o> {
-    let Statement::FunctionDeclaration(function) = function else {
-        unreachable!("the component is a function declaration")
-    };
-    Statement::new_export_default_declaration(
-        SPAN,
-        oxc_ast::ast::ExportDefaultDeclarationKind::FunctionDeclaration(function),
-        b,
-    )
 }
 
 struct Walk {

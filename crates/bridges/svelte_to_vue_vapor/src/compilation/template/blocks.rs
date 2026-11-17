@@ -3,8 +3,8 @@ use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
 
 use super::{
     CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Helper, Item, NodeKind, Parent, R,
-    Span, Template, clean_nodes, directive, known_string, sanitize_template_string, unsupported,
-    vue,
+    Span, Template, clean_nodes, directive, known_string, sanitize_template_string, template_end,
+    unsupported, vue,
 };
 
 impl<'t> Template<'_, '_, 't> {
@@ -31,6 +31,7 @@ impl<'t> Template<'_, '_, 't> {
             ids,
             preserve_whitespace,
             drops_whitespace,
+            template_end(source_text),
         );
         if let Some(&tag) = cleaned.hoisted.iter().find(|&&h| {
             !matches!(
@@ -227,7 +228,7 @@ impl<'t> Template<'_, '_, 't> {
     /// A run of text and `{expression}` tags: one text node in both runtimes.
     pub(super) fn sequence(
         &mut self,
-        items: &[Item<'_>],
+        items: &[Item],
         parent: Parent<'_>,
         value: bool,
         vue_parent: Option<vue::CompilerNodeIdentifier>,
@@ -242,7 +243,7 @@ impl<'t> Template<'_, '_, 't> {
             match item {
                 Item::Text { raw, .. } if matches!(parent, Parent::Element("textarea")) => {
                     let raw = super::static_text::textarea_text(
-                        raw,
+                        raw.get(self.i.source_text, self.i.compiler_syntax_tree),
                         index == 0,
                         value,
                         self.i.server,
@@ -250,7 +251,9 @@ impl<'t> Template<'_, '_, 't> {
                     );
                     text.push_str(&rsvelte_svelte_syntax::syntax_tree::decode_attribute(&raw));
                 }
-                Item::Text { data, .. } => text.push_str(data),
+                Item::Text { data, .. } => {
+                    text.push_str(data.get(self.i.source_text, self.i.compiler_syntax_tree));
+                }
                 &Item::Expression(expression) => {
                     let value = self.text_value(expression, lone);
                     quasis.push(sanitize_template_string(&text).into_owned());
@@ -329,6 +332,7 @@ impl<'t> Template<'_, '_, 't> {
             ids,
             false,
             false,
+            template_end(self.i.source_text),
         );
         if !cleaned.hoisted.is_empty() {
             return None;

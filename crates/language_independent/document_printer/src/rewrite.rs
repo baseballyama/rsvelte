@@ -14,7 +14,7 @@ impl LayoutInstructions {
             | Node::Text { .. }
             | Node::Line(_)
             | Node::BreakParent
-            | Node::Embedded { .. } => d,
+            | Node::Embedded(_) => d,
             Node::IfBreak { flat, .. } => self.remove_lines(flat),
             Node::Indent(x) => {
                 let x = self.remove_lines(x);
@@ -24,21 +24,6 @@ impl LayoutInstructions {
                 let x = self.remove_lines(x);
                 self.dedent(x)
             }
-            // A choice keeps its states here and prints the last one when none fits; that one is
-            // not built, so the choice stays. Other flat-only layouts are plain groups upstream.
-            Node::FlatOnly {
-                content,
-                every_line,
-                choice: true,
-            } => {
-                let x = self.remove_lines(content);
-                self.push(Node::FlatOnly {
-                    content: x,
-                    every_line,
-                    choice: true,
-                })
-            }
-            Node::FlatOnly { content, .. } => self.remove_lines(content),
             Node::IndentIfBreak { document, group } => {
                 let x = self.remove_lines(document);
                 self.indent_if_break(x, group)
@@ -89,9 +74,6 @@ impl LayoutInstructions {
             }
             _ => unreachable!("only lists have parts"),
         }
-        // Trims run innermost first, so the parts' answers are already current.
-        let i = owner.0 as usize;
-        self.measures[i] = self.measure_of(self.nodes[i]);
     }
 
     /// prettier-plugin-svelte's `trim`: removes leading and trailing docs matching `ws`, descending

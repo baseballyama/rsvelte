@@ -3,6 +3,7 @@
 //! The corpus compares output as syntax trees, so the printer's layout is free.
 
 use oxc_ast::ast::Program;
+pub use oxc_codegen::Expansion;
 use oxc_codegen::{Codegen, CodegenOptions, StatementExpansion};
 use rsvelte_kernel::output::emitter::{Emitter, Mapping};
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex};
@@ -28,7 +29,7 @@ pub fn print(program: &Program<'_>) -> String {
     printed(Codegen::new().with_options(options()), program).code
 }
 
-/// [`print()`], with the statements `expand` returns printed in place of a statement.
+/// [`print()`], with what `expand` returns printed in place of a statement.
 #[must_use]
 pub fn print_expanding<'a>(program: &Program<'a>, expand: StatementExpansion<'a>) -> String {
     let codegen = Codegen::new()

@@ -18,14 +18,12 @@ mod fragments;
 mod slot_element;
 mod snippets;
 mod special;
+mod template;
 
 use std::borrow::Cow;
 
 use events::{capture_event, capture_load_events, push_captured_events};
-use oxc_ast::ast::{
-    BindingIdentifier, ExportDefaultDeclarationKind, Expression, ImportDeclarationSpecifier,
-    ImportOrExportKind, Statement, StringLiteral, UnaryOperator, VariableDeclarationKind,
-};
+use oxc_ast::ast::{Statement, UnaryOperator, VariableDeclarationKind};
 use oxc_semantic::SymbolId;
 use oxc_span::SPAN;
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -39,6 +37,7 @@ use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_svelte_syntax::parse::is_void;
 use rsvelte_typescript_tree::Tree;
 use rustc_hash::{FxHashMap, FxHashSet};
+use template::Template;
 
 use super::names::Names;
 use super::script::ScriptRewrite;
@@ -48,7 +47,7 @@ use super::{
     is_boolean_attribute, is_customizable_select, is_directive, is_load_error_element, needs_clsx,
     synthetic_value, unsupported, uses_slots,
 };
-use crate::lower::builder::Runtime;
+use crate::lower::builder::{Runtime, export_default, import};
 use crate::render_plan::RenderPlan;
 
 type R<T> = Result<T, Diagnostic>;
@@ -57,16 +56,6 @@ const BLOCK_OPEN: &str = "<!--[-->";
 const BLOCK_OPEN_ELSE: &str = "<!--[!-->";
 const BLOCK_CLOSE: &str = "<!--]-->";
 const EMPTY_COMMENT: &str = "<!---->";
-
-/// One piece of a server template before it is folded into `$$renderer.push(…)` calls.
-enum Piece<'o> {
-    /// Cooked text.
-    Text(String),
-    /// A template literal, as cooked quasis and expressions.
-    Template(Vec<String>, Vec<Expression<'o>>),
-    Expression(Expression<'o>),
-    Statement(Statement<'o>),
-}
 
 /// `String(value ?? '')` for a known value.
 fn known_string(v: &rsvelte_svelte_semantic::evaluate::Value) -> String {
@@ -217,33 +206,13 @@ pub(super) fn lower_prepared<'c, 'o>(
         parameters.push("$$props");
     }
     let function = b.function_declaration(&component_name, b.parameters(parameters), body, false);
-    let Statement::FunctionDeclaration(function) = super::script::with_prologue(b, function) else {
-        unreachable!("a function declaration")
-    };
-
-    let namespace = ImportDeclarationSpecifier::new_import_namespace_specifier(
-        SPAN,
-        BindingIdentifier::new(SPAN, "$", b),
-        b,
-    );
-    let mut program = vec![Statement::new_import_declaration(
-        SPAN,
-        Some(b.vec([namespace])),
-        StringLiteral::new(SPAN, "svelte/internal/server", None, b),
-        None,
-        None,
-        ImportOrExportKind::Value,
-        b,
-    )];
+    let function = super::script::with_prologue(b, function);
+    let mut program = vec![import(b, Some("$"), "svelte/internal/server")];
     program.extend(hoisted);
     program.append(&mut sx.hoisted_snippets);
     program.extend(module);
     program.extend(stylesheet);
-    program.push(Statement::new_export_default_declaration(
-        SPAN,
-        ExportDefaultDeclarationKind::FunctionDeclaration(function),
-        b,
-    ));
+    program.push(export_default(b, function));
     Ok(program)
 }
 

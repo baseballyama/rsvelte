@@ -14882,6 +14882,19 @@ export default function _dbd8e3ea93fa193($$renderer) {
 
 	s($$renderer);
 }
+=== 238 snippet_param_ts_default_4383/the_shapes_that_already_worked_are_unmoved/8c068ffb4a63fc91.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _c068ffb4a63fc91($$renderer) {
+	let obj;
+	let q;
+
+	function s($$renderer, p = obj.a ?? (obj.b ?? 1)) {
+		$$renderer.push(`<!---->${$.escape(p)}`);
+	}
+
+	s($$renderer);
+}
 === 215 snippet_param_ts_default_4383/the_shapes_that_already_worked_are_unmoved/8f27fc7c3b8af17f.svelte	js
 import * as $ from 'svelte/internal/server';
 

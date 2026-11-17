@@ -7,7 +7,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_typescript_projection::{Refusal, checked_as_typescript, unparsed_script};
-use rsvelte_typescript_check::{TypeScriptDocument, TypeScriptEnv};
+use rsvelte_typescript_check::{CheckedDocument, TypeScriptDocument, TypeScriptEnv};
 
 /// The document to check, or `None` when the markup does not parse either.
 pub(super) fn view<'e>(
@@ -67,8 +67,8 @@ pub(super) fn view<'e>(
         projection.push("\n};\n}\n");
     }
     projection.push("export {};\n");
-    Some(Ok(TypeScriptDocument::Checked {
-        projection,
+    Some(Ok(TypeScriptDocument::Checked(Arc::new(CheckedDocument {
+        projection: Arc::new(projection),
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),
         extension: if typescript { ".tsx" } else { ".jsx" },
@@ -77,5 +77,5 @@ pub(super) fn view<'e>(
         hidden: Vec::new(),
         // svelte2tsx's code after the scripts has no source, so svelte-check drops its findings.
         drops_unmapped: true,
-    }))
+    }))))
 }

@@ -1,6 +1,6 @@
 //! Read-only questions about a document.
 
-use crate::{LayoutInstructionIdentifier, LayoutInstructions, Measure, Node};
+use crate::{LayoutInstructionIdentifier, LayoutInstructions, Node};
 
 impl LayoutInstructions {
     pub(crate) fn children(&self, start: u32, len: u32) -> &[LayoutInstructionIdentifier] {
@@ -16,12 +16,12 @@ impl LayoutInstructions {
                 n @ (Node::Static(_) | Node::Text { .. }) => return self.str_of(n).is_empty(),
                 Node::Line(_) => return true,
                 Node::Concat { len, .. } | Node::Group { len, .. } => return len == 0,
-                Node::Indent(x) | Node::Dedent(x) | Node::FlatOnly { content: x, .. } => d = x,
+                Node::Indent(x) | Node::Dedent(x) => d = x,
                 Node::IndentIfBreak { document, .. } => d = document,
                 Node::Fill { start, len } => {
                     return self.children(start, len).iter().all(|&k| self.is_empty(k));
                 }
-                Node::IfBreak { .. } | Node::BreakParent | Node::Embedded { .. } => return false,
+                Node::IfBreak { .. } | Node::BreakParent | Node::Embedded(_) => return false,
             }
         }
     }
@@ -42,20 +42,6 @@ impl LayoutInstructions {
             }
         }
         true
-    }
-
-    /// Prettier's `willBreak`: the document holds a hard line, a break-parent or a broken group.
-    ///
-    /// # Panics
-    ///
-    /// If `d` was made by another [`LayoutInstructions`].
-    #[must_use]
-    pub fn will_break(&self, d: LayoutInstructionIdentifier) -> bool {
-        self.measure(d).breaks()
-    }
-
-    pub(crate) fn measure(&self, d: LayoutInstructionIdentifier) -> Measure {
-        self.measures[d.0 as usize]
     }
 
     #[must_use]

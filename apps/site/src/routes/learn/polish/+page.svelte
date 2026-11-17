@@ -322,25 +322,26 @@
 		'P7',
 		'shouldBreak の group が親の group を壊さなかった',
 		'fixed',
-		'document_printer · LayoutInstructions::push',
+		'document_printer · Lowering::node',
 	)}
 	<p>
 		最初から改行すると決めた group（<code>group_broken</code>。Prettier の
 		<code>shouldBreak</code>）が、親の group を改行させていませんでした。そのため Prettier
-		と違う出力になっていました（<a href="/learn/document-printer#printer">09 章</a>）。
+		と違う出力になっていました（<a href="/learn/document-printer#lower">09 章</a>）。
 	</p>
 
 	{@render item(
 		'P8',
 		'絵文字やゼロ幅の文字の幅を数え違えた',
 		'fixed',
-		'document_printer · string_width',
+		'document_printer · emoji_measured_otherwise',
 	)}
 	<p>
-		以前は、絵文字、異体字セレクタ、ゼロ幅の文字の幅を数え違えていました。今は、Prettier 3.9.10 の
-		<code>getStringWidth</code> が全スカラー値に返す幅を表にして使います。Prettier
-		が一文字として数える絵文字の並びは、この表では数えられません。その並びを含む文書は、整形を断ります（<a
-			href="/learn/document-printer#flat-only">09 章</a
+		以前は、絵文字、異体字セレクタ、ゼロ幅の文字の幅を数え違えていました。今は oxc
+		のプリンタが幅を数えます。数え方が Prettier と違う絵文字の並びは、<code>string_width</code>
+		と比べて見つけます。<code>string_width</code> は Prettier 3.9.10 の
+		<code>getStringWidth</code> と同じに数えます。その並びを含む文書は、整形を断ります（<a
+			href="/learn/document-printer#width">09 章</a
 		>）。
 	</p>
 

@@ -52,11 +52,6 @@ pub struct Layer {
 pub struct Diagnostic {
     #[serde(rename = "fileName")]
     pub file_name: Option<PathBuf>,
-    /// UTF-16 offsets in the original text of the file; -1 for a diagnostic of the program.
-    #[serde(rename = "pos")]
-    pub start_offset: i64,
-    #[serde(rename = "end")]
-    pub end_offset: i64,
     #[serde(rename = "startPosition")]
     pub start_position: Option<Position>,
     #[serde(rename = "endPosition")]
@@ -274,23 +269,23 @@ impl Session {
                                 ));
                             }
                         };
+                        let (root_files, paths, node_resolution) = p.parsed.as_ref().map_or_else(
+                            || (Vec::new(), Vec::new(), false),
+                            |c| {
+                                let options = &c.options;
+                                (
+                                    c.file_names.clone(),
+                                    options.absolute_paths(),
+                                    options.node_resolution(),
+                                )
+                            },
+                        );
                         Ok(Project {
                             snapshot: snapshot.snapshot,
                             id,
-                            root_files: p
-                                .parsed
-                                .as_ref()
-                                .map(|c| c.file_names.clone())
-                                .unwrap_or_default(),
-                            paths: p
-                                .parsed
-                                .as_ref()
-                                .map(|c| c.options.absolute_paths())
-                                .unwrap_or_default(),
-                            node_resolution: p
-                                .parsed
-                                .as_ref()
-                                .is_some_and(|c| c.options.node_resolution()),
+                            root_files,
+                            paths,
+                            node_resolution,
                         })
                     })
             })

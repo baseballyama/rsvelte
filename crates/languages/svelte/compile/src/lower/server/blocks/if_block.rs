@@ -1,5 +1,5 @@
 use crate::lower::server::{
-    BLOCK_CLOSE, CompilerNodeIdentifier, NodeKind, Piece, R, ServerCompilationContext,
+    BLOCK_CLOSE, CompilerNodeIdentifier, NodeKind, R, ServerCompilationContext, Template,
 };
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -7,7 +7,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     pub(in crate::lower::server) fn if_block(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
     ) -> R<()> {
         let compiler_syntax_tree = self.compiler_syntax_tree;
         let NodeKind::If {
@@ -32,8 +32,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         for (test, block) in arms.into_iter().rev() {
             chain = self.b.if_(test, block, Some(chain));
         }
-        template.push(Piece::Statement(chain));
-        template.push(Piece::Text(BLOCK_CLOSE.into()));
+        template.statement(chain);
+        template.text(BLOCK_CLOSE);
         Ok(())
     }
 }

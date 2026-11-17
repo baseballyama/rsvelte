@@ -52,7 +52,7 @@ impl Printer<'_, '_, '_> {
         &mut self,
         tag: u32,
         attributes: &[&Attribute],
-    ) -> R<Vec<Attached>> {
+    ) -> Vec<Attached> {
         let mut attached: Vec<Attached> = attributes.iter().map(|_| Attached::default()).collect();
         let c = self.c;
         let tokens = &c.tokens;
@@ -73,7 +73,7 @@ impl Printer<'_, '_, '_> {
                     "a comment in a tag without attributes, which the plugin deletes",
                 )
             }));
-            return Ok(attached);
+            return attached;
         };
         let mut start = tag;
         for (i, a) in attributes.iter().enumerate() {
@@ -97,21 +97,7 @@ impl Printer<'_, '_, '_> {
                 attached[attributes.len() - 1].trailing.push(comment);
             }
         }
-        let all = || {
-            attached
-                .iter()
-                .flat_map(|a| a.leading.iter().chain(&a.trailing))
-        };
-        // Prettier measures a comment's line break as no width; oxc's printer breaks the group.
-        if !all().any(|c| !is_block(c.text(self.source_text)))
-            && let Some(&comment) = all().find(|c| c.text(self.source_text).contains(['\n', '\r']))
-        {
-            return Err(Unsupported::at(
-                "a comment on more than one line among attributes that may stay on one line",
-                comment,
-            ));
-        }
-        Ok(attached)
+        attached
     }
 
     /// `document` with its comments, as Prettier's `printComments` prints them. `ends_line` says a

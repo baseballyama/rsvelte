@@ -1735,9 +1735,6 @@
 ["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/f38d296e65efce2f.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
 
-["svelte/rsvelte-tests-core-3/snippet_param_ts_default_4383/the_shapes_that_already_worked_are_unmoved/8c068ffb4a63fc91.svelte".skip]
-"svelte.compile" = "oxc_codegen prints `a ?? (b ?? c)` as `a ?? b ?? c`, which reads back as another tree; the fork's codegen needs a fix"
-
 ["svelte/rsvelte-tests-core-2/dollar_props_binding_3192/each_item_read_is_renamed/d92b90ba1f8fb787.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 renames the reads of a `$$props` an `{#each}` or a snippet declares but not the declaration, so each read throws a ReferenceError"
 
@@ -4805,6 +4802,7 @@
 "svelte.lint" = "upstream bug: svelte-eslint-parser parses the markup with svelte 5.57.3, which picks the script language with a regex over the source text (`regex_lang_attribute`), so the `lang=\"ts\"` of a script nested in an element makes it read this JavaScript component as TypeScript"
 
 ["svelte/rsvelte-tests-core-1/compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/35efd90757e6abdb.svelte".skip]
+"svelte.format" = "upstream bug: svelte 5.57.3 picks the script language with a regex over the source text (`regex_lang_attribute`), so a `data-lang=\"ts\"` attribute makes prettier-plugin-svelte's parse read the template's `as` cast as TypeScript"
 "svelte.compile" = "upstream bug: svelte 5.57.3 picks the script language with a regex over the source text (`regex_lang_attribute`), so a `data-lang=\"ts\"` attribute makes it read this JavaScript component as TypeScript"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 picks the script language with a regex over the source text (`regex_lang_attribute`), so a `data-lang=\"ts\"` attribute makes it read this JavaScript component as TypeScript"
 "svelte.lint" = "upstream bug: svelte-eslint-parser parses the markup with svelte 5.57.3, which picks the script language with a regex over the source text (`regex_lang_attribute`), so a `data-lang=\"ts\"` attribute makes it read this JavaScript component as TypeScript"

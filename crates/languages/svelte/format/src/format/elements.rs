@@ -74,12 +74,12 @@ impl Printer<'_, '_, '_> {
         }
         let tag = self.c.node(identifier).span();
         // Most tags hold no comment, and their attributes print without the search.
-        let comments = if self.holds_comment(tag) {
+        let comments = self.holds_comment(tag).then(|| {
             let listed: Vec<&Attribute> = (attributes.iter().enumerate())
                 .filter(|&(i, _)| Some(i) != this)
                 .map(|(_, a)| a)
                 .collect();
-            let comments = self.attribute_comments(tag.start_offset, &listed)?;
+            let comments = self.attribute_comments(tag.start_offset, &listed);
             // Where the attributes' group ends in a line break.
             let ends_line = !self.options.bracket_same_line
                 && if self_closing {
@@ -87,10 +87,8 @@ impl Printer<'_, '_, '_> {
                 } else {
                     (is_empty || !self.should_hug(identifier, children, true)) && !in_pre
                 };
-            Some((comments, ends_line))
-        } else {
-            None
-        };
+            (comments, ends_line)
+        });
         // The plugin's `isPreTagContent` counts the `<pre>` itself, attributes included.
         self.in_pre = in_pre;
         let listed = (attributes.iter().enumerate()).filter(|&(i, _)| Some(i) != this);

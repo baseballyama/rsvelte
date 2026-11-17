@@ -1,9 +1,11 @@
 use oxc_ast::ast::Expression;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{Modifiers, StyleValue};
+use rsvelte_svelte_semantic::compiler_syntax_tree::StyleValue;
 
 use super::attribute_text;
+use crate::lower::Target;
 use crate::lower::builder::Runtime;
 use crate::lower::server::{Attribute, AttributeValue, ServerCompilationContext};
+use crate::lower::template::style_directives_object;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_attr_style`: `$.attr_style(value, { name: value })`, the important ones in a
@@ -17,30 +19,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         if directives.is_empty() {
             return b.runtime("attr_style", [value]);
         }
-        let mut normal = Vec::new();
-        let mut important = Vec::new();
-        for d in directives {
-            let AttributeValue::Style { modifiers, .. } = &d.value else {
-                unreachable!("style directives")
-            };
-            let name = d.name.text(self.source_text);
-            let name = if name.starts_with("--") {
-                name.to_owned()
-            } else {
-                name.to_lowercase()
-            };
-            let property = b.init(&name, self.style_value(d));
-            if modifiers.contains(Modifiers::IMPORTANT) {
-                important.push(property);
-            } else {
-                normal.push(property);
-            }
-        }
-        let directives = if important.is_empty() {
-            b.object(normal)
-        } else {
-            b.array([b.object(normal), b.object(important)])
-        };
+        let directives =
+            style_directives_object(b, self.source_text, directives, Target::Server, |d| {
+                self.style_value(d)
+            });
         b.runtime("attr_style", [value, directives])
     }
 
