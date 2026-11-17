@@ -83,9 +83,10 @@ fn thrown_scripts(c: &Component, source_text: &str) -> R<Vec<Span>> {
 /// Whether `rejected` declares a name again in the template where Svelte's parser reads it. That
 /// parser reads each part of the template apart, and checks the names of a function and of a
 /// snippet's parameters, but not those of a pattern.
+/// tsc's code for a name declared twice.
+const DUPLICATE_IDENTIFIER: u32 = 2300;
+
 fn read_in_template(c: &Component, rejected: &SyntaxError) -> bool {
-    // A name declared twice.
-    const DUPLICATE_IDENTIFIER: u32 = 2300;
     struct Find {
         names: oxc_span::Span,
         found: bool,
@@ -166,8 +167,6 @@ fn assertion_script(c: &Component, source_text: &str) -> Option<Span> {
 /// so the plugin keeps the body as it is. Otherwise the parser reads on, and as the error is the
 /// analysis's, the tree is the one oxc built.
 fn unparsed_script(c: &Component, source_text: &str, rejected: &SyntaxError) -> R<Option<Span>> {
-    // A name declared twice; Babel throws only on a private one.
-    const DUPLICATE_IDENTIFIER: u32 = 2300;
     // `super` and `super()` where tsc does not allow them; Babel allows both outside every
     // function, as Prettier lets it.
     const SUPER: [u32; 2] = [2337, 2660];
@@ -193,6 +192,7 @@ fn unparsed_script(c: &Component, source_text: &str, rejected: &SyntaxError) -> 
     let throws = if in_typescript(script, source_text) {
         rsvelte_typescript_tree::typescript_estree_throws(code)
     } else if code == DUPLICATE_IDENTIFIER {
+        // Babel throws only on a private name declared twice.
         private_name_at(program, span.start_offset)
     } else if SUPER.contains(&code) {
         super_in_function(program, span.start_offset)
