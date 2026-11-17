@@ -1,6 +1,7 @@
 //! One run of the type checker over a batch of projections: the file layer, the overlay
 //! tsconfig and the mapper's store go in, findings located in each document come out.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -171,8 +172,9 @@ impl Tsc {
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
         let [program, syntactic, semantic] =
             check_shares(&mut session, helpers, &config, &layer, &files).map_err(failed)?;
+        let index = path_index(&paths);
         let (untyped, untyped_names) = if own.untyped {
-            untyped::imports(req, &root, &paths)
+            untyped::imports(req, &root, &paths, &index)
         } else {
             (Vec::new(), Vec::new())
         };
@@ -198,7 +200,7 @@ impl Tsc {
             // The command line reports errors only; svelte-check's errors are the oracle.
             .filter(|(_, d)| d.category == ERROR)
             .map(|(syntactic, d)| {
-                located(&d, &root, &paths, &lines, syntactic)
+                located(&d, &root, &index, &lines, syntactic)
                     .ok_or_else(|| unlocated(&self.checker, &d))
             })
             .filter(|found| {
@@ -395,20 +397,27 @@ fn base_project(
 /// `DiagnosticCategory.Error`.
 const ERROR: u8 = 1;
 
-/// The document and byte range of a diagnostic in one of `paths`, whose texts `lines` index. A
-/// path below `root` in the message drops that root, so the message does not depend on where the
-/// project is.
 /// What native TypeScript adds to a finding in code a content mapper synthesized.
 const VIRTUAL_CODE: &str = "This location is in virtual code produced by the content mapper";
 
+/// Each document's index by its path, the first of a path given twice.
+fn path_index(paths: &[PathBuf]) -> HashMap<&Path, usize> {
+    (paths.iter().enumerate().rev())
+        .map(|(file, path)| (path.as_path(), file))
+        .collect()
+}
+
+/// The document and byte range of a diagnostic in the document `index` names, whose texts
+/// `lines` index. A path below `root` in the message drops that root, so the message does not
+/// depend on where the project is.
 fn located(
     d: &rsvelte_typescript_api::Diagnostic,
     root: &Path,
-    paths: &[PathBuf],
+    index: &HashMap<&Path, usize>,
     lines: &[LineIndex],
     syntactic: bool,
 ) -> Option<TypeScriptDiagnostic> {
-    let file = paths.iter().position(|p| Some(p) == d.file_name.as_ref())?;
+    let file = *index.get(d.file_name.as_deref()?)?;
     let offset = |p: Option<Position>| {
         let p = p?;
         lines[file].offset(p.line + 1, p.character)

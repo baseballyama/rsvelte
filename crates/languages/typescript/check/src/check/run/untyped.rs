@@ -2,6 +2,7 @@
 //! document as typed, whatever its generated extension, so it never reports this itself; a probe
 //! asks whether the project's options would report it for a plain JavaScript file.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
@@ -29,6 +30,7 @@ pub(super) fn imports<'a>(
     req: &'a CheckRequest,
     root: &Path,
     paths: &[PathBuf],
+    index: &HashMap<&Path, usize>,
 ) -> (Vec<TypeScriptDiagnostic>, Vec<(usize, &'a str)>) {
     let javascript = |file: usize| {
         req.mapped_files
@@ -45,7 +47,7 @@ pub(super) fn imports<'a>(
         let directory = paths[file].parent().unwrap_or(root);
         for import in &mapped.imports {
             let target = normalized(&directory.join(&import.specifier));
-            let Some(read) = paths.iter().position(|path| *path == target) else {
+            let Some(&read) = index.get(target.as_path()) else {
                 continue;
             };
             if !javascript(read) {
