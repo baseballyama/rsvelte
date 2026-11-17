@@ -9,6 +9,7 @@ use oxc_semantic::SymbolId;
 use oxc_span::SPAN;
 use rsvelte_svelte_compile::render_plan::Namespace;
 use rsvelte_typescript_compile::build::Builder;
+use rsvelte_typescript_compile::print::Expansion;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, Directive, Node, NodeKind,
@@ -107,8 +108,8 @@ fn compile_in(t: &Translation, res: &Resolution, allocator: &Allocator) -> Strin
     module.insert(0, e.import());
     module.push(export);
     let source_text = b.str(t.javascript.source_text());
-    let expand: &dyn for<'s, 'x> Fn(&'s Statement<'x>) -> Option<&'s [Statement<'s>]> =
-        &|s| prelude::expand(s);
+    let expand: &dyn for<'s, 'x> Fn(&'s Statement<'x>) -> Option<Expansion<'s>> =
+        &|s| prelude::text(s).map(Expansion::Text);
     rsvelte_typescript_compile::print::print_expanding(&program(&b, source_text, module), expand)
 }
 
