@@ -22,7 +22,7 @@ use super::found::{Found, Stage};
 use super::template::{bidirectional, bidirectional_runs};
 use super::{Options, Scripts, Section, span, warning};
 use crate::compiler_syntax_tree::CompilerSyntaxTree;
-use crate::resolve::{BindingKind, RUNES, Resolution, Roots, TemplateName, TemplateScope};
+use crate::resolve::{BindingKind, Resolution, Roots, TemplateName, TemplateScope, is_rune};
 
 /// Where in the walk a node is.
 #[derive(Clone, Copy)]
@@ -250,7 +250,7 @@ impl Walk<'_> {
         let order = *self.dollar_names.entry(name.to_owned()).or_insert(next);
         if called
             && self.store_conflicts
-            && RUNES.contains(&name)
+            && is_rune(name)
             && self.resolution.is_store_subscription(name)
         {
             let message = format!(
