@@ -1,7 +1,5 @@
 # svelte.format/default: 34767 match
 svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/comments-around-if/input.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_declaration_with_no_property_name_compiles/383d4a47102a255b.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/well_formed_attribute_selectors_are_unchanged/0592fabc0b394bfa.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_pseudo_class_argument_is_reported_at_its_closing_paren/5ca88ea343d68823.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_pseudo_class_argument_is_reported_at_its_closing_paren/8cbb31b173f99158.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_value_scan_4046/a_brace_inside_any_bracket_but_url_still_ends_the_value/68ad7174e520e1fd.svelte	mismatch

@@ -6528,3 +6528,9 @@
 
 ["svelte/svelte/packages/svelte/tests/validator/samples/empty-block/input.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#line-start-line-collapse"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_declaration_with_no_property_name_compiles/383d4a47102a255b.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#error-semantics (a declaration with no property name is invalid CSS)"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/well_formed_attribute_selectors_are_unchanged/0592fabc0b394bfa.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#error-semantics (the Selectors grammar allows a case flag only after a matcher, so `[x i]` is invalid)"

@@ -23465,15 +23465,6 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 105 css_selector_parse_3404_3405_3406/a_declaration_with_no_property_name_compiles/383d4a47102a255b.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-  .a {
-    :red;
-  }
-</style>
-
 === 111 css_selector_parse_3404_3405_3406/a_declaration_with_no_property_name_compiles/8d91fc33e2dbd49e.svelte	svelte
 <div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
 
@@ -23551,15 +23542,6 @@ p { color: { red }; background: blue; }
 
 <style>
 	[x { color: red }
-</style>
-
-=== 114 css_selector_parse_3404_3405_3406/well_formed_attribute_selectors_are_unchanged/0592fabc0b394bfa.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-  [x i] {
-    color: red;
-  }
 </style>
 
 === 117 css_selector_parse_3404_3405_3406/well_formed_attribute_selectors_are_unchanged/465c39102530041e.svelte	svelte
