@@ -49987,6 +49987,14 @@ export default function Event_directive_named_class($$renderer, $$props) {
 	}
 ]
 
+=== 374 pattern/input-default-value-style-directive.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Input_default_value_style_directive($$renderer, $$props) {
+	let { b } = $$props;
+
+	$$renderer.push(`<input${$.attributes({ defaultvalue: 'a', style: '' }, void 0, void 0, { color: b }, 4)}/> <input${$.attributes({ defaultchecked: b, class: '', style: '' }, void 0, { on: b }, { width: '1px' }, 4)}/>`);
+}
 === 303 pattern/issues/008-comment-props-destructure.svelte	js
 import * as $ from 'svelte/internal/server';
 

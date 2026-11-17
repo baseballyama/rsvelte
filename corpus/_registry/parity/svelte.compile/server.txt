@@ -1,1 +1,2 @@
 # svelte.compile/server: 35155 match
+svelte/rsvelte/pattern/input-default-value-style-directive.svelte	mismatch

@@ -75818,6 +75818,32 @@ export default function Event_directive_named_class($$anchor, $$props) {
 	}
 ]
 
+=== 667 pattern/input-default-value-style-directive.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<input/> <input/>`, 1);
+
+export default function Input_default_value_style_directive($$anchor, $$props) {
+	var fragment = root();
+	var input = $.first_child(fragment);
+
+	input.defaultValue = 'a';
+
+	let styles;
+	var input_1 = $.sibling(input, 2);
+	let classes;
+
+	$.set_style(input_1, '', {}, { width: '1px' });
+
+	$.template_effect(() => {
+		styles = $.set_style(input, '', styles, { color: $$props.b });
+		input_1.defaultChecked = $$props.b;
+		classes = $.set_class(input_1, 1, '', null, classes, { on: $$props.b });
+	});
+
+	$.append($$anchor, fragment);
+}
 === 412 pattern/issues/008-comment-props-destructure.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';

@@ -21511,6 +21511,17 @@
 7:17 7:32 svelte/max-attributes-per-line "'style:color' should be on a new line."
 7:17 7:32 svelte/sort-attributes "Attribute 'style:color' should go before 'on:style'."
 
+=== 719 pattern/input-default-value-style-directive.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:25 5:40 svelte/no-inline-styles "Found disallowed style directive."
+5:25 5:40 svelte/max-attributes-per-line "'style:color' should be on a new line."
+5:25 5:40 svelte/sort-attributes "Attribute 'style:color' should go before 'defaultValue'."
+6:1 6:60 svelte/no-unused-class-name "Unused class \"on\"."
+6:27 6:39 svelte/max-attributes-per-line "'class:on' should be on a new line."
+6:27 6:39 svelte/sort-attributes "Attribute 'class:on' should go before 'defaultChecked'."
+6:40 6:57 svelte/no-inline-styles "Found disallowed style directive."
+6:40 6:57 svelte/sort-attributes "Attribute 'style:width' should go before 'defaultChecked'."
+
 === 328 pattern/issues/008-comment-props-destructure.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."

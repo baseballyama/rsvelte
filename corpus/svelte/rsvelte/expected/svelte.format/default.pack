@@ -34010,6 +34010,14 @@ https://svelte.dev/e/expected_token
   }
 </style>
 
+=== 147 pattern/input-default-value-style-directive.svelte	svelte
+<script>
+  let { b } = $props();
+</script>
+
+<input defaultValue="a" style:color={b} />
+<input defaultChecked={b} class:on={b} style:width="1px" />
+
 === 153 pattern/issues/008-comment-props-destructure.svelte	svelte
 <script>
   let { visible, class: className } =
