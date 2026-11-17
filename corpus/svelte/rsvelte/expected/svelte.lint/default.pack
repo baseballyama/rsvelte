@@ -28963,6 +28963,8 @@
 === 80 pattern/matrix/whitespace-comments/two-adjacent-root.svelte	lint.txt
 4:1 4:9 svelte/button-has-type "Missing an explicit type attribute for button."
 
+=== 0 pattern/module-top-level-return.svelte.ts	lint.txt
+
 === 1123 pattern/nested-derived-shadows-prop.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

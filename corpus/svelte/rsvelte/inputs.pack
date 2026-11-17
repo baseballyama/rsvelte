@@ -48653,6 +48653,13 @@ b`;
 <!-- b -->
 <button>b</button>
 
+=== 81 pattern/module-top-level-return.svelte.ts	svelte-module-ts	runes	-
+const ready = true;
+if (!ready) {
+	throw new Error("not ready");
+}
+return ready;
+
 === 339 pattern/nested-derived-shadows-prop.svelte	svelte	runes	runes
 <script>
 	let { ref = $bindable() } = $props();
