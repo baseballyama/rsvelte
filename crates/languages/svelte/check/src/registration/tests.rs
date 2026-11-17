@@ -19,9 +19,11 @@ fn types_without_the_module_stay_as_they_are() {
 
 #[test]
 fn a_dynamic_import_s_relative_specifier_is_an_import_too() {
-    let source = "<script>\n\timport A from './a.svelte';\n\texport { b } from './b.js';\n\t\
-        const c = import('./c.svelte');\n\tasync function d() {\n\t\tawait import('./d.svelte');\n\t\
-        \timport(name);\n\t\timport('pkg');\n\t}\n</script>\n";
+    let source = concat!(
+        "<script>\n\timport A from './a.svelte';\n\texport { b } from './b.js';\n",
+        "\tconst c = import('./c.svelte');\n\tasync function d() {\n",
+        "\t\tawait import('./d.svelte');\n\t\timport(name);\n\t\timport('pkg');\n\t}\n</script>\n",
+    );
     let component = rsvelte_svelte_syntax::parse::parse(source).expect("valid Svelte source");
     let found: Vec<_> = super::relative_imports(&component)
         .into_iter()
