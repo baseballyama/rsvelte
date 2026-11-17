@@ -14,9 +14,9 @@ use rsvelte_typescript_tree::{
 };
 
 use super::found::{Found, Stage};
-use super::fuzzymatch::fuzzymatch;
 use super::{CompileWarnings, Scripts, Section, span as document_span, warning};
 use crate::compiler_syntax_tree::CompilerSyntaxTree;
+use crate::fuzzymatch::fuzzymatch;
 use crate::resolve::{Roots, TemplateName, TemplateScope};
 
 /// Svelte 4's codes whose Svelte 5 code is not the same with `-` read as `_`.

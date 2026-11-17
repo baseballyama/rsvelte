@@ -4,7 +4,8 @@
 const GRAM_SIZES: [usize; 2] = [3, 2];
 
 /// The one of `names` that `name` most likely misspells, if it scores above upstream's 0.7.
-pub(super) fn fuzzymatch<'n>(name: &str, names: &[&'n str]) -> Option<&'n str> {
+#[must_use]
+pub fn fuzzymatch<'n>(name: &str, names: &[&'n str]) -> Option<&'n str> {
     let normalized = name.to_lowercase();
     if let Some(&exact) = names.iter().find(|n| lowered(n).eq(normalized.chars())) {
         return Some(exact);
@@ -174,6 +175,3 @@ fn levenshtein(a: &[u16], b: &[u16], row: &mut Vec<usize>) -> usize {
     }
     row[a.len()]
 }
-
-#[cfg(test)]
-mod tests;

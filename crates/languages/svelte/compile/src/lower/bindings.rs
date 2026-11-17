@@ -1,12 +1,13 @@
 //! Upstream's `binding_properties` for elements: where each `bind:` property is valid, and the
 //! runtime call that keeps it in sync.
 
-mod fuzzymatch;
-
 use rsvelte_kernel::diagnostics::Diagnostic;
 
 use super::special::invalid;
 use super::{Attribute, AttributeValue};
+
+#[cfg(test)]
+mod tests;
 
 /// How the client keeps a bound property in sync with its target.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -159,7 +160,7 @@ pub(super) fn check_binding(
             return Ok(());
         }
         let names: Vec<&str> = BINDINGS.iter().map(|&(n, _)| n).collect();
-        if let Some(near) = fuzzymatch::fuzzymatch(name, &names)
+        if let Some(near) = rsvelte_svelte_semantic::fuzzymatch::fuzzymatch(name, &names)
             && BINDINGS.iter().any(|&(n, h)| {
                 n == near && !matches!(h, Hosts::Only(only) if !only.contains(&host))
             })

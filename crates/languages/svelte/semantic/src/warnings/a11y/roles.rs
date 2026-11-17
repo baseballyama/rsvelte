@@ -109,11 +109,10 @@ impl Element<'_, '_> {
             let message = format!("Abstract role '{role}' is forbidden");
             self.warn("a11y_no_abstract_role", &message, span);
         } else if !role.is_empty() && !tables::ARIA_ROLES.contains(&role) {
-            let message = super::super::fuzzymatch::fuzzymatch(role, tables::ARIA_ROLES)
-                .map_or_else(
-                    || format!("Unknown role '{role}'"),
-                    |suggestion| format!("Unknown role '{role}'. Did you mean '{suggestion}'?"),
-                );
+            let message = crate::fuzzymatch::fuzzymatch(role, tables::ARIA_ROLES).map_or_else(
+                || format!("Unknown role '{role}'"),
+                |suggestion| format!("Unknown role '{role}'. Did you mean '{suggestion}'?"),
+            );
             self.warn("a11y_unknown_role", &message, span);
         }
         let a = &self.attributes;
