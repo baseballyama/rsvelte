@@ -234,8 +234,9 @@ pub(crate) fn validate_unit(
         custom_element,
         stylesheet_injected,
     } = special::validate(input)?;
+    let typescript = unit == Unit::Component && validation::has_typescript_feature(input);
     // Upstream erases the types right after it parses, before it analyzes.
-    if unit == Unit::Component {
+    if typescript {
         validation::check_typescript(input)?;
     }
     let names = stores::Names::new(input, res);
@@ -248,7 +249,7 @@ pub(crate) fn validate_unit(
     snippets::check_exports(input, res, &hoistable)?;
     const_cycles::check(input, res)?;
     // A refusal waits for the scripts' errors, which the rune checks raise only later.
-    let refused = (if unit == Unit::Component {
+    let refused = (if typescript {
         validation::refuse_typescript(input)
     } else {
         Ok(())
