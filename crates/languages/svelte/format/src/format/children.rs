@@ -357,16 +357,23 @@ impl Printer<'_, '_, '_> {
         };
         let doc = if self.in_pre {
             self.d().text(raw)
-        } else if only_ws(raw) {
-            self.whitespace(raw)
         } else {
-            let mut docs = self.take_buffer();
-            self.split_text(raw, &mut docs);
-            let doc = self.d().fill(&docs);
-            self.give_buffer(docs);
-            doc
+            self.whitespace_or_words(raw)
         };
         self.text[identifier as usize] = stored;
+        doc
+    }
+
+    /// Text outside `<pre>`: `printWhitespace` when it is only whitespace, else its words in a
+    /// fill.
+    pub(super) fn whitespace_or_words(&mut self, raw: &str) -> LayoutInstructionIdentifier {
+        if only_ws(raw) {
+            return self.whitespace(raw);
+        }
+        let mut docs = self.take_buffer();
+        self.split_text(raw, &mut docs);
+        let doc = self.d().fill(&docs);
+        self.give_buffer(docs);
         doc
     }
 

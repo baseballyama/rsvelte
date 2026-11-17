@@ -1,7 +1,7 @@
 use super::expressions::Comments;
 use super::{
     Attribute, AttributeKind, AttributeValue, Cow, ElementKind, LayoutInstructionIdentifier, Part,
-    Printer, R, Span, Unsupported, only_ws,
+    Printer, R, Span, Unsupported,
 };
 
 /// The plugin's whitespace normalization of a `class` attribute's text on a regular element.
@@ -242,15 +242,7 @@ impl Printer<'_, '_, '_> {
                         continue;
                     }
                     if fill_text {
-                        let d = if only_ws(raw) {
-                            self.whitespace(raw)
-                        } else {
-                            let mut docs = self.take_buffer();
-                            self.split_text(raw, &mut docs);
-                            let d = self.d().fill(&docs);
-                            self.give_buffer(docs);
-                            d
-                        };
+                        let d = self.whitespace_or_words(raw);
                         value.push(d);
                         continue;
                     }
