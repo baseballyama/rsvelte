@@ -9,6 +9,7 @@ use oxc_semantic::SymbolId;
 use oxc_span::SPAN;
 use rsvelte_svelte_compile::render_plan::Namespace;
 use rsvelte_typescript_compile::build::Builder;
+use rsvelte_typescript_compile::print::Expansion;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, Directive, Node, NodeKind,
@@ -107,8 +108,8 @@ fn compile_in(t: &Translation, res: &Resolution, allocator: &Allocator) -> Strin
     module.insert(0, e.import());
     module.push(export);
     let source_text = b.str(t.javascript.source_text());
-    let expand: &dyn for<'s, 'x> Fn(&'s Statement<'x>) -> Option<&'s [Statement<'s>]> =
-        &|s| prelude::expand(s);
+    let expand: &dyn for<'s, 'x> Fn(&'s Statement<'x>) -> Option<Expansion<'s>> =
+        &|s| prelude::text(s).map(Expansion::Text);
     rsvelte_typescript_compile::print::print_expanding(&program(&b, source_text, module), expand)
 }
 
@@ -364,6 +365,28 @@ impl<'a, 'o> Emitter<'a, 'o> {
             .find_map(|p| match &p.kind {
                 VueProperty::Directive(d) if d.name == name => Some(d),
                 VueProperty::Directive(_) | VueProperty::Attribute { .. } => None,
+            })
+    }
+
+    /// The end of the `v-if` run at `start`, the `v-else-if` and `v-else` siblings after it
+    /// included, or `None` when the node at `start` has no `v-if`.
+    fn if_run_end(&self, nodes: &[CompilerNodeIdentifier], start: usize) -> Option<usize> {
+        self.structural(nodes[start], DirectiveName::If)?;
+        let more = nodes[start + 1..].iter().take_while(|&&node| {
+            self.structural(node, DirectiveName::ElseIf).is_some()
+                || self.structural(node, DirectiveName::Else).is_some()
+        });
+        Some(start + 1 + more.count())
+    }
+
+    /// The test of a `v-if` or `v-else-if` branch, or `None` for `v-else`.
+    fn branch_test(&self, branch: CompilerNodeIdentifier) -> Option<ExpressionIdentifier> {
+        [DirectiveName::If, DirectiveName::ElseIf]
+            .into_iter()
+            .find_map(|name| self.structural(branch, name))
+            .and_then(|directive| match directive.exp {
+                DirectiveExpression::Expression(expression) => Some(expression),
+                _ => None,
             })
     }
 

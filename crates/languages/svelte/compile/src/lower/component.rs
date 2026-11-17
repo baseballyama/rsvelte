@@ -167,7 +167,7 @@ pub(super) fn standalone(
     javascript: &Tree,
     res: &Resolution,
     source_text: &str,
-    items: &[Item<'_>],
+    items: &[Item],
 ) -> Option<Standalone> {
     let &[Item::Node(identifier)] = items else {
         return None;

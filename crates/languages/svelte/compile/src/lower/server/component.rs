@@ -11,8 +11,8 @@ use super::super::component::{
 };
 use super::super::lets::{pattern, slot_lets};
 use super::{
-    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind,
-    Piece, R, ServerCompilationContext, Target, set_settled,
+    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind, R,
+    ServerCompilationContext, Target, Template, set_settled,
 };
 use crate::lower::builder::Runtime;
 
@@ -23,7 +23,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         &mut self,
         identifier: CompilerNodeIdentifier,
         standalone: bool,
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
     ) -> R<()> {
         let b = self.b;
         let tree = self.compiler_syntax_tree;
@@ -120,9 +120,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let has_custom_properties = !custom_properties.is_empty();
         let statement =
             self.wrap_custom_properties(identifier, custom_properties, statement, dynamic);
-        template.push(Piece::Statement(statement));
+        template.statement(statement);
         if !dynamic && !standalone && !has_custom_properties {
-            template.push(Piece::Text(EMPTY_COMMENT.into()));
+            template.text(EMPTY_COMMENT);
         }
         Ok(())
     }

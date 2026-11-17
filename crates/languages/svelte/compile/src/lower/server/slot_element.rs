@@ -1,7 +1,7 @@
 use super::super::slot_element::{SlotAttribute, slot_attributes, slot_call};
 use super::{
-    BLOCK_CLOSE, BLOCK_OPEN, CompilerNodeIdentifier, NodeKind, Piece, R, ServerCompilationContext,
-    Target,
+    BLOCK_CLOSE, BLOCK_OPEN, CompilerNodeIdentifier, NodeKind, R, ServerCompilationContext, Target,
+    Template,
 };
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -9,7 +9,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     pub(super) fn slot_element(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
     ) -> R<()> {
         let b = self.b;
         let tree = self.compiler_syntax_tree;
@@ -43,9 +43,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             fallback,
             Target::Server,
         );
-        template.push(Piece::Text(BLOCK_OPEN.into()));
-        template.push(Piece::Statement(b.statement(call)));
-        template.push(Piece::Text(BLOCK_CLOSE.into()));
+        template.text(BLOCK_OPEN);
+        template.statement(b.statement(call));
+        template.text(BLOCK_CLOSE);
         Ok(())
     }
 }

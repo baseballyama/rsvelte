@@ -95,7 +95,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             Some((identifier, b.call(callee, [])))
         } else if let [Item::Text { data, .. }] = items.as_ref() {
             let identifier = self.names.generate("text");
-            Some((identifier, b.runtime("text", [b.string(data)])))
+            Some((
+                identifier,
+                b.runtime(
+                    "text",
+                    [b.string(data.get(self.source_text, self.compiler_syntax_tree))],
+                ),
+            ))
         } else {
             let identifier = self.names.generate("fragment");
             let use_space_template = items.iter().any(|i| matches!(i, Item::Expression(_)))
@@ -160,7 +166,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
 
     /// Upstream's `is_single_child_not_needing_template` for a `<svelte:fragment>`, which renders
     /// at the fragment's anchor; one beside other content is refused.
-    fn lone_fragment(&self, items: &[Item<'_>]) -> R<Option<CompilerNodeIdentifier>> {
+    fn lone_fragment(&self, items: &[Item]) -> R<Option<CompilerNodeIdentifier>> {
         let tree = self.compiler_syntax_tree;
         let mut fragments = items.iter().filter_map(|item| match item {
             Item::Node(identifier) => match &tree.node(*identifier).kind {
@@ -243,11 +249,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             crate::render_plan::Namespace::Svg => "svg",
             crate::render_plan::Namespace::Mathml => "mathml",
         };
-        let key = format!("{namespace} {flags} {markup}");
+        let key = (namespace, flags, markup);
         if let Some(existing) = self.templates.get(&key) {
             return b.id(existing);
         }
-        let t = b.template([markup.as_str()], []);
+        let t = b.template([key.2.as_str()], []);
         let flags_arg = (flags != 0).then(|| b.number(f64::from(flags)));
         let call = b.runtime_some(
             match namespace {

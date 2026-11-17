@@ -10,7 +10,7 @@ pub(super) fn textarea_text<'a>(
     first: bool,
     value: bool,
     server: bool,
-    items: &[Item<'_>],
+    items: &[Item],
 ) -> Cow<'a, str> {
     Cow::Borrowed(if !first {
         raw
@@ -36,7 +36,7 @@ impl Template<'_, '_, '_> {
     pub(super) fn static_text(
         &mut self,
         text: String,
-        items: &[Item<'_>],
+        items: &[Item],
         parent: Parent<'_>,
         vue_parent: Option<vue::CompilerNodeIdentifier>,
         at: Span,
@@ -49,7 +49,7 @@ impl Template<'_, '_, '_> {
         let raw = items
             .iter()
             .map(|item| match item {
-                Item::Text { raw, .. } => raw.as_ref(),
+                Item::Text { raw, .. } => raw.get(self.i.source_text, self.i.compiler_syntax_tree),
                 _ => unreachable!("static text has no expression"),
             })
             .collect::<String>();

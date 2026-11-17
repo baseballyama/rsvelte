@@ -1,36 +1,28 @@
 //! One run of the type checker over a batch of projections: the file layer, the overlay
 //! tsconfig and the mapper's store go in, findings located in each document come out.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
-use rsvelte_typescript_api::{DiagnosticKind, Layer, Position, Session};
+use rsvelte_typescript_api::{DiagnosticKind, Layer, Position, Project, Session};
 
-use super::{CONTRACT, Tsc, TypeChecker};
+use super::{CONTRACT, Tsc, TypeChecker, TypeScriptEnv};
 
-#[derive(Default, Debug)]
-pub(crate) struct CheckRequest {
+#[derive(Debug)]
+pub(crate) struct CheckRequest<'a> {
     /// Each document's path as the user knows it; a relative one is beside the tsconfig.
     pub documents: Vec<String>,
     /// Generated TypeScript, one per document.
-    pub files: Vec<String>,
+    pub files: Vec<&'a str>,
     pub mapped_files: Vec<Option<ContentMappedInput>>,
-    pub content_mapper: Option<PathBuf>,
-    /// Declaration files the checker reads beside the overlay tsconfig, by name.
-    pub declarations: Vec<(&'static str, &'static str)>,
-    /// Existing declaration files to include.
-    pub include: Vec<PathBuf>,
-    /// Existing files the checker reads with this text instead.
-    pub replaced: Vec<(PathBuf, String)>,
+    /// What the documents' languages add to the project.
+    pub env: &'a TypeScriptEnv,
     /// Documents the run does not check, by path, with what an import of each one reads.
     pub stand_ins: Vec<(String, String)>,
-    /// `compilerOptions.paths` entries: module specifier → file.
-    pub paths: Vec<(String, PathBuf)>,
-    /// See [`super::TypeScriptEnv::script_modules`].
-    pub script_modules: Vec<&'static str>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -60,27 +52,15 @@ impl Tsc {
     ///
     /// A message if the projections cannot be written, the checker cannot run, or it reports a
     /// diagnostic outside every document.
-    pub(crate) fn check(&self, req: &CheckRequest) -> Result<Vec<TypeScriptDiagnostic>, String> {
-        if req.documents.len() != req.files.len()
-            || (!req.mapped_files.is_empty() && req.mapped_files.len() != req.files.len())
-        {
-            return Err("mapped inputs must match the projection population".into());
-        }
-        if req.content_mapper.is_none() && req.mapped_files.iter().any(Option::is_some) {
+    pub(crate) fn check(
+        &self,
+        req: &CheckRequest<'_>,
+    ) -> Result<Vec<TypeScriptDiagnostic>, String> {
+        if req.env.content_mapper.is_none() && req.mapped_files.iter().any(Option::is_some) {
             return Err("content-mapped inputs require a mapper executable".into());
         }
         // Only what the mapper process reads is on the disk: its package and the projections.
-        let dir = std::env::temp_dir().join(format!(
-            "rsvelte-tsc-{}-{}",
-            std::process::id(),
-            RUN.fetch_add(1, Ordering::Relaxed)
-        ));
-        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        let dir = std::fs::canonicalize(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        let result = self.check_with(&dir, req);
-        // Best effort: a leftover temporary directory does not affect the result.
-        drop(std::fs::remove_dir_all(&dir));
-        result
+        in_temporary_directory("rsvelte-tsc", |dir| self.check_with(dir, req))
     }
 
     /// The tsconfig, and where a document with a relative path is: beside the tsconfig, else in
@@ -104,7 +84,7 @@ impl Tsc {
     fn check_with(
         &self,
         support: &Path,
-        req: &CheckRequest,
+        req: &CheckRequest<'_>,
     ) -> Result<Vec<TypeScriptDiagnostic>, String> {
         let (base, root) = self.root()?;
         let paths: Vec<PathBuf> = (0..req.files.len())
@@ -113,23 +93,22 @@ impl Tsc {
         let overlay = root.join(OVERLAY);
         let mut layer = Layer::default();
         for (i, path) in paths.iter().enumerate() {
-            let mapped = req.mapped_files.get(i).and_then(Option::as_ref);
-            let text = mapped.map_or(&req.files[i], |file| &file.source);
-            layer.files.push((path.clone(), text.clone()));
+            layer.files.push((path.clone(), req.text(i).to_owned()));
         }
-        layer.files.extend(req.replaced.iter().cloned());
+        layer.files.extend(req.env.replaced.iter().cloned());
         layer.files.extend(
             req.stand_ins(&root)
                 .map(|(path, text)| (path, text.to_owned())),
         );
         let store = support.join("projections.json");
-        if let Some(binary) = &req.content_mapper {
+        if let Some(binary) = &req.env.content_mapper {
             let package = mapped::write_mapper(req, binary, support, &store, &root, &paths)?;
             layer
                 .links
                 .push((overlay.join("node_modules").join(MAPPER_PACKAGE), package));
         }
         let declarations: Vec<PathBuf> = req
+            .env
             .declarations
             .iter()
             .map(|(name, text)| {
@@ -158,11 +137,11 @@ impl Tsc {
         // Upstream's project holds every component, so one that is not checked still declares
         // its globals.
         roots.extend(req.stand_ins(&root).map(|(path, _)| path).filter(|path| {
-            (req.script_modules.iter())
+            (req.env.script_modules.iter())
                 .any(|extension| path.as_os_str().to_string_lossy().ends_with(extension))
         }));
         roots.extend(declarations);
-        roots.extend(req.include.iter().cloned());
+        roots.extend(req.env.include.iter().cloned());
         let config = overlay.join("tsconfig.json");
         layer.files.push((
             config.clone(),
@@ -171,24 +150,15 @@ impl Tsc {
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
         let [program, syntactic, semantic] =
             check_shares(&mut session, helpers, &config, &layer, &files).map_err(failed)?;
+        let index = path_index(&paths);
         let (untyped, untyped_names) = if own.untyped {
-            untyped::imports(req, &root, &paths)
+            untyped::imports(req, &root, &paths, &index)
         } else {
             (Vec::new(), Vec::new())
         };
         // The session ends when it drops, which frees the snapshot with the process.
-        let lines: Vec<LineIndex> = req
-            .files
-            .iter()
-            .enumerate()
-            .map(|(i, f)| {
-                LineIndex::new(
-                    req.mapped_files
-                        .get(i)
-                        .and_then(Option::as_ref)
-                        .map_or(f.as_str(), |mapped| mapped.source.as_str()),
-                )
-            })
+        let lines: Vec<LineIndex> = (0..req.files.len())
+            .map(|i| LineIndex::new(req.text(i)))
             .collect();
         program
             .into_iter()
@@ -198,13 +168,12 @@ impl Tsc {
             // The command line reports errors only; svelte-check's errors are the oracle.
             .filter(|(_, d)| d.category == ERROR)
             .map(|(syntactic, d)| {
-                located(&d, &root, &paths, &lines, syntactic)
+                located(&d, &root, &index, &lines, syntactic)
                     .ok_or_else(|| unlocated(&self.checker, &d))
             })
             .filter(|found| {
                 !found.as_ref().is_ok_and(|found| {
-                    let source = req.mapped_files.get(found.file).and_then(Option::as_ref);
-                    source
+                    req.mapped(found.file)
                         .is_some_and(|mapped| untyped::hides(found, &untyped_names, &mapped.source))
                 })
             })
@@ -243,6 +212,27 @@ impl Tsc {
     }
 }
 
+/// Runs `work` in a new temporary directory, given by its real path, as the checker names files,
+/// and removes the directory after.
+fn in_temporary_directory<T>(
+    prefix: &str,
+    work: impl FnOnce(&Path) -> Result<T, String>,
+) -> Result<T, String> {
+    let dir = std::env::temp_dir().join(format!(
+        "{prefix}-{}-{}",
+        std::process::id(),
+        RUN.fetch_add(1, Ordering::Relaxed)
+    ));
+    let io = |e: std::io::Error| format!("{}: {e}", dir.display());
+    std::fs::create_dir_all(&dir).map_err(io)?;
+    let result = std::fs::canonicalize(&dir)
+        .map_err(io)
+        .and_then(|real| work(&real));
+    // Best effort: a leftover temporary directory does not affect the result.
+    drop(std::fs::remove_dir_all(&dir));
+    result
+}
+
 /// Each process parses the whole program again, so a few documents are not worth one more.
 const FILES_PER_PROCESS: usize = 50;
 /// Each process opens the project again, so more of them cost more than they save.
@@ -252,8 +242,8 @@ type Helper = std::thread::JoinHandle<Result<Session, String>>;
 type Found = Vec<rsvelte_typescript_api::Diagnostic>;
 
 /// The program, syntactic and semantic findings of `files` in the project of `config`. Every
-/// process opens the project at the same time; `session` checks the first share of the files and
-/// each helper one more.
+/// process opens the project at the same time and takes shares of the files from `Shares` until
+/// none is left; `session` also asks for the program and syntactic findings.
 fn check_shares(
     session: &mut Session,
     helpers: Vec<Helper>,
@@ -261,27 +251,25 @@ fn check_shares(
     layer: &Layer,
     files: &[&Path],
 ) -> Result<[Found; 3], String> {
-    let share = files.len().div_ceil(helpers.len() + 1).max(1);
-    let mut shares = files.chunks(share);
-    let own = shares.next().unwrap_or_default();
+    let shares = Shares::new(files, helpers.len() + 1);
+    let shares = &shares;
     std::thread::scope(|scope| {
         let running: Vec<_> = helpers
             .into_iter()
-            .zip(shares)
-            .map(|(helper, share)| {
+            .map(|helper| {
                 scope.spawn(move || {
                     let mut helper = helper
                         .join()
                         .unwrap_or_else(|panic| std::panic::resume_unwind(panic))?;
                     let project = helper.open(&[config], layer)?.remove(0);
-                    helper.diagnostics(&project, DiagnosticKind::Semantic, Some(share))
+                    shares.check(&mut helper, &project)
                 })
             })
             .collect();
         let project = session.open(&[config], layer)?.remove(0);
         let program = session.diagnostics(&project, DiagnosticKind::Program, None)?;
         let syntactic = session.diagnostics(&project, DiagnosticKind::Syntactic, Some(files))?;
-        let mut semantic = session.diagnostics(&project, DiagnosticKind::Semantic, Some(own))?;
+        let mut semantic = shares.check(session, &project)?;
         for helper in running {
             semantic.extend(
                 helper
@@ -293,9 +281,50 @@ fn check_shares(
     })
 }
 
+/// The files no process has taken yet. A process takes half of its part of what is left, as in
+/// factoring scheduling: early shares are large, so few requests are made, and the last are
+/// single files, so the processes finish together however long each file takes.
+struct Shares<'a> {
+    files: &'a [&'a Path],
+    processes: usize,
+    taken: std::sync::Mutex<usize>,
+}
+
+impl<'a> Shares<'a> {
+    const fn new(files: &'a [&'a Path], processes: usize) -> Self {
+        Self {
+            files,
+            processes,
+            taken: std::sync::Mutex::new(0),
+        }
+    }
+
+    fn take(&self) -> Option<&'a [&'a Path]> {
+        let mut taken = self
+            .taken
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let start = *taken;
+        let left = self.files.len() - start;
+        *taken += left.div_ceil(2 * self.processes);
+        let end = *taken;
+        drop(taken);
+        (left != 0).then(|| &self.files[start..end])
+    }
+
+    /// The semantic findings of each share `session` takes.
+    fn check(&self, session: &mut Session, project: &Project) -> Result<Found, String> {
+        let mut found = Vec::new();
+        while let Some(share) = self.take() {
+            found.extend(session.diagnostics(project, DiagnosticKind::Semantic, Some(share))?);
+        }
+        Ok(found)
+    }
+}
+
 fn tsconfig_json(
     base: Option<&Path>,
-    req: &CheckRequest,
+    req: &CheckRequest<'_>,
     own: &BaseProject,
     roots: &[PathBuf],
     store: &Path,
@@ -317,7 +346,7 @@ fn tsconfig_json(
     }
     w.key("paths").begin_object();
     for (spec, targets) in &own.paths {
-        if req.paths.iter().any(|(own, _)| own == spec) {
+        if req.env.paths.iter().any(|(own, _)| own == spec) {
             continue;
         }
         w.key(spec).begin_array();
@@ -326,7 +355,7 @@ fn tsconfig_json(
         }
         w.end_array();
     }
-    for (spec, file) in &req.paths {
+    for (spec, file) in &req.env.paths {
         w.key(spec)
             .begin_array()
             .write_string(&file.to_string_lossy())
@@ -364,7 +393,7 @@ struct BaseProject {
 fn base_project(
     session: &mut Session,
     base: Option<&Path>,
-    req: &CheckRequest,
+    req: &CheckRequest<'_>,
     overlay: &Path,
     layer: &mut Layer,
 ) -> Result<BaseProject, String> {
@@ -395,20 +424,27 @@ fn base_project(
 /// `DiagnosticCategory.Error`.
 const ERROR: u8 = 1;
 
-/// The document and byte range of a diagnostic in one of `paths`, whose texts `lines` index. A
-/// path below `root` in the message drops that root, so the message does not depend on where the
-/// project is.
 /// What native TypeScript adds to a finding in code a content mapper synthesized.
 const VIRTUAL_CODE: &str = "This location is in virtual code produced by the content mapper";
 
+/// Each document's index by its path, the first of a path given twice.
+fn path_index(paths: &[PathBuf]) -> HashMap<&Path, usize> {
+    (paths.iter().enumerate().rev())
+        .map(|(file, path)| (path.as_path(), file))
+        .collect()
+}
+
+/// The document and byte range of a diagnostic in the document `index` names, whose texts
+/// `lines` index. A path below `root` in the message drops that root, so the message does not
+/// depend on where the project is.
 fn located(
     d: &rsvelte_typescript_api::Diagnostic,
     root: &Path,
-    paths: &[PathBuf],
+    index: &HashMap<&Path, usize>,
     lines: &[LineIndex],
     syntactic: bool,
 ) -> Option<TypeScriptDiagnostic> {
-    let file = paths.iter().position(|p| Some(p) == d.file_name.as_ref())?;
+    let file = *index.get(d.file_name.as_deref()?)?;
     let offset = |p: Option<Position>| {
         let p = p?;
         lines[file].offset(p.line + 1, p.character)
@@ -449,3 +485,6 @@ mod project;
 mod script_module;
 mod untyped;
 pub(crate) use mapped::ContentMappedInput;
+
+#[cfg(test)]
+mod tests;

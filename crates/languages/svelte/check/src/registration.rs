@@ -18,8 +18,8 @@ use rsvelte_svelte_syntax::syntax_tree::{
 };
 use rsvelte_svelte_typescript_projection::{Printed, THROWN, checked_as_typescript, store_reads};
 use rsvelte_typescript_check::{
-    Check, Documents, Hidden, Import, MappedLanguage, MappedLanguages, TypeScriptDocument,
-    TypeScriptEnv, TypeScriptStandIn, TypeScriptView,
+    Check, CheckedDocument, Documents, Hidden, Import, MappedLanguage, MappedLanguages,
+    TypeScriptDocument, TypeScriptEnv, TypeScriptStandIn, TypeScriptView,
 };
 
 use crate::Configuration;
@@ -199,14 +199,10 @@ fn typescript_view(
     };
     let env = env_of(env)?;
     let projection = directive::of(component, &context.document.text).map_or_else(
-        || Emitter {
-            out: projection.out.clone(),
-            mappings: projection.mappings.clone(),
-            atoms: projection.atoms.clone(),
-        },
-        |line| directive::prepended(line, projection),
+        || Arc::clone(projection),
+        |line| Arc::new(directive::prepended(line, projection)),
     );
-    Ok(TypeScriptDocument::Checked {
+    Ok(TypeScriptDocument::Checked(Arc::new(CheckedDocument {
         projection,
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),
@@ -219,7 +215,7 @@ fn typescript_view(
             .unwrap_or_default(),
         hidden: hidden(component, &context.document.text),
         drops_unmapped: false,
-    })
+    })))
 }
 
 /// The findings svelte-check's `isNoFalsePositive` hides in `component`.

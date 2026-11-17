@@ -26,6 +26,13 @@ pub const RUNES: &[&str] = &[
     "$host",
 ];
 
+/// Whether `name` is one of [`RUNES`], each of which starts with `$`, so most names are rejected
+/// at their first byte.
+#[must_use]
+pub fn is_rune(name: &str) -> bool {
+    name.starts_with('$') && RUNES.contains(&name)
+}
+
 /// The identifiers a rune starts with: each name in [`RUNES`] up to its first `.` or `(`.
 pub const RUNE_ROOTS: &[&str] = &[
     "$state",

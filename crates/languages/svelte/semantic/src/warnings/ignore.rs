@@ -159,10 +159,18 @@ pub(super) fn regions(
     let scripts = Scripts::of(component);
     let template = Some((compiler_syntax_tree, &component.tokens));
     script_regions(&scripts, template, source, runes, found, &mut out);
-    fragment_regions(component, source, runes, component.root, found, &mut out);
-    for node in &component.nodes {
-        for range in child_ranges(node) {
-            fragment_regions(component, source, runes, range, found, &mut out);
+    // Only a markup comment that names `svelte-ignore` makes a region, and most components have
+    // none, so one pass over the nodes saves a pass over every fragment.
+    let ignoring = component.nodes.iter().any(|node| {
+        matches!(node, TemplateNode::Comment { data, .. }
+            if data.text(source).contains("svelte-ignore"))
+    });
+    if ignoring {
+        fragment_regions(component, source, runes, component.root, found, &mut out);
+        for node in &component.nodes {
+            for range in child_ranges(node) {
+                fragment_regions(component, source, runes, range, found, &mut out);
+            }
         }
     }
     out

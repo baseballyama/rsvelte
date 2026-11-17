@@ -131,7 +131,7 @@ fn lint(rules: &str, inputs: &str, rounds: usize) {
                 .unwrap_or_else(|error| panic!("{}: {}", document.path, error.message));
             let text = rsvelte_lint_runner::output::render_json(
                 rsvelte_lint_runner::output::Positions::new(
-                    context.lines(LineBreaks::Ecmascript),
+                    &|| context.lines(LineBreaks::Ecmascript),
                     context.source_text(),
                 ),
                 names.clone(),

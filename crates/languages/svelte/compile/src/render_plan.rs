@@ -15,7 +15,7 @@ mod namespace;
 mod normalize;
 pub use namespace::{Namespace, Namespaces};
 pub(crate) use normalize::is_template_whitespace;
-pub use normalize::{Cleaned, Item, Parent, clean_nodes};
+pub use normalize::{Cleaned, Item, Parent, Text, clean_nodes, template_end};
 
 newtype_index!(
     struct RegionIdentifier;
@@ -24,7 +24,7 @@ newtype_index!(
 #[derive(Debug)]
 pub struct Region {
     pub hoisted: Box<[CompilerNodeIdentifier]>,
-    pub items: Box<[Item<'static>]>,
+    pub items: Box<[Item]>,
     pub text_first: bool,
     /// Upstream's inferred fragment namespace, which picks the template function.
     pub namespace: Namespace,
@@ -43,6 +43,8 @@ pub struct RenderPlan {
     /// The `{expression}` tags inside an element whose content is bound, which upstream's
     /// `bound_contenteditable` writes once instead of in the render effect.
     editable: FxHashSet<ExpressionIdentifier>,
+    /// [`template_end`] of the document.
+    template_end: u32,
 }
 
 impl RenderPlan {
@@ -54,6 +56,7 @@ impl RenderPlan {
             source_regions: FxHashMap::default(),
             slots: FxHashMap::default(),
             editable: bound_editable_tags(input),
+            template_end: template_end(input.component.source_text),
         };
         plan.region(
             input,
@@ -166,22 +169,11 @@ impl RenderPlan {
             nodes,
             preserve,
             drops_whitespace,
+            self.template_end,
         );
         let region = Region {
             hoisted: cleaned.hoisted,
-            items: cleaned
-                .items
-                .into_iter()
-                .map(|item| match item {
-                    Item::Node(node) => Item::Node(node),
-                    Item::Comment => Item::Comment,
-                    Item::Expression(expression) => Item::Expression(expression),
-                    Item::Text { data, raw } => Item::Text {
-                        data: data.into_owned().into(),
-                        raw: raw.into_owned().into(),
-                    },
-                })
-                .collect(),
+            items: cleaned.items.into_boxed_slice(),
             text_first: cleaned.text_first,
             namespace,
         };

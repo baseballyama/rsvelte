@@ -1,7 +1,7 @@
 use oxc_ast::ast::{Expression, Statement};
 use rsvelte_typescript_compile::build::Builder;
 
-use super::{expand, expanded, marker, parsed, remark};
+use super::{expand, expanded, marker, parsed, remark, text};
 use crate::compilation::helpers;
 
 const SCRIPT: [&str; 9] = [
@@ -20,6 +20,19 @@ const SCRIPT: [&str; 9] = [
 fn a_prelude_is_parsed_once_per_thread() {
     let source = SCRIPT[0];
     assert!(std::ptr::eq(parsed(source), parsed(source)));
+}
+
+#[test]
+fn a_marker_prints_as_its_prelude_printed_once_per_thread() {
+    let allocator = oxc_allocator::Allocator::default();
+    let b = Builder::new(&allocator);
+    let marked = [marker(&b, SCRIPT[3]), marker(&b, SCRIPT[3])];
+    let [first, second] = marked.each_ref().map(|m| text(m).expect("a marker"));
+    assert!(std::ptr::eq(first, second));
+    assert!(
+        first.starts_with("const $$") && first.ends_with(";\n"),
+        "{first}"
+    );
 }
 
 #[test]
