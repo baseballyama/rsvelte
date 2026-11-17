@@ -36,7 +36,7 @@ pub(super) fn write_findings(
     let mut per_doc: Vec<Vec<Finding>> = (0..docs.len()).map(|_| Vec::new()).collect();
     let mut unmapped: Vec<Vec<String>> = vec![Vec::new(); docs.len()];
     for f in found {
-        let d = &docs[f.file];
+        let (source_text, d) = (&docs[f.file].source_text, &*docs[f.file].document);
         let Some(span) = f.span else {
             // The projection's own default export repeats a script's, and its subscription `$x`
             // a `$x` the script declares. TypeScript reports both copies: the script's maps, and
@@ -50,7 +50,7 @@ pub(super) fn write_findings(
             }
             continue;
         };
-        let bom = byte_order_mark(&d.source_text);
+        let bom = byte_order_mark(source_text);
         let content_mapped = d.env.mapped_extension.is_some();
         let generated = if content_mapped {
             generated_offset(&d.projection, span.start_offset + bom)
@@ -73,7 +73,7 @@ pub(super) fn write_findings(
             && (f.code == NO_OVERLOAD_MATCHES_CALL || f.code == ARGUMENT_NOT_ASSIGNABLE)
             && let Some((_, reads)) = d.store_reads.iter().find(|(store, _)| *store == span)
         {
-            let store = span.text(&d.source_text[bom as usize..]);
+            let store = span.text(&source_text[bom as usize..]);
             for &read in reads {
                 per_doc[f.file].push(Finding {
                     semantic: true,

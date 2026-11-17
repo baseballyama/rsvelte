@@ -22,7 +22,7 @@ pub(crate) struct ContentMappedInput {
 /// Extensions the checker reads as JavaScript or TypeScript without a content mapper.
 const SCRIPT_EXTENSIONS: &[&str] = &["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"];
 
-impl CheckRequest {
+impl CheckRequest<'_> {
     /// The absolute path the checker reads document `index` at: its own path for a script or a
     /// content-mapped document, and `<path>.ts` for generated TypeScript, which an import of the
     /// document reaches as TypeScript resolves `./App.vue` to `./App.vue.ts`.
@@ -91,7 +91,7 @@ impl CheckRequest {
 }
 
 /// The precomputed mapper's store: each content-mapped document's projection by checked path.
-pub(super) fn store_json(req: &CheckRequest, root: &Path, paths: &[PathBuf]) -> String {
+pub(super) fn store_json(req: &CheckRequest<'_>, root: &Path, paths: &[PathBuf]) -> String {
     let mut output = StructuredDataWriter::new(false);
     output.begin_object().key("files").begin_object();
     for ((file, text), path) in req.mapped_files.iter().zip(&req.files).zip(paths) {
@@ -128,7 +128,7 @@ pub(super) fn store_json(req: &CheckRequest, root: &Path, paths: &[PathBuf]) -> 
 /// Writes the store of `req`'s projections and the mapper's package in `support`, and returns
 /// the package's directory.
 pub(super) fn write_mapper(
-    req: &CheckRequest,
+    req: &CheckRequest<'_>,
     binary: &Path,
     support: &Path,
     store: &Path,

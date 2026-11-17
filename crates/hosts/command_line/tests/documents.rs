@@ -213,14 +213,10 @@ fn type_check_view_keeps_all_source_and_maps_utf8_offsets() {
         .expect("provided")
         .as_ref()
         .expect("valid view");
-    let TypeScriptDocument::Checked {
-        projection,
-        map_back,
-        ..
-    } = view
-    else {
+    let TypeScriptDocument::Checked(checked) = view else {
         panic!("TypeScript is checked")
     };
+    let (projection, map_back) = (&*checked.projection, checked.map_back);
     assert_eq!(projection.out, source);
     let start = source.find("日本語").expect("test text") as u32;
     let span = Span::new(start, start + "日本語".len() as u32);
@@ -243,10 +239,10 @@ fn type_check_view_does_not_depend_on_the_parser() {
         .expect("provided")
         .as_ref()
         .expect("valid view");
-    let TypeScriptDocument::Checked { projection, .. } = view else {
+    let TypeScriptDocument::Checked(checked) = view else {
         panic!("TypeScript is checked")
     };
-    assert_eq!(projection.out, source);
+    assert_eq!(checked.projection.out, source);
     assert!(
         context.get::<Parsed>().is_err(),
         "positive control: the parser rejects this source"

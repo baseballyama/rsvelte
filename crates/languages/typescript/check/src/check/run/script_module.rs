@@ -26,7 +26,7 @@ pub(super) fn add(
     layer: &mut Layer,
     roots: &[PathBuf],
     paths: &[PathBuf],
-    req: &CheckRequest,
+    req: &CheckRequest<'_>,
 ) -> bool {
     let found = declarations(roots.iter().chain(paths), &req.script_modules, &|path| {
         path.exists()

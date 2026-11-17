@@ -13,11 +13,11 @@ use rsvelte_typescript_api::{DiagnosticKind, Layer, Position, Project, Session};
 use super::{CONTRACT, Tsc, TypeChecker};
 
 #[derive(Default, Debug)]
-pub(crate) struct CheckRequest {
+pub(crate) struct CheckRequest<'a> {
     /// Each document's path as the user knows it; a relative one is beside the tsconfig.
     pub documents: Vec<String>,
     /// Generated TypeScript, one per document.
-    pub files: Vec<String>,
+    pub files: Vec<&'a str>,
     pub mapped_files: Vec<Option<ContentMappedInput>>,
     pub content_mapper: Option<PathBuf>,
     /// Declaration files the checker reads beside the overlay tsconfig, by name.
@@ -61,7 +61,10 @@ impl Tsc {
     ///
     /// A message if the projections cannot be written, the checker cannot run, or it reports a
     /// diagnostic outside every document.
-    pub(crate) fn check(&self, req: &CheckRequest) -> Result<Vec<TypeScriptDiagnostic>, String> {
+    pub(crate) fn check(
+        &self,
+        req: &CheckRequest<'_>,
+    ) -> Result<Vec<TypeScriptDiagnostic>, String> {
         if req.documents.len() != req.files.len()
             || (!req.mapped_files.is_empty() && req.mapped_files.len() != req.files.len())
         {
@@ -105,7 +108,7 @@ impl Tsc {
     fn check_with(
         &self,
         support: &Path,
-        req: &CheckRequest,
+        req: &CheckRequest<'_>,
     ) -> Result<Vec<TypeScriptDiagnostic>, String> {
         let (base, root) = self.root()?;
         let paths: Vec<PathBuf> = (0..req.files.len())
@@ -115,8 +118,8 @@ impl Tsc {
         let mut layer = Layer::default();
         for (i, path) in paths.iter().enumerate() {
             let mapped = req.mapped_files.get(i).and_then(Option::as_ref);
-            let text = mapped.map_or(&req.files[i], |file| &file.source);
-            layer.files.push((path.clone(), text.clone()));
+            let text = mapped.map_or(req.files[i], |file| file.source.as_str());
+            layer.files.push((path.clone(), text.to_owned()));
         }
         layer.files.extend(req.replaced.iter().cloned());
         layer.files.extend(
@@ -188,7 +191,7 @@ impl Tsc {
                     req.mapped_files
                         .get(i)
                         .and_then(Option::as_ref)
-                        .map_or(f.as_str(), |mapped| mapped.source.as_str()),
+                        .map_or(*f, |mapped| mapped.source.as_str()),
                 )
             })
             .collect();
@@ -336,7 +339,7 @@ impl<'a> Shares<'a> {
 
 fn tsconfig_json(
     base: Option<&Path>,
-    req: &CheckRequest,
+    req: &CheckRequest<'_>,
     own: &BaseProject,
     roots: &[PathBuf],
     store: &Path,
@@ -405,7 +408,7 @@ struct BaseProject {
 fn base_project(
     session: &mut Session,
     base: Option<&Path>,
-    req: &CheckRequest,
+    req: &CheckRequest<'_>,
     overlay: &Path,
     layer: &mut Layer,
 ) -> Result<BaseProject, String> {

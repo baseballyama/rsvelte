@@ -27,7 +27,7 @@ pub(super) const CODE: u32 = 7016;
 /// TypeScript reports for it when the probe says the project's options report one, and the names
 /// those imports bind, by document.
 pub(super) fn imports<'a>(
-    req: &'a CheckRequest,
+    req: &'a CheckRequest<'_>,
     root: &Path,
     paths: &[PathBuf],
     index: &HashMap<&Path, usize>,
@@ -88,7 +88,7 @@ pub(super) fn hides(found: &TypeScriptDiagnostic, names: &[(usize, &str)], sourc
 }
 
 /// Whether any document projects to JavaScript.
-pub(super) fn any_javascript(req: &CheckRequest) -> bool {
+pub(super) fn any_javascript(req: &CheckRequest<'_>) -> bool {
     req.mapped_files
         .iter()
         .flatten()

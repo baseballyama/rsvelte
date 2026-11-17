@@ -136,25 +136,32 @@ pub enum TypeScriptDocument {
     Unchecked,
     /// A document the language's own parser rejects: svelte-check reports only that error, with
     /// the code `-1`, instead of type checking.
-    Rejected { message: String, span: Span },
-    Checked {
-        /// The generated TypeScript and its mappings.
-        projection: Emitter,
-        map_back: MapBack,
-        env: Arc<TypeScriptEnv>,
-        /// The extension the checker reads a content-mapped projection as, such as `.ts`.
-        extension: &'static str,
-        /// Each relative module the document imports.
-        imports: Vec<Import>,
-        /// Each Svelte store by its name's range, with where the component reads `$store`:
-        /// svelte-check reports a store that is no store at each of those reads.
-        store_reads: Vec<(Span, Vec<Span>)>,
-        /// The findings svelte-check hides.
-        hidden: Vec<Hidden>,
-        /// Whether a finding with no source range is dropped, as svelte-check drops it, instead
-        /// of refusing the document: only where the projection writes svelte2tsx's own code.
-        drops_unmapped: bool,
+    Rejected {
+        message: String,
+        span: Span,
     },
+    Checked(Arc<CheckedDocument>),
+}
+
+/// A document the checker reads, shared by its facet and the run that checks it.
+#[derive(Debug)]
+pub struct CheckedDocument {
+    /// The generated TypeScript and its mappings.
+    pub projection: Arc<Emitter>,
+    pub map_back: MapBack,
+    pub env: Arc<TypeScriptEnv>,
+    /// The extension the checker reads a content-mapped projection as, such as `.ts`.
+    pub extension: &'static str,
+    /// Each relative module the document imports.
+    pub imports: Vec<Import>,
+    /// Each Svelte store by its name's range, with where the component reads `$store`:
+    /// svelte-check reports a store that is no store at each of those reads.
+    pub store_reads: Vec<(Span, Vec<Span>)>,
+    /// The findings svelte-check hides.
+    pub hidden: Vec<Hidden>,
+    /// Whether a finding with no source range is dropped, as svelte-check drops it, instead of
+    /// refusing the document: only where the projection writes svelte2tsx's own code.
+    pub drops_unmapped: bool,
 }
 
 /// A relative module specifier a document imports, by its string literal's range, with the
@@ -268,7 +275,7 @@ impl TypeScriptEnv {
 ///
 /// Plain generated inputs use this policy. Content-mapped inputs use native TypeScript's mapping.
 /// `None` drops a generated finding with no original counterpart.
-pub(crate) type MapBack = fn(&Emitter, Span) -> Option<Span>;
+pub type MapBack = fn(&Emitter, Span) -> Option<Span>;
 
 /// Type checking over matching documents whose plugins provide [`TypeScriptView`].
 ///
@@ -333,15 +340,8 @@ pub enum Documents {
 
 struct Prepared {
     path: String,
-    projection: Emitter,
-    map_back: MapBack,
-    env: Arc<TypeScriptEnv>,
     source_text: String,
-    extension: &'static str,
-    imports: Vec<Import>,
-    store_reads: Vec<(Span, Vec<Span>)>,
-    hidden: Vec<Hidden>,
-    drops_unmapped: bool,
+    document: Arc<CheckedDocument>,
 }
 
 impl FinishTask for Check {
@@ -390,7 +390,7 @@ impl FinishTask for Check {
                 );
                 self.stand_in(context)
             }
-            Ok(TypeScriptDocument::Checked { .. }) if self.tsc.is_none() => {
+            Ok(TypeScriptDocument::Checked(_)) if self.tsc.is_none() => {
                 out.diagnostics.push(Diagnostic::error(
                     "check_unconfigured",
                     format!("{} needs a tsc executable", self.identifier),
@@ -398,30 +398,10 @@ impl FinishTask for Check {
                 ));
                 None
             }
-            Ok(TypeScriptDocument::Checked {
-                projection,
-                map_back,
-                env,
-                extension,
-                imports,
-                store_reads,
-                hidden,
-                drops_unmapped,
-            }) => Some(Box::new(Prepared {
+            Ok(TypeScriptDocument::Checked(document)) => Some(Box::new(Prepared {
                 path: context.document.path.clone(),
-                projection: Emitter {
-                    out: projection.out.clone(),
-                    mappings: projection.mappings.clone(),
-                    atoms: projection.atoms.clone(),
-                },
-                map_back: *map_back,
-                env: Arc::clone(env),
                 source_text: context.source_text().to_owned(),
-                extension,
-                imports: imports.clone(),
-                store_reads: store_reads.clone(),
-                hidden: hidden.clone(),
-                drops_unmapped: *drops_unmapped,
+                document: Arc::clone(document),
             })),
         }
     }
@@ -453,16 +433,17 @@ impl FinishTask for Check {
         let mut env = TypeScriptEnv::default();
         let mut merged: Vec<&Arc<TypeScriptEnv>> = Vec::new();
         for d in &docs {
-            if merged.iter().any(|e| Arc::ptr_eq(e, &d.env)) {
+            let own = &d.document.env;
+            if merged.iter().any(|e| Arc::ptr_eq(e, own)) {
                 continue;
             }
-            merged.push(&d.env);
-            if let Err(msg) = env.merge(&d.env) {
+            merged.push(own);
+            if let Err(msg) = env.merge(own) {
                 fail(outs, &msg);
                 return;
             }
         }
-        check_projected(tsc, &env, docs, stand_ins, outs);
+        check_projected(tsc, &env, &docs, stand_ins, outs);
     }
 }
 
@@ -494,7 +475,7 @@ fn fail(outs: Vec<&mut TaskOutput>, msg: &str) {
 fn check_projected(
     tsc: &Tsc,
     env: &TypeScriptEnv,
-    mut docs: Vec<Prepared>,
+    docs: &[Prepared],
     stand_ins: Vec<(String, String)>,
     outs: Vec<&mut TaskOutput>,
 ) {
@@ -505,49 +486,56 @@ fn check_projected(
             .iter()
             .map(|d| {
                 let bom = byte_order_mark(&d.source_text);
-                d.env.mapped_extension.map(|extension| ContentMappedInput {
-                    source: d.source_text[bom as usize..].to_owned(),
-                    extension,
-                    generated_extension: d.extension,
-                    mappings: d
-                        .projection
-                        .mappings
-                        .iter()
-                        .filter(|m| m.source_text >= bom)
-                        .map(|m| Mapping {
-                            source_text: m.source_text - bom,
-                            ..*m
-                        })
-                        .collect(),
-                    atoms: d
-                        .projection
-                        .atoms
-                        .iter()
-                        .filter(|a| a.original.start_offset >= bom)
-                        .map(|a| Atom {
-                            original: Span::new(
-                                a.original.start_offset - bom,
-                                a.original.end_offset - bom,
-                            ),
-                            ..*a
-                        })
-                        .collect(),
-                    imports: d
-                        .imports
-                        .iter()
-                        .filter(|import| import.at.start_offset >= bom)
-                        .map(|import| Import {
-                            at: Span::new(import.at.start_offset - bom, import.at.end_offset - bom),
-                            ..import.clone()
-                        })
-                        .collect(),
-                })
+                let document = &d.document;
+                document
+                    .env
+                    .mapped_extension
+                    .map(|extension| ContentMappedInput {
+                        source: d.source_text[bom as usize..].to_owned(),
+                        extension,
+                        generated_extension: document.extension,
+                        mappings: document
+                            .projection
+                            .mappings
+                            .iter()
+                            .filter(|m| m.source_text >= bom)
+                            .map(|m| Mapping {
+                                source_text: m.source_text - bom,
+                                ..*m
+                            })
+                            .collect(),
+                        atoms: document
+                            .projection
+                            .atoms
+                            .iter()
+                            .filter(|a| a.original.start_offset >= bom)
+                            .map(|a| Atom {
+                                original: Span::new(
+                                    a.original.start_offset - bom,
+                                    a.original.end_offset - bom,
+                                ),
+                                ..*a
+                            })
+                            .collect(),
+                        imports: document
+                            .imports
+                            .iter()
+                            .filter(|import| import.at.start_offset >= bom)
+                            .map(|import| Import {
+                                at: Span::new(
+                                    import.at.start_offset - bom,
+                                    import.at.end_offset - bom,
+                                ),
+                                ..import.clone()
+                            })
+                            .collect(),
+                    })
             })
             .collect(),
         content_mapper: env.content_mapper.clone(),
         files: docs
-            .iter_mut()
-            .map(|d| std::mem::take(&mut d.projection.out))
+            .iter()
+            .map(|d| d.document.projection.out.as_str())
             .collect(),
         declarations: env.declarations.clone(),
         include: env.include.clone(),
@@ -555,19 +543,14 @@ fn check_projected(
         paths: env.paths.clone(),
         script_modules: env.script_modules.clone(),
     };
-    let checked = tsc.check(&req);
-    // Mapping back reads the generated text around a position.
-    for (d, file) in docs.iter_mut().zip(req.files) {
-        d.projection.out = file;
-    }
-    let found = match checked {
+    let found = match tsc.check(&req) {
         Ok(found) => found,
         Err(msg) => {
             fail(outs, &msg);
             return;
         }
     };
-    write_findings(&docs, outs, found);
+    write_findings(docs, outs, found);
 }
 
 mod findings;
