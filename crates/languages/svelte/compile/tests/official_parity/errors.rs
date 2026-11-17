@@ -597,3 +597,24 @@ fn an_unbound_bind_target_is_reported_without_its_type_cast() {
         }
     }
 }
+
+#[test]
+fn an_await_outside_an_async_function_is_found_in_every_script_and_template_expression() {
+    for (source, expected) in [
+        ("<script>function f() { await x; }</script>", true),
+        ("<script module>function f() { await x; }</script>", true),
+        ("<script>let f = () => 0;</script>{(() => await x)()}", true),
+        ("{#if true}{@const y = (() => await x)()}{y}{/if}", true),
+        ("<script>async function f() { await x; }</script>", false),
+        ("<script>let f = () => 0;</script>{f()}", false),
+    ] {
+        for target in [Target::Client, Target::Server] {
+            let result = compile(source, target);
+            assert_eq!(
+                result == Err("js_parse_error".to_owned()),
+                expected,
+                "{source} on {target:?}: {result:?}"
+            );
+        }
+    }
+}

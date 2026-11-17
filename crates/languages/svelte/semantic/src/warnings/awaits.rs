@@ -89,13 +89,8 @@ pub(super) fn suspending_awaits(
 
         fn leave(&mut self) {}
     }
-    // The resolution's nodes hold the scripts and the template's expressions in one flat list,
-    // which is cheaper to scan than to walk, and nearly every component has no `await`.
-    let nodes = resolution.semantic().nodes();
-    if !nodes
-        .iter()
-        .any(|node| matches!(node.kind(), AstKind::AwaitExpression(_)))
-    {
+    // Nearly every component has no `await`.
+    if !resolution.awaits() {
         return Vec::new();
     }
     let tree = &component.javascript;

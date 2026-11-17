@@ -227,7 +227,9 @@ pub(crate) fn validate_unit(
     {
         return Err(error);
     }
-    validation::check_awaits(input)?;
+    if res.awaits() {
+        validation::check_awaits(input)?;
+    }
     let special::SvelteOptions {
         custom_element,
         stylesheet_injected,
