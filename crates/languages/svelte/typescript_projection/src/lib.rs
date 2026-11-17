@@ -41,13 +41,7 @@ pub const DECLARATIONS: (&str, &str) = (
 /// a name cannot have, and with the suffix that keeps it apart from the component's own names.
 #[must_use]
 pub fn component_name(path: &str) -> String {
-    let mut name = String::new();
-    write_component_name(path, &mut name);
-    name
-}
-
-/// Appends [`component_name`] to `out`.
-pub(crate) fn write_component_name(path: &str, out: &mut String) {
+    let mut out = String::new();
     let file = path.rsplit(['/', '\\']).next().unwrap_or(path);
     let stem = file.split('.').next().unwrap_or(file);
     let valid = |c: &char| c.is_ascii_alphanumeric() || matches!(c, '_' | '-');
@@ -73,6 +67,7 @@ pub(crate) fn write_component_name(path: &str, out: &mut String) {
         }
     }
     out.push_str("__SvelteComponent_");
+    out
 }
 
 /// What an import of a component that is not projected reads: a component of any props whose

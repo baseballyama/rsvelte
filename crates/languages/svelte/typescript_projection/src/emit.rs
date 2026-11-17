@@ -21,7 +21,11 @@ pub fn emit(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
     let mut printer = Printer {
         tree,
         source,
-        path,
+        component: if path.is_empty() {
+            "$$Component".to_owned()
+        } else {
+            crate::component_name(path)
+        },
         output: projection_emitter(source.len()),
         indent: 0,
         in_type: false,
@@ -36,7 +40,8 @@ pub fn emit(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
 struct Printer<'a> {
     tree: &'a SyntaxTree,
     source: &'a str,
-    path: &'a str,
+    /// The default export's name, which the projection writes several times.
+    component: String,
     output: Emitter,
     indent: usize,
     /// Inside a `JSDoc` type, where a JavaScript projection prints types as TypeScript does.
@@ -405,11 +410,7 @@ impl Printer<'_> {
     }
 
     pub(super) fn component_name(&mut self) {
-        if self.path.is_empty() {
-            self.output.push("$$Component");
-        } else {
-            crate::write_component_name(self.path, &mut self.output.out);
-        }
+        self.output.push(&self.component);
     }
 
     fn program_end(&mut self) {
