@@ -18,13 +18,6 @@ fn what_the_template_printer_cannot_place_yet_is_refused() {
             Some("// x")
         )
     );
-    assert_eq!(
-        refusal("<div /* x\ny */ a></div>\n"),
-        (
-            "a comment on more than one line among attributes that may stay on one line",
-            Some("/* x\ny */")
-        )
-    );
 }
 
 #[test]
@@ -32,6 +25,8 @@ fn a_comment_between_attributes_goes_with_the_attribute_as_the_plugin_attaches_i
     // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
     for (source_text, expected) in [
         ("<div a /* x */ b></div>", "<div a /* x */ b></div>\n"),
+        ("<div /* x\ny */ a></div>", "<div /* x\ny */ a></div>\n"),
+        ("<div a /* x\ny */ b></div>", "<div a /* x\ny */ b></div>\n"),
         (
             "<div\n  a\n\n  // x\n\n  b\n></div>",
             "<div\n  a\n  // x\n\n  b\n></div>\n",

@@ -3,8 +3,8 @@
 
 use oxc_formatter_core::tag::{Condition, DedentMode, Group, GroupMode, Tag};
 use oxc_formatter_core::{
-    FormatContext, FormatElement, FormatOptions, Formatter, GroupId, IndentWidth, LineMode,
-    PrintMode,
+    Format, FormatContext, FormatElement, FormatOptions, Formatter, GroupId, IndentWidth, LineMode,
+    PrintMode, builders,
 };
 
 use crate::{GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions, LineKind, Node};
@@ -82,7 +82,8 @@ impl<'a> Lowering<'_, '_, 'a> {
             Node::Static(s) => f.write_element(FormatElement::text(s, self.indent_width)),
             n @ Node::Text { .. } => {
                 let text = arena_text(self.docs.str_of(n), f);
-                f.write_element(FormatElement::text(text, self.indent_width));
+                // A string never breaks its group in Prettier, even one with a line break.
+                Format::fmt(&builders::text(text).without_expand_parent(), f);
             }
             Node::Line(kind) => f.write_element(FormatElement::Line(line_mode(kind))),
             Node::BreakParent => f.write_element(FormatElement::ExpandParent),

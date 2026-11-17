@@ -1,4 +1,4 @@
-# svelte.format/default: 34763 match
+# svelte.format/default: 34764 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -314,7 +314,6 @@ svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/the_unreachable_
 svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/the_walk_resumes_on_handled_combinators_to_the_right/040cf6cdeaf5a855.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/the_walk_resumes_on_handled_combinators_to_the_right/8bd4e3ace705207b.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_value_scan_4046/a_brace_inside_any_bracket_but_url_still_ends_the_value/68ad7174e520e1fd.svelte	mismatch
-svelte/rsvelte-tests-core-2/directive_attribute_locations/multiline_attribute_comments_keep_exact_locations/d8488d50b4a17def.svelte	refused
 svelte/rsvelte-tests-core-2/import_span_comment_hoist/a_comment_after_the_from_keyword_survives/c8d5e10ffc3d371e.svelte	mismatch
 svelte/rsvelte-tests-core-2/parse_ts_node_estree_fields_4133/a_type_parameter_list_records_its_trailing_comma/64af1300d0378fd2.svelte	mismatch
 svelte/rsvelte-tests-core-2/parse_ts_node_estree_fields_4133/a_type_parameter_list_records_its_trailing_comma/d859cd936e28cb9d.svelte	mismatch
