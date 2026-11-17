@@ -374,10 +374,10 @@
 		}
 	},
 	"instructions": {
-		"arm64-linux": 2022947423
+		"arm64-linux": 2024551720
 	},
 	"load_instructions": {
-		"arm64-linux": 146410714
+		"arm64-linux": 146410697
 	},
 	"instruction_sample": {
 		"every": 20,
