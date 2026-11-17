@@ -19,7 +19,8 @@ fn throws(reader: Reader, text: &str) -> Option<bool> {
 }
 
 // What Prettier 3.9.10 does with each sample, with its `typescript` and `babel-ts` parsers.
-const SAMPLES: [(&str, bool, Option<bool>); 34] = [
+const SAMPLES: [(&str, bool, Option<bool>); 35] = [
+    ("let x = 1;\nreturn x;", false, Some(false)),
     ("class A { x = await f(); }", false, Some(true)),
     ("class A { x = await (f()); }", false, Some(false)),
     ("function f(a?: number = 1) {}", false, Some(false)),

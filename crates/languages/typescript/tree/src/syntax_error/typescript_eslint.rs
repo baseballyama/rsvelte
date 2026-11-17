@@ -86,8 +86,8 @@ const MESSAGES: [(u32, &str); 32] = [
 /// itself. Such a host leaves them unchecked.
 pub const TYPESCRIPT_ESLINT_UNCHECKED: &[&str] = &[
     "1015", "1016", "1021", "1029", "1038", "1039", "1047", "1049", "1051", "1093", "1094", "1095",
-    "1096", "1147", "1194", "1243", "1257", "1267", "1276", "1308", "2304", "2368", "2390", "2391",
-    "2681", "5085", "18010",
+    "1096", "1108", "1147", "1194", "1243", "1257", "1267", "1276", "1308", "2304", "2368", "2390",
+    "2391", "2681", "5085", "18010",
 ];
 
 /// The codes of TypeScript 6.0.3's parser and scanner, whose first error typescript-eslint throws
