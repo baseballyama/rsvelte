@@ -7653,34 +7653,6 @@
 === 3 rsvelte_projection/svelte2tsx_class_style_directive/style_shorthand_directive_uses_ensure_type/1737884972b21152.svelte	json
 []
 
-=== 414 rsvelte_projection/svelte2tsx_class_style_directive/style_shorthand_modifier_does_not_become_an_identifier/57a171812e529726.svelte	json
-[
-	{
-		"code": 2362,
-		"message": "The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
-		"start": {
-			"line": 3,
-			"character": 11
-		},
-		"end": {
-			"line": 3,
-			"character": 16
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'important'.",
-		"start": {
-			"line": 3,
-			"character": 17
-		},
-		"end": {
-			"line": 3,
-			"character": 26
-		}
-	}
-]
-
 === 3 rsvelte_projection/svelte2tsx_component_export_format/legacy_v5_component_export_suffix_is_exact/780696c4ae157c8e.svelte	json
 []
 
@@ -7832,22 +7804,6 @@
 
 === 3 rsvelte_projection/svelte2tsx_directive_shorthand_comma/style_directive_then_shorthand_no_double_comma/ad5e52d168bc3689.svelte	json
 []
-
-=== 374 rsvelte_projection/svelte2tsx_directive_suffix_map_4464/a_directive_name_and_its_parameters_carry_a_mapping/6131d61eb07dbc8c.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '{ from: DOMRect; to: DOMRect; }' is not assignable to parameter of type 'DOMRect'.\n  Type '{ from: DOMRect; to: DOMRect; }' is missing the following properties from type 'DOMRect': height, width, x, y, and 5 more.",
-		"start": {
-			"line": 6,
-			"character": 67
-		},
-		"end": {
-			"line": 6,
-			"character": 67
-		}
-	}
-]
 
 === 202 rsvelte_projection/svelte2tsx_dollar_generic/a_dollar_generic_in_the_module_script_is_rejected/78dd777f789e77c1.svelte	json
 [
@@ -14882,22 +14838,6 @@
 === 3 rsvelte_projection/svelte2tsx_slot_summary/slot_summary_reuse_preserves_script_mappings/7f93c22d00eef2ee.svelte	json
 []
 
-=== 169 rsvelte_projection/svelte2tsx_slot_value0_rule/degenerate_slot_names_stay_on_the_default_fallback/0cfb2b8120add6c6.svelte	json
-[
-	{
-		"code": 1135,
-		"message": "Argument expression expected.",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 1
-		}
-	}
-]
-
 === 3 rsvelte_projection/svelte2tsx_slot_value0_rule/dollar_slots_shares_the_slots_type_keys/3082f879fddd3f7a.svelte	json
 []
 
@@ -16276,106 +16216,6 @@
 === 3 rsvelte_projection/svelte2tsx_svelte_self_bindings_2171/svelte_self_shorthand_binding_keeps_the_marker/3bb34afd3d46ae2b.svelte	json
 []
 
-=== 1427 rsvelte_projection/svelte2tsx_svelte_self_bindings_2171/svelte_self_snippet_children_become_props/906566aee5544f9c.svelte	json
-[
-	{
-		"code": 17008,
-		"message": "JSX element 'svelte:self' has no corresponding closing tag.",
-		"start": {
-			"line": 0,
-			"character": 1
-		},
-		"end": {
-			"line": 0,
-			"character": 12
-		}
-	},
-	{
-		"code": 1109,
-		"message": "Expression expected.",
-		"start": {
-			"line": 0,
-			"character": 12
-		},
-		"end": {
-			"line": 0,
-			"character": 12
-		}
-	},
-	{
-		"code": 1005,
-		"message": "'}' expected.",
-		"start": {
-			"line": 1,
-			"character": 12
-		},
-		"end": {
-			"line": 1,
-			"character": 13
-		}
-	},
-	{
-		"code": 1382,
-		"message": "Unexpected token. Did you mean `{'>'}` or `&gt;`?",
-		"start": {
-			"line": 1,
-			"character": 14
-		},
-		"end": {
-			"line": 1,
-			"character": 15
-		}
-	},
-	{
-		"code": 1005,
-		"message": "'}' expected.",
-		"start": {
-			"line": 1,
-			"character": 27
-		},
-		"end": {
-			"line": 1,
-			"character": 28
-		}
-	},
-	{
-		"code": 1381,
-		"message": "Unexpected token. Did you mean `{'}'}` or `&rbrace;`?",
-		"start": {
-			"line": 1,
-			"character": 27
-		},
-		"end": {
-			"line": 1,
-			"character": 28
-		}
-	},
-	{
-		"code": 1381,
-		"message": "Unexpected token. Did you mean `{'}'}` or `&rbrace;`?",
-		"start": {
-			"line": 1,
-			"character": 27
-		},
-		"end": {
-			"line": 1,
-			"character": 28
-		}
-	},
-	{
-		"code": 1381,
-		"message": "Unexpected token. Did you mean `{'}'}` or `&rbrace;`?",
-		"start": {
-			"line": 2,
-			"character": 1
-		},
-		"end": {
-			"line": 2,
-			"character": 14
-		}
-	}
-]
-
 === 3 rsvelte_projection/svelte2tsx_svelte_self_bindings_2171/svelte_self_two_way_binding_emits_bindings_marker/ebae77f27676c4d4.svelte	json
 []
 
@@ -17376,34 +17216,6 @@
 		"end": {
 			"line": 1,
 			"character": 11
-		}
-	}
-]
-
-=== 381 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/716a6da8d466f8b2.svelte	json
-[
-	{
-		"code": 1232,
-		"message": "An import declaration can only be used at the top level of a namespace or module.",
-		"start": {
-			"line": 1,
-			"character": 0
-		},
-		"end": {
-			"line": 1,
-			"character": 6
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'f'.",
-		"start": {
-			"line": 2,
-			"character": 16
-		},
-		"end": {
-			"line": 2,
-			"character": 17
 		}
 	}
 ]

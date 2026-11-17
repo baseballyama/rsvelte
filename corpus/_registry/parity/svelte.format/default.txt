@@ -1,4 +1,4 @@
-# svelte.format/default: 34757 match
+# svelte.format/default: 34761 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -316,12 +316,10 @@ svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/the_walk_resumes
 svelte/rsvelte-tests-core-1/css_unhandled_combinator_scope_3404/the_walk_resumes_on_handled_combinators_to_the_right/8bd4e3ace705207b.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_value_scan_4046/a_brace_inside_any_bracket_but_url_still_ends_the_value/68ad7174e520e1fd.svelte	mismatch
 svelte/rsvelte-tests-core-2/directive_attribute_locations/multiline_attribute_comments_keep_exact_locations/d8488d50b4a17def.svelte	refused
-svelte/rsvelte-tests-core-2/early_errors_3243/the_analyze_phase_duplicate_check_is_still_reachable/1fb31d8590dd4b8b.svelte	refused
 svelte/rsvelte-tests-core-2/import_span_comment_hoist/a_comment_after_the_from_keyword_survives/c8d5e10ffc3d371e.svelte	mismatch
 svelte/rsvelte-tests-core-2/parse_ts_node_estree_fields_4133/a_type_parameter_list_records_its_trailing_comma/64af1300d0378fd2.svelte	mismatch
 svelte/rsvelte-tests-core-2/parse_ts_node_estree_fields_4133/a_type_parameter_list_records_its_trailing_comma/d859cd936e28cb9d.svelte	mismatch
 svelte/rsvelte-tests-core-2/parse_ts_types/generic_arrow_emits_type_parameters_after_body/c7ebcde842cdf4b2.svelte	mismatch
-svelte/rsvelte-tests-core-3/root_fragment_scope_3375/two_root_consts_of_one_name_still_collide/5742ac3e859f4c5a.svelte	refused
 svelte/rsvelte-tests-core-3/snippet_param_ts_default_4383/a_sibling_parameter_is_not_collateral/313f200bd663d011.svelte	mismatch
 svelte/rsvelte-tests-core-3/snippet_param_ts_default_4383/a_typescript_default_keeps_the_whole_parameter_list/ceeed17f60466475.svelte	mismatch
 svelte/rsvelte-tests-core-3/snippet_param_ts_default_4383/a_typescript_default_keeps_the_whole_parameter_list/df7e32402770727e.svelte	mismatch
@@ -406,7 +404,6 @@ svelte/rsvelte/pattern/adversarial/css/rejected-global-keyframes-selector.svelte
 svelte/rsvelte/pattern/adversarial/elements/very-long-text-runs.svelte	mismatch
 svelte/rsvelte/pattern/css/consecutive-and-column-combinators.svelte	mismatch
 svelte/rsvelte/pattern/css/value-ends-outside-strings-and-urls.svelte	mismatch
-svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte	refused
 svelte/rsvelte/pattern/issues/3404-repeated-combinators.svelte	mismatch
 svelte/rsvelte/pattern/issues/3404-unhandled-combinator-scope.svelte	mismatch
 svelte/rsvelte/pattern/issues/3498-class-rune-linebreak-separators.svelte	mismatch

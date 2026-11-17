@@ -121,6 +121,8 @@ impl Parser<'_, '_> {
         };
         self.position += end;
         self.token(TokenType::JavaScriptComment, start_offset);
+        let span = Span::new(start_offset as u32, self.position as u32);
+        self.component.tag_comments.push(span);
         Ok(())
     }
 

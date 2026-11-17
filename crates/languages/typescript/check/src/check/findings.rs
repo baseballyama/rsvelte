@@ -14,6 +14,7 @@ const USED_BEFORE_ASSIGNED: u32 = 2454;
 const EXPECTED_ARGUMENTS: u32 = 2554;
 const NOT_ASSIGNABLE: u32 = 2322;
 const MULTIPLE_DEFAULT_EXPORTS: u32 = 2528;
+const REDECLARED_BLOCK_SCOPED: u32 = 2451;
 
 /// A finding located in its document, with what orders it.
 struct Finding {
@@ -37,9 +38,14 @@ pub(super) fn write_findings(
     for f in found {
         let d = &docs[f.file];
         let Some(span) = f.span else {
-            // The projection's own default export repeats a script's, and TypeScript reports
-            // both: the script's copy maps, and svelte-check drops the other, which does not.
-            if !d.drops_unmapped && f.code != MULTIPLE_DEFAULT_EXPORTS {
+            // The projection's own default export repeats a script's, and its subscription `$x`
+            // a `$x` the script declares. TypeScript reports both copies: the script's maps, and
+            // svelte-check drops the other, which does not.
+            let repeats = f.code == MULTIPLE_DEFAULT_EXPORTS
+                || f.code == REDECLARED_BLOCK_SCOPED
+                    && f.message
+                        .starts_with("Cannot redeclare block-scoped variable '$");
+            if !d.drops_unmapped && !repeats {
                 unmapped[f.file].push(format!("TS{}: {}", f.code, f.message));
             }
             continue;

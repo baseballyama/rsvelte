@@ -34,9 +34,11 @@ impl Builder<'_> {
         let mut props = None;
         let mut generics = Generics::NONE;
         let mut generated_start = render_start;
+        let mut events = false;
         if let Some(script) = &self.component.instance {
             let program = self.component.javascript.get_program(script.program);
             generics = self.generics(script, program, &mut edits)?;
+            events = self.events_interface(program, &mut edits);
             generics.asynchronous = super::awaits::awaits_at_top_level(program);
             generated_start = self.scratch.len();
             if let Some(snippets) = self.root_snippets.take() {
@@ -112,22 +114,48 @@ impl Builder<'_> {
             let parts = self.tree.list(&bindings);
             self.tree.push(Node::TypeUnion(parts))
         };
-        let helper = self.tree.push(Node::Identifier(if generics.is_generic() {
-            "__rsvelte_export_generic"
-        } else {
-            "__rsvelte_export_component"
+        let value = self.export(generics.is_generic(), events, [props, exports, bindings]);
+        generics.start = generated_start;
+        Ok((value, generics))
+    }
+
+    /// The component the render function returns, typed by its contract's `parts`: its props,
+    /// exports and bindings, and its `$$Events` and `$$Slots` when it declares them.
+    fn export(
+        &mut self,
+        generic: bool,
+        events: bool,
+        parts: [NodeIdentifier; 3],
+    ) -> NodeIdentifier {
+        let slots = self.declares("$$Slots");
+        let typed = !generic && (events || slots);
+        let helper = self.tree.push(Node::Identifier(match (generic, typed) {
+            (true, _) => "__rsvelte_export_generic",
+            (false, true) => "__rsvelte_export_typed",
+            (false, false) => "__rsvelte_export_component",
         }));
-        let arguments = self.tree.list(&[props, exports, bindings]);
+        let arguments = if typed {
+            let events = self.tree.push(Node::Identifier(if events {
+                "$$Events"
+            } else {
+                "{ [event: string]: CustomEvent<any> }"
+            }));
+            let slots = (self.tree).push(Node::Identifier(if slots { "$$Slots" } else { "any" }));
+            self.tree
+                .list(&[parts[0], parts[1], parts[2], events, slots])
+        } else {
+            self.tree.list(&parts)
+        };
         let callee = self.tree.push(Node::TypeArguments {
             callee: helper,
             arguments,
         });
-        let value = self.tree.push(Node::Call {
+        // Without `$$Slots` or `$$Events`, svelte2tsx types the slots by each `<slot>`.
+        self.slots_by_elements = !generic && !typed;
+        self.tree.push(Node::Call {
             callee,
             arguments: Range::default(),
-        });
-        generics.start = generated_start;
-        Ok((value, generics))
+        })
     }
 
     /// svelte2tsx's `slots` has a `default` key: a `<slot>` without a `name`, or named `default`.
@@ -491,11 +519,13 @@ impl Builder<'_> {
     }
 }
 
+mod events;
 mod legacy;
 mod props_alias;
 mod route;
 pub(super) use route::Route;
 mod siblings;
+mod slot_def;
 mod slot_flags;
 mod stores;
 use siblings::Siblings;

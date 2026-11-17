@@ -1,0 +1,5 @@
+{
+	"description": "An animation whose function does not take svelte2tsx's movement: svelte-check reports the argument at the empty range before the directive name's last character, with and without parameters.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json"
+}

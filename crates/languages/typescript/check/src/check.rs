@@ -144,8 +144,8 @@ pub enum TypeScriptDocument {
         env: Arc<TypeScriptEnv>,
         /// The extension the checker reads a content-mapped projection as, such as `.ts`.
         extension: &'static str,
-        /// Each relative module specifier the document imports, by its string literal's range.
-        imports: Vec<(Span, String)>,
+        /// Each relative module the document imports.
+        imports: Vec<Import>,
         /// Each Svelte store by its name's range, with where the component reads `$store`:
         /// svelte-check reports a store that is no store at each of those reads.
         store_reads: Vec<(Span, Vec<Span>)>,
@@ -155,6 +155,15 @@ pub enum TypeScriptDocument {
         /// of refusing the document: only where the projection writes svelte2tsx's own code.
         drops_unmapped: bool,
     },
+}
+
+/// A relative module specifier a document imports, by its string literal's range, with the
+/// names the import binds.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Import {
+    pub at: Span,
+    pub specifier: String,
+    pub names: Vec<String>,
 }
 
 /// Findings svelte-check hides: of `codes`, or of any code when it is empty, that start in `at`
@@ -329,7 +338,7 @@ struct Prepared {
     env: Arc<TypeScriptEnv>,
     source_text: String,
     extension: &'static str,
-    imports: Vec<(Span, String)>,
+    imports: Vec<Import>,
     store_reads: Vec<(Span, Vec<Span>)>,
     hidden: Vec<Hidden>,
     drops_unmapped: bool,
@@ -526,10 +535,10 @@ fn check_projected(
                     imports: d
                         .imports
                         .iter()
-                        .filter(|(span, _)| span.start_offset >= bom)
-                        .map(|(span, specifier)| {
-                            let span = Span::new(span.start_offset - bom, span.end_offset - bom);
-                            (span, specifier.clone())
+                        .filter(|import| import.at.start_offset >= bom)
+                        .map(|import| Import {
+                            at: Span::new(import.at.start_offset - bom, import.at.end_offset - bom),
+                            ..import.clone()
                         })
                         .collect(),
                 })

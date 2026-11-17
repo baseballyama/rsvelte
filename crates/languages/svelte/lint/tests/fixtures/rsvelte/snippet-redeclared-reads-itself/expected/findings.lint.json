@@ -1,0 +1,20 @@
+{
+	"rules": [
+		"no-unused-vars",
+		"svelte/button-has-type"
+	],
+	"findings": [
+		{
+			"rule": "no-unused-vars",
+			"message": "'same' is defined but never used.",
+			"start": {
+				"line": 3,
+				"column": 11
+			},
+			"end": {
+				"line": 3,
+				"column": 15
+			}
+		}
+	]
+}

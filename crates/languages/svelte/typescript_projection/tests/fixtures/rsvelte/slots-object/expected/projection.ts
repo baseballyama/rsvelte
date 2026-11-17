@@ -30,7 +30,10 @@ function $$render() {
       __rsvelte_slots()("default", {});
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_props_with_children<typeof __rsvelte_public_props0>, {}, "">} */ (__rsvelte_export_component))();
+  return __rsvelte_with_slots((/** @type {typeof __rsvelte_export_component<__rsvelte_props_with_children<typeof __rsvelte_public_props0>, {}, "">} */ (__rsvelte_export_component))(), {
+    "header": {},
+    "default": {},
+  });
 }
 const SlotsObject__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof SlotsObject__SvelteComponent_>} */ (SlotsObject__SvelteComponent_);
