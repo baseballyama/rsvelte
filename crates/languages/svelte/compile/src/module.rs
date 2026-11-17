@@ -94,10 +94,7 @@ pub(crate) fn compiled(
     let res = resolve_module(&javascript, program);
     let allocator = Allocator::default();
     let module = {
-        let _p = measurement::phase(match target {
-            Target::Client => "svelte.lower.client",
-            Target::Server => "svelte.lower.server",
-        });
+        let _p = measurement::phase(target.lower_phase());
         lower::lower_module(&input, &res, target, &allocator)?
     };
     let warnings = {

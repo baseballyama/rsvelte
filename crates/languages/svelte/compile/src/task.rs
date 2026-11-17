@@ -246,9 +246,6 @@ fn lower_measured<'o>(
     target: Target,
     allocator: &'o Allocator,
 ) -> Result<Program<'o>, Diagnostic> {
-    let _p = measurement::phase(match target {
-        Target::Client => "svelte.lower.client",
-        Target::Server => "svelte.lower.server",
-    });
+    let _p = measurement::phase(target.lower_phase());
     lower::lower_with_facts(facts, target, allocator)
 }

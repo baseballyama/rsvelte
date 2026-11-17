@@ -49,10 +49,7 @@ pub(crate) fn lower_module<'o>(
         &names,
         script::ScriptContext::File,
     )?;
-    let runtime = match target {
-        Target::Client => "svelte/internal/client",
-        Target::Server => "svelte/internal/server",
-    };
+    let runtime = target.runtime();
     let mut out = Program::new(
         SPAN,
         SourceType::mjs(),

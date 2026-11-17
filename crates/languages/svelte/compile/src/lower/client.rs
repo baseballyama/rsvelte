@@ -255,7 +255,7 @@ pub(super) fn lower_prepared<'c, 'o>(
 
     let mut program = Vec::new();
     program.push(import(b, None, "svelte/internal/disclose-version"));
-    let runtime = import(b, Some("$"), "svelte/internal/client");
+    let runtime = import(b, Some("$"), Target::Client.runtime());
     // Upstream lists `[...module, $, ...hoisted]` and moves every import to the top in that order.
     let (imports, rest): (Vec<_>, Vec<_>) = module
         .into_iter()
