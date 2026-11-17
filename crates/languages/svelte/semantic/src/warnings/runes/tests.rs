@@ -176,7 +176,7 @@ fn a_props_call_after_the_first_or_off_the_top_level_is_an_error() {
             &["props_invalid_placement"],
         ),
         (
-            "<script lang=\"ts\">declare const $props: any; function f() { return $props(); }</script>",
+            "<script lang=\"ts\">declare const $props: any; function f() { $props(); }</script>",
             &["props_invalid_placement"],
         ),
     ];
