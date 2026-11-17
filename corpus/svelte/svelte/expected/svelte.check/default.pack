@@ -1372,22 +1372,6 @@
 === 3 packages/svelte/tests/parser-legacy/samples/textarea-children/input.svelte	json
 []
 
-=== 176 packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte	json
-[
-	{
-		"code": 1128,
-		"message": "Declaration or statement expected.",
-		"start": {
-			"line": 5,
-			"character": 19
-		},
-		"end": {
-			"line": 5,
-			"character": 21
-		}
-	}
-]
-
 === 3 packages/svelte/tests/parser-legacy/samples/transition-intro-no-params/input.svelte	json
 []
 

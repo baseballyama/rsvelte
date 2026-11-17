@@ -10,7 +10,7 @@ fn throws(reader: Reader, text: &str) -> Option<bool> {
         let range = Span::new(0, text.len() as u32);
         let rejected =
             (builder.program_or_errors(range, SourceType::ts().with_module(true))).expect_err(text);
-        let tokens = builder.recorded().to_vec();
+        let tokens: Vec<_> = builder.recorded().iter().collect();
         Ok((rejected.recovered.expect(text), rejected.errors, tokens))
     })
     .expect(text);

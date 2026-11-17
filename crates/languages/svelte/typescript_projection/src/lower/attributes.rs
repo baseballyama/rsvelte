@@ -1,10 +1,7 @@
 //! The attributes and directives of one element, a component or a slot, before its call.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_kernel::source::tokens::Token;
-use rsvelte_svelte_syntax::syntax_tree::{
-    Attribute, AttributeKind, AttributeValue, Part, Range, TokenType,
-};
+use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range};
 
 use super::binding::Binding;
 use super::directive::Directives;
@@ -74,6 +71,17 @@ impl Builder<'_> {
         attribute: &Attribute,
         property: NodeIdentifier,
     ) -> NodeIdentifier {
+        // Nearly every component has none, so the common case does no search.
+        let comments = &self.component.tag_comments;
+        if comments.is_empty() {
+            return property;
+        }
+        let starts_before = |at: u32| comments.partition_point(|comment| comment.start_offset < at);
+        let gap = &comments[starts_before(after)..starts_before(attribute.span.start_offset)];
+        let (Some(first), Some(last)) = (gap.first(), gap.last()) else {
+            return property;
+        };
+        let comments = Span::new(first.start_offset, last.end_offset);
         let name = attribute.name.start_offset;
         let shorthand = attribute.kind == AttributeKind::Attribute
             && matches!(
@@ -83,17 +91,9 @@ impl Builder<'_> {
                     [Part::Expression { span, .. }] if span.start_offset <= name
                 )
             );
-        let gap = Span::new(after, attribute.span.start_offset);
-        let tokens = self.component.tokens.within(gap);
-        let comment = |token: &&Token<TokenType>| token.kind == TokenType::JavaScriptComment;
-        let (Some(first), Some(last), false) = (
-            tokens.iter().find(comment),
-            tokens.iter().rfind(comment),
-            shorthand,
-        ) else {
+        if shorthand {
             return property;
-        };
-        let comments = Span::new(first.span.start_offset, last.span.end_offset);
+        }
         self.tree.push(Node::Commented {
             comments,
             value: property,

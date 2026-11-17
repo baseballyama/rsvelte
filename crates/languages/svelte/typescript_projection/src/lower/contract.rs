@@ -150,6 +150,8 @@ impl Builder<'_> {
             callee: helper,
             arguments,
         });
+        // Without `$$Slots` or `$$Events`, svelte2tsx types the slots by each `<slot>`.
+        self.slots_by_elements = !generic && !typed;
         self.tree.push(Node::Call {
             callee,
             arguments: Range::default(),
@@ -523,6 +525,7 @@ mod props_alias;
 mod route;
 pub(super) use route::Route;
 mod siblings;
+mod slot_def;
 mod slot_flags;
 mod stores;
 use siblings::Siblings;

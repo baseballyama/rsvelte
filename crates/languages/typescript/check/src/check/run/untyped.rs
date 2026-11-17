@@ -23,12 +23,13 @@ const PROBE_CONFIG: &str = "untyped-probe.json";
 pub(super) const CODE: u32 = 7016;
 
 /// Each import of a typed document that reads a content-mapped JavaScript document, as the finding
-/// TypeScript reports for it when the probe says the project's options report one.
-pub(super) fn imports(
-    req: &CheckRequest,
+/// TypeScript reports for it when the probe says the project's options report one, and the names
+/// those imports bind, by document.
+pub(super) fn imports<'a>(
+    req: &'a CheckRequest,
     root: &Path,
     paths: &[PathBuf],
-) -> Vec<TypeScriptDiagnostic> {
+) -> (Vec<TypeScriptDiagnostic>, Vec<(usize, &'a str)>) {
     let javascript = |file: usize| {
         req.mapped_files
             .get(file)
@@ -36,13 +37,14 @@ pub(super) fn imports(
             .is_some_and(|mapped| JAVASCRIPT.contains(&mapped.generated_extension))
     };
     let mut found = Vec::new();
+    let mut names = Vec::new();
     for (file, mapped) in req.mapped_files.iter().enumerate() {
         let Some(mapped) = mapped.as_ref().filter(|_| !javascript(file)) else {
             continue;
         };
         let directory = paths[file].parent().unwrap_or(root);
-        for (span, specifier) in &mapped.imports {
-            let target = normalized(&directory.join(specifier));
+        for import in &mapped.imports {
+            let target = normalized(&directory.join(&import.specifier));
             let Some(read) = paths.iter().position(|path| *path == target) else {
                 continue;
             };
@@ -50,20 +52,37 @@ pub(super) fn imports(
                 continue;
             }
             let shown = target.strip_prefix(root).unwrap_or(&target);
+            names.extend(import.names.iter().map(|name| (file, name.as_str())));
             found.push(TypeScriptDiagnostic {
                 file,
                 code: CODE,
                 message: format!(
-                    "Could not find a declaration file for module '{specifier}'. '{}' implicitly \
-                     has an 'any' type.",
+                    "Could not find a declaration file for module '{}'. '{}' implicitly has an \
+                     'any' type.",
+                    import.specifier,
                     shown.display()
                 ),
-                span: Some(*span),
+                span: Some(import.at),
                 syntactic: false,
             });
         }
     }
-    found
+    (found, names)
+}
+
+/// `Value refers to a value, but is being used as a type here.`
+const VALUE_AS_TYPE: u32 = 2749;
+
+/// Whether `found` reads a name an untyped import binds as a type. TypeScript gives such a name
+/// every meaning, as `any`; the projection's export of a JavaScript component is a value only.
+pub(super) fn hides(found: &TypeScriptDiagnostic, names: &[(usize, &str)], source: &str) -> bool {
+    found.code == VALUE_AS_TYPE
+        && found.span.is_some_and(|span| {
+            let read = span.text(source);
+            names
+                .iter()
+                .any(|&(file, name)| file == found.file && name == read)
+        })
 }
 
 /// Whether any document projects to JavaScript.
