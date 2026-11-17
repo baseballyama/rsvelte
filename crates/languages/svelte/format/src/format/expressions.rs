@@ -109,11 +109,10 @@ impl Printer<'_, '_, '_> {
         let expression = self.c.javascript.get_expression(e);
         let sequence = bare_sequence && matches!(expression, Expression::SequenceExpression(_));
         let written = span(expression.span());
-        // The plugin's `removeParentheses` keeps them after a lone block comment on one line.
         let keeps_parentheses = sequence
             && comments == Comments::AsThePlugin
-            && self.lone_inline_block_comment_before(written);
-        let span = if comments == Comments::AsThePlugin && (!sequence || keeps_parentheses) {
+            && self.sequence_keeps_parentheses(written)?;
+        let span = if comments == Comments::AsThePlugin {
             self.with_leading_comments(written)
         } else {
             written
@@ -134,22 +133,37 @@ impl Printer<'_, '_, '_> {
         Ok(self.cat(&[open, d, close]))
     }
 
-    /// Whether the only comment before `expression`, past its parentheses, is a block comment
-    /// on one line.
-    fn lone_inline_block_comment_before(&self, expression: Span) -> bool {
+    /// Whether the plugin's `removeParentheses` keeps a bare sequence's parentheses, by the
+    /// comments before it: it keeps them after a block comment on one line, and removes them after
+    /// a lone other comment. After another comment, it removes only the closing one.
+    fn sequence_keeps_parentheses(&self, expression: Span) -> R<bool> {
         let mut comments = (self
             .c
             .tokens
             .until_offset(expression.start_offset)
             .iter()
             .rev())
-        .take_while(|t| t.kind.is_trivia() || t.kind == TokenType::JavaScript(Kind::LParen))
+        .take_while(|t| t.kind.is_trivia())
         .filter(|t| t.kind == TokenType::JavaScriptComment);
-        let Some(only) = comments.next() else {
-            return false;
+        let Some(mut first) = comments.next() else {
+            return Ok(false);
         };
-        let text = only.span.text(self.source_text);
-        comments.next().is_none() && text.starts_with("/*") && !text.contains(['\n', '\r'])
+        let mut lone = true;
+        for earlier in comments {
+            first = earlier;
+            lone = false;
+        }
+        let text = first.span.text(self.source_text);
+        if text.starts_with("/*") && !text.contains(['\n', '\r']) {
+            return Ok(true);
+        }
+        if !lone {
+            return Err(Unsupported::at(
+                "comments before a `bind:` sequence, after which the plugin removes only its closing parenthesis",
+                first.span,
+            ));
+        }
+        Ok(false)
     }
 
     /// The plugin's `getText` of a template expression: from its first leading comment to its

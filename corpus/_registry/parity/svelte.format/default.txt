@@ -1,4 +1,4 @@
-# svelte.format/default: 34764 match
+# svelte.format/default: 34765 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -448,7 +448,6 @@ svelte/svelte-commerce/src/routes/(www)/checkout/payment/payment.svelte	mismatch
 svelte/svelte-commerce/src/routes/(www)/checkout/success/+page.svelte	mismatch
 svelte/svelte-confetti/src/routes/+page.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/integrations/type-info-tests/plugin-issue254-input.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/function-binding-with-comment02-input.svelte	refused
 svelte/svelte-fa/src/routes/components/sections/additional-styling.svelte	mismatch
 svelte/svelte-fa/src/routes/components/sections/installation.svelte	mismatch
 svelte/svelte-gantt/packages/demo/src/routes/+page.svelte	mismatch
