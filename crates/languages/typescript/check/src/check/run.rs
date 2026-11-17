@@ -398,6 +398,9 @@ const ERROR: u8 = 1;
 /// The document and byte range of a diagnostic in one of `paths`, whose texts `lines` index. A
 /// path below `root` in the message drops that root, so the message does not depend on where the
 /// project is.
+/// What native TypeScript adds to a finding in code a content mapper synthesized.
+const VIRTUAL_CODE: &str = "This location is in virtual code produced by the content mapper";
+
 fn located(
     d: &rsvelte_typescript_api::Diagnostic,
     root: &Path,
@@ -410,17 +413,19 @@ fn located(
         let p = p?;
         lines[file].offset(p.line + 1, p.character)
     };
+    let message = d.flattened_message().replace(
+        &format!("{}{}", root.display(), std::path::MAIN_SEPARATOR),
+        "",
+    );
+    // A finding in synthesized code may still carry a nearby position, beside this note.
     let span = offset(d.start_position)
         .zip(offset(d.end_position))
-        .filter(|(start, end)| start <= end)
+        .filter(|(start, end)| start <= end && !message.contains(VIRTUAL_CODE))
         .map(|(start, end)| Span::new(start, end));
     Some(TypeScriptDiagnostic {
         file,
         code: d.code,
-        message: d.flattened_message().replace(
-            &format!("{}{}", root.display(), std::path::MAIN_SEPARATOR),
-            "",
-        ),
+        message,
         span,
         syntactic,
     })
