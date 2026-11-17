@@ -1,9 +1,11 @@
 use oxc_ast::ast::Expression;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{Modifiers, Part, StyleValue};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Part, StyleValue};
 use rsvelte_svelte_semantic::resolve::BindingKind;
 
+use crate::lower::Target;
 use crate::lower::builder::Runtime;
 use crate::lower::client::{Attribute, AttributeValue, ClientCompilationContext, Lists, Memo};
+use crate::lower::template::style_directives_object;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_set_style`; `attribute` is `None` for the empty `style` upstream's analysis
@@ -57,28 +59,16 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         directives: &[&Attribute],
         memo: &mut Memo<'o>,
     ) -> (Expression<'o>, bool) {
-        let b = self.b;
-        let mut normal = Vec::new();
-        let mut important = Vec::new();
         let mut has_state = false;
-        for d in directives {
-            let AttributeValue::Style { value, modifiers } = &d.value else {
-                unreachable!("style directives")
-            };
-            let (value, state) = self.style_value(value, memo);
-            has_state |= state;
-            let property = b.init(d.name.text(self.source_text), value);
-            if modifiers.contains(Modifiers::IMPORTANT) {
-                important.push(property);
-            } else {
-                normal.push(property);
-            }
-        }
-        let object = if important.is_empty() {
-            b.object(normal)
-        } else {
-            b.array([b.object(normal), b.object(important)])
-        };
+        let object =
+            style_directives_object(self.b, self.source_text, directives, Target::Client, |d| {
+                let AttributeValue::Style { value, .. } = &d.value else {
+                    unreachable!("style directives")
+                };
+                let (value, state) = self.style_value(value, memo);
+                has_state |= state;
+                value
+            });
         (object, has_state)
     }
 

@@ -1,5 +1,5 @@
 use crate::lower::server::{
-    CompilerNodeIdentifier, Element, Piece, R, ServerCompilationContext, is_customizable_select,
+    CompilerNodeIdentifier, Element, R, ServerCompilationContext, Template, is_customizable_select,
     synthetic_value,
 };
 
@@ -11,7 +11,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         identifier: CompilerNodeIdentifier,
         el: &Element,
         tag: &str,
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
     ) -> R<()> {
         let b = self.b;
         let compiler_syntax_tree = self.compiler_syntax_tree;
@@ -20,9 +20,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             self.expression(e)
         } else {
             let plan = self.plan;
-            let mut inner = Vec::new();
+            let mut inner = Template::new(b);
             self.process_children(&plan.fragment(el.children).items, &mut inner)?;
-            let statements = self.build_template(inner);
+            let statements = inner.finish();
             b.arrow_block(b.parameters(["$$renderer"]), statements, false)
         };
         let (mut arguments, _) = self.spread_args(
@@ -39,7 +39,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             arguments.push(Some(b.boolean(true)));
         }
         let call = b.call_some(b.member(b.id("$$renderer"), tag), arguments);
-        template.push(Piece::Statement(b.statement(call)));
+        template.statement(b.statement(call));
         Ok(())
     }
 }

@@ -10,7 +10,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     /// options mounts (`$.customizable_select`).
     pub(super) fn customizable_select(
         &mut self,
-        items: &[Item<'_>],
+        items: &[Item],
         node: &str,
         tag: &str,
         namespace: Namespace,

@@ -3,7 +3,7 @@ use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{
     AttributeValue, Children, Helper, Item, NodeKind, Parent, R, Span, Template, clean_nodes,
-    unsupported, vue,
+    template_end, unsupported, vue,
 };
 
 impl Template<'_, '_, '_> {
@@ -26,6 +26,7 @@ impl Template<'_, '_, '_> {
             compiler_syntax_tree.children(children),
             false,
             false,
+            template_end(source_text),
         )
         .items;
         let mut out = Vec::with_capacity(items.len());

@@ -18,6 +18,7 @@ pub fn lower(c: &Component, source_text: &str) -> CompilerSyntaxTree {
         raw_text: false,
         attribute_text: false,
         b: CompilerSyntaxTreeBuilder::new(source_text, c.nodes.len(), c.attributes.len()),
+        listed: Vec::new(),
     };
     let root = b.list(c.children(c.root), None);
     b.b.finish(root)
@@ -31,6 +32,9 @@ struct SurfaceBuilder<'a> {
     /// Inside a `<textarea>`, whose text upstream decodes as an attribute's.
     attribute_text: bool,
     b: CompilerSyntaxTreeBuilder<'a>,
+    /// The children lowered so far of each fragment being lowered, as a stack: one buffer for
+    /// every depth instead of a vector per fragment.
+    listed: Vec<CompilerNodeIdentifier>,
 }
 
 impl SurfaceBuilder<'_> {
@@ -41,9 +45,14 @@ impl SurfaceBuilder<'_> {
     ) -> Children {
         // Fragments nest through here, so the stack grows as deep as the markup does.
         rsvelte_kernel::performance::stack::grow(|| {
-            let identifiers: Vec<CompilerNodeIdentifier> =
-                list.iter().map(|&t| self.node(t, parent)).collect();
-            self.b.children(&identifiers)
+            let start = self.listed.len();
+            for &t in list {
+                let identifier = self.node(t, parent);
+                self.listed.push(identifier);
+            }
+            let children = self.b.children(&self.listed[start..]);
+            self.listed.truncate(start);
+            children
         })
     }
 

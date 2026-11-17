@@ -89,6 +89,10 @@ pub(super) fn suspending_awaits(
 
         fn leave(&mut self) {}
     }
+    // Nearly every component has no `await`.
+    if !resolution.awaits() {
+        return Vec::new();
+    }
     let tree = &component.javascript;
     let mut awaits = Awaits {
         tree,
@@ -108,3 +112,6 @@ pub(super) fn suspending_awaits(
     crate::resolve::walk(compiler_syntax_tree, compiler_syntax_tree.root, &mut awaits);
     awaits.out
 }
+
+#[cfg(test)]
+mod tests;

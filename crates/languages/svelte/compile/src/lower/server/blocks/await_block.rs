@@ -3,7 +3,7 @@ use oxc_ast_visit::VisitMut;
 
 use crate::lower::builder::Runtime;
 use crate::lower::server::{
-    BLOCK_CLOSE, CompilerNodeIdentifier, NodeKind, Piece, R, ServerCompilationContext,
+    BLOCK_CLOSE, CompilerNodeIdentifier, NodeKind, R, ServerCompilationContext, Template,
 };
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -12,7 +12,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     pub(in crate::lower::server) fn await_block(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
     ) -> R<()> {
         let b = self.b;
         let NodeKind::Await(block) = &self.compiler_syntax_tree.node(identifier).kind else {
@@ -40,8 +40,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         }
         let then = b.arrow_block(b.formal_parameters(parameters), then, false);
         let call = b.runtime("await", [b.id("$$renderer"), promise, pending, then]);
-        template.push(Piece::Statement(b.statement(call)));
-        template.push(Piece::Text(BLOCK_CLOSE.into()));
+        template.statement(b.statement(call));
+        template.text(BLOCK_CLOSE);
         Ok(())
     }
 }

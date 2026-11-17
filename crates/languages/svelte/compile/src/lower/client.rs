@@ -24,15 +24,13 @@ mod special;
 mod stores;
 mod template;
 mod template_chunk;
+#[cfg(test)]
+mod tests;
 mod title;
 
 use oxc_allocator::ArenaBox;
-use oxc_ast::ast::{
-    Expression, FormalParameters, ImportDeclarationSpecifier, ImportOrExportKind, Statement,
-    StringLiteral,
-};
+use oxc_ast::ast::{Expression, FormalParameters, Statement};
 use oxc_semantic::{ReferenceId, ScopeId, SymbolId};
-use oxc_span::SPAN;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_markup_syntax::decode_attribute;
 use rsvelte_svelte_semantic::analyze::Analysis;
@@ -53,7 +51,7 @@ use super::{
     is_custom_element_node, is_customizable_select, is_directive, is_load_error_element,
     needs_clsx, synthetic_value, unsupported, uses_slots,
 };
-use crate::lower::builder::Runtime;
+use crate::lower::builder::{Runtime, export_default, import};
 use crate::render_plan::RenderPlan;
 
 const PASSIVE_EVENTS: &[&str] = &["touchstart", "touchmove"];
@@ -150,7 +148,7 @@ struct ClientCompilationContext<'c, 'o> {
     an: &'c Analysis,
     names: Names<'c>,
     hoisted: Vec<Statement<'o>>,
-    templates: FxHashMap<String, String>,
+    templates: FxHashMap<(&'static str, u32, String), String>,
     events: Vec<String>,
     /// How the template's names in scope are read.
     reads: FxHashMap<SymbolId, Read>,
@@ -277,38 +275,6 @@ pub(super) fn lower_prepared<'c, 'o>(
     Ok(program)
 }
 
-/// `import 'source'`, or `import * as namespace from 'source'`.
-pub(super) fn import<'o>(b: &Builder<'o>, namespace: Option<&str>, source: &str) -> Statement<'o> {
-    let specifiers = namespace.map(|n| {
-        b.vec([ImportDeclarationSpecifier::new_import_namespace_specifier(
-            SPAN,
-            oxc_ast::ast::BindingIdentifier::new(SPAN, b.str(n), b),
-            b,
-        )])
-    });
-    Statement::new_import_declaration(
-        SPAN,
-        specifiers,
-        StringLiteral::new(SPAN, b.str(source), None, b),
-        None,
-        None,
-        ImportOrExportKind::Value,
-        b,
-    )
-}
-
-/// `export default function …`, from a function declaration.
-fn export_default<'o>(b: &Builder<'o>, function: Statement<'o>) -> Statement<'o> {
-    let Statement::FunctionDeclaration(function) = function else {
-        unreachable!("the component is a function declaration")
-    };
-    Statement::new_export_default_declaration(
-        SPAN,
-        oxc_ast::ast::ExportDefaultDeclarationKind::FunctionDeclaration(function),
-        b,
-    )
-}
-
 struct Walk {
     prev: Prev,
     skipped: u32,
@@ -382,5 +348,17 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             parameters.push("$$props");
         }
         b.function_declaration(&self.component_name, b.parameters(parameters), body, false)
+    }
+}
+
+/// `name` in lowercase, borrowed when it has nothing to lower.
+fn lowercase(name: &str) -> std::borrow::Cow<'_, str> {
+    if name
+        .bytes()
+        .any(|byte| !byte.is_ascii() || byte.is_ascii_uppercase())
+    {
+        std::borrow::Cow::Owned(name.to_lowercase())
+    } else {
+        std::borrow::Cow::Borrowed(name)
     }
 }

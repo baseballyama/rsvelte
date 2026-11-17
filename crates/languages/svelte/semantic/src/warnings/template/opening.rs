@@ -36,13 +36,9 @@ impl Template<'_> {
         }
         let span = node.span();
         // The parser records `{` alone only when whitespace comes before the sigil.
-        let spaced = self
-            .context
-            .component
-            .tokens
-            .within(span)
-            .first()
-            .is_some_and(|token| token.kind == TokenType::MustacheOpen);
+        let tokens = &self.context.component.tokens;
+        let spaced = (tokens.at(span.start_offset))
+            .is_some_and(|token| tokens.get(token).kind == TokenType::MustacheOpen);
         if !spaced {
             return;
         }

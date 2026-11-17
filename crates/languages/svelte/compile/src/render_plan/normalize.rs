@@ -1,26 +1,121 @@
 use std::borrow::Cow;
 
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, ElementKind, MetadataTag, NodeKind,
 };
 use rsvelte_svelte_syntax::syntax_tree::decode_text;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-/// A node after whitespace cleaning; text may have been trimmed, so it carries its own strings.
+#[cfg(test)]
+mod tests;
+
+/// A node after whitespace cleaning.
 #[derive(Debug, Clone)]
-pub enum Item<'a> {
+pub enum Item {
     /// An element or block.
     Node(CompilerNodeIdentifier),
     /// An `{expression}` tag, or an expression chunk of an attribute value.
     Expression(ExpressionIdentifier),
     Text {
-        data: Cow<'a, str>,
-        raw: Cow<'a, str>,
+        data: Text,
+        raw: Text,
     },
     /// The empty comment upstream puts after a lone `<script>`, so the runtime can replace the
     /// script with one that runs.
     Comment,
+}
+
+/// A cleaned text, by where its string lives, so that the render plan, a shared artifact, keeps
+/// no copy of what the document already holds.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Text {
+    /// A range of the source.
+    Source(Span),
+    /// A range of a text node's decoded string.
+    Decoded {
+        node: CompilerNodeIdentifier,
+        start: u32,
+        end: u32,
+    },
+    Static(&'static str),
+    /// A string that cleaning, decoding or escaping changed, which no range holds.
+    Owned(Box<str>),
+}
+
+impl Text {
+    /// The string, read from the document's source or compiler tree.
+    #[must_use]
+    pub fn get<'t>(&'t self, source_text: &'t str, tree: &'t CompilerSyntaxTree) -> &'t str {
+        match self {
+            Self::Source(span) => span.text(source_text),
+            Self::Decoded { node, start, end } => match &tree.node(*node).kind {
+                NodeKind::Text {
+                    decoded: Some(decoded),
+                    ..
+                } => &decoded[*start as usize..*end as usize],
+                _ => unreachable!("a decoded text points at a text node with a decoding"),
+            },
+            Self::Static(text) => text,
+            Self::Owned(text) => text,
+        }
+    }
+
+    /// The text at `span` after `transform`, which returns its input borrowed when it changes
+    /// nothing.
+    #[must_use]
+    pub fn transformed(
+        span: Span,
+        source_text: &str,
+        transform: impl FnOnce(&str) -> Cow<'_, str>,
+    ) -> Self {
+        let text = span.text(source_text);
+        match transform(text) {
+            Cow::Borrowed(same) => {
+                debug_assert!(
+                    std::ptr::eq(same, text),
+                    "a transform borrows all of its input"
+                );
+                Self::Source(span)
+            }
+            Cow::Owned(changed) => Self::changed(text, changed),
+        }
+    }
+
+    /// `changed`, made from `origin`, which must differ from it.
+    fn changed(origin: &str, changed: String) -> Self {
+        debug_assert_ne!(origin, changed, "an unchanged text stays a range");
+        Self::Owned(changed.into_boxed_str())
+    }
+
+    /// The bytes `start..end` of a text that lives in a range or a fixed string.
+    fn slice(&self, start: usize, end: usize) -> Self {
+        let narrow = |from: u32| {
+            (
+                from + u32::try_from(start).expect("a range is within its text"),
+                from + u32::try_from(end).expect("a range is within its text"),
+            )
+        };
+        match self {
+            Self::Source(span) => {
+                let (start, end) = narrow(span.start_offset);
+                Self::Source(Span::new(start, end))
+            }
+            Self::Decoded {
+                node, start: from, ..
+            } => {
+                let (start, end) = narrow(*from);
+                Self::Decoded {
+                    node: *node,
+                    start,
+                    end,
+                }
+            }
+            Self::Static(text) => Self::Static(&text[start..end]),
+            Self::Owned(_) => unreachable!("an owned text is changed in place"),
+        }
+    }
 }
 
 /// Which node holds the fragment; decides the special cases of [`clean_nodes`].
@@ -38,11 +133,27 @@ pub enum Parent<'a> {
 }
 
 #[derive(Debug)]
-pub struct Cleaned<'a> {
+pub struct Cleaned {
     pub hoisted: Box<[CompilerNodeIdentifier]>,
-    pub items: Vec<Item<'a>>,
+    pub items: Vec<Item>,
     /// Upstream `is_text_first`: the fragment starts with text and needs an anchor comment.
     pub text_first: bool,
+}
+
+/// Where upstream's parser ends the template it reads, `template.trimEnd()`, which only
+/// `preserveWhitespace` can observe; [`clean_nodes`] takes it once per document.
+///
+/// # Panics
+/// If the source is 4 GiB or longer, which no span can address.
+#[must_use]
+pub fn template_end(source_text: &str) -> u32 {
+    u32::try_from(source_text.trim_end_matches(is_ecmascript_whitespace).len())
+        .expect("a source is shorter than 4 GiB")
+}
+
+/// A decoded text's length, which a span's offset type holds as it holds the source's.
+fn length(text: &str) -> u32 {
+    u32::try_from(text.len()).expect("a text is shorter than 4 GiB")
 }
 
 /// Upstream's template whitespace, the set `regex_not_whitespace` excludes.
@@ -59,29 +170,27 @@ pub(crate) const fn is_template_whitespace(c: char) -> bool {
     clippy::too_many_lines,
     reason = "ports upstream's `clean_nodes` in one piece"
 )]
-pub fn clean_nodes<'a>(
-    compiler_syntax_tree: &'a CompilerSyntaxTree,
-    source_text: &'a str,
+pub fn clean_nodes(
+    compiler_syntax_tree: &CompilerSyntaxTree,
+    source_text: &str,
     parent: Parent<'_>,
     list: &[CompilerNodeIdentifier],
     preserve_ws: bool,
     drops_foreign_whitespace: bool,
-) -> Cleaned<'a> {
-    // Upstream's parser reads `template.trimEnd()`; only `preserveWhitespace` can observe it.
-    let end = source_text.trim_end_matches(is_ecmascript_whitespace).len();
-    let mut regular: Vec<Item<'a>> = Vec::with_capacity(list.len());
+    end: u32,
+) -> Cleaned {
+    let mut regular: Vec<Item> = Vec::with_capacity(list.len());
     let mut hoisted = Vec::new();
     for &identifier in list {
         match &compiler_syntax_tree.node(identifier).kind {
             NodeKind::Comment { .. } => {}
             // A frontend's spelled text is not in a Svelte source the parser trimmed.
-            NodeKind::Text { raw, spelled, .. } if !spelled && raw.start_offset as usize >= end => {
-            }
-            NodeKind::Text { raw, spelled, .. } if !spelled && raw.end_offset as usize > end => {
-                let raw = &source_text[raw.start_offset as usize..end];
+            NodeKind::Text { raw, spelled, .. } if !spelled && raw.start_offset >= end => {}
+            NodeKind::Text { raw, spelled, .. } if !spelled && raw.end_offset > end => {
+                let raw = Span::new(raw.start_offset, end);
                 regular.push(Item::Text {
-                    data: decode_text(raw),
-                    raw: Cow::Borrowed(raw),
+                    data: Text::transformed(raw, source_text, decode_text),
+                    raw: Text::Source(raw),
                 });
             }
             NodeKind::Text {
@@ -89,16 +198,23 @@ pub fn clean_nodes<'a>(
                 decoded,
                 spelled,
             } => {
-                let raw = raw.text(source_text);
-                let data = decoded.as_deref().unwrap_or(raw);
-                regular.push(Item::Text {
-                    data: Cow::Borrowed(data),
-                    raw: if *spelled {
-                        crate::markup::escape_markup(data, false)
-                    } else {
-                        Cow::Borrowed(raw)
-                    },
-                });
+                let data = decoded
+                    .as_ref()
+                    .map_or(Text::Source(*raw), |decoded| Text::Decoded {
+                        node: identifier,
+                        start: 0,
+                        end: length(decoded),
+                    });
+                let raw = if *spelled {
+                    let decoded = data.get(source_text, compiler_syntax_tree);
+                    match crate::markup::escape_markup(decoded, false) {
+                        Cow::Borrowed(_) => data.clone(),
+                        Cow::Owned(escaped) => Text::changed(decoded, escaped),
+                    }
+                } else {
+                    Text::Source(*raw)
+                };
+                regular.push(Item::Text { data, raw });
             }
             NodeKind::Expression { expression } => regular.push(Item::Expression(*expression)),
             NodeKind::Element(el)
@@ -132,22 +248,32 @@ pub fn clean_nodes<'a>(
             }
         }
     }
-    let is_expression = |i: Option<&Item<'_>>| matches!(i, Some(Item::Expression(_)));
+    let is_expression = |i: Option<&Item>| matches!(i, Some(Item::Expression(_)));
 
     if !preserve_ws {
-        let all_ws = |i: &Item<'_>| matches!(i, Item::Text { data, .. } if data.chars().all(is_template_whitespace));
+        let all_ws = |i: &Item| matches!(i, Item::Text { data, .. } if data.get(source_text, compiler_syntax_tree).chars().all(is_template_whitespace));
         let leading = regular.iter().take_while(|item| all_ws(item)).count();
         regular.drain(..leading);
         if let Some(Item::Text { data, raw }) = regular.first_mut() {
-            *data = collapse(std::mem::take(data), Some(""), None);
-            *raw = collapse(std::mem::take(raw), Some(""), None);
+            collapse_text(
+                data,
+                raw,
+                Some(""),
+                None,
+                (source_text, compiler_syntax_tree),
+            );
         }
         while regular.last().is_some_and(all_ws) {
             regular.pop();
         }
         if let Some(Item::Text { data, raw }) = regular.last_mut() {
-            *data = collapse(std::mem::take(data), None, Some(""));
-            *raw = collapse(std::mem::take(raw), None, Some(""));
+            collapse_text(
+                data,
+                raw,
+                None,
+                Some(""),
+                (source_text, compiler_syntax_tree),
+            );
         }
         let can_remove_entirely = drops_foreign_whitespace
             || matches!(
@@ -166,25 +292,24 @@ pub fn clean_nodes<'a>(
         for i in 0..regular.len() {
             let prev_is_expression = i > 0 && is_expression(regular.get(i - 1));
             let prev_text_ends_ws = i > 0
-                && matches!(&regular[i - 1], Item::Text { data, .. } if data.ends_with(is_template_whitespace));
+                && matches!(&regular[i - 1], Item::Text { data, .. } if data.get(source_text, compiler_syntax_tree).ends_with(is_template_whitespace));
             let next_is_expression = is_expression(regular.get(i + 1));
             if let Item::Text { data, raw } = &mut regular[i] {
                 let lead =
                     (!prev_is_expression).then_some(if prev_text_ends_ws { "" } else { " " });
                 let trail = (!next_is_expression).then_some(" ");
-                *data = collapse(std::mem::take(data), lead, trail);
-                *raw = collapse(std::mem::take(raw), lead, trail);
+                collapse_text(data, raw, lead, trail, (source_text, compiler_syntax_tree));
             }
         }
         regular.retain(|item| {
-            !matches!(item, Item::Text { data, .. } if data.is_empty() || (data == " " && can_remove_entirely))
+            !matches!(item, Item::Text { data, .. } if { let data = data.get(source_text, compiler_syntax_tree); data.is_empty() || (data == " " && can_remove_entirely) })
         });
     }
     let mut trimmed = regular;
 
     if matches!(parent, Parent::Element("pre"))
         && let Some(Item::Text { data, .. }) = trimmed.first()
-        && (data == "\n" || data == "\r\n")
+        && matches!(data.get(source_text, compiler_syntax_tree), "\n" | "\r\n")
     {
         trimmed.remove(0);
     }
@@ -214,13 +339,32 @@ pub fn clean_nodes<'a>(
     }
 }
 
-/// `s` with its leading template whitespace replaced by `lead`, then its trailing by `trail`, each
-/// when given and present; a borrowed `s` stays borrowed when the result is a slice of it.
-fn collapse<'a>(
-    s: Cow<'a, str>,
+/// [`collapse`] over a text's data and raw, once when both are the same text.
+fn collapse_text(
+    data: &mut Text,
+    raw: &mut Text,
     lead: Option<&'static str>,
     trail: Option<&'static str>,
-) -> Cow<'a, str> {
+    document: (&str, &CompilerSyntaxTree),
+) {
+    let same = data == raw;
+    *data = collapse(data, lead, trail, document);
+    *raw = if same {
+        data.clone()
+    } else {
+        collapse(raw, lead, trail, document)
+    };
+}
+
+/// `text` with its leading template whitespace replaced by `lead`, then its trailing by `trail`,
+/// each when given and present; a range stays a range when the result is a slice of it.
+fn collapse(
+    text: &mut Text,
+    lead: Option<&'static str>,
+    trail: Option<&'static str>,
+    (source_text, tree): (&str, &CompilerSyntaxTree),
+) -> Text {
+    let s = text.get(source_text, tree);
     let start = s.len() - s.trim_start_matches(is_template_whitespace).len();
     let (start, mut prefix) = match lead {
         Some(lead) if start > 0 => (start, lead),
@@ -236,16 +380,25 @@ fn collapse<'a>(
         }
         _ => (s.len(), ""),
     };
-    match s {
-        Cow::Borrowed(b) if b[..start].ends_with(prefix) && b[end..].starts_with(suffix) => {
-            Cow::Borrowed(&b[start - prefix.len()..end + suffix.len()])
+    let borrowed = !matches!(text, Text::Owned(_));
+    let sliced = s[..start].ends_with(prefix) && s[end..].starts_with(suffix);
+    let space = start == end && prefix.len() + suffix.len() == 1;
+    let changed = (borrowed && !sliced && !space).then(|| {
+        let collapsed = format!("{prefix}{}{suffix}", &s[start..end]);
+        // The spaces it adds stand only at its ends, so a range of `s` could hold it only as a
+        // slice.
+        debug_assert!(!s.contains(&collapsed), "{collapsed:?} is a range of {s:?}");
+        Text::changed(s, collapsed)
+    });
+    match text {
+        Text::Owned(owned) => {
+            let mut owned = String::from(std::mem::take(owned));
+            owned.replace_range(end.., suffix);
+            owned.replace_range(..start, prefix);
+            Text::Owned(owned.into_boxed_str())
         }
-        Cow::Borrowed(_) if start == end && prefix.len() + suffix.len() == 1 => Cow::Borrowed(" "),
-        Cow::Borrowed(b) => Cow::Owned(format!("{prefix}{}{suffix}", &b[start..end])),
-        Cow::Owned(mut o) => {
-            o.replace_range(end.., suffix);
-            o.replace_range(..start, prefix);
-            Cow::Owned(o)
-        }
+        _ if sliced => text.slice(start - prefix.len(), end + suffix.len()),
+        _ if space => Text::Static(" "),
+        _ => changed.expect("a range that collapsing changed"),
     }
 }

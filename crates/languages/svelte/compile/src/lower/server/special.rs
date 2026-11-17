@@ -1,7 +1,8 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::MetadataTag;
 
 use super::{
-    CompilerNodeIdentifier, ElementKind, NodeKind, Piece, R, ServerCompilationContext, unsupported,
+    CompilerNodeIdentifier, ElementKind, NodeKind, R, ServerCompilationContext, Template,
+    unsupported,
 };
 use crate::lower::builder::Runtime;
 
@@ -12,7 +13,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         &mut self,
         identifiers: &[CompilerNodeIdentifier],
         skipped: fn(&str) -> bool,
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
     ) -> R<()> {
         for &identifier in identifiers {
             match &self.compiler_syntax_tree.node(identifier).kind {
@@ -32,7 +33,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                         identifiers,
                         |e| self.expression(e),
                     );
-                    template.extend(body.map(Piece::Statement));
+                    template.statements(body);
                 }
                 _ => self.special_element(identifier, template)?,
             }
@@ -43,7 +44,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     pub(super) fn special_element(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
     ) -> R<()> {
         let b = self.b;
         let tree = self.compiler_syntax_tree;
@@ -61,14 +62,15 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                         .expect("a head has an identity"),
                 );
                 let call = b.runtime("head", [hash, b.id("$$renderer"), callback]);
-                template.push(Piece::Statement(b.statement(call)));
+                template.statement(b.statement(call));
             }
             ElementKind::Title => {
                 let plan = self.plan;
-                let mut pieces = vec![Piece::Text("<title>".into())];
-                self.process_children(&plan.fragment(element.children).items, &mut pieces)?;
-                pieces.push(Piece::Text("</title>".into()));
-                let body = self.build_template(pieces);
+                let mut title = Template::new(b);
+                title.text("<title>");
+                self.process_children(&plan.fragment(element.children).items, &mut title)?;
+                title.text("</title>");
+                let body = title.finish();
                 let callback = b.arrow_block(b.parameters(["$$renderer"]), body, false);
                 let call = b.call(b.member(b.id("$$renderer"), "title"), [callback]);
                 // Upstream puts it in `state.init`, which comes before the template.
@@ -85,7 +87,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             }
             ElementKind::Metadata(Some(MetadataTag::Fragment)) => {
                 let body = self.fragment(element.children)?;
-                template.push(Piece::Statement(b.block(body)));
+                template.statement(b.block(body));
             }
             ElementKind::Metadata(Some(MetadataTag::Element)) => {
                 return self.dynamic_element(identifier, template);

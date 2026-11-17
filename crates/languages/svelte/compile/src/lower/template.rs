@@ -1,9 +1,16 @@
 use oxc_ast::ast::{ArrowFunctionExpression, Expression, Function, IdentifierReference};
 use oxc_ast_visit::{Visit, walk};
 use oxc_syntax::scope::ScopeFlags;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{Attribute, AttributeValue, CompilerSyntaxTree, Element, NodeKind, Resolution};
+use super::{
+    Attribute, AttributeValue, Builder, CompilerSyntaxTree, Element, NodeKind, Resolution, Target,
+};
+
+#[cfg(test)]
+mod tests;
 
 pub const DOM_BOOLEAN_ATTRIBUTES: &[&str] = &[
     "allowfullscreen",
@@ -113,6 +120,104 @@ pub(super) const fn is_directive(v: &AttributeValue) -> bool {
             | AttributeValue::Shorthand(_)
             | AttributeValue::Interpolated(_)
     )
+}
+
+/// The empty attributes upstream's analysis gives an element, which both targets then render as
+/// if written: `class` when it is scoped or has a `class:`, `style` when it has a `style:`, each
+/// unless an attribute has that name, and neither beside a spread.
+#[derive(Clone, Copy)]
+pub(super) struct Implicit {
+    pub class: bool,
+    pub style: bool,
+}
+
+#[must_use]
+pub(super) fn implicit_attributes(
+    source_text: &str,
+    attributes: &[Attribute],
+    scoped: bool,
+) -> Implicit {
+    let (mut class, mut style) = (false, false);
+    let (mut class_directive, mut style_directive) = (false, false);
+    for a in attributes {
+        match &a.value {
+            AttributeValue::Spread(_) => {
+                return Implicit {
+                    class: false,
+                    style: false,
+                };
+            }
+            AttributeValue::Class(_) => class_directive = true,
+            AttributeValue::Style { .. } => style_directive = true,
+            value if !is_directive(value) => {
+                let name = a.name.text(source_text);
+                class |= name.eq_ignore_ascii_case("class");
+                style |= name.eq_ignore_ascii_case("style");
+            }
+            _ => {}
+        }
+    }
+    Implicit {
+        class: !class && (scoped || class_directive),
+        style: !style && style_directive,
+    }
+}
+
+/// A literal class value with the stylesheet's hash after it, or the hash alone for an empty one.
+/// The server trims the value's start as upstream's server does with `.trim()`; the client keeps
+/// it. The hash has no whitespace to trim.
+#[must_use]
+pub(super) fn scoped_class(value: &str, hash: &str, target: Target) -> String {
+    let value = match target {
+        Target::Client => value,
+        Target::Server => value.trim_start_matches(is_ecmascript_whitespace),
+    };
+    if value.is_empty() {
+        hash.to_owned()
+    } else {
+        format!("{value} {hash}")
+    }
+}
+
+/// Upstream's style directive object: `{ name: value }`, or `[normal, important]` when one is
+/// `|important`. The server's `build_attr_style` lowercases a name that is not a custom property;
+/// the client's `build_style_directives_object` keeps it as written.
+pub(super) fn style_directives_object<'o>(
+    b: &Builder<'o>,
+    source_text: &str,
+    directives: &[&Attribute],
+    target: Target,
+    mut value: impl FnMut(&Attribute) -> Expression<'o>,
+) -> Expression<'o> {
+    let mut normal = Vec::new();
+    let mut important = Vec::new();
+    for d in directives {
+        let AttributeValue::Style { modifiers, .. } = &d.value else {
+            unreachable!("style directives")
+        };
+        let name = d.name.text(source_text);
+        let property = if target == Target::Server && !name.starts_with("--") {
+            b.init(&name.to_lowercase(), value(d))
+        } else {
+            b.init(name, value(d))
+        };
+        if modifiers.contains(Modifiers::IMPORTANT) {
+            important.push(property);
+        } else {
+            normal.push(property);
+        }
+    }
+    if important.is_empty() {
+        b.object(normal)
+    } else {
+        b.array([b.object(normal), b.object(important)])
+    }
+}
+
+/// Upstream's `can_use_literal`: a `class` or `style` with directives needs the runtime.
+#[must_use]
+pub(super) fn can_use_literal(name: &str, classes: &[&Attribute], styles: &[&Attribute]) -> bool {
+    (name != "class" || classes.is_empty()) && (name != "style" || styles.is_empty())
 }
 
 /// A directive that renders no attribute: one that adds behaviour to the element, or a `let:`,

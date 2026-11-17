@@ -2,6 +2,7 @@
 //! document as typed, whatever its generated extension, so it never reports this itself; a probe
 //! asks whether the project's options would report it for a plain JavaScript file.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
@@ -26,14 +27,13 @@ pub(super) const CODE: u32 = 7016;
 /// TypeScript reports for it when the probe says the project's options report one, and the names
 /// those imports bind, by document.
 pub(super) fn imports<'a>(
-    req: &'a CheckRequest,
+    req: &'a CheckRequest<'_>,
     root: &Path,
     paths: &[PathBuf],
+    index: &HashMap<&Path, usize>,
 ) -> (Vec<TypeScriptDiagnostic>, Vec<(usize, &'a str)>) {
     let javascript = |file: usize| {
-        req.mapped_files
-            .get(file)
-            .and_then(Option::as_ref)
+        req.mapped(file)
             .is_some_and(|mapped| JAVASCRIPT.contains(&mapped.generated_extension))
     };
     let mut found = Vec::new();
@@ -45,7 +45,7 @@ pub(super) fn imports<'a>(
         let directory = paths[file].parent().unwrap_or(root);
         for import in &mapped.imports {
             let target = normalized(&directory.join(&import.specifier));
-            let Some(read) = paths.iter().position(|path| *path == target) else {
+            let Some(&read) = index.get(target.as_path()) else {
                 continue;
             };
             if !javascript(read) {
@@ -86,7 +86,7 @@ pub(super) fn hides(found: &TypeScriptDiagnostic, names: &[(usize, &str)], sourc
 }
 
 /// Whether any document projects to JavaScript.
-pub(super) fn any_javascript(req: &CheckRequest) -> bool {
+pub(super) fn any_javascript(req: &CheckRequest<'_>) -> bool {
     req.mapped_files
         .iter()
         .flatten()

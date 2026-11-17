@@ -27,7 +27,7 @@ mod runes;
 mod walk;
 
 pub use counts::Counts;
-pub use runes::{RUNE_ROOTS, RUNES, lowers, rune_call};
+pub use runes::{RUNE_ROOTS, RUNES, is_rune, lowers, rune_call};
 pub use walk::{Roots, TemplateName, TemplateScope, walk};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -103,6 +103,8 @@ struct Facts<'a> {
     counts: Counts,
     /// The instance calls `$props()` (upstream `needs_props`).
     uses_props: bool,
+    /// Some script or template expression holds an `await`.
+    awaits: bool,
     /// The rune names that subscribe to a store instead, such as `$state` beside a `state`.
     subscribed: runes::Subscriptions,
     scopes: FxHashMap<TemplateScope, ScopeId>,
@@ -213,10 +215,15 @@ fn resolve_scripts(
             classify::classify(semantic, &subscribed, &counts, compiler_syntax_tree, &names);
         let uses_props =
             instance.is_some_and(|p| has_props_rune(semantic, &subscribed, tree.get_program(p)));
+        // The nodes hold the scripts and the template's expressions in one flat list, which is
+        // cheaper to scan than to walk.
+        let awaits = (semantic.nodes().iter())
+            .any(|node| matches!(node.kind(), AstKind::AwaitExpression(_)));
         Facts {
             bindings,
             counts,
             uses_props,
+            awaits,
             subscribed,
             scopes,
             names,
@@ -305,6 +312,13 @@ impl Resolution {
         self.0.borrow_dependent().uses_props
     }
 
+    /// Some script or template expression holds an `await`, so the checks that look for one
+    /// need to walk.
+    #[must_use]
+    pub fn awaits(&self) -> bool {
+        self.0.borrow_dependent().awaits
+    }
+
     /// The symbol `reference` resolves to; `None` for a global, for a name only `declare`
     /// declarations bind, or for an identifier the analysis did not visit, such as one a task
     /// built.
@@ -338,7 +352,7 @@ impl Resolution {
             return false;
         };
         matches!(&call.callee, Expression::Identifier(callee) if callee.span == identifier.span)
-            && RUNES.contains(&identifier.name.as_str())
+            && is_rune(&identifier.name)
     }
 
     /// The scope the reference `reference` is in.
@@ -456,7 +470,7 @@ impl Resolution {
     pub fn is_store_subscription(&self, name: &str) -> bool {
         name.strip_prefix('$')
             .is_some_and(|store| !store.is_empty() && !store.starts_with('$'))
-            && (!RUNES.contains(&name) || self.0.borrow_dependent().subscribed.contains(name))
+            && (!is_rune(name) || self.0.borrow_dependent().subscribed.contains(name))
     }
 
     /// Upstream `is_state_source`: in runes mode a `$state` needs a signal only if it is

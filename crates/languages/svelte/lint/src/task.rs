@@ -121,6 +121,8 @@ impl Task for Lint {
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
+        let lines = || context.lines(LineBreaks::Ecmascript);
+        let positions = rsvelte_lint_runner::output::Positions::new(&lines, context.source_text());
         let configuration = context
             .facet::<LintConfiguration>()
             .map_or(&*crate::configuration::DEFAULT, |configuration| {
@@ -132,12 +134,7 @@ impl Task for Lint {
         // script's language, and throws what that rejects; the rules read a script it parses.
         match parse_verdict(context) {
             Verdict::Throws(message, at) => {
-                rsvelte_lint_runner::output::report_parse_error(
-                    out,
-                    positions(context),
-                    &message,
-                    at,
-                );
+                rsvelte_lint_runner::output::report_parse_error(out, positions, &message, at);
                 return;
             }
             Verdict::Refused(error) => {
@@ -159,7 +156,7 @@ impl Task for Lint {
         };
         rsvelte_lint_runner::output::report(
             out,
-            positions(context),
+            positions,
             // The rules that ran, so a report tells a rule that found nothing from one that
             // does not run on this file.
             rules.running(configuration, &file).map(|rule| rule.name),
@@ -354,13 +351,6 @@ fn module_rejection<'a>(context: &'a DocumentContext<'_>) -> Option<(Cow<'a, str
         error.typescript_eslint_message()?,
         error.diagnostic.span.start_offset,
     ))
-}
-
-fn positions<'a>(context: &'a DocumentContext<'_>) -> rsvelte_lint_runner::output::Positions<'a> {
-    rsvelte_lint_runner::output::Positions::new(
-        context.lines(LineBreaks::Ecmascript),
-        context.source_text(),
-    )
 }
 
 mod grammar;

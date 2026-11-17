@@ -3,7 +3,7 @@
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::IdentifierReference;
-use rsvelte_svelte_semantic::resolve::RUNES;
+use rsvelte_svelte_semantic::resolve::is_rune;
 
 use super::RuneWalk;
 use crate::lower::special::invalid;
@@ -27,7 +27,7 @@ impl RuneWalk<'_> {
                 span_of(reference),
             );
         }
-        if !RUNES.contains(&name)
+        if !is_rune(name)
             || self.res.symbol(reference).is_some()
             || self.res.is_store_subscription(name)
         {
@@ -65,7 +65,7 @@ impl RuneWalk<'_> {
             name.push_str(property);
             current = span_of(&parent.expect("a member expression"));
             parent = ancestors.next();
-            if !RUNES.contains(&name.as_str()) {
+            if !is_rune(&name) {
                 // At a template expression's root upstream names the tag, which the walk cannot
                 // see.
                 let at = parent.map_or(self.tag, |parent| Some(span_of(&parent)));

@@ -7394,6 +7394,12 @@
 === 3 pattern/destructure-iife-comment-cursor.svelte	json
 []
 
+=== 3 pattern/event-directive-named-class.svelte	json
+[]
+
+=== 3 pattern/input-default-value-style-directive.svelte	json
+[]
+
 === 3 pattern/issues/008-comment-props-destructure.svelte	json
 []
 

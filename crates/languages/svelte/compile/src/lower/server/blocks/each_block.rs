@@ -8,8 +8,8 @@ use oxc_span::SPAN;
 
 use crate::lower::builder::Runtime;
 use crate::lower::server::{
-    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, CompilerNodeIdentifier, NodeKind, Piece, R,
-    ServerCompilationContext,
+    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, CompilerNodeIdentifier, NodeKind, R,
+    ServerCompilationContext, Template,
 };
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -17,7 +17,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     pub(in crate::lower::server) fn each_block(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
     ) -> R<()> {
         let (compiler_syntax_tree, javascript, b) =
             (self.compiler_syntax_tree, self.javascript, self.b);
@@ -74,14 +74,14 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 b.number(0.0),
             );
             let statement = b.if_(test, b.block([open, for_loop]), Some(fallback));
-            template.push(Piece::Statement(array_declaration));
-            template.push(Piece::Statement(statement));
+            template.statement(array_declaration);
+            template.statement(statement);
         } else {
-            template.push(Piece::Text(BLOCK_OPEN.into()));
-            template.push(Piece::Statement(array_declaration));
-            template.push(Piece::Statement(for_loop));
+            template.text(BLOCK_OPEN);
+            template.statement(array_declaration);
+            template.statement(for_loop);
         }
-        template.push(Piece::Text(BLOCK_CLOSE.into()));
+        template.text(BLOCK_CLOSE);
         Ok(())
     }
 

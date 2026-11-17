@@ -20,8 +20,8 @@ fn main() {
         size_of::<Attribute>(),
         align_of::<Attribute>()
     );
-    println!("Item: {} bytes", size_of::<Item<'static>>());
-    println!("Cleaned: {} bytes", size_of::<Cleaned<'static>>());
+    println!("Item: {} bytes", size_of::<Item>());
+    println!("Cleaned: {} bytes", size_of::<Cleaned>());
     println!("Region: {} bytes", size_of::<Region>());
     println!(
         "Name map payload: String={}, Box<str>={}",
