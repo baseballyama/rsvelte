@@ -4,8 +4,9 @@ use super::escaped_text;
 use crate::lower::builder::Runtime;
 use crate::lower::is_custom_element_node;
 use crate::lower::server::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind, Piece, ServerCompilationContext,
-    capture_event, capture_load_events, event_attribute, is_behaviour, push_captured_events,
+    Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind, ServerCompilationContext,
+    Template, capture_event, capture_load_events, event_attribute, is_behaviour,
+    push_captured_events,
 };
 use crate::lower::template::implicit_attributes;
 
@@ -22,11 +23,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         identifier: CompilerNodeIdentifier,
         tag: &str,
         list: &'o [Attribute],
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
     ) {
         let (arguments, events) = self.spread_args(identifier, tag, list, false);
         let call = self.b.runtime_some("attributes", arguments);
-        template.push(Piece::Expression(call));
+        template.expression(call);
         push_captured_events(template, &events);
     }
 

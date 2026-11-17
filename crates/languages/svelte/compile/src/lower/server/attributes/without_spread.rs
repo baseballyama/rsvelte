@@ -5,7 +5,7 @@ use crate::lower::Target;
 use crate::lower::builder::Runtime;
 use crate::lower::javascript::string_value;
 use crate::lower::server::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, Piece, ServerCompilationContext,
+    Attribute, AttributeValue, CompilerNodeIdentifier, ServerCompilationContext, Template,
     capture_event, capture_load_events, escape_markup, event_attribute, is_behaviour,
     is_boolean_attribute, is_directive, push_captured_events,
 };
@@ -18,7 +18,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         identifier: CompilerNodeIdentifier,
         tag: &str,
         list: &'o [Attribute],
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
     ) {
         let source_text = self.source_text;
         // A `defaultValue` on an `<input>` deopts to the spread path, which orders it at runtime.
@@ -52,7 +52,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             match a.value {
                 AttributeValue::Bind(_) => {
                     if let Some(call) = self.binding(tag, list, a) {
-                        template.push(Piece::Expression(call));
+                        template.expression(call);
                     }
                     continue;
                 }
@@ -95,13 +95,13 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let implicit = implicit_attributes(self.source_text, list, self.an.scoped[identifier]);
         if implicit.class && !class_directives.is_empty() {
             let call = self.attribute_class(&class_directives, self.b.string(""), hash.as_deref());
-            template.push(Piece::Expression(call));
+            template.expression(call);
         } else if implicit.class {
             Self::literal_attribute(template, "class", Some(String::new()), hash.as_deref());
         }
         if implicit.style {
             let call = self.attribute_style(&style_directives, self.b.string(""));
-            template.push(Piece::Expression(call));
+            template.expression(call);
         }
         push_captured_events(template, &events);
     }
@@ -114,7 +114,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         value: Expression<'o>,
         (class_directives, style_directives): (&[&Attribute], &[&Attribute]),
         hash: Option<&str>,
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
     ) {
         let b = self.b;
         if can_use_literal(name, class_directives, style_directives)
@@ -127,7 +127,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 v = scoped_class(&v, h, Target::Server);
             }
             let v = escape_markup(&v, true);
-            template.push(Piece::Text(format!(" {name}=\"{v}\"")));
+            template.text_fmt(format_args!(" {name}=\"{v}\""));
             return;
         }
         let call = match name {
@@ -141,11 +141,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 b.runtime("attr", arguments)
             }
         };
-        template.push(Piece::Expression(call));
+        template.expression(call);
     }
 
     fn literal_attribute(
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
         name: &str,
         value: Option<String>,
         hash: Option<&str>,
@@ -160,10 +160,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             value = Some(scoped_class(&base, h, Target::Server));
         }
         if name != "class" || value.as_deref() != Some("") {
-            template.push(Piece::Text(format!(
-                " {name}=\"{}\"",
-                value.unwrap_or_default()
-            )));
+            template.text_fmt(format_args!(" {name}=\"{}\"", value.unwrap_or_default()));
         }
     }
 }

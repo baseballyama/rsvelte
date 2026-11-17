@@ -3,7 +3,9 @@ use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, Snippet};
 
 use super::super::snippets::{Place, place, render_arguments, render_call, snippet_name};
-use super::{CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind, Piece, R, ServerCompilationContext};
+use super::{
+    CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind, R, ServerCompilationContext, Template,
+};
 use crate::lower::{span_of, unsupported};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -90,7 +92,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         &self,
         identifier: CompilerNodeIdentifier,
         standalone: bool,
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
     ) {
         let b = self.b;
         let NodeKind::Render { expression } = self.compiler_syntax_tree.node(identifier).kind
@@ -109,9 +111,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         } else {
             b.call(callee, arguments)
         };
-        template.push(Piece::Statement(b.statement(call)));
+        template.statement(b.statement(call));
         if !standalone {
-            template.push(Piece::Text(EMPTY_COMMENT.into()));
+            template.text(EMPTY_COMMENT);
         }
     }
 }

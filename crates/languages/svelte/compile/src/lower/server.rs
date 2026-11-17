@@ -18,11 +18,12 @@ mod fragments;
 mod slot_element;
 mod snippets;
 mod special;
+mod template;
 
 use std::borrow::Cow;
 
 use events::{capture_event, capture_load_events, push_captured_events};
-use oxc_ast::ast::{Expression, Statement, UnaryOperator, VariableDeclarationKind};
+use oxc_ast::ast::{Statement, UnaryOperator, VariableDeclarationKind};
 use oxc_semantic::SymbolId;
 use oxc_span::SPAN;
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -36,6 +37,7 @@ use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_svelte_syntax::parse::is_void;
 use rsvelte_typescript_tree::Tree;
 use rustc_hash::{FxHashMap, FxHashSet};
+use template::Template;
 
 use super::names::Names;
 use super::script::ScriptRewrite;
@@ -54,16 +56,6 @@ const BLOCK_OPEN: &str = "<!--[-->";
 const BLOCK_OPEN_ELSE: &str = "<!--[!-->";
 const BLOCK_CLOSE: &str = "<!--]-->";
 const EMPTY_COMMENT: &str = "<!---->";
-
-/// One piece of a server template before it is folded into `$$renderer.push(…)` calls.
-enum Piece<'o> {
-    /// Cooked text.
-    Text(String),
-    /// A template literal, as cooked quasis and expressions.
-    Template(Vec<String>, Vec<Expression<'o>>),
-    Expression(Expression<'o>),
-    Statement(Statement<'o>),
-}
 
 /// `String(value ?? '')` for a known value.
 fn known_string(v: &rsvelte_svelte_semantic::evaluate::Value) -> String {

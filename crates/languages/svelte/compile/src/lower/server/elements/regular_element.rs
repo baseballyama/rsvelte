@@ -2,8 +2,8 @@ use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::Expression;
 
 use crate::lower::server::{
-    AttributeValue, CompilerNodeIdentifier, Element, ElementKind, NodeKind, Piece, R,
-    ServerCompilationContext, is_customizable_select, is_void,
+    AttributeValue, CompilerNodeIdentifier, Element, ElementKind, NodeKind, R,
+    ServerCompilationContext, Template, is_customizable_select, is_void,
 };
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -11,7 +11,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     pub(in crate::lower::server) fn element(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
     ) -> R<()> {
         let compiler_syntax_tree = self.compiler_syntax_tree;
         let NodeKind::Element(el) = &compiler_syntax_tree.node(identifier).kind else {
@@ -44,11 +44,12 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         }
         if let Some(text) = self.raw_text(&tag, el) {
             // Upstream pushes a `<script>` or `<style>` as a statement of its own.
-            let mut own = vec![Piece::Text(format!("<{tag}"))];
+            let mut own = Template::new(self.b);
+            own.text_fmt(format_args!("<{tag}"));
             let attributes = compiler_syntax_tree.attributes(el.attributes);
             self.element_attributes(identifier, &tag, attributes, &mut own);
-            own.push(Piece::Text(format!(">{text}</{tag}>")));
-            template.extend(self.build_template(own).into_iter().map(Piece::Statement));
+            own.text_fmt(format_args!(">{text}</{tag}>"));
+            template.statements(own.finish());
             return Ok(());
         }
         let tree = compiler_syntax_tree;
@@ -59,11 +60,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         }
         // Upstream renders an element that holds a declaration tag in a block of its own.
         let outer = std::mem::take(&mut self.snippets);
-        let mut own = Vec::new();
+        let mut own = Template::new(self.b);
         self.markup(identifier, el, &tag, &mut own)?;
         let mut block = std::mem::replace(&mut self.snippets, outer);
-        block.extend(self.build_template(own));
-        template.push(Piece::Statement(self.b.block(block)));
+        block.extend(own.finish());
+        template.statement(self.b.block(block));
         Ok(())
     }
 }
@@ -92,10 +93,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         identifier: CompilerNodeIdentifier,
         el: &Element,
         tag: &str,
-        template: &mut Vec<Piece<'o>>,
+        template: &mut Template<'_, 'o>,
     ) -> R<()> {
         let compiler_syntax_tree = self.compiler_syntax_tree;
-        template.push(Piece::Text(format!("<{tag}")));
+        template.text_fmt(format_args!("<{tag}"));
         self.element_attributes(
             identifier,
             tag,
@@ -103,7 +104,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             template,
         );
         let void = is_void(tag);
-        template.push(Piece::Text(if void { "/>".into() } else { ">".into() }));
+        template.text(if void { "/>" } else { ">" });
 
         let cleaned = self.plan.fragment(el.children);
         let body = self.element_body(tag, compiler_syntax_tree.attributes(el.attributes));
@@ -114,19 +115,16 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 body
             } else {
                 let name = self.names.generate("$$body");
-                template.push(Piece::Statement(b.const_(&name, body)));
+                template.statement(b.const_(&name, body));
                 b.id(&name)
             };
-            let mut children = Vec::new();
+            let mut children = Template::new(b);
             self.hoisted_elements(&cleaned.hoisted, |_| false, &mut children)?;
             self.process_children(&cleaned.items, &mut children)?;
-            let content = self.build_template(vec![Piece::Expression(id.clone_in(b.allocator()))]);
-            let children = self.build_template(children);
-            template.push(Piece::Statement(b.if_(
-                id,
-                b.block(content),
-                Some(b.block(children)),
-            )));
+            let mut content = Template::new(b);
+            content.expression(id.clone_in(b.allocator()));
+            let (content, children) = (content.finish(), children.finish());
+            template.statement(b.if_(id, b.block(content), Some(b.block(children))));
         } else {
             self.hoisted_elements(&cleaned.hoisted, |_| false, template)?;
             self.process_children(&cleaned.items, template)?;
@@ -134,11 +132,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             if matches!(tag, "optgroup" | "select")
                 && is_customizable_select(compiler_syntax_tree, self.source_text, el)
             {
-                template.push(Piece::Text("<!>".to_owned()));
+                template.text("<!>");
             }
         }
         if !void {
-            template.push(Piece::Text(format!("</{tag}>")));
+            template.text_fmt(format_args!("</{tag}>"));
         }
         Ok(())
     }
