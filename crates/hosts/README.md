@@ -98,8 +98,6 @@ console.log(result.steps);
 | Export                                                  | Purpose                                                                                       |
 | ------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `runPipeline(source, filename, plugins, tasks, shared)` | Run language tasks and return a JSON string with outputs, diagnostics, and computation traces |
-| `renderDocument(source, width, tabs)`                   | Render a document layout expression and return a JSON string with output and layout traces    |
-| `stringWidth(text)`                                     | Return the printer's display width for a string                                               |
 
 `plugins` is a comma-separated selection of `svelte`, `vue`, `svue` and `vuelte`. `tasks`
 selects `compile-client`, `compile-server`, `format` and `lint` in the same form. The plugin and

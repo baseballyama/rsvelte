@@ -9,10 +9,6 @@ use oxc_formatter_core::{
 
 use crate::{GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions, LineKind, Node};
 
-/// The document holds a layout only this crate's printer prints: a flat-only one.
-#[derive(Debug, PartialEq, Eq)]
-pub struct Unlowered;
-
 /// What is left to write.
 enum Step {
     Node(LayoutInstructionIdentifier),
@@ -36,10 +32,6 @@ impl LayoutInstructions {
     /// Writes the document `root` to `f`, with `embedded[i]` for each
     /// [`LayoutInstructions::embedded`] node of index `i`.
     ///
-    /// # Errors
-    ///
-    /// [`Unlowered`] if the document holds a flat-only layout.
-    ///
     /// # Panics
     ///
     /// If an embedded node's index is not in `embedded`.
@@ -48,7 +40,7 @@ impl LayoutInstructions {
         root: LayoutInstructionIdentifier,
         embedded: &[&[FormatElement<'a>]],
         f: &mut Formatter<'_, 'a, C>,
-    ) -> Result<(), Unlowered> {
+    ) {
         let mut lowering = Lowering {
             docs: self,
             embedded,
@@ -58,7 +50,7 @@ impl LayoutInstructions {
         };
         while let Some(step) = lowering.stack.pop() {
             match step {
-                Step::Node(identifier) => lowering.node(identifier, f)?,
+                Step::Node(identifier) => lowering.node(identifier, f),
                 Step::Tag(tag) => f.write_element(FormatElement::Tag(tag)),
                 Step::Entry(identifier) => {
                     f.write_element(FormatElement::Tag(Tag::StartEntry));
@@ -67,7 +59,6 @@ impl LayoutInstructions {
                 }
             }
         }
-        Ok(())
     }
 }
 
@@ -76,7 +67,7 @@ impl<'a> Lowering<'_, '_, 'a> {
         &mut self,
         identifier: LayoutInstructionIdentifier,
         f: &mut Formatter<'_, 'a, C>,
-    ) -> Result<(), Unlowered> {
+    ) {
         match self.docs.nodes[identifier.0 as usize] {
             Node::Static("") | Node::Text { len: 0, .. } => {}
             Node::Static(s) => f.write_element(FormatElement::text(s, self.indent_width)),
@@ -87,7 +78,7 @@ impl<'a> Lowering<'_, '_, 'a> {
             }
             Node::Line(kind) => f.write_element(FormatElement::Line(line_mode(kind))),
             Node::BreakParent => f.write_element(FormatElement::ExpandParent),
-            Node::Embedded { index, .. } => {
+            Node::Embedded(index) => {
                 f.write_elements(self.embedded[index as usize].iter().cloned());
             }
             Node::Concat { start, len } => self.children(start, len, Step::Node),
@@ -144,9 +135,7 @@ impl<'a> Lowering<'_, '_, 'a> {
                 self.open(f, start, end);
                 self.stack.push(Step::Node(document));
             }
-            Node::FlatOnly { .. } => return Err(Unlowered),
         }
-        Ok(())
     }
 
     /// Writes `start` and leaves `end` to write after what is pushed next.

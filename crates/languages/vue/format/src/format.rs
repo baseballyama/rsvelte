@@ -65,10 +65,7 @@ pub(crate) fn format(c: &SingleFileComponent, source_text: &str, lines: &LineInd
     let embedding = p.embedding;
     embedding
         .print(&docs, root, source_text.len())
-        .map_err(|unprinted| match unprinted {
-            Unprinted::FlatOnly => Unsupported::nowhere("a layout that does not fit on one line"),
-            Unprinted::Rejected => Unsupported::nowhere("a document oxc's printer rejects"),
-        })
+        .map_err(|Unprinted| Unsupported::nowhere("a document oxc's printer rejects"))
 }
 
 /// Prettier's defaults, which are the only options this port prints.

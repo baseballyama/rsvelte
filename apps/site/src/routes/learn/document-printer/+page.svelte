@@ -3,12 +3,8 @@
 	import ChapterFooter from '#lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '#lib/components/ChapterHeader.svelte';
 	import Code from '#lib/components/Code.svelte';
-	import DeepDive from '#lib/components/DeepDive.svelte';
 	import H2 from '#lib/components/H2.svelte';
-	import Note from '#lib/components/Note.svelte';
 	import { chapter } from '#lib/site.ts';
-	import DocumentPrinter from '#lib/widgets/DocumentPrinter.svelte';
-	import { call, fill, flatOnly, groupIds, mustBeFlat, remeasure } from './presets';
 
 	let { data } = $props();
 	const c = chapter('doc');
@@ -18,7 +14,7 @@
 
 <ChapterHeader
 	chapter={c}
-	lead="整形器はコードを直接文字列にせず、「収まれば 1 行、収まらなければ改行して字下げ」という指示の木を作ります。プリンタがその木を幅に合わせて文字列にします。rsvelte のプリンタ（rsvelte_document_printer）は、Prettier のプリンタを Rust に移植したものです。rsvelte だけの要素 flat_only と文字幅の数え方を除けば、同じ木から Prettier と同じ文字列が出ます。"
+	lead="整形器はコードを直接文字列にせず、「収まれば 1 行、収まらなければ改行して字下げ」という指示の木を作ります。木の要素は Prettier の doc と同じです。rsvelte はこの木を oxc の整形器の要素に写します。文字列にするのは oxc のプリンタです。"
 />
 
 <div class="prose-learn">
@@ -26,7 +22,7 @@
 	<p>
 		整形の中間表現は <dfn>LayoutInstruction</dfn>
 		と呼ばれる木です。葉はテキストと改行の候補（line）で、節はそれらをまとめる group、字下げの indent
-		などです。ファイル冒頭のコメントは、移植元を Prettier の <code>printDocToString</code> と書いています。
+		などです。
 	</p>
 	<blockquote class="font-mono text-[14px] leading-[1.7] whitespace-pre-line text-fg-2" lang="en">
 		{data.docs}
@@ -49,7 +45,7 @@
 		は、子のリストへの範囲（<code>start</code>,
 		<code>len</code>）を持ちます。リストの中身は
 		<code>LayoutInstructions::children</code> という一本のベクタに並びます。子が一つの
-		<code>Indent</code>、<code>Dedent</code>、<code>FlatOnly</code>、<code>IndentIfBreak</code>
+		<code>Indent</code>、<code>Dedent</code>、<code>IndentIfBreak</code>
 		は、その子の識別番号を直接持ちます。<code>IfBreak</code> は、二つの子（<code>broken</code> と
 		<code>flat</code>）を同じように持ちます。
 	</p>
@@ -61,9 +57,8 @@
 <div class="prose-learn">
 	<p>
 		ノードごとに <code>Box</code>
-		を作らないので、文書を組み立てるときの割り当ては、四本のバッファが伸びる分だけです。ノードの
-		<code>nodes</code>、改行の要否と平らに出したときの幅の <code>measures</code>、子のリストの
-		<code>children</code>、文字列の
+		を作らないので、文書を組み立てるときの割り当ては、三本のバッファが伸びる分だけです。ノードの
+		<code>nodes</code>、子のリストの <code>children</code>、文字列の
 		<code>buffer</code> です。実行時に作ったテキストも <code>buffer</code> に追記し、ノードはその範囲だけを持ちます。
 	</p>
 </div>
@@ -89,7 +84,7 @@
 
 <div class="prose-learn">
 	<p>
-		四本のバッファそのものも、文書ごとに作り直しません。アリーナは自分の型を鍵にしてスレッドのプールからバッファを借り、<code
+		三本のバッファそのものも、文書ごとに作り直しません。アリーナは自分の型を鍵にしてスレッドのプールからバッファを借り、<code
 			>Drop</code
 		>
 		で借りた順の逆に返します（仕組みは <a href="/learn/kernel/buffer-pool#keyed">13 章</a>）。
@@ -99,224 +94,139 @@
 <Code item={data.code.pooled} />
 
 <div class="prose-learn">
-	<H2 id="printer" />
+	<H2 id="lower" />
 	<p>
-		プリンタは、コマンドのスタックを回すループです。コマンド（<code>Command</code
-		>）は（インデント、モード、要素）の三つ組で、モードは
-		<dfn>flat</dfn>（平らに 1 行で）か <dfn>break</dfn>（改行する）です。
+		できた木を、rsvelte は自分では文字列にしません。<code>lower</code> が oxc の整形器の要素（<code
+			>FormatElement</code
+		>）の列に写し、oxc のプリンタがその列を文字列にします。oxc の JavaScript、TypeScript、CSS
+		の整形器も、同じ要素の列を作ります。Svelte の整形では、<code>&lt;script&gt;</code>
+		や <code>&lt;style&gt;</code>、テンプレートの式を oxc
+		の整形器が整形します。テンプレートの木も同じ列に写すので、両方を一つのプリンタが一度に出力できます。
 	</p>
+	<table>
+		<thead><tr><th>LayoutInstructions</th><th>oxc の要素</th></tr></thead>
+		<tbody>
+			<tr
+				><td><code>group</code>、<code>group_broken</code></td><td
+					><code>StartGroup</code>（<code>group_broken</code> は
+					<code>GroupMode::Expand</code>）</td
+				></tr
+			>
+			<tr
+				><td><code>fill</code></td><td
+					><code>StartFill</code>。子は一つずつ <code>StartEntry</code> で包む</td
+				></tr
+			>
+			<tr
+				><td><code>indent</code>、<code>dedent</code></td><td
+					><code>StartIndent</code>、<code>StartDedent</code></td
+				></tr
+			>
+			<tr
+				><td><code>if_break</code>、<code>if_break_of</code></td><td
+					><code>StartConditionalContent</code> を二つ（broken 側と flat 側）</td
+				></tr
+			>
+			<tr><td><code>indent_if_break</code></td><td><code>StartIndentIfGroupBreaks</code></td></tr>
+			<tr
+				><td>line、softline</td><td
+					><code>LineMode::SoftOrSpace</code>、<code>LineMode::Soft</code></td
+				></tr
+			>
+			<tr><td>hardline</td><td><code>LineMode::ExactLineBreaks(1)</code></td></tr>
+			<tr><td>literalline</td><td><code>LineMode::Literal</code></td></tr>
+			<tr><td><code>break_parent</code></td><td><code>ExpandParent</code></td></tr>
+		</tbody>
+	</table>
 	<p>
-		break モードで group に着くと、その group が一行に収まるかを <code>fits</code>
-		で調べます。収まれば flat、収まらなければ break で中身を積みます。flat モードの中の group は、測らずに
-		flat のまま出力します。例外は、強制改行を含む group と、直前に hardline を出力したときです。
-	</p>
-</div>
-
-<DocumentPrinter
-	label="図 9.1 · 文書プリンタ"
-	presets={[call, fill, groupIds, flatOnly, remeasure]}
-/>
-
-<Code
-	item={data.code.run}
-	mark={['self.choose_group(identifier, indentation, mode, stack)', 'self.remeasure = true']}
-/>
-<Code
-	item={data.code.chooseGroup}
-	mark={[
-		'let breaks_line = self.docs.will_break(identifier);',
-		'else if self.fits(&flat, stack, self.remaining(), false)',
-	]}
-/>
-
-<div class="prose-learn">
-	<p>
-		line は、flat モードなら空白（softline なら何もなし）、break
-		モードなら改行とインデントになります。hardline は平らな group の中でも必ず改行します。そのとき <code
-			>remeasure</code
-		> を立て、次の group では親のモードに関係なく測り直します。改行したあとは、行の残りの幅が変わっているからです。
-	</p>
-	<p>
-		group を判断するとき、プリンタはまず <code>will_break</code>
-		を見ます。hardline、literalline、breakParent のどれかを中に含む group は、幅に関係なく break です。最初から
-		break と指定した group（<code>group_broken</code
-		>）を含む場合も同じです。図の「hardline」を選ぶと、外側の group が
-		<code>broken</code> と判断されるのが分かります。
-	</p>
-	<p>
-		Prettier はこの判断のために、出力の前に <code>propagateBreaks</code> で木を一度たどり、group の
-		<code>break</code>
-		を書き換えます。rsvelte のプリンタでは、これをノードを作る時点で済ませます。ノードは自分より前に作られたノードしか参照できないので、子の答えは親を作るときにはすでに出ています。<code
-			>push</code
+		Prettier の意味に合わせるため、写し方を変えたところが二つあります。oxc の <code
+			>LineMode::Hard</code
 		>
-		はノードと一緒に、<code>measure_of</code> の答えを <code>measures</code>
-		に一つ積みます。答えは一つの 32 ビット整数で、最上位のビットが改行の要否、残りが平らに出したときの幅です（幅は次の節の
-		<code>fits</code> が使います）。
+		は行頭では改行しませんが、Prettier の hardline は毎回改行します。そこで hardline は
+		<code>ExactLineBreaks(1)</code> にします。また、Prettier では改行を含むテキストが group
+		を改行させません。そこでテキストは <code>without_expand_parent</code> を付けて書きます。
 	</p>
 </div>
 
-<Code item={data.code.push} mark={['self.measures.push(measure);']} />
-
-<Code item={data.code.measureOf} mark={['if breaks_line {']} />
+<Code item={data.code.lower} />
+<Code
+	item={data.code.lowerNode}
+	mark={['Format::fmt(&builders::text(text).without_expand_parent(), f);']}
+/>
+<Code item={data.code.lineMode} />
 
 <div class="prose-learn">
 	<p>
-		以前は、出力の前に <code>propagate_breaks</code>
-		が整形指示の木全体をたどっていました。数えていたのは hardline と breakParent だけです。そのため
-		<code>group(["x", line, group(["y"], {'{'} shouldBreak: true {'}'})])</code>
-		という入力で違いが出ました。<code>shouldBreak: true</code> は、最初から break と指定した group
-		です。Prettier 3.9.9 は <code>x\ny</code> と改行しますが、rsvelte のプリンタは <code>x y</code>
-		と出力していました。ノードを作る時点で数える今の形では、<code>breaks_line</code> の立った group も数えます。Svelte
-		の検証用のソースファイル集は、公式ツールの出力と比べる、実在する Svelte ファイルの集まりです。この修正で、その整形の出力が
-		37 ファイルで変わりました。35 ファイルは Prettier と一致に変わり、2 ファイルは違ったままです。その
-		2 ファイルは、Prettier が条件付きの group で選ぶ引数のレイアウトで、まだ移植していません。一致していたファイルが外れた例はありません。
+		識別子付きの group（<code>group_with_identifier</code>）は、最初に写すとき oxc の
+		<code>GroupId</code>（group の番号）を作ります。同じ識別子を指す
+		<code>if_break_of</code>
+		と
+		<code>indent_if_break</code> は、その <code>GroupId</code>
+		を使います。木は入力と同じだけ深くなるので、<code>lower</code>
+		は再帰せず、自分のスタックで木をたどります。
+	</p>
+	<p>
+		どの group を改行するかは、oxc のプリンタが決めます。強制改行が外側の group
+		を改行させる処理（Prettier の <code>propagateBreaks</code>）も oxc が行います。<code
+			>group_broken</code
+		>
+		は、Prettier で最初から改行すると決めた group（<code>shouldBreak: true</code>）です。これも親の
+		group を改行させます。
 	</p>
 </div>
 
 <Code item={data.code.builtBrokenTest} />
 
 <div class="prose-learn">
-	<H2 id="fits" />
+	<H2 id="embedded" />
 	<p>
-		<code>fits</code> は、平らに出力したら何列使うかを数えます。数えるのは group
-		の中身と、その後ろでスタックに残ったコマンド（<dfn>rest commands</dfn
-		>）で、最初の改行に出会うまでです。
+		oxc の整形器が作った要素の列は、アリーナの外の <code>Embedding</code>
+		に保存します。<code>Embedding::keep</code> はその列を保存し、列の番号だけを持つ
+		<code>Embedded</code> ノードをアリーナに作ります。<code>lower</code>
+		はこのノードに着くと、番号が指す列をそのまま書きます。
+	</p>
+	<p>
+		列の末尾の hardline は取り除きます。Prettier も埋め込んだ部分の末尾の hardline
+		を取り除き、その後ろの改行は外側の文書が出すからです。
 	</p>
 </div>
 
-<Code item={data.code.fits} />
-<Code
-	item={data.code.fitsIn}
-	mark={[
-		'rest_i -= 1;',
-		'&& let Some(flat) = self.docs.measure(identifier).flat()',
-		'if must_be_flat && breaks_line {',
-		'if mode == Mode::Break || matches!(kind, LineKind::Hard | LineKind::Literal)',
-	]}
-/>
+<Code item={data.code.keep} />
 
 <div class="prose-learn">
 	<p>
-		<code>fits</code> は group を判断するたびに呼ばれるので、作業リストのベクタは
-		<code>Printer</code>
-		が持つ <code>scratch</code>
-		を使い回し、呼び出しごとに確保しません。数える本体は <code>fits_in</code> です。
-	</p>
-	<p>
-		強制改行も名前付きの group も含まない部分木は、中をたどりません。<code>measure_of</code>
-		がノードを作るときに求めた幅を、まとめて引きます。group を判断するたびに同じ部分木をたどり直すことがなくなりました。検証用のソースファイル集の整形では、<code
-			>fits</code
-		> の命令数が約 3 分の 1 になりました。
-	</p>
-	<p>
-		たとえば <code>f(a, b);</code> の group が収まるかは、閉じ括弧のあとの <code>;</code>
-		まで含めて決まります。group だけ見て「収まる」と判断すると、<code>;</code> がはみ出します。rest commands
-		は自分のモードで数えるので、break モードの line に着いたところで「そこで改行できる」として true を返します。
-	</p>
-
-	<H2 id="fill" />
-	<p>
-		<dfn>fill</dfn> は、段落の文字詰めのように、収まるだけ一行に並べてから改行します。子は内容と区切りを交互に並べたもので、プリンタは二つずつ判断します。
+		<code>Embedding::print</code>
+		が、写しと出力をまとめて行います。開きタグと閉じタグが対応しないなど、oxc のプリンタが要素の列を受け付けないときは
+		<code>Unprinted</code> を返します。Svelte と Vue の整形は、そのとき出力を返さず、整形できないという診断を出します。
 	</p>
 </div>
 
-<Code item={data.code.fill} />
+<Code item={data.code.print} />
 
 <div class="prose-learn">
+	<H2 id="width" />
 	<p>
-		区切りを flat にするかは、「内容、区切り、次の内容」の三つ組が平らに収まるかで決めます。このとき
-		<code>fits</code> は <code>must_be_flat</code> で呼ばれ、中に強制改行の group があれば、その時点で「収まらない」と答えます。
+		行が幅に収まるかは、文字の表示幅で決まります。oxc のプリンタは幅を <code>unicode-width</code>
+		で数え、Prettier は <code>getStringWidth</code>
+		で数えます。ほとんどの文字では同じ幅です。違うのは、ゼロ幅接合子（U+200D、絵文字どうしをつなぐ見えない文字）でつないだ絵文字や、肌の色を指定した絵文字の並びです。Prettier
+		はこうした並びを一文字（幅 2）と数えます。
 	</p>
-
-	<DeepDive title="mustBeFlat にはテストがなかった">
-		<p>
-			この教材を作る途中で、<code>must_be_flat</code> の分岐を消しても Rust のテストがすべて通ることに気づきました。そこで、強制改行の
-			group を内容に持つ fill のテストを足しました。
-		</p>
-		<p>
-			分岐を消すと、区切りの判断で中の group の line を「break モードの line に着いた」と数え、true
-			を返します。すると区切りが平らになり、<code>b c</code> が同じ行に並びます。
-		</p>
-	</DeepDive>
-</div>
-
-<Code item={data.code.mustBeFlatTest} />
-
-<DocumentPrinter label="図 9.2 · mustBeFlat" presets={[mustBeFlat]} />
-
-<div class="prose-learn">
-	<H2 id="group-ids" />
 	<p>
-		<code>if_break</code> は、囲む group が break なら一つ目、flat なら二つ目を出力します。<code
-			>if_break_of</code
-		>
-		は、囲む group の代わりに、識別子（group id）で指定した group のモードに従います。
+		<code>emoji_measured_otherwise</code>
+		は、二つの数え方で幅が変わる並びを探します。見つかった文書は、Svelte と Vue の整形が断ります。幅が違うと、Prettier
+		と違う位置で改行することがあるからです。
 	</p>
 </div>
 
-<Code item={data.code.ifBreakBranch} />
+<Code item={data.code.emojiMeasuredOtherwise} />
 
 <div class="prose-learn">
 	<p>
-		プリンタは識別子の付いた group を判断すると、そのモードを <code>group_modes</code>
-		に記録します。まだ判断していない group を参照すると、flat として扱います<Note
-			>Prettier の <code>printDocToString</code> も、未判断の group は flat として扱います。</Note
-		>。<code>indent_if_break</code> も同じ表を見て、指定した group が break のときだけ字下げします。
-	</p>
-
-	<H2 id="flat-only" />
-	<p>
-		rsvelte のプリンタには、Prettier にない要素が一つだけあります。<dfn>flat_only</dfn> です。
-	</p>
-</div>
-
-<Code item={data.code.flatOnly} />
-
-<div class="prose-learn">
-	<p>
-		整形器の移植はまだ途中で、改行したときのレイアウトを移植していない構文があります。そうした構文を
-		flat_only で包んでおくと、幅に収まる限りは正しく 1
-		行に出力し、収まらないときは出力そのものを拒否（<code>Refused</code
-		>）します。収まらないときに「それらしく」改行すると、Prettier
-		が出さないレイアウトを出してしまうからです。<a href="/learn/kernel/diagnostics#unsupported"
-			>07 章</a
-		>の「近似しない」をプリンタに持ち込んだものです。図 9.1
-		の「flat_only」で、幅を狭めてみてください。
-	</p>
-</div>
-
-<Code item={data.code.print} mark={['if p.refused { Err(Refused) } else { Ok(p.out) }']} />
-
-<div class="prose-learn">
-	<p>
-		<code>print</code> は、<code>flat_only</code>
-		が収まらないと分かった時点で出力をやめます。呼び出し側には
-		<code>Refused</code> しか返らないので、残りを出力しても無駄だからです。
-	</p>
-	<p>改行のたびに、行末の空白とタブを取り除きます（literalline では取り除きません）。</p>
-</div>
-
-<Code item={data.code.newline} />
-
-<div class="prose-learn">
-	<p>
-		幅は Prettier の <code>getStringWidth</code> と同じに数えます。幅が 2 の文字の表（<code
-			>WIDE</code
+		Prettier 側の幅は <code>string_width</code> が数えます。幅が 2 の文字の表（<code>WIDE</code
 		>）は、Prettier 3.9.10
 		で全スカラー値を測って作りました。表にない文字は、制御文字、結合文字、異体字セレクタが 0、残りが
 		1 です。キーキャップ、国旗、異体字セレクタ 16 で絵文字にした文字は、並び全体で 2
-		です。表示できる ASCII だけの文字列は、バイト数をそのまま幅にします。<Note
-			>この教材のブラウザ上のプリンタ（図 9.1）も、WebAssembly を通して同じ Rust の <code
-				>string_width</code
-			> を使います。</Note
-		>
-	</p>
-	<p>
-		肌の色の指定やゼロ幅接合子でつないだ絵文字の並びは、Prettier が一文字として数えます。<code
-			>string_width</code
-		>
-		はこの並びを見分けないので、<code>has_emoji_sequence</code> が見つけます。見つかった文書は、Svelte
-		と Vue の整形が断ります。テストは、各文字列の幅を Prettier 3.9.10 で測った値と比べます。
+		です。テストは、各文字列の幅を Prettier 3.9.10 で測った値と比べます。
 	</p>
 </div>
 
@@ -341,12 +251,8 @@
 
 <div class="prose-learn">
 	<p>
-		Prettier は <code>propagateBreaks</code> を出力の直前に走らせるので、trim
-		のあとの木で数え直します。一方、アリーナは <code>will_break</code>
-		をノードを作るときに決めてしまいます。そこで <code>set_parts</code>
-		は、範囲を縮めたあと持ち主の答え（改行の要否と幅）を数え直します。trim は内側から順に縮めるので、子の答えはその時点で最新です。以前はこの数え直しがなく、hardline
-		を取り除いた group も改行したまま出力されていました。この修正で変わった出力は、検証用のソースファイル集の
-		105,387 件のうち 0 件です。修正前に落ちる単体テスト
+		改行の要否は、oxc のプリンタが出力するときに数えます。そのため trim のあとの木で決まり、hardline
+		を取り除いた group は改行しません。単体テスト
 		<code>a_trimmed_hard_line_no_longer_breaks</code> で固定しています。
 	</p>
 </div>
