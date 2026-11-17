@@ -74,14 +74,10 @@ fn report(documents: &[Document], results: &[DocumentResult], colors: bool) -> (
         let rows: Vec<[String; 5]> = (problems.iter())
             .map(|&(d, _)| {
                 let at = lines.line_column(d.span.start_offset);
-                let severity = match d.severity {
-                    Severity::Error => "error",
-                    Severity::Warning => "warning",
-                };
                 [
                     at.line.to_string(),
                     (at.column + 1).to_string(),
-                    severity.to_owned(),
+                    d.severity.as_str().to_owned(),
                     shown_message(&d.message),
                     // An unused directive names no rule.
                     if d.code == UNUSED_DIRECTIVE {

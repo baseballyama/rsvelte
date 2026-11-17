@@ -3,7 +3,6 @@ use std::path::Path;
 
 use rsvelte_kernel::computation::pipeline::DocumentResult;
 use rsvelte_kernel::computation::task::TaskOutput;
-use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineIndex;
 use rustc_hash::FxHashSet;
@@ -234,10 +233,7 @@ fn diagnostics_text(document: &Document, out: &TaskOutput) -> String {
     let index = LineIndex::new(&document.text);
     let mut text = String::new();
     for d in &out.diagnostics {
-        let severity = match d.severity {
-            Severity::Error => "error",
-            Severity::Warning => "warning",
-        };
+        let severity = d.severity.as_str();
         let start = index.line_column(d.span.start_offset);
         write!(
             text,

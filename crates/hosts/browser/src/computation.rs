@@ -7,7 +7,7 @@ use rsvelte_kernel::computation::database::{ArtifactAccess, DocumentContext};
 use rsvelte_kernel::computation::pipeline::{self, RunOptions, Sharing};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
-use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineIndex;
@@ -332,10 +332,7 @@ fn diagnostic_json(json: &mut StructuredDataWriter, diagnostic: &Diagnostic, ind
         .key("message")
         .write_string(&diagnostic.message)
         .key("severity")
-        .write_string(match diagnostic.severity {
-            Severity::Error => "error",
-            Severity::Warning => "warning",
-        })
+        .write_string(diagnostic.severity.as_str())
         .key("line")
         .write_number(at.line)
         .key("column")
