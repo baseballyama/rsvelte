@@ -1,0 +1,26 @@
+[
+	{
+		"code": 1184,
+		"message": "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script context=\"module\">..</script>",
+		"start": {
+			"line": 3,
+			"character": 1
+		},
+		"end": {
+			"line": 3,
+			"character": 8
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable '$a'.",
+		"start": {
+			"line": 3,
+			"character": 15
+		},
+		"end": {
+			"line": 3,
+			"character": 17
+		}
+	}
+]

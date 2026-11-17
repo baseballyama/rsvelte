@@ -324,46 +324,6 @@
 	}
 ]
 
-=== 651 sites/docs/src/lib/notifications/components/Svelte5.svelte	json
-[
-	{
-		"code": 2339,
-		"message": "Property 'item' does not exist on type 'ToastProps'.",
-		"start": {
-			"line": 11,
-			"character": 7
-		},
-		"end": {
-			"line": 11,
-			"character": 11
-		}
-	},
-	{
-		"code": 2590,
-		"message": "Expression produces a union type that is too complex to represent.",
-		"start": {
-			"line": 19,
-			"character": 16
-		},
-		"end": {
-			"line": 19,
-			"character": 77
-		}
-	},
-	{
-		"code": 2353,
-		"message": "Object literal may only specify known properties, and 'item' does not exist in type 'BaseNotificationProps'.",
-		"start": {
-			"line": 19,
-			"character": 63
-		},
-		"end": {
-			"line": 19,
-			"character": 67
-		}
-	}
-]
-
 === 3 sites/docs/src/lib/notifications/components/Toast.svelte	json
 []
 

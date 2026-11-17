@@ -27,7 +27,7 @@ fn a_dynamic_import_s_relative_specifier_is_an_import_too() {
     let component = rsvelte_svelte_syntax::parse::parse(source).expect("valid Svelte source");
     let found: Vec<_> = super::relative_imports(&component)
         .into_iter()
-        .map(|(span, specifier)| (span.text(source).to_owned(), specifier))
+        .map(|import| (import.at.text(source).to_owned(), import.specifier))
         .collect();
     let expected = ["./a.svelte", "./b.js", "./c.svelte", "./d.svelte"];
     assert_eq!(
