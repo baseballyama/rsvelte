@@ -28963,6 +28963,8 @@
 === 80 pattern/matrix/whitespace-comments/two-adjacent-root.svelte	lint.txt
 4:1 4:9 svelte/button-has-type "Missing an explicit type attribute for button."
 
+=== 0 pattern/module-top-level-return.svelte.ts	lint.txt
+
 === 1123 pattern/nested-derived-shadows-prop.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -29002,6 +29004,19 @@
 10:21 10:30 svelte/valid-compile "This reference only captures the initial value of `materials`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 
 === 0 pattern/return-jsdoc-cast.svelte.js	lint.txt
+
+=== 440 pattern/script-top-level-return-ts.svelte	lint.txt
+1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:8 2:9 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:2 3:2 svelte/valid-compile "'return' outside of function\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
+
+=== 351 pattern/script-top-level-return.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:8 2:9 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:2 3:2 svelte/valid-compile "'return' outside of function\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 
 === 0 pattern/self-closing-block-in-a-string.svelte	lint.txt
 

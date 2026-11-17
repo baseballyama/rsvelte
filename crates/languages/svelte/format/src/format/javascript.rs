@@ -2,14 +2,16 @@
 //! as the plugin has Prettier format each part from its text.
 
 use oxc_allocator::ArenaVec;
+use oxc_ast::ast::Program;
 use oxc_formatter::{
     ExpressionLayout, ExpressionRoot, JsEmbeddedIn, JsFormatOptions, JsRoot, ProgramLayout,
     ProgramSemicolons, QuoteStyle,
 };
-use oxc_formatter_core::{FormatElement, LineMode, Tag, normalize_newlines};
+use oxc_formatter_core::{FormatElement, LineMode, Tag};
 use oxc_span::SourceType;
 use rsvelte_document_printer::{Embedding, LayoutInstructionIdentifier};
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_tree::{ProgramIdentifier, SyntaxError};
 
 use super::{Printer, R, Unsupported};
 
@@ -55,8 +57,8 @@ impl<'x> Printer<'_, '_, 'x> {
         part: Part,
         adjust: Adjust,
     ) -> R<LayoutInstructionIdentifier> {
-        let text = normalize_newlines(span.text(self.source_text), ['\r']);
-        let ir = self.format_javascript(&text, span, part, adjust.single_quote)?;
+        let text = span.text(self.source_text);
+        let ir = self.format_javascript(text, span, part, adjust.single_quote)?;
         // Prettier's `removeLines` means flat; its expanded states that survive it are a quirk.
         let mut ir = if adjust.single_line {
             let mut ir = ir;
@@ -136,12 +138,61 @@ impl<'x> Printer<'_, '_, 'x> {
     }
 }
 
+impl<'x> Printer<'_, '_, 'x> {
+    /// The statements of the `<script>` whose body is `span`, from the program the component's
+    /// parse already holds.
+    pub(super) fn format_script(
+        &mut self,
+        program: ProgramIdentifier,
+        span: Span,
+    ) -> R<ArenaVec<'x, FormatElement<'x>>> {
+        let c = self.c;
+        let program = c.javascript.get_program(program);
+        let inside = |error: &&SyntaxError| {
+            let at = error.diagnostic.span.start_offset;
+            span.start_offset <= at && at <= span.end_offset
+        };
+        // The errors oxc's parser recovered from, which the formatter would have read again.
+        let whole = (c.script_typescript_errors.iter())
+            .chain(c.javascript.unchecked_errors())
+            .filter(inside)
+            .all(|error| {
+                recovered_whole(
+                    error.typescript_code,
+                    error.diagnostic.span.start_offset,
+                    program,
+                )
+            });
+        let unformatted = || Unsupported::at("code that oxc's formatter does not format", span);
+        if !whole {
+            return Err(unformatted());
+        }
+        #[expect(
+            clippy::map_err_ignore,
+            reason = "oxc's diagnostic says what the refusal says"
+        )]
+        let ir = oxc_formatter::program_to_ir(
+            self.embedder.embedding.session(),
+            program,
+            span.start_offset as usize..span.end_offset as usize,
+            self.embedder.options.clone(),
+            JsRoot::Program {
+                semicolons: ProgramSemicolons::AsOptions,
+                layout: ProgramLayout::Bare,
+            },
+            JsEmbeddedIn::default(),
+        )
+        .map_err(|_| unformatted())?;
+        self.embedder.kept.push(span);
+        Ok(ir.ir)
+    }
+}
+
 impl Printer<'_, '_, '_> {
     /// A snippet's `name(…)`, which the plugin formats as `function name(…) {}` and then takes
     /// the `function ` and the body off.
     pub(super) fn snippet_signature(&mut self, head: Span) -> R<LayoutInstructionIdentifier> {
-        let text = normalize_newlines(head.text(self.source_text), ['\r']);
-        let text = format!("function {text} {{}}");
+        let text = format!("function {} {{}}", head.text(self.source_text));
         let mut ir = self.format_javascript(&text, head, Part::Statement, false)?;
         if !strip_function(&mut ir) {
             return Err(Unsupported::at(
@@ -156,26 +207,29 @@ impl Printer<'_, '_, '_> {
 /// tsc's codes of the errors after which oxc's recovered program prints as Prettier prints the
 /// code, measured on the samples in the tests: a recovered program can drop nodes or panic the
 /// printer.
-const RECOVERED_WHOLE: [u32; 19] = [
-    1015, 1016, 1029, 1038, 1039, 1049, 1051, 1093, 1094, 1095, 1147, 1194, 1222, 1257, 1308, 2368,
-    2681, 5085, 18010,
+const RECOVERED_WHOLE: [u32; 20] = [
+    1015, 1016, 1029, 1038, 1039, 1049, 1051, 1093, 1094, 1095, 1108, 1147, 1194, 1222, 1257, 1308,
+    2368, 2681, 5085, 18010,
 ];
 
-/// Whether oxc's `program` recovered from `error` holds all of the code. A function declared as a
-/// statement's body, which oxc reports without a code, stays in the program.
-fn keeps_recovered(
-    error: &oxc_diagnostics::OxcDiagnostic,
-    program: &oxc_ast::ast::Program<'_>,
-) -> bool {
-    if error.code.scope.as_deref() != Some("TS") {
-        return error.code.number.is_none()
-            && (error.labels.first()).is_some_and(|label| {
-                rsvelte_typescript_tree::function_as_body(program, label.offset()).is_some()
-            });
+/// Whether oxc's `program` recovered from an error of tsc's `code` at `at` holds all of the code.
+/// A function declared as a statement's body, which oxc reports without a code, stays in it.
+fn recovered_whole(code: Option<u32>, at: u32, program: &Program<'_>) -> bool {
+    code.map_or_else(
+        || rsvelte_typescript_tree::function_as_body(program, at).is_some(),
+        |code| RECOVERED_WHOLE.contains(&code),
+    )
+}
+
+/// [`recovered_whole`] for oxc's `error`, which the formatter's parse reported.
+fn keeps_recovered(error: &oxc_diagnostics::OxcDiagnostic, program: &Program<'_>) -> bool {
+    match (error.code.scope.as_deref(), error.code.number.as_deref()) {
+        (Some("TS"), number) => (number.and_then(|number| number.parse().ok()))
+            .is_some_and(|code| recovered_whole(Some(code), 0, program)),
+        (_, None) => (error.labels.first())
+            .is_some_and(|label| recovered_whole(None, label.offset(), program)),
+        _ => false,
     }
-    (error.code.number.as_deref())
-        .and_then(|number| number.parse().ok())
-        .is_some_and(|code: u32| RECOVERED_WHOLE.contains(&code))
 }
 
 /// Takes `function ` off the start of a function declaration's layout and ` {}` off its end.

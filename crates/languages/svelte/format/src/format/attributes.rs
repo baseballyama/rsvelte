@@ -28,9 +28,6 @@ fn normalize_class(raw: &str, is_last_part: bool) -> String {
             } else if b[j] == b'\n' {
                 out.push('\n');
                 j += 1;
-            } else if b[j] == b'\r' && b.get(j + 1) == Some(&b'\n') {
-                out.push_str("\r\n");
-                j += 2;
             } else {
                 out.push(' ');
             }
@@ -268,7 +265,7 @@ impl Printer<'_, '_, '_> {
                         if j > 0 {
                             value.push(self.d().literalline());
                         }
-                        value.push(self.d().text(line.strip_suffix('\r').unwrap_or(line)));
+                        value.push(self.d().text(line));
                     }
                 }
                 Part::Expression { expression, .. } => {

@@ -167,3 +167,18 @@ fn a_function_declared_as_a_statement_s_body_is_formatted_unless_babel_throws_on
         );
     }
 }
+
+#[test]
+fn a_script_is_formatted_as_typescript_reads_it() {
+    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1: `babel-ts` keeps a
+    // numeric key quoted, though the component reads a script without `lang` as JavaScript.
+    for source_text in [
+        "<script>\n  let { \"0\": a } = $props();\n</script>\n",
+        "<script lang=\"ts\">\n  let { \"0\": a } = $props();\n</script>\n",
+    ] {
+        assert_eq!(
+            crate::task::format(source_text, &Options::default()).expect("prints"),
+            source_text
+        );
+    }
+}
