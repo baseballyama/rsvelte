@@ -416,12 +416,13 @@ enum ElementKind {
     Other,
 }
 
+/// HTML's ASCII whitespace, which is Rust's.
 const fn is_collapse_ws(c: char) -> bool {
-    matches!(c, '\t' | '\n' | '\x0C' | '\r' | ' ')
+    c.is_ascii_whitespace()
 }
 
-fn only_ws(s: &str) -> bool {
-    s.chars().all(is_collapse_ws)
+const fn only_ws(s: &str) -> bool {
+    s.trim_ascii().is_empty()
 }
 
 /// `^([\t\f\r ]*\n){n}`.

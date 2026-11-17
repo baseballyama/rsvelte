@@ -71,7 +71,7 @@ impl SurfaceBuilder<'_> {
                 continue;
             } else if ws == Whitespace::Pre {
                 content.replace("\r\n", "\n")
-            } else if content.bytes().all(is_whitespace) {
+            } else if content.trim_ascii().is_empty() {
                 let neighbour = |j: Option<usize>| {
                     j.and_then(|j| kept.get(j))
                         .and_then(|k| k.as_ref())
@@ -214,16 +214,12 @@ pub(super) fn prop(source_text: &str, a: &syntax_tree::Attribute, origin: u32) -
     }
 }
 
-pub(super) const fn is_whitespace(b: u8) -> bool {
-    matches!(b, b' ' | b'\n' | b'\t' | b'\x0c' | b'\r')
-}
-
 /// compiler-core `condense`: each whitespace run becomes one space.
 pub(super) fn condense(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut prev_ws = false;
     for c in s.chars() {
-        if u8::try_from(c).is_ok_and(is_whitespace) {
+        if c.is_ascii_whitespace() {
             if !prev_ws {
                 out.push(' ');
             }

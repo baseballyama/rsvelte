@@ -1,4 +1,4 @@
-use super::{Attributes, Cow, Kind2, ROOT, Span, Tree, is_markup_ws, only_ws};
+use super::{Attributes, Cow, Kind2, ROOT, Span, Tree, only_ws};
 
 /// prettier's `CSS_DISPLAY_TAGS` (from `html-ua-styles`, with its special cases), for the tags
 /// whose display is not `inline`.
@@ -115,13 +115,8 @@ impl Tree<'_> {
                     out.push(k);
                     continue;
                 };
-                let lead = text.len()
-                    - text
-                        .trim_start_matches(|c: char| c.is_ascii() && is_markup_ws(c as u8))
-                        .len();
-                let trimmed_end = text
-                    .trim_end_matches(|c: char| c.is_ascii() && is_markup_ws(c as u8))
-                    .len();
+                let lead = text.len() - text.trim_ascii_start().len();
+                let trimmed_end = text.trim_ascii_end().len();
                 if lead == text.len() {
                     if let Some(&p) = out.last() {
                         self.n[p].has.trailing = true;
@@ -309,7 +304,7 @@ impl Tree<'_> {
             return false;
         };
         attributes.is_empty()
-            && !t.bytes().any(is_markup_ws)
+            && !t.bytes().any(|b| b.is_ascii_whitespace())
             && !self.n[child].has.leading
             && !self.n[child].has.trailing
             && n.sensitive.leading

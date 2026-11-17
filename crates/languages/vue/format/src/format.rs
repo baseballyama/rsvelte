@@ -169,12 +169,9 @@ struct Tree<'a> {
     source_text: &'a str,
 }
 
-const fn is_markup_ws(b: u8) -> bool {
-    matches!(b, b' ' | b'\t' | b'\n' | b'\x0c' | b'\r')
-}
-
-fn only_ws(s: &str) -> bool {
-    s.bytes().all(is_markup_ws)
+/// Only HTML's ASCII whitespace, which is Rust's.
+const fn only_ws(s: &str) -> bool {
+    s.trim_ascii().is_empty()
 }
 
 struct Printer<'a, 'd, 'x> {
