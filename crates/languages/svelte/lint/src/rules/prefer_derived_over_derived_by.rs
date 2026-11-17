@@ -39,7 +39,6 @@ impl SvelteRule for PreferDerivedOverDerivedBy {
                         expressions.",
                     span(call),
                 )
-                .message_id("unnecessary")
                 .fix(Fix::replace(span(call), replacement)),
             );
         });

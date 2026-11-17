@@ -63,9 +63,7 @@ impl SvelteRule for PreferWritableDerived {
                     "Prefer using writable $derived instead of $state and $effect",
                     span(declarator),
                 )
-                .message_id("unexpected")
                 .suggest(Suggestion {
-                    message_id: Some("suggestRewrite".into()),
                     message: "Rewrite $state and $effect to $derived".to_owned(),
                     fix,
                 }),

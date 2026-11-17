@@ -97,8 +97,7 @@ impl NoUselessMustaches {
         let report = Report::range(
             "Unexpected mustache interpolation with a string literal value.",
             mustache.span,
-        )
-        .message_id("unexpected");
+        );
         reporter.report(match fix {
             Some(fix) => report.fix(fix),
             None => report,

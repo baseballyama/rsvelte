@@ -32,13 +32,10 @@ impl SvelteRule for NoObjectInTextMustaches {
             {
                 return;
             }
-            reporter.report(
-                Report::range(
-                    format!("Unexpected {phrase} in text mustache interpolation."),
-                    mustache.span,
-                )
-                .message_id("unexpected"),
-            );
+            reporter.report(Report::range(
+                format!("Unexpected {phrase} in text mustache interpolation."),
+                mustache.span,
+            ));
         });
     }
 }

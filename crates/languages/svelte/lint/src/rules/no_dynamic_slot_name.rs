@@ -38,10 +38,10 @@ impl SvelteRule for NoDynamicSlotName {
                 }
                 let value = parts(component, attribute);
                 if value.is_empty() {
-                    reporter.report(
-                        Report::range("`<slot>` name requires a value.", attribute.span)
-                            .message_id("requireValue"),
-                    );
+                    reporter.report(Report::range(
+                        "`<slot>` name requires a value.",
+                        attribute.span,
+                    ));
                     continue;
                 }
                 for part in value {
@@ -52,8 +52,7 @@ impl SvelteRule for NoDynamicSlotName {
                         file.semantic(),
                         component.javascript.get_expression(expression),
                     );
-                    let report = Report::range("`<slot>` name cannot be dynamic.", span)
-                        .message_id("unexpected");
+                    let report = Report::range("`<slot>` name cannot be dynamic.", span);
                     let Some(text) = string_if_constant(expression) else {
                         reporter.report(report);
                         continue;

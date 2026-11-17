@@ -43,13 +43,10 @@ impl SvelteRule for PreferAttributeInterpolation {
             }) {
                 return;
             }
-            reporter.report(
-                Report::range(
-                    "Prefer attribute interpolation over a template literal.",
-                    mustache.span,
-                )
-                .message_id("unexpected"),
-            );
+            reporter.report(Report::range(
+                "Prefer attribute interpolation over a template literal.",
+                mustache.span,
+            ));
         });
     }
 }

@@ -101,18 +101,12 @@ impl SvelteRule for NoReactiveReassign {
                 continue;
             }
             let name = name.name.as_str();
-            let (message, id) = if properties {
-                (
-                    format!("Assignment to property of reactive value '{name}'."),
-                    "assignmentToReactiveValueProp",
-                )
+            let message = if properties {
+                format!("Assignment to property of reactive value '{name}'.")
             } else {
-                (
-                    format!("Assignment to reactive value '{name}'."),
-                    "assignmentToReactiveValue",
-                )
+                format!("Assignment to reactive value '{name}'.")
             };
-            reporter.report(Report::range(message, at).message_id(id));
+            reporter.report(Report::range(message, at));
         }
     }
 }

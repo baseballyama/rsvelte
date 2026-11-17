@@ -55,7 +55,6 @@ impl SvelteRule for NoRawSpecialElements {
                     ),
                     span,
                 )
-                .message_id("deprecatedElement")
                 .fix(fix),
             );
         }

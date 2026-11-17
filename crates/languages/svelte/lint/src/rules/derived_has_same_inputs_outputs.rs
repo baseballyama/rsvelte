@@ -101,11 +101,9 @@ fn check(
     let mut report = Report::range(
         format!("The argument name should be '{expected}'."),
         span(output),
-    )
-    .message_id("unexpected");
+    );
     if let Ok(symbol) = scopes.replaceable(file, function, Some(actual), &expected) {
         report = report.suggest(Suggestion {
-            message_id: Some("renameParam".into()),
             message: format!("Rename the parameter from {actual} to {expected}."),
             fix: rename(file, span(output), symbol, &expected),
         });

@@ -81,18 +81,11 @@ impl SvelteRule for PreferSvelteReactivity {
             let message = format!(
                 "Found a mutable instance of the built-in {class} class. Use Svelte{class} instead."
             );
-            let message_id = match class {
-                "Date" => "mutableDateUsed",
-                "Map" => "mutableMapUsed",
-                "Set" => "mutableSetUsed",
-                "URL" => "mutableURLUsed",
-                _ => "mutableURLSearchParamsUsed",
-            };
             // Upstream reports once for each export the construction is in.
             let mut current = node;
             loop {
                 for _ in 0..exported.get(&current).copied().unwrap_or(0) {
-                    reporter.report(Report::range(message.clone(), at).message_id(message_id));
+                    reporter.report(Report::range(message.clone(), at));
                 }
                 let parent = nodes.parent_id(current);
                 if parent == current {
@@ -125,7 +118,7 @@ impl SvelteRule for PreferSvelteReactivity {
                     })
             };
             if mutated {
-                reporter.report(Report::range(message, at).message_id(message_id));
+                reporter.report(Report::range(message, at));
             }
         }
     }

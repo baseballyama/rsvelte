@@ -57,13 +57,10 @@ impl SvelteRule for NoUnknownStyleDirectiveProperty {
             {
                 continue;
             }
-            reporter.report(
-                Report::range(
-                    format!("Unexpected unknown style directive property '{property}'."),
-                    name,
-                )
-                .message_id("unknown"),
-            );
+            reporter.report(Report::range(
+                format!("Unexpected unknown style directive property '{property}'."),
+                name,
+            ));
         }
     }
 }

@@ -47,8 +47,7 @@ impl SvelteRule for NoAddEventListener {
                 "Do not use `addEventListener`. Use the `on` function from `svelte/events` \
                  instead.",
                 span(call),
-            )
-            .message_id("unexpected");
+            );
             if let Some(open) = next_token(source, callee.end_offset) {
                 let mut fix = Fix::replace(callee, "on");
                 fix.push(
@@ -56,7 +55,6 @@ impl SvelteRule for NoAddEventListener {
                     format!("{target}, "),
                 );
                 report = report.suggest(Suggestion {
-                    message_id: None,
                     message: "Use `on` from `svelte/events` instead".to_owned(),
                     fix,
                 });

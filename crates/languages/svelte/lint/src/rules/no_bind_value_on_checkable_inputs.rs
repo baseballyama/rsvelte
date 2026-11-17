@@ -56,21 +56,19 @@ impl SvelteRule for NoBindValueOnCheckableInputs {
             else {
                 continue;
             };
-            let (message, message_id, suggestions): (_, _, &[_]) = match kind.as_str() {
+            let (message, suggestions): (_, &[_]) = match kind.as_str() {
                 "checkbox" => (
                     "`bind:value` does not work on checkbox inputs. Did you mean `bind:checked` \
                      or `bind:group`?",
-                    "checkboxValueBinding",
                     &["checked", "group"],
                 ),
                 "radio" => (
                     "`bind:value` does not work on radio inputs. Did you mean `bind:group`?",
-                    "radioValueBinding",
                     &["group"],
                 ),
                 _ => continue,
             };
-            let mut report = Report::range(message, bind_value.span).message_id(message_id);
+            let mut report = Report::range(message, bind_value.span);
             for binding in suggestions {
                 report = report.suggest(rebind(bind_value, binding));
             }
@@ -87,7 +85,6 @@ fn rebind(bind_value: &Attribute, binding: &'static str) -> Suggestion {
         Fix::replace(bind_value.name, format!("bind:{binding}"))
     };
     Suggestion {
-        message_id: Some(format!("{binding}Suggestion").into()),
         message: format!("Change `bind:value` to `bind:{binding}`."),
         fix,
     }

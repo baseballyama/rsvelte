@@ -31,8 +31,7 @@ impl SvelteRule for NoExtraReactiveCurlies {
             let mut report = Report::range(
                 "Do not wrap reactive statements in curly braces unless necessary.",
                 block,
-            )
-            .message_id("extraCurlies");
+            );
             // The tokens and comments of the block: `{`, the first after it, the last before
             // `}`, and `}`.
             let mut tokens = between(&component.tokens, block.start_offset, block.end_offset)
@@ -49,7 +48,6 @@ impl SvelteRule for NoExtraReactiveCurlies {
                 let mut fix = Fix::remove(Span::new(open.start_offset, second.start_offset));
                 fix.push(Span::new(penultimate.end_offset, close.end_offset), "");
                 report = report.suggest(Suggestion {
-                    message_id: Some("removeExtraCurlies".into()),
                     message: "Remove the unnecessary curly braces.".to_owned(),
                     fix,
                 });

@@ -47,13 +47,10 @@ impl SvelteRule for NoIgnoredUnsubscribe {
                 }
                 _ => return,
             };
-            reporter.report(
-                Report::range(
-                    "Ignoring returned value of the subscribe method is forbidden.",
-                    property,
-                )
-                .message_id("forbidden"),
-            );
+            reporter.report(Report::range(
+                "Ignoring returned value of the subscribe method is forbidden.",
+                property,
+            ));
         });
     }
 }

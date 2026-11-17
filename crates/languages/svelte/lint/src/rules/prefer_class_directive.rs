@@ -96,8 +96,7 @@ impl SvelteRule for PreferClassDirective {
                         )
                     {
                         let mut report =
-                            Report::range("Unexpected class using the ternary operator.", span)
-                                .message_id("unexpected");
+                            Report::range("Unexpected class using the ternary operator.", span);
                         // A second `class:name` would be a duplicate attribute.
                         if !names.iter().any(|name| directives.contains(name.as_str())) {
                             report = report.fix(fix);

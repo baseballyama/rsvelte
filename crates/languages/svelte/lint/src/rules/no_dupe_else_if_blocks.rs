@@ -57,15 +57,12 @@ impl SvelteRule for NoDupeElseIfBlocks {
                             .any(|earlier| compare.is_subset(earlier, operand))
                     });
                     if operands.is_empty() {
-                        reporter.report(
-                            Report::range(
-                                "This branch can never execute. Its condition is a duplicate or \
+                        reporter.report(Report::range(
+                            "This branch can never execute. Its condition is a duplicate or \
                                  covered by previous conditions in the `{#if}` / `{:else if}` \
                                  chain.",
-                                nodes::span(*condition),
-                            )
-                            .message_id("unexpected"),
-                        );
+                            nodes::span(*condition),
+                        ));
                         break 'chain;
                     }
                 }

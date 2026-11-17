@@ -61,13 +61,10 @@ fn verify(file: &File<'_>, expression: ExpressionIdentifier, reporter: &mut Repo
         Expression::BooleanLiteral(_) => "boolean value",
         _ => return,
     };
-    reporter.report(
-        Report::range(
-            format!("Unexpected {phrase} in event handler."),
-            nodes::span(expression),
-        )
-        .message_id("unexpected"),
-    );
+    reporter.report(Report::range(
+        format!("Unexpected {phrase} in event handler."),
+        nodes::span(expression),
+    ));
 }
 
 /// The event attributes of `svelte/elements` (upstream `EVENT_NAMES` without the `on:` names,

@@ -36,10 +36,10 @@ impl SvelteRule for ExperimentalRequireSlotTypes {
         if !declared {
             // Upstream reports at `{ line: 1, column: 1 }`, the document's second character.
             let offset = source.chars().next().map_or(0, char::len_utf8) as u32;
-            reporter.report(
-                Report::point("The component must define the $$Slots interface.", offset)
-                    .message_id("missingSlotsInterface"),
-            );
+            reporter.report(Report::point(
+                "The component must define the $$Slots interface.",
+                offset,
+            ));
         }
     }
 }

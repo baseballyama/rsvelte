@@ -21,14 +21,11 @@ impl SvelteRule for NoNestedStyleTag {
             if let TemplateNode::Element { name, span, .. } = *node
                 && name.text(source) == "style"
             {
-                reporter.report(
-                    Report::range(
-                        "Nested `<style>` elements are not scoped and may lead to unintended \
+                reporter.report(Report::range(
+                    "Nested `<style>` elements are not scoped and may lead to unintended \
                          styles being applied.",
-                        span,
-                    )
-                    .message_id("nestedStyle"),
-                );
+                    span,
+                ));
             }
         }
     }

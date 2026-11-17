@@ -31,10 +31,10 @@ impl SvelteRule for NoDupeStyleProperties {
                     if let Some(&already) = before.get(name) {
                         for at in [already, span] {
                             if shown.insert(at) {
-                                reporter.report(
-                                    Report::range(format!("Duplicate property '{name}'."), at)
-                                        .message_id("unexpected"),
-                                );
+                                reporter.report(Report::range(
+                                    format!("Duplicate property '{name}'."),
+                                    at,
+                                ));
                             }
                         }
                     }

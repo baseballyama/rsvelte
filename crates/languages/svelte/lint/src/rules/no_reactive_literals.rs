@@ -46,8 +46,7 @@ impl SvelteRule for NoReactiveLiterals {
                 "Do not assign literal values inside reactive statements unless absolutely \
                  necessary.",
                 statement,
-            )
-            .message_id("noReactiveLiterals");
+            );
             // Upstream also suggests `let a += 1` and `let obj.x = 1`, which do not parse.
             if assignment.operator == AssignmentOperator::Assign
                 && matches!(
@@ -56,7 +55,6 @@ impl SvelteRule for NoReactiveLiterals {
                 )
             {
                 report = report.suggest(Suggestion {
-                    message_id: Some("fixReactiveLiteral".into()),
                     message: "Move the literal out of the reactive statement into an assignment"
                         .to_owned(),
                     fix: Fix::replace(

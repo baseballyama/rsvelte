@@ -17,10 +17,7 @@ impl SvelteRule for NoAtMarkupTags {
         let component = file.component().expect("a component rule");
         for node in &component.nodes {
             if let TemplateNode::Html { span, .. } = *node {
-                reporter.report(
-                    Report::range("`{@html}` can lead to XSS attack.", span)
-                        .message_id("unexpected"),
-                );
+                reporter.report(Report::range("`{@html}` can lead to XSS attack.", span));
             }
         }
     }

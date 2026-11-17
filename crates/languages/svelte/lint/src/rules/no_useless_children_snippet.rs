@@ -37,10 +37,10 @@ impl SvelteRule for NoUselessChildrenSnippet {
                     })
                     && nodes::is_named(component.javascript.get_expression(name), "children")
                 {
-                    reporter.report(
-                        Report::range("Found an unnecessary children snippet.", span)
-                            .message_id("uselessSnippet"),
-                    );
+                    reporter.report(Report::range(
+                        "Found an unnecessary children snippet.",
+                        span,
+                    ));
                 }
             }
         }

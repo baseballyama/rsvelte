@@ -134,13 +134,10 @@ fn report_unguarded(
         let guarded =
             browser.contains(node, at) || by_name.get(name).is_some_and(|c| c.contains(node, at));
         if !guarded {
-            reporter.report(
-                Report::range(
-                    format!("Unexpected top-level browser global variable \"{name}\"."),
-                    at,
-                )
-                .message_id("unexpectedGlobal"),
-            );
+            reporter.report(Report::range(
+                format!("Unexpected top-level browser global variable \"{name}\"."),
+                at,
+            ));
         }
     }
 }

@@ -39,9 +39,7 @@ impl SvelteRule for NoInspect {
                 return;
             }
             last = Some(at);
-            reporter.report(
-                Report::range("Do not use $inspect directive", span(at)).message_id("unexpected"),
-            );
+            reporter.report(Report::range("Do not use $inspect directive", span(at)));
         });
     }
 }

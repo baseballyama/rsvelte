@@ -33,13 +33,10 @@ impl SvelteRule for NoShorthandStylePropertyOverrides {
                         prefixed.push_str(prefix);
                         prefixed.push_str(longhand);
                         if before.contains(prefixed.as_str()) {
-                            reporter.report(
-                                Report::range(
-                                    format!("Unexpected shorthand '{name}' after '{prefixed}'."),
-                                    span,
-                                )
-                                .message_id("unexpected"),
-                            );
+                            reporter.report(Report::range(
+                                format!("Unexpected shorthand '{name}' after '{prefixed}'."),
+                                span,
+                            ));
                         }
                     }
                 }

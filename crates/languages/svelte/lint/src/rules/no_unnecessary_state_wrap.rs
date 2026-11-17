@@ -71,9 +71,7 @@ impl SvelteRule for NoUnnecessaryStateWrap {
                     format!("{class} is already reactive, $state wrapping is unnecessary."),
                     span(argument),
                 )
-                .message_id("unnecessaryStateWrap")
                 .suggest(Suggestion {
-                    message_id: Some("suggestRemoveStateWrap".into()),
                     message: "Remove unnecessary $state wrapping".to_owned(),
                     fix: Fix::replace(span(call), span(argument).text(source)),
                 }),

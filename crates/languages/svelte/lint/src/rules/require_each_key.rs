@@ -40,13 +40,10 @@ impl SvelteRule for RequireEachKey {
                     .after(after)
                     .expect("`{#each}` ends with `}`"),
             );
-            reporter.report(
-                Report::range(
-                    "Each block should have a key",
-                    Span::new(span.start_offset, closing.span.end_offset),
-                )
-                .message_id("expectedKey"),
-            );
+            reporter.report(Report::range(
+                "Each block should have a key",
+                Span::new(span.start_offset, closing.span.end_offset),
+            ));
         }
     }
 }

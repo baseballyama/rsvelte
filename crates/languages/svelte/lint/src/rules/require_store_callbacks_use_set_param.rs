@@ -53,12 +53,10 @@ impl SvelteRule for RequireStoreCallbacksUseSetParam {
             let mut report = Report::range(
                 "Store callbacks must use `set` param.",
                 span(&function.span),
-            )
-            .message_id("unexpected");
+            );
             if let Ok(symbol) = scopes.replaceable(file, function, name, "set") {
                 if let Some((at, name)) = parameter {
                     report = report.suggest(Suggestion {
-                        message_id: Some("updateParam".into()),
                         message: format!("Rename parameter from {name} to `set`."),
                         fix: rename(file, span(&at), symbol, "set"),
                     });
@@ -66,7 +64,6 @@ impl SvelteRule for RequireStoreCallbacksUseSetParam {
                     open_parenthesis_before(file.source(), parameters.span.start, function.body)
                 {
                     report = report.suggest(Suggestion {
-                        message_id: Some("addParam".into()),
                         message: "Add a `set` parameter.".to_owned(),
                         fix: Fix::insert(open + 1, "set"),
                     });

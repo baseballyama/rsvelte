@@ -29,13 +29,10 @@ impl SvelteRule for NoStoreAsync {
             }
             // Upstream reports the five characters of `async`.
             let start = function.span.start;
-            reporter.report(
-                Report::range(
-                    "Do not pass async functions to svelte stores.",
-                    Span::new(start, start + 5),
-                )
-                .message_id("unexpected"),
-            );
+            reporter.report(Report::range(
+                "Do not pass async functions to svelte stores.",
+                Span::new(start, start + 5),
+            ));
         }
     }
 }

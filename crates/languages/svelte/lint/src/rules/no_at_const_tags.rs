@@ -55,7 +55,6 @@ impl SvelteRule for NoAtConstTags {
                     "Use `{const ...}` declaration tag instead of legacy `{@const ...}`.",
                     span,
                 )
-                .message_id("unexpected")
                 .fix(fix),
             );
         }

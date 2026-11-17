@@ -91,14 +91,11 @@ impl SvelteRule for NoImmutableReactiveStatements {
                 },
                 _ => span(body),
             };
-            reporter.report(
-                Report::range(
-                    "This statement is not reactive because all variables referenced in the \
+            reporter.report(Report::range(
+                "This statement is not reactive because all variables referenced in the \
                      reactive statement are immutable.",
-                    at,
-                )
-                .message_id("immutable"),
-            );
+                at,
+            ));
         }
     }
 }

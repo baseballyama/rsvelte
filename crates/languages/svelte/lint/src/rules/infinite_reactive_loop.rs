@@ -205,24 +205,18 @@ impl<'a> Lint<'a, '_, '_> {
         {
             return;
         }
-        self.reporter.report(
-            Report::range(
-                "Possibly it may occur an infinite reactive loop.",
-                span(identifier),
-            )
-            .message_id("unexpected"),
-        );
+        self.reporter.report(Report::range(
+            "Possibly it may occur an infinite reactive loop.",
+            span(identifier),
+        ));
         for &call in &self.calls {
-            self.reporter.report(
-                Report::range(
-                    format!(
-                        "Possibly it may occur an infinite reactive loop because this function \
+            self.reporter.report(Report::range(
+                format!(
+                    "Possibly it may occur an infinite reactive loop because this function \
                          may update `{name}`."
-                    ),
-                    span(&self.nodes.kind(call)),
-                )
-                .message_id("unexpectedCall"),
-            );
+                ),
+                span(&self.nodes.kind(call)),
+            ));
         }
     }
 

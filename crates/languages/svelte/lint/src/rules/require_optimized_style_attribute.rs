@@ -14,14 +14,14 @@ pub(super) static RULE: RuleDefinition = RuleDefinition {
 #[derive(Debug, Default)]
 struct RequireOptimizedStyleAttribute;
 
-const COMPLEX: (&str, &str) = ("complex", "It cannot be optimized because too complex.");
+const COMPLEX: &str = "It cannot be optimized because too complex.";
 
 impl SvelteRule for RequireOptimizedStyleAttribute {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let source = file.source();
-        let mut report = |(id, message): (&'static str, &str), span| {
-            reporter.report(Report::range(message, span).message_id(id));
+        let mut report = |message: &str, span| {
+            reporter.report(Report::range(message, span));
         };
         for (index, attribute) in component.attributes.iter().enumerate() {
             if attribute.kind == AttributeKind::Attribute
@@ -29,11 +29,8 @@ impl SvelteRule for RequireOptimizedStyleAttribute {
                 && attribute.name.text(source) == "style"
             {
                 report(
-                    (
-                        "shorthand",
-                        "It cannot be optimized because style attribute is specified using \
+                    "It cannot be optimized because style attribute is specified using \
                          shorthand.",
-                    ),
                     attribute.span,
                 );
                 continue;
@@ -55,22 +52,15 @@ impl SvelteRule for RequireOptimizedStyleAttribute {
                     }
                     InlineNode::Declaration(declaration) if declaration.property_holes > 0 => {
                         report(
-                            (
-                                "interpolationKey",
-                                "It cannot be optimized because property of style declaration \
+                            "It cannot be optimized because property of style declaration \
                              contain interpolation.",
-                            ),
                             declaration.property,
                         );
                     }
                     InlineNode::Declaration(_) => {}
-                    InlineNode::Comment(span) => report(
-                        (
-                            "comment",
-                            "It cannot be optimized because contains comments.",
-                        ),
-                        *span,
-                    ),
+                    InlineNode::Comment(span) => {
+                        report("It cannot be optimized because contains comments.", *span);
+                    }
                     InlineNode::Hole { span, .. } => report(COMPLEX, *span),
                 }
             }

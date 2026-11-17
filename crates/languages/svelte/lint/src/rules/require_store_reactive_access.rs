@@ -106,8 +106,7 @@ impl Check<'_, '_, '_> {
             "Use the $ prefix or the get function to access reactive values instead of accessing \
              the raw store.",
             at,
-        )
-        .message_id("usingRawStoreInText");
+        );
         if fix {
             report = report.fix(Fix::insert(at.start_offset, "$"));
         }

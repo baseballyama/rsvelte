@@ -38,8 +38,7 @@ impl SvelteRule for NoReactiveFunctions {
             let mut report = Report::range(
                 "Do not create functions inside reactive statements unless absolutely necessary.",
                 span,
-            )
-            .message_id("noReactiveFns");
+            );
             // `$`, `:` and the token after them.
             let label = tokens.after(span.start_offset).map(|t| tokens.get(t).span);
             let colon = label
@@ -52,7 +51,6 @@ impl SvelteRule for NoReactiveFunctions {
                 let spaced = between(tokens, colon.end_offset, next.start_offset)
                     .any(|token| token.kind == TokenType::Whitespace);
                 report = report.suggest(Suggestion {
-                    message_id: Some("fixReactiveFns".into()),
                     message: "Move the function out of the reactive statement".to_owned(),
                     fix: Fix::replace(
                         Span::new(label.start_offset, colon.end_offset),

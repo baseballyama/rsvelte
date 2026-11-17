@@ -32,13 +32,10 @@ impl SvelteRule for NoSvelteInternal {
                 return;
             };
             if value == "svelte/internal" || value.starts_with("svelte/internal/") {
-                reporter.report(
-                    Report::range(
-                        "Using svelte/internal is prohibited. This will be removed in Svelte 6.",
-                        span(node.kind().span()),
-                    )
-                    .message_id("unexpected"),
-                );
+                reporter.report(Report::range(
+                    "Using svelte/internal is prohibited. This will be removed in Svelte 6.",
+                    span(node.kind().span()),
+                ));
             }
         });
     }

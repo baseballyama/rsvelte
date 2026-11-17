@@ -98,7 +98,7 @@ impl SvelteRule for PreferStyleDirective {
                     {
                         report = report.fix(replace(attribute, nodes, index, &text));
                     }
-                    reporter.report(report.message_id("unexpected"));
+                    reporter.report(report);
                 }
             }
         }

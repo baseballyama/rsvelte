@@ -232,7 +232,6 @@ fn report(
             for (variable, variable_name) in assigned.of(object.node_id(), name) {
                 if seen.insert(variable) {
                     suggestions.push(Suggestion {
-                        message_id: Some("fixUseVariable".into()),
                         message: format!("Using the predefined reactive variable {variable_name}"),
                         fix: Fix::replace(at, variable_name),
                     });
@@ -250,7 +249,6 @@ fn report(
                 );
                 fix.push(at, local);
                 suggestions.push(Suggestion {
-                    message_id: Some("fixUseDestructuring".into()),
                     message: format!(
                         "Using destructuring like $: ({{ {name} }} = {store}); will run faster"
                     ),
@@ -270,8 +268,7 @@ fn report(
     let mut report = Report::range(
         format!("Destructure {shown} from {store} for better change tracking & fewer redraws"),
         at,
-    )
-    .message_id("useDestructuring");
+    );
     for suggestion in suggestions {
         report = report.suggest(suggestion);
     }

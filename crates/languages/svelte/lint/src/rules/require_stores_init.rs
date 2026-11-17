@@ -26,10 +26,10 @@ impl SvelteRule for RequireStoresInit {
             {
                 continue;
             }
-            reporter.report(
-                Report::range("Always set a default value for svelte stores.", span(call))
-                    .message_id("storeDefaultValue"),
-            );
+            reporter.report(Report::range(
+                "Always set a default value for svelte stores.",
+                span(call),
+            ));
         }
     }
 }

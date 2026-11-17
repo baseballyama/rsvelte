@@ -121,15 +121,12 @@ impl SvelteRule for NoDomManipulating {
                 _ => false,
             };
             if manipulates {
-                reporter.report(
-                    Report::range(
-                        "Don't manipulate the DOM directly. The Svelte runtime can get confused \
+                reporter.report(Report::range(
+                    "Don't manipulate the DOM directly. The Svelte runtime can get confused \
                          if there is a difference between the actual DOM and the DOM expected by \
                          the Svelte runtime.",
-                        span(&member_kind),
-                    )
-                    .message_id("disallowManipulateDOM"),
-                );
+                    span(&member_kind),
+                ));
             }
         }
     }
