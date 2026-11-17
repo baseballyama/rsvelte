@@ -24,6 +24,8 @@ mod special;
 mod stores;
 mod template;
 mod template_chunk;
+#[cfg(test)]
+mod tests;
 mod title;
 
 use oxc_allocator::ArenaBox;
@@ -382,5 +384,17 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             parameters.push("$$props");
         }
         b.function_declaration(&self.component_name, b.parameters(parameters), body, false)
+    }
+}
+
+/// `name` in lowercase, borrowed when it has nothing to lower.
+fn lowercase(name: &str) -> std::borrow::Cow<'_, str> {
+    if name
+        .bytes()
+        .any(|byte| !byte.is_ascii() || byte.is_ascii_uppercase())
+    {
+        std::borrow::Cow::Owned(name.to_lowercase())
+    } else {
+        std::borrow::Cow::Borrowed(name)
     }
 }
