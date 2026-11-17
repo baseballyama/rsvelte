@@ -8,6 +8,7 @@ use crate::lower::server::{
     capture_event, capture_load_events, escape_markup, event_attribute, is_behaviour,
     is_boolean_attribute, is_directive, push_captured_events,
 };
+use crate::lower::template::implicit_attributes;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_element_attributes` (no spread).
@@ -90,18 +91,14 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             let value = self.attribute_value(a, trim, raw_name == "class");
             self.dynamic_attribute(&name, value, directives, hash.as_deref(), template);
         }
-        self.implicit_class(
-            identifier,
-            list,
-            &class_directives,
-            hash.as_deref(),
-            template,
-        );
-        // And `style=""` to one with `style:`.
-        let has_style = list.iter().any(|a| {
-            !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case("style")
-        });
-        if !has_style && !style_directives.is_empty() {
+        let implicit = implicit_attributes(self.source_text, list, self.an.scoped[identifier]);
+        if implicit.class && !class_directives.is_empty() {
+            let call = self.attribute_class(&class_directives, self.b.string(""), hash.as_deref());
+            template.push(Piece::Expression(call));
+        } else if implicit.class {
+            Self::literal_attribute(template, "class", Some(String::new()), hash.as_deref());
+        }
+        if implicit.style {
             let call = self.attribute_style(&style_directives, self.b.string(""));
             template.push(Piece::Expression(call));
         }
@@ -144,26 +141,6 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             }
         };
         template.push(Piece::Expression(call));
-    }
-
-    /// Upstream's analysis appends `class=""` to an element with `class:` or a scoped one.
-    fn implicit_class(
-        &self,
-        identifier: CompilerNodeIdentifier,
-        list: &[Attribute],
-        class_directives: &[&Attribute],
-        hash: Option<&str>,
-        template: &mut Vec<Piece<'o>>,
-    ) {
-        let has_class = list.iter().any(|a| {
-            !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case("class")
-        });
-        if !has_class && !class_directives.is_empty() {
-            let call = self.attribute_class(class_directives, self.b.string(""), hash);
-            template.push(Piece::Expression(call));
-        } else if !has_class && self.an.scoped[identifier] {
-            Self::literal_attribute(template, "class", Some(String::new()), hash);
-        }
     }
 
     fn literal_attribute(

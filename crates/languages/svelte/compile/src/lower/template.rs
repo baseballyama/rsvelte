@@ -115,6 +115,47 @@ pub(super) const fn is_directive(v: &AttributeValue) -> bool {
     )
 }
 
+/// The empty attributes upstream's analysis gives an element, which both targets then render as
+/// if written: `class` when it is scoped or has a `class:`, `style` when it has a `style:`, each
+/// unless an attribute has that name, and neither beside a spread.
+#[derive(Clone, Copy)]
+pub(super) struct Implicit {
+    pub class: bool,
+    pub style: bool,
+}
+
+#[must_use]
+pub(super) fn implicit_attributes(
+    source_text: &str,
+    attributes: &[Attribute],
+    scoped: bool,
+) -> Implicit {
+    let (mut class, mut style) = (false, false);
+    let (mut class_directive, mut style_directive) = (false, false);
+    for a in attributes {
+        match &a.value {
+            AttributeValue::Spread(_) => {
+                return Implicit {
+                    class: false,
+                    style: false,
+                };
+            }
+            AttributeValue::Class(_) => class_directive = true,
+            AttributeValue::Style { .. } => style_directive = true,
+            value if !is_directive(value) => {
+                let name = a.name.text(source_text);
+                class |= name.eq_ignore_ascii_case("class");
+                style |= name.eq_ignore_ascii_case("style");
+            }
+            _ => {}
+        }
+    }
+    Implicit {
+        class: !class && (scoped || class_directive),
+        style: !style && style_directive,
+    }
+}
+
 /// A directive that renders no attribute: one that adds behaviour to the element, or a `let:`,
 /// on either target.
 #[must_use]

@@ -7,6 +7,7 @@ use crate::lower::client::{
     NodeKind, R, event_attribute, is_behaviour, is_custom_element_node, is_directive,
     normalize_attribute, unsupported,
 };
+use crate::lower::template::implicit_attributes;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// The attribute loop of upstream `RegularElement` (no spread).
@@ -103,23 +104,15 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 }
             }
         }
-        // Upstream's analysis appends `class=""` to such an element.
-        let has_class = attributes.iter().any(|a| {
-            !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case("class")
-        });
+        let implicit =
+            implicit_attributes(self.source_text, attributes, self.an.scoped[identifier]);
         // A custom element takes no attribute from the template, so it sets its scoping class too.
-        if !has_class
-            && (!class_directives.is_empty() || custom_element && self.an.scoped[identifier])
-        {
+        if implicit.class && (!class_directives.is_empty() || custom_element) {
             self.set_class(identifier, node, None, &class_directives, &mut frag.memo, l);
-        } else if !has_class && self.an.scoped[identifier] {
+        } else if implicit.class {
             self.static_attribute(frag, identifier, "class", "class", Some(String::new()));
         }
-        // And `style=""` to one with `style:`.
-        let has_style = attributes.iter().any(|a| {
-            !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case("style")
-        });
-        if !has_style && !style_directives.is_empty() {
+        if implicit.style {
             self.set_style(node, None, &style_directives, &mut frag.memo, l);
         }
         Ok(())
