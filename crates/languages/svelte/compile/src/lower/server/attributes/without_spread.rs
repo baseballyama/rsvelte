@@ -156,8 +156,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         template: &mut Vec<Piece<'o>>,
     ) {
         let has_class = list.iter().any(|a| {
-            !matches!(a.value, AttributeValue::Class(_))
-                && a.name.text(self.source_text).eq_ignore_ascii_case("class")
+            !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case("class")
         });
         if !has_class && !class_directives.is_empty() {
             let call = self.attribute_class(class_directives, self.b.string(""), hash);

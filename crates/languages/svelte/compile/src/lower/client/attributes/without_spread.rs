@@ -105,8 +105,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         // Upstream's analysis appends `class=""` to such an element.
         let has_class = attributes.iter().any(|a| {
-            !matches!(a.value, AttributeValue::Class(_))
-                && a.name.text(self.source_text).eq_ignore_ascii_case("class")
+            !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case("class")
         });
         // A custom element takes no attribute from the template, so it sets its scoping class too.
         if !has_class
