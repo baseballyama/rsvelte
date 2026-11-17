@@ -5,7 +5,6 @@
 use std::io::Write as _;
 use std::process::ExitCode;
 
-use rsvelte_kernel::computation::pipeline::{self, RunOptions, Sharing};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Severity;
 
@@ -26,14 +25,9 @@ pub(crate) fn format(reg: &Registry, paths: &[&str], tasks: &[&str], check: bool
         Ok(documents) => documents,
         Err(e) => return usage(&e),
     };
-    let options = RunOptions {
-        tasks,
-        sharing: Sharing::Shared,
-        threads: None,
-    };
-    let results = match pipeline::run(reg, &documents, &options) {
+    let results = match files::run(reg, &documents, tasks) {
         Ok(results) => results,
-        Err(e) => return usage(&e.to_string()),
+        Err(code) => return code,
     };
     let mut failed = 0;
     let mut changed = 0;
