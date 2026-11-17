@@ -32,19 +32,11 @@ pub(super) fn prepare<'c, 'o>(
     let mut module = Vec::new();
     let mut hoisted = Vec::new();
     let mut rewrite = script::ScriptRewrite {
-        b,
-        target,
         accessors: custom_element.is_some(),
         rest_reads: Some(&facts.validated.rest_reads),
-        res,
-        template: None,
-        shadows: None,
         stores: &facts.validated.stores,
-        untracked: None,
-        invalidates: None,
-        primitive: false,
-        classes: script::Classes::default(),
         names: Some(&names),
+        ..script::ScriptRewrite::new(b, target, res)
     };
     if let Some(program) = input.component.module {
         let statements = script::lower_script(
