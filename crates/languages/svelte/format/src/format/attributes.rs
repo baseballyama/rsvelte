@@ -104,7 +104,7 @@ impl Printer<'_, '_, '_> {
             }
             AttributeKind::Attribute => {
                 if named_like(name) {
-                    return Ok(self.shorthand_or_expanded(shorthand, "{", name, name));
+                    return Ok(self.shorthand_or_expanded(shorthand, name));
                 }
                 if parts.is_empty() {
                     return Ok(self.d().text(name));
@@ -166,14 +166,12 @@ impl Printer<'_, '_, '_> {
     fn shorthand_or_expanded(
         &mut self,
         shorthand: bool,
-        open: &'static str,
         name: &str,
-        value: &str,
     ) -> LayoutInstructionIdentifier {
         if shorthand {
-            self.d().text_parts(&[open, value, "}"])
+            self.d().text_parts(&["{", name, "}"])
         } else {
-            self.d().text_parts(&[name, "={", value, "}"])
+            self.d().text_parts(&[name, "={", name, "}"])
         }
     }
 
