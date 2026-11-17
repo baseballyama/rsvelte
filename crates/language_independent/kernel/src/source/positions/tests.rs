@@ -138,6 +138,8 @@ fn a_cursor_agrees_with_the_index_on_any_order_of_offsets() {
         "\u{2028}",
         "x\u{2029}",
         "    ",
+        "abcdefghijklmnopqrstuvwxyz",
+        "\r\r\n\n",
     ];
     let mut state = 0x9E37_79B9_7F4A_7C15_u64;
     let mut next = |n: u64| {
@@ -147,7 +149,7 @@ fn a_cursor_agrees_with_the_index_on_any_order_of_offsets() {
         state % n
     };
     for _ in 0..200 {
-        let text: String = (0..next(400)).map(|_| pieces[next(10) as usize]).collect();
+        let text: String = (0..next(400)).map(|_| pieces[next(12) as usize]).collect();
         let len = text.len() as u64;
         for breaks in [LineBreaks::Newline, LineBreaks::Ecmascript] {
             let index = LineIndex::with_breaks(&text, breaks);
