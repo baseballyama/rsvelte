@@ -14147,14 +14147,6 @@ https://svelte.dev/e/js_parse_error
 
 <div></div>
 
-=== 86 import_span_comment_hoist/a_comment_after_the_from_keyword_survives/c8d5e10ffc3d371e.svelte	svelte
-<script>
-  import { a, b /* c1 */ } from "m";
-  const e = a(b);
-</script>
-
-<p>{e}</p>
-
 === 101 import_span_comment_hoist/a_comment_before_the_closing_brace_survives/fd0e87d796a53da1.svelte	svelte
 <script>
   import {
@@ -24910,16 +24902,6 @@ hello
 === 29 parse_ts_node_estree_fields_4133/a_script_spread_attribute_is_read_as_a_static_name/deb0b3c1b27402a1.svelte	svelte
 <script {...wheee}></script>
 
-=== 58 parse_ts_node_estree_fields_4133/a_type_parameter_list_records_its_trailing_comma/64af1300d0378fd2.svelte	svelte
-<script lang="ts">
-  const f = <T,>(x: T) => x;
-</script>
-
-=== 58 parse_ts_node_estree_fields_4133/a_type_parameter_list_records_its_trailing_comma/d859cd936e28cb9d.svelte	svelte
-<script lang="ts">
-  const f = <T,>(x: T) => x;
-</script>
-
 === 49 parse_ts_node_estree_fields_4133/a_typescript_template_expression_parses_await_as_a_module_would/7386b579a5aafd1b.svelte	svelte
 <script lang="ts">
   let a;
@@ -25023,11 +25005,6 @@ hello
 === 56 parse_ts_types/function_type_via_as_assertion_is_preserved/deeb903aa043e05a.svelte	svelte
 <script lang="ts">
   let x = 1 as () => void;
-</script>
-
-=== 59 parse_ts_types/generic_arrow_emits_type_parameters_after_body/c7ebcde842cdf4b2.svelte	svelte
-<script lang="ts">
-  const g = <T,>(x: T) => {};
 </script>
 
 === 54 parse_ts_types/generic_function_declaration_emits_type_parameters/21ef51ae46fa3e27.svelte	svelte

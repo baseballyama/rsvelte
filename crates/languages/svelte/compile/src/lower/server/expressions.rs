@@ -8,21 +8,7 @@ use super::{ScriptRewrite, ServerCompilationContext, Target};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     pub(super) fn rewrite(&self) -> ScriptRewrite<'_, 'o> {
-        ScriptRewrite {
-            b: self.b,
-            target: Target::Server,
-            accessors: false,
-            rest_reads: None,
-            res: self.res,
-            template: None,
-            shadows: None,
-            stores: &[],
-            untracked: None,
-            invalidates: None,
-            primitive: false,
-            classes: crate::lower::script::Classes::default(),
-            names: None,
-        }
+        ScriptRewrite::new(self.b, Target::Server, self.res)
     }
 
     /// A template expression, lowered into the output.

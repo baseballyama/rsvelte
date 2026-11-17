@@ -1,5 +1,3 @@
-use oxc_semantic::ReferenceId;
-use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
 use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature_where};
 
@@ -145,7 +143,8 @@ fn check_legacy_props(input: &CompileInput<'_>, res: &Resolution) -> Result<(), 
             "Cannot use `$$restProps` in runes mode",
         ),
     ] {
-        let first = unbound(res, |n| n == name)
+        let first = res
+            .unbound(|n| n == name)
             .flat_map(|(_, references)| references.into_iter().map(|r| res.reference_span(r)))
             .min_by_key(|span| (!scripted(span.start), span.start));
         if let Some(span) = first {
@@ -158,7 +157,7 @@ fn check_legacy_props(input: &CompileInput<'_>, res: &Resolution) -> Result<(), 
 /// The first value reference, in document order, to a name no binding declares that `wanted`
 /// takes.
 fn first_unresolved(res: &Resolution, wanted: impl Fn(&str) -> bool) -> Option<(&str, Span)> {
-    unbound(res, wanted)
+    res.unbound(wanted)
         .flat_map(|(name, references)| {
             references
                 .into_iter()
@@ -166,33 +165,6 @@ fn first_unresolved(res: &Resolution, wanted: impl Fn(&str) -> bool) -> Option<(
         })
         .min_by_key(|(_, span)| span.start)
         .map(|(name, span)| (name, Span::new(span.start, span.end)))
-}
-
-/// Each name no binding declares that `wanted` takes, with its value references. Upstream erases a
-/// `declare`d name, so it declares nothing.
-pub(super) fn unbound(
-    res: &Resolution,
-    wanted: impl Fn(&str) -> bool,
-) -> impl Iterator<Item = (&str, Vec<ReferenceId>)> {
-    let scoping = res.scoping();
-    let ambient = (scoping.symbol_ids())
-        .filter(|&s| scoping.symbol_flags(s).contains(SymbolFlags::Ambient))
-        .map(|s| {
-            (
-                scoping.symbol_name(s),
-                scoping.get_resolved_reference_ids(s),
-            )
-        });
-    (scoping.root_unresolved_references().iter())
-        .map(|(name, references)| (name.as_str(), references.as_slice()))
-        .chain(ambient)
-        .filter(move |(name, _)| wanted(name))
-        .map(|(name, references)| {
-            let values = (references.iter().copied())
-                .filter(|&r| scoping.get_reference(r).flags().is_value())
-                .collect();
-            (name, values)
-        })
 }
 
 /// Upstream `analysis.uses_slots`: the component reads `$$slots`, which it declares from

@@ -49885,6 +49885,22 @@ import * as $ from 'svelte/internal/server';
 export default function Value_ends_outside_strings_and_urls($$renderer) {
 	$$renderer.push(`<p class="a svelte-12z6sm3">x</p>`);
 }
+=== 252 pattern/declared-legacy-props.svelte	error.json
+{
+	"code": "legacy_props_invalid",
+	"message": "Cannot use `$$props` in runes mode\nhttps://svelte.dev/e/legacy_props_invalid",
+	"start": {
+		"line": 5,
+		"column": 4,
+		"character": 61
+	},
+	"end": {
+		"line": 5,
+		"column": 11,
+		"character": 68
+	}
+}
+
 === 221 pattern/deferred-interface-body-error.svelte	error.json
 {
 	"code": "expected_token",

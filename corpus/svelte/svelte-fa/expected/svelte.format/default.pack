@@ -21,71 +21,6 @@
   <Docs />
 </div>
 
-=== 1922 src/routes/components/sections/additional-styling.svelte	svelte
-<script>
-  import Fa from "$lib/fa.svelte";
-  import {
-    faBook,
-    faCog,
-    faFlag,
-    faHome,
-    faInfo,
-    faPencilAlt,
-    faQuoteLeft,
-    faQuoteRight,
-  } from "@fortawesome/free-solid-svg-icons";
-
-  import DocsCode from "../ui/docs-code.svelte";
-  import DocsTitle from "../ui/docs-title.svelte";
-
-  import codes from "./codes.js";
-</script>
-
-<DocsTitle title="Additional Styling" />
-<DocsTitle title="Icon Sizes" level={3} />
-<div class="shadow-sm p-3 mb-3 rounded">
-  <Fa icon={faFlag} size="xs" />
-  <Fa icon={faFlag} size="sm" />
-  <Fa icon={faFlag} size="lg" />
-  <Fa icon={faFlag} size="2x" />
-  <Fa icon={faFlag} size="2.5x" />
-  <Fa icon={faFlag} size="5x" />
-  <Fa icon={faFlag} size="7x" />
-  <Fa icon={faFlag} size="10x" />
-</div>
-<DocsCode code={codes.additionalStyling[0]} />
-
-<DocsTitle title="Fixed Width Icons" level={3} />
-<div class="shadow-sm p-3 mb-3 rounded">
-  <div>
-    <Fa icon={faHome} fw style="background: mistyrose" /> Home
-  </div>
-  <div>
-    <Fa icon={faInfo} fw style="background: mistyrose" /> Info
-  </div>
-  <div>
-    <Fa icon={faBook} fw style="background: mistyrose" /> Library
-  </div>
-  <div>
-    <Fa icon={faPencilAlt} fw style="background: mistyrose" /> Applications
-  </div>
-  <div>
-    <Fa icon={faCog} fw style="background: mistyrose" /> Settings
-  </div>
-</div>
-<DocsCode code={codes.additionalStyling[1]} />
-
-<DocsTitle title="Pulled Icons" level={3} />
-<div class="shadow-sm p-3 mb-3 rounded">
-  <Fa icon={faQuoteLeft} pull="left" size="2x" />
-  <Fa icon={faQuoteRight} pull="right" size="2x" />
-  Gatsby believed in the green light, the orgastic future that year by year recedes
-  before us. It eluded us then, but that’s no matter — tomorrow we will run faster,
-  stretch our arms further... And one fine morning — So we beat on, boats against
-  the current, borne back ceaselessly into the past.
-</div>
-<DocsCode code={codes.additionalStyling[2]} />
-
 === 702 src/routes/components/sections/animating-icons.svelte	svelte
 <script>
   import Fa from "$lib/fa.svelte";
@@ -186,42 +121,6 @@
 <DocsImg src="assets/duotone-7.png" alt="duotone icons advanced use" />
 <DocsCode code={codes.duotoneIcons[8]} lang="js" />
 <DocsCode code={codes.duotoneIcons[9]} />
-
-=== 1317 src/routes/components/sections/installation.svelte	svelte
-<script>
-  import DocsCode from "../ui/docs-code.svelte";
-  import DocsTitle from "../ui/docs-title.svelte";
-
-  import codes from "./codes.js";
-</script>
-
-<DocsTitle title="Installation" />
-<DocsCode code={codes.installation[0]} />
-<div class="shadow-sm p-3 mb-3 rounded">
-  Install FontAwesome icons via <a
-    href="https://www.npmjs.com/search?q=%40fortawesome%20svg%20icons"
-    target="_blank">official packages</a
-  >, for example:
-</div>
-<DocsCode code={codes.installation[1]} />
-<div class="shadow-sm p-3 mb-3 rounded">
-  <strong
-    >Notice for <a href="https://sapper.svelte.dev/" target="_blank">Sapper</a> user:</strong
-  > You may need to install the component as a devDependency:
-</div>
-<DocsCode code={codes.installation[2]} />
-<div class="shadow-sm p-3 mb-3 rounded">
-  <strong
-    >Notice for <a href="https://kit.svelte.dev/" target="_blank">SvelteKit</a
-    >/<a href="https://www.npmjs.com/package/vite" target="_blank">Vite</a> user:</strong
-  > You may need to import the component explicitly as below:
-</div>
-<DocsCode code={codes.installation[3]} lang="js" />
-<div class="shadow-sm p-3 mb-3 rounded">
-  When using typescript with SvelteKit/Vite, you may also needed to add type
-  definitions that redirect to the non-index.es export:
-</div>
-<DocsCode code={codes.installation[4]} lang="js" />
 
 === 2231 src/routes/components/sections/layering-and-text.svelte	svelte
 <script>

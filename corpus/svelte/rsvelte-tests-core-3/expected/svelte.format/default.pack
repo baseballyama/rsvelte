@@ -10003,15 +10003,6 @@ https://svelte.dev/e/js_parse_error
 {#snippet s(a: boolean, b: { t: string; v?: string })}<i>x</i
   >{/snippet}{@render s()}
 
-=== 125 snippet_param_ts_default_4383/a_sibling_parameter_is_not_collateral/313f200bd663d011.svelte	svelte
-<script lang="ts">
-  let obj: any;
-  let q: any;
-</script>
-
-{#snippet s(q, p = <string,>() => 1)}{p}{/snippet}
-{@render s()}
-
 === 117 snippet_param_ts_default_4383/a_typescript_default_keeps_the_whole_parameter_list/c8119f31201bb797.svelte	svelte
 <script lang="ts">
   let obj: any;
@@ -10019,32 +10010,6 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 {#snippet s(p = (t: T) => t)}{p}{/snippet}
-{@render s()}
-
-=== 121 snippet_param_ts_default_4383/a_typescript_default_keeps_the_whole_parameter_list/ceeed17f60466475.svelte	svelte
-<script lang="ts">
-  let obj: any;
-  let q: any;
-</script>
-
-{#snippet s(p = <T,>(t: T) => t)}{p}{/snippet}
-{@render s()}
-
-=== 122 snippet_param_ts_default_4383/a_typescript_default_keeps_the_whole_parameter_list/df7e32402770727e.svelte	svelte
-<script lang="ts">
-  let obj: any;
-  let q: any;
-</script>
-
-{#snippet s(p = <string,>() => 1)}{p}{/snippet}
-{@render s()}
-
-=== 108 snippet_param_ts_default_4383/the_emitted_function_declares_every_name_its_body_reads/201a5dba308ebf8d.svelte	svelte
-<script lang="ts">
-  let obj: any;
-</script>
-
-{#snippet s(p = <string,>() => 1)}{p}{/snippet}
 {@render s()}
 
 === 112 snippet_param_ts_default_4383/the_shapes_that_already_worked_are_unmoved/086a1143e0cf2500.svelte	svelte
@@ -11029,28 +10994,6 @@ l2"
 {/await}
 
 {#key k}<span>{(k as number).toFixed(2)}</span>{/key}
-
-=== 517 ssr_typescript_erasure/const_tag_initializer_erases_non_wrapper_typescript/177330cbf9a123c8.svelte	svelte
-<script lang="ts">
-  let { n, xs }: { n: number; xs: number[] } = $props();
-</script>
-
-{#if n}
-  {@const startX = (d: { at: Date }) => d.at.getTime()}
-  {@const scale = <T,>(x: T): T => x}
-  {@const onEnter = (e: PointerEvent) => {
-    const t = e.target as HTMLElement;
-    return t;
-  }}
-  {@const inner = (() => {
-    type Row = number;
-    const r: Row = n;
-    return r;
-  })()}
-  {@const arr = xs.map<number>((v) => v)}
-  <span>{startX({ at: new Date() })}{scale(n)}{onEnter}{inner}{arr.length}</span
-  >
-{/if}
 
 === 299 ssr_typescript_erasure/each_and_await_bindings_erase_typescript/64927bc2427ae582.svelte	svelte
 <script lang="ts">
@@ -20320,14 +20263,6 @@ https://svelte.dev/e/expected_token
     |           ^
   3 |
 
-=== 117 template_expression_ts_gate/matches_the_official_compiler/161726226857b08a.svelte	svelte
-<script lang="ts">
-  let y: any = "s";
-  let f = (v: any) => v;
-</script>
-
-<p {...{ k: (<T,>(a: T) => a)(1) }}>x</p>
-
 === 163 template_expression_ts_gate/matches_the_official_compiler/170f8f230a4c8c97.svelte	svelte
 <script module lang="ts">
   export const zz: number = 1;
@@ -20878,18 +20813,6 @@ https://svelte.dev/e/expected_token
     |           ^
   2 |
 
-=== 165 template_expression_ts_gate/matches_the_official_compiler/39874a3b777a3442.svelte	svelte
-<script module lang="ts">
-  export const zz: number = 1;
-</script>
-
-<script>
-  let y = "s";
-  let f = (v) => v;
-</script>
-
-<p {...{ k: (<T,>(a: T) => a)(1) }}>x</p>
-
 === 185 template_expression_ts_gate/matches_the_official_compiler/3a1149a0a85e318f.svelte	error.txt
 Unexpected token
 https://svelte.dev/e/js_parse_error
@@ -21021,14 +20944,6 @@ https://svelte.dev/e/js_parse_error
 
 === 34 template_expression_ts_gate/matches_the_official_compiler/45b294ddbf5c57e3.svelte	error.txt
 unknown node type: TSAsExpression
-
-=== 105 template_expression_ts_gate/matches_the_official_compiler/45fa023987e198fc.svelte	svelte
-<script lang="ts">
-  let y: any = "s";
-  let f = (v: any) => v;
-</script>
-
-<p>{(<T,>(a: T) => a)(1)}</p>
 
 === 107 template_expression_ts_gate/matches_the_official_compiler/4621d35030121d3d.svelte	svelte
 <script lang="ts">
@@ -23943,18 +23858,6 @@ https://svelte.dev/e/js_parse_error
     |            ^
   3 |
 
-=== 153 template_expression_ts_gate/matches_the_official_compiler/fff242f39886b817.svelte	svelte
-<script module lang="ts">
-  export const zz: number = 1;
-</script>
-
-<script>
-  let y = "s";
-  let f = (v) => v;
-</script>
-
-<p>{(<T,>(a: T) => a)(1)}</p>
-
 === 113 template_function_rune_3233/a_derived_local_in_a_handler_reads_through_get/38db9a590b3474fa.svelte	svelte
 <script>
   let v = $state(1);
@@ -24773,13 +24676,6 @@ b`;
 </script>
 
 <div class={String({ "a-b": 1 })}></div>
-
-=== 74 template_quoted_property_key_3714/a_double_quoted_key_stays_double_quoted/953dbc149cd9f120.svelte	svelte
-<script>
-  const v = 1;
-</script>
-
-<div class={String({ "1": 1 })}></div>
 
 === 83 template_quoted_property_key_3714/a_double_quoted_key_stays_double_quoted/ff2a615f7dc6e175.svelte	svelte
 <script>
@@ -26594,13 +26490,6 @@ https://svelte.dev/e/js_parse_error
 
 {#each [y as const] as q}<p>{q}</p>{/each}
 
-=== 100 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/018b55b604f3fc8d.svelte	svelte
-<script module lang="ts">
-  export const m = 1;
-</script>
-
-<p class:on={(<T,>(a: T) => a)(1)}>x</p>
-
 === 85 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/01fb01e58b99ac97.svelte	svelte
 <script module lang="ts">
   export const m = 1;
@@ -26625,17 +26514,6 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 <p {...{ a: y!.k }}>x</p>
-
-=== 173 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/0610dba6e8224d13.svelte	svelte
-<script lang="ts">
-  let y = 1;
-  let z = 2;
-  function f() {}
-  function sink() {}
-  const fade = () => {};
-</script>
-
-{#each [(<T,>(a: T) => a)(1)] as q}<p>{q}</p>{/each}
 
 === 148 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/06cbc296fdcd529c.svelte	svelte
 <script lang="ts">
@@ -26675,17 +26553,6 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 <p transition:fade={{ d: ((a: string) => a)("") }}>x</p>
-
-=== 173 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/0b0659d05a766317.svelte	svelte
-<script lang="ts">
-  let y = 1;
-  let z = 2;
-  function f() {}
-  function sink() {}
-  const fade = () => {};
-</script>
-
-{#each [1] as q}<p>{(<T,>(a: T) => a)(1)}</p>{/each}
 
 === 162 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/0b1f72ce15737e7c.svelte	svelte
 <script lang="ts">
@@ -26814,13 +26681,6 @@ https://svelte.dev/e/js_parse_error
 
 {#if y as string}<p>x</p>{/if}
 
-=== 101 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/1729240d359b1bbc.svelte	svelte
-<script module lang="ts">
-  export const m = 1;
-</script>
-
-{#key (<T,>(a: T) => a)(1)}<p>x</p>{/key}
-
 === 99 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/180e9e505f749eb0.svelte	svelte
 <script module lang="ts">
   export const m = 1;
@@ -26896,34 +26756,12 @@ https://svelte.dev/e/js_parse_error
 
 {#each [y as unknown as string] as q}<p>{q}</p>{/each}
 
-=== 150 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2734d09b805aca2f.svelte	svelte
-<script lang="ts">
-  let y = 1;
-  let z = 2;
-  function f() {}
-  function sink() {}
-  const fade = () => {};
-</script>
-
-<p>{(<T,>(a: T) => a)(1)}</p>
-
 === 91 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/27398d37d132f1c9.svelte	svelte
 <script module lang="ts">
   export const m = 1;
 </script>
 
 <p {...{ a: y as const }}>x</p>
-
-=== 162 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/28b1c30313197429.svelte	svelte
-<script lang="ts">
-  let y = 1;
-  let z = 2;
-  function f() {}
-  function sink() {}
-  const fade = () => {};
-</script>
-
-{#key (<T,>(a: T) => a)(1)}<p>x</p>{/key}
 
 === 139 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2971f11d27cd8f34.svelte	svelte
 <script lang="ts">
@@ -26985,17 +26823,6 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 <p transition:fade={{ d: y as string }}>x</p>
-
-=== 175 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2df946a254dee915.svelte	svelte
-<script lang="ts">
-  let y = 1;
-  let z = 2;
-  function f() {}
-  function sink() {}
-  const fade = () => {};
-</script>
-
-<p transition:fade={{ d: (<T,>(a: T) => a)(1) }}>x</p>
 
 === 148 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2e37bc5c3024aeba.svelte	svelte
 <script lang="ts">
@@ -27246,28 +27073,6 @@ https://svelte.dev/e/js_parse_error
 
 <p transition:fade={{ d: ((a: string) => a)("") }}>x</p>
 
-=== 158 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/4bd7909c76f1a3d1.svelte	svelte
-<script lang="ts">
-  let y = 1;
-  let z = 2;
-  function f() {}
-  function sink() {}
-  const fade = () => {};
-</script>
-
-<p title={(<T,>(a: T) => a)(1)}>x</p>
-
-=== 161 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/4dd7e2a86630505d.svelte	svelte
-<script lang="ts">
-  let y = 1;
-  let z = 2;
-  function f() {}
-  function sink() {}
-  const fade = () => {};
-</script>
-
-<p class:on={(<T,>(a: T) => a)(1)}>x</p>
-
 === 173 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/4df51aa003eceb34.svelte	svelte
 <script lang="ts">
   let y = 1;
@@ -27310,13 +27115,6 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 {#key ((): string => "")()}<p>x</p>{/key}
-
-=== 89 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/508868473efe94b3.svelte	svelte
-<script module lang="ts">
-  export const m = 1;
-</script>
-
-<p>{(<T,>(a: T) => a)(1)}</p>
 
 === 89 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/50a302ea4939faa2.svelte	svelte
 <script module lang="ts">
@@ -27435,13 +27233,6 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 <p transition:fade={{ d: f<string>() }}>x</p>
-
-=== 112 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/61907b4dcfbc0f70.svelte	svelte
-<script module lang="ts">
-  export const m = 1;
-</script>
-
-{#each [(<T,>(a: T) => a)(1)] as q}<p>{q}</p>{/each}
 
 === 86 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/61c9f49a592c50d2.svelte	svelte
 <script module lang="ts">
@@ -27564,35 +27355,6 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 {#each [1] as q}<p>{y!.k}</p>{/each}
-
-=== 157 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6fe5b3b6083833e1.svelte	svelte
-<script lang="ts">
-  let y = 1;
-  let z = 2;
-  function f() {}
-  function sink() {}
-  const fade = () => {};
-</script>
-
-{@html String((<T,>(a: T) => a)(1))}
-
-=== 114 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/706d73a09fa0d4aa.svelte	svelte
-<script module lang="ts">
-  export const m = 1;
-</script>
-
-<p transition:fade={{ d: (<T,>(a: T) => a)(1) }}>x</p>
-
-=== 164 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/70df96133741528b.svelte	svelte
-<script lang="ts">
-  let y = 1;
-  let z = 2;
-  function f() {}
-  function sink() {}
-  const fade = () => {};
-</script>
-
-<p style:color={(<T,>(a: T) => a)(1)}>x</p>
 
 === 80 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7220b5cddaf5f631.svelte	svelte
 <script module lang="ts">
@@ -27726,13 +27488,6 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 {#key y as string}<p>x</p>{/key}
-
-=== 96 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7c528f781e34e58d.svelte	svelte
-<script module lang="ts">
-  export const m = 1;
-</script>
-
-{@html String((<T,>(a: T) => a)(1))}
 
 === 166 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7d03e5cdce0294dd.svelte	svelte
 <script lang="ts">
@@ -27905,13 +27660,6 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 {#each [f<string>()] as q}<p>{q}</p>{/each}
-
-=== 103 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/8fc29e1bb9b1eacc.svelte	svelte
-<script module lang="ts">
-  export const m = 1;
-</script>
-
-<p style:color={(<T,>(a: T) => a)(1)}>x</p>
 
 === 166 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/90c8e857ea254756.svelte	svelte
 <script lang="ts">
@@ -28156,13 +27904,6 @@ https://svelte.dev/e/js_parse_error
 
 <button onclick={() => sink(((a: string) => a)(""))}>x</button>
 
-=== 99 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a44297a575230118.svelte	svelte
-<script module lang="ts">
-  export const m = 1;
-</script>
-
-{#if (<T,>(a: T) => a)(1)}<p>x</p>{/if}
-
 === 78 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a46864f54f45dd3b.svelte	svelte
 <script module lang="ts">
   export const m = 1;
@@ -28187,17 +27928,6 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 <p>{y!.k}</p>
-
-=== 182 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a5c6e0414774d86f.svelte	svelte
-<script lang="ts">
-  let y = 1;
-  let z = 2;
-  function f() {}
-  function sink() {}
-  const fade = () => {};
-</script>
-
-<button onclick={() => sink((<T,>(a: T) => a)(1))}>x</button>
 
 === 152 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a87e6e98fe122565.svelte	svelte
 <script lang="ts">
@@ -28264,13 +27994,6 @@ https://svelte.dev/e/js_parse_error
 
 {#if y as unknown as string}<p>x</p>{/if}
 
-=== 121 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/ae0f34be4faf9fbb.svelte	svelte
-<script module lang="ts">
-  export const m = 1;
-</script>
-
-<button onclick={() => sink((<T,>(a: T) => a)(1))}>x</button>
-
 === 149 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b02319c3a0489f57.svelte	svelte
 <script lang="ts">
   let y = 1;
@@ -28316,13 +28039,6 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 {#key y!.k}<p>x</p>{/key}
-
-=== 112 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b3e88b2860a7b33d.svelte	svelte
-<script module lang="ts">
-  export const m = 1;
-</script>
-
-{#each [1] as q}<p>{(<T,>(a: T) => a)(1)}</p>{/each}
 
 === 92 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b56c2a47bc15bb0c.svelte	svelte
 <script module lang="ts">
@@ -28468,13 +28184,6 @@ https://svelte.dev/e/js_parse_error
 
 {#each [y satisfies string] as q}<p>{q}</p>{/each}
 
-=== 97 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/bf758a40c90839f1.svelte	svelte
-<script module lang="ts">
-  export const m = 1;
-</script>
-
-<p title={(<T,>(a: T) => a)(1)}>x</p>
-
 === 157 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/c1e1eb3674bf69e9.svelte	svelte
 <script lang="ts">
   let y = 1;
@@ -28518,17 +28227,6 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 <p class:on={y!.k}>x</p>
-
-=== 160 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/c6004bb8d72fc15b.svelte	svelte
-<script lang="ts">
-  let y = 1;
-  let z = 2;
-  function f() {}
-  function sink() {}
-  const fade = () => {};
-</script>
-
-{#if (<T,>(a: T) => a)(1)}<p>x</p>{/if}
 
 === 148 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/c67e84a0137491d5.svelte	svelte
 <script lang="ts">
@@ -28858,17 +28556,6 @@ https://svelte.dev/e/js_parse_error
 
 {#each [1] as q}<p>{y as unknown as string}</p>{/each}
 
-=== 162 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/f8b00af246c29dd4.svelte	svelte
-<script lang="ts">
-  let y = 1;
-  let z = 2;
-  function f() {}
-  function sink() {}
-  const fade = () => {};
-</script>
-
-<p {...{ a: (<T,>(a: T) => a)(1) }}>x</p>
-
 === 160 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/f9a0e5e1d22e8318.svelte	svelte
 <script lang="ts">
   let y = 1;
@@ -28923,13 +28610,6 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 <p title={y!}>x</p>
-
-=== 101 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/fc466b9b976421cd.svelte	svelte
-<script module lang="ts">
-  export const m = 1;
-</script>
-
-<p {...{ a: (<T,>(a: T) => a)(1) }}>x</p>
 
 === 103 template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/fc6f2dac27afac86.svelte	svelte
 <script module lang="ts">
@@ -36394,17 +36074,6 @@ let k = 1;
     b: string,
   ) => void;
   type P = { z?: string };
-  let p: P = $props();
-</script>
-
-<p>{p}</p>
-
-=== 129 type_literal_head_comment_repeat/no_type_head_repeats_its_comment/45b1a6d91ed20a95.svelte	svelte
-<script lang="ts">
-  type P = {
-    [k in "a" | "b"]?: /** MARK */
-    string;
-  };
   let p: P = $props();
 </script>
 

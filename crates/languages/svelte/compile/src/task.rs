@@ -111,14 +111,10 @@ pub(crate) fn compiled<'a>(
     let javascript = rsvelte_typescript_tree::with_scratch_arena(|allocator| {
         let module = lower_document(context, target, allocator)?;
         let _p = measurement::phase("js.print");
-        Ok::<_, Diagnostic>(if mapped {
-            print::print_mapped(&module, context.lines(LineBreaks::Newline))
-        } else {
-            Emitter {
-                out: print::print(&module),
-                ..Emitter::default()
-            }
-        })
+        Ok::<_, Diagnostic>(print::emit(
+            &module,
+            mapped.then(|| context.lines(LineBreaks::Newline)),
+        ))
     })?;
     let validated = context.get::<Validated>().as_ref().map_err(Clone::clone)?;
     let stylesheet = if validated.injects_stylesheet() {
@@ -250,9 +246,6 @@ fn lower_measured<'o>(
     target: Target,
     allocator: &'o Allocator,
 ) -> Result<Program<'o>, Diagnostic> {
-    let _p = measurement::phase(match target {
-        Target::Client => "svelte.lower.client",
-        Target::Server => "svelte.lower.server",
-    });
+    let _p = measurement::phase(target.lower_phase());
     lower::lower_with_facts(facts, target, allocator)
 }

@@ -64,6 +64,27 @@ pub(super) struct ScriptRewrite<'r, 'o> {
     pub names: Option<&'r Names<'r>>,
 }
 
+impl<'r, 'o> ScriptRewrite<'r, 'o> {
+    /// A rewrite with no template, stores, accessors or names of its own.
+    pub(super) fn new(b: &'r Builder<'o>, target: Target, res: &'r Resolution) -> Self {
+        Self {
+            b,
+            target,
+            accessors: false,
+            rest_reads: None,
+            res,
+            template: None,
+            shadows: None,
+            stores: &[],
+            untracked: None,
+            invalidates: None,
+            primitive: false,
+            classes: Classes::default(),
+            names: None,
+        }
+    }
+}
+
 /// How a name the template declares is read on the client.
 #[derive(Clone, Debug)]
 pub(super) enum Read {

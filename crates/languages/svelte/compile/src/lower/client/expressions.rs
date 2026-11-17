@@ -28,19 +28,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
 
     pub(super) fn rewriter(&self, rest_reads: bool) -> ScriptRewrite<'_, 'o> {
         ScriptRewrite {
-            b: self.b,
-            target: Target::Client,
             accessors: self.custom_element.is_some(),
             rest_reads: rest_reads.then_some(self.rest_reads),
-            res: self.res,
             template: Some(&self.reads),
             shadows: Some(&self.shadows),
             stores: self.stores,
-            untracked: None,
             invalidates: Some(&self.invalidates),
-            primitive: false,
-            classes: crate::lower::script::Classes::default(),
-            names: None,
+            ..ScriptRewrite::new(self.b, Target::Client, self.res)
         }
     }
 

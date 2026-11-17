@@ -2673,23 +2673,6 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx{@render s(
   x
 </Q.Root>
 
-=== 150 in_place_value_and_render_prose/prose_after_a_render_tag_breaks_once_past_the_width/a9beb0f506c3ea79.svelte	svelte
-<p>
-  {@render a()}
-  It all runs over chunked transfer encoding, so there is nothing extra to set up
-  and more words here too.
-  {@render b()}
-</p>
-
-=== 191 in_place_value_and_render_prose/prose_after_a_render_tag_overflows_by_its_last_word/fb385a26671876aa.svelte	svelte
-<div>
-  <p>
-    {@render citation(sources.loading)}
-    It all runs over chunked transfer encoding, so there is nothing extra to set up.
-    {@render citation(sources.chunked)}
-  </p>
-</div>
-
 === 140 indent/adjacent_comments_stay_glued_in_a_broken_fragment/36acd3b0cdf0bb3d.svelte	svelte
 <svelte:head>
   <!-- eslint-disable-next-line --><!-- svelte-ignore hydration_html_changed -->
@@ -11519,13 +11502,6 @@ b
   >x</button
 >
 
-=== 154 markup_wrap/overflowing_single_line_prose_in_component_body_wraps/41cd67f7be09be48.svelte	svelte
-<Popover>
-  <div slot="title">Title</div>
-  You can click inside this Popover and it will not dismiss. Dismissal will only occur
-  if outside.
-</Popover>
-
 === 66 markup_wrap/pre_child_open_tag_dangles_on_multiline_content/69dfef24cde1118c.svelte	svelte
 <pre><code class="language-bash"
     >line1
@@ -12254,32 +12230,6 @@ world</pre>
 	</p>
 </div>
 
-=== 177 prettier_ignore/prose_after_ignored_inline_node_wraps/14c7e43adc857b87.svelte	svelte
-<p>
-  Lead in text <!-- prettier-ignore --><span   class="x">kept</span> then a very long
-  stretch of prose that must be wrapped by the fill algorithm at the print width.
-</p>
-
-=== 177 prettier_ignore/prose_after_ignored_inline_node_wraps/aa1d8174192227ac.svelte	svelte
-<p>
-  Lead in text <!-- prettier-ignore --><span   class="x">kept</span> then a very long
-  stretch of prose that must be wrapped by the fill algorithm at the print width.
-</p>
-
-=== 219 prettier_ignore/prose_wraps_across_ignored_inline_node/32de57461c44cd6b.svelte	svelte
-<p>
-  alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi
-  omicron pi rho sigma tau upsilon <!-- prettier-ignore --><b>x   y</b> tail words
-  here that keep going on and on for a while longer
-</p>
-
-=== 219 prettier_ignore/prose_wraps_across_ignored_inline_node/e8e85bc6930d4424.svelte	svelte
-<p>
-  alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi
-  omicron pi rho sigma tau upsilon <!-- prettier-ignore --><b>x   y</b> tail words
-  here that keep going on and on for a while longer
-</p>
-
 === 126 private_in_parens/a_brand_check_before_a_member_access_keeps_its_parentheses/6d658bd1135c409c.svelte	svelte
 <script>
   class Box {
@@ -12913,15 +12863,6 @@ world</pre>
   }
 </style>
 
-=== 63 style_block/a_tab_indented_body_never_mixes_tabs_into_the_block_indent/1df5e59116f7f0aa.svelte	svelte
-<div></div>
-
-<style>
-  .a>>.b {
-    color: green;
-  }
-</style>
-
 === 17 style_block/empty_style_body_untouched/d3a6dfdb177faa09.svelte	svelte
 <style>
 </style>
@@ -12955,15 +12896,6 @@ world</pre>
 <style>
   .a {
     color: red;
-  }
-</style>
-
-=== 63 style_block/tab_and_space_indented_bodies_format_identically/43b565c81ef722ff.svelte	svelte
-<div></div>
-
-<style>
-  .a>>.b {
-    color: green;
   }
 </style>
 
@@ -13370,59 +13302,6 @@ https://svelte.dev/e/expected_token
 
 <p>{fn < string > a}</p>
 
-=== 330 typescript/reflow_does_not_touch_block_comment_with_sibling_as_union/34f277beb33d1857.svelte	svelte
-<script lang="ts"></script>
-
-<div>
-  <div>
-    <div>
-      <div>
-        <input
-          onkeydown={(e) => {
-            /* pick one as
-     | A
-     | B */
-            const el = document.querySelector("a[data-has-node]") as
-              HTMLElement | undefined;
-          }}
-        />
-      </div>
-    </div>
-  </div>
-</div>
-
-=== 345 typescript/reflow_does_not_touch_template_literal_with_sibling_as_union/fa29eee57d07af16.svelte	svelte
-<script lang="ts"></script>
-
-<div>
-  <div>
-    <div>
-      <div>
-        <input
-          onkeydown={(e) => {
-            const doc = `something ending as
-    | A
-    | B`;
-            const el = document.querySelector("a[data-has-node]") as
-              HTMLElement | undefined;
-          }}
-        />
-      </div>
-    </div>
-  </div>
-</div>
-
-=== 231 typescript/script_block_as_union_keeps_oxc_leading_pipe/3499973b5f4b77b2.svelte	svelte
-<script lang="ts">
-  function handle(e) {
-    if (e.key === "Enter" && !e.isComposing) {
-      const element = modal.querySelector("a[data-has-node]") as
-        HTMLElement | undefined;
-      element?.click();
-    }
-  }
-</script>
-
 === 129 typescript/script_generics_attr_with_angle_brackets_parses/6bd5af159db49e4e.svelte	svelte
 <script lang="ts" generics="TItem extends Record<string, unknown>">
   import { onMount } from "svelte";
@@ -13456,26 +13335,6 @@ https://svelte.dev/e/expected_token
               | HtmlElementLongTypeNameXXXXXXXXXX
               | SomeOtherReallyLongTypeNameYYYYYYYYYY
               | undefinedZZZZZZZZZZ;
-          }}
-        />
-      </div>
-    </div>
-  </div>
-</div>
-
-=== 337 typescript/template_as_union_stays_flat_when_it_fits/48cafca44719da5c.svelte	svelte
-<script lang="ts"></script>
-
-<div>
-  <div>
-    <div>
-      <div>
-        <input
-          onkeydown={(e) => {
-            if (e.key === "Enter") {
-              const el = document.querySelector("a[data-has-node]") as
-                HTMLElement | undefined;
-            }
           }}
         />
       </div>

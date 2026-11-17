@@ -4,7 +4,7 @@ use oxc_ast::ast::{ChainElement, Expression};
 use oxc_ast_visit::Visit;
 use oxc_semantic::ReferenceId;
 use rsvelte_kernel::index::IndexVector;
-use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
+use rsvelte_typescript_tree::ExpressionIdentifier;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use crate::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
@@ -40,8 +40,6 @@ pub struct ExpressionMetadata {
 pub struct Analysis {
     /// Keyed by every template expression.
     pub expressions: FxHashMap<ExpressionIdentifier, ExpressionMetadata>,
-    /// Keyed by every `{@const}` and `{let}` tag's declaration.
-    pub declarations: FxHashMap<DeclarationIdentifier, ExpressionMetadata>,
     /// Keyed by each `{@render}` tag's expression: one per argument of its call (upstream
     /// `metadata.arguments`).
     render_arguments: FxHashMap<ExpressionIdentifier, Vec<ExpressionMetadata>>,
@@ -68,17 +66,6 @@ impl Analysis {
             .expect("every template expression is analysed")
     }
 
-    /// # Panics
-    ///
-    /// If `declaration` is not a tag's declaration.
-    #[must_use]
-    pub fn declaration_meta(&self, declaration: DeclarationIdentifier) -> ExpressionMetadata {
-        *self
-            .declarations
-            .get(&declaration)
-            .expect("every tag's declaration is analysed")
-    }
-
     /// Each argument's metadata of the call a `{@render}` tag's `expression` makes; empty for
     /// another expression.
     #[must_use]
@@ -94,7 +81,6 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
     let compiler_syntax_tree = input.compiler_syntax_tree;
     let mut analysis = Analysis {
         expressions: FxHashMap::default(),
-        declarations: FxHashMap::default(),
         render_arguments: FxHashMap::default(),
         needs_context: false,
         scoped: IndexVector::from_element_n(false, compiler_syntax_tree.nodes.len()),
@@ -151,12 +137,10 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
             .collect();
         analysis.render_arguments.insert(identifier, arguments);
     }
-    let mut declarations = FxHashMap::default();
-    for (identifier, declaration) in tree.declarations() {
+    for (_, declaration) in tree.declarations() {
         let mut walker = MetadataWalker::<true>::new(res, &mut values);
         walker.visit_variable_declaration(declaration);
         needs_context |= walker.needs_context();
-        declarations.insert(identifier, walker.metadata());
     }
     // Upstream visits a snippet's parameters, but never the patterns of `{#each}` or `{:then}`.
     for (_, parameters) in tree.parameters() {
@@ -165,7 +149,6 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
         needs_context |= walker.needs_context();
     }
     analysis.expressions = expressions;
-    analysis.declarations = declarations;
     analysis.needs_context = needs_context;
     // Which elements the style sheet scopes is an input of the dynamic marks.
     stylesheet::analyze(input, res, &mut analysis);
