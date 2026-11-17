@@ -228,9 +228,10 @@ impl Tree {
         source_type: SourceType,
     ) -> Result<(Self, ProgramIdentifier), Diagnostic> {
         Self::build(&document.text, |builder| {
-            let text = builder.source_text();
+            let whole =
+                rsvelte_kernel::source::positions::Span::new(0, builder.source_text().len() as u32);
             builder
-                .parse_program(text, 0, source_type)
+                .program(whole, source_type)
                 .map_err(Diagnostic::from)
         })
     }

@@ -21,7 +21,7 @@ impl<'a> Builder<'a> {
         source_type: SourceType,
     ) -> Result<ProgramIdentifier, SyntaxError> {
         let text = &self.source_text[..range.end_offset as usize];
-        self.parse_program(text, range.start_offset, source_type)
+        (self.read_program(text, range.start_offset, source_type, false)).map_err(|read| read.error)
     }
 
     /// [`Self::program`], for a host that reports another error than the first, or whose own
@@ -56,19 +56,9 @@ impl<'a> Builder<'a> {
             })
     }
 
-    /// Parses `text[start..]`, where `text` is the document up to the program's end.
-    pub(crate) fn parse_program(
-        &mut self,
-        text: &'a str,
-        start: u32,
-        source_type: SourceType,
-    ) -> Result<ProgramIdentifier, SyntaxError> {
-        self.read_program(text, start, source_type, false)
-            .map_err(|rejected| rejected.error)
-    }
-
-    /// [`Self::parse_program`], with oxc's errors when it fails, and, when `keep_recovered`, the
-    /// program oxc recovered unless an error stopped it.
+    /// Parses `text[start..]`, where `text` is the document up to the program's end, with oxc's
+    /// errors when it fails, and, when `keep_recovered`, the program oxc recovered unless an error
+    /// stopped it.
     fn read_program(
         &mut self,
         text: &'a str,
