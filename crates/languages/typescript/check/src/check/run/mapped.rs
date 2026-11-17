@@ -28,7 +28,7 @@ impl CheckRequest<'_> {
     /// document reaches as TypeScript resolves `./App.vue` to `./App.vue.ts`.
     pub(super) fn checked_path(&self, root: &Path, index: usize) -> PathBuf {
         let path = normalized(&root.join(&self.documents[index]));
-        let mapped = self.mapped_files.get(index).is_some_and(Option::is_some);
+        let mapped = self.mapped(index).is_some();
         let script = path
             .extension()
             .and_then(|e| e.to_str())
@@ -40,6 +40,18 @@ impl CheckRequest<'_> {
             name.push(".ts");
             name.into()
         }
+    }
+
+    /// Document `index`'s content-mapped input, if it has one.
+    pub(super) fn mapped(&self, index: usize) -> Option<&ContentMappedInput> {
+        self.mapped_files.get(index).and_then(Option::as_ref)
+    }
+
+    /// The text the checker reads for document `index`: its source when content-mapped, else its
+    /// projection.
+    pub(super) fn text(&self, index: usize) -> &str {
+        self.mapped(index)
+            .map_or(self.files[index], |mapped| &mapped.source)
     }
 
     /// Where the checker reads each stand-in, and its text.
@@ -58,7 +70,7 @@ impl CheckRequest<'_> {
         package: &str,
         store: &Path,
     ) {
-        if self.content_mapper.is_none() {
+        if self.env.content_mapper.is_none() {
             return;
         }
         output

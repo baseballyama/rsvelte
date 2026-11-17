@@ -532,16 +532,11 @@ fn check_projected(
                     })
             })
             .collect(),
-        content_mapper: env.content_mapper.clone(),
+        env,
         files: docs
             .iter()
             .map(|d| d.document.projection.out.as_str())
             .collect(),
-        declarations: env.declarations.clone(),
-        include: env.include.clone(),
-        replaced: env.replaced.clone(),
-        paths: env.paths.clone(),
-        script_modules: env.script_modules.clone(),
     };
     let found = match tsc.check(&req) {
         Ok(found) => found,

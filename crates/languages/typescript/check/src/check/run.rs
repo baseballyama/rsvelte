@@ -10,28 +10,19 @@ use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_typescript_api::{DiagnosticKind, Layer, Position, Project, Session};
 
-use super::{CONTRACT, Tsc, TypeChecker};
+use super::{CONTRACT, Tsc, TypeChecker, TypeScriptEnv};
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub(crate) struct CheckRequest<'a> {
     /// Each document's path as the user knows it; a relative one is beside the tsconfig.
     pub documents: Vec<String>,
     /// Generated TypeScript, one per document.
     pub files: Vec<&'a str>,
     pub mapped_files: Vec<Option<ContentMappedInput>>,
-    pub content_mapper: Option<PathBuf>,
-    /// Declaration files the checker reads beside the overlay tsconfig, by name.
-    pub declarations: Vec<(&'static str, &'static str)>,
-    /// Existing declaration files to include.
-    pub include: Vec<PathBuf>,
-    /// Existing files the checker reads with this text instead.
-    pub replaced: Vec<(PathBuf, String)>,
+    /// What the documents' languages add to the project.
+    pub env: &'a TypeScriptEnv,
     /// Documents the run does not check, by path, with what an import of each one reads.
     pub stand_ins: Vec<(String, String)>,
-    /// `compilerOptions.paths` entries: module specifier → file.
-    pub paths: Vec<(String, PathBuf)>,
-    /// See [`super::TypeScriptEnv::script_modules`].
-    pub script_modules: Vec<&'static str>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -65,12 +56,7 @@ impl Tsc {
         &self,
         req: &CheckRequest<'_>,
     ) -> Result<Vec<TypeScriptDiagnostic>, String> {
-        if req.documents.len() != req.files.len()
-            || (!req.mapped_files.is_empty() && req.mapped_files.len() != req.files.len())
-        {
-            return Err("mapped inputs must match the projection population".into());
-        }
-        if req.content_mapper.is_none() && req.mapped_files.iter().any(Option::is_some) {
+        if req.env.content_mapper.is_none() && req.mapped_files.iter().any(Option::is_some) {
             return Err("content-mapped inputs require a mapper executable".into());
         }
         // Only what the mapper process reads is on the disk: its package and the projections.
@@ -117,23 +103,22 @@ impl Tsc {
         let overlay = root.join(OVERLAY);
         let mut layer = Layer::default();
         for (i, path) in paths.iter().enumerate() {
-            let mapped = req.mapped_files.get(i).and_then(Option::as_ref);
-            let text = mapped.map_or(req.files[i], |file| file.source.as_str());
-            layer.files.push((path.clone(), text.to_owned()));
+            layer.files.push((path.clone(), req.text(i).to_owned()));
         }
-        layer.files.extend(req.replaced.iter().cloned());
+        layer.files.extend(req.env.replaced.iter().cloned());
         layer.files.extend(
             req.stand_ins(&root)
                 .map(|(path, text)| (path, text.to_owned())),
         );
         let store = support.join("projections.json");
-        if let Some(binary) = &req.content_mapper {
+        if let Some(binary) = &req.env.content_mapper {
             let package = mapped::write_mapper(req, binary, support, &store, &root, &paths)?;
             layer
                 .links
                 .push((overlay.join("node_modules").join(MAPPER_PACKAGE), package));
         }
         let declarations: Vec<PathBuf> = req
+            .env
             .declarations
             .iter()
             .map(|(name, text)| {
@@ -162,11 +147,11 @@ impl Tsc {
         // Upstream's project holds every component, so one that is not checked still declares
         // its globals.
         roots.extend(req.stand_ins(&root).map(|(path, _)| path).filter(|path| {
-            (req.script_modules.iter())
+            (req.env.script_modules.iter())
                 .any(|extension| path.as_os_str().to_string_lossy().ends_with(extension))
         }));
         roots.extend(declarations);
-        roots.extend(req.include.iter().cloned());
+        roots.extend(req.env.include.iter().cloned());
         let config = overlay.join("tsconfig.json");
         layer.files.push((
             config.clone(),
@@ -182,18 +167,8 @@ impl Tsc {
             (Vec::new(), Vec::new())
         };
         // The session ends when it drops, which frees the snapshot with the process.
-        let lines: Vec<LineIndex> = req
-            .files
-            .iter()
-            .enumerate()
-            .map(|(i, f)| {
-                LineIndex::new(
-                    req.mapped_files
-                        .get(i)
-                        .and_then(Option::as_ref)
-                        .map_or(*f, |mapped| mapped.source.as_str()),
-                )
-            })
+        let lines: Vec<LineIndex> = (0..req.files.len())
+            .map(|i| LineIndex::new(req.text(i)))
             .collect();
         program
             .into_iter()
@@ -208,8 +183,7 @@ impl Tsc {
             })
             .filter(|found| {
                 !found.as_ref().is_ok_and(|found| {
-                    let source = req.mapped_files.get(found.file).and_then(Option::as_ref);
-                    source
+                    req.mapped(found.file)
                         .is_some_and(|mapped| untyped::hides(found, &untyped_names, &mapped.source))
                 })
             })
@@ -361,7 +335,7 @@ fn tsconfig_json(
     }
     w.key("paths").begin_object();
     for (spec, targets) in &own.paths {
-        if req.paths.iter().any(|(own, _)| own == spec) {
+        if req.env.paths.iter().any(|(own, _)| own == spec) {
             continue;
         }
         w.key(spec).begin_array();
@@ -370,7 +344,7 @@ fn tsconfig_json(
         }
         w.end_array();
     }
-    for (spec, file) in &req.paths {
+    for (spec, file) in &req.env.paths {
         w.key(spec)
             .begin_array()
             .write_string(&file.to_string_lossy())

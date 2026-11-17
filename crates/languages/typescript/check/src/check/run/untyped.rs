@@ -33,9 +33,7 @@ pub(super) fn imports<'a>(
     index: &HashMap<&Path, usize>,
 ) -> (Vec<TypeScriptDiagnostic>, Vec<(usize, &'a str)>) {
     let javascript = |file: usize| {
-        req.mapped_files
-            .get(file)
-            .and_then(Option::as_ref)
+        req.mapped(file)
             .is_some_and(|mapped| JAVASCRIPT.contains(&mapped.generated_extension))
     };
     let mut found = Vec::new();
