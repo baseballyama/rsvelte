@@ -2,6 +2,7 @@
 
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
+use rsvelte_typescript_tree::ProgramIdentifier;
 
 use super::super::javascript::{Adjust, Part as JavaScriptPart};
 use super::{Cow, LayoutInstructionIdentifier, Printer, R, Span, TagAttributes, Unsupported};
@@ -69,8 +70,13 @@ impl Printer<'_, '_, '_> {
         }
     }
 
-    /// `formatBodyContent` around the script's program.
-    pub(super) fn script_body(&mut self, content: Span) -> R<LayoutInstructionIdentifier> {
+    /// `formatBodyContent` around the script's program; `program` is the component's parse of
+    /// it, which a script nested in an element has none of.
+    pub(super) fn script_body(
+        &mut self,
+        content: Span,
+        program: Option<ProgramIdentifier>,
+    ) -> R<LayoutInstructionIdentifier> {
         let text = content.text(self.source_text);
         if text.trim_matches(is_ecmascript_whitespace).is_empty() {
             return Ok(if text.is_empty() {
@@ -79,7 +85,13 @@ impl Printer<'_, '_, '_> {
                 self.d().hardline()
             });
         }
-        let body = self.embed(content, JavaScriptPart::Script, Adjust::default())?;
+        let body = match program {
+            Some(program) => {
+                let ir = self.format_script(program, content)?;
+                self.keep(ir)
+            }
+            None => self.embed(content, JavaScriptPart::Script, Adjust::default())?,
+        };
         Ok(self.indented_body(body))
     }
 

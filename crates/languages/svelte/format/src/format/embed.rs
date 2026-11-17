@@ -34,7 +34,14 @@ impl Printer<'_, '_, '_> {
                 self.preformatted(script.content)
             } else {
                 self.refuse_script_language(&script.attributes, script.content, true)?;
-                self.script_body(script.content)?
+                {
+                    // The plugin's parser reads the script as TypeScript, so the component's
+                    // program serves only where it was read as TypeScript too.
+                    let program = (self.c.javascript.get_program(script.program).source_type)
+                        .is_typescript()
+                        .then_some(script.program);
+                    self.script_body(script.content, program)?
+                }
             };
             let attributes = self.tag_attributes(&script.attributes);
             let tag = self.embed_tag("script", attributes, body);

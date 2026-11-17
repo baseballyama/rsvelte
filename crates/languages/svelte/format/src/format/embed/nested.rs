@@ -43,7 +43,7 @@ impl Printer<'_, '_, '_> {
             self.preformatted(content)
         } else if tag == "script" {
             self.refuse_script_language(&named, content, false)?;
-            self.script_body(content)?
+            self.script_body(content, None)?
         } else {
             self.style_body(content, &named)?
         };

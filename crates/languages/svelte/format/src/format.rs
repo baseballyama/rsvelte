@@ -354,7 +354,8 @@ pub(crate) fn unported(o: &Options) -> Option<&'static str> {
     .find_map(|(name, differs)| differs.then_some(name))
 }
 
-struct Printer<'a, 'd, 'x> {
+/// The component outlives the arena its layouts are built in, so they may borrow its trees.
+struct Printer<'a: 'x, 'd, 'x> {
     c: &'a Component,
     options: &'a Options,
     source_text: &'a str,

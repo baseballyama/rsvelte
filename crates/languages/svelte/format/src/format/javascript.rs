@@ -2,6 +2,7 @@
 //! as the plugin has Prettier format each part from its text.
 
 use oxc_allocator::ArenaVec;
+use oxc_ast::ast::Program;
 use oxc_formatter::{
     ExpressionLayout, ExpressionRoot, JsEmbeddedIn, JsFormatOptions, JsRoot, ProgramLayout,
     ProgramSemicolons, QuoteStyle,
@@ -10,6 +11,7 @@ use oxc_formatter_core::{FormatElement, LineMode, Tag};
 use oxc_span::SourceType;
 use rsvelte_document_printer::{Embedding, LayoutInstructionIdentifier};
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_tree::{ProgramIdentifier, SyntaxError};
 
 use super::{Printer, R, Unsupported};
 
@@ -136,6 +138,56 @@ impl<'x> Printer<'_, '_, 'x> {
     }
 }
 
+impl<'x> Printer<'_, '_, 'x> {
+    /// The statements of the `<script>` whose body is `span`, from the program the component's
+    /// parse already holds.
+    pub(super) fn format_script(
+        &mut self,
+        program: ProgramIdentifier,
+        span: Span,
+    ) -> R<ArenaVec<'x, FormatElement<'x>>> {
+        let c = self.c;
+        let program = c.javascript.get_program(program);
+        let inside = |error: &&SyntaxError| {
+            let at = error.diagnostic.span.start_offset;
+            span.start_offset <= at && at <= span.end_offset
+        };
+        // The errors oxc's parser recovered from, which the formatter would have read again.
+        let whole = (c.script_typescript_errors.iter())
+            .chain(c.javascript.unchecked_errors())
+            .filter(inside)
+            .all(|error| {
+                recovered_whole(
+                    error.typescript_code,
+                    error.diagnostic.span.start_offset,
+                    program,
+                )
+            });
+        let unformatted = || Unsupported::at("code that oxc's formatter does not format", span);
+        if !whole {
+            return Err(unformatted());
+        }
+        #[expect(
+            clippy::map_err_ignore,
+            reason = "oxc's diagnostic says what the refusal says"
+        )]
+        let ir = oxc_formatter::program_to_ir(
+            self.embedder.embedding.session(),
+            program,
+            span.start_offset as usize..span.end_offset as usize,
+            self.embedder.options.clone(),
+            JsRoot::Program {
+                semicolons: ProgramSemicolons::AsOptions,
+                layout: ProgramLayout::Bare,
+            },
+            JsEmbeddedIn::default(),
+        )
+        .map_err(|_| unformatted())?;
+        self.embedder.kept.push(span);
+        Ok(ir.ir)
+    }
+}
+
 impl Printer<'_, '_, '_> {
     /// A snippet's `name(…)`, which the plugin formats as `function name(…) {}` and then takes
     /// the `function ` and the body off.
@@ -160,21 +212,24 @@ const RECOVERED_WHOLE: [u32; 19] = [
     2681, 5085, 18010,
 ];
 
-/// Whether oxc's `program` recovered from `error` holds all of the code. A function declared as a
-/// statement's body, which oxc reports without a code, stays in the program.
-fn keeps_recovered(
-    error: &oxc_diagnostics::OxcDiagnostic,
-    program: &oxc_ast::ast::Program<'_>,
-) -> bool {
-    if error.code.scope.as_deref() != Some("TS") {
-        return error.code.number.is_none()
-            && (error.labels.first()).is_some_and(|label| {
-                rsvelte_typescript_tree::function_as_body(program, label.offset()).is_some()
-            });
+/// Whether oxc's `program` recovered from an error of tsc's `code` at `at` holds all of the code.
+/// A function declared as a statement's body, which oxc reports without a code, stays in it.
+fn recovered_whole(code: Option<u32>, at: u32, program: &Program<'_>) -> bool {
+    code.map_or_else(
+        || rsvelte_typescript_tree::function_as_body(program, at).is_some(),
+        |code| RECOVERED_WHOLE.contains(&code),
+    )
+}
+
+/// [`recovered_whole`] for oxc's `error`, which the formatter's parse reported.
+fn keeps_recovered(error: &oxc_diagnostics::OxcDiagnostic, program: &Program<'_>) -> bool {
+    match (error.code.scope.as_deref(), error.code.number.as_deref()) {
+        (Some("TS"), number) => (number.and_then(|number| number.parse().ok()))
+            .is_some_and(|code| recovered_whole(Some(code), 0, program)),
+        (_, None) => (error.labels.first())
+            .is_some_and(|label| recovered_whole(None, label.offset(), program)),
+        _ => false,
     }
-    (error.code.number.as_deref())
-        .and_then(|number| number.parse().ok())
-        .is_some_and(|code: u32| RECOVERED_WHOLE.contains(&code))
 }
 
 /// Takes `function ` off the start of a function declaration's layout and ` {}` off its end.
