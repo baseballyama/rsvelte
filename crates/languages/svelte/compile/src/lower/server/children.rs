@@ -5,10 +5,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `process_children` (server).
     pub(super) fn process_children(
         &mut self,
-        items: &[Item<'_>],
+        items: &[Item],
         template: &mut Vec<Piece<'o>>,
     ) -> R<()> {
-        let mut sequence: Vec<&Item<'_>> = Vec::new();
+        let mut sequence: Vec<&Item> = Vec::new();
         for item in items {
             match item {
                 Item::Text { .. } | Item::Expression(_) => sequence.push(item),
@@ -38,7 +38,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         Ok(())
     }
 
-    fn flush(&self, sequence: &mut Vec<&Item<'_>>, template: &mut Vec<Piece<'o>>) {
+    fn flush(&self, sequence: &mut Vec<&Item>, template: &mut Vec<Piece<'o>>) {
         if sequence.is_empty() {
             return;
         }
@@ -46,10 +46,15 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let mut expressions = Vec::new();
         for item in sequence.drain(..) {
             match item {
-                Item::Text { data, .. } => quasis
-                    .last_mut()
-                    .expect("never empty")
-                    .push_str(&escape_markup(data, false)),
+                Item::Text { data, .. } => {
+                    quasis
+                        .last_mut()
+                        .expect("never empty")
+                        .push_str(&escape_markup(
+                            data.get(self.source_text, self.compiler_syntax_tree),
+                            false,
+                        ));
+                }
                 Item::Expression(e) => {
                     let evaluated = self.evaluate(*e);
                     if evaluated.is_known {

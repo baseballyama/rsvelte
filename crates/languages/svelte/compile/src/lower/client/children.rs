@@ -9,7 +9,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `process_children`.
     pub(super) fn process_children(
         &mut self,
-        items: &[Item<'_>],
+        items: &[Item],
         initial: Prev,
         is_element: bool,
         frag: &mut Frag<'o>,
@@ -20,7 +20,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             prev: initial,
             skipped: 0,
         };
-        let mut sequence: Vec<Item<'_>> = Vec::new();
+        let mut sequence: Vec<Item> = Vec::new();
         for item in items {
             if matches!(item, Item::Text { .. } | Item::Expression(_)) {
                 sequence.push(item.clone());
@@ -122,20 +122,14 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         identifier
     }
 
-    fn flush_sequence(
-        &self,
-        seq: &[Item<'_>],
-        st: &mut Walk,
-        frag: &mut Frag<'o>,
-        l: &mut Lists<'o>,
-    ) {
+    fn flush_sequence(&self, seq: &[Item], st: &mut Walk, frag: &mut Frag<'o>, l: &mut Lists<'o>) {
         let b = self.b;
         if seq.iter().all(|i| matches!(i, Item::Text { .. })) {
             st.skipped += 1;
             let raw: String = seq
                 .iter()
                 .map(|i| match i {
-                    Item::Text { raw, .. } => raw.as_ref(),
+                    Item::Text { raw, .. } => raw.get(self.source_text, self.compiler_syntax_tree),
                     _ => unreachable!("all text"),
                 })
                 .collect();

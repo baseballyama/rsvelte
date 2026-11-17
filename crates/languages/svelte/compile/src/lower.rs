@@ -52,7 +52,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 pub use crate::input::{CompileInput, Target};
 pub(crate) use crate::markup::escape_markup;
 use crate::render_plan::RenderPlan;
-pub use crate::render_plan::{Cleaned, Item, Parent, clean_nodes, template_end};
+pub use crate::render_plan::{Cleaned, Item, Parent, Text, clean_nodes, template_end};
 
 /// # Errors
 /// Returns the first diagnostic from validation or target lowering.
