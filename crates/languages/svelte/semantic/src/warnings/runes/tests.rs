@@ -161,3 +161,26 @@ fn an_instance_name_a_module_import_declares_is_a_duplicate() {
         Vec::<String>::new()
     );
 }
+
+#[test]
+fn a_props_call_after_the_first_or_off_the_top_level_is_an_error() {
+    let cases: [(&str, &[&str]); 5] = [
+        ("<script>let x = 1;</script>", &[]),
+        ("<script>let p = $props();</script>", &[]),
+        (
+            "<script>let p = $props(); let q = $props();</script>",
+            &["props_duplicate"],
+        ),
+        (
+            "<script>function f() { return $props(); }</script>",
+            &["props_invalid_placement"],
+        ),
+        (
+            "<script lang=\"ts\">declare const $props: any; function f() { $props(); }</script>",
+            &["props_invalid_placement"],
+        ),
+    ];
+    for (code, expected) in cases {
+        assert_eq!(compiled_with_errors(code, Some(true)).1, expected, "{code}");
+    }
+}

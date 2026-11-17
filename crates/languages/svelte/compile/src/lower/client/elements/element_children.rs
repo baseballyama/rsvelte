@@ -42,7 +42,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     .push(b.statement(b.assign_member(target, value)));
             }
         } else if is_customizable_select(compiler_syntax_tree, self.source_text, el) {
-            let tag = el.name.text(self.source_text).to_lowercase();
+            let tag = super::super::lowercase(el.name.text(self.source_text));
             let namespace = self.plan.namespace(identifier);
             let content = self.customizable_select(items, node, &tag, namespace, frag)?;
             child.initializer.push(content);
