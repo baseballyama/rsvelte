@@ -3,20 +3,15 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 
 use super::nodes;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/require-each-key",
     files: Files::Components,
-    configure,
+    configure: without_options::<RequireEachKey>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(RequireEachKey))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct RequireEachKey;
 
 impl SvelteRule for RequireEachKey {
@@ -45,13 +40,10 @@ impl SvelteRule for RequireEachKey {
                     .after(after)
                     .expect("`{#each}` ends with `}`"),
             );
-            reporter.report(
-                Report::range(
-                    "Each block should have a key",
-                    Span::new(span.start_offset, closing.span.end_offset),
-                )
-                .message_id("expectedKey"),
-            );
+            reporter.report(Report::range(
+                "Each block should have a key",
+                Span::new(span.start_offset, closing.span.end_offset),
+            ));
         }
     }
 }

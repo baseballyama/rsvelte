@@ -24,7 +24,6 @@ rsvelte_svelte_format.workspace = true
 rsvelte_svelte_compile.workspace = true
 rsvelte_svelte_check.workspace = true
 rsvelte_kernel = { workspace = true, features = ["trace-artifacts"] }
-rsvelte_document_printer.workspace = true
 rsvelte_vue_to_svelte.workspace = true
 rsvelte_svelte_to_vue_vapor.workspace = true
 wasm-bindgen = "=0.2.126"

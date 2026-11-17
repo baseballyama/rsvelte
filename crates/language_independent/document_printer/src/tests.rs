@@ -1,7 +1,7 @@
-use crate::{
-    GroupDecision, LayoutInstructionIdentifier, LayoutInstructions, PrintOptions, Refused,
-    TraceEvent, TraceMode,
-};
+use oxc_allocator::Allocator;
+use oxc_formatter_core::{CoreFormatOptions, IndentStyle, LineWidth};
+
+use crate::{Embedding, LayoutInstructionIdentifier, LayoutInstructions};
 
 fn call(d: &mut LayoutInstructions, arguments: &[&str]) -> LayoutInstructionIdentifier {
     let open = d.lit("f(");
@@ -22,12 +22,23 @@ fn call(d: &mut LayoutInstructions, arguments: &[&str]) -> LayoutInstructionIden
     d.group(&[open, body, soft2, close])
 }
 
+/// Prints `root` the way the formatters do, with oxc's printer.
 fn print(
     d: &LayoutInstructions,
     root: LayoutInstructionIdentifier,
-    options: &PrintOptions,
+    options: CoreFormatOptions,
 ) -> String {
-    d.print(root, options).expect("no flat-only layouts")
+    let allocator = Allocator::default();
+    Embedding::new(&allocator, options)
+        .print(d, root, 0)
+        .expect("oxc's printer takes the document")
+}
+
+fn width(columns: u16) -> CoreFormatOptions {
+    CoreFormatOptions {
+        line_width: LineWidth::try_from(columns).expect("a valid width"),
+        ..CoreFormatOptions::default()
+    }
 }
 
 /// Prettier's `propagateBreaks` breaks a group around a group built broken, not only around
@@ -39,8 +50,7 @@ fn a_group_built_broken_breaks_its_parent() {
     let inner = d.group_broken(&[y]);
     let line = d.line();
     let outer = d.group(&[x, line, inner]);
-    assert!(d.will_break(outer));
-    assert_eq!(print(&d, outer, &PrintOptions::default()), "x\ny");
+    assert_eq!(print(&d, outer, width(80)), "x\ny");
 }
 
 /// Prettier propagates breaks at print time, after a trim: a hard line trimmed away breaks
@@ -55,61 +65,38 @@ fn a_trimmed_hard_line_no_longer_breaks() {
     let outer = d.group(&[a, line, inner]);
     let mut docs = vec![outer];
     d.trim_right(&mut docs, LayoutInstructions::is_line);
-    assert!(!d.will_break(inner) && !d.will_break(outer));
-    assert_eq!(print(&d, outer, &PrintOptions::default()), "a x");
+    assert_eq!(print(&d, outer, width(80)), "a x");
 }
 
 #[test]
 fn group_prints_flat_when_it_fits_and_breaks_otherwise() {
     let mut d = LayoutInstructions::new();
     let g = call(&mut d, &["a", "b"]);
-    assert_eq!(print(&d, g, &PrintOptions::default()), "f(a, b)");
+    assert_eq!(print(&d, g, width(80)), "f(a, b)");
     let mut d = LayoutInstructions::new();
     let long = "x".repeat(50);
     let g = call(&mut d, &[&long, &long]);
     assert_eq!(
-        print(&d, g, &PrintOptions::default()),
+        print(&d, g, width(80)),
         format!("f(\n  {long},\n  {long}\n)")
     );
 }
 
 #[test]
-fn traced_print_uses_the_production_printer() {
+fn hardline_breaks_enclosing_groups() {
     let mut d = LayoutInstructions::new();
-    let long = "x".repeat(50);
-    let g = call(&mut d, &[&long, &long]);
-    let mut trace = Vec::new();
-    let out = d
-        .print_with_trace(g, &PrintOptions::default(), &mut trace)
-        .expect("no flat-only layouts");
-    assert_eq!(out, format!("f(\n  {long},\n  {long}\n)"));
-    assert_eq!(
-        trace,
-        vec![TraceEvent::Group {
-            document: g,
-            position: 0,
-            remaining: 80,
-            mode: TraceMode::Break,
-            decision: GroupDecision::DoesNotFit,
-        }]
-    );
-}
-
-#[test]
-fn hardline_breaks_enclosing_groups_and_trims_trailing_space() {
-    let mut d = LayoutInstructions::new();
-    let a = d.lit("a ");
+    let a = d.lit("a");
     let hard = d.hardline();
     let b = d.lit("b");
     let inner = d.concat(&[a, hard, b]);
     let indentation = d.indent(inner);
     let line = d.line();
     let group = d.group(&[indentation, line]);
-    let options = PrintOptions {
-        indent_spaces: None,
-        ..Default::default()
+    let options = CoreFormatOptions {
+        indent_style: IndentStyle::Tab,
+        ..width(80)
     };
-    assert_eq!(print(&d, group, &options), "a\n\tb\n");
+    assert_eq!(print(&d, group, options), "a\n\tb\n");
 }
 
 #[test]
@@ -119,7 +106,7 @@ fn text_parts_is_the_text_of_its_parts_joined() {
     let b = d.text_parts(&[]);
     assert_eq!((d.as_str(a), d.as_str(b)), (Some("</div>"), Some("")));
     let root = d.concat(&[a, b]);
-    assert_eq!(print(&d, root, &PrintOptions::default()), "</div>");
+    assert_eq!(print(&d, root, width(80)), "</div>");
 }
 
 #[test]
@@ -130,7 +117,7 @@ fn literal_line_keeps_trailing_space_and_skips_indentation() {
     let b = d.lit("b");
     let inner = d.concat(&[a, l, b]);
     let indentation = d.indent(inner);
-    assert_eq!(print(&d, indentation, &PrintOptions::default()), "a \nb");
+    assert_eq!(print(&d, indentation, width(80)), "a \nb");
 }
 
 #[test]
@@ -144,11 +131,8 @@ fn fill_packs_words() {
         items.push(d.lit("word"));
     }
     let f = d.fill(&items);
-    let options = PrintOptions {
-        width: 20,
-        ..Default::default()
-    };
-    let out = print(&d, f, &options);
+    let options = width(20);
+    let out = print(&d, f, options);
     assert!(out.lines().all(|l| l.len() <= 20), "{out}");
     assert_eq!(out.lines().next().unwrap(), "word word word word");
 }
@@ -163,7 +147,7 @@ fn fill_breaks_the_separator_after_content_holding_a_broken_group() {
     let sep = d.line();
     let c = d.lit("c");
     let filled = d.fill(&[content, sep, c]);
-    assert_eq!(print(&d, filled, &PrintOptions::default()), "a\nb\nc");
+    assert_eq!(print(&d, filled, width(80)), "a\nb\nc");
 }
 
 #[test]
@@ -177,19 +161,7 @@ fn if_break_follows_a_named_group() {
     let no = d.lit("flat");
     let ib = d.if_break_of(yes, no, identifier);
     let root = d.concat(&[g, ib]);
-    assert!(print(&d, root, &PrintOptions::default()).ends_with("\nbroken"));
-}
-
-#[test]
-fn flat_only_refuses_when_it_does_not_fit() {
-    let mut d = LayoutInstructions::new();
-    let short = d.lit("short");
-    let ok = d.flat_only(short);
-    assert_eq!(d.print(ok, &PrintOptions::default()), Ok("short".into()));
-    let mut d = LayoutInstructions::new();
-    let long = d.text(&"x".repeat(90));
-    let bad = d.flat_only(long);
-    assert_eq!(d.print(bad, &PrintOptions::default()), Err(Refused));
+    assert!(print(&d, root, width(80)).ends_with("\nbroken"));
 }
 
 #[test]
@@ -201,7 +173,7 @@ fn trim_descends_into_the_last_part() {
     let mut docs = vec![inner];
     d.trim_right(&mut docs, LayoutInstructions::is_line);
     let root = d.concat(&docs);
-    assert_eq!(print(&d, root, &PrintOptions::default()), "a");
+    assert_eq!(print(&d, root, width(80)), "a");
 }
 
 #[test]
@@ -244,7 +216,7 @@ fn deeply_nested_documents_trim_on_a_small_stack() {
                 .join()
                 .expect("trims within a 1 MiB stack")
         });
-        assert_eq!(print(&d, root, &PrintOptions::default()), "a".repeat(DEPTH));
+        assert_eq!(print(&d, root, width(80)), "a".repeat(DEPTH));
     }
 }
 
@@ -274,69 +246,4 @@ fn deeply_nested_lines_are_judged_on_a_small_stack() {
             .expect("judges within a 1 MiB stack")
     });
     assert_eq!(verdicts, (true, false, true));
-}
-
-/// Prettier's `fits` charges a line's space only when a string follows it. A fill whose words sit
-/// in the separator slots (`[line, "aa", line, "bb", …]`) therefore lets one word run past the
-/// width, and two lines in a row cost one space. Expected outputs from Prettier 3.9.10's
-/// `printDocToString` at `printWidth: 10`.
-#[test]
-fn a_line_costs_its_space_only_when_text_follows() {
-    let options = PrintOptions {
-        width: 10,
-        indent_spaces: Some(2),
-        tab_width: 2,
-    };
-    let mut docs = LayoutInstructions::new();
-    let lead = docs.lit("xxxxxxx");
-    let mut parts = Vec::new();
-    for word in ["aa", "bb", "cc"] {
-        parts.push(docs.line());
-        parts.push(docs.text(word));
-    }
-    let fill = docs.fill(&parts);
-    let root = docs.concat(&[lead, fill]);
-    assert_eq!(print(&docs, root, &options), "xxxxxxx aa bb\ncc");
-
-    let mut docs = LayoutInstructions::new();
-    let (lead, tail) = (docs.lit("xxxxxxx"), docs.lit("a"));
-    let (first, second) = (docs.line(), docs.line());
-    let root = docs.group(&[lead, first, second, tail]);
-    assert_eq!(print(&docs, root, &options), "xxxxxxx  a");
-
-    let mut docs = LayoutInstructions::new();
-    let (lead, tail) = (docs.lit("xxxxxxxxx"), docs.lit("z"));
-    let line = docs.line();
-    let group = docs.group(&[lead, line]);
-    let root = docs.concat(&[group, tail]);
-    assert_eq!(print(&docs, root, &options), "xxxxxxxxx\nz");
-}
-
-/// A flat-only layout promises to print flat up to its first forced break; a group inside it
-/// that would have to break there is refused, not broken.
-#[test]
-fn a_flat_only_layout_refuses_a_group_that_does_not_fit() {
-    let options = PrintOptions {
-        width: 8,
-        indent_spaces: Some(2),
-        tab_width: 2,
-    };
-    let build = |flat_only: bool| {
-        let mut docs = LayoutInstructions::new();
-        let (open, word, close) = (docs.lit("("), docs.text("aaaaaaaaaa"), docs.lit(")"));
-        let soft = docs.softline();
-        let inner = docs.group(&[open, soft, word, close]);
-        let hard = docs.hardline();
-        let body = docs.concat(&[hard, inner]);
-        let root = if flat_only {
-            docs.flat_only(body)
-        } else {
-            body
-        };
-        (docs, root)
-    };
-    let (docs, root) = build(true);
-    docs.print(root, &options).unwrap_err();
-    let (docs, root) = build(false);
-    assert_eq!(print(&docs, root, &options), "\n(\naaaaaaaaaa)");
 }

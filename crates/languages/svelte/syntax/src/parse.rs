@@ -119,15 +119,9 @@ fn parse_with(
     scripts: Scripts,
     self_closing_blocks: bool,
 ) -> ParseResult<Component> {
-    let guess = rsvelte_markup_syntax::script_language::guess_typescript(source_text);
-    let (parsed, lang_read) = parse_as(source_text, scripts, self_closing_blocks, guess);
-    // Without a script element's `lang` the component is JavaScript, unless the parse stopped
-    // before one could be read.
-    let typescript = lang_read.unwrap_or_else(|| guess && parsed.is_err());
-    if typescript == guess {
-        return parsed;
-    }
-    parse_as(source_text, scripts, self_closing_blocks, typescript).0
+    rsvelte_markup_syntax::script_language::parse_guessing_typescript(source_text, |typescript| {
+        parse_as(source_text, scripts, self_closing_blocks, typescript)
+    })
 }
 
 /// The component, its expressions read as TypeScript or not, and the language its first script

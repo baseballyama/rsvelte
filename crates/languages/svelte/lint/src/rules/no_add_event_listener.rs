@@ -4,30 +4,24 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::javascript::walk;
 use super::nodes::span;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-add-event-listener",
     files: Files::All,
-    configure,
+    configure: without_options::<NoAddEventListener>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoAddEventListener))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoAddEventListener;
 
 impl SvelteRule for NoAddEventListener {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let source = file.source();
-        walk(file, |node| {
+        for node in file.nodes().iter() {
             let AstKind::CallExpression(call) = node.kind() else {
-                return;
+                continue;
             };
             // A cast callee is a `TSAsExpression`, which is neither a member nor a name.
             let object = match &call.callee {
@@ -44,7 +38,7 @@ impl SvelteRule for NoAddEventListener {
                     Some(&member.object)
                 }
                 Expression::Identifier(callee) if callee.name == "addEventListener" => None,
-                _ => return,
+                _ => continue,
             };
             let target = object.map_or("window", |object| span(object).text(source));
             let callee = span(&call.callee);
@@ -52,8 +46,7 @@ impl SvelteRule for NoAddEventListener {
                 "Do not use `addEventListener`. Use the `on` function from `svelte/events` \
                  instead.",
                 span(call),
-            )
-            .message_id("unexpected");
+            );
             if let Some(open) = next_token(source, callee.end_offset) {
                 let mut fix = Fix::replace(callee, "on");
                 fix.push(
@@ -61,13 +54,12 @@ impl SvelteRule for NoAddEventListener {
                     format!("{target}, "),
                 );
                 report = report.suggest(Suggestion {
-                    message_id: None,
                     message: "Use `on` from `svelte/events` instead".to_owned(),
                     fix,
                 });
             }
             reporter.report(report);
-        });
+        }
     }
 }
 

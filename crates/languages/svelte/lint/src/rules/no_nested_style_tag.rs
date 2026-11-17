@@ -1,20 +1,15 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-nested-style-tag",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoNestedStyleTag>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoNestedStyleTag))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoNestedStyleTag;
 
 impl SvelteRule for NoNestedStyleTag {
@@ -26,14 +21,11 @@ impl SvelteRule for NoNestedStyleTag {
             if let TemplateNode::Element { name, span, .. } = *node
                 && name.text(source) == "style"
             {
-                reporter.report(
-                    Report::range(
-                        "Nested `<style>` elements are not scoped and may lead to unintended \
+                reporter.report(Report::range(
+                    "Nested `<style>` elements are not scoped and may lead to unintended \
                          styles being applied.",
-                        span,
-                    )
-                    .message_id("nestedStyle"),
-                );
+                    span,
+                ));
             }
         }
     }

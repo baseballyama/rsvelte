@@ -3,7 +3,6 @@ use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
-use rsvelte_kernel::source::positions::LineBreaks;
 use rsvelte_vue_semantic::Resolved;
 use rsvelte_vue_syntax::Parsed;
 
@@ -61,21 +60,6 @@ impl Task for Lint {
             path: &context.document.path,
             res,
         };
-        let findings = match crate::lint::lint(&rule_context, &self.rules) {
-            Ok(findings) => findings,
-            Err(error) => {
-                out.diagnostics.push(error);
-                return;
-            }
-        };
-        rsvelte_lint_runner::output::report(
-            out,
-            rsvelte_lint_runner::output::Positions::new(
-                &|| context.lines(LineBreaks::Ecmascript),
-                context.source_text(),
-            ),
-            self.rules.iter().map(|rule| rule.rule.identifier()),
-            findings,
-        );
+        rsvelte_lint_runner::output::run(out, context, &self.rules, &rule_context);
     }
 }

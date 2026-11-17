@@ -351,14 +351,10 @@ impl<'a> Layout<'a> {
                 plural(actual)
             );
             let span = Span::new(line_start, start);
-            reporter.report(
-                Report::range(message, span)
-                    .message_id("unexpectedIndentation")
-                    .fix(Fix::replace(
-                        span,
-                        character.to_string().repeat(expected as usize),
-                    )),
-            );
+            reporter.report(Report::range(message, span).fix(Fix::replace(
+                span,
+                character.to_string().repeat(expected as usize),
+            )));
             return;
         }
         let mut at = line_start;
@@ -372,9 +368,7 @@ impl<'a> Layout<'a> {
                 );
                 let span = Span::new(at, end);
                 reporter.report(
-                    Report::range(message, span)
-                        .message_id("unexpectedChar")
-                        .fix(Fix::replace(span, character.to_string())),
+                    Report::range(message, span).fix(Fix::replace(span, character.to_string())),
                 );
             }
             at = end;

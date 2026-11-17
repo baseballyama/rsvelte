@@ -120,22 +120,45 @@ impl std::fmt::Debug for Tree {
     }
 }
 
+/// The identifier of a part in its list.
+trait Identifier {
+    /// The identifier of the part at `index` of its list.
+    fn at(index: usize) -> Self;
+}
+
+/// Adds `item` to its list and returns its identifier.
+fn push<I: Identifier, T>(list: &mut Vec<T>, item: T) -> I {
+    let identifier = I::at(list.len());
+    list.push(item);
+    identifier
+}
+
+/// Each item of a list with its identifier, in the order kept.
+fn listed<I: Identifier, T>(list: &[T]) -> impl ExactSizeIterator<Item = (I, &T)> {
+    list.iter()
+        .enumerate()
+        .map(|(index, item)| (I::at(index), item))
+}
+
 macro_rules! identifier {
     ($(#[$doc:meta])* $name:ident) => {
         $(#[$doc])*
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         pub struct $name(NonZeroU32);
 
-        impl $name {
-            /// The identifier of the part at `index` of its list.
+        impl Identifier for $name {
             fn at(index: usize) -> Self {
                 let index = u32::try_from(index).expect("a document has fewer than u32::MAX parts");
                 Self(NonZeroU32::MIN.saturating_add(index))
             }
+        }
+
+        impl $name {
 
             const fn index(self) -> usize {
                 (self.0.get() - 1) as usize
             }
+
         }
     };
 }
@@ -145,7 +168,7 @@ identifier!(
     ProgramIdentifier
 );
 identifier!(
-    /// An expression parsed by [`Builder::expression_at`].
+    /// An expression a [`Builder`] keeps.
     ExpressionIdentifier
 );
 identifier!(
@@ -205,9 +228,10 @@ impl Tree {
         source_type: SourceType,
     ) -> Result<(Self, ProgramIdentifier), Diagnostic> {
         Self::build(&document.text, |builder| {
-            let text = builder.source_text();
+            let whole =
+                rsvelte_kernel::source::positions::Span::new(0, builder.source_text().len() as u32);
             builder
-                .parse_program(text, 0, source_type)
+                .program(whole, source_type)
                 .map_err(Diagnostic::from)
         })
     }
@@ -287,44 +311,28 @@ impl Tree {
     pub fn expressions(
         &self,
     ) -> impl ExactSizeIterator<Item = (ExpressionIdentifier, &Expression<'_>)> {
-        let expressions = &self.0.borrow_dependent().expressions;
-        expressions
-            .iter()
-            .enumerate()
-            .map(|(i, e)| (ExpressionIdentifier::at(i), e))
+        listed(&self.0.borrow_dependent().expressions)
     }
 
     /// Every declaration kept apart from a program, with its identifier, in the order kept.
     pub fn declarations(
         &self,
     ) -> impl ExactSizeIterator<Item = (DeclarationIdentifier, &VariableDeclaration<'_>)> {
-        let declarations = &self.0.borrow_dependent().declarations;
-        declarations
-            .iter()
-            .enumerate()
-            .map(|(i, d)| (DeclarationIdentifier::at(i), d))
+        listed(&self.0.borrow_dependent().declarations)
     }
 
     /// Every pattern kept apart from a program, with its identifier, in the order kept.
     pub fn patterns(
         &self,
     ) -> impl ExactSizeIterator<Item = (PatternIdentifier, &FormalParameter<'_>)> {
-        let patterns = &self.0.borrow_dependent().patterns;
-        patterns
-            .iter()
-            .enumerate()
-            .map(|(i, p)| (PatternIdentifier::at(i), p))
+        listed(&self.0.borrow_dependent().patterns)
     }
 
     /// Every parameter list kept apart from a program, with its identifier, in the order kept.
     pub fn parameters(
         &self,
     ) -> impl ExactSizeIterator<Item = (ParametersIdentifier, &FormalParameters<'_>)> {
-        let parameters = &self.0.borrow_dependent().parameters;
-        parameters
-            .iter()
-            .enumerate()
-            .map(|(i, p)| (ParametersIdentifier::at(i), p))
+        listed(&self.0.borrow_dependent().parameters)
     }
 
     /// Every type parameter list kept apart from a program, with its identifier, in the order
@@ -333,11 +341,7 @@ impl Tree {
         &self,
     ) -> impl ExactSizeIterator<Item = (TypeParametersIdentifier, &TSTypeParameterDeclaration<'_>)>
     {
-        let type_parameters = &self.0.borrow_dependent().type_parameters;
-        type_parameters
-            .iter()
-            .enumerate()
-            .map(|(i, p)| (TypeParametersIdentifier::at(i), p))
+        listed(&self.0.borrow_dependent().type_parameters)
     }
 
     /// The comments outside the programs, in document order.

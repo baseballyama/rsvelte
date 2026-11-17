@@ -140,7 +140,6 @@ impl Block {
             );
             for lang in self.named() {
                 report = report.suggest(Suggestion {
-                    message_id: None,
                     message: format!(
                         "Add a lang attribute to a <{tag}> block with the value \"{lang}\"."
                     ),
@@ -181,7 +180,6 @@ impl Block {
         if self.named().next().is_none() && self.allowed.contains(&None) {
             return attribute
                 .map(|attribute| Suggestion {
-                    message_id: None,
                     message: format!("Replace a <{tag}> block with the lang attribute omitted."),
                     fix: Fix::remove(Span::new(attribute.start_offset - 1, attribute.end_offset)),
                 })
@@ -211,11 +209,7 @@ impl Block {
                         )
                     },
                 );
-                Suggestion {
-                    message_id: None,
-                    message,
-                    fix,
-                }
+                Suggestion { message, fix }
             })
             .collect()
     }

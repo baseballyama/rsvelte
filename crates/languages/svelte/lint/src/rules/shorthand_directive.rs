@@ -44,7 +44,6 @@ impl SvelteRule for ShorthandDirective {
                 if !self.always {
                     reporter.report(
                         Report::range("Expected regular directive syntax.", attribute.span)
-                            .message_id("expectedRegular")
                             // After the modifiers too: `style:color|important={color}`.
                             .fix(Fix::insert(
                                 attribute.name.end_offset,
@@ -59,7 +58,6 @@ impl SvelteRule for ShorthandDirective {
             }
             reporter.report(
                 Report::range("Expected shorthand directive.", attribute.span)
-                    .message_id("expectedShorthand")
                     .fix(remove_value(component, attribute)),
             );
         }

@@ -1274,7 +1274,6 @@ dependencies = [
 name = "rsvelte_kernel_browser"
 version = "0.0.0"
 dependencies = [
- "rsvelte_document_printer",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
  "rsvelte_svelte_check",
@@ -1309,6 +1308,9 @@ version = "0.0.0"
 [[package]]
 name = "rsvelte_markup_syntax"
 version = "0.0.0"
+dependencies = [
+ "memchr",
+]
 
 [[package]]
 name = "rsvelte_plugin_interface"

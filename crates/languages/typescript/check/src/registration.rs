@@ -25,7 +25,7 @@ pub fn register(registry: &mut Registry) {
         if !is_typescript(context.document) {
             return Ok(TypeScriptDocument::Unchecked);
         }
-        let mut projection = Emitter::new();
+        let mut projection = Emitter::default();
         projection.copy(
             context.source_text(),
             Span::new(0, context.source_text().len() as u32),

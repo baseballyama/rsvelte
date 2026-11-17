@@ -3,14 +3,13 @@
 The rsvelte site, a SvelteKit app for Cloudflare Workers, introduces the project and explains
 the toolchain. Contributors use this directory to edit pages and run the site locally.
 
-| Route                   | Purpose                                                     |
-| ----------------------- | ----------------------------------------------------------- |
-| `/`                     | Project introduction                                        |
-| `/why`                  | Reasons for the rewrite                                     |
-| `/guide`                | User guide: setup, file processing, and browser integration |
-| `/learn`                | Developer guide with source excerpts                        |
-| `/learn/playground`     | Run language tasks and inspect the pipeline                 |
-| `/learn/playground/doc` | Try the document printer and inspect layout decisions       |
+| Route               | Purpose                                                     |
+| ------------------- | ----------------------------------------------------------- |
+| `/`                 | Project introduction                                        |
+| `/why`              | Reasons for the rewrite                                     |
+| `/guide`            | User guide: setup, file processing, and browser integration |
+| `/learn`            | Developer guide with source excerpts                        |
+| `/learn/playground` | Run language tasks and inspect the pipeline                 |
 
 ## Relationship to the toolchain
 

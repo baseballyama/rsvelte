@@ -2,20 +2,15 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::svelte_store::{Function, store_calls};
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-store-async",
     files: Files::All,
-    configure,
+    configure: without_options::<NoStoreAsync>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoStoreAsync))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoStoreAsync;
 
 impl SvelteRule for NoStoreAsync {
@@ -34,13 +29,10 @@ impl SvelteRule for NoStoreAsync {
             }
             // Upstream reports the five characters of `async`.
             let start = function.span.start;
-            reporter.report(
-                Report::range(
-                    "Do not pass async functions to svelte stores.",
-                    Span::new(start, start + 5),
-                )
-                .message_id("unexpected"),
-            );
+            reporter.report(Report::range(
+                "Do not pass async functions to svelte stores.",
+                Span::new(start, start + 5),
+            ));
         }
     }
 }

@@ -6,20 +6,15 @@ use rsvelte_typescript_tree::ExpressionIdentifier;
 use super::constant_string::root;
 use super::markup::{is_attribute, parts};
 use super::nodes;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-not-function-handler",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoNotFunctionHandler>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoNotFunctionHandler))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoNotFunctionHandler;
 
 impl SvelteRule for NoNotFunctionHandler {
@@ -66,13 +61,10 @@ fn verify(file: &File<'_>, expression: ExpressionIdentifier, reporter: &mut Repo
         Expression::BooleanLiteral(_) => "boolean value",
         _ => return,
     };
-    reporter.report(
-        Report::range(
-            format!("Unexpected {phrase} in event handler."),
-            nodes::span(expression),
-        )
-        .message_id("unexpected"),
-    );
+    reporter.report(Report::range(
+        format!("Unexpected {phrase} in event handler."),
+        nodes::span(expression),
+    ));
 }
 
 /// The event attributes of `svelte/elements` (upstream `EVENT_NAMES` without the `on:` names,

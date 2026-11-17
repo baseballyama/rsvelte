@@ -18,13 +18,6 @@ fn what_the_template_printer_cannot_place_yet_is_refused() {
             Some("// x")
         )
     );
-    assert_eq!(
-        refusal("<div /* x\ny */ a></div>\n"),
-        (
-            "a comment on more than one line among attributes that may stay on one line",
-            Some("/* x\ny */")
-        )
-    );
 }
 
 #[test]
@@ -32,6 +25,8 @@ fn a_comment_between_attributes_goes_with_the_attribute_as_the_plugin_attaches_i
     // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
     for (source_text, expected) in [
         ("<div a /* x */ b></div>", "<div a /* x */ b></div>\n"),
+        ("<div /* x\ny */ a></div>", "<div /* x\ny */ a></div>\n"),
+        ("<div a /* x\ny */ b></div>", "<div a /* x\ny */ b></div>\n"),
         (
             "<div\n  a\n\n  // x\n\n  b\n></div>",
             "<div\n  a\n  // x\n\n  b\n></div>\n",
@@ -102,7 +97,7 @@ fn a_template_expression_keeps_the_comments_before_it() {
 }
 
 #[test]
-fn a_comment_before_a_bound_sequence_keeps_the_parentheses_the_plugin_keeps() {
+fn a_comment_before_a_bound_sequence_goes_with_the_parentheses_the_plugin_keeps() {
     // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
     for (input, expected) in [
         (
@@ -118,10 +113,51 @@ fn a_comment_before_a_bound_sequence_keeps_the_parentheses_the_plugin_keeps() {
             "<input\n  bind:value={\n    /** Foo */\n    (x,\n    /** Bar */\n    y)\n  }\n/>\n",
         ),
         (
+            "<input bind:value={// a\n() => v, (n) => (v = n)}/>\n",
+            "<input\n  bind:value={\n    // a\n    () => v, (n) => (v = n)\n  }\n/>\n",
+        ),
+        (
+            "<input bind:value={\n/**\n * doc\n */\nx, y}/>\n",
+            "<input\n  bind:value={\n    /**\n     * doc\n     */\n    x, y\n  }\n/>\n",
+        ),
+        (
+            "<input bind:value={/* a\nb */ x, y}/>\n",
+            "<input\n  bind:value={\n    /* a\nb */ (x, y)\n  }\n/>\n",
+        ),
+        (
+            "<input bind:value={/* a */ /* b */ // c\nx, y}/>\n",
+            "<input\n  bind:value={\n    /* a */ /* b */ // c\n    (x, y)\n  }\n/>\n",
+        ),
+        (
+            "<input bind:value={/* a */ // b\nx, y}/>\n",
+            "<input\n  bind:value={\n    /* a */ // b\n    (x, y)\n  }\n/>\n",
+        ),
+        (
             "<input bind:value={x, y} />\n",
             "<input bind:value={x, y} />\n",
         ),
     ] {
         assert_eq!(formatted(input), expected, "{input}");
+    }
+}
+
+#[test]
+fn comments_before_a_bound_sequence_the_plugin_leaves_unbalanced_are_refused() {
+    // Prettier 3.9.10 with prettier-plugin-svelte 4.1.1 prints `(x, y` without its `)`.
+    for (input, at) in [
+        ("<input bind:value={// a\n// b\nx, y}/>\n", "// a"),
+        (
+            "<input bind:value={/* a\nb */\n// c\nx, y}/>\n",
+            "/* a\nb */",
+        ),
+    ] {
+        assert_eq!(
+            refusal(input),
+            (
+                "comments before a `bind:` sequence the plugin leaves unbalanced",
+                Some(at)
+            ),
+            "{input}"
+        );
     }
 }

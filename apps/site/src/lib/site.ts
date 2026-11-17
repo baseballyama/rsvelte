@@ -175,16 +175,14 @@ export const chapters: Chapter[] = [
 		number: '09',
 		title: '改行と字下げの決め方',
 		abstract:
-			'Prettier と同じ規則で、一行に収めるか改行するかを決める。整形用のデータ構造と、それを文字列にする処理。',
+			'Prettier と同じ形の整形用のデータ構造を作り、oxc のプリンタで一行に収めるか改行するかを決める。',
 		module: 'document_printer/lib',
-		minutes: 20,
+		minutes: 12,
 		sections: [
 			s('ir', '整形用のデータ構造と保存領域'),
-			s('printer', '整形の指示を順に処理する'),
-			s('fits', '一行に収まるかを確かめる'),
-			s('fill', '単語を収まるだけ一行に並べる'),
-			s('group-ids', '改行の判断を共有する'),
-			s('flat-only', '改行なしで出力できる場合だけ返す'),
+			s('lower', 'oxc のプリンタに渡す'),
+			s('embedded', 'oxc の整形器が作った部分を入れる'),
+			s('width', '文字の表示幅の違いを見つける'),
 			s('mutation', '保存した整形指示を書き換える'),
 		],
 	},
@@ -320,11 +318,6 @@ export const appendix = [
 		href: '/learn/playground',
 		title: 'プレイグラウンド',
 		abstract: '言語プラグインを付け外しして、ソースの解析と出力を追う。',
-	},
-	{
-		href: '/learn/playground/doc',
-		title: '整形の判断を試す',
-		abstract: '整形用のデータ構造を書いて、プリンタの判断を追う。',
 	},
 ];
 

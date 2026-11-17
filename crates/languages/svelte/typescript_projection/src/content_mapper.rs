@@ -7,7 +7,7 @@ pub fn write_transform(path: &str, source: &str, output: &mut StructuredDataWrit
         .map_err(|error| (1, error.message, error.span))
         .and_then(|component| {
             crate::lower_alone(&component, source, path)
-                .map(|tree| (tree.extension(), crate::emit_named(&tree, source, path)))
+                .map(|tree| (tree.extension(), crate::emit(&tree, source, path)))
                 .map_err(|error| match error {
                     crate::Refusal::Unsupported(unsupported) => (
                         2,

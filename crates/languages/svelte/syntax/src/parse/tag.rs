@@ -98,7 +98,10 @@ impl Parser<'_, '_> {
     /// Whether an expression at `start` runs to the tag's `}`, read and then forgotten.
     fn expression_ends_tag(&mut self, start: u32, mark: usize) -> bool {
         self.builder.rewind(mark);
-        let read = self.builder.read_expression_at(start, self.source_type());
+        let end = self.builder.source_text().len() as u32;
+        let read = self
+            .builder
+            .read_expression_before(start, end, self.source_type());
         self.builder.rewind(mark);
         read.is_ok_and(|(_, end)| {
             super::whitespace::trim_whitespace_start(&self.source_text[end as usize..])
@@ -166,10 +169,7 @@ impl Parser<'_, '_> {
             }
             self.close_mustache()?;
             let span = Span::new(start_offset as u32, self.position as u32);
-            let identifiers = Range {
-                start: list_start as u32,
-                len: (self.component.debug_identifiers.len() - list_start) as u32,
-            };
+            let identifiers = Range::since(&self.component.debug_identifiers, list_start);
             return Ok(self.push_node(TemplateNode::Debug { identifiers, span }));
         }
         let at = self.sigil().start_offset + 1;

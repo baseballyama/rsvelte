@@ -1,5 +1,7 @@
-import { runPipeline as runPipelineJson } from '#generated/wasm/kernel/rsvelte_kernel_browser.js';
-export { initializeDocumentPrinter as initializePipeline } from './document-browser';
+import initializeBrowserBindings, {
+	runPipeline as runPipelineJson,
+	type InitInput,
+} from '#generated/wasm/kernel/rsvelte_kernel_browser.js';
 
 export type PipelineRequest = {
 	source: string;
@@ -37,4 +39,15 @@ export function runPipeline(request: PipelineRequest): PipelineResult {
 			request.shared,
 		),
 	) as PipelineResult;
+}
+
+let initialized: Promise<void> | undefined;
+
+export function initializePipeline(input?: InitInput | Promise<InitInput>): Promise<void> {
+	initialized ??= (
+		input === undefined
+			? initializeBrowserBindings()
+			: initializeBrowserBindings({ module_or_path: input })
+	).then(() => undefined);
+	return initialized;
 }

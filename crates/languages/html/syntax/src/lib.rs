@@ -8,4 +8,4 @@ pub mod script_language;
 
 pub use attributes::property_name;
 pub use character_references::{decode_attribute, decode_text};
-pub use elements::{VOID_ELEMENTS, is_void};
+pub use elements::is_void;

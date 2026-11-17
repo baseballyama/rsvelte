@@ -1,28 +1,22 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    Argument, AssignmentOperator, AssignmentTarget, CallExpression, Expression, FunctionBody,
+    Argument, AssignmentOperator, AssignmentTarget, CallExpression, Expression,
     IdentifierReference, Statement,
 };
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::javascript::walk;
-use super::nodes::{is_named, span, text};
+use super::nodes::{is_named, only_statement, span, text};
 use super::runes::runes_or_undetermined;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-writable-derived",
     files: Files::All,
-    configure,
+    configure: without_options::<PreferWritableDerived>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(PreferWritableDerived))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct PreferWritableDerived;
 
 impl SvelteRule for PreferWritableDerived {
@@ -33,30 +27,30 @@ impl SvelteRule for PreferWritableDerived {
         let source = file.source();
         let semantic = file.semantic();
         let scoping = semantic.scoping();
-        walk(file, |node| {
+        for node in file.nodes().iter() {
             let AstKind::CallExpression(call) = node.kind() else {
-                return;
+                continue;
             };
             let Some((target, value)) = effect_assignment(call) else {
-                return;
+                continue;
             };
             let Some(symbol) = target
                 .reference_id
                 .get()
                 .and_then(|reference| scoping.get_reference(reference).symbol_id())
             else {
-                return;
+                continue;
             };
             let AstKind::VariableDeclarator(declarator) =
                 semantic.nodes().kind(scoping.symbol_declaration(symbol))
             else {
-                return;
+                continue;
             };
             let Some(initializer @ Expression::CallExpression(state)) = &declarator.init else {
-                return;
+                continue;
             };
             if !is_named(&state.callee, "$state") {
-                return;
+                continue;
             }
             let mut fix = Fix::replace(
                 span(initializer),
@@ -68,14 +62,12 @@ impl SvelteRule for PreferWritableDerived {
                     "Prefer using writable $derived instead of $state and $effect",
                     span(declarator),
                 )
-                .message_id("unexpected")
                 .suggest(Suggestion {
-                    message_id: Some("suggestRewrite".into()),
                     message: "Rewrite $state and $effect to $derived".to_owned(),
                     fix,
                 }),
             );
-        });
+        }
     }
 }
 
@@ -126,14 +118,6 @@ fn effect_assignment<'a>(
                 _ => None,
             }
         }
-        _ => None,
-    }
-}
-
-/// The one statement of a body, a directive counting as a statement as in `ESTree`.
-fn only_statement<'a>(body: &'a FunctionBody<'a>) -> Option<&'a Statement<'a>> {
-    match (body.directives.as_slice(), body.statements.as_slice()) {
-        ([], [statement]) => Some(statement),
         _ => None,
     }
 }

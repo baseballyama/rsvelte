@@ -65,7 +65,6 @@ impl SvelteRule for ShorthandAttribute {
                     if attribute.kind == AttributeKind::Attribute && attribute.shorthand {
                         reporter.report(
                             Report::range("Expected regular attribute syntax.", attribute.span)
-                                .message_id("expectedRegular")
                                 .fix(Fix::insert(attribute.span.start_offset, format!("{key}="))),
                         );
                     }
@@ -80,8 +79,7 @@ impl SvelteRule for ShorthandAttribute {
                 if !nodes::is_named(javascript.get_expression(expression), key) {
                     continue;
                 }
-                let report = Report::range("Expected shorthand attribute.", attribute.span)
-                    .message_id("expectedShorthand");
+                let report = Report::range("Expected shorthand attribute.", attribute.span);
                 // The shorthand holds a name alone: `{(a)}` and `{/* c */ a}` do not compile.
                 if !is_bare_name(component, span) {
                     reporter.report(report);

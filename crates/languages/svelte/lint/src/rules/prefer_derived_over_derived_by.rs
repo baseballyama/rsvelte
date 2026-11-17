@@ -1,27 +1,19 @@
 use oxc_ast::AstKind;
-use oxc_ast::ast::{
-    Argument, CallExpression, Expression, FormalParameters, FunctionBody, Statement,
-};
+use oxc_ast::ast::{Argument, CallExpression, Expression, FormalParameters, Statement};
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::javascript::walk;
-use super::nodes::{is_named, span, text};
+use super::nodes::{is_named, only_statement, span, text};
 use super::runes::runes_or_undetermined;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-derived-over-derived-by",
     files: Files::All,
-    configure,
+    configure: without_options::<PreferDerivedOverDerivedBy>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(PreferDerivedOverDerivedBy))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct PreferDerivedOverDerivedBy;
 
 impl SvelteRule for PreferDerivedOverDerivedBy {
@@ -30,12 +22,12 @@ impl SvelteRule for PreferDerivedOverDerivedBy {
             return;
         }
         let source = file.source();
-        walk(file, |node| {
+        for node in file.nodes().iter() {
             let AstKind::CallExpression(call) = node.kind() else {
-                return;
+                continue;
             };
             let Some(expression) = derived_by_expression(call) else {
-                return;
+                continue;
             };
             let replacement = format!("$derived({})", text(expression, source));
             reporter.report(
@@ -44,10 +36,9 @@ impl SvelteRule for PreferDerivedOverDerivedBy {
                         expressions.",
                     span(call),
                 )
-                .message_id("unnecessary")
                 .fix(Fix::replace(span(call), replacement)),
             );
-        });
+        }
     }
 }
 
@@ -86,12 +77,4 @@ fn derived_by_expression<'a>(call: &'a CallExpression<'a>) -> Option<&'a Express
 
 fn no_parameters(parameters: &FormalParameters<'_>) -> bool {
     parameters.items.is_empty() && parameters.rest.is_none()
-}
-
-/// The one statement of a body, a directive counting as a statement as in `ESTree`.
-fn only_statement<'a>(body: &'a FunctionBody<'a>) -> Option<&'a Statement<'a>> {
-    match (body.directives.as_slice(), body.statements.as_slice()) {
-        ([], [statement]) => Some(statement),
-        _ => None,
-    }
 }

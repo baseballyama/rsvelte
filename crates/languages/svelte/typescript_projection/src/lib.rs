@@ -9,7 +9,7 @@ pub use lower::{
     unparsed_script,
 };
 mod emit;
-pub use emit::{emit, emit_named};
+pub use emit::emit;
 mod computation;
 pub use computation::{Printed, Projected, THROWN, register, register_artifacts};
 
@@ -41,15 +41,11 @@ pub const DECLARATIONS: (&str, &str) = (
 /// a name cannot have, and with the suffix that keeps it apart from the component's own names.
 #[must_use]
 pub fn component_name(path: &str) -> String {
-    let mut name = String::new();
-    write_component_name(path, &mut name);
-    name
-}
-
-/// Appends [`component_name`] to `out`.
-pub(crate) fn write_component_name(path: &str, out: &mut String) {
+    const SUFFIX: &str = "__SvelteComponent_";
     let file = path.rsplit(['/', '\\']).next().unwrap_or(path);
     let stem = file.split('.').next().unwrap_or(file);
+    // One allocation per document: the name never outgrows the stem, an `A` and the suffix.
+    let mut out = String::with_capacity(1 + stem.len() + SUFFIX.len());
     let valid = |c: &char| c.is_ascii_alphanumeric() || matches!(c, '_' | '-');
     // A name starts at its first letter; JavaScript's `substr(-1)` keeps the last character
     // when there is none.
@@ -72,7 +68,8 @@ pub(crate) fn write_component_name(path: &str, out: &mut String) {
             out.push(c);
         }
     }
-    out.push_str("__SvelteComponent_");
+    out.push_str(SUFFIX);
+    out
 }
 
 /// What an import of a component that is not projected reads: a component of any props whose

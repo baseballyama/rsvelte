@@ -15570,13 +15570,6 @@ https://svelte.dev/e/attribute_duplicate
 <div><script lang="ts"></script></div>
 <p>{x}</p>
 
-=== 77 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/35efd90757e6abdb.svelte	svelte
-<script data-lang="ts">
-  let x: number = 1;
-</script>
-
-<p>{x as number}</p>
-
 === 226 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/9096b19bedcfe51e.svelte	error.txt
 Expected token }
 https://svelte.dev/e/expected_token

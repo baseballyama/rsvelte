@@ -202,8 +202,7 @@
 		</li>
 		<li><code>rsvelte_svelte_syntax::syntax_tree::Component</code>：テンプレートの列。</li>
 		<li>
-			<code>LayoutInstructions</code>：アリーナ（<a href="/learn/document-printer#ir">09 章</a
-			>）と、プリンタのスタックや作業リスト。
+			<code>LayoutInstructions</code>：アリーナ（<a href="/learn/document-printer#ir">09 章</a>）。
 		</li>
 		<li>
 			<code>Interner</code>：名前の文字列、終端、ハッシュ表（<a

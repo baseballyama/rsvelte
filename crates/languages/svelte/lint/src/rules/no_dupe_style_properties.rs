@@ -4,20 +4,15 @@ use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::style_attribute::property_sets;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-dupe-style-properties",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoDupeStyleProperties>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoDupeStyleProperties))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoDupeStyleProperties;
 
 impl SvelteRule for NoDupeStyleProperties {
@@ -36,10 +31,10 @@ impl SvelteRule for NoDupeStyleProperties {
                     if let Some(&already) = before.get(name) {
                         for at in [already, span] {
                             if shown.insert(at) {
-                                reporter.report(
-                                    Report::range(format!("Duplicate property '{name}'."), at)
-                                        .message_id("unexpected"),
-                                );
+                                reporter.report(Report::range(
+                                    format!("Duplicate property '{name}'."),
+                                    at,
+                                ));
                             }
                         }
                     }

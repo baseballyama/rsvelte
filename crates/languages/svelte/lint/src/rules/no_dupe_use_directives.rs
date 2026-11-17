@@ -2,20 +2,15 @@ use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_syntax::syntax_tree::AttributeKind;
 
 use super::duplicate_directives::report_duplicates;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-dupe-use-directives",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoDupeUseDirectives>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoDupeUseDirectives))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoDupeUseDirectives;
 
 impl SvelteRule for NoDupeUseDirectives {

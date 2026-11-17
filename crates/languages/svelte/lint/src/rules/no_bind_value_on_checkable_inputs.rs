@@ -6,20 +6,15 @@ use rsvelte_svelte_syntax::syntax_tree::{
 use rsvelte_typescript_semantic::static_value::{StaticValues, Value};
 
 use super::markup::{is_attribute, parts};
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-bind-value-on-checkable-inputs",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoBindValueOnCheckableInputs>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoBindValueOnCheckableInputs))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoBindValueOnCheckableInputs;
 
 impl SvelteRule for NoBindValueOnCheckableInputs {
@@ -61,21 +56,19 @@ impl SvelteRule for NoBindValueOnCheckableInputs {
             else {
                 continue;
             };
-            let (message, message_id, suggestions): (_, _, &[_]) = match kind.as_str() {
+            let (message, suggestions): (_, &[_]) = match kind.as_str() {
                 "checkbox" => (
                     "`bind:value` does not work on checkbox inputs. Did you mean `bind:checked` \
                      or `bind:group`?",
-                    "checkboxValueBinding",
                     &["checked", "group"],
                 ),
                 "radio" => (
                     "`bind:value` does not work on radio inputs. Did you mean `bind:group`?",
-                    "radioValueBinding",
                     &["group"],
                 ),
                 _ => continue,
             };
-            let mut report = Report::range(message, bind_value.span).message_id(message_id);
+            let mut report = Report::range(message, bind_value.span);
             for binding in suggestions {
                 report = report.suggest(rebind(bind_value, binding));
             }
@@ -92,7 +85,6 @@ fn rebind(bind_value: &Attribute, binding: &'static str) -> Suggestion {
         Fix::replace(bind_value.name, format!("bind:{binding}"))
     };
     Suggestion {
-        message_id: Some(format!("{binding}Suggestion").into()),
         message: format!("Change `bind:value` to `bind:{binding}`."),
         fix,
     }

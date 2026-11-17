@@ -1,7 +1,5 @@
 //! What a lint rule implements, and the only way it reports.
 
-use std::borrow::Cow;
-
 use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
 use rsvelte_kernel::source::positions::Span;
 
@@ -52,7 +50,6 @@ pub struct Report {
     message: String,
     span: Span,
     has_end: bool,
-    message_id: Option<Cow<'static, str>>,
     fix: Option<Fix>,
     suggestions: Vec<Suggestion>,
 }
@@ -64,7 +61,6 @@ impl Report {
             message: message.into(),
             span,
             has_end: true,
-            message_id: None,
             fix: None,
             suggestions: Vec::new(),
         }
@@ -76,11 +72,6 @@ impl Report {
             has_end: false,
             ..Self::range(message, Span::new(offset, offset))
         }
-    }
-
-    pub fn message_id(mut self, message_id: impl Into<Cow<'static, str>>) -> Self {
-        self.message_id = Some(message_id.into());
-        self
     }
 
     /// An empty fix is no fix, as `ESLint` drops a fixer that returns nothing.
@@ -145,7 +136,6 @@ impl<'a> Reporter<'a> {
                 span: report.span,
                 has_end: report.has_end,
             },
-            message_id: report.message_id,
             fix: report.fix,
             suggestions: report.suggestions,
         });

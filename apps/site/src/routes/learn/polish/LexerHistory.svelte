@@ -10,8 +10,8 @@
 			<code>will_break</code> を表引きにしました。出力の前に木をたどる
 			<code>propagate_breaks</code>
 			とそのメモは消しました。アリーナのバッファもプールから借ります。<code>svelte.format</code>
-			の割り当ては 1,070,011 回から 691,547 回に減りました（<a
-				href="/learn/document-printer#printer">09 章</a
+			の割り当ては 1,070,011 回から 691,547 回に減りました（<a href="/learn/document-printer#ir"
+				>09 章</a
 			>）。
 		</li>
 		<li>
