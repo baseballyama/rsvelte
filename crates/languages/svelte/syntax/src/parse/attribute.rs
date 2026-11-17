@@ -126,18 +126,12 @@ impl Parser<'_, '_> {
         Ok(())
     }
 
-    const fn attributes_since(&self, start: usize) -> Range {
-        Range {
-            start: start as u32,
-            len: (self.component.attributes.len() - start) as u32,
-        }
+    fn attributes_since(&self, start: usize) -> Range {
+        Range::since(&self.component.attributes, start)
     }
 
-    pub(super) const fn parts_since(&self, start: usize) -> Range {
-        Range {
-            start: start as u32,
-            len: (self.component.parts.len() - start) as u32,
-        }
+    pub(super) fn parts_since(&self, start: usize) -> Range {
+        Range::since(&self.component.parts, start)
     }
 
     fn brace_attribute(&mut self) -> ParseResult<Attribute> {
@@ -216,10 +210,7 @@ impl Parser<'_, '_> {
                 at += piece.len() as u32 + 1;
             }
         }
-        let modifiers = Range {
-            start: modifiers_start as u32,
-            len: (self.component.modifiers.len() - modifiers_start) as u32,
-        };
+        let modifiers = Range::since(&self.component.modifiers, modifiers_start);
         let mut attribute = Attribute {
             kind,
             name,

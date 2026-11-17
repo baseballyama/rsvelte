@@ -169,10 +169,7 @@ impl Parser<'_, '_> {
             }
             self.close_mustache()?;
             let span = Span::new(start_offset as u32, self.position as u32);
-            let identifiers = Range {
-                start: list_start as u32,
-                len: (self.component.debug_identifiers.len() - list_start) as u32,
-            };
+            let identifiers = Range::since(&self.component.debug_identifiers, list_start);
             return Ok(self.push_node(TemplateNode::Debug { identifiers, span }));
         }
         let at = self.sigil().start_offset + 1;

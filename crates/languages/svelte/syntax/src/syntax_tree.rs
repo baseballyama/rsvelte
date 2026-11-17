@@ -32,6 +32,14 @@ impl Range {
         len: 0,
     };
 
+    /// The items of `list` from `start` to its end.
+    pub(crate) const fn since<T>(list: &[T], start: usize) -> Self {
+        Self {
+            start: start as u32,
+            len: (list.len() - start) as u32,
+        }
+    }
+
     pub fn get<T>(self, v: &[T]) -> &[T] {
         &v[self.start as usize..(self.start + self.len) as usize]
     }
