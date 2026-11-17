@@ -24252,15 +24252,6 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 119 css_value_scan_4046/a_brace_inside_any_bracket_but_url_still_ends_the_value/68ad7174e520e1fd.svelte	svelte
-<p>x</p>
-
-<style lang="scss">
-  .a {
-    grid-template-columns: [full-start] minmax(1rem, 1fr) [b{c] 1fr;
-  }
-</style>
-
 === 78 css_value_scan_4046/a_brace_inside_any_bracket_but_url_still_ends_the_value/aaa2f72c259b7f5a.svelte	svelte
 <p>x</p>
 

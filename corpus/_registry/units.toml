@@ -2638,6 +2638,9 @@
 "svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
 "svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
 
+["svelte/rsvelte-tests-core-1/css_value_scan_4046/a_brace_inside_any_bracket_but_url_still_ends_the_value/68ad7174e520e1fd.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
+
 ["svelte/rsvelte-tests-core-1/custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/3ba1c33cb1ffa0f4.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
 "svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
