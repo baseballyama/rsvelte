@@ -14,7 +14,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
 use rsvelte_markup_syntax::is_void;
-use rsvelte_markup_syntax::script_language::guess_typescript;
+use rsvelte_markup_syntax::script_language::parse_guessing_typescript;
 use rsvelte_typescript_tree::{Builder, ExpressionIdentifier, ProgramIdentifier, Tree};
 
 use crate::syntax_tree::{
@@ -30,14 +30,7 @@ type R<T> = Result<T, Diagnostic>;
 /// A `parse_error` [`Diagnostic`] at the first syntax error, or at syntax this parser does not
 /// support; `js_parse_error` or the style sheet's Svelte error from the embedded parsers.
 pub fn parse(source_text: &str) -> R<SingleFileComponent> {
-    let guess = guess_typescript(source_text);
-    let (parsed, lang_read) = parse_as(source_text, guess);
-    // Without a script the component is JavaScript, unless the parse stopped before it.
-    let typescript = lang_read.unwrap_or_else(|| guess && parsed.is_err());
-    if typescript == guess {
-        return parsed;
-    }
-    parse_as(source_text, typescript).0
+    parse_guessing_typescript(source_text, |typescript| parse_as(source_text, typescript))
 }
 
 /// The component, its expressions read as TypeScript or not, and the language its script gives
