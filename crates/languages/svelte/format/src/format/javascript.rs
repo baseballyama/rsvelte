@@ -207,9 +207,9 @@ impl Printer<'_, '_, '_> {
 /// tsc's codes of the errors after which oxc's recovered program prints as Prettier prints the
 /// code, measured on the samples in the tests: a recovered program can drop nodes or panic the
 /// printer.
-const RECOVERED_WHOLE: [u32; 19] = [
-    1015, 1016, 1029, 1038, 1039, 1049, 1051, 1093, 1094, 1095, 1147, 1194, 1222, 1257, 1308, 2368,
-    2681, 5085, 18010,
+const RECOVERED_WHOLE: [u32; 20] = [
+    1015, 1016, 1029, 1038, 1039, 1049, 1051, 1093, 1094, 1095, 1108, 1147, 1194, 1222, 1257, 1308,
+    2368, 2681, 5085, 18010,
 ];
 
 /// Whether oxc's `program` recovered from an error of tsc's `code` at `at` holds all of the code.
