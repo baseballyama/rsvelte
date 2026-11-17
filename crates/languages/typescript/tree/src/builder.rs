@@ -40,7 +40,6 @@ pub struct Builder<'a> {
     type_parameters: Vec<TSTypeParameterDeclaration<'a>>,
     comments: Vec<Comment>,
     recorded: RecordedPart<'a>,
-    wrapped: String,
     unchecked: &'static &'static [&'static str],
     unchecked_errors: Vec<SyntaxError>,
     as_acorn: bool,
@@ -92,7 +91,6 @@ impl<'a> Builder<'a> {
                 comments: &[],
                 shift: 0,
             },
-            wrapped: String::new(),
             unchecked: &NOTHING,
             unchecked_errors: Vec::new(),
             as_acorn: false,
@@ -163,34 +161,8 @@ impl<'a> Builder<'a> {
         self.recorded
     }
 
-    /// Parses the expression that starts at `start`, and returns where it ends.
-    ///
-    /// # Errors
-    ///
-    /// The first syntax error in the expression.
-    pub fn expression_at(
-        &mut self,
-        start: u32,
-        source_type: SourceType,
-    ) -> Result<(ExpressionIdentifier, u32), SyntaxError> {
-        let (expression, end) = self.read_expression_at(start, source_type)?;
-        Ok((self.keep_expression(expression), end))
-    }
-
-    /// [`Self::expression_at`], for a host that takes the expression apart.
-    ///
-    /// # Errors
-    ///
-    /// The first syntax error in the expression.
-    pub fn read_expression_at(
-        &mut self,
-        start: u32,
-        source_type: SourceType,
-    ) -> Result<(Expression<'a>, u32), SyntaxError> {
-        self.read_expression_before(start, self.source_text.len() as u32, source_type)
-    }
-
-    /// [`Self::read_expression_at`] in the document up to `limit`, as if it ended there.
+    /// Parses the expression that starts at `start` in the document up to `limit`, as if it
+    /// ended there, and returns where it ends.
     ///
     /// # Errors
     ///
@@ -328,8 +300,7 @@ impl<'a> Builder<'a> {
         source_type: SourceType,
     ) -> Result<ParametersIdentifier, SyntaxError> {
         let parameters = self.read_parameters(range, source_type)?;
-        let identifier = ParametersIdentifier::at(self.parameters.len());
-        self.parameters.push(parameters);
+        let identifier = crate::push(&mut self.parameters, parameters);
         Ok(identifier)
     }
 
@@ -364,8 +335,7 @@ impl<'a> Builder<'a> {
             return Err(refused("expected type parameters", range));
         };
         Shift(shift).visit_ts_type_parameter_declaration(&mut parameters);
-        let identifier = TypeParametersIdentifier::at(self.type_parameters.len());
-        self.type_parameters.push(parameters);
+        let identifier = crate::push(&mut self.type_parameters, parameters);
         Ok(identifier)
     }
 
@@ -411,11 +381,8 @@ impl<'a> Builder<'a> {
         let Some(shift) = range.start_offset.checked_sub(open.len() as u32) else {
             return Err(refused("a part cannot start the document", range));
         };
-        self.wrapped.clear();
-        self.wrapped.push_str(open);
-        self.wrapped.push_str(range.text(self.source_text));
-        self.wrapped.push_str(close);
-        let text = self.allocator.alloc_str(&self.wrapped);
+        let text =
+            (self.allocator).alloc_concat_strs_array([open, range.text(self.source_text), close]);
         let mut parsed = Parser::new(self.allocator, text, source_type)
             .with_options(parentheses::options(parenthesized))
             .with_config(TokensParserConfig)
@@ -472,39 +439,29 @@ impl<'a> Builder<'a> {
     }
 
     pub fn keep_expression(&mut self, expression: Expression<'a>) -> ExpressionIdentifier {
-        let identifier = ExpressionIdentifier::at(self.expressions.len());
-        self.expressions.push(expression);
-        identifier
+        crate::push(&mut self.expressions, expression)
     }
 
     /// Keeps a program built in [`Builder::nodes`]'s arena, such as one a compiler writes.
     pub fn keep_program(&mut self, program: Program<'a>) -> ProgramIdentifier {
-        let identifier = ProgramIdentifier::at(self.programs.len());
-        self.programs.push(program);
-        identifier
+        crate::push(&mut self.programs, program)
     }
 
     /// Keeps a parameter list built in [`Builder::nodes`]'s arena, such as aliases a compiler
     /// writes.
     pub fn keep_parameters(&mut self, parameters: FormalParameters<'a>) -> ParametersIdentifier {
-        let identifier = ParametersIdentifier::at(self.parameters.len());
-        self.parameters.push(parameters);
-        identifier
+        crate::push(&mut self.parameters, parameters)
     }
 
     pub fn keep_pattern(&mut self, pattern: FormalParameter<'a>) -> PatternIdentifier {
-        let identifier = PatternIdentifier::at(self.patterns.len());
-        self.patterns.push(pattern);
-        identifier
+        crate::push(&mut self.patterns, pattern)
     }
 
     pub fn keep_declaration(
         &mut self,
         declaration: VariableDeclaration<'a>,
     ) -> DeclarationIdentifier {
-        let identifier = DeclarationIdentifier::at(self.declarations.len());
-        self.declarations.push(declaration);
-        identifier
+        crate::push(&mut self.declarations, declaration)
     }
 
     /// Keeps `tokens` and `comments`, `shift` bytes later, as the part read last.

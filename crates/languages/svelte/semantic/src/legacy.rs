@@ -272,11 +272,16 @@ pub fn legacy_syntax(
             return Some("export let");
         }
     }
-    resolution.unresolved_names().find_map(|name| match name {
-        "$$props" => Some("$$props"),
-        "$$restProps" => Some("$$restProps"),
-        _ => None,
-    })
+    resolution
+        .unbound(|name| matches!(name, "$$props" | "$$restProps"))
+        .map(|(name, _)| {
+            if name == "$$props" {
+                "$$props"
+            } else {
+                "$$restProps"
+            }
+        })
+        .next()
 }
 
 /// The instance script's scope or the module script's, which encloses it.

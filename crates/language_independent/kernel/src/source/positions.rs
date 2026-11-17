@@ -67,6 +67,7 @@ pub struct LineIndex {
     /// Every non-ASCII character, in order.
     wide: Vec<Wide>,
     len: u32,
+    breaks: LineBreaks,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -169,6 +170,7 @@ impl LineIndex {
             long_breaks,
             wide,
             len: source_text.len() as u32,
+            breaks,
         }
     }
 
@@ -269,104 +271,82 @@ impl Drop for LineIndex {
     }
 }
 
-/// [`LineIndex::line_column`] of offsets that mostly move forward, as a source map's points do: it
-/// reads the text on from the last offset, and asks an index only for a jump back or far ahead.
+/// [`LineIndex::line_column`] on lines that end at `\n`, for offsets that mostly move forward.
+///
+/// A source map's points do: it reads the text on from the last offset, and asks the index only
+/// for a jump back or far ahead.
 #[derive(Debug)]
 pub struct LineCursor<'t> {
     text: &'t str,
-    breaks: LineBreaks,
-    /// The text's index, if the caller has one; otherwise built at the first jump back.
+    /// The text's index; without one, a jump back reads again from the start.
     index: Option<&'t LineIndex>,
-    built: Option<LineIndex>,
     byte: u32,
     line: u32,
     column: u32,
-    character: u32,
 }
 
 impl<'t> LineCursor<'t> {
     /// Past this many bytes ahead, an index answers in O(log n) instead of a read.
     const READ_AHEAD: u32 = 256;
 
-    /// A cursor at the start of `text`, whose lines end as `breaks` says; `index` must be
-    /// `text`'s, with the same breaks.
+    /// A cursor at the start of `text`; `index` must be `text`'s.
+    ///
+    /// # Panics
+    ///
+    /// If `index` counts lines other than [`LineBreaks::Newline`] does, which the read does not.
     #[must_use]
-    pub const fn new(text: &'t str, breaks: LineBreaks, index: Option<&'t LineIndex>) -> Self {
+    pub fn new(text: &'t str, index: Option<&'t LineIndex>) -> Self {
+        assert!(
+            index.is_none_or(|index| index.breaks == LineBreaks::Newline),
+            "a line cursor reads lines that end at `\\n`"
+        );
         Self {
             text,
-            breaks,
             index,
-            built: None,
             byte: 0,
             line: 1,
             column: 0,
-            character: 0,
         }
     }
 
-    /// The line and column of `byte`, rounded as [`LineIndex::utf16`] rounds.
-    pub fn line_column(&mut self, byte: u32) -> LineColumn {
+    /// The 1-based line and 0-based UTF-16 column of `byte`, rounded as [`LineIndex::utf16`]
+    /// rounds.
+    pub fn line_column(&mut self, byte: u32) -> (u32, u32) {
         let mut target = byte.min(self.text.len() as u32);
         while !self.text.is_char_boundary(target as usize) {
             target -= 1;
         }
-        let indexed = self.index.is_some() || self.built.is_some();
-        if target >= self.byte && !(indexed && target - self.byte > Self::READ_AHEAD) {
-            self.read_to(target);
-        } else {
-            let index = match self.index {
-                Some(index) => index,
-                None => (self.built)
-                    .get_or_insert_with(|| LineIndex::with_breaks(self.text, self.breaks)),
-            };
-            let at = index.line_column(target);
-            (self.byte, self.line, self.column, self.character) =
-                (target, at.line, at.column, at.character);
+        match self.index {
+            Some(index) if target < self.byte || target - self.byte > Self::READ_AHEAD => {
+                let at = index.line_column(target);
+                (self.byte, self.line, self.column) = (target, at.line, at.column);
+            }
+            None if target < self.byte => {
+                (self.byte, self.line, self.column) = (0, 1, 0);
+                self.read_to(target);
+            }
+            _ => self.read_to(target),
         }
-        LineColumn {
-            line: self.line,
-            column: self.column,
-            character: self.character,
-        }
+        (self.line, self.column)
     }
 
     fn read_to(&mut self, target: u32) {
-        let start = self.byte as usize;
-        let bytes = self.text.as_bytes();
-        let ecmascript = self.breaks == LineBreaks::Ecmascript;
-        let stretch = &bytes[start..target as usize];
-        // In ASCII every character is one byte and one unit, so only the `\n`s need finding; a
-        // `\r` keeps the loop, which knows when it ends a line.
-        if stretch.is_ascii() && !(ecmascript && memchr::memchr(b'\r', stretch).is_some()) {
-            let len = stretch.len() as u32;
-            self.character += len;
-            match memchr::memrchr(b'\n', stretch) {
-                Some(last) => {
-                    self.line += memchr::memchr_iter(b'\n', stretch).count() as u32;
-                    self.column = len - last as u32 - 1;
-                }
-                None => self.column += len,
-            }
-            self.byte = target;
-            return;
-        }
-        for (i, ch) in self.text[start..target as usize].char_indices() {
-            let units = ch.len_utf16() as u32;
-            self.character += units;
-            let ends_line = match ch {
-                '\n' => true,
-                // A CRLF ends at its LF, which keeps the CR in the line as the index does.
-                '\r' => ecmascript && bytes.get(start + i + 1) != Some(&b'\n'),
-                '\u{2028}' | '\u{2029}' => ecmascript,
-                _ => false,
-            };
-            if ends_line {
-                self.line += 1;
+        let stretch = &self.text[self.byte as usize..target as usize];
+        let bytes = stretch.as_bytes();
+        let on_line = match memchr::memrchr(b'\n', bytes) {
+            Some(last) => {
+                self.line += memchr::memchr_iter(b'\n', bytes).count() as u32;
                 self.column = 0;
-            } else {
-                self.column += units;
+                &stretch[last + 1..]
             }
-        }
+            None => stretch,
+        };
+        // In ASCII every character is one unit.
+        self.column += if on_line.is_ascii() {
+            on_line.len()
+        } else {
+            on_line.encode_utf16().count()
+        } as u32;
         self.byte = target;
     }
 }

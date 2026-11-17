@@ -7,20 +7,15 @@ use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode, TemplateNodeId
 
 use super::expressions::equal_tokens;
 use super::nodes;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-dupe-else-if-blocks",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoDupeElseIfBlocks>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoDupeElseIfBlocks))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoDupeElseIfBlocks;
 
 impl SvelteRule for NoDupeElseIfBlocks {
@@ -62,15 +57,12 @@ impl SvelteRule for NoDupeElseIfBlocks {
                             .any(|earlier| compare.is_subset(earlier, operand))
                     });
                     if operands.is_empty() {
-                        reporter.report(
-                            Report::range(
-                                "This branch can never execute. Its condition is a duplicate or \
+                        reporter.report(Report::range(
+                            "This branch can never execute. Its condition is a duplicate or \
                                  covered by previous conditions in the `{#if}` / `{:else if}` \
                                  chain.",
-                                nodes::span(*condition),
-                            )
-                            .message_id("unexpected"),
-                        );
+                            nodes::span(*condition),
+                        ));
                         break 'chain;
                     }
                 }

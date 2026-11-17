@@ -21,6 +21,14 @@ use crate::project::SvelteKitProject;
 use crate::types::TypeFacts;
 use crate::{LintSettings, SvelteConfig};
 
+/// The `configure` of a rule that takes no options.
+pub(crate) fn without_options<R: SvelteRule + Default + 'static>(
+    options: &RuleOptions<'_>,
+) -> Result<Box<dyn SvelteRule>, String> {
+    options.none()?;
+    Ok(Box::<R>::default())
+}
+
 /// A configured rule. It holds its options and the settings it needs.
 pub trait SvelteRule: Send + Sync + std::fmt::Debug {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>);

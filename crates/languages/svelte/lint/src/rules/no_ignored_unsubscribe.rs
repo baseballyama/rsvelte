@@ -2,9 +2,8 @@ use oxc_ast::AstKind;
 use oxc_ast::ast::Expression;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::javascript::walk;
 use super::nodes::span;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 #[cfg(test)]
 mod tests;
@@ -12,26 +11,21 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-ignored-unsubscribe",
     files: Files::All,
-    configure,
+    configure: without_options::<NoIgnoredUnsubscribe>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoIgnoredUnsubscribe))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoIgnoredUnsubscribe;
 
 impl SvelteRule for NoIgnoredUnsubscribe {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        walk(file, |node| {
+        for node in file.nodes().iter() {
             let AstKind::ExpressionStatement(statement) = node.kind() else {
-                return;
+                continue;
             };
             // An optional chain is a `ChainExpression`, not a call.
             let Expression::CallExpression(call) = &statement.expression else {
-                return;
+                continue;
             };
             // `property.name` is also an identifier's name inside brackets.
             let property = match &call.callee {
@@ -44,21 +38,18 @@ impl SvelteRule for NoIgnoredUnsubscribe {
                     Expression::Identifier(property) if property.name == "subscribe" => {
                         span(property.as_ref())
                     }
-                    _ => return,
+                    _ => continue,
                 },
                 // A private name's ESTree `name` has no `#`.
                 Expression::PrivateFieldExpression(member) if member.field.name == "subscribe" => {
                     span(&member.field)
                 }
-                _ => return,
+                _ => continue,
             };
-            reporter.report(
-                Report::range(
-                    "Ignoring returned value of the subscribe method is forbidden.",
-                    property,
-                )
-                .message_id("forbidden"),
-            );
-        });
+            reporter.report(Report::range(
+                "Ignoring returned value of the subscribe method is forbidden.",
+                property,
+            ));
+        }
     }
 }

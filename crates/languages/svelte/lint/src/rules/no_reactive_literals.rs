@@ -5,20 +5,15 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::nodes::span;
 use super::reactive_statements::reactive_statements;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-reactive-literals",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoReactiveLiterals>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoReactiveLiterals))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoReactiveLiterals;
 
 impl SvelteRule for NoReactiveLiterals {
@@ -51,8 +46,7 @@ impl SvelteRule for NoReactiveLiterals {
                 "Do not assign literal values inside reactive statements unless absolutely \
                  necessary.",
                 statement,
-            )
-            .message_id("noReactiveLiterals");
+            );
             // Upstream also suggests `let a += 1` and `let obj.x = 1`, which do not parse.
             if assignment.operator == AssignmentOperator::Assign
                 && matches!(
@@ -61,7 +55,6 @@ impl SvelteRule for NoReactiveLiterals {
                 )
             {
                 report = report.suggest(Suggestion {
-                    message_id: Some("fixReactiveLiteral".into()),
                     message: "Move the literal out of the reactive statement into an assignment"
                         .to_owned(),
                     fix: Fix::replace(

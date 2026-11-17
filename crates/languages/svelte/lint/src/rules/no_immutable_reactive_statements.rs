@@ -16,20 +16,15 @@ use super::legacy_reactivity::{bindings, expression_node, legacy};
 use super::nodes::span;
 use super::reactive_statements::{by_statement, reactive_statements};
 use super::svelte_store::is_value;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-immutable-reactive-statements",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoImmutableReactiveStatements>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoImmutableReactiveStatements))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoImmutableReactiveStatements;
 
 impl SvelteRule for NoImmutableReactiveStatements {
@@ -96,14 +91,11 @@ impl SvelteRule for NoImmutableReactiveStatements {
                 },
                 _ => span(body),
             };
-            reporter.report(
-                Report::range(
-                    "This statement is not reactive because all variables referenced in the \
+            reporter.report(Report::range(
+                "This statement is not reactive because all variables referenced in the \
                      reactive statement are immutable.",
-                    at,
-                )
-                .message_id("immutable"),
-            );
+                at,
+            ));
         }
     }
 }

@@ -36,19 +36,10 @@ pub(crate) fn lower_module<'o>(
     let b = Builder::new(allocator);
     let names = prepare::names(res);
     let mut rewrite = script::ScriptRewrite {
-        b: &b,
-        target,
-        accessors: false,
         rest_reads: Some(&validated.rest_reads),
-        res,
-        template: None,
-        shadows: None,
         stores: &validated.stores,
-        untracked: None,
-        invalidates: None,
-        primitive: false,
-        classes: script::Classes::default(),
         names: Some(&names),
+        ..script::ScriptRewrite::new(&b, target, res)
     };
     let mut hoisted = Vec::new();
     let statements = script::lower_script(
@@ -58,10 +49,7 @@ pub(crate) fn lower_module<'o>(
         &names,
         script::ScriptContext::File,
     )?;
-    let runtime = match target {
-        Target::Client => "svelte/internal/client",
-        Target::Server => "svelte/internal/server",
-    };
+    let runtime = target.runtime();
     let mut out = Program::new(
         SPAN,
         SourceType::mjs(),

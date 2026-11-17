@@ -58,10 +58,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ) {
                 Ok(tree) => {
                     maximum_heap_bytes = maximum_heap_bytes.max(tree.heap_bytes());
-                    output_bytes +=
-                        black_box(rsvelte_svelte_typescript_projection::emit(&tree, &source))
-                            .out
-                            .len();
+                    output_bytes += black_box(rsvelte_svelte_typescript_projection::emit(
+                        &tree, &source, "",
+                    ))
+                    .out
+                    .len();
                 }
                 Err(_) => unsupported += 1,
             }

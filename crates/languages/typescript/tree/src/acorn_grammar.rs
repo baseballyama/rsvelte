@@ -82,21 +82,6 @@ fn stop(kind: AstKind<'_>, typescript: bool, tokens: &[Token]) -> Option<(u32, R
             let braces = tokens.partition_point(|token| token.start() < clause.span.start);
             unexpected(braces.checked_sub(1).map(|keyword| tokens[keyword].start()))
         }
-        // A function declared as the body of a statement: acorn reads module code, which is
-        // strict, and stops at the declaration.
-        AstKind::IfStatement(it) => unexpected(
-            [Some(&it.consequent), it.alternate.as_ref()]
-                .into_iter()
-                .flatten()
-                .find_map(declared_function),
-        ),
-        AstKind::LabeledStatement(it) => unexpected(declared_function(&it.body)),
-        AstKind::WhileStatement(it) => unexpected(declared_function(&it.body)),
-        AstKind::DoWhileStatement(it) => unexpected(declared_function(&it.body)),
-        AstKind::ForStatement(it) => unexpected(declared_function(&it.body)),
-        AstKind::ForInStatement(it) => unexpected(declared_function(&it.body)),
-        AstKind::ForOfStatement(it) => unexpected(declared_function(&it.body)),
-        AstKind::WithStatement(it) => unexpected(declared_function(&it.body)),
         // Decorators and `accessor` fields are acorn-typescript's alone. acorn stops at the `@`,
         // and reads `accessor` as the field's name and stops at the token after it.
         AstKind::Decorator(decorator) if !typescript => Some((decorator.span.start, Rejection::At)),
@@ -127,15 +112,32 @@ fn stop(kind: AstKind<'_>, typescript: bool, tokens: &[Token]) -> Option<(u32, R
             }
             _ => None,
         },
-        _ => None,
+        // A function declared as the body of a statement: acorn reads module code, which is
+        // strict, and stops at the declaration.
+        _ => unexpected(
+            bodies(kind)
+                .into_iter()
+                .flatten()
+                .find_map(|body| match body {
+                    Statement::FunctionDeclaration(function) => Some(function.span.start),
+                    _ => None,
+                }),
+        ),
     }
 }
 
-/// The start of `statement` when it declares a function.
-fn declared_function(statement: &Statement<'_>) -> Option<u32> {
-    match statement {
-        Statement::FunctionDeclaration(function) => Some(function.span.start),
-        _ => None,
+/// The statements `kind` holds as its bodies, outside any block.
+pub(crate) const fn bodies(kind: AstKind<'_>) -> [Option<&Statement<'_>>; 2] {
+    match kind {
+        AstKind::IfStatement(it) => [Some(&it.consequent), it.alternate.as_ref()],
+        AstKind::LabeledStatement(it) => [Some(&it.body), None],
+        AstKind::WhileStatement(it) => [Some(&it.body), None],
+        AstKind::DoWhileStatement(it) => [Some(&it.body), None],
+        AstKind::ForStatement(it) => [Some(&it.body), None],
+        AstKind::ForInStatement(it) => [Some(&it.body), None],
+        AstKind::ForOfStatement(it) => [Some(&it.body), None],
+        AstKind::WithStatement(it) => [Some(&it.body), None],
+        _ => [None, None],
     }
 }
 

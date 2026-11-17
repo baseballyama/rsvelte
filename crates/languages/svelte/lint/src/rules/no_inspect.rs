@@ -1,22 +1,17 @@
 use oxc_ast::AstKind;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::javascript::{span, walk};
+use super::node_span;
 use super::runes::runes;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-inspect",
     files: Files::All,
-    configure,
+    configure: without_options::<NoInspect>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoInspect))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoInspect;
 
 impl SvelteRule for NoInspect {
@@ -27,7 +22,7 @@ impl SvelteRule for NoInspect {
         }
         // Every identifier, as the token `$inspect`: one in a type annotation names it too.
         let mut last = None;
-        walk(file, |node| {
+        for node in file.nodes().iter() {
             let (name, at) = match node.kind() {
                 AstKind::IdentifierReference(identifier) => {
                     (identifier.name.as_str(), identifier.span)
@@ -37,16 +32,17 @@ impl SvelteRule for NoInspect {
                 }
                 AstKind::IdentifierName(identifier) => (identifier.name.as_str(), identifier.span),
                 AstKind::LabelIdentifier(identifier) => (identifier.name.as_str(), identifier.span),
-                _ => return,
+                _ => continue,
             };
             // A shorthand `{ $inspect }` is two nodes over one token.
             if name != "$inspect" || last == Some(at) {
-                return;
+                continue;
             }
             last = Some(at);
-            reporter.report(
-                Report::range("Do not use $inspect directive", span(at)).message_id("unexpected"),
-            );
-        });
+            reporter.report(Report::range(
+                "Do not use $inspect directive",
+                node_span(at),
+            ));
+        }
     }
 }

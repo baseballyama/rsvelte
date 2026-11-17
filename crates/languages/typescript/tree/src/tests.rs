@@ -20,7 +20,9 @@ fn a_script_and_a_template_expression_parse_in_place() {
     let script = Span::new(18, 44);
     let (tree, (program, expression, end)) = Tree::build(COMPONENT, |builder| {
         let program = builder.program(script, SourceType::ts())?;
-        let (expression, end) = builder.expression_at(58, SourceType::ts())?;
+        let (expression, end) =
+            builder.read_expression_before(58, COMPONENT.len() as u32, SourceType::ts())?;
+        let expression = builder.keep_expression(expression);
         Ok((program, expression, end))
     })
     .expect("parses");
@@ -37,7 +39,7 @@ fn a_script_and_a_template_expression_parse_in_place() {
 fn an_error_points_into_the_document() {
     let source = "<p>{a +}</p>";
     let error = Tree::build(source, |builder| {
-        (builder.expression_at(4, SourceType::mjs()))
+        (builder.read_expression_before(4, source.len() as u32, SourceType::mjs()))
             .map(drop)
             .map_err(Into::into)
     })
@@ -254,7 +256,8 @@ fn an_expression_records_the_parentheses_around_its_root_sequence_only() {
     ] {
         let mut sequence = None;
         let (tree, ()) = Tree::build(source, |builder| {
-            let (expression, _) = builder.read_expression_at(0, SourceType::mjs())?;
+            let (expression, _) =
+                builder.read_expression_before(0, source.len() as u32, SourceType::mjs())?;
             sequence = Some(expression.span());
             Ok(())
         })

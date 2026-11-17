@@ -3,20 +3,15 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::nodes::span;
 use super::svelte_store::store_calls;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/require-stores-init",
     files: Files::All,
-    configure,
+    configure: without_options::<RequireStoresInit>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(RequireStoresInit))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct RequireStoresInit;
 
 impl SvelteRule for RequireStoresInit {
@@ -31,10 +26,10 @@ impl SvelteRule for RequireStoresInit {
             {
                 continue;
             }
-            reporter.report(
-                Report::range("Always set a default value for svelte stores.", span(call))
-                    .message_id("storeDefaultValue"),
-            );
+            reporter.report(Report::range(
+                "Always set a default value for svelte stores.",
+                span(call),
+            ));
         }
     }
 }

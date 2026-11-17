@@ -298,7 +298,7 @@ fn validate_tag(tag: Option<&str>, span: Span) -> Result<(), Diagnostic> {
     }
     let valid = tag.starts_with(|c: char| c.is_ascii_lowercase())
         && tag.contains('-')
-        && tag.chars().all(is_tag_character);
+        && tag.chars().all(crate::names::is_tag_character);
     if !valid {
         return Err(invalid());
     }
@@ -320,31 +320,6 @@ fn validate_tag(tag: Option<&str>, span: Span) -> Result<(), Diagnostic> {
         ));
     }
     Ok(())
-}
-
-/// The HTML standard's `PCENChar`, and `-`.
-const fn is_tag_character(c: char) -> bool {
-    matches!(
-        c,
-        'a'..='z'
-            | '0'..='9'
-            | '_'
-            | '.'
-            | '-'
-            | '\u{b7}'
-            | '\u{c0}'..='\u{d6}'
-            | '\u{d8}'..='\u{f6}'
-            | '\u{f8}'..='\u{37d}'
-            | '\u{37f}'..='\u{1fff}'
-            | '\u{200c}'..='\u{200d}'
-            | '\u{203f}'..='\u{2040}'
-            | '\u{2070}'..='\u{218f}'
-            | '\u{2c00}'..='\u{2fef}'
-            | '\u{3001}'..='\u{d7ff}'
-            | '\u{f900}'..='\u{fdcf}'
-            | '\u{fdf0}'..='\u{fffd}'
-            | '\u{10000}'..='\u{effff}'
-    )
 }
 
 fn invalid_value(attribute: &Attribute, list: &str) -> Diagnostic {

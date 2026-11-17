@@ -62,3 +62,50 @@ fn a_function_declared_in_a_block_is_read() {
         assert_eq!(acorn_stops_at(text, SourceType::mjs()), None, "{text:?}");
     }
 }
+
+#[test]
+fn each_rejection_stops_acorn_where_upstream_does() {
+    let javascript = SourceType::mjs();
+    let typescript = SourceType::ts();
+    let unexpected = "Unexpected token";
+    for (text, source_type, message, at) in [
+        ("using x = y;", javascript, unexpected, 6),
+        (
+            "async function f() { await using x = y; }",
+            javascript,
+            unexpected,
+            33,
+        ),
+        ("import defer * as x from 'a';", javascript, unexpected, 13),
+        ("import source x from 'a';", javascript, unexpected, 14),
+        (
+            "import a from 'a' assert { type: 'json' };",
+            javascript,
+            unexpected,
+            18,
+        ),
+        ("@dec class C {}", javascript, "Unexpected character '@'", 0),
+        ("class C { accessor x = 1; }", javascript, unexpected, 19),
+        (
+            "class C { override m() {} }",
+            typescript,
+            concat!(
+                "This member cannot have an 'override' modifier because its containing class ",
+                "does not extend another class."
+            ),
+            10,
+        ),
+        (
+            "export declare global { }",
+            typescript,
+            "'export declare' must be followed by an ambient declaration.",
+            15,
+        ),
+    ] {
+        assert_eq!(
+            acorn_stops_at(text, source_type),
+            Some((message.to_owned(), at)),
+            "{text:?}"
+        );
+    }
+}

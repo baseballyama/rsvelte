@@ -35,7 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .map_err(|diagnostic| diagnostic.message)?;
             let tree = rsvelte_svelte_typescript_projection::lower_alone(&component, source, "")
                 .map_err(|unsupported| unsupported.what())?;
-            let output = rsvelte_svelte_typescript_projection::emit(&tree, source);
+            let output = rsvelte_svelte_typescript_projection::emit(&tree, source, "");
             outputs += 1;
             output_bytes += black_box(output).out.len() as u64;
         }

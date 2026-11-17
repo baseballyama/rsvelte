@@ -36,7 +36,9 @@ pub(crate) struct ExternalRule {
 struct ExternalReport {
     message: String,
     range: [u32; 2],
-    message_id: Option<String>,
+    // A host may send it; no output carries it.
+    #[serde(rename = "messageId")]
+    _message_id: Option<String>,
     fix: Option<ExternalFix>,
     #[serde(default)]
     suggestions: Vec<ExternalSuggestion>,
@@ -91,15 +93,11 @@ impl ExternalRule {
                 let at = span(lines, report.range)
                     .ok_or_else(|| format!("it reported an invalid range {:?}", report.range))?;
                 let mut out = Report::range(report.message, at);
-                if let Some(id) = report.message_id {
-                    out = out.message_id(id);
-                }
                 if let Some(external) = report.fix {
                     out = out.fix(fix(external)?);
                 }
                 for suggestion in report.suggestions {
                     out = out.suggest(Suggestion {
-                        message_id: None,
                         message: suggestion.message,
                         fix: fix(suggestion.fix)?,
                     });

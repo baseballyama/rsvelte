@@ -8,25 +8,24 @@ use crate::syntax_tree::{
     Node, NodeIdentifier, SourceExpression, Spelling, SyntaxTree, TypeParameters,
 };
 
-/// [`emit_named`] for a component without a file, which svelte2tsx names `$$Component`.
-#[must_use]
-pub fn emit(tree: &SyntaxTree, source: &str) -> Emitter {
-    emit_named(tree, source, "")
-}
-
 /// An emitter sized from the source, so that half the projections never grow.
 fn projection_emitter(source: usize) -> Emitter {
     // Corpus medians: 3.3 bytes per source byte, a mapping per 16 bytes, an atom per 50.
     Emitter::with_capacity(source * 33 / 10, source / 16, source / 50)
 }
 
-/// The projection of the component at `path`, whose name its default export declares.
+/// The projection of the component at `path`, whose name its default export declares; svelte2tsx
+/// names a component without a file, an empty `path`, `$$Component`.
 #[must_use]
-pub fn emit_named(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
+pub fn emit(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
     let mut printer = Printer {
         tree,
         source,
-        path,
+        component: if path.is_empty() {
+            "$$Component".to_owned()
+        } else {
+            crate::component_name(path)
+        },
         output: projection_emitter(source.len()),
         indent: 0,
         in_type: false,
@@ -41,7 +40,8 @@ pub fn emit_named(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
 struct Printer<'a> {
     tree: &'a SyntaxTree,
     source: &'a str,
-    path: &'a str,
+    /// The default export's name, which the projection writes several times.
+    component: String,
     output: Emitter,
     indent: usize,
     /// Inside a `JSDoc` type, where a JavaScript projection prints types as TypeScript does.
@@ -410,11 +410,7 @@ impl Printer<'_> {
     }
 
     pub(super) fn component_name(&mut self) {
-        if self.path.is_empty() {
-            self.output.push("$$Component");
-        } else {
-            crate::write_component_name(self.path, &mut self.output.out);
-        }
+        self.output.push(&self.component);
     }
 
     fn program_end(&mut self) {

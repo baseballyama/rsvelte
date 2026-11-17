@@ -230,8 +230,8 @@
 		"not-runes-compatible:legacy_export_invalid": 1
 	},
 	"rsvelte": {
-		"admitted": 2956,
-		"claimed": 2995,
+		"admitted": 2957,
+		"claimed": 2996,
 		"duplicate": 39,
 		"rejected:module-rejected:derived_invalid_export": 1,
 		"rejected:module-rejected:dollar_prefix_invalid": 1,
@@ -270,7 +270,7 @@
 		"rejected:not-runes-compatible:import_svelte_internal_forbidden": 11,
 		"rejected:not-runes-compatible:js_parse_error": 36,
 		"rejected:not-runes-compatible:legacy_export_invalid": 248,
-		"rejected:not-runes-compatible:legacy_props_invalid": 13,
+		"rejected:not-runes-compatible:legacy_props_invalid": 14,
 		"rejected:not-runes-compatible:legacy_reactive_statement_invalid": 70,
 		"rejected:not-runes-compatible:legacy_rest_props_invalid": 9,
 		"rejected:not-runes-compatible:mixed_event_handler_syntaxes": 1,

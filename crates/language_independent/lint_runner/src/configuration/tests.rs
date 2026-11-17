@@ -21,31 +21,6 @@ fn levels_are_the_six_eslint_names() {
 }
 
 #[test]
-fn an_entry_is_a_level_or_an_array_of_a_level_and_options() {
-    let alone = RuleEntry::<u64>::deserialize(StrDeserializer::<Error>::new("warn"))
-        .expect("a level alone");
-    assert_eq!(
-        (alone.level.severity(), alone.options),
-        (Some(Severity::Warning), None)
-    );
-    let seq = |items: Vec<u64>| {
-        RuleEntry::<u64>::deserialize(SeqDeserializer::<_, Error>::new(items.into_iter()))
-    };
-    let with = seq(vec![2, 7]).expect("a level and options");
-    assert_eq!(
-        (with.level.severity(), with.options),
-        (Some(Severity::Error), Some(7))
-    );
-    assert_eq!(seq(vec![0]).expect("a level in an array").options, None);
-    seq(vec![]).expect_err("an empty array has no level");
-    seq(vec![2, 7, 7]).expect_err("a rule takes one options value");
-    let error = RuleEntry::<u64>::deserialize(StrDeserializer::<Error>::new("bad"))
-        .expect_err("bad is no level")
-        .to_string();
-    assert!(error.contains("off, warn, error, 0, 1 or 2"), "{error}");
-}
-
-#[test]
 fn an_entry_list_keeps_every_option() {
     let entry = RuleEntryList::<u64>::deserialize(SeqDeserializer::<_, Error>::new(
         [1u64, 7, 8].into_iter(),

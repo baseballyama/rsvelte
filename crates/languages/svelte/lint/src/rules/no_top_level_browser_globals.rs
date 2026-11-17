@@ -18,23 +18,17 @@ use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_semantic::static_value::{StaticValues, Value};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::javascript::walk;
 use super::nodes::span;
 use super::runes::is_svelte_file;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-top-level-browser-globals",
     files: Files::All,
-    configure,
+    configure: without_options::<NoTopLevelBrowserGlobals>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoTopLevelBrowserGlobals))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoTopLevelBrowserGlobals;
 
 /// Every browser global that Node.js lacks, and `window` and `document`.
@@ -61,15 +55,17 @@ impl SvelteRule for NoTopLevelBrowserGlobals {
         let mut found = Vec::new();
         let mut available: Vec<Available<'_>> = Vec::new();
         let mut functions = Vec::new();
-        walk(file, |node| match node.kind() {
-            AstKind::Function(function) => functions.push(span(function)),
-            AstKind::ArrowFunctionExpression(arrow) => functions.push(span(arrow)),
-            AstKind::ImportMeta(_) => {
-                // `import.meta.env.SSR`, which Vite sets on the server.
-                found.extend(property_references(semantic, node.id(), &["env"], &["SSR"]));
+        for node in file.nodes().iter() {
+            match node.kind() {
+                AstKind::Function(function) => functions.push(span(function)),
+                AstKind::ArrowFunctionExpression(arrow) => functions.push(span(arrow)),
+                AstKind::ImportMeta(_) => {
+                    // `import.meta.env.SSR`, which Vite sets on the server.
+                    found.extend(property_references(semantic, node.id(), &["env"], &["SSR"]));
+                }
+                _ => {}
             }
-            _ => {}
-        });
+        }
         guards.not_top_level(functions);
         for reference in std::mem::take(&mut found) {
             available.extend(guards.checker(reference.node, true).map(Available::browser));
@@ -139,13 +135,10 @@ fn report_unguarded(
         let guarded =
             browser.contains(node, at) || by_name.get(name).is_some_and(|c| c.contains(node, at));
         if !guarded {
-            reporter.report(
-                Report::range(
-                    format!("Unexpected top-level browser global variable \"{name}\"."),
-                    at,
-                )
-                .message_id("unexpectedGlobal"),
-            );
+            reporter.report(Report::range(
+                format!("Unexpected top-level browser global variable \"{name}\"."),
+                at,
+            ));
         }
     }
 }

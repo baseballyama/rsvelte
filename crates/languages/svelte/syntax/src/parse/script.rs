@@ -183,9 +183,9 @@ impl Parser<'_, '_> {
         }
     }
 
-    fn close_raw(&mut self, tag: &str) {
+    fn close_script(&mut self) {
         self.eat_token(TokenType::EndTagOpen, 2);
-        self.eat_token(TokenType::TagName, tag.len());
+        self.eat_token(TokenType::TagName, "script".len());
         self.skip_ws();
         self.eat_token(TokenType::TagEnd, 1);
     }
@@ -270,7 +270,7 @@ impl Parser<'_, '_> {
                 self.builder.type_parameters((*value)?, source_type).ok()
             })
             .flatten();
-        self.close_raw("script");
+        self.close_script();
         let span = Span::new(start_offset as u32, self.position as u32);
         let script = Script {
             span,

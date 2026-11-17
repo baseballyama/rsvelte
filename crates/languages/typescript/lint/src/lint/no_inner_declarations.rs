@@ -89,13 +89,10 @@ impl<'a> Visit<'a> for Visitor<'_, '_, '_> {
         if let Some((what, node)) = reported
             && !at_root(&self.f, node)
         {
-            self.reporter.report(
-                Report::range(
-                    format!("Move {what} declaration to {body} root."),
-                    span(kind.span()),
-                )
-                .message_id("moveDeclToRoot"),
-            );
+            self.reporter.report(Report::range(
+                format!("Move {what} declaration to {body} root."),
+                span(kind.span()),
+            ));
         }
         let inner = match kind {
             AstKind::Class(class) => Some((true, body, class.node_id.get())),

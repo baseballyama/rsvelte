@@ -5,18 +5,18 @@
 use rsvelte_lint_runner::rule::Reporter;
 use serde::Deserialize;
 
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule, without_options};
 
 pub(super) static EXPERIMENTAL_REQUIRE_STRICT_EVENTS: RuleDefinition = RuleDefinition {
     name: "svelte/experimental-require-strict-events",
     files: Files::Components,
-    configure: no_options,
+    configure: without_options::<Inactive>,
 };
 
 pub(super) static REQUIRE_EVENT_DISPATCHER_TYPES: RuleDefinition = RuleDefinition {
     name: "svelte/require-event-dispatcher-types",
     files: Files::Components,
-    configure: no_options,
+    configure: without_options::<Inactive>,
 };
 
 pub(super) static NO_UNUSED_PROPS: RuleDefinition = RuleDefinition {
@@ -30,11 +30,6 @@ pub(super) static REQUIRE_EVENT_PREFIX: RuleDefinition = RuleDefinition {
     files: Files::Components,
     configure: require_event_prefix,
 };
-
-fn no_options(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(Inactive))
-}
 
 #[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -66,8 +61,9 @@ fn require_event_prefix(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>
     Ok(Box::new(Inactive))
 }
 
-#[derive(Debug)]
-struct Inactive;
+/// A rule that reports nothing.
+#[derive(Debug, Default)]
+pub(super) struct Inactive;
 
 impl SvelteRule for Inactive {
     fn check(&self, _: &File<'_>, _: &mut Reporter<'_>) {}

@@ -4,9 +4,7 @@ fn is_identifier_start(c: char) -> bool {
     c == '$' || c == '_' || unicode_identifier_start::is_id_start(c)
 }
 
-pub(super) fn is_identifier_continue(c: char) -> bool {
-    c == '$' || c == '\u{200c}' || c == '\u{200d}' || unicode_identifier_start::is_id_continue(c)
-}
+pub(super) use crate::names::is_identifier_continue;
 
 /// The length of the identifier `s` starts with (`$` and `_` included), 0 if none.
 pub(super) fn identifier_len(s: &str) -> usize {

@@ -1,4 +1,3 @@
-use oxc_ast::ast::{Expression, IdentifierName};
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::ExpressionIdentifier;
@@ -65,7 +64,7 @@ enum Closed {
     StartTag,
 }
 
-impl<'a> Parser<'a, '_> {
+impl Parser<'_, '_> {
     pub(super) fn element(&mut self, at_root: bool) -> ParseResult<Option<Read>> {
         let start_offset = self.position;
         self.eat_token(TokenType::TagOpen, 1);
@@ -189,30 +188,8 @@ impl<'a> Parser<'a, '_> {
 
     /// What a component's name refers to: `Foo`, or the member chain `ui.Button`.
     fn component_reference(&mut self, name: Span) -> Option<ExpressionIdentifier> {
-        let text: &'a str = name.text(self.source_text);
-        if text.split('.').any(str::is_empty) {
-            return None;
-        }
-        let nodes = self.builder.nodes();
-        let span_of = |offset: u32, part: &str| {
-            let end = offset + u32::try_from(part.len()).expect("source positions use u32 bytes");
-            oxc_span::Span::new(offset, end)
-        };
-        let mut parts = text.split('.');
-        let first = parts.next()?;
-        let mut span = span_of(name.start_offset, first);
-        let mut reference = Expression::new_identifier(span, first, &nodes);
-        for part in parts {
-            span = span_of(span.end + 1, part);
-            reference = Expression::new_static_member_expression(
-                oxc_span::Span::new(name.start_offset, span.end),
-                reference,
-                IdentifierName::new(span, part, &nodes),
-                false,
-                &nodes,
-            );
-        }
-        Some(self.builder.keep_expression(reference))
+        let text = name.text(self.source_text);
+        (!text.split('.').any(str::is_empty)).then(|| self.member_chain(name, false))
     }
 
     pub(super) fn tag_name(&mut self) -> Span {

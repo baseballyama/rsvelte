@@ -9,7 +9,6 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 use rsvelte_svelte_semantic::resolve::is_rune;
 use rustc_hash::FxHashSet;
 
-use super::validation::unbound;
 use super::{CompileInput, Diagnostic, Resolution, Span, Unit, span_of};
 
 /// The `$name`s no binding declares, each with its references, in upstream's order: the module
@@ -24,7 +23,8 @@ impl<'r> Names<'r> {
         let dollar = |name: &str| {
             name.starts_with('$') && !matches!(name, "$$props" | "$$restProps" | "$$slots")
         };
-        let mut names: Vec<_> = unbound(res, dollar)
+        let mut names: Vec<_> = res
+            .unbound(dollar)
             .filter(|(_, references)| !references.is_empty())
             .collect();
         if names.is_empty() {

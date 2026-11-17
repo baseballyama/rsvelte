@@ -1,7 +1,5 @@
 //! A finding: a diagnostic with the fix and the suggestions `ESLint` attaches to a report.
 
-use std::borrow::Cow;
-
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::edits::Edits;
 use rsvelte_kernel::source::positions::Span;
@@ -12,8 +10,6 @@ pub const UNUSED_DIRECTIVE: &str = "unused-disable-directive";
 #[derive(Clone, Debug)]
 pub struct Finding {
     pub diagnostic: Diagnostic,
-    /// `ESLint`'s `messageId`, when the rule reports by one.
-    pub message_id: Option<Cow<'static, str>>,
     pub fix: Option<Fix>,
     pub suggestions: Vec<Suggestion>,
 }
@@ -22,7 +18,6 @@ impl From<Diagnostic> for Finding {
     fn from(diagnostic: Diagnostic) -> Self {
         Self {
             diagnostic,
-            message_id: None,
             fix: None,
             suggestions: Vec::new(),
         }
@@ -88,7 +83,6 @@ impl Fix {
 
 #[derive(Clone, Debug)]
 pub struct Suggestion {
-    pub message_id: Option<Cow<'static, str>>,
     pub message: String,
     pub fix: Fix,
 }

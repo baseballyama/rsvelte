@@ -6,20 +6,15 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::nodes::span;
 use super::svelte_store::{Function, Scopes, rename, store_calls};
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/derived-has-same-inputs-outputs",
     files: Files::All,
-    configure,
+    configure: without_options::<DerivedHasSameInputsOutputs>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(DerivedHasSameInputsOutputs))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct DerivedHasSameInputsOutputs;
 
 impl SvelteRule for DerivedHasSameInputsOutputs {
@@ -106,11 +101,9 @@ fn check(
     let mut report = Report::range(
         format!("The argument name should be '{expected}'."),
         span(output),
-    )
-    .message_id("unexpected");
+    );
     if let Ok(symbol) = scopes.replaceable(file, function, Some(actual), &expected) {
         report = report.suggest(Suggestion {
-            message_id: Some("renameParam".into()),
             message: format!("Rename the parameter from {actual} to {expected}."),
             fix: rename(file, span(output), symbol, &expected),
         });

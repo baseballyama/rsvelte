@@ -15,7 +15,7 @@ fn vlq_matches_the_spec_examples() {
 #[test]
 fn lookup_maps_inside_copied_chunks() {
     let source_text = "let answer = 42;";
-    let mut e = Emitter::new();
+    let mut e = Emitter::default();
     e.push("// header\n");
     e.copy(source_text, Span::new(4, 10));
     assert_eq!(e.lookup(10), Some(4));
@@ -25,7 +25,7 @@ fn lookup_maps_inside_copied_chunks() {
 #[test]
 fn overlap_lookup_maps_only_the_copied_characters() {
     let source_text = "{{ maybe.length }}";
-    let mut e = Emitter::new();
+    let mut e = Emitter::default();
     e.push("(");
     e.copy(source_text, Span::new(2, 3));
     e.push("__VLS_ctx.");
@@ -50,7 +50,7 @@ fn overlap_lookup_maps_only_the_copied_characters() {
 #[test]
 fn spans_map_back_through_copies_and_quotes() {
     let source_text = "<p aria-label={x}>";
-    let mut e = Emitter::new();
+    let mut e = Emitter::default();
     e.push("f({ ");
     e.mark(3);
     e.push("\"");
@@ -67,7 +67,7 @@ fn spans_map_back_through_copies_and_quotes() {
     assert_eq!(&e.out[18..19], "x");
     assert_eq!(e.lookup_span(Span::new(18, 19)), Some(Span::new(15, 15)));
     assert_eq!(e.lookup_span(Span::new(0, 2)), None);
-    let mut marked = Emitter::new();
+    let mut marked = Emitter::default();
     marked.copy(source_text, Span::new(15, 16));
     marked.mark(16);
     marked.push(";");
@@ -114,7 +114,7 @@ fn consume(map: &str, source: &str, out: &str, position: u32) -> Option<u32> {
 fn source_map_answers_what_lookup_answers() {
     let source_text = "<script>\n  let é = '😀';\n  count += 1;\n</script>\n<p>{é}</p>";
     let at = |s: &str| source_text.find(s).unwrap() as u32;
-    let mut e = Emitter::new();
+    let mut e = Emitter::default();
     e.push("import * as $ from 'svelte';\n");
     e.copy(source_text, Span::new(at("let"), at("</script>")));
     e.push("\nfunction App() {\n\t");
@@ -151,7 +151,7 @@ fn source_map_answers_what_lookup_answers() {
 #[test]
 fn a_span_inside_an_atom_maps_to_the_atom_s_original_range() {
     let source_text = "<p title=x>";
-    let mut e = Emitter::new();
+    let mut e = Emitter::default();
     e.push("({ ");
     e.atom("\"title\"", Span::new(3, 8));
     e.push(": ");
@@ -237,7 +237,7 @@ fn decoded(map: &str) -> String {
 #[test]
 fn a_copy_s_characters_map_as_each_point_read_from_an_index_maps() {
     let source_text = "a😀b\r\nc\n\né\u{2028}d\re 😀\nf";
-    let mut e = Emitter::new();
+    let mut e = Emitter::default();
     e.push("x\n");
     e.copy(source_text, Span::new(0, source_text.len() as u32));
     e.push(";\n");

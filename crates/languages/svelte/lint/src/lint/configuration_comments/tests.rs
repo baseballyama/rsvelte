@@ -1,7 +1,7 @@
 use rsvelte_kernel::diagnostics::Severity;
 
 use super::*;
-use crate::lint::verify;
+use crate::lint::tests::verify;
 
 fn read(text: &str) -> Vec<String> {
     let comment = Span::new(0, u32::try_from(text.len()).expect("short"));

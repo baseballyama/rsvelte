@@ -217,8 +217,7 @@ fn check_group<'s>(
                     .map_or_else(|| span(i.span), |s| identifier_range(f, s, i.span)),
                 _ => span(f.span(node)),
             },
-        )
-        .message_id("useConst");
+        );
         if should_fix && let Some((_, declaration)) = declaration {
             // A declaration starts with its keyword, which `ESLint` replaces whatever it is.
             let range = declaration.span;
