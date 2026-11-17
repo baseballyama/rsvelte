@@ -9,7 +9,7 @@ use crate::lower::server::{
     capture_event, capture_load_events, escape_markup, event_attribute, is_behaviour,
     is_boolean_attribute, is_directive, push_captured_events,
 };
-use crate::lower::template::{implicit_attributes, scoped_class};
+use crate::lower::template::{can_use_literal, implicit_attributes, scoped_class};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_element_attributes` (no spread).
@@ -83,7 +83,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 AttributeValue::Static(v) => Some(Some(escaped_text(v, trim))),
                 _ => None,
             };
-            if can_use_literal(&name, directives)
+            if can_use_literal(&name, directives.0, directives.1)
                 && let Some(v) = literal
             {
                 Self::literal_attribute(template, &name, v, hash.as_deref());
@@ -117,7 +117,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         template: &mut Vec<Piece<'o>>,
     ) {
         let b = self.b;
-        if can_use_literal(name, (class_directives, style_directives))
+        if can_use_literal(name, class_directives, style_directives)
             && let Expression::StringLiteral(literal) = &value
         {
             let mut v = string_value(literal.value).into_owned();
@@ -166,9 +166,4 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             )));
         }
     }
-}
-
-/// Upstream's `can_use_literal`: a `class` or `style` with directives needs the runtime.
-fn can_use_literal(name: &str, (classes, styles): (&[&Attribute], &[&Attribute])) -> bool {
-    (name != "class" || classes.is_empty()) && (name != "style" || styles.is_empty())
 }

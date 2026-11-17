@@ -8,7 +8,7 @@ use crate::lower::client::{
     NodeKind, R, event_attribute, is_behaviour, is_custom_element_node, is_directive,
     normalize_attribute, unsupported,
 };
-use crate::lower::template::{implicit_attributes, scoped_class};
+use crate::lower::template::{can_use_literal, implicit_attributes, scoped_class};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// The attribute loop of upstream `RegularElement` (no spread).
@@ -72,8 +72,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             if !custom_element
                 && !crate::lower::cannot_be_set_statically(raw_name)
                 && (attribute_name != "value" || tag != "textarea")
-                && (attribute_name != "class" || class_directives.is_empty())
-                && (attribute_name != "style" || style_directives.is_empty())
+                && can_use_literal(&attribute_name, &class_directives, &style_directives)
                 && let Some(value) = literal
             {
                 self.static_attribute(frag, identifier, raw_name, &attribute_name, value);

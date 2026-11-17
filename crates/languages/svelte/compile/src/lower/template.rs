@@ -176,6 +176,12 @@ pub(super) fn scoped_class(value: &str, hash: &str, target: Target) -> String {
     }
 }
 
+/// Upstream's `can_use_literal`: a `class` or `style` with directives needs the runtime.
+#[must_use]
+pub(super) fn can_use_literal(name: &str, classes: &[&Attribute], styles: &[&Attribute]) -> bool {
+    (name != "class" || classes.is_empty()) && (name != "style" || styles.is_empty())
+}
+
 /// A directive that renders no attribute: one that adds behaviour to the element, or a `let:`,
 /// on either target.
 #[must_use]
