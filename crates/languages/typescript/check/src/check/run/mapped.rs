@@ -22,13 +22,13 @@ pub(crate) struct ContentMappedInput {
 /// Extensions the checker reads as JavaScript or TypeScript without a content mapper.
 const SCRIPT_EXTENSIONS: &[&str] = &["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"];
 
-impl CheckRequest {
+impl CheckRequest<'_> {
     /// The absolute path the checker reads document `index` at: its own path for a script or a
     /// content-mapped document, and `<path>.ts` for generated TypeScript, which an import of the
     /// document reaches as TypeScript resolves `./App.vue` to `./App.vue.ts`.
     pub(super) fn checked_path(&self, root: &Path, index: usize) -> PathBuf {
         let path = normalized(&root.join(&self.documents[index]));
-        let mapped = self.mapped_files.get(index).is_some_and(Option::is_some);
+        let mapped = self.mapped(index).is_some();
         let script = path
             .extension()
             .and_then(|e| e.to_str())
@@ -40,6 +40,18 @@ impl CheckRequest {
             name.push(".ts");
             name.into()
         }
+    }
+
+    /// Document `index`'s content-mapped input, if it has one.
+    pub(super) fn mapped(&self, index: usize) -> Option<&ContentMappedInput> {
+        self.mapped_files.get(index).and_then(Option::as_ref)
+    }
+
+    /// The text the checker reads for document `index`: its source when content-mapped, else its
+    /// projection.
+    pub(super) fn text(&self, index: usize) -> &str {
+        self.mapped(index)
+            .map_or(self.files[index], |mapped| &mapped.source)
     }
 
     /// Where the checker reads each stand-in, and its text.
@@ -58,7 +70,7 @@ impl CheckRequest {
         package: &str,
         store: &Path,
     ) {
-        if self.content_mapper.is_none() {
+        if self.env.content_mapper.is_none() {
             return;
         }
         output
@@ -91,35 +103,30 @@ impl CheckRequest {
 }
 
 /// The precomputed mapper's store: each content-mapped document's projection by checked path.
-pub(super) fn store_json(req: &CheckRequest, root: &Path, paths: &[PathBuf]) -> String {
+pub(super) fn store_json(req: &CheckRequest<'_>, root: &Path, paths: &[PathBuf]) -> String {
     let mut output = StructuredDataWriter::new(false);
     output.begin_object().key("files").begin_object();
+    let mut entry = |path: &Path, [source, text, extension]: [&str; 3], mappings, atoms| {
+        output
+            .key(&path.to_string_lossy())
+            .begin_object()
+            .key("source")
+            .write_string(source)
+            .key("text")
+            .write_string(text)
+            .key("extension")
+            .write_string(extension);
+        rsvelte_typescript_content_mapper::write_mappings(mappings, atoms, &mut output);
+        output.end_object();
+    };
     for ((file, text), path) in req.mapped_files.iter().zip(&req.files).zip(paths) {
         let Some(file) = file else { continue };
-        output
-            .key(&path.to_string_lossy())
-            .begin_object()
-            .key("source")
-            .write_string(&file.source)
-            .key("text")
-            .write_string(text)
-            .key("extension")
-            .write_string(file.generated_extension);
-        rsvelte_typescript_content_mapper::write_mappings(&file.mappings, &file.atoms, &mut output);
-        output.end_object();
+        let strings = [file.source.as_str(), text, file.generated_extension];
+        entry(path, strings, &file.mappings, &file.atoms);
     }
+    // A stand-in reads as the script it is.
     for (path, text) in req.stand_ins(root) {
-        output
-            .key(&path.to_string_lossy())
-            .begin_object()
-            .key("source")
-            .write_string(text)
-            .key("text")
-            .write_string(text)
-            .key("extension")
-            .write_string(".ts");
-        rsvelte_typescript_content_mapper::write_mappings(&[], &[], &mut output);
-        output.end_object();
+        entry(&path, [text, text, ".ts"], &[], &[]);
     }
     output.end_object().end_object();
     output.finish()
@@ -128,7 +135,7 @@ pub(super) fn store_json(req: &CheckRequest, root: &Path, paths: &[PathBuf]) -> 
 /// Writes the store of `req`'s projections and the mapper's package in `support`, and returns
 /// the package's directory.
 pub(super) fn write_mapper(
-    req: &CheckRequest,
+    req: &CheckRequest<'_>,
     binary: &Path,
     support: &Path,
     store: &Path,

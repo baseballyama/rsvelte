@@ -368,6 +368,28 @@ impl<'a, 'o> Emitter<'a, 'o> {
             })
     }
 
+    /// The end of the `v-if` run at `start`, the `v-else-if` and `v-else` siblings after it
+    /// included, or `None` when the node at `start` has no `v-if`.
+    fn if_run_end(&self, nodes: &[CompilerNodeIdentifier], start: usize) -> Option<usize> {
+        self.structural(nodes[start], DirectiveName::If)?;
+        let more = nodes[start + 1..].iter().take_while(|&&node| {
+            self.structural(node, DirectiveName::ElseIf).is_some()
+                || self.structural(node, DirectiveName::Else).is_some()
+        });
+        Some(start + 1 + more.count())
+    }
+
+    /// The test of a `v-if` or `v-else-if` branch, or `None` for `v-else`.
+    fn branch_test(&self, branch: CompilerNodeIdentifier) -> Option<ExpressionIdentifier> {
+        [DirectiveName::If, DirectiveName::ElseIf]
+            .into_iter()
+            .find_map(|name| self.structural(branch, name))
+            .and_then(|directive| match directive.exp {
+                DirectiveExpression::Expression(expression) => Some(expression),
+                _ => None,
+            })
+    }
+
     /// The value of `:name` on an element, or of its first directive without `name`.
     fn bound(
         &self,

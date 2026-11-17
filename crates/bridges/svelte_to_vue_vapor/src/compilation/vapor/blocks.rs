@@ -44,17 +44,10 @@ impl<'o> Emitter<'_, 'o> {
         let mut result = Vec::with_capacity(nodes.len());
         let mut i = 0;
         while i < nodes.len() {
-            if self.structural(nodes[i], DirectiveName::If).is_some() {
-                let start = i;
-                i += 1;
-                while i < nodes.len()
-                    && (self.structural(nodes[i], DirectiveName::ElseIf).is_some()
-                        || self.structural(nodes[i], DirectiveName::Else).is_some())
-                {
-                    i += 1;
-                }
-                let branch = self.if_chain(&nodes[start..i]);
+            if let Some(end) = self.if_run_end(nodes, i) {
+                let branch = self.if_chain(&nodes[i..end]);
                 result.push(self.b.id(&self.declare(branch, body)));
+                i = end;
             } else {
                 result.push(self.loop_or_node(nodes[i], body));
                 i += 1;
@@ -66,13 +59,7 @@ impl<'o> Emitter<'_, 'o> {
     fn if_chain(&mut self, branches: &[CompilerNodeIdentifier]) -> Expression<'o> {
         let b = self.b;
         let first = branches[0];
-        let test = [DirectiveName::If, DirectiveName::ElseIf]
-            .into_iter()
-            .find_map(|name| self.structural(first, name))
-            .and_then(|d| match d.exp {
-                DirectiveExpression::Expression(e) => Some(e),
-                _ => None,
-            });
+        let test = self.branch_test(first);
         let mut body = Body::default();
         let node = self.loop_or_node(first, &mut body);
         let branch = self.render_block(body, node, b.parameters([]));
