@@ -49927,6 +49927,66 @@ export default function Destructure_iife_comment_cursor($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
+=== 39 pattern/event-directive-named-class.svelte	css
+
+	em.svelte-1t7657s {
+		color: red;
+	}
+
+=== 296 pattern/event-directive-named-class.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Event_directive_named_class($$renderer, $$props) {
+	let { b, f } = $$props;
+
+	$$renderer.push(`<span${$.attr_class('', void 0, { 'a': b })}></span> <em class="svelte-1t7657s"></em> <p${$.attr_style('', { color: b })}></p>`);
+}
+=== 1047 pattern/event-directive-named-class.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:class` to listen to the class event is deprecated. Use the event attribute `onclass` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 52
+		},
+		"end": {
+			"line": 5,
+			"column": 18,
+			"character": 64
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:class` to listen to the class event is deprecated. Use the event attribute `onclass` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 6,
+			"column": 4,
+			"character": 89
+		},
+		"end": {
+			"line": 6,
+			"column": 16,
+			"character": 101
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:style` to listen to the style event is deprecated. Use the event attribute `onstyle` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 7,
+			"column": 3,
+			"character": 111
+		},
+		"end": {
+			"line": 7,
+			"column": 15,
+			"character": 123
+		}
+	}
+]
+
 === 303 pattern/issues/008-comment-props-destructure.svelte	js
 import * as $ from 'svelte/internal/server';
 

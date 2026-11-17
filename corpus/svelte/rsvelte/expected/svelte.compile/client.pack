@@ -75733,6 +75733,91 @@ export default function Destructure_iife_comment_cursor($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
+=== 39 pattern/event-directive-named-class.svelte	css
+
+	em.svelte-1t7657s {
+		color: red;
+	}
+
+=== 847 pattern/event-directive-named-class.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<span></span> <em class="svelte-1t7657s"></em> <p></p>`, 1);
+
+export default function Event_directive_named_class($$anchor, $$props) {
+	var fragment = root();
+	var span = $.first_child(fragment);
+	let classes;
+	var em = $.sibling(span, 2);
+	var p = $.sibling(em, 2);
+	let styles;
+
+	$.template_effect(() => {
+		classes = $.set_class(span, 1, '', null, classes, { a: $$props.b });
+		styles = $.set_style(p, '', styles, { color: $$props.b });
+	});
+
+	$.event('class', span, function (...$$args) {
+		$$props.f?.apply(this, $$args);
+	});
+
+	$.event('class', em, function (...$$args) {
+		$$props.f?.apply(this, $$args);
+	});
+
+	$.event('style', p, function (...$$args) {
+		$$props.f?.apply(this, $$args);
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 1047 pattern/event-directive-named-class.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:class` to listen to the class event is deprecated. Use the event attribute `onclass` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 52
+		},
+		"end": {
+			"line": 5,
+			"column": 18,
+			"character": 64
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:class` to listen to the class event is deprecated. Use the event attribute `onclass` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 6,
+			"column": 4,
+			"character": 89
+		},
+		"end": {
+			"line": 6,
+			"column": 16,
+			"character": 101
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:style` to listen to the style event is deprecated. Use the event attribute `onstyle` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 7,
+			"column": 3,
+			"character": 111
+		},
+		"end": {
+			"line": 7,
+			"column": 15,
+			"character": 123
+		}
+	}
+]
+
 === 412 pattern/issues/008-comment-props-destructure.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';

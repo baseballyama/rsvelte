@@ -35885,6 +35885,21 @@ export interface Config {
 
 {JSON.stringify($value)}
 
+=== 186 pattern/event-directive-named-class.svelte	svelte	runes	runes
+<script>
+	let { b, f } = $props();
+</script>
+
+<span on:class={f} class:a={b}></span>
+<em on:class={f}></em>
+<p on:style={f} style:color={b}></p>
+
+<style>
+	em {
+		color: red;
+	}
+</style>
+
 === 148 pattern/issues/008-comment-props-destructure.svelte	svelte	runes	runes
 <script>
 	let { visible, class: className } =

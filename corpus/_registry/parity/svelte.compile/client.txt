@@ -1,1 +1,2 @@
 # svelte.compile/client: 35150 match
+svelte/rsvelte/pattern/event-directive-named-class.svelte	mismatch

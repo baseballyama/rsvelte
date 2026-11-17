@@ -33995,6 +33995,21 @@ https://svelte.dev/e/expected_token
 
 {JSON.stringify($value)}
 
+=== 191 pattern/event-directive-named-class.svelte	svelte
+<script>
+  let { b, f } = $props();
+</script>
+
+<span on:class={f} class:a={b}></span>
+<em on:class={f}></em>
+<p on:style={f} style:color={b}></p>
+
+<style>
+  em {
+    color: red;
+  }
+</style>
+
 === 153 pattern/issues/008-comment-props-destructure.svelte	svelte
 <script>
   let { visible, class: className } =
