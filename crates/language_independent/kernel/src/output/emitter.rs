@@ -3,7 +3,7 @@
 //! An output buffer that records where each piece came from, source map v3 encoding, and reverse
 //! lookup (generated → original, for mapping diagnostics of a generated file back).
 
-use crate::source::positions::{LineBreaks, LineCursor, LineIndex, Span};
+use crate::source::positions::{LineCursor, LineIndex, Span};
 
 /// `len > 0`: `len` bytes copied verbatim from `source_text`, so offsets inside map 1:1.
 /// `len == 0`: a point mapping (the generated position corresponds to `source_text`).
@@ -223,13 +223,14 @@ impl Emitter {
     }
 
     /// Encodes the mappings as a source map v3 JSON document, one segment per mapped character.
-    /// `source` indexes `source_text` by [`LineBreaks::Newline`]; a document's is cached in its
-    /// `DocumentContext`.
+    /// `source` indexes `source_text` by
+    /// [`LineBreaks::Newline`](crate::source::positions::LineBreaks::Newline); a document's is
+    /// cached in its `DocumentContext`.
     #[must_use]
     pub fn source_map(&self, source_text: &str, source: &LineIndex, source_name: &str) -> String {
         // The points come in generated order, so the output is read once and never indexed.
-        let mut generated_cursor = LineCursor::new(&self.out, LineBreaks::Newline, None);
-        let mut source_cursor = LineCursor::new(source_text, LineBreaks::Newline, Some(source));
+        let mut generated_cursor = LineCursor::new(&self.out, None);
+        let mut source_cursor = LineCursor::new(source_text, Some(source));
         let mut json = String::from("{\"version\":3,\"sources\":[");
         crate::output::structured_data::write_string(&mut json, source_name);
         // The mappings are base64 digits, commas and semicolons, which JSON writes unescaped.
@@ -242,9 +243,9 @@ impl Emitter {
         ) = (1u32, 0i64, 0i64, 0i64);
         let mut first_in_line = true;
         self.points(|generated, original, line| {
-            let g = generated_cursor.line_column(generated);
-            let s = source_cursor.line_column(original);
-            while prev_gen_line < g.line {
+            let (g_line, g_column) = generated_cursor.line_column(generated);
+            let (s_line, s_column) = source_cursor.line_column(original);
+            while prev_gen_line < g_line {
                 json.push(';');
                 prev_gen_line += 1;
                 prev_gen_column = 0;
@@ -254,13 +255,13 @@ impl Emitter {
                 json.push(',');
             }
             first_in_line = false;
-            vlq(&mut json, i64::from(g.column) - prev_gen_column);
+            vlq(&mut json, i64::from(g_column) - prev_gen_column);
             vlq(&mut json, 0);
-            vlq(&mut json, (i64::from(s.line) - 1) - prev_source_text_line);
-            vlq(&mut json, i64::from(s.column) - prev_source_text_column);
-            prev_gen_column = i64::from(g.column);
-            prev_source_text_line = i64::from(s.line) - 1;
-            prev_source_text_column = i64::from(s.column);
+            vlq(&mut json, (i64::from(s_line) - 1) - prev_source_text_line);
+            vlq(&mut json, i64::from(s_column) - prev_source_text_column);
+            prev_gen_column = i64::from(g_column);
+            prev_source_text_line = i64::from(s_line) - 1;
+            prev_source_text_column = i64::from(s_column);
             // Each later character of the line moves both columns alike.
             let units = line_segments(&mut json, line);
             prev_gen_column += units;
