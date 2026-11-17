@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         };
         projected += 1;
-        let output = rsvelte_svelte_typescript_projection::emit(&tree, &source);
+        let output = rsvelte_svelte_typescript_projection::emit(&tree, &source, "");
         let allocator = Allocator::default();
         let result = Parser::new(&allocator, &output.out, SourceType::ts()).parse();
         if !result.diagnostics.is_empty() {

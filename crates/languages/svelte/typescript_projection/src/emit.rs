@@ -8,21 +8,16 @@ use crate::syntax_tree::{
     Node, NodeIdentifier, SourceExpression, Spelling, SyntaxTree, TypeParameters,
 };
 
-/// [`emit_named`] for a component without a file, which svelte2tsx names `$$Component`.
-#[must_use]
-pub fn emit(tree: &SyntaxTree, source: &str) -> Emitter {
-    emit_named(tree, source, "")
-}
-
 /// An emitter sized from the source, so that half the projections never grow.
 fn projection_emitter(source: usize) -> Emitter {
     // Corpus medians: 3.3 bytes per source byte, a mapping per 16 bytes, an atom per 50.
     Emitter::with_capacity(source * 33 / 10, source / 16, source / 50)
 }
 
-/// The projection of the component at `path`, whose name its default export declares.
+/// The projection of the component at `path`, whose name its default export declares; svelte2tsx
+/// names a component without a file, an empty `path`, `$$Component`.
 #[must_use]
-pub fn emit_named(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
+pub fn emit(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
     let mut printer = Printer {
         tree,
         source,

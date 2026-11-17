@@ -9,7 +9,7 @@ pub use lower::{
     unparsed_script,
 };
 mod emit;
-pub use emit::{emit, emit_named};
+pub use emit::emit;
 mod computation;
 pub use computation::{Printed, Projected, THROWN, register, register_artifacts};
 
