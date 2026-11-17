@@ -10,7 +10,7 @@ use oxc_syntax::scope::ScopeFlags;
 use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
 use rsvelte_typescript_tree::{Reader, Recorded, SyntaxError};
 
-use super::{R, Span, Unsupported, in_typescript};
+use super::{R, Span, Unsupported, in_typescript, script_errors};
 
 /// The bodies of the scripts the plugin keeps as they are, as its parser throws on them;
 /// `rejected` is the first error a module rejects.
@@ -40,15 +40,7 @@ fn thrown_scripts(c: &Component, source_text: &str) -> R<Vec<Span>> {
     let mut thrown = Vec::new();
     for script in c.module.iter().chain(&c.instance) {
         let body = script.content;
-        let inside = |error: &&SyntaxError| {
-            let at = error.diagnostic.span.start_offset;
-            body.start_offset <= at && at <= body.end_offset
-        };
-        // The errors of a script oxc rejected, and the ones the compiler lets pass.
-        let errors: Vec<&SyntaxError> = (c.script_typescript_errors.iter())
-            .chain(c.javascript.unchecked_errors())
-            .filter(inside)
-            .collect();
+        let errors: Vec<&SyntaxError> = script_errors(c, body).collect();
         let Some(first) = errors.first() else {
             continue;
         };

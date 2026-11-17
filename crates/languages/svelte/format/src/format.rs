@@ -229,6 +229,18 @@ fn javascript_options(options: &Options, core: CoreFormatOptions) -> JsFormatOpt
     }
 }
 
+/// The errors inside a script's `body`: the TypeScript errors oxc reported for the scripts, and the
+/// ones the compiler lets pass.
+fn script_errors(c: &Component, body: Span) -> impl Iterator<Item = &SyntaxError> {
+    let inside = move |error: &&SyntaxError| {
+        let at = error.diagnostic.span.start_offset;
+        body.start_offset <= at && at <= body.end_offset
+    };
+    (c.script_typescript_errors.iter())
+        .chain(c.javascript.unchecked_errors())
+        .filter(inside)
+}
+
 /// The plugin's `langTsRegex` (`/\slang=["']?ts["']?/`) on a `<script>` tag: its value starts
 /// with `ts`.
 fn is_typescript(c: &Component, source_text: &str) -> bool {

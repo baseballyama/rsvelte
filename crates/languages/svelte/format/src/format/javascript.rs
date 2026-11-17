@@ -11,9 +11,9 @@ use oxc_formatter_core::{FormatElement, LineMode, Tag};
 use oxc_span::SourceType;
 use rsvelte_document_printer::{Embedding, LayoutInstructionIdentifier};
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_tree::{ProgramIdentifier, SyntaxError};
+use rsvelte_typescript_tree::ProgramIdentifier;
 
-use super::{Printer, R, Unsupported};
+use super::{Printer, R, Unsupported, script_errors};
 
 /// The embedded parts and how this component's JavaScript formats.
 pub(super) struct Embedder<'x> {
@@ -148,21 +148,14 @@ impl<'x> Printer<'_, '_, 'x> {
     ) -> R<ArenaVec<'x, FormatElement<'x>>> {
         let c = self.c;
         let program = c.javascript.get_program(program);
-        let inside = |error: &&SyntaxError| {
-            let at = error.diagnostic.span.start_offset;
-            span.start_offset <= at && at <= span.end_offset
-        };
         // The errors oxc's parser recovered from, which the formatter would have read again.
-        let whole = (c.script_typescript_errors.iter())
-            .chain(c.javascript.unchecked_errors())
-            .filter(inside)
-            .all(|error| {
-                recovered_whole(
-                    error.typescript_code,
-                    error.diagnostic.span.start_offset,
-                    program,
-                )
-            });
+        let whole = script_errors(c, span).all(|error| {
+            recovered_whole(
+                error.typescript_code,
+                error.diagnostic.span.start_offset,
+                program,
+            )
+        });
         let unformatted = || Unsupported::at("code that oxc's formatter does not format", span);
         if !whole {
             return Err(unformatted());
