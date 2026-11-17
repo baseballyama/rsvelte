@@ -585,7 +585,7 @@ mod locator;
 mod readers;
 mod typescript_eslint;
 
-pub use readers::{Reader, babel_typescript_throws, typescript_estree_throws};
+pub use readers::{Reader, babel_typescript_throws, function_as_body, typescript_estree_throws};
 pub(crate) use typescript_eslint::typescript_eslint_at;
 pub use typescript_eslint::{
     TYPESCRIPT_ESLINT_UNCHECKED, typescript_eslint_check, typescript_eslint_error,

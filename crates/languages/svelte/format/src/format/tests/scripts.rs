@@ -48,11 +48,41 @@ fn a_script_babel_rejects_is_kept_as_written_and_the_rest_formatted() {
         formatted("<script lang=\"ts\">\n\tfunction f() { continue; }\n</script>\n<p>x</p>\n"),
         "<script lang=\"ts\">\n  function f() {\n    continue;\n  }\n</script>\n\n<p>x</p>\n"
     );
-    // A name declared twice in the template, which the plugin's parser does not check.
-    assert_eq!(
-        refusal("{#each xs as x}{@const a = x}{@const a = x}{/each}\n").0,
-        "code a module rejects"
-    );
+}
+
+#[test]
+fn a_name_declared_twice_in_the_template_is_formatted_where_svelte_s_parser_reads_it() {
+    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1: Svelte's parser
+    // checks no pattern, nor two tags against each other, nor a script against the template.
+    for (source_text, expected) in [
+        (
+            "{#each xs as x}{@const a = x}{@const a = x}{/each}\n",
+            "{#each xs as x}{@const a = x}{@const a = x}{/each}\n",
+        ),
+        (
+            "{@const a = x}{@const a = x}\n",
+            "{@const a = x}{@const a = x}\n",
+        ),
+        ("{@const {a, a} = x}\n", "{@const { a, a } = x}\n"),
+        (
+            "{#each xs as {a, b: a}}{/each}\n",
+            "{#each xs as { a, b: a }}{/each}\n",
+        ),
+        (
+            "<script>let a;</script>{@const a = 1}\n",
+            "<script>\n  let a;\n</script>\n\n{@const a = 1}\n",
+        ),
+    ] {
+        assert_eq!(formatted(source_text), expected, "{source_text:?}");
+    }
+    // It checks the names of a function and of a snippet's parameters, and throws.
+    for source_text in [
+        "{#snippet s(a, a)}{/snippet}\n",
+        "{@const f = () => { let a; let a; }}\n",
+        "{#each xs as {a = () => { let b; let b; }}}{/each}\n",
+    ] {
+        refusal(source_text);
+    }
 }
 
 #[test]
@@ -83,6 +113,57 @@ fn each_script_the_plugin_s_parser_throws_on_is_kept_as_written() {
         assert_eq!(
             crate::task::format(source_text, &Options::default()).expect("prints"),
             source_text
+        );
+    }
+}
+
+#[test]
+fn a_function_declared_as_a_statement_s_body_is_formatted_unless_babel_throws_on_it() {
+    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    for (body, expected) in [
+        ("if (true) function g() {}", "if (true) function g() {}"),
+        ("lbl: function g() {}", "lbl: function g() {}"),
+        ("for (;;) function g() {}", "for (;;) function g() {}"),
+        ("if (x) function* g() {}", "if (x) function* g() {}"),
+        (
+            "if (x) function g() {} else function h() {}",
+            "if (x) function g() {}\n  else function h() {}",
+        ),
+    ] {
+        assert_eq!(
+            crate::task::format(
+                &format!("<script>\n\t{body}\n\tlet   x =  1\n</script>\n"),
+                &Options::default()
+            )
+            .expect("prints"),
+            format!("<script>\n  {expected}\n  let x = 1;\n</script>\n"),
+            "{body:?}"
+        );
+    }
+    // Babel throws on an async one, so the plugin keeps the script as written; typescript-estree
+    // does not.
+    for body in ["if (x) async function g() {}", "lbl: async function g() {}"] {
+        let script = format!("<script>\n\t{body}\n\tlet   x =  1\n</script>\n");
+        assert_eq!(
+            crate::task::format(&script, &Options::default()).expect("prints"),
+            script,
+            "{body:?}"
+        );
+    }
+    for (source_text, expected) in [
+        (
+            "<script lang=\"ts\">\n\tif (x) async function g() {}\n</script>\n",
+            "<script lang=\"ts\">\n  if (x) async function g() {}\n</script>\n",
+        ),
+        (
+            "<script lang=\"ts\">\n\tif (x) declare function f(): void;\n</script>\n",
+            "<script lang=\"ts\">\n  if (x) declare function f(): void;\n</script>\n",
+        ),
+    ] {
+        assert_eq!(
+            crate::task::format(source_text, &Options::default()).expect("prints"),
+            expected,
+            "{source_text:?}"
         );
     }
 }

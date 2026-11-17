@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use oxc_ast::ast::Statement;
+use oxc_ast::ast::{
+    ExportAllDeclaration, ExportFromDeclaration, Expression, ImportDeclaration, ImportExpression,
+    StringLiteral,
+};
+use oxc_ast_visit::{Visit, walk};
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
@@ -319,31 +323,49 @@ fn rejected(error: &Diagnostic) -> TypeScriptDocument {
     }
 }
 
-/// Each relative module specifier the scripts import or re-export from, by its string literal.
+/// Each relative module specifier the scripts import, re-export from or load with `import()`, by
+/// its string literal.
 fn relative_imports(component: &Component) -> Vec<(Span, String)> {
-    let mut found = Vec::new();
+    struct Specifiers(Vec<(Span, String)>);
+    impl Specifiers {
+        fn push(&mut self, source: &StringLiteral<'_>) {
+            // A specifier with a lone surrogate names no file.
+            if let Some(specifier) = source.value.as_str()
+                && specifier.starts_with('.')
+            {
+                let span = Span::new(source.span.start, source.span.end);
+                self.0.push((span, specifier.to_owned()));
+            }
+        }
+    }
+    impl<'a> Visit<'a> for Specifiers {
+        fn visit_import_declaration(&mut self, it: &ImportDeclaration<'a>) {
+            self.push(&it.source);
+        }
+
+        fn visit_export_from_declaration(&mut self, it: &ExportFromDeclaration<'a>) {
+            self.push(&it.source);
+        }
+
+        fn visit_export_all_declaration(&mut self, it: &ExportAllDeclaration<'a>) {
+            self.push(&it.source);
+        }
+
+        fn visit_import_expression(&mut self, it: &ImportExpression<'a>) {
+            if let Expression::StringLiteral(source) = &it.source {
+                self.push(source);
+            }
+            walk::walk_import_expression(self, it);
+        }
+    }
+    let mut found = Specifiers(Vec::new());
     for script in [&component.instance, &component.module]
         .into_iter()
         .flatten()
     {
-        let program = component.javascript.get_program(script.program);
-        for statement in &program.body {
-            let source = match statement {
-                Statement::ImportDeclaration(import) => Some(&import.source),
-                Statement::ExportFromDeclaration(export) => Some(&export.source),
-                Statement::ExportAllDeclaration(export) => Some(&export.source),
-                _ => None,
-            };
-            // A specifier with a lone surrogate names no file.
-            let relative = source
-                .and_then(|source| Some((source.span, source.value.as_str()?)))
-                .filter(|(_, specifier)| specifier.starts_with('.'));
-            if let Some((span, specifier)) = relative {
-                found.push((Span::new(span.start, span.end), specifier.to_owned()));
-            }
-        }
+        found.visit_program(component.javascript.get_program(script.program));
     }
-    found
+    found.0
 }
 
 fn env_of(
