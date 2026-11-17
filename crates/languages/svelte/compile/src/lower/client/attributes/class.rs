@@ -32,6 +32,29 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         (self.memoize(memo, expression, built, false), meta.has_state)
     }
 
+    /// Upstream `build_class_directives_object`: `{ name: value }`, memoized; whether a value reads
+    /// state.
+    pub(in crate::lower::client) fn class_directives(
+        &self,
+        directives: &[&Attribute],
+        memo: &mut Memo<'o>,
+    ) -> (Expression<'o>, bool) {
+        let mut has_state = false;
+        let props = directives.iter().map(|d| {
+            let AttributeValue::Class(e) = d.value else {
+                unreachable!("class directives")
+            };
+            has_state |= self.an.meta(e).has_state;
+            let built = self.expression(e);
+            self.b.init(
+                d.name.text(self.source_text),
+                self.memoize(memo, e, built, false),
+            )
+        });
+        let object = self.b.object(props);
+        (object, has_state)
+    }
+
     /// Upstream `build_set_class`; `attribute` is `None` for the empty `class` upstream's analysis
     /// adds.
     pub(in crate::lower::client) fn set_class(
@@ -58,18 +81,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let mut next = None;
         let mut previous_id = None;
         if !directives.is_empty() {
-            let mut props = Vec::with_capacity(directives.len());
-            for d in directives {
-                let AttributeValue::Class(e) = d.value else {
-                    unreachable!("class directives")
-                };
-                let meta = self.an.meta(e);
-                let built = self.expression(e);
-                let v = self.memoize(memo, e, built, false);
-                has_state |= meta.has_state;
-                props.push(b.init(d.name.text(self.source_text), v));
-            }
-            next = Some(b.object(props));
+            let (object, state) = self.class_directives(directives, memo);
+            has_state |= state;
+            next = Some(object);
             if has_state {
                 let name = self.names.generate("classes");
                 l.initializer.push(b.let_(&name, None));

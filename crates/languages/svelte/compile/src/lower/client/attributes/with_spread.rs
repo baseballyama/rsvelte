@@ -81,19 +81,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
         }
         if !class_directives.is_empty() {
-            let props: Vec<_> = class_directives
-                .iter()
-                .map(|d| {
-                    let AttributeValue::Class(e) = d.value else {
-                        unreachable!("class directives")
-                    };
-                    let built = self.expression(e);
-                    let v = self.memoize(&mut memo, e, built, false);
-                    b.init(d.name.text(self.source_text), v)
-                })
-                .collect();
+            let (object, _) = self.class_directives(&class_directives, &mut memo);
             let key = PropertyKey::from(b.member(b.id("$"), "CLASS"));
-            values.push(b.property(key, b.object(props), true));
+            values.push(b.property(key, object, true));
         }
         if !style_directives.is_empty() {
             let (object, _) = self.style_directives(&style_directives, &mut memo);
