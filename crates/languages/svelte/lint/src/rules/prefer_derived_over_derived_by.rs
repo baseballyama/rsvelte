@@ -1,11 +1,9 @@
 use oxc_ast::AstKind;
-use oxc_ast::ast::{
-    Argument, CallExpression, Expression, FormalParameters, FunctionBody, Statement,
-};
+use oxc_ast::ast::{Argument, CallExpression, Expression, FormalParameters, Statement};
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::nodes::{is_named, span, text};
+use super::nodes::{is_named, only_statement, span, text};
 use super::runes::runes_or_undetermined;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -79,12 +77,4 @@ fn derived_by_expression<'a>(call: &'a CallExpression<'a>) -> Option<&'a Express
 
 fn no_parameters(parameters: &FormalParameters<'_>) -> bool {
     parameters.items.is_empty() && parameters.rest.is_none()
-}
-
-/// The one statement of a body, a directive counting as a statement as in `ESTree`.
-fn only_statement<'a>(body: &'a FunctionBody<'a>) -> Option<&'a Statement<'a>> {
-    match (body.directives.as_slice(), body.statements.as_slice()) {
-        ([], [statement]) => Some(statement),
-        _ => None,
-    }
 }

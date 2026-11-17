@@ -1,12 +1,12 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    Argument, AssignmentOperator, AssignmentTarget, CallExpression, Expression, FunctionBody,
+    Argument, AssignmentOperator, AssignmentTarget, CallExpression, Expression,
     IdentifierReference, Statement,
 };
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::nodes::{is_named, span, text};
+use super::nodes::{is_named, only_statement, span, text};
 use super::runes::runes_or_undetermined;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -118,14 +118,6 @@ fn effect_assignment<'a>(
                 _ => None,
             }
         }
-        _ => None,
-    }
-}
-
-/// The one statement of a body, a directive counting as a statement as in `ESTree`.
-fn only_statement<'a>(body: &'a FunctionBody<'a>) -> Option<&'a Statement<'a>> {
-    match (body.directives.as_slice(), body.statements.as_slice()) {
-        ([], [statement]) => Some(statement),
         _ => None,
     }
 }

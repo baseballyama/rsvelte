@@ -61,8 +61,9 @@ fn require_event_prefix(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>
     Ok(Box::new(Inactive))
 }
 
+/// A rule that reports nothing.
 #[derive(Debug, Default)]
-struct Inactive;
+pub(super) struct Inactive;
 
 impl SvelteRule for Inactive {
     fn check(&self, _: &File<'_>, _: &mut Reporter<'_>) {}
