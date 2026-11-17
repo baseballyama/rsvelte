@@ -23,8 +23,8 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 27835822,
-	"alloc_bytes": 4215243214,
+	"allocs": 27836108,
+	"alloc_bytes": 4215269995,
 	"peak_live_growth_bytes": 3262173,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -84,8 +84,8 @@
 		},
 		"svelte.format/default": {
 			"calls": 36887,
-			"allocs": 3760403,
-			"alloc_bytes": 254941435
+			"allocs": 3760689,
+			"alloc_bytes": 254968216
 		},
 		"svelte.lint.compiler_syntax_tree_as_typescript": {
 			"calls": 115,
