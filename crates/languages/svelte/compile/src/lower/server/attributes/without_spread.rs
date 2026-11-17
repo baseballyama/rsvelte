@@ -1,6 +1,7 @@
 use oxc_ast::ast::Expression;
 
-use super::{escaped_text, scoped_class};
+use super::escaped_text;
+use crate::lower::Target;
 use crate::lower::builder::Runtime;
 use crate::lower::javascript::string_value;
 use crate::lower::server::{
@@ -8,7 +9,7 @@ use crate::lower::server::{
     capture_event, capture_load_events, escape_markup, event_attribute, is_behaviour,
     is_boolean_attribute, is_directive, push_captured_events,
 };
-use crate::lower::template::implicit_attributes;
+use crate::lower::template::{implicit_attributes, scoped_class};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_element_attributes` (no spread).
@@ -123,7 +124,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             if name == "class"
                 && let Some(h) = hash
             {
-                v = scoped_class(&v, h);
+                v = scoped_class(&v, h, Target::Server);
             }
             let v = escape_markup(&v, true);
             template.push(Piece::Text(format!(" {name}=\"{v}\"")));
@@ -156,7 +157,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             let base = value
                 .as_deref()
                 .map_or_else(|| "true".to_owned(), str::to_owned);
-            value = Some(scoped_class(&base, h));
+            value = Some(scoped_class(&base, h, Target::Server));
         }
         if name != "class" || value.as_deref() != Some("") {
             template.push(Piece::Text(format!(

@@ -1,9 +1,10 @@
 use oxc_ast::ast::Expression;
 
-use super::scoped_class;
+use crate::lower::Target;
 use crate::lower::builder::Runtime;
 use crate::lower::javascript::string_value;
 use crate::lower::server::{Attribute, AttributeValue, ServerCompilationContext};
+use crate::lower::template::scoped_class;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_attr_class`.
@@ -27,7 +28,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let mut stylesheet_hash = None;
         if let Some(h) = hash {
             if let Expression::StringLiteral(literal) = &value {
-                value = b.string(&scoped_class(&string_value(literal.value), h));
+                value = b.string(&scoped_class(
+                    &string_value(literal.value),
+                    h,
+                    Target::Server,
+                ));
             } else {
                 stylesheet_hash = Some(b.string(h));
             }

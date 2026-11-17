@@ -1,9 +1,13 @@
 use oxc_ast::ast::{ArrowFunctionExpression, Expression, Function, IdentifierReference};
 use oxc_ast_visit::{Visit, walk};
 use oxc_syntax::scope::ScopeFlags;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{Attribute, AttributeValue, CompilerSyntaxTree, Element, NodeKind, Resolution};
+use super::{Attribute, AttributeValue, CompilerSyntaxTree, Element, NodeKind, Resolution, Target};
+
+#[cfg(test)]
+mod tests;
 
 pub const DOM_BOOLEAN_ATTRIBUTES: &[&str] = &[
     "allowfullscreen",
@@ -153,6 +157,22 @@ pub(super) fn implicit_attributes(
     Implicit {
         class: !class && (scoped || class_directive),
         style: !style && style_directive,
+    }
+}
+
+/// A literal class value with the stylesheet's hash after it, or the hash alone for an empty one.
+/// The server trims the value's start as upstream's server does with `.trim()`; the client keeps
+/// it. The hash has no whitespace to trim.
+#[must_use]
+pub(super) fn scoped_class(value: &str, hash: &str, target: Target) -> String {
+    let value = match target {
+        Target::Client => value,
+        Target::Server => value.trim_start_matches(is_ecmascript_whitespace),
+    };
+    if value.is_empty() {
+        hash.to_owned()
+    } else {
+        format!("{value} {hash}")
     }
 }
 

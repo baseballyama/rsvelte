@@ -1,12 +1,14 @@
 use oxc_ast::ast::Expression;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
+use crate::lower::Target;
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Lists, Memo,
     escape_markup, needs_clsx,
 };
 use crate::lower::javascript::string_value;
+use crate::lower::template::scoped_class;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// A `class` value written as one expression, through `$.clsx` when upstream's `needs_clsx`.
@@ -87,8 +89,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 _ => None,
             };
             match literal.as_deref() {
-                Some("") => value = b.string(hash),
-                Some(v) => value = b.string(&format!("{} {hash}", escape_markup(v, true))),
+                Some(v) => {
+                    let escaped = escape_markup(v, true);
+                    value = b.string(&scoped_class(&escaped, hash, Target::Client));
+                }
                 None => stylesheet_hash = Some(b.string(hash)),
             }
         }

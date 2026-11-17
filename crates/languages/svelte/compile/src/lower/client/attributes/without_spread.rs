@@ -1,5 +1,6 @@
 use oxc_ast::ast::{Expression, Statement};
 
+use crate::lower::Target;
 use crate::lower::bindings::needs_special_value;
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
@@ -7,7 +8,7 @@ use crate::lower::client::{
     NodeKind, R, event_attribute, is_behaviour, is_custom_element_node, is_directive,
     normalize_attribute, unsupported,
 };
-use crate::lower::template::implicit_attributes;
+use crate::lower::template::{implicit_attributes, scoped_class};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// The attribute loop of upstream `RegularElement` (no spread).
@@ -200,10 +201,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             && self.an.scoped[identifier]
             && let Some(hash) = &self.identity.stylesheet_hash
         {
-            value = Some(match value.as_deref() {
-                None | Some("") => hash.clone(),
-                Some(v) => format!("{v} {hash}"),
-            });
+            value = Some(scoped_class(
+                value.as_deref().unwrap_or(""),
+                hash,
+                Target::Client,
+            ));
         }
         if attribute_name != "class"
             || value.as_deref().is_some_and(|v| !v.is_empty())
