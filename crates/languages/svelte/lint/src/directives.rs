@@ -125,11 +125,11 @@ struct Comment<'a> {
 /// Removes findings that `ESLint`'s own directive comments, in JavaScript comments, turn off, and
 /// returns `ESLint`'s reports of the disable directives that turned nothing off. It reports only
 /// what it can tell: a rule name that `running` says runs, whose findings are all here.
-pub(crate) fn apply_javascript(
+pub(crate) fn apply_javascript<'l>(
     findings: &mut Vec<Finding>,
     comments: &[Span],
     source: &str,
-    lines: &LineIndex,
+    lines: &dyn Fn() -> &'l LineIndex,
     running: impl Fn(&str) -> bool,
 ) -> Vec<Finding> {
     let mut parsed: Vec<Comment<'_>> = Vec::new();
@@ -139,13 +139,13 @@ pub(crate) fn apply_javascript(
         let Some((kind, block, rules, list)) = javascript_directive(span.text(source)) else {
             continue;
         };
-        let start = lines.line_column(span.start_offset);
+        let start = lines().line_column(span.start_offset);
         let line = match kind {
             Kind::Disable | Kind::Enable if block => None,
-            Kind::DisableLine if start.line == lines.line_column(span.end_offset).line => {
+            Kind::DisableLine if start.line == lines().line_column(span.end_offset).line => {
                 Some(start.line)
             }
-            Kind::DisableNextLine => Some(lines.line_column(span.end_offset).line + 1),
+            Kind::DisableNextLine => Some(lines().line_column(span.end_offset).line + 1),
             _ => continue,
         };
         let comment = parsed.len();
@@ -182,7 +182,7 @@ pub(crate) fn apply_javascript(
     let at: Vec<(u32, u32)> = findings
         .iter()
         .map(|f| {
-            let at = lines.line_column(f.diagnostic.span.start_offset);
+            let at = lines().line_column(f.diagnostic.span.start_offset);
             (at.line, at.column + 1)
         })
         .collect();

@@ -14,15 +14,24 @@ const FINDING_BYTES: usize = 200;
 /// `ESLint`'s positions in one document: lines as `lines` counts them, which is with
 /// [`LineBreaks::Ecmascript`](rsvelte_kernel::source::positions::LineBreaks), and columns of the
 /// text after a leading byte order mark, which `ESLint` removes before it lints.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct Positions<'a> {
-    lines: &'a LineIndex,
+    /// The line index, built only when a position is asked for: most documents report nothing.
+    lines: &'a dyn Fn() -> &'a LineIndex,
     byte_order_mark: bool,
+}
+
+impl std::fmt::Debug for Positions<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Positions")
+            .field("byte_order_mark", &self.byte_order_mark)
+            .finish_non_exhaustive()
+    }
 }
 
 impl<'a> Positions<'a> {
     #[must_use]
-    pub fn new(lines: &'a LineIndex, source_text: &str) -> Self {
+    pub fn new(lines: &'a dyn Fn() -> &'a LineIndex, source_text: &str) -> Self {
         Self {
             lines,
             byte_order_mark: source_text.starts_with('\u{feff}'),
@@ -31,7 +40,7 @@ impl<'a> Positions<'a> {
 
     /// The 1-based line and 0-based UTF-16 column of a byte offset.
     fn at(self, offset: u32) -> (u32, u32) {
-        let at = self.lines.line_column(offset);
+        let at = (self.lines)().line_column(offset);
         let column = if self.byte_order_mark && at.line == 1 {
             at.column.saturating_sub(1)
         } else {

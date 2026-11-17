@@ -16,6 +16,7 @@ fn lint(source_text: &str) -> String {
         .iter()
         .map(crate::ConfiguredRule::name);
     let lines = LineIndex::new(source_text);
+    let lines = || &lines;
     let positions = rsvelte_lint_runner::output::Positions::new(&lines, source_text);
     rsvelte_lint_runner::output::render_json(positions, rules, &findings)
 }
