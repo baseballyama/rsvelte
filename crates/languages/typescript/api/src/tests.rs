@@ -26,8 +26,6 @@ fn a_truncated_message_is_an_error() {
 fn chains_flatten_two_spaces_per_level() {
     let link = |text: &str, chain: Vec<Diagnostic>| Diagnostic {
         file_name: None,
-        start_offset: 0,
-        end_offset: 0,
         start_position: None,
         end_position: None,
         code: 0,
