@@ -2,7 +2,7 @@ use oxc_ast::ast::{Expression, ObjectPropertyKind};
 
 use super::{
     AttributeValue, CompilerNodeIdentifier, Helper, Namespace, NodeKind, Parent, R, Template,
-    TypedIndex, clean_nodes, spelled, unsupported, vue,
+    TypedIndex, clean_nodes, spelled, template_end, unsupported, vue,
 };
 use crate::compilation::string_key;
 
@@ -194,6 +194,7 @@ impl<'t> Template<'_, '_, 't> {
             &children,
             preserve,
             false,
+            template_end(self.i.source_text),
         );
         if !cleaned.items.is_empty() || !cleaned.hoisted.is_empty() {
             let name = format!("$$children_{}", identifier.index());

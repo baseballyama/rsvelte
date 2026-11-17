@@ -103,6 +103,8 @@ struct Facts<'a> {
     counts: Counts,
     /// The instance calls `$props()` (upstream `needs_props`).
     uses_props: bool,
+    /// Some script or template expression holds an `await`.
+    awaits: bool,
     /// The rune names that subscribe to a store instead, such as `$state` beside a `state`.
     subscribed: runes::Subscriptions,
     scopes: FxHashMap<TemplateScope, ScopeId>,
@@ -213,10 +215,15 @@ fn resolve_scripts(
             classify::classify(semantic, &subscribed, &counts, compiler_syntax_tree, &names);
         let uses_props =
             instance.is_some_and(|p| has_props_rune(semantic, &subscribed, tree.get_program(p)));
+        // The nodes hold the scripts and the template's expressions in one flat list, which is
+        // cheaper to scan than to walk.
+        let awaits = (semantic.nodes().iter())
+            .any(|node| matches!(node.kind(), AstKind::AwaitExpression(_)));
         Facts {
             bindings,
             counts,
             uses_props,
+            awaits,
             subscribed,
             scopes,
             names,
@@ -303,6 +310,13 @@ impl Resolution {
     #[must_use]
     pub fn uses_props(&self) -> bool {
         self.0.borrow_dependent().uses_props
+    }
+
+    /// Some script or template expression holds an `await`, so the checks that look for one
+    /// need to walk.
+    #[must_use]
+    pub fn awaits(&self) -> bool {
+        self.0.borrow_dependent().awaits
     }
 
     /// The symbol `reference` resolves to; `None` for a global, for a name only `declare`

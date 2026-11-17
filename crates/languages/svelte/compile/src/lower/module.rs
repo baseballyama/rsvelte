@@ -13,7 +13,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
 
 use super::{
-    Builder, CompileInput, Target, Unit, check_runes, client, prepare, script, validate_unit,
+    Builder, CompileInput, Target, Unit, builder, check_runes, prepare, script, validate_unit,
 };
 
 /// The module of one target, in `allocator`; its spans index the module's text.
@@ -75,7 +75,7 @@ pub(crate) fn lower_module<'o>(
     if program.source_type.is_typescript() {
         typescript_emit(&b, allocator, program, component.filename, &mut out)?;
     }
-    out.body.insert(0, client::import(&b, Some("$"), runtime));
+    out.body.insert(0, builder::import(&b, Some("$"), runtime));
     Ok(out)
 }
 

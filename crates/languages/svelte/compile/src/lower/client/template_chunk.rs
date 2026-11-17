@@ -2,12 +2,13 @@ use oxc_ast::ast::{Expression, LogicalOperator};
 use rsvelte_svelte_semantic::evaluate::{Evaluator, Value};
 
 use super::{ClientCompilationContext, Item, Memo, Part, decode_attribute};
+use crate::render_plan::Text;
 
-impl<'a, 'o> ClientCompilationContext<'a, 'o> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_template_chunk`.
     pub(super) fn template_chunk(
         &self,
-        values: &[Item<'_>],
+        values: &[Item],
         memo: &mut Memo<'o>,
         if_state: bool,
     ) -> (Expression<'o>, bool) {
@@ -17,7 +18,7 @@ impl<'a, 'o> ClientCompilationContext<'a, 'o> {
     /// [`Self::template_chunk`], memoizing each expression in `memo`, or none without one.
     pub(super) fn chunk(
         &self,
-        values: &[Item<'_>],
+        values: &[Item],
         mut memo: Option<&mut Memo<'o>>,
         if_state: bool,
     ) -> (Expression<'o>, bool) {
@@ -28,7 +29,10 @@ impl<'a, 'o> ClientCompilationContext<'a, 'o> {
         for item in values {
             let expression = match item {
                 Item::Text { data, .. } => {
-                    quasis.last_mut().expect("never empty").push_str(data);
+                    quasis
+                        .last_mut()
+                        .expect("never empty")
+                        .push_str(data.get(self.source_text, self.compiler_syntax_tree));
                     continue;
                 }
                 Item::Expression(e) => *e,
@@ -111,17 +115,14 @@ impl<'a, 'o> ClientCompilationContext<'a, 'o> {
         }
     }
 
-    pub(super) fn chunk_items(&self, parts: &[Part]) -> Vec<Item<'a>> {
+    pub(super) fn chunk_items(&self, parts: &[Part]) -> Vec<Item> {
         parts
             .iter()
             .map(|p| match p {
-                Part::Text(s) => {
-                    let raw = s.text(self.source_text);
-                    Item::Text {
-                        data: decode_attribute(raw),
-                        raw: raw.into(),
-                    }
-                }
+                Part::Text(s) => Item::Text {
+                    data: Text::transformed(*s, self.source_text, decode_attribute),
+                    raw: Text::Source(*s),
+                },
                 Part::Expression { expression, .. } => Item::Expression(*expression),
             })
             .collect()
