@@ -173,3 +173,55 @@ fn a_cursor_agrees_with_the_index_on_any_order_of_offsets() {
         }
     }
 }
+
+/// The line starts and long breaks of `text`, found by reading every byte.
+fn breaks_by_every_byte(text: &str, breaks: LineBreaks) -> (Vec<u32>, Vec<(u32, u32)>) {
+    let (bytes, ecmascript) = (text.as_bytes(), breaks == LineBreaks::Ecmascript);
+    let (mut starts, mut long) = (vec![0_u32], Vec::new());
+    let mut push = |next: usize, len: u32, starts: &mut Vec<u32>| {
+        if len > 1 {
+            long.push((starts.len() as u32 - 1, len));
+        }
+        starts.push(next as u32);
+    };
+    for (i, &byte) in bytes.iter().enumerate() {
+        let after_cr = i > 0 && bytes[i - 1] == b'\r';
+        match byte {
+            b'\n' if after_cr && ecmascript => {}
+            b'\n' => push(i + 1, if after_cr { 2 } else { 1 }, &mut starts),
+            b'\r' if ecmascript && bytes.get(i + 1) == Some(&b'\n') => push(i + 2, 2, &mut starts),
+            b'\r' if ecmascript => push(i + 1, 1, &mut starts),
+            0xE2 if ecmascript && matches!(bytes.get(i + 1..i + 3), Some([0x80, 0xA8 | 0xA9])) => {
+                push(i + 3, 3, &mut starts);
+            }
+            _ => {}
+        }
+    }
+    (starts, long)
+}
+
+#[test]
+fn an_index_finds_the_breaks_that_reading_every_byte_finds() {
+    let pieces = [
+        "a", "\n", "\r\n", "\r", "\n\r", "é", "€", "😀", "\u{2028}", "\u{2029}", "\u{2027}",
+    ];
+    let mut state = 0x2545_F491_4F6C_DD1D_u64;
+    let mut next = |n: u64| {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        state % n
+    };
+    for _ in 0..500 {
+        let text: String = (0..next(300)).map(|_| pieces[next(11) as usize]).collect();
+        for breaks in [LineBreaks::Newline, LineBreaks::Ecmascript] {
+            let index = LineIndex::with_breaks(&text, breaks);
+            let (starts, long) = breaks_by_every_byte(&text, breaks);
+            assert_eq!(
+                (index.line_starts.as_slice(), index.long_breaks.as_slice()),
+                (starts.as_slice(), long.as_slice()),
+                "{text:?} {breaks:?}"
+            );
+        }
+    }
+}

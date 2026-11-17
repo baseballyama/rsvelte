@@ -3,6 +3,7 @@ use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
+use super::whitespace::is_ascii_whitespace;
 use super::{End, ParseResult, Parser, is_void};
 use crate::names::{META_TAGS, is_component_name, is_valid_element_name};
 use crate::syntax_tree::{
@@ -14,9 +15,24 @@ mod tests;
 
 /// Upstream `read_tag_name`: up to whitespace, `/` or `>`.
 pub(super) fn peek_tag_name(s: &str) -> &str {
-    let end = s
-        .find(|c| is_ecmascript_whitespace(c) || matches!(c, '/' | '>'))
-        .unwrap_or(s.len());
+    let bytes = s.as_bytes();
+    let mut end = 0;
+    while let Some(&b) = bytes.get(end) {
+        // ASCII needs no decoding.
+        let len = if b.is_ascii() {
+            if is_ascii_whitespace(b) || matches!(b, b'/' | b'>') {
+                break;
+            }
+            1
+        } else {
+            let c = s[end..].chars().next().unwrap_or_default();
+            if is_ecmascript_whitespace(c) {
+                break;
+            }
+            c.len_utf8()
+        };
+        end += len;
+    }
     &s[..end]
 }
 

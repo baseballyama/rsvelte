@@ -125,7 +125,14 @@ impl LineIndex {
             line_starts.push(next as u32);
         };
         let ecmascript = breaks == LineBreaks::Ecmascript;
-        for (i, &byte) in bytes.iter().enumerate() {
+        // Only these bytes can start a line break, and memchr skips the rest many at a time.
+        let candidates: &mut dyn Iterator<Item = usize> = if ecmascript {
+            &mut memchr::memchr3_iter(b'\n', b'\r', 0xE2, bytes)
+        } else {
+            &mut memchr::memchr_iter(b'\n', bytes)
+        };
+        for i in candidates {
+            let byte = bytes[i];
             let after_cr = i > 0 && bytes[i - 1] == b'\r';
             match byte {
                 // A CRLF is counted at its CR.

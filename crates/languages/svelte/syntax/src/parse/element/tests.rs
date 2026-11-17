@@ -28,3 +28,15 @@ fn a_block_svelte_eslint_parser_does_not_rewrite_stays_one() {
     let component = parse_as_svelte_eslint_parser("<style a=\"/>\"></style>").expect("parses");
     assert!(component.style.is_some());
 }
+
+#[test]
+fn a_tag_name_ends_at_any_ecmascript_whitespace() {
+    use super::peek_tag_name;
+    assert_eq!(peek_tag_name("div class>"), "div");
+    assert_eq!(peek_tag_name("div/>"), "div");
+    assert_eq!(peek_tag_name("dïv>"), "dïv");
+    assert_eq!(peek_tag_name("div\u{A0}a>"), "div");
+    assert_eq!(peek_tag_name("div\u{3000}a>"), "div");
+    assert_eq!(peek_tag_name("div\u{85}a>"), "div\u{85}a");
+    assert_eq!(peek_tag_name("div"), "div");
+}

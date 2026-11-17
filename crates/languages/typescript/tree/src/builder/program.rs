@@ -115,8 +115,12 @@ impl<'a> Builder<'a> {
                 }));
             }
         };
-        self.record(&parsed.tokens, &parsed.program.comments, 0);
         let mut program = parsed.program;
+        // The program keeps its comments; the part keeps a copy, as few programs have many.
+        let comments =
+            oxc_allocator::Vec::from_iter_in(program.comments.iter().cloned(), &self.allocator);
+        let comments = comments.into_arena_slice();
+        self.record(parsed.tokens.into_arena_slice(), comments, 0);
         // Its spans are the document's, so a task that reads text at a span reads the document.
         program.source_text = self.source_text;
         let identifier = ProgramIdentifier::at(self.programs.len());

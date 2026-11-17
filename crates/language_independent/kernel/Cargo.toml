@@ -20,6 +20,7 @@ rayon.workspace = true
 semver.workspace = true
 rustc-hash.workspace = true
 stacker.workspace = true
+memchr.workspace = true
 
 [lints]
 workspace = true
