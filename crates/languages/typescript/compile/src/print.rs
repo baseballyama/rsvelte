@@ -70,7 +70,7 @@ pub fn print_mapped(program: &Program<'_>, lines: &LineIndex) -> Emitter {
         }),
         program,
     );
-    let mut emitter = Emitter::new();
+    let mut emitter = Emitter::default();
     if let Some(map) = printed.map {
         let mut generated = Cursor::new(&printed.code);
         emitter.mappings = map

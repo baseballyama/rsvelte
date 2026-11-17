@@ -31,11 +31,6 @@ pub struct Emitter {
 }
 
 impl Emitter {
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// An emitter with room for `out` bytes, `mappings` mappings and `atoms` atoms.
     #[must_use]
     pub fn with_capacity(out: usize, mappings: usize, atoms: usize) -> Self {

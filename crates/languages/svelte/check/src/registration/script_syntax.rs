@@ -30,7 +30,7 @@ pub(super) fn view<'e>(
         Ok(env) => env,
         Err(error) => return Some(Err(error)),
     };
-    let mut projection = Emitter::new();
+    let mut projection = Emitter::default();
     if let Some(line) = super::directive::of(&component, source_text) {
         projection.push(line);
     }

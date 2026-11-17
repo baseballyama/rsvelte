@@ -63,7 +63,7 @@ pub(crate) fn project(
         c,
         source_text,
         res,
-        e: Emitter::new(),
+        e: Emitter::default(),
         chain_open: false,
     };
     if let Some(script) = &c.script {
