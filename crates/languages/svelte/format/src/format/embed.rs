@@ -335,36 +335,31 @@ impl Printer<'_, '_, '_> {
     /// The plugin keeps `<!-- #endregion -->` below a `<script>`/`<style>`; that is not ported.
     pub(super) fn refuse_moved_comments(&self) -> R<()> {
         let c = self.c;
-        let options = c
-            .children(c.root)
-            .iter()
+        let options: Vec<Span> = (c.children(c.root).iter())
             .filter(|&&n| self.element_name(n) == Some("svelte:options"))
-            .map(|&n| {
-                (
-                    c.node(n).span(),
-                    "`<!-- #endregion -->` after <svelte:options>",
-                )
-            });
-        let moved: Vec<(Span, &'static str)> = hoisted(c)
-            .map(|span| (span, "`<!-- #endregion -->` after <script> or <style>"))
-            .chain(options)
+            .map(|&n| c.node(n).span())
             .collect();
         for &identifier in c.children(c.root) {
             let TemplateNode::Comment { span, data } = *c.node(identifier) else {
                 continue;
             };
-            if !data
+            let follows = |tag: &Span| {
+                let between = tag.end_offset as usize..span.start_offset as usize;
+                tag.end_offset <= span.start_offset && only_ws(&self.source_text[between])
+            };
+            let message = if hoisted(c).any(|tag| follows(&tag)) {
+                "`<!-- #endregion -->` after <script> or <style>"
+            } else if options.iter().any(follows) {
+                "`<!-- #endregion -->` after <svelte:options>"
+            } else {
+                continue;
+            };
+            if data
                 .text(self.source_text)
                 .to_ascii_lowercase()
                 .contains("endregion")
             {
-                continue;
-            }
-            for &(tag, message) in &moved {
-                let between = tag.end_offset as usize..span.start_offset as usize;
-                if tag.end_offset <= span.start_offset && only_ws(&self.source_text[between]) {
-                    return Err(Unsupported::at(message, span));
-                }
+                return Err(Unsupported::at(message, span));
             }
         }
         Ok(())
