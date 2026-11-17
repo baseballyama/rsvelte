@@ -1,7 +1,7 @@
 //! Svelte lint.
 
 pub mod lint;
-pub use lint::{lint, verify};
+pub use lint::lint;
 
 pub mod computation;
 mod configuration;
