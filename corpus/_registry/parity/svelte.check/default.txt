@@ -1,13 +1,7 @@
-# svelte.check/default: 35033 match
-svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	mismatch
+# svelte.check/default: 35034 match
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	mismatch
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_value0_rule/degenerate_slot_names_stay_on_the_default_fallback/0cfb2b8120add6c6.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_svelte_self_bindings_2171/svelte_self_snippet_children_become_props/906566aee5544f9c.svelte	mismatch
 svelte/rsvelte/lint/html-closing-bracket-spacing/04-script-style-tags.svelte	mismatch
-svelte/rsvelte/lint/no-useless-children-snippet/06-boundary-and-self.svelte	mismatch
-svelte/rsvelte/lint/require-each-key/13-key-expression-forms.svelte	mismatch
-svelte/rsvelte/pattern/issues/3164-on-directive-inner-init.svelte	mismatch
-svelte/rsvelte/pattern/issues/3199-grammar-import-source.svelte	mismatch
 svelte/svelte-put/sites/docs/src/lib/notifications/components/Svelte5.svelte	mismatch
-svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte	mismatch
