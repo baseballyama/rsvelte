@@ -4,7 +4,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::nodes::span;
 use super::svelte_store::{Function, Scopes, rename, store_calls};
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 #[cfg(test)]
 mod tests;
@@ -12,15 +12,10 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/require-store-callbacks-use-set-param",
     files: Files::All,
-    configure,
+    configure: without_options::<RequireStoreCallbacksUseSetParam>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(RequireStoreCallbacksUseSetParam))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct RequireStoreCallbacksUseSetParam;
 
 impl SvelteRule for RequireStoreCallbacksUseSetParam {

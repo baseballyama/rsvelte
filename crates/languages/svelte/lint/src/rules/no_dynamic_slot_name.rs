@@ -4,20 +4,15 @@ use rsvelte_svelte_syntax::syntax_tree::{Part, TemplateNode};
 
 use super::constant_string::{root, string_if_constant};
 use super::markup::{is_attribute, parts, quote, value_span};
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-dynamic-slot-name",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoDynamicSlotName>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoDynamicSlotName))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoDynamicSlotName;
 
 impl SvelteRule for NoDynamicSlotName {

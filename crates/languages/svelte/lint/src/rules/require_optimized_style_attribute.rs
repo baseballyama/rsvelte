@@ -3,20 +3,15 @@ use rsvelte_stylesheet_syntax::postcss::InlineNode;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue};
 
 use super::style_attribute::{inline_style, is_style};
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/require-optimized-style-attribute",
     files: Files::Components,
-    configure,
+    configure: without_options::<RequireOptimizedStyleAttribute>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(RequireOptimizedStyleAttribute))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct RequireOptimizedStyleAttribute;
 
 const COMPLEX: (&str, &str) = ("complex", "It cannot be optimized because too complex.");

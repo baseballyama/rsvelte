@@ -14,20 +14,15 @@ use super::legacy_reactivity::{expression_node, legacy};
 use super::nodes::span;
 use super::reactive_statements::{by_statement, reactive_statements};
 use super::svelte_store::is_value;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/infinite-reactive-loop",
     files: Files::Components,
-    configure,
+    configure: without_options::<InfiniteReactiveLoop>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(InfiniteReactiveLoop))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct InfiniteReactiveLoop;
 
 impl SvelteRule for InfiniteReactiveLoop {

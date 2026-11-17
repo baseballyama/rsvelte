@@ -5,20 +5,15 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::nodes::span;
 use super::reactive_statements::reactive_statements;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-reactive-literals",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoReactiveLiterals>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoReactiveLiterals))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoReactiveLiterals;
 
 impl SvelteRule for NoReactiveLiterals {

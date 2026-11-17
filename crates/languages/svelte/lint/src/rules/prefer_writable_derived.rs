@@ -9,20 +9,15 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use super::javascript::walk;
 use super::nodes::{is_named, span, text};
 use super::runes::runes_or_undetermined;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-writable-derived",
     files: Files::All,
-    configure,
+    configure: without_options::<PreferWritableDerived>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(PreferWritableDerived))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct PreferWritableDerived;
 
 impl SvelteRule for PreferWritableDerived {

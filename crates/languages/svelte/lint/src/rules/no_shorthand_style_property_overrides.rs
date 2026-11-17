@@ -4,20 +4,15 @@ use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 use rustc_hash::FxHashSet;
 
 use super::style_attribute::property_sets;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-shorthand-style-property-overrides",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoShorthandStylePropertyOverrides>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoShorthandStylePropertyOverrides))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoShorthandStylePropertyOverrides;
 
 impl SvelteRule for NoShorthandStylePropertyOverrides {

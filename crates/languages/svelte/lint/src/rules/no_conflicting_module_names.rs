@@ -1,20 +1,15 @@
 use rsvelte_lint_runner::rule::Reporter;
 
 use crate::computation::{SameNamedFile, SameNamedFileOnDisk};
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-conflicting-module-names",
     files: Files::All,
-    configure,
+    configure: without_options::<NoConflictingModuleNames>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoConflictingModuleNames))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoConflictingModuleNames;
 
 impl SvelteRule for NoConflictingModuleNames {

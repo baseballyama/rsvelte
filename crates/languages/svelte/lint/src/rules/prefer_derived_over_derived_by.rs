@@ -8,20 +8,15 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use super::javascript::walk;
 use super::nodes::{is_named, span, text};
 use super::runes::runes_or_undetermined;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-derived-over-derived-by",
     files: Files::All,
-    configure,
+    configure: without_options::<PreferDerivedOverDerivedBy>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(PreferDerivedOverDerivedBy))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct PreferDerivedOverDerivedBy;
 
 impl SvelteRule for PreferDerivedOverDerivedBy {

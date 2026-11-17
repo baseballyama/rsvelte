@@ -20,20 +20,15 @@ use super::legacy_reactivity::{expression_node, legacy, property_name};
 use super::nodes::span;
 use super::runes::runes_mode;
 use super::svelte_store::is_value;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-destructured-store-props",
     files: Files::All,
-    configure,
+    configure: without_options::<PreferDestructuredStoreProps>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(PreferDestructuredStoreProps))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct PreferDestructuredStoreProps;
 
 impl SvelteRule for PreferDestructuredStoreProps {

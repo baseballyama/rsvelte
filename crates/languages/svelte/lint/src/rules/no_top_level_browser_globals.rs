@@ -21,20 +21,15 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use super::javascript::walk;
 use super::nodes::span;
 use super::runes::is_svelte_file;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-top-level-browser-globals",
     files: Files::All,
-    configure,
+    configure: without_options::<NoTopLevelBrowserGlobals>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoTopLevelBrowserGlobals))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoTopLevelBrowserGlobals;
 
 /// Every browser global that Node.js lacks, and `window` and `document`.

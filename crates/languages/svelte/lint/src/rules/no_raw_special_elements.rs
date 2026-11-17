@@ -3,23 +3,18 @@ use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode, TokenType};
 
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-raw-special-elements",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoRawSpecialElements>,
 };
 
 /// Names that Svelte 4 read as special elements without the `svelte:` prefix.
 const SPECIAL: &[&str] = &["head", "body", "window", "document", "element", "options"];
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoRawSpecialElements))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoRawSpecialElements;
 
 impl SvelteRule for NoRawSpecialElements {

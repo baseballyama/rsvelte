@@ -6,20 +6,15 @@ use rsvelte_svelte_syntax::syntax_tree::TokenType;
 
 use super::nodes::span;
 use super::reactive_statements::{between, reactive_statements};
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-reactive-functions",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoReactiveFunctions>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoReactiveFunctions))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoReactiveFunctions;
 
 impl SvelteRule for NoReactiveFunctions {

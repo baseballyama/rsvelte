@@ -1,20 +1,15 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-at-html-tags",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoAtMarkupTags>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoAtMarkupTags))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoAtMarkupTags;
 
 impl SvelteRule for NoAtMarkupTags {

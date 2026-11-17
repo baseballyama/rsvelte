@@ -4,7 +4,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::javascript::walk;
 use super::nodes::span;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 #[cfg(test)]
 mod tests;
@@ -12,15 +12,10 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-ignored-unsubscribe",
     files: Files::All,
-    configure,
+    configure: without_options::<NoIgnoredUnsubscribe>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoIgnoredUnsubscribe))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoIgnoredUnsubscribe;
 
 impl SvelteRule for NoIgnoredUnsubscribe {

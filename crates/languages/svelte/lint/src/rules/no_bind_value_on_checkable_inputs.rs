@@ -6,20 +6,15 @@ use rsvelte_svelte_syntax::syntax_tree::{
 use rsvelte_typescript_semantic::static_value::{StaticValues, Value};
 
 use super::markup::{is_attribute, parts};
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-bind-value-on-checkable-inputs",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoBindValueOnCheckableInputs>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoBindValueOnCheckableInputs))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoBindValueOnCheckableInputs;
 
 impl SvelteRule for NoBindValueOnCheckableInputs {

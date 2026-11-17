@@ -9,20 +9,15 @@ use rustc_hash::FxHashMap;
 
 use super::javascript::{span, walk};
 use super::runes::is_svelte_file;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-svelte-reactivity",
     files: Files::All,
-    configure,
+    configure: without_options::<PreferSvelteReactivity>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(PreferSvelteReactivity))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct PreferSvelteReactivity;
 
 /// The built-in classes whose constructions the rule checks.

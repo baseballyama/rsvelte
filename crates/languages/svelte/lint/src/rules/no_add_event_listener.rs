@@ -6,20 +6,15 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::javascript::walk;
 use super::nodes::span;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-add-event-listener",
     files: Files::All,
-    configure,
+    configure: without_options::<NoAddEventListener>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoAddEventListener))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoAddEventListener;
 
 impl SvelteRule for NoAddEventListener {

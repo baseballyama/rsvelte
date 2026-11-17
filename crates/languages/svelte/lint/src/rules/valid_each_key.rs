@@ -6,20 +6,15 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
 use rsvelte_svelte_semantic::resolve::Resolution;
 
 use super::nodes;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/valid-each-key",
     files: Files::Components,
-    configure,
+    configure: without_options::<ValidEachKey>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(ValidEachKey))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct ValidEachKey;
 
 impl SvelteRule for ValidEachKey {

@@ -6,20 +6,15 @@ use rsvelte_svelte_syntax::syntax_tree::{TemplateNode, TokenType};
 
 use super::nodes;
 use super::runes::runes;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-at-const-tags",
     files: Files::Components,
-    configure,
+    configure: without_options::<NoAtConstTags>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(NoAtConstTags))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NoAtConstTags;
 
 impl SvelteRule for NoAtConstTags {

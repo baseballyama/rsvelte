@@ -17,20 +17,15 @@ use super::javascript::walk;
 use super::legacy_reactivity::is_markup_element;
 use super::nodes::span;
 use super::svelte_store::store_calls;
-use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/require-store-reactive-access",
     files: Files::Components,
-    configure,
+    configure: without_options::<RequireStoreReactiveAccess>,
 };
 
-fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
-    options.none()?;
-    Ok(Box::new(RequireStoreReactiveAccess))
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct RequireStoreReactiveAccess;
 
 impl SvelteRule for RequireStoreReactiveAccess {
