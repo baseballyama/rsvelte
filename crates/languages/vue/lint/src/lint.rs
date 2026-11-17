@@ -7,12 +7,9 @@
 
 use oxc_ast::ast::{BindingIdentifier, FormalParameters};
 use oxc_semantic::SymbolId;
-use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::catalog::{Leveled, all, levels};
 use rsvelte_lint_runner::configuration::RuleLevels;
-use rsvelte_lint_runner::finding::Finding;
-use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_markup_lint::button_type::{Allowed, Problem, check_static};
 use rsvelte_markup_syntax::character_references::{Place, Rules, decode};
@@ -43,18 +40,6 @@ static RULES: &[&VueRule] = &[
     &MultiWordComponentNames,
     &VueNoUnusedVariables,
 ];
-
-/// # Errors
-///
-/// A rule failed.
-pub(crate) fn lint(
-    context: &RuleContext<'_>,
-    rules: &[Enabled],
-) -> Result<Vec<Finding>, Diagnostic> {
-    let mut f = Findings::new();
-    f.run(rules, context);
-    f.finish()
-}
 
 /// Every rule at its own severity.
 pub(crate) fn every_rule() -> Vec<Enabled> {

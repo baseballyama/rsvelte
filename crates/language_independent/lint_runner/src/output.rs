@@ -1,11 +1,14 @@
 //! Findings as `ESLint` reports them.
 
+use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::task::TaskOutput;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
-use rsvelte_kernel::source::positions::{LineIndex, Span};
+use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
 
 use crate::finding::{Finding, UNUSED_DIRECTIVE};
+use crate::findings::Findings;
+use crate::rule::Rule;
 
 /// Bytes of one finding's pretty JSON beyond its rule and message, with room for large positions,
 /// so the output is allocated once.
@@ -47,6 +50,30 @@ impl<'a> Positions<'a> {
             at.column
         };
         (at.line, column)
+    }
+}
+
+/// Runs `rules` over `context` in `document` and writes what they find, or the error a rule
+/// failed with.
+pub fn run<C: ?Sized, R: Rule<C>>(
+    out: &mut TaskOutput,
+    document: &DocumentContext<'_>,
+    rules: &[R],
+    context: &C,
+) {
+    let mut findings = Findings::new();
+    findings.run(rules, context);
+    match findings.finish() {
+        Ok(findings) => report(
+            out,
+            Positions::new(
+                &|| document.lines(LineBreaks::Ecmascript),
+                document.source_text(),
+            ),
+            rules.iter().map(Rule::identifier),
+            findings,
+        ),
+        Err(error) => out.diagnostics.push(error),
     }
 }
 
