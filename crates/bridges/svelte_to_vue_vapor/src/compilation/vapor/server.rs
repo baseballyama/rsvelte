@@ -66,18 +66,9 @@ impl<'o> Emitter<'_, 'o> {
                 index += 1;
                 continue;
             }
-            if self.structural(nodes[index], DirectiveName::If).is_some() {
-                let start = index;
-                index += 1;
-                while index < nodes.len()
-                    && (self
-                        .structural(nodes[index], DirectiveName::ElseIf)
-                        .is_some()
-                        || self.structural(nodes[index], DirectiveName::Else).is_some())
-                {
-                    index += 1;
-                }
-                output.push(self.server_if(&nodes[start..index]));
+            if let Some(end) = self.if_run_end(nodes, index) {
+                output.push(self.server_if(&nodes[index..end]));
+                index = end;
             } else {
                 output.push(self.server_node(nodes[index]));
                 index += 1;
@@ -94,13 +85,7 @@ impl<'o> Emitter<'_, 'o> {
     fn server_if(&mut self, nodes: &[CompilerNodeIdentifier]) -> Expression<'o> {
         let b = self.b;
         let first = nodes[0];
-        let condition = [DirectiveName::If, DirectiveName::ElseIf]
-            .into_iter()
-            .find_map(|name| self.structural(first, name))
-            .and_then(|directive| match directive.exp {
-                DirectiveExpression::Expression(expression) => Some(expression),
-                _ => None,
-            });
+        let condition = self.branch_test(first);
         let content = self.server_node(first);
         let Some(condition) = condition else {
             return content;
