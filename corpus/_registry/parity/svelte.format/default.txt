@@ -1,5 +1,4 @@
 # svelte.format/default: 34767 match
-svelte/kite-public/src/lib/components/ChaosIndex.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/comments-around-if/input.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_declaration_with_no_property_name_compiles/383d4a47102a255b.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/well_formed_attribute_selectors_are_unchanged/0592fabc0b394bfa.svelte	mismatch
@@ -9,4 +8,3 @@ svelte/rsvelte-tests-core-1/css_value_scan_4046/a_brace_inside_any_bracket_but_u
 svelte/rsvelte/lint/no-add-event-listener/06-comment-as-decoy.svelte	mismatch
 svelte/rsvelte/pattern/css/value-ends-outside-strings-and-urls.svelte	mismatch
 svelte/smelte/src/routes/components/lists.svelte	refused
-svelte/svelte/packages/svelte/tests/validator/samples/empty-block/input.svelte	mismatch

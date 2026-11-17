@@ -62,7 +62,7 @@
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/primo/src/lib/builder/views/modal/SitePages/Item.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 "svelte.check" = "upstream bug: svelte2tsx types a forwarded event from the component itself through its own render function, so svelte-check reports 7023 on `$$render` and drops the props errors of the self-reference"
 
@@ -79,7 +79,7 @@
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/networking-toolbox/src/lib/components/tools/IPv6SolicitedNode.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/primo/src/lib/builder/views/modal/SitePages/SitePages.svelte".skip]
@@ -167,7 +167,7 @@
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/svelte-commerce/src/lib/components/nav/nav.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/kite-public/src/lib/components/story/SelectableText.svelte".skip]
@@ -236,7 +236,7 @@
 "svelte.compile/client" = "upstream bug: an element that holds a {#snippet} shares its parent's memoizer, so the parent's template_effect also takes the values the element's own effect memoized, as parameters it never reads"
 
 ["svelte/networking-toolbox/src/lib/components/tools/ReversePTRGenerator.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 "svelte.compile/client" = "upstream bug: an element that holds a {#snippet} shares its parent's memoizer, so the parent's template_effect also takes the values the element's own effect memoized, as parameters it never reads"
 
 ["svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/component-named-slot/input.svelte".skip]
@@ -1315,7 +1315,7 @@
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
 
 ["svelte/kener/src/routes/(docs)/docs/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line; crates/oxc_formatter_css/DIVERGENCES.md#signed-value-resplit"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure; crates/oxc_formatter_css/DIVERGENCES.md#signed-value-resplit"
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
 
 ["svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/code-actions/remove-imports-inline.svelte".skip]
@@ -3962,7 +3962,7 @@
 "svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
 
 ["svelte/kite-public/src/lib/components/story/CitationText.svelte".skip]
-"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry; fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry; crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 "svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
 
 ["svelte/kite-public/src/lib/components/story/StoryCard.svelte".skip]
@@ -4248,23 +4248,23 @@
 "svelte.lint" = "upstream bug: with runes or a store, svelte/indent lays out a mapped type by its deprecated `typeParameter`, which keeps a virtual-code range, so unrelated lines move"
 
 ["svelte/kampsy-ui/src/routes/badge/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 "svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
 
 ["svelte/kampsy-ui/src/routes/button/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 "svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
 
 ["svelte/kampsy-ui/src/routes/checkbox/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 "svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
 
 ["svelte/kampsy-ui/src/routes/collapse/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 "svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
 
 ["svelte/kampsy-ui/src/routes/installation/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 "svelte.lint" = "upstream bug: svelte/indent takes the last `(` in the body of a snippet without parameters as the start of its parameter list"
 
 ["svelte/svelte-toast/src/routes/+layout.svelte".skip]
@@ -5060,277 +5060,277 @@
 "svelte.check" = "oracle: TS2590 comes from svelte2tsx nesting the props in `{ props: {...} }`; passed directly, as rsvelte does, TypeScript reports only TS2353"
 
 ["svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/lib/components/domains/recordTable.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/lib/components/git/connectRepoModal.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/lib/components/organizationUsageLimits.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/account/deleteAccount.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/organization-[organization]/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/organization-[organization]/billing/paymentHistory.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/organization-[organization]/settings/BAAEnableModal.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/organization-[organization]/settings/downloadDPA.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/passwordStrengthPolicy.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/updateMembershipPrivacy.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/updateMfaFactors.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/updateSessionLength.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/updateSignupEmailSecurity.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/updateUsersLimit.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/teams/team-[team]/dangerZone.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/templates/emailSignature.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/field/editPermissions.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/settings/danger.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/settings/security.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/backups/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/create.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/settings/displayName.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/dangerZone.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updateScopes.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updateTimeout.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/providers/provider-[provider]/dangerZone.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/android.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/appleIOS.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createFlutter.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createReactNative.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/pausedProjectModal.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/deleteProject.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/premiumGeoDBEnableModal.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/smtp/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/updateOAuth2Server.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/updateProtocols.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/updateServices.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/updateSecurity.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/updateSignature.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/sites/site-[site]/settings/updateBuildSettings.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(public)/functions/deploy/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(public)/oauth2/consent-card.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(public)/sites/deploy/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/appwrite-console/src/routes/(public)/template-[template]/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/bits-ui/docs/src/lib/components/demos/collapsible-hidden-until-found-demo.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/bits-ui/tests/src/tests/accordion/accordion-hidden-until-found-test.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/bits-ui/tests/src/tests/accordion/accordion-multi-hidden-until-found-test.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/carbon-components-svelte/docs/src/pages/framed/FloatingPortal/FloatingPortalDialog.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/carbon-components-svelte/docs/src/pages/framed/FloatingPortal/FloatingPortalIntrinsicAlign.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/carbon-components-svelte/docs/src/pages/framed/LocalStorage/LocalStorageObject.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cmsaasstarter/src/routes/(admin)/account/(menu)/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cmsaasstarter/src/routes/(admin)/account/(menu)/billing/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cmsaasstarter/src/routes/(admin)/account/(menu)/settings/change_password/+page.svelte".skip]
-"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry; fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry; crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/lib/components/blocks/content/content-four.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/lib/components/mist/mcta/three.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/lib/components/mist/mlogin/one.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/lib/components/mist/msignup/one.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/lib/components/veil/comparator/comparator-three.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
 
 ["svelte/cnblocks/src/lib/components/veil/content/content-one.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/lib/components/veil/content/content-three.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/lib/components/veil/content/content-two.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/lib/components/veil/stats/stats-four.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/lib/components/veil/stats/stats-one.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/lib/components/veil/stats/stats-three.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/lib/components/veil/stats/stats-two.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/lib/web/layouts/SiteHero.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/routes/(app)/docs/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/routes/(app)/v2-docs/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/routes/(app)/v2-docs/mist-theme/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/cnblocks/src/routes/(app)/v2-docs/veil-theme/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/collaboration/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/configuration/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/customization/localization/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/customization/styling/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/extensions/ai/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/extensions/callout/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/extensions/code-block/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/extensions/drag-handle/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/extensions/markdown/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/extensions/media-and-mermaid/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/extensions/slash-command/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/extensions/starter-kit/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/extensions/table-of-contents/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/extensions/tables/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/extensions/typography-and-colors/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/installation/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/docs/usages/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/edra/src/routes/realtime/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-add-event-listener/invalid/test01-input.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#callee-arguments-gap-comment"
@@ -5339,163 +5339,163 @@
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
 
 ["svelte/flowbite-svelte/src/routes/admin-dashboard/utils/dashboard/Chat.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/builder/tab/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/accordion/Default.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/accordion/MultipleMode2.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/accordion/Nesting.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Bottom.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Default.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Disabled.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/DisablingOutside.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Enabled.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Left.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/NonModal.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/OnlyOutside.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Placement.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Position.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Right.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Scrolling.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/drawer/Top.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/kbd/Text.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/modal/Crypto.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/popover/Description.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/popover/Image.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/popover/Progress.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/ActiveClass.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/BindSelected.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/CompoIn.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Default.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Full.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Icons.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Pills.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Snapshot.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Underline.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/extend/clipboard-manager/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/extend/clipboard-manager/examples/Interactive.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/extend/scroll-spy/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/extend/virtual-list/CustomStyling.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/forms/input-field/Snapshot.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/forms/textarea/Snapshot.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/typography/blockquote/Icon.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/typography/link/Paragraph.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/typography/paragraph/Bold.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/typography/paragraph/Italic.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/typography/paragraph/Link.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/typography/paragraph/Popover.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/typography/paragraph/Underline.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/typography/text/TextDecoration.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/docs-examples/typography/text/Underline.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/flowbite-svelte/src/routes/landing/CTA.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/joy-of-code/src/routes/about/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/kampsy-ui/src/routes/avatar/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/kampsy-ui/src/routes/choicebox/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/kampsy-ui/src/routes/menu/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/kampsy-ui/src/routes/note/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/kener/src/lib/components/CopyButton.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
@@ -5510,34 +5510,34 @@
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
 
 ["svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-ssl.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/kener/src/routes/(manage)/manage/nav-user.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/kener/src/routes/+error.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#signed-value-resplit"
 
 ["svelte/kite-public/src/lib/components/contribute/ContributeFeedStep.svelte".skip]
-"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#text-width; fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#text-width; crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/kite-public/src/lib/components/nhl/NHLScores.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/layercake/src/routes/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/layercake/src/routes/components/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/layerchart/docs/src/examples/components/BarChart/sparkbar-within-a-paragraph-with-tooltip-and-highlight.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/layerchart/docs/src/examples/components/BarChart/sparkbar-within-a-paragraph.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/layerchart/docs/src/examples/components/Brush/two-dimensional.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/layerchart/docs/src/examples/components/BrushContext/synced-brushes.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
@@ -5549,16 +5549,16 @@
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
 
 ["svelte/layerchart/docs/src/examples/components/LineChart/perf-series-arrays.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/layerchart/docs/src/examples/components/LineChart/perf-wide-data.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/layerchart/docs/src/examples/components/LineChart/sparkline-within-a-paragraph-with-tooltip-and-highlight.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/layerchart/docs/src/examples/components/LineChart/sparkline-within-a-paragraph.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/layerchart/examples/shadcn-svelte-1/src/lib/components/ui/chart/chart-tooltip.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#eol-comment-after-assign-colon"
@@ -5576,184 +5576,184 @@
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
 
 ["svelte/mode-watcher/docs/src/routes/(landing)/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/furniture/SettingsPanel.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/page-specific/about/AuthorSection.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/page-specific/about/DeployingSection.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/page-specific/about/SelfHostingSection.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/page-specific/about/TipsSection.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/CommonSubnetsReference.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/DHCPOption43Generator.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/DHCPv6DNSBuilder.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/DHCPv6FQDN.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/DKIMKeyGenerator.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/DNSCNAMEBuilder.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
 
 ["svelte/networking-toolbox/src/lib/components/tools/DNSKEYKeyTag.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/DNSRecordValidator.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/DNSSRVBuilder.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/DSGenerator.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/EUI64.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/FreeformTLVBuilder.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/IDNPunycodeConverter.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/IPConverter.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/IPEnumerate.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/IPv6NAT64.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/IPv6Teredo.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/IPv6ZoneID.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/NameLengthChecker.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/NetworkClassesReference.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/PTRSweepPlanner.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/RRSIGPlanner.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/ReservedRangesReference.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/ReverseZoneGenerator.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/ReverseZonesCalculator.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/SubnetCalculator.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/TTLCalculator.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/ZoneDiff.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/ZoneLinter.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/lib/components/tools/ZoneStats.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/+error.svelte".skip]
 "svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
 
 ["svelte/networking-toolbox/src/routes/about/legal/privacy/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/cidr/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/cidr/split/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/cidr/summarize/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/diagnostics/dns/axfr-tester/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/diagnostics/dns/dnssec-adflag/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/diagnostics/dns/soa-serial/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/diagnostics/email/dmarc-check/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/diagnostics/email/mx-health/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/diagnostics/email/spf-check/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/diagnostics/network/tcp-port-check/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/diagnostics/tls/certificate/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/diagnostics/tls/ct-log-search/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/diagnostics/tls/handshake-analyzer/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/diagnostics/tls/ocsp-stapling/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/diagnostics/tls/versions/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/ip-address-convertor/families/+layout.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/ip-address-convertor/notation/+layout.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/reference/reserved-ranges/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/subnetting/ipv6-subnet-calculator/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/networking-toolbox/src/routes/subnetting/supernet-calculator/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/originui-svelte/src/lib/components/avatars/avatar-23.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/primo/src/lib/components/ConnectDomain.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/primo/src/routes/auth/AuthForm.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
@@ -6029,25 +6029,25 @@
 "svelte.format" = "oxc formatter: apps/oxfmt/DIVERGENCES.md#ts-in-vue-generic-trailing-comma"
 
 ["svelte/rsvelte-tests-formatter/in_place_value_and_render_prose/prose_after_a_render_tag_breaks_once_past_the_width/a9beb0f506c3ea79.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/rsvelte-tests-formatter/in_place_value_and_render_prose/prose_after_a_render_tag_overflows_by_its_last_word/fb385a26671876aa.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/rsvelte-tests-formatter/markup_wrap/overflowing_single_line_prose_in_component_body_wraps/41cd67f7be09be48.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/rsvelte-tests-formatter/prettier_ignore/prose_after_ignored_inline_node_wraps/14c7e43adc857b87.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/rsvelte-tests-formatter/prettier_ignore/prose_after_ignored_inline_node_wraps/aa1d8174192227ac.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/rsvelte-tests-formatter/prettier_ignore/prose_wraps_across_ignored_inline_node/32de57461c44cd6b.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/rsvelte-tests-formatter/prettier_ignore/prose_wraps_across_ignored_inline_node/e8e85bc6930d4424.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/rsvelte-tests-formatter/style_block/a_tab_indented_body_never_mixes_tabs_into_the_block_indent/1df5e59116f7f0aa.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
@@ -6131,7 +6131,7 @@
 "svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
 
 ["svelte/rsvelte/pattern/adversarial/elements/very-long-text-runs.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/rsvelte/pattern/css/consecutive-and-column-combinators.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
@@ -6155,19 +6155,19 @@
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#suppressed-terminator-per-semi"
 
 ["svelte/shadcn-svelte-extras/src/lib/components/docs/installation-setup-tabs.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/shadcn-svelte-extras/src/lib/components/ui/chart/chart-tooltip.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#eol-comment-after-assign-colon"
 
 ["svelte/shadcn-svelte-extras/src/lib/components/ui/file-drop-zone/file-drop-zone-trigger.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#text-width"
 
 ["svelte/shadcn-svelte/docs/src/lib/registry/examples/create/accordion/accordion-in-card.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/shadcn-svelte/docs/src/lib/registry/examples/create/collapsible/collapsible-file-tree.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
@@ -6176,136 +6176,136 @@
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
 
 ["svelte/shadcn-svelte/docs/src/lib/registry/examples/create/github/profile.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/shadcn-svelte/docs/src/lib/registry/examples/create/preview/cards/activate-agent-dialog.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/shadcn-svelte/docs/src/lib/registry/examples/create/preview/cards/github-profile.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/shadcn-svelte/docs/src/lib/registry/ui/chart/chart-tooltip.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#eol-comment-after-assign-colon"
 
 ["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/initialize-dialog.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/skeleton/sites/plus.skeleton.dev/src/routes/(app)/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/skeleton/sites/plus.skeleton.dev/src/routes/(app)/overview/pricing/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Preview/PreviewTypography.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/smelte/src/routes/color.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/smelte/src/routes/dark-mode.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/smelte/src/routes/index.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svar-core/svelte/demos/cases/DropdownScroll.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-bits/src/lib/components/docs/pages/Installation.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-bits/src/lib/components/docs/pages/Introduction.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-bits/src/lib/components/docs/pages/McpServer.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-calendar/src/lib/components/calendar/Calendar.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#signed-value-resplit"
 
 ["svelte/svelte-calendar/src/lib/docs/examples/CustomTheme.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-calendar/src/lib/docs/examples/Formatting.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-codemirror-editor/src/lib/CodeMirror.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
 
 ["svelte/svelte-command-palette/src/routes/docs/command-palette-api/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-command-palette/src/routes/docs/custom-components/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-command-palette/src/routes/docs/define-actions-api/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-command-palette/src/routes/docs/palette-store/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-command-palette/src/routes/docs/shortcuts/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-command-palette/src/routes/docs/store-methods-api/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-commerce/src/lib/components/product-catalogue/pincode-check.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-commerce/src/routes/(www)/checkout/payment/payment.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-commerce/src/routes/(www)/checkout/success/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-confetti/src/routes/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-eslint-parser/tests/fixtures/integrations/type-info-tests/plugin-issue254-input.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-fa/src/routes/components/sections/additional-styling.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-fa/src/routes/components/sections/installation.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-gantt/packages/demo/src/routes/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-gantt/packages/docs-mdsvex/src/routes/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-inspect-value/apps/docs/src/components/global-opts/ScrollToButton.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#signed-value-resplit"
 
 ["svelte/svelte-inspect-value/packages/svelte/src/doclib/examples/Stores.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/reference/custom/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/reference/getting-started/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/reference/panel/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/reference/values/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/theming/themes/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/usage/hotkeys/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/usage/search/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDialog.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
@@ -6317,28 +6317,28 @@
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
 
 ["svelte/svelte-maplibre/src/routes/examples/3d_buildings/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-maplibre/src/routes/examples/3d_terrain/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-maplibre/src/routes/examples/clusters/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-maplibre/src/routes/examples/custom_marker_clusters/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-maplibre/src/routes/examples/data_join/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-maplibre/src/routes/examples/geojson_line_layer/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-maplibre/src/routes/examples/geojson_polygon/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-maplibre/src/routes/examples/overlapping_layer_events/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-material-ui/packages/drawer/src/Drawer.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
@@ -6347,145 +6347,145 @@
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
 
 ["svelte/svelte-material-ui/packages/site/src/routes/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-material-ui/packages/site/src/routes/demo/card/_Complex.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-material-ui/packages/site/src/routes/demo/common/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-material-ui/packages/site/src/routes/demo/image-list/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-material-ui/packages/site/src/routes/demo/paper/_Square.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-material-ui/packages/site/src/routes/demo/quick-guide/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-material-ui/packages/site/src/routes/demo/select/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-pivottable/src/routes/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-put/sites/docs/src/packages/clickoutside/_page/examples/demo.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-put/sites/docs/src/packages/resize/_page/examples/example.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-put/sites/docs/src/routes/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-sonner/src/components/Hero.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-sonner/src/routes/test/+page.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
 
 ["svelte/svelte-spa-router/examples/basic-routing/src/routes/Home.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-spa-router/examples/dynamic-imports/src/App.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-spa-router/examples/dynamic-imports/src/routes/Home.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-splitpanes/src/routes/examples/default-size/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-splitpanes/src/routes/examples/min-max/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-splitpanes/src/routes/examples/prog-resize/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-splitpanes/src/routes/examples/styling/splitters/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-table/example/Example5.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-ux/packages/svelte-ux/src/routes/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/TableOfContents/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelte/packages/svelte/tests/hydration/samples/claim-text/Layout.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/sveltepress/packages/theme-default/src/components/GlobalLayout.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#signed-value-resplit"
 
 ["svelte/sveltepress/packages/vite/__tests__/real-world.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/sveltestrap/src/Offcanvas/Offcanvas.stories.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/sveltestrap/src/Popover/Popover.stories.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelteui/packages/svelteui-core/src/components/Accordion/Accordion.stories.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.chevron.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.controlled.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.custom.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.data.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.default.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.defaultMultiple.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.disabled.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.noTransition.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/svelteui/packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.transitionDuration.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/syntaxfm-website/src/routes/(site)/about/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/syntaxfm-website/src/routes/(site)/oss/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/syntaxfm-website/src/routes/(site)/potluck/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/syntaxfm-website/src/routes/(site)/snackpack/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/syntaxfm-website/src/routes/(site)/system/typography/+page.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/threlte/apps/docs/src/components/ManualInstallGuide/ManualInstallGuide.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/threlte/apps/docs/src/examples/extras/use-follow/Scene.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/threlte/apps/docs/src/examples/rapier/collider/AttachedCollider.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/threlte/apps/docs/src/examples/rapier/collider/StandaloneCollider.svelte".skip]
-"svelte.format" = "oxc formatter: fill wraps the word after a separator that would pass the print width, where Prettier keeps it on the line"
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
 
 ["svelte/threlte/packages/studio/src/lib/components/IconButton.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#union-annotation-flat-retry"
@@ -6522,3 +6522,9 @@
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/fe4798f5a87b6972.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter_core/FORMATTER_POLICY.md#error-semantics"
+
+["svelte/kite-public/src/lib/components/ChaosIndex.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter/DIVERGENCES.md#head-body-comment-relocation"
+
+["svelte/svelte/packages/svelte/tests/validator/samples/empty-block/input.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#line-start-line-collapse"

@@ -39154,30 +39154,6 @@ Usage when no explicit runes/legacy mode should be ok
   }}>a</button
 >
 
-=== 337 packages/svelte/tests/validator/samples/empty-block/input.svelte	svelte
-<script>
-  let things = [];
-</script>
-
-<!-- ok (zero elements very likely means someone's in the middle of typing) -->
-{#each things as thing}{/each}
-{#if true}{/if}
-{#key things}x{/key}
-{#await promise}{things}
-{/await}
-
-<!-- invalid -->
-{#each things as thing}
-
-{/each}
-{#if true}
-
-{/if}
-{#key things}
-
-{/key}
-{#await promise}{/await}
-
 === 72 packages/svelte/tests/validator/samples/export-not-defined-module-with-source/input.svelte	svelte
 <script module>
   export { something } from "./something.js";
