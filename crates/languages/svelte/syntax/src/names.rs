@@ -101,17 +101,34 @@ fn is_valid_tag_name(name: &str) -> bool {
         return false;
     }
     tail.is_none_or(|t| {
-        t.chars().all(|c| {
-            c.is_ascii_alphanumeric()
-                || matches!(c, '.' | '-' | '_' | '\u{b7}')
-                || matches!(c, '\u{c0}'..='\u{d6}' | '\u{d8}'..='\u{f6}' | '\u{f8}'..='\u{37d}')
-                || matches!(c, '\u{37f}'..='\u{1fff}' | '\u{200c}'..='\u{200d}')
-                || matches!(c, '\u{203f}'..='\u{2040}' | '\u{2070}'..='\u{218f}')
-                || matches!(c, '\u{2c00}'..='\u{2fef}' | '\u{3001}'..='\u{d7ff}')
-                || matches!(c, '\u{f900}'..='\u{fdcf}' | '\u{fdf0}'..='\u{fffd}')
-                || matches!(c, '\u{10000}'..='\u{effff}')
-        })
+        t.chars()
+            .all(|c| c.is_ascii_uppercase() || is_tag_character(c))
     })
+}
+
+/// The HTML standard's `PCENChar`, and `-`.
+pub(crate) const fn is_tag_character(c: char) -> bool {
+    matches!(
+        c,
+        'a'..='z'
+            | '0'..='9'
+            | '_'
+            | '.'
+            | '-'
+            | '\u{b7}'
+            | '\u{c0}'..='\u{d6}'
+            | '\u{d8}'..='\u{f6}'
+            | '\u{f8}'..='\u{37d}'
+            | '\u{37f}'..='\u{1fff}'
+            | '\u{200c}'..='\u{200d}'
+            | '\u{203f}'..='\u{2040}'
+            | '\u{2070}'..='\u{218f}'
+            | '\u{2c00}'..='\u{2fef}'
+            | '\u{3001}'..='\u{d7ff}'
+            | '\u{f900}'..='\u{fdcf}'
+            | '\u{fdf0}'..='\u{fffd}'
+            | '\u{10000}'..='\u{effff}'
+    )
 }
 
 /// Upstream `meta_tags`: the `svelte:` elements.
