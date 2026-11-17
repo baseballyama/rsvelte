@@ -17,7 +17,6 @@ mod first_attribute_linebreak;
 mod inactive;
 mod indent;
 mod infinite_reactive_loop;
-mod javascript;
 mod kit_navigation;
 mod kit_route;
 mod legacy_reactivity;
@@ -196,7 +195,7 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
 ];
 
 /// An oxc span as the document's position type; every oxc tree is parsed in place.
-const fn node_span(span: oxc_span::Span) -> Span {
+pub(super) const fn node_span(span: oxc_span::Span) -> Span {
     Span {
         start_offset: span.start,
         end_offset: span.end,

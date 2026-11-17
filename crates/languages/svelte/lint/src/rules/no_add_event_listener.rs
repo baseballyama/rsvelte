@@ -4,7 +4,6 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::javascript::walk;
 use super::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -20,9 +19,9 @@ struct NoAddEventListener;
 impl SvelteRule for NoAddEventListener {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let source = file.source();
-        walk(file, |node| {
+        for node in file.nodes().iter() {
             let AstKind::CallExpression(call) = node.kind() else {
-                return;
+                continue;
             };
             // A cast callee is a `TSAsExpression`, which is neither a member nor a name.
             let object = match &call.callee {
@@ -39,7 +38,7 @@ impl SvelteRule for NoAddEventListener {
                     Some(&member.object)
                 }
                 Expression::Identifier(callee) if callee.name == "addEventListener" => None,
-                _ => return,
+                _ => continue,
             };
             let target = object.map_or("window", |object| span(object).text(source));
             let callee = span(&call.callee);
@@ -60,7 +59,7 @@ impl SvelteRule for NoAddEventListener {
                 });
             }
             reporter.report(report);
-        });
+        }
     }
 }
 

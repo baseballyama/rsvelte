@@ -13,7 +13,6 @@ use rsvelte_svelte_syntax::syntax_tree::{
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 use rustc_hash::FxHashMap;
 
-use super::javascript::walk;
 use super::legacy_reactivity::is_markup_element;
 use super::nodes::span;
 use super::svelte_store::store_calls;
@@ -58,7 +57,9 @@ impl SvelteRule for RequireStoreReactiveAccess {
             stores: &stores,
             reporter,
         };
-        walk(file, |node| check.javascript_node(node));
+        for node in file.nodes().iter() {
+            check.javascript_node(node);
+        }
         check.template(component);
     }
 }

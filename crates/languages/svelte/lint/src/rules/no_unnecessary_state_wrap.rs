@@ -7,7 +7,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_semantic::reference_tracker::import_references;
 use serde::Deserialize;
 
-use super::javascript::{span, walk};
+use super::node_span;
 use super::nodes::is_named;
 use super::runes::runes_or_undetermined;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
@@ -69,20 +69,20 @@ impl SvelteRule for NoUnnecessaryStateWrap {
             reporter.report(
                 Report::range(
                     format!("{class} is already reactive, $state wrapping is unnecessary."),
-                    span(argument),
+                    node_span(argument),
                 )
                 .suggest(Suggestion {
                     message: "Remove unnecessary $state wrapping".to_owned(),
-                    fix: Fix::replace(span(call), span(argument).text(source)),
+                    fix: Fix::replace(node_span(call), node_span(argument).text(source)),
                 }),
             );
         };
-        walk(file, |node| {
+        for node in file.nodes().iter() {
             let AstKind::CallExpression(call) = node.kind() else {
-                return;
+                continue;
             };
             if !is_named(&call.callee, "$state") {
-                return;
+                continue;
             }
             for argument in &call.arguments {
                 let callee = match argument.as_expression() {
@@ -104,7 +104,7 @@ impl SvelteRule for NoUnnecessaryStateWrap {
                     report(reporter, call.span, argument.span(), class, variable);
                 }
             }
-        });
+        }
         let found = import_references(
             semantic,
             &file.programs(),

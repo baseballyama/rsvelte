@@ -1,7 +1,7 @@
 use oxc_ast::AstKind;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::javascript::{span, walk};
+use super::node_span;
 use super::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -22,7 +22,7 @@ impl SvelteRule for NoInspect {
         }
         // Every identifier, as the token `$inspect`: one in a type annotation names it too.
         let mut last = None;
-        walk(file, |node| {
+        for node in file.nodes().iter() {
             let (name, at) = match node.kind() {
                 AstKind::IdentifierReference(identifier) => {
                     (identifier.name.as_str(), identifier.span)
@@ -32,14 +32,17 @@ impl SvelteRule for NoInspect {
                 }
                 AstKind::IdentifierName(identifier) => (identifier.name.as_str(), identifier.span),
                 AstKind::LabelIdentifier(identifier) => (identifier.name.as_str(), identifier.span),
-                _ => return,
+                _ => continue,
             };
             // A shorthand `{ $inspect }` is two nodes over one token.
             if name != "$inspect" || last == Some(at) {
-                return;
+                continue;
             }
             last = Some(at);
-            reporter.report(Report::range("Do not use $inspect directive", span(at)));
-        });
+            reporter.report(Report::range(
+                "Do not use $inspect directive",
+                node_span(at),
+            ));
+        }
     }
 }

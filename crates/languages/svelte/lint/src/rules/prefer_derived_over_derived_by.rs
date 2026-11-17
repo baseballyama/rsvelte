@@ -5,7 +5,6 @@ use oxc_ast::ast::{
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::javascript::walk;
 use super::nodes::{is_named, span, text};
 use super::runes::runes_or_undetermined;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
@@ -25,12 +24,12 @@ impl SvelteRule for PreferDerivedOverDerivedBy {
             return;
         }
         let source = file.source();
-        walk(file, |node| {
+        for node in file.nodes().iter() {
             let AstKind::CallExpression(call) = node.kind() else {
-                return;
+                continue;
             };
             let Some(expression) = derived_by_expression(call) else {
-                return;
+                continue;
             };
             let replacement = format!("$derived({})", text(expression, source));
             reporter.report(
@@ -41,7 +40,7 @@ impl SvelteRule for PreferDerivedOverDerivedBy {
                 )
                 .fix(Fix::replace(span(call), replacement)),
             );
-        });
+        }
     }
 }
 
