@@ -267,6 +267,7 @@ pub(crate) fn acorn(
             start,
         )),
         "1049" => Some(fails("setter should have exactly one param", start)),
+        "1108" => Some(fails("'return' outside of function", start)),
         "1473" | "1474" => Some(fails(
             "'import' and 'export' may only appear at the top level",
             start,

@@ -1,13 +1,14 @@
 //! One run of the type checker over a batch of projections: the file layer, the overlay
 //! tsconfig and the mapper's store go in, findings located in each document come out.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
-use rsvelte_typescript_api::{DiagnosticKind, Layer, Position, Session};
+use rsvelte_typescript_api::{DiagnosticKind, Layer, Position, Project, Session};
 
 use super::{CONTRACT, Tsc, TypeChecker};
 
@@ -171,8 +172,9 @@ impl Tsc {
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
         let [program, syntactic, semantic] =
             check_shares(&mut session, helpers, &config, &layer, &files).map_err(failed)?;
+        let index = path_index(&paths);
         let (untyped, untyped_names) = if own.untyped {
-            untyped::imports(req, &root, &paths)
+            untyped::imports(req, &root, &paths, &index)
         } else {
             (Vec::new(), Vec::new())
         };
@@ -198,7 +200,7 @@ impl Tsc {
             // The command line reports errors only; svelte-check's errors are the oracle.
             .filter(|(_, d)| d.category == ERROR)
             .map(|(syntactic, d)| {
-                located(&d, &root, &paths, &lines, syntactic)
+                located(&d, &root, &index, &lines, syntactic)
                     .ok_or_else(|| unlocated(&self.checker, &d))
             })
             .filter(|found| {
@@ -252,8 +254,8 @@ type Helper = std::thread::JoinHandle<Result<Session, String>>;
 type Found = Vec<rsvelte_typescript_api::Diagnostic>;
 
 /// The program, syntactic and semantic findings of `files` in the project of `config`. Every
-/// process opens the project at the same time; `session` checks the first share of the files and
-/// each helper one more.
+/// process opens the project at the same time and takes shares of the files from `Shares` until
+/// none is left; `session` also asks for the program and syntactic findings.
 fn check_shares(
     session: &mut Session,
     helpers: Vec<Helper>,
@@ -261,27 +263,25 @@ fn check_shares(
     layer: &Layer,
     files: &[&Path],
 ) -> Result<[Found; 3], String> {
-    let share = files.len().div_ceil(helpers.len() + 1).max(1);
-    let mut shares = files.chunks(share);
-    let own = shares.next().unwrap_or_default();
+    let shares = Shares::new(files, helpers.len() + 1);
+    let shares = &shares;
     std::thread::scope(|scope| {
         let running: Vec<_> = helpers
             .into_iter()
-            .zip(shares)
-            .map(|(helper, share)| {
+            .map(|helper| {
                 scope.spawn(move || {
                     let mut helper = helper
                         .join()
                         .unwrap_or_else(|panic| std::panic::resume_unwind(panic))?;
                     let project = helper.open(&[config], layer)?.remove(0);
-                    helper.diagnostics(&project, DiagnosticKind::Semantic, Some(share))
+                    shares.check(&mut helper, &project)
                 })
             })
             .collect();
         let project = session.open(&[config], layer)?.remove(0);
         let program = session.diagnostics(&project, DiagnosticKind::Program, None)?;
         let syntactic = session.diagnostics(&project, DiagnosticKind::Syntactic, Some(files))?;
-        let mut semantic = session.diagnostics(&project, DiagnosticKind::Semantic, Some(own))?;
+        let mut semantic = shares.check(session, &project)?;
         for helper in running {
             semantic.extend(
                 helper
@@ -291,6 +291,47 @@ fn check_shares(
         }
         Ok([program, syntactic, semantic])
     })
+}
+
+/// The files no process has taken yet. A process takes half of its part of what is left, as in
+/// factoring scheduling: early shares are large, so few requests are made, and the last are
+/// single files, so the processes finish together however long each file takes.
+struct Shares<'a> {
+    files: &'a [&'a Path],
+    processes: usize,
+    taken: std::sync::Mutex<usize>,
+}
+
+impl<'a> Shares<'a> {
+    const fn new(files: &'a [&'a Path], processes: usize) -> Self {
+        Self {
+            files,
+            processes,
+            taken: std::sync::Mutex::new(0),
+        }
+    }
+
+    fn take(&self) -> Option<&'a [&'a Path]> {
+        let mut taken = self
+            .taken
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let start = *taken;
+        let left = self.files.len() - start;
+        *taken += left.div_ceil(2 * self.processes);
+        let end = *taken;
+        drop(taken);
+        (left != 0).then(|| &self.files[start..end])
+    }
+
+    /// The semantic findings of each share `session` takes.
+    fn check(&self, session: &mut Session, project: &Project) -> Result<Found, String> {
+        let mut found = Vec::new();
+        while let Some(share) = self.take() {
+            found.extend(session.diagnostics(project, DiagnosticKind::Semantic, Some(share))?);
+        }
+        Ok(found)
+    }
 }
 
 fn tsconfig_json(
@@ -395,20 +436,27 @@ fn base_project(
 /// `DiagnosticCategory.Error`.
 const ERROR: u8 = 1;
 
-/// The document and byte range of a diagnostic in one of `paths`, whose texts `lines` index. A
-/// path below `root` in the message drops that root, so the message does not depend on where the
-/// project is.
 /// What native TypeScript adds to a finding in code a content mapper synthesized.
 const VIRTUAL_CODE: &str = "This location is in virtual code produced by the content mapper";
 
+/// Each document's index by its path, the first of a path given twice.
+fn path_index(paths: &[PathBuf]) -> HashMap<&Path, usize> {
+    (paths.iter().enumerate().rev())
+        .map(|(file, path)| (path.as_path(), file))
+        .collect()
+}
+
+/// The document and byte range of a diagnostic in the document `index` names, whose texts
+/// `lines` index. A path below `root` in the message drops that root, so the message does not
+/// depend on where the project is.
 fn located(
     d: &rsvelte_typescript_api::Diagnostic,
     root: &Path,
-    paths: &[PathBuf],
+    index: &HashMap<&Path, usize>,
     lines: &[LineIndex],
     syntactic: bool,
 ) -> Option<TypeScriptDiagnostic> {
-    let file = paths.iter().position(|p| Some(p) == d.file_name.as_ref())?;
+    let file = *index.get(d.file_name.as_deref()?)?;
     let offset = |p: Option<Position>| {
         let p = p?;
         lines[file].offset(p.line + 1, p.character)
@@ -449,3 +497,6 @@ mod project;
 mod script_module;
 mod untyped;
 pub(crate) use mapped::ContentMappedInput;
+
+#[cfg(test)]
+mod tests;

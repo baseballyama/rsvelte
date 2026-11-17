@@ -27,7 +27,7 @@ mod runes;
 mod walk;
 
 pub use counts::Counts;
-pub use runes::{RUNE_ROOTS, RUNES, lowers, rune_call};
+pub use runes::{RUNE_ROOTS, RUNES, is_rune, lowers, rune_call};
 pub use walk::{Roots, TemplateName, TemplateScope, walk};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -338,7 +338,7 @@ impl Resolution {
             return false;
         };
         matches!(&call.callee, Expression::Identifier(callee) if callee.span == identifier.span)
-            && RUNES.contains(&identifier.name.as_str())
+            && is_rune(&identifier.name)
     }
 
     /// The scope the reference `reference` is in.
@@ -456,7 +456,7 @@ impl Resolution {
     pub fn is_store_subscription(&self, name: &str) -> bool {
         name.strip_prefix('$')
             .is_some_and(|store| !store.is_empty() && !store.starts_with('$'))
-            && (!RUNES.contains(&name) || self.0.borrow_dependent().subscribed.contains(name))
+            && (!is_rune(name) || self.0.borrow_dependent().subscribed.contains(name))
     }
 
     /// Upstream `is_state_source`: in runes mode a `$state` needs a signal only if it is

@@ -89,6 +89,15 @@ pub(super) fn suspending_awaits(
 
         fn leave(&mut self) {}
     }
+    // The resolution's nodes hold the scripts and the template's expressions in one flat list,
+    // which is cheaper to scan than to walk, and nearly every component has no `await`.
+    let nodes = resolution.semantic().nodes();
+    if !nodes
+        .iter()
+        .any(|node| matches!(node.kind(), AstKind::AwaitExpression(_)))
+    {
+        return Vec::new();
+    }
     let tree = &component.javascript;
     let mut awaits = Awaits {
         tree,
@@ -108,3 +117,6 @@ pub(super) fn suspending_awaits(
     crate::resolve::walk(compiler_syntax_tree, compiler_syntax_tree.root, &mut awaits);
     awaits.out
 }
+
+#[cfg(test)]
+mod tests;

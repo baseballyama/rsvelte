@@ -128,7 +128,7 @@ impl Printer<'_, '_, '_> {
         let (c, source_text) = (self.c, self.source_text);
         let mut parts = Vec::new();
         for &comment in &attached.leading {
-            let text = comment_text(source_text, comment);
+            let text = comment.text(source_text);
             parts.push(self.d().text(text));
             let after = whitespace_after(c, source_text, comment);
             let separator = if !is_block(text) {
@@ -151,7 +151,7 @@ impl Printer<'_, '_, '_> {
         parts.push(document);
         let mut previous: Option<Previous> = None;
         for &comment in &attached.trailing {
-            let text = comment_text(source_text, comment);
+            let text = comment.text(source_text);
             let block = is_block(text);
             let before = whitespace_before(c, source_text, comment);
             let newline_before = before
@@ -183,16 +183,6 @@ impl Printer<'_, '_, '_> {
             previous = Some(Previous { line_suffix, block });
         }
         Ok(self.cat(&parts))
-    }
-}
-
-/// The plugin's `printComment`: a line comment without a trailing `\r`.
-fn comment_text(source_text: &str, comment: Span) -> &str {
-    let text = comment.text(source_text);
-    if is_block(text) {
-        text
-    } else {
-        text.trim_end_matches('\r')
     }
 }
 
