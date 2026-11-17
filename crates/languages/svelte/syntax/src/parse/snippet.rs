@@ -55,11 +55,9 @@ impl Parser<'_, '_> {
         }
         let span = Span::new(start as u32, i as u32);
         let source_type = self.source_type();
-        let parameters = Some(
-            self.builder
-                .parameters(span, source_type)
-                .map_err(javascript_failure)?,
-        );
+        let parameters = (self.builder)
+            .parameters(span, source_type)
+            .map_err(javascript_failure)?;
         self.javascript_region(span.start_offset, span.end_offset);
         self.position = i;
         self.eat_token(TokenType::JavaScript(Kind::RParen), 1);

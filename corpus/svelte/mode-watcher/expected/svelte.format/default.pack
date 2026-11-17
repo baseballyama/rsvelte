@@ -161,13 +161,6 @@
 
 <DocPage component={data.component} {...data.metadata} />
 
-=== 137 docs/src/routes/(landing)/+page.svelte	svelte
-<h1>Welcome to SvelteKit</h1>
-<p>
-  Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the
-  documentation
-</p>
-
 === 243 docs/src/routes/+layout.svelte	svelte
 <script lang="ts">
   import { siteConfig } from "$lib/site-config";

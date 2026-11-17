@@ -104,9 +104,7 @@ fn snippet_errors<'a>(
     let component = input.component;
     let (tree, javascript) = (component.compiler_syntax_tree, component.javascript);
     let node = tree.node(identifier);
-    if let Some(rest) =
-        (snippet.parameters).and_then(|p| javascript.get_parameters(p).rest.as_ref())
-    {
+    if let Some(rest) = &javascript.get_parameters(snippet.parameters).rest {
         let message = "Snippets do not support rest parameters; use an array instead";
         let rest = span_of(&**rest);
         let at = walk(node.span.start_offset);

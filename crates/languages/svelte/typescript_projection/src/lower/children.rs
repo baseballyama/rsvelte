@@ -106,7 +106,7 @@ impl Builder<'_> {
             }
             let javascript = &self.component.javascript;
             let name = javascript.get_expression(name).span();
-            let parameters = parameters.map(|p| javascript.get_parameters(p).span);
+            let parameters = Some(javascript.get_parameters(parameters).span);
             let name = self.source(name, None);
             let parameters = parameters.map(|at| self.source(at, None));
             let body = self.children(body)?;

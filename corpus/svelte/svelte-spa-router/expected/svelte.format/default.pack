@@ -22,23 +22,6 @@
 <!-- Show the router -->
 <Router {routes} />
 
-=== 471 examples/basic-routing/src/routes/Home.svelte	svelte
-<h2>Home component</h2>
-
-<p>
-  This sample shows how to set up the router with minimum functionality. <br />
-  The route definition object contains a number of routes (including some with parameters
-  and a catch-all at the end).<br />
-  The links below allow navigating between pages.
-</p>
-
-<p>This is the Home component, which contains markup only.</p>
-
-<p>
-  <em>Hint:</em> Try navigating with the links below, then use your browser's back
-  and forward buttons.
-</p>
-
 === 435 examples/basic-routing/src/routes/Name.svelte	svelte
 <script lang="ts">
   const { params = {} } = $props();
@@ -81,54 +64,6 @@
 </p>
 
 <p>Your message is: {params.wild}</p>
-
-=== 594 examples/dynamic-imports/src/App.svelte	svelte
-<script>
-  // Import the router component
-  import Router from "svelte-spa-router";
-
-  // Import the list of routes
-  import routes from "./routes";
-</script>
-
-<h1>svelte-spa-router sample</h1>
-<h2>Dynamic imports</h2>
-
-<!-- Navigation links -->
-<ul>
-  <li><a href="#/">Home</a></li>
-  <li><a href="#/hello/svelte">Say hi!</a> (dynamically imported route)</li>
-  <li>
-    <a href="#/wild/card">Wildcard route </a> (dynamically imported route, with a
-    5 seconds artificial delay)
-  </li>
-  <li><a href="#/does/not/exist">Not found</a></li>
-</ul>
-
-<!-- Show the router -->
-<Router {routes} />
-
-=== 798 examples/dynamic-imports/src/routes/Home.svelte	svelte
-<h2>Home component</h2>
-
-<p>
-  This sample shows how to dynamically import components. These are modules
-  imported on-demand with the <a
-    href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import"
-    ><code>import()</code> method</a
-  >.<br />
-  Bundlers like Vite, Rollup and Webpack support automatic code splitting when you
-  use dynamic imports, so after compiling this sample, in the <code>dist/</code> folder
-  you'll see a bunch of different JavaScript files. At runtime, the browser requests
-  them only when you first navigate to the route (and then they're cached).
-</p>
-
-<p>This is the Home component, which contains markup only.</p>
-
-<p>
-  <em>Hint:</em> Try navigating with the links below, then use your browser's back
-  and forward buttons.
-</p>
 
 === 192 examples/dynamic-imports/src/routes/Loading.svelte	svelte
 <script lang="ts">

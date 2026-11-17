@@ -201,8 +201,7 @@ pub struct Snippet {
     pub name: ExpressionIdentifier,
     /// `<T>` after the name, when it parses.
     pub generics: Option<TypeParametersIdentifier>,
-    /// `None` for `{#snippet name()}`.
-    pub parameters: Option<ParametersIdentifier>,
+    pub parameters: ParametersIdentifier,
     pub body: Children,
 }
 

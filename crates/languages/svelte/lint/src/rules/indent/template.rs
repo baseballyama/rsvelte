@@ -449,8 +449,7 @@ impl<'a> Template<'_, 'a> {
                 self.offset(keyword, 1, open);
                 let snippet_name = self.after(keyword);
                 self.offset(snippet_name, 1, keyword);
-                let parameters = parameters.map(|p| self.tree().get_parameters(p));
-                let spans = parameters.map_or_else(Vec::new, |p| script::parameter_spans(None, p));
+                let spans = script::parameter_spans(None, self.tree().get_parameters(parameters));
                 let tokens = self.tokens();
                 let is_left = |t: Token| tokens.is(t, Kind::LParen);
                 // Upstream searches back from the block's end and can take a `(` in the body.
@@ -483,9 +482,8 @@ impl<'a> Template<'_, 'a> {
                 self.trimmed_block_children(body, open);
                 self.closing(span, open);
                 self.visit_expression(name);
-                if let Some(parameters) = parameters {
-                    self.script.visit_formal_parameters(parameters);
-                }
+                let parameters = self.tree().get_parameters(parameters);
+                self.script.visit_formal_parameters(parameters);
                 self.visit_children(body);
             }
             TemplateNode::Render { expression, .. } => {

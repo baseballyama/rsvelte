@@ -2694,85 +2694,6 @@
   }}
 />
 
-=== 2069 sites/docs/src/packages/clickoutside/_page/examples/demo.svelte	svelte
-<script lang="ts">
-  import { clickoutside } from "@svelte-put/clickoutside";
-  import { quintOut } from "svelte/easing";
-  import type { HTMLFieldsetAttributes } from "svelte/elements";
-  import { fly } from "svelte/transition";
-
-  let { class: cls, ...rest }: HTMLFieldsetAttributes = $props();
-
-  let enabled = $state(true);
-  let parent: Element | undefined = $state(undefined);
-  let click = $state(0);
-
-  function onClickOutside() {
-    click++;
-  }
-  function toggleEnabled(e: Event) {
-    e.stopPropagation();
-    enabled = !enabled;
-  }
-</script>
-
-<fieldset
-  class="border-error-fg hl-error select-none border-4 p-10 {cls}"
-  bind:this={parent}
-  {...rest}
->
-  <legend class="text-error-fg font-bold">&nbsp; Limit &nbsp;</legend>
-
-  <div
-    class="border-suscess-fg hl-success grid border-2 p-6"
-    use:clickoutside={{ enabled, limit: { parent } }}
-    onclickoutside={onClickOutside}
-  >
-    <p>
-      <code>use:clickoutside</code> is registered for this
-      <strong>green box</strong>. Try these:
-    </p>
-    <ol>
-      <li>
-        Click within this <strong>green</strong> zone => <strong>won't </strong>
-        trigger
-        <code>onclickoutside</code>
-      </li>
-      <li>
-        Click on the <strong>red</strong> zone => <strong>will</strong> trigger
-        <code>onclickoutside</code>
-      </li>
-      <li>
-        Click outside the <strong>red</strong> limit => <strong>won't</strong>
-        trigger
-        <code>onclickoutside</code>
-      </li>
-      <li>
-        Enable/disable <code>use:clickoutside</code> with button below, then try (2)
-        again
-      </li>
-    </ol>
-  </div>
-  <div class="flex items-center justify-between">
-    <p class="">
-      <code>onclickoutside</code> counter:
-      {#key click}
-        <strong
-          in:fly={{ y: 8, duration: 250, easing: quintOut }}
-          class="inline-block">{click}</strong
-        >
-      {/key}
-    </p>
-    <button class="c-btn" onclick={toggleEnabled}>
-      {#if enabled}
-        Disable
-      {:else}
-        Enable
-      {/if}
-    </button>
-  </div>
-</fieldset>
-
 === 1698 sites/docs/src/packages/clickoutside/_page/examples/exclude.svelte	svelte
 <script lang="ts">
   import { clickoutside } from "@svelte-put/clickoutside";
@@ -3798,64 +3719,6 @@ documentation, [visit here](https://02e439f1.svelte-put.pages.dev/docs/modal).
   <a class="c-btn" href={dataURL} download="qr.svg">Download QR as SVG</a>
 </div>
 
-=== 1495 sites/docs/src/packages/resize/_page/examples/example.svelte	svelte
-<script lang="ts">
-  import { resize } from "@svelte-put/resize";
-  import type { ResizeDetail } from "@svelte-put/resize";
-
-  let enabled = $state(true);
-
-  function calcBorderRadius(size1: number, size2: number) {
-    return `${Math.min(100, size1 / 10 + size2 / 10)}px`;
-  }
-
-  function onResized(e: CustomEvent<ResizeDetail>) {
-    const { entry } = e.detail;
-
-    const target = entry.target as HTMLElement;
-    if (entry.borderBoxSize?.length > 0) {
-      target.style.borderRadius = calcBorderRadius(
-        entry.borderBoxSize[0].inlineSize,
-        entry.borderBoxSize[0].blockSize,
-      );
-    } else {
-      target.style.borderRadius = calcBorderRadius(
-        entry.contentRect.width,
-        entry.contentRect.height,
-      );
-    }
-  }
-
-  let box: HTMLDivElement;
-  $effect(() => {
-    if (!enabled) box.style.borderRadius = "8px";
-  });
-</script>
-
-<div class="flex flex-col items-center space-y-4">
-  <p>
-    Resize <span class="bg-blue-500 px-2 text-white">blue</span> box (dragging bottom
-    right corner) to see change
-  </p>
-  <div
-    class="h-24 w-24 resize overflow-auto bg-blue-500"
-    use:resize={{ enabled }}
-    onresized={onResized}
-    bind:this={box}
-  ></div>
-  <div class="flex items-center space-x-2">
-    <label for="resize-enable"
-      >Check to {enabled ? "disable" : "enable"} action:</label
-    >
-    <input
-      type="checkbox"
-      id="resize-enable"
-      bind:checked={enabled}
-      class="c-input accent-primary h-5 w-5"
-    />
-  </div>
-</div>
-
 === 2812 sites/docs/src/packages/swipeable/_page/examples/demo.svelte	svelte
 <script lang="ts">
   // :::focus
@@ -4788,39 +4651,6 @@ in Vietnam that I am proudly a part of.
 </svelte:head>
 
 {@render children()}
-
-=== 828 sites/docs/src/routes/+page.svelte	svelte
-<script lang="ts">
-  import { SOCIAL_LINKS } from "$lib/constants";
-</script>
-
-<main class="flex h-dvh flex-col items-center justify-center gap-10">
-  <div class="flex items-end gap-6">
-    <svg
-      class="h-24 w-24 shrink-0"
-      inline-src="svelte-put"
-      height="96"
-      width="96"
-    ></svg>
-    <h1 class=" font-fingerpaint text-gradient-brand text-4xl tracking-wide">
-      svelte-put
-    </h1>
-  </div>
-  <p>
-    Useful
-    <a class="c-link" href="https://svelte.dev">svelte</a> stuff to put in your projects
-  </p>
-  <div class="flex items-center justify-between gap-10 text-sm uppercase">
-    <a class="c-link-preserved text-link" href="/docs"> Read Docs </a>
-    <a
-      class="c-link-preserved text-link"
-      href={SOCIAL_LINKS.GITHUB}
-      data-external
-    >
-      See Github
-    </a>
-  </div>
-</main>
 
 === 2157 sites/docs/src/routes/design/+page.svelte	svelte
 <main class="space-y-10 p-10">

@@ -4046,59 +4046,6 @@ export function subtract(a: number, b: number) {
 
 <FloatingPortal {anchor} {open}><Tile>Content</Tile></FloatingPortal>
 
-=== 1676 docs/src/pages/framed/FloatingPortal/FloatingPortalDialog.svelte	svelte
-<script>
-  import {
-    Button,
-    Dialog,
-    Dropdown,
-    OverflowMenu,
-    OverflowMenuItem,
-    Stack,
-  } from "carbon-components-svelte";
-
-  let open = false;
-</script>
-
-<Button on:click={() => (open = true)}>Open dialog</Button>
-
-<Dialog bind:open modal aria-label="Region settings">
-  <Stack gap={5}>
-    <p>
-      Carbon components that portal their floating content (dropdowns, overflow
-      menus, tooltips, date pickers, etc.) are automatically mounted into the
-      nearest <code>&lt;dialog&gt;</code> ancestor, so they render above the modal
-      backdrop in the top layer.
-    </p>
-    <Dropdown
-      portalMenu
-      titleText="Region"
-      selectedId="us-south"
-      items={[
-        { id: "us-south", text: "Dallas (us-south)" },
-        { id: "us-east", text: "Washington DC (us-east)" },
-        { id: "eu-de", text: "Frankfurt (eu-de)" },
-        { id: "jp-tok", text: "Tokyo (jp-tok)" },
-        { id: "br-sao", text: "São Paulo (br-sao)" },
-        { id: "au-syd", text: "Sydney (au-syd)" },
-        { id: "ca-tor", text: "Toronto (ca-tor)" },
-        { id: "de-fra", text: "Frankfurt (de-fra)" },
-        { id: "es-mad", text: "Madrid (es-mad)" },
-        { id: "fr-par", text: "Paris (fr-par)" },
-        { id: "in-mum", text: "Mumbai (in-mum)" },
-        { id: "it-mil", text: "Milan (it-mil)" },
-        { id: "jp-osa", text: "Osaka (jp-osa)" },
-      ]}
-    />
-    <OverflowMenu portalMenu>
-      <OverflowMenuItem text="Edit" />
-      <OverflowMenuItem text="Duplicate" />
-      <OverflowMenuItem danger text="Delete" />
-    </OverflowMenu>
-    <Button kind="secondary" on:click={() => (open = false)}>Close</Button>
-  </Stack>
-</Dialog>
-
 === 4317 docs/src/pages/framed/FloatingPortal/FloatingPortalDirection.svelte	svelte
 <script>
   import {
@@ -4253,70 +4200,6 @@ export function subtract(a: number, b: number) {
     </FloatingPortal>
   </div>
 </Stack>
-
-=== 1518 docs/src/pages/framed/FloatingPortal/FloatingPortalIntrinsicAlign.svelte	svelte
-<script>
-  import { Button, FloatingPortal, Tile } from "carbon-components-svelte";
-
-  let anchorStart = null;
-  let anchorCenter = null;
-  let anchorEnd = null;
-  let openStart = false;
-  let openCenter = false;
-  let openEnd = false;
-</script>
-
-<p style="margin-bottom: 1rem;">
-  With <code>intrinsicWidth</code>, use <code>intrinsicAlign</code> to pin the floating
-  box to the start, center, or end of the anchor along the cross axis (horizontal
-  for top/bottom).
-</p>
-
-<div
-  style="display: flex; flex-wrap: wrap; gap: 3rem; align-items: flex-start;"
->
-  <div>
-    <div bind:this={anchorStart}>
-      <Button on:click={() => (openStart = !openStart)}>Start</Button>
-    </div>
-    <FloatingPortal
-      anchor={anchorStart}
-      open={openStart}
-      intrinsicWidth={true}
-      intrinsicAlign="start"
-    >
-      <Tile>Align start</Tile>
-    </FloatingPortal>
-  </div>
-
-  <div>
-    <div bind:this={anchorCenter}>
-      <Button on:click={() => (openCenter = !openCenter)}>Center</Button>
-    </div>
-    <FloatingPortal
-      anchor={anchorCenter}
-      open={openCenter}
-      intrinsicWidth={true}
-      intrinsicAlign="center"
-    >
-      <Tile>Align center</Tile>
-    </FloatingPortal>
-  </div>
-
-  <div>
-    <div bind:this={anchorEnd}>
-      <Button on:click={() => (openEnd = !openEnd)}>End</Button>
-    </div>
-    <FloatingPortal
-      anchor={anchorEnd}
-      open={openEnd}
-      intrinsicWidth={true}
-      intrinsicAlign="end"
-    >
-      <Tile>Align end</Tile>
-    </FloatingPortal>
-  </div>
-</div>
 
 === 2042 docs/src/pages/framed/FloatingPortal/FloatingPortalIntrinsicWidth.svelte	svelte
 <script>
@@ -4911,68 +4794,6 @@ export function subtract(a: number, b: number) {
 </script>
 
 <Loading />
-
-=== 1554 docs/src/pages/framed/LocalStorage/LocalStorageObject.svelte	svelte
-<script>
-  import {
-    Button,
-    LocalStorage,
-    Stack,
-    TextInput,
-  } from "carbon-components-svelte";
-
-  // A nested object value. Editing a nested field — either through a two-way
-  // binding or an explicit in-place mutation signalled with `value = value` —
-  // is persisted because the component compares the serialized form.
-  let settings = { profile: { name: "Ada", role: "Engineer" }, visits: 0 };
-  let events = [];
-</script>
-
-<Stack gap={6}>
-  <LocalStorage
-    key="local-storage-object-example"
-    bind:value={settings}
-    on:update={({ detail }) => {
-      events = [...events, { event: "on:update", detail }];
-    }}
-  />
-
-  <div>
-    Edit the nested fields below, then refresh the page to confirm the changes
-    survive. The two-way bindings mutate <code>settings</code> in place; the component
-    still persists them.
-  </div>
-
-  <TextInput
-    labelText="Name (binds to settings.profile.name)"
-    bind:value={settings.profile.name}
-  />
-
-  <TextInput
-    labelText="Role (binds to settings.profile.role)"
-    bind:value={settings.profile.role}
-  />
-
-  <Button
-    size="small"
-    on:click={() => {
-      settings.visits += 1; // in-place mutation
-      settings = settings; // signal the change to Svelte
-    }}
-  >
-    Increment visits ({settings.visits})
-  </Button>
-
-  <div>
-    <strong>Current value:</strong>
-    <pre>{JSON.stringify(settings, null, 2)}</pre>
-  </div>
-
-  <div>
-    <strong>Updates (note prevValue is a true snapshot):</strong>
-    <pre>{JSON.stringify(events, null, 2)}</pre>
-  </div>
-</Stack>
 
 === 493 docs/src/pages/framed/Menu/MenuBasic.svelte	svelte
 <script>

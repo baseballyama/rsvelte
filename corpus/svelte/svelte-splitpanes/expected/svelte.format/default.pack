@@ -334,29 +334,6 @@
   {/each}
 </Splitpanes>
 
-=== 651 src/routes/examples/default-size/+page.svelte	svelte
-<script lang="ts">
-  import ExampleArea from "$comp/ExampleArea.svelte";
-
-  import example from "./code.svelte?example";
-</script>
-
-<h2>Default pane size</h2>
-<p>
-  Provide dimension of your panes when they first load (will be used for the
-  width or height respectively for the vertical or horizontal layout).
-  <br />
-  <b>
-    If you provide a default size, make sure you provide it for all the panes
-    for a total equals to 100%. If a pane is missing a default size, then all
-    the panes will have the same size.
-  </b>
-  <br />
-  Note that setting a default value is different than setting a min or max value.
-</p>
-
-<ExampleArea {example} />
-
 === 373 src/routes/examples/default-size/code.svelte	svelte
 <script>
   import { Pane, Splitpanes } from "svelte-splitpanes";
@@ -532,23 +509,6 @@
   </Pane>
 </Splitpanes>
 
-=== 442 src/routes/examples/min-max/+page.svelte	svelte
-<script lang="ts">
-  import ExampleArea from "$comp/ExampleArea.svelte";
-
-  import example from "./code.svelte?example";
-</script>
-
-<h2>Horizontal layout, push other panes, min & max use, doubleclick</h2>
-<p>
-  You can double click a splitter to maximize the next pane!
-  <br />
-  If you want to disable the 'double click splitter to maximize' behavior, you can
-  add this attribute: dblClickSplitter={false}.
-</p>
-
-<ExampleArea {example} />
-
 === 482 src/routes/examples/min-max/code.svelte	svelte
 <script>
   import { Pane, Splitpanes } from "svelte-splitpanes";
@@ -573,25 +533,6 @@
     </span>
   </Pane>
 </Splitpanes>
-
-=== 469 src/routes/examples/prog-resize/+page.svelte	svelte
-<script lang="ts">
-  import ExampleArea from "$comp/ExampleArea.svelte";
-
-  import example from "./code.svelte?example";
-</script>
-
-<h2>Programmatic resizing</h2>
-
-<p>
-  This example shows the programmatic way of resizing panes with two-way data
-  biding. And how it works both ways.
-  <br />
-  Changing programmatically the size one pane, will shrink/expand the other panes
-  that have no specified size, as you can see in the example.
-</p>
-
-<ExampleArea {example} />
 
 === 406 src/routes/examples/prog-resize/code.svelte	svelte
 <script>
@@ -886,43 +827,6 @@
     }
   }
 </style>
-
-=== 1190 src/routes/examples/styling/splitters/+page.svelte	svelte
-<script>
-  import Highlighted from "$comp/Highlighted.svelte";
-  import ExampleArea from "$comp/ExampleArea.svelte";
-  import example from "./code.svelte?example";
-  import defaultTheme from "svelte-splitpanes/internal/default-theme.scss?example";
-</script>
-
-<h2>Styling Splitters</h2>
-
-<p>
-  Styling splitters is fully customizable using CSS (or SCSS), the `theme`
-  property is used to select the proper styling class and apply it to the
-  Splitpanes component.
-  <br />
-  The default style is called `default-theme`, its SCSS definition can be found below
-  (
-  <b>warning</b>
-  : This is for reference only! If you decide to copy this CSS code, you must rename
-  the ".default-theme" specifier to something else, so it wouldn't conflict the library
-  theme CSS definition):
-</p>
-
-<Highlighted lang="scss" highlighted={defaultTheme.highlightedHTML} />
-
-<p>Alternatively, here is the default theme compiled to CSS:</p>
-
-<Highlighted lang="scss" highlighted={defaultTheme.cssHighlightedHTML} />
-
-<p>
-  By altering the above styles, it is possible to achieve neat visual
-  adjustments. Please note how each Splitpanes references our new
-  `theme="my-theme"`
-</p>
-
-<ExampleArea {example} />
 
 === 1526 src/routes/examples/styling/splitters/code.svelte	svelte
 <script>
