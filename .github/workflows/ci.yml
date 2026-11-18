@@ -4,7 +4,8 @@
 # - rust-test: the test suites (each crate's fixture snapshots, and every corpus unit against the
 #   official output with the parity ledger, corpus/_registry/parity/; the type-check ones run tsc
 #   from tools/oracle/node_modules);
-# - oracle: the structure check and the oracle tools' own tests (the behaviour oracle among them);
+# - oracle: the structure check, the release staging test and the oracle tools' own tests (the
+#   behaviour oracle among them);
 # - performance: the deterministic performance ratchet (tools/performance/baseline.json): allocations exactly,
 #   and cachegrind's instruction counts (a warm round, and loading) on the platform the baseline
 #   records (arm64 Linux);
@@ -90,6 +91,7 @@ jobs:
       - uses: ./.github/actions/rust
       - run: node --test tools/structure/*.test.ts
       - run: node tools/structure/structure.ts
+      - run: node --test tools/release/*.test.ts
       # The semantic tests build other crates with --offline, so fetch the whole lockfile first.
       - run: cargo fetch
       # The behaviour oracle against hand-written twins and deliberately wrong translations.

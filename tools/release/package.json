@@ -1,0 +1,14 @@
+{
+	"name": "@rsvelte-experimental/release",
+	"private": true,
+	"description": "Writes the npm packages of a release from each platform's build",
+	"type": "module",
+	"scripts": {
+		"release": "node release.ts",
+		"test": "node --test '*.test.ts'",
+		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
+	},
+	"engines": {
+		"node": ">=26"
+	}
+}
