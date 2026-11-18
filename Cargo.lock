@@ -1176,7 +1176,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_command_line"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "libc",
  "mimalloc",
@@ -1216,7 +1216,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_configuration_loading"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
@@ -1226,7 +1226,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_corpus"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1242,7 +1242,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_document_printer"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_allocator",
  "oxc_formatter_core",
@@ -1251,7 +1251,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_example_plugin"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
@@ -1261,7 +1261,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_kernel"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "memchr",
  "rayon",
@@ -1272,7 +1272,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_kernel_browser"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
@@ -1294,7 +1294,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_lint_runner"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "rsvelte_kernel",
  "serde",
@@ -1303,18 +1303,18 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_markup_lint"
-version = "0.0.0"
+version = "0.1.0"
 
 [[package]]
 name = "rsvelte_markup_syntax"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "memchr",
 ]
 
 [[package]]
 name = "rsvelte_plugin_interface"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "rsvelte_kernel",
  "serde",
@@ -1323,7 +1323,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_stylesheet_compile"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_stylesheet_semantic",
@@ -1333,7 +1333,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_stylesheet_semantic"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_stylesheet_syntax",
@@ -1341,7 +1341,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_stylesheet_syntax"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "rsvelte_kernel",
  "rustc-hash",
@@ -1349,7 +1349,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_check"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_ast",
  "oxc_ast_visit",
@@ -1366,7 +1366,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_compile"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "libc",
  "oxc_allocator",
@@ -1394,7 +1394,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_format"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1421,7 +1421,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_lint"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_ast",
  "oxc_ast_visit",
@@ -1452,7 +1452,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_semantic"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "num-bigint",
  "num-traits",
@@ -1475,7 +1475,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_site"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1491,7 +1491,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_syntax"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "memchr",
  "oxc_allocator",
@@ -1510,7 +1510,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_to_vue_vapor"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1535,7 +1535,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_typescript_projection"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1554,7 +1554,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_test_harness"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "rsvelte_kernel",
  "rustc-hash",
@@ -1562,7 +1562,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_api"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_test_harness",
@@ -1572,7 +1572,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_check"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
@@ -1585,7 +1585,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_compile"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1601,7 +1601,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_content_mapper"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "rsvelte_kernel",
  "serde",
@@ -1610,7 +1610,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_format"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_formatter",
  "oxc_formatter_core",
@@ -1621,7 +1621,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_lint"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_ast",
  "oxc_ast_visit",
@@ -1638,7 +1638,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_semantic"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_ast",
  "oxc_semantic",
@@ -1651,7 +1651,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_tree"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1666,7 +1666,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_check"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_ast",
  "oxc_semantic",
@@ -1683,7 +1683,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_compile"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1704,7 +1704,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_format"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_allocator",
  "oxc_formatter",
@@ -1722,7 +1722,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_lint"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_ast",
  "oxc_semantic",
@@ -1741,7 +1741,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_semantic"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_ast",
  "oxc_ast_visit",
@@ -1757,7 +1757,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_syntax"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_parser",
  "oxc_span",
@@ -1769,7 +1769,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_to_svelte"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",

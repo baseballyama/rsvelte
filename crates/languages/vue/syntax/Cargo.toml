@@ -1,7 +1,7 @@
 [package]
 name = "rsvelte_vue_syntax"
 description = "Vue single-file component trees and their parser"
-version = "0.0.0"
+version.workspace = true
 edition.workspace = true
 publish = false
 
