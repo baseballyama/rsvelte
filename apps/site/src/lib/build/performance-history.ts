@@ -47,8 +47,24 @@ export function performanceHistory(root: string): PerformanceRecord[] {
 		execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 1 << 26 }).trim();
 	const file = 'tools/performance/baseline.json';
 	const historicalFile = 'tools/perf/baseline.json';
+	// main squashed the rewrite's history into one commit; this tag keeps the commits before it.
+	const archive = 'refs/tags/archive/experimental';
+	const tips = ['HEAD'];
+	try {
+		git('rev-parse', '--verify', '--quiet', archive);
+		tips.push(archive);
+	} catch {}
 	// One process for the commits and one for every file version: each git process is slow on a busy machine.
-	const commits = git('log', '--reverse', '--format=%H%x09%s', '--', file, historicalFile)
+	const commits = git(
+		'log',
+		'--reverse',
+		'--date-order',
+		'--format=%H%x09%s',
+		...tips,
+		'--',
+		file,
+		historicalFile,
+	)
 		.split('\n')
 		.filter(Boolean)
 		.map((line) => {
