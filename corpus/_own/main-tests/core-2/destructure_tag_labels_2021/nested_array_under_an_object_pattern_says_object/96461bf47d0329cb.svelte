@@ -1,0 +1,1 @@
+<script>let o = $state({a:[1]}); let { a: [x] } = $derived(o);</script><p>{x}</p>

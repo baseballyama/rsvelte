@@ -1,0 +1,1 @@
+<script>const o = { k: $derived };</script>

@@ -1,0 +1,4 @@
+<style>
+	a:hover
+		color: red
+</style>

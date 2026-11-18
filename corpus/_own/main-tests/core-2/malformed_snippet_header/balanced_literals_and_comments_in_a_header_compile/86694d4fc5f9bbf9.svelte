@@ -1,0 +1,1 @@
+{#snippet row({ a = 1, b: [c = (2)] } = {})}<p>{a}{c}</p>{/snippet}

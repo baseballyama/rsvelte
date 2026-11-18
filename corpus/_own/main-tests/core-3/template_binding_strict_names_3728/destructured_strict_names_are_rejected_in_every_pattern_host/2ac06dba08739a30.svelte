@@ -1,0 +1,1 @@
+{#await promise then { eval }}x{/await}

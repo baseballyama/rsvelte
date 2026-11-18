@@ -1,0 +1,14 @@
+[
+	{
+		"code": 2339,
+		"message": "Property 'length' does not exist on type 'false'.",
+		"start": {
+			"line": 7,
+			"character": 27
+		},
+		"end": {
+			"line": 7,
+			"character": 33
+		}
+	}
+]

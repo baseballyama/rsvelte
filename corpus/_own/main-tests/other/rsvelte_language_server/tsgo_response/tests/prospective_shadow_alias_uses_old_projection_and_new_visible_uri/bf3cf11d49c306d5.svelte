@@ -1,0 +1,1 @@
+<script>const 💡 = 1; let value = 💡;</script>

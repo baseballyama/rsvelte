@@ -1,0 +1,20 @@
+{
+	"rules": [
+		"no-unused-vars",
+		"svelte/button-has-type"
+	],
+	"findings": [
+		{
+			"rule": "no-unused-vars",
+			"message": "'children' is assigned a value but never used.",
+			"start": {
+				"line": 2,
+				"column": 8
+			},
+			"end": {
+				"line": 2,
+				"column": 16
+			}
+		}
+	]
+}

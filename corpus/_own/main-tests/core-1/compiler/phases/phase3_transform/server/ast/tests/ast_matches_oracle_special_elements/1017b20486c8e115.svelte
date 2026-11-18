@@ -1,0 +1,1 @@
+<svelte:body on:click={f}/>

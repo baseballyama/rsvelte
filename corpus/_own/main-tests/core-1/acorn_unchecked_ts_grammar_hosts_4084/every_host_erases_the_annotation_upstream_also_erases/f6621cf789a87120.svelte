@@ -1,0 +1,1 @@
+<script lang="ts">let a: any;</script>{#if (<string>() => a)}y{/if}

@@ -1,0 +1,1 @@
+<script>let list = [1];</script>{#each list as item}<input bind:value={item}>{/each}

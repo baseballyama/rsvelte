@@ -1,0 +1,1 @@
+<script lang="TS">let a = 1</script>

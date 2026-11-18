@@ -1,0 +1,2238 @@
+# rsvelte pack 1
+=== 3497 src/lib/components/Canvas.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { onMount } from 'svelte';
+import { createHitCanvas } from 'hit-canvas';
+import LayerManager from '../util/LayerManager.svelte';
+import { getMaxPixelRatio } from '../util/getMaxPixelRatio';
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'width',
+	'height',
+	'pixelRatio',
+	'class',
+	'style',
+	'autoplay',
+	'autoclear',
+	'layerEvents',
+	'onresize',
+	'contextSettings',
+	'children'
+]);
+
+var root = $.from_html(`<canvas></canvas> <div><!></div>`, 1);
+
+export default function Canvas($$anchor, $$props) {
+	$.push($$props, true);
+
+	let style = $.prop($$props, 'style', 3, ''),
+		autoplay = $.prop($$props, 'autoplay', 3, false),
+		autoclear = $.prop($$props, 'autoclear', 3, true),
+		layerEvents = $.prop($$props, 'layerEvents', 3, false),
+		handlers = $.rest_props($$props, rest_excludes);
+
+	let canvas;
+	let context;
+	let layerRef;
+	let devicePixelRatio = $.state(2);
+	let canvasWidth = $.state(0);
+	let canvasHeight = $.state(0);
+	const width = $.derived(() => $$props.width ?? $.get(canvasWidth));
+	const height = $.derived(() => $$props.height ?? $.get(canvasHeight));
+
+	const pixelRatio = $.derived(() => {
+		if ($.get(devicePixelRatio) && $$props.pixelRatio === 'auto') return getMaxPixelRatio($.get(width), $.get(height), $.get(devicePixelRatio));
+		if ($$props.pixelRatio && $$props.pixelRatio !== 'auto') return $$props.pixelRatio;
+
+		return $.get(devicePixelRatio);
+	});
+
+	const manager = new LayerManager({
+		get width() {
+			return $.get(width);
+		},
+
+		get height() {
+			return $.get(height);
+		},
+
+		get pixelRatio() {
+			return $.get(pixelRatio);
+		},
+
+		get autoplay() {
+			return autoplay();
+		},
+
+		get autoclear() {
+			return autoclear();
+		},
+
+		get layerEvents() {
+			return layerEvents();
+		},
+
+		get onresize() {
+			return $$props.onresize;
+		},
+		handlers
+	});
+
+	onMount(() => {
+		if (layerEvents()) {
+			context = createHitCanvas(canvas, $$props.contextSettings);
+		} else {
+			context = canvas.getContext('2d', $$props.contextSettings);
+		}
+
+		manager.init(context, layerRef);
+	});
+
+	const redraw = () => manager.redraw();
+
+	var $$exports = {
+		redraw,
+		get canvas() {
+			return canvas;
+		},
+
+		set canvas($$value) {
+			canvas = $$value;
+		},
+
+		get context() {
+			return context;
+		},
+
+		set context($$value) {
+			context = $$value;
+		}
+	};
+
+	var fragment = root();
+	var canvas_1 = $.first_child(fragment);
+
+	$.attribute_effect(
+		canvas_1,
+		($0) => ({
+			class: $$props.class,
+			width: $.get(width) * $.get(pixelRatio),
+			height: $.get(height) * $.get(pixelRatio),
+			style: style(),
+			...$0,
+			[$.STYLE]: {
+				width: $$props.width ? `${$$props.width}px` : '100%',
+				height: $$props.height ? `${$$props.height}px` : '100%'
+			}
+		}),
+		[() => manager.createEventHandlers()]
+	);
+
+	$.bind_this(canvas_1, ($$value) => canvas = $$value, () => canvas);
+
+	var div = $.sibling(canvas_1, 2);
+
+	$.set_style(div, '', {}, { display: 'none' });
+
+	var node = $.child(div);
+
+	$.snippet(node, () => $$props.children ?? $.noop);
+	$.reset(div);
+	$.bind_this(div, ($$value) => layerRef = $$value, () => layerRef);
+	$.bind_property('devicePixelRatio', 'resize', $.window, ($$value) => $.set(devicePixelRatio, $$value, true));
+	$.bind_element_size(canvas_1, 'clientWidth', ($$value) => $.set(canvasWidth, $$value));
+	$.bind_element_size(canvas_1, 'clientHeight', ($$value) => $.set(canvasHeight, $$value));
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}
+=== 366 src/lib/components/Canvas.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `handlers`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 65,
+			"column": 4,
+			"character": 1550
+		},
+		"end": {
+			"line": 65,
+			"column": 12,
+			"character": 1558
+		}
+	}
+]
+
+=== 539 src/lib/components/Layer.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { register } from '../util/registerLayer';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy']);
+var root = $.from_html(`<div></div>`);
+
+export default function Layer($$anchor, $$props) {
+	$.push($$props, true);
+
+	const layer = $.rest_props($$props, rest_excludes);
+	const layerId = register(layer);
+	var div = root();
+
+	$.template_effect(() => $.set_attribute(div, 'data-layer-id', layerId));
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 360 src/lib/components/Layer.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `layer`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 6,
+			"column": 27,
+			"character": 183
+		},
+		"end": {
+			"line": 6,
+			"column": 32,
+			"character": 188
+		}
+	}
+]
+
+=== 1738 src/routes/_components/Code.svelte	css
+
+  .code.svelte-1mat97j {
+    height: auto;
+    width: 100%;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    font-size: 0.9rem;
+    position: relative;
+  }
+
+  .code.svelte-1mat97j pre {
+    margin: 0;
+    line-height: 1.25;
+    padding: 0.75rem;
+    overflow-x: scroll;
+  }
+
+  .title.svelte-1mat97j {
+    position: relative;
+  }
+
+  button.svelte-1mat97j {
+    appearance: none;
+    background-color: transparent;
+    border: none;
+    font-family: 'Fira Mono', monospace;
+    color: inherit;
+    font-size: inherit;
+    cursor: pointer;
+  }
+
+  .inner.svelte-1mat97j {
+    position: relative;
+  }
+
+  .copy.svelte-1mat97j {
+    position: absolute;
+    z-index: 1;
+    top: 0.5rem;
+    right: 0.5rem;
+    opacity: 0.7;
+    aspect-ratio: 1;
+    width: 2rem;
+    border-radius: 2px;
+    transition-property: opacity, background-color;
+    transition-duration: 0.1s;
+    transition-timing-function: ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  path.svelte-1mat97j {
+    fill: var(--body);
+  }
+
+  .copy.svelte-1mat97j:hover {
+    opacity: 1;
+    background-color: var(--bg);
+  }
+
+  .tab.svelte-1mat97j {
+    padding: 1rem;
+    position: relative;
+  }
+
+  .tab.svelte-1mat97j:after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 4px;
+    left: 0;
+    bottom: 0;
+  }
+
+  button.svelte-1mat97j:not(.active):hover:after {
+    background-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .active.svelte-1mat97j:after {
+    background-color: rgba(255, 255, 255, 0.5);
+  }
+
+  .title.svelte-1mat97j:after {
+    content: '';
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+  }
+
+=== 5064 src/routes/_components/Code.svelte	js
+import 'svelte/internal/disclose-version';
+import { createHighlighter } from 'shiki';
+import * as $ from 'svelte/internal/client';
+
+const { codeToHtml } = await createHighlighter({ themes: ['one-dark-pro'], langs: ['typescript', 'svelte'] });
+var root = $.from_html(`<button> </button>`);
+var root_1 = $.from_html(`<div class="hljs title svelte-1mat97j"></div>`);
+var root_2 = $.from_html(`<button class="copy svelte-1mat97j" aria-label="Copy to clipboard"><svg viewBox="0 0 32 32"><path d="m17.709 1.9941c-0.51479-8.807e-4 -1.0805 0.0058594-1.709 0.0058594h-4c-1.4978 0-2.6354-0.002642-3.5762 0.10352s-1.7668 0.33644-2.377 0.94727c-0.61012 0.61083-0.83978 1.4368-0.94531 2.377s-0.10156 2.0765-0.10156 3.5723v10a1.0001 1.0001 0 0 0 0 0.009766 1.0001 1.0001 0 0 0 0 0.011718c0 2.5474-0.1083 4.0675 0.58984 5.3379 0.34907 0.63518 0.97662 1.101 1.666 1.3242 0.53202 0.17225 1.1381 0.23738 1.8125 0.27734 0.013242 0.19927 0.01449 0.4321 0.035156 0.61523 0.10616 0.94072 0.33644 1.7668 0.94727 2.377 0.61083 0.61012 1.4368 0.83978 2.377 0.94531 0.94019 0.10553 2.0765 0.10156 3.5723 0.10156h4c1.4978 0 2.6354 0.0026 3.5762-0.10352 0.94072-0.10616 1.7668-0.33644 2.377-0.94726s0.83978-1.4368 0.94531-2.377c0.10553-0.94019 0.10156-2.0765 0.10156-3.5723v-10c0-1.4978 0.0026-2.6354-0.10352-3.5762-0.10616-0.94072-0.33644-1.7668-0.94726-2.377s-1.4368-0.83978-2.377-0.94531c-0.18849-0.021156-0.42724-0.021887-0.63281-0.035156-0.04161-0.70746-0.11126-1.3341-0.30273-1.8867-0.23402-0.67543-0.71468-1.2822-1.3477-1.6152-0.94946-0.49955-2.0357-0.56767-3.5801-0.57031zm-5.709 2.0059h4c2.513 0 3.9261 0.10706 4.3574 0.33398 0.21565 0.11346 0.27566 0.17381 0.38867 0.5 0.081847 0.23623 0.13914 0.65988 0.18164 1.1719-0.3111-9.989e-4 -0.57979-0.0058594-0.92773-0.0058594h-4c-1.4978 0-2.6354-0.002642-3.5762 0.10352s-1.7668 0.33644-2.377 0.94727c-0.61012 0.61083-0.83978 1.4368-0.94531 2.377-0.10553 0.94019-0.10156 2.0765-0.10156 3.5723v10c0 0.35612 0.0046599 0.63162 0.0058594 0.94922-0.48679-0.039688-0.89531-0.091073-1.1328-0.16797-0.34888-0.11296-0.41474-0.17827-0.5293-0.38672-0.22911-0.41689-0.34375-1.8274-0.34375-4.373a1.0001 1.0001 0 0 0 0 -0.009765 1.0001 1.0001 0 0 0 0 -0.011719v-10c0-1.4952 0.0061497-2.604 0.089844-3.3496 0.08369-0.74562 0.22984-1.0461 0.37109-1.1875 0.14126-0.14142 0.44176-0.28889 1.1875-0.37305 0.74574-0.084155 1.8548-0.089844 3.3516-0.089844zm4 4h4c1.4952 0 2.604 0.0061497 3.3496 0.089844 0.74562 0.08369 1.0461 0.22984 1.1875 0.37109 0.14142 0.14126 0.28889 0.44176 0.37305 1.1875 0.084155 0.74575 0.089844 1.8548 0.089844 3.3516v10c0 1.4952-0.006204 2.604-0.089844 3.3496-0.08369 0.74562-0.22984 1.0461-0.37109 1.1875-0.14126 0.14142-0.44175 0.28889-1.1875 0.37305-0.74575 0.084155-1.8548 0.089844-3.3516 0.089844h-4c-1.4952 0-2.604-0.006204-3.3496-0.089844-0.74562-0.08369-1.0461-0.22984-1.1875-0.37109-0.14142-0.14126-0.28889-0.44175-0.37305-1.1875-0.084155-0.74575-0.089844-1.8548-0.089844-3.3516v-10c0-1.4952 0.006204-2.604 0.089844-3.3496 0.08369-0.74562 0.22984-1.0461 0.37109-1.1875 0.14126-0.14142 0.44175-0.28889 1.1875-0.37305 0.74575-0.084155 1.8548-0.089844 3.3516-0.089844z" class="svelte-1mat97j"></path></svg></button>`);
+var root_3 = $.from_html(`<div class="code svelte-1mat97j"><!> <div class="inner svelte-1mat97j"><!> <!></div></div>`);
+
+export default function Code($$anchor, $$props) {
+	$.push($$props, true);
+
+	let files = $.prop($$props, 'files', 19, () => []),
+		text = $.prop($$props, 'text', 3, ''),
+		lang = $.prop($$props, 'lang', 3, 'svelte'),
+		copy = $.prop($$props, 'copy', 3, false);
+
+	let selectedFile = $.state(0);
+	let code = $.derived(() => files().length ? files()[$.get(selectedFile)][1] : text().trim());
+	let html = $.derived(() => codeToHtml($.get(code), { lang: lang(), theme: 'one-dark-pro' }));
+	var div = root_3();
+	var node = $.child(div);
+
+	{
+		var consequent = ($$anchor) => {
+			var div_1 = root_1();
+
+			$.each(div_1, 21, files, $.index, ($$anchor, $$item, i) => {
+				var $$array = $.derived(() => $.to_array($.get($$item), 1));
+				let title = () => $.get($$array)[0];
+				var button = root();
+				let classes;
+				var text_1 = $.only_child(button, true);
+
+				$.template_effect(() => {
+					classes = $.set_class(button, 1, 'tab svelte-1mat97j', null, classes, { active: $.get(selectedFile) === i });
+					$.set_text(text_1, title());
+				});
+
+				$.delegated('click', button, () => $.set(selectedFile, i, true));
+				$.append($$anchor, button);
+			});
+
+			$.reset(div_1);
+			$.append($$anchor, div_1);
+		};
+
+		$.if(node, ($$render) => {
+			if (files()) $$render(consequent);
+		});
+	}
+
+	var div_2 = $.sibling(node, 2);
+	var node_1 = $.child(div_2);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var button_1 = root_2();
+
+			$.delegated('click', button_1, () => navigator.clipboard.writeText($.get(code)));
+			$.append($$anchor, button_1);
+		};
+
+		$.if(node_1, ($$render) => {
+			if (copy()) $$render(consequent_1);
+		});
+	}
+
+	var node_2 = $.sibling(node_1, 2);
+
+	$.html(node_2, () => $.get(html));
+	$.reset(div_2);
+	$.reset(div);
+	$.append($$anchor, div);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 972 src/routes/_components/Demo/Blob.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import DemoLayer from './DemoLayer.svelte';
+
+export default function Blob($$anchor, $$props) {
+	$.push($$props, true);
+
+	const pathString = 'M26.8,-43.9C33.8,-37.1,38,-28.2,47,-18.5C56,-8.9,69.7,1.6,70.3,11.5C71,21.4,58.7,30.7,46,33C33.4,35.3,20.5,30.5,9.6,34.7C-1.4,38.8,-10.2,52,-18.9,54.1C-27.5,56.2,-35.9,47.3,-46.6,38.4C-57.3,29.6,-70.2,20.8,-68.1,12C-65.9,3.2,-48.6,-5.6,-40.9,-17.1C-33.2,-28.6,-35,-43,-29.8,-50.6C-24.5,-58.2,-12.3,-59.1,-1.2,-57.2C9.9,-55.4,19.7,-50.7,26.8,-43.9Z';
+
+	DemoLayer($$anchor, {
+		name: 'Blob',
+		render: ({ context, width, height, active }) => {
+			const path = new Path2D(pathString);
+
+			context.fillStyle = 'mediumturquoise';
+			context.translate(width * 0.85, height * 0.6);
+
+			const scale = width * 0.0018;
+
+			context.scale(scale * 0.9, scale);
+			context.fill(path);
+
+			if (active()) {
+				context.stroke(path);
+			}
+		}
+	});
+
+	$.pop();
+}
+=== 506 src/routes/_components/Demo/Circle.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import DemoLayer from './DemoLayer.svelte';
+
+export default function Circle($$anchor) {
+	DemoLayer($$anchor, {
+		name: 'Circle',
+		render: ({ context, width, height, active }) => {
+			context.fillStyle = 'goldenrod';
+			context.translate(width * 0.15, height * 0.7);
+			context.beginPath();
+			context.arc(0, 0, width * 0.1, 0, 2 * Math.PI);
+			context.fill();
+
+			if (active()) {
+				context.stroke();
+			}
+		}
+	});
+}
+=== 120 src/routes/_components/Demo/Demo.svelte	css
+
+  div.svelte-7096nr {
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 5/3;
+    touch-action: none;
+  }
+
+=== 2189 src/routes/_components/Demo/Demo.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Canvas } from '$lib';
+import Rect from './Rect.svelte';
+import Circle from './Circle.svelte';
+import Blob from './Blob.svelte';
+import Text from './Text.svelte';
+import Tooltip from './Tooltip.svelte';
+import { coords, activeLayer } from './store';
+
+var root = $.from_html(`<!> <!> <!> <!> <!> <!>`, 1);
+var root_1 = $.from_html(`<div class="svelte-7096nr"><!></div>`);
+
+export default function Demo($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $coords = () => $.store_get(coords, '$coords', $$stores);
+	const $activeLayer = () => $.store_get(activeLayer, '$activeLayer', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+
+	const touch = (e) => {
+		const { left, top } = e.target.getBoundingClientRect();
+		const { clientX, clientY } = e.changedTouches[0];
+
+		$.store_set(coords, [clientX - left, clientY - top]);
+	};
+
+	var div = root_1();
+	var node = $.child(div);
+
+	{
+		let $0 = $.derived(() => $activeLayer() ? 'pointer' : 'default');
+
+		Canvas(node, {
+			layerEvents: true,
+			get style() {
+				return `cursor: ${$.get($0) ?? ''}`;
+			},
+			onpointermove: (e) => $.store_set(coords, [e.offsetX, e.offsetY]),
+			ontouchstart: touch,
+			ontouchmove: touch,
+			children: ($$anchor, $$slotProps) => {
+				var fragment = root();
+				var node_1 = $.first_child(fragment);
+
+				Rect(node_1, {});
+
+				var node_2 = $.sibling(node_1, 2);
+
+				Blob(node_2, {});
+
+				var node_3 = $.sibling(node_2, 2);
+
+				Circle(node_3, {});
+
+				var node_4 = $.sibling(node_3, 2);
+
+				Text(node_4, { text: 'svelte-canvas', yOffset: -0.03, scale: 0.06 });
+
+				var node_5 = $.sibling(node_4, 2);
+
+				Text(node_5, {
+					text: 'Reactive canvas components',
+					scale: 0.0297,
+					yOffset: 0.04,
+					opacity: 0.7
+				});
+
+				var node_6 = $.sibling(node_5, 2);
+
+				{
+					var consequent = ($$anchor) => {
+						Tooltip($$anchor, {});
+					};
+
+					$.if(node_6, ($$render) => {
+						if ($activeLayer()?.id) $$render(consequent);
+					});
+				}
+
+				$.append($$anchor, fragment);
+			},
+			$$slots: { default: true }
+		});
+	}
+
+	$.reset(div);
+	$.append($$anchor, div);
+	$.pop();
+	$$cleanup();
+}
+=== 2686 src/routes/_components/Demo/DemoLayer.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Layer } from '$lib';
+import { spring, tweened } from 'svelte/motion';
+import { quadInOut as easing } from 'svelte/easing';
+import { coords, activeLayer } from './store';
+
+export default function DemoLayer($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $activeLayer = () => $.store_get(activeLayer, '$activeLayer', $$stores);
+	const $coords = () => $.store_get(coords, '$coords', $$stores);
+	const $scale = () => $.store_get(scale, '$scale', $$stores);
+	const $opacity = () => $.store_get(opacity, '$opacity', $$stores);
+	const $blur = () => $.store_get(blur, '$blur', $$stores);
+	const $saturation = () => $.store_get(saturation, '$saturation', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	const id = Symbol();
+
+	const styleTween = (initial) => {
+		const tween = tweened(initial, { duration: 250, easing });
+
+		return {
+			subscribe: tween.subscribe,
+			set: (value) => tween.set(value, { delay: Math.random() * 50 + 10 })
+		};
+	};
+
+	const blur = styleTween(0);
+	const saturation = styleTween(1);
+	const opacity = styleTween(1);
+	const scale = spring(1, { stiffness: 0.1, damping: 0.2 });
+	let active = $.derived(() => $activeLayer()?.id === id);
+	let inactive = $.derived(() => $activeLayer()?.id && !$.get(active));
+
+	$.user_effect(() => {
+		blur.set($.get(inactive) ? 0.018 : 0);
+		saturation.set($.get(inactive) ? 0.4 : 1);
+		opacity.set($.get(inactive) ? 0.5 : 1);
+	});
+
+	$.user_effect(() => {
+		scale.set(!$activeLayer()?.id
+			? 1
+			: (!$.get(active) ? 0.95 : 1.1) + Math.random() / 10);
+	});
+
+	let styleActive = $.derived(() => (context) => () => {
+		if ($.get(active)) {
+			context.setLineDash([4, 4]);
+			context.strokeStyle = '#dcdcdc';
+			context.lineWidth = 2;
+		}
+
+		return $.get(active);
+	});
+
+	const _render = ({ context, width, height, time }) => {
+		const [x, y] = $coords();
+
+		context.save();
+		context.translate(x, y);
+		context.scale($scale(), $scale());
+		context.translate(-x, -y);
+		context.globalAlpha = $opacity();
+		context.filter = `blur(${width * $blur()}px) saturate(${$saturation() * 100}%)`;
+
+		$$props.render({
+			context,
+			width,
+			height,
+			time,
+			active: $.get(styleActive)(context)
+		});
+
+		context.restore();
+	};
+
+	Layer($$anchor, {
+		onpointerenter: () => $.store_set(activeLayer, { name: $$props.name, id }),
+		ontouchstart: () => $.store_set(activeLayer, { name: $$props.name, id }),
+		onpointerleave: () => $.store_set(activeLayer, null),
+		ontouchend: () => $.store_set(activeLayer, null),
+		onpointerdown: () => scale.set(0.95),
+		onpointerup: () => scale.set(1.1),
+		render: _render
+	});
+
+	$.pop();
+	$$cleanup();
+}
+=== 470 src/routes/_components/Demo/Rect.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import DemoLayer from './DemoLayer.svelte';
+
+export default function Rect($$anchor) {
+	DemoLayer($$anchor, {
+		name: 'Rect',
+		render: ({ context, width, height, active }) => {
+			const rect = [width * 0.2, height * 0.14, width * 0.2, width * 0.12];
+
+			context.fillStyle = 'tomato';
+			context.fillRect(...rect);
+
+			if (active()) {
+				context.strokeRect(...rect);
+			}
+		}
+	});
+}
+=== 1001 src/routes/_components/Demo/Text.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import DemoLayer from './DemoLayer.svelte';
+
+export default function Text($$anchor, $$props) {
+	let opacity = $.prop($$props, 'opacity', 3, 1),
+		yOffset = $.prop($$props, 'yOffset', 3, 0);
+
+	DemoLayer($$anchor, {
+		name: 'Text',
+		render: ({ context, width, height, active }) => {
+			const size = width * $$props.scale;
+			const offset = height * yOffset();
+
+			context.font = `${size}px 'Fira Mono', monospace`;
+			context.textAlign = 'center';
+			context.textBaseline = 'middle';
+			context.fillStyle = '#dcdcdc';
+			context.globalAlpha = opacity();
+			context.fillText($$props.text, width / 2, height / 2 + offset);
+
+			const { width: w } = context.measureText($$props.text);
+			const rect = [width / 2 - w / 2, height / 2 - size / 2 + offset, w, size];
+
+			context.globalAlpha = 0;
+			context.fillRect(...rect);
+			context.globalAlpha = 1;
+
+			if (active()) {
+				context.strokeRect(...rect);
+			}
+		}
+	});
+}
+=== 1142 src/routes/_components/Demo/Tooltip.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Layer } from '$lib';
+import { coords, activeLayer } from './store';
+
+export default function Tooltip($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $coords = () => $.store_get(coords, '$coords', $$stores);
+	const $activeLayer = () => $.store_get(activeLayer, '$activeLayer', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+
+	Layer($$anchor, {
+		render: ({ context }) => {
+			const [x, y] = $coords();
+			const text = `<${$activeLayer()?.name} />`;
+			const size = 17;
+			const tooltipX = x + size;
+			const tooltipY = y + size;
+
+			context.font = `${size}px 'Fira Mono', monospace`;
+			context.textAlign = 'left';
+			context.textBaseline = 'top';
+
+			const { width: w } = context.measureText(text);
+			const rect = [tooltipX - 2, tooltipY - 2, w + 4, size + 4];
+
+			context.fillStyle = '#fff';
+			context.globalAlpha = 0.9;
+			context.fillRect(...rect);
+			context.strokeRect(...rect);
+			context.globalAlpha = 1;
+			context.fillStyle = '#000';
+			context.fillText(text, tooltipX, tooltipY);
+		}
+	});
+
+	$.pop();
+	$$cleanup();
+}
+=== 158 src/routes/_components/Example.svelte	css
+
+  div.svelte-3hti2i {
+    width: 100%;
+    justify-self: center;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background-color: var(--bg-light);
+  }
+
+=== 826 src/routes/_components/Example.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Code from './Code.svelte';
+
+var root = $.from_html(`<div class="svelte-3hti2i"><!></div> <!>`, 1);
+
+export default function Example($$anchor, $$props) {
+	let width = $.prop($$props, 'width', 3, '100%'),
+		aspectRatio = $.prop($$props, 'aspectRatio', 3, '1'),
+		files = $.prop($$props, 'files', 19, () => []);
+
+	var fragment = root();
+	var div = $.first_child(fragment);
+	let styles;
+	var node = $.child(div);
+
+	$.snippet(node, () => $$props.children);
+	$.reset(div);
+
+	var node_1 = $.sibling(div, 2);
+
+	Code(node_1, {
+		copy: true,
+		get files() {
+			return files();
+		}
+	});
+
+	$.template_effect(() => styles = $.set_style(div, '', styles, { 'max-width': width(), 'aspect-ratio': aspectRatio() }));
+	$.append($$anchor, fragment);
+}
+=== 3015 src/routes/_components/Layout.svelte	css
+
+  .page.svelte-18s1yha {
+    position: relative;
+  }
+
+  nav.svelte-18s1yha {
+    display: flex;
+    gap: 0.33rem;
+    flex-direction: column;
+  }
+
+  .header.svelte-18s1yha {
+    top: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  button.svelte-18s1yha {
+    appearance: none;
+    border: none;
+    background: none;
+    padding: 0;
+    line-height: 0;
+    color: var(--secondary);
+    cursor: pointer;
+  }
+
+  button.svelte-18s1yha:hover,
+  button.svelte-18s1yha:active {
+    color: var(--primary);
+  }
+
+  svg.svelte-18s1yha {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  line.svelte-18s1yha {
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+
+  .github.svelte-18s1yha {
+    line-height: 0;
+    margin-left: auto;
+  }
+
+  h1.svelte-18s1yha span:where(.svelte-18s1yha) {
+    font-size: 0.8rem;
+  }
+
+  main.svelte-18s1yha {
+    width: 100%;
+    max-width: 100%;
+    min-height: calc(100vh - var(--header-offset, 0vh));
+    display: grid;
+    grid-template-columns: minmax(auto, 80ch);
+    grid-auto-rows: min-content;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 2rem;
+    background-color: var(--bg);
+    padding: 1.5rem 1.5rem 2rem;
+  }
+
+  .article.svelte-18s1yha {
+    gap: 1rem;
+  }
+
+  @media (max-width: 45rem) {
+    .page.svelte-18s1yha {
+      --header-pad: 0.75rem;
+      --header-height: 2rem;
+      --header-offset: calc(var(--header-height) + var(--header-pad) * 2);
+    }
+
+    .header.svelte-18s1yha {
+      width: 100%;
+      position: fixed;
+      z-index: 1;
+      padding: var(--header-pad) 1.5rem;
+      background-color: var(--bg-dark);
+      border-bottom: 1px solid var(--bg-light);
+      line-height: 1.3;
+    }
+
+    h1.svelte-18s1yha {
+      height: var(--header-height);
+    }
+
+    .menu.svelte-18s1yha,
+    main.svelte-18s1yha {
+      margin-top: var(--header-offset);
+    }
+
+    .menu.svelte-18s1yha {
+      transform: translateX(-100%);
+      opacity: 0;
+      transition-property: transform, opacity, visibility;
+      transition-duration: 0.2s;
+      transition-timing-function: ease-in-out;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg);
+      top: 0;
+      z-index: 2;
+      visibility: hidden;
+      padding: 1rem 1.5rem;
+    }
+
+    .menu.visible.svelte-18s1yha {
+      transform: none;
+      visibility: visible;
+      opacity: 1;
+    }
+  }
+
+  @media (min-width: 45rem) {
+    .page.svelte-18s1yha {
+      --sidebar-width: max(25vw, 20rem);
+      --gutter-width: 4rem;
+      --margin-top: 4rem;
+
+      display: grid;
+      grid-template-columns: var(--sidebar-width) 1fr;
+    }
+
+    nav.svelte-18s1yha {
+      position: fixed;
+      top: var(--margin-top);
+      right: 0;
+      margin-right: calc(100% - var(--sidebar-width) + var(--gutter-width));
+    }
+
+    main.svelte-18s1yha {
+      gap: 3rem;
+      padding: var(--margin-top) 2rem 4rem var(--gutter-width);
+      grid-column: 2;
+      border-left: 1px solid var(--bg-light);
+    }
+
+    button.svelte-18s1yha {
+      display: none;
+    }
+  }
+
+=== 4056 src/routes/_components/Layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import './page.css';
+import { page } from '$app/stores';
+import { browser, version } from '$app/environment';
+import NavMenu from './NavMenu.svelte';
+
+var root = $.from_html(`<style>@import url('https://fonts.googleapis.com/css2?family=Fira+Mono&family=Source+Sans+3:wght@400;600;800&display=swap');</style>`);
+var root_1 = $.from_html(`<div class="page svelte-18s1yha"><nav class="svelte-18s1yha"><div class="header svelte-18s1yha"><button aria-label="Toggle menu" class="svelte-18s1yha"><svg viewBox="0 0 24 24" class="svelte-18s1yha"><line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" class="svelte-18s1yha"></line><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" class="svelte-18s1yha"></line><line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" class="svelte-18s1yha"></line></svg></button> <h1 class="svelte-18s1yha"><a href="/svelte-canvas">svelte-canvas</a> <a target="_blank" href="https://github.com/dnass/svelte-canvas/blob/master/CHANGELOG.md"><span class="svelte-18s1yha"> </span></a></h1> <a class="github svelte-18s1yha" target="_blank" href="https://github.com/dnass/svelte-canvas" aria-label="GitHub"><svg viewBox="0 0 98 96" class="svelte-18s1yha"><path fill-rule="evenodd" clip-rule="evenodd" d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z" fill="currentColor"></path></svg></a></div> <div><!></div></nav> <main><!></main></div>`);
+
+export default function Layout($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $page = () => $.store_get(page, '$page', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	let menuVisible = $.state(false);
+	let article = $.derived(() => !$page().url.pathname.includes('/examples/'));
+
+	$.user_effect(() => {
+		$page();
+		$.set(menuVisible, false);
+	});
+
+	$.user_effect(() => {
+		if (!browser) return;
+
+		document.body.style.overflow = $.get(menuVisible) ? 'hidden' : 'auto';
+	});
+
+	var div = root_1();
+
+	$.head('18s1yha', ($$anchor) => {
+		var style = root();
+
+		$.deferred_template_effect(() => {
+			$.document.title = `${$$props.title ?? ''} • svelte-canvas`;
+		});
+
+		$.append($$anchor, style);
+	});
+
+	var nav = $.child(div);
+	var div_1 = $.child(nav);
+	var button = $.child(div_1);
+	var h1 = $.sibling(button, 2);
+	var a = $.sibling($.child(h1), 2);
+	var span = $.child(a);
+	var text = $.only_child(span, true);
+
+	$.reset(a);
+	$.reset(h1);
+	$.next(2);
+	$.reset(div_1);
+
+	var div_2 = $.sibling(div_1, 2);
+	let classes;
+	var node = $.child(div_2);
+
+	NavMenu(node, {
+		get items() {
+			return $$props.data.menu;
+		}
+	});
+
+	$.reset(div_2);
+	$.reset(nav);
+
+	var main = $.sibling(nav, 2);
+	let classes_1;
+	var node_1 = $.child(main);
+
+	$.snippet(node_1, () => $$props.children);
+	$.reset(main);
+	$.reset(div);
+
+	$.template_effect(() => {
+		$.set_attribute(button, 'aria-expanded', $.get(menuVisible));
+		$.set_text(text, version);
+		classes = $.set_class(div_2, 1, 'menu svelte-18s1yha', null, classes, { visible: $.get(menuVisible) });
+		classes_1 = $.set_class(main, 1, 'svelte-18s1yha', null, classes_1, { article: $.get(article) });
+	});
+
+	$.delegated('click', button, () => $.set(menuVisible, !$.get(menuVisible)));
+	$.append($$anchor, div);
+	$.pop();
+	$$cleanup();
+}
+
+$.delegate(['click']);
+=== 282 src/routes/_components/NavMenu.svelte	css
+
+  a.svelte-1uzwzmu {
+    display: block;
+    line-height: 1.4;
+  }
+
+  a.active.svelte-1uzwzmu {
+    font-weight: 600;
+    color: var(--primary);
+  }
+
+  p.svelte-1uzwzmu {
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin: 1.5rem 0 0.25rem;
+  }
+
+=== 1968 src/routes/_components/NavMenu.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { page } from '$app/stores';
+import NavMenu from './NavMenu.svelte';
+
+var root = $.from_html(`<a> </a>`);
+var root_1 = $.from_html(`<p class="svelte-1uzwzmu"> </p> <!>`, 1);
+
+export default function NavMenu_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $page = () => $.store_get(page, '$page', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.each(node, 17, () => Object.entries($$props.items), $.index, ($$anchor, $$item) => {
+		var $$array = $.derived(() => $.to_array($.get($$item), 2));
+		let title = () => $.get($$array)[0];
+		let value = () => $.get($$array)[1];
+		var fragment_1 = $.comment();
+		var node_1 = $.first_child(fragment_1);
+
+		{
+			var consequent = ($$anchor) => {
+				const href = $.derived(() => `/svelte-canvas${value()}`);
+				var a = root();
+				let classes;
+				var text = $.only_child(a, true);
+
+				$.template_effect(
+					($0) => {
+						$.set_attribute(a, 'href', $.get(href));
+						classes = $.set_class(a, 1, 'svelte-1uzwzmu', null, classes, { active: $0 });
+						$.set_text(text, title());
+					},
+					[
+						() => $page().url.pathname.replace(/\/$/, '') === $.get(href)
+					]
+				);
+
+				$.append($$anchor, a);
+			};
+
+			var consequent_1 = ($$anchor) => {
+				var fragment_2 = root_1();
+				var p = $.first_child(fragment_2);
+				var text_1 = $.only_child(p, true);
+				var node_2 = $.sibling(p, 2);
+
+				NavMenu(node_2, {
+					get items() {
+						return value();
+					}
+				});
+
+				$.template_effect(() => $.set_text(text_1, title()));
+				$.append($$anchor, fragment_2);
+			};
+
+			$.if(node_1, ($$render) => {
+				if (typeof value() === 'string') $$render(consequent); else if (typeof value() === 'object') $$render(consequent_1, 1);
+			});
+		}
+
+		$.append($$anchor, fragment_1);
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+	$$cleanup();
+}
+=== 224 src/routes/examples/canvas-svg/App.svelte	css
+
+  div.svelte-jgosct {
+    position: relative;
+    height: 100%;
+  }
+
+  svg.svelte-jgosct {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+  }
+
+  path.svelte-jgosct {
+    stroke: #ccc;
+    fill: transparent;
+  }
+
+=== 1965 src/routes/examples/canvas-svg/App.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Canvas } from '$lib';
+import { mesh, feature } from 'topojson-client';
+import { geoIdentity, geoPath } from 'd3-geo';
+import Bubble from './Bubble.svelte';
+import us from 'us-atlas/states-albers-10m.json';
+
+var root = $.from_svg(`<path class="svelte-jgosct"></path>`);
+var root_1 = $.from_html(`<div class="svelte-jgosct"><svg class="svelte-jgosct"><!></svg> <!></div>`);
+
+export default function App($$anchor, $$props) {
+	$.push($$props, true);
+
+	let width = $.state(0);
+	const projection = $.derived(() => geoIdentity().scale($.get(width) / 975));
+	const path = $.derived(() => geoPath($.get(projection)));
+
+	const centroids = $.derived(() => us
+		? feature(us, us.objects.states).features.map($.get(path).centroid).sort(([a], [b]) => b - a)
+		: []);
+
+	var div = root_1();
+	var svg = $.child(div);
+	var node = $.child(svg);
+
+	{
+		var consequent = ($$anchor) => {
+			var path_1 = root();
+
+			$.template_effect(($0) => $.set_attribute(path_1, 'd', $0), [() => $.get(path)(mesh(us, us.objects.states))]);
+			$.append($$anchor, path_1);
+		};
+
+		$.if(node, ($$render) => {
+			if (us) $$render(consequent);
+		});
+	}
+
+	$.reset(svg);
+
+	var node_1 = $.sibling(svg, 2);
+
+	Canvas(node_1, {
+		onresize: (e) => $.set(width, e.width, true),
+		style: 'position: absolute',
+		autoplay: true,
+		children: ($$anchor, $$slotProps) => {
+			var fragment = $.comment();
+			var node_2 = $.first_child(fragment);
+
+			$.each(node_2, 17, () => $.get(centroids), $.index, ($$anchor, $$item, i) => {
+				var $$array = $.derived(() => $.to_array($.get($$item), 2));
+				let x = () => $.get($$array)[0];
+				let y = () => $.get($$array)[1];
+
+				Bubble($$anchor, {
+					get x() {
+						return x();
+					},
+
+					get y() {
+						return y();
+					},
+					i
+				});
+			});
+
+			$.append($$anchor, fragment);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div);
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 908 src/routes/examples/canvas-svg/Bubble.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Layer } from '$lib';
+import { quadInOut } from 'svelte/easing';
+import { piecewise, interpolateRgbBasis } from 'd3-interpolate';
+
+export default function Bubble($$anchor, $$props) {
+	$.push($$props, true);
+
+	const pieces = piecewise([
+		{ r: 0.005, alpha: 0.1 },
+		{ r: 0.02, alpha: 0.9 },
+		{ r: 0.005, alpha: 0.1 }
+	]);
+
+	const scale = (t) => pieces(quadInOut(t));
+	const interpolate = interpolateRgbBasis(['tomato', 'goldenrod', 'mediumturquoise']);
+
+	const render = ({ context, width, time }) => {
+		const { r, alpha } = scale((time / 25 + $$props.i * 3) % 100 / 100);
+
+		context.fillStyle = interpolate(1 - $$props.i / 50);
+		context.globalAlpha = alpha;
+		context.beginPath();
+		context.arc($$props.x, $$props.y, r * width, 0, Math.PI * 2);
+		context.fill();
+	};
+
+	Layer($$anchor, { render });
+	$.pop();
+}
+=== 587 src/routes/examples/dvd-bounce/App.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Canvas } from '$lib';
+import Background from './Background.svelte';
+import Logo from './Logo.svelte';
+
+var root = $.from_html(`<!> <!>`, 1);
+
+export default function App($$anchor) {
+	Canvas($$anchor, {
+		autoplay: true,
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var node = $.first_child(fragment_1);
+
+			Logo(node, {});
+
+			var node_1 = $.sibling(node, 2);
+
+			Background(node_1, {});
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 565 src/routes/examples/dvd-bounce/Background.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Layer } from '$lib';
+
+export default function Background($$anchor) {
+	const render = ({ context, width, height }) => {
+		const w = width / 2;
+		const h = height / 2;
+		const gradient = context.createRadialGradient(w, h, 0, w, h, height);
+
+		gradient.addColorStop(0, '#222');
+		gradient.addColorStop(1, '#000');
+		context.globalCompositeOperation = 'lighten';
+		context.fillStyle = gradient;
+		context.fillRect(0, 0, width, height);
+	};
+
+	Layer($$anchor, { render });
+}
+=== 1318 src/routes/examples/dvd-bounce/Logo.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Layer } from '$lib';
+import { onMount, untrack } from 'svelte';
+import Logo from './DVD_logo.svg?raw';
+
+export default function Logo_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	let logo = $.state(void 0);
+
+	onMount(() => {
+		$.set(logo, new Image(), true);
+		$.get(logo).src = `data:image/svg+xml,${encodeURIComponent(Logo)}`;
+	});
+
+	let x = $.state(0);
+	let y = $.state(0);
+	let xflip = $.state(1);
+	let yflip = $.state(1);
+	let colorIndex = $.state(0);
+	const colors = ['tomato', 'goldenrod', 'mediumturquoise'];
+
+	const render = ({ context, width, height }) => {
+		untrack(() => {
+			const w = Math.min(210, width / 3);
+			const h = w / 2;
+
+			if ($.set(x, $.get(x) + 5 * $.get(xflip)) <= 0 || $.get(x) + w >= width) {
+				$.set(xflip, $.get(xflip) * -1);
+				$.update(colorIndex);
+			}
+
+			if ($.set(y, $.get(y) + 5 * $.get(yflip)) <= 0 || $.get(y) + h >= height) {
+				$.set(yflip, $.get(yflip) * -1);
+				$.update(colorIndex);
+			}
+
+			context.fillStyle = colors[$.get(colorIndex) % colors.length];
+			context.fillRect(0, 0, width, height);
+			context.globalCompositeOperation = 'destination-in';
+			context.drawImage($.get(logo), $.get(x), $.get(y), w, h);
+		});
+	};
+
+	Layer($$anchor, { render });
+	$.pop();
+}
+=== 1524 src/routes/examples/globe/App.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Canvas, Layer } from '$lib';
+import { geoOrthographic, geoGraticule10, geoPath } from 'd3-geo';
+import { feature } from 'topojson-client';
+import land from 'world-atlas/land-110m.json';
+
+var root = $.from_html(`<!> <!>`, 1);
+
+export default function App($$anchor, $$props) {
+	$.push($$props, true);
+
+	const map = feature(land, 'land');
+	let width = $.state(void 0);
+	const pad = $.derived(() => $.get(width) * 0.02);
+
+	const projection = $.derived(() => geoOrthographic().fitExtent(
+		[
+			[$.get(pad), $.get(pad)],
+			[$.get(width) - $.get(pad), $.get(width) - $.get(pad)]
+		],
+		{ type: 'Sphere' }
+	));
+
+	const path = $.derived(() => geoPath($.get(projection)));
+
+	Canvas($$anchor, {
+		autoplay: true,
+		onresize: (e) => $.set(width, e.width, true),
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var node = $.first_child(fragment_1);
+
+			Layer(node, {
+				render: ({ context, time }) => {
+					$.get(path).context(context);
+					$.get(projection).rotate([time / 50, -10]);
+					context.strokeStyle = '#ccc';
+					context.beginPath();
+					$.get(path)(geoGraticule10());
+					context.stroke();
+				}
+			});
+
+			var node_1 = $.sibling(node, 2);
+
+			Layer(node_1, {
+				render: ({ context }) => {
+					context.fillStyle = 'tomato';
+					context.beginPath();
+					$.get(path)(map);
+					context.fill();
+				}
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 559 src/routes/examples/hello-world/App.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Canvas, Layer } from '$lib';
+
+export default function App($$anchor) {
+	const render = ({ context, width, height }) => {
+		context.font = `${width / 10}px sans-serif`;
+		context.textAlign = 'center';
+		context.textBaseline = 'middle';
+		context.fillStyle = 'tomato';
+		context.fillText('hello world', width / 2, height / 2);
+	};
+
+	Canvas($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			Layer($$anchor, { render });
+		},
+		$$slots: { default: true }
+	});
+}
+=== 1198 src/routes/examples/layer-events/App.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Canvas } from '$lib';
+import Ball from './Ball.svelte';
+
+export default function App($$anchor, $$props) {
+	$.push($$props, true);
+
+	let balls = [
+		{ color: 'tomato', x: 0.5, y: 0.333 },
+		{ color: 'goldenrod', x: 0.333, y: 0.625 },
+		{ color: 'mediumturquoise', x: 0.667, y: 0.625 }
+	];
+
+	const reorder = (color) => {
+		balls = balls.filter((c) => c.color !== color).concat(balls.filter((c) => c.color === color));
+	};
+
+	Canvas($$anchor, {
+		layerEvents: true,
+		style: 'touch-action: none',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = $.comment();
+			var node = $.first_child(fragment_1);
+
+			$.each(node, 17, () => balls, ({ color, x, y }) => color, ($$anchor, $$item) => {
+				let color = () => $.get($$item).color;
+				let x = () => $.get($$item).x;
+				let y = () => $.get($$item).y;
+
+				Ball($$anchor, {
+					get color() {
+						return color();
+					},
+
+					get x() {
+						return x();
+					},
+
+					get y() {
+						return y();
+					},
+					onclick: () => reorder(color())
+				});
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 347 src/routes/examples/layer-events/App.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`balls` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 85
+		},
+		"end": {
+			"line": 5,
+			"column": 11,
+			"character": 90
+		}
+	}
+]
+
+=== 1886 src/routes/examples/layer-events/Ball.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Layer } from '$lib';
+import { spring } from 'svelte/motion';
+
+export default function Ball($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $_x = () => $.store_get($.get(_x), '$_x', $$stores);
+	const $_y = () => $.store_get($.get(_y), '$_y', $$stores);
+	const $radius = () => $.store_get(radius, '$radius', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	let dragging = $.state(false);
+	let _x = $.state(void 0);
+	let _y = $.state(void 0);
+	const radius = spring(80, { stiffness: 0.15, damping: 0.2 });
+
+	const setup = ({ width, height }) => {
+		$.store_unsub($.set(_x, spring(width * $$props.x, { stiffness: 0.15, damping: 0.2 }), true), '$_x', $$stores);
+		$.store_unsub($.set(_y, spring(height * $$props.y, { stiffness: 0.15, damping: 0.2 }), true), '$_y', $$stores);
+	};
+
+	const render = ({ context }) => {
+		context.globalCompositeOperation = 'screen';
+		context.fillStyle = $$props.color;
+		context.lineWidth = 10;
+		context.beginPath();
+		context.arc($_x(), $_y(), $radius(), 0, Math.PI * 2);
+		context.fill();
+		context.stroke();
+	};
+
+	const onEnter = () => {
+		document.body.style.cursor = 'pointer';
+		radius.set(90);
+	};
+
+	const onLeave = () => {
+		document.body.style.cursor = 'auto';
+		$.set(dragging, false);
+		radius.set(80);
+	};
+
+	const onDown = (e) => {
+		$.set(dragging, true);
+		radius.set(120);
+		$$props.onclick?.();
+	};
+
+	const onUp = () => {
+		$.set(dragging, false);
+		radius.set(80);
+	};
+
+	const onMove = ({ x, y }) => {
+		if ($.get(dragging)) {
+			$.get(_x).set(x);
+			$.get(_y).set(y);
+		}
+	};
+
+	Layer($$anchor, {
+		setup,
+		render,
+		onmouseenter: onEnter,
+		onmouseleave: onLeave,
+		onmousedown: onDown,
+		onmousemove: onMove,
+		onmouseup: onUp,
+		ontouchstart: onDown,
+		ontouchmove: onMove,
+		ontouchend: onUp
+	});
+
+	$.pop();
+	$$cleanup();
+}
+=== 155 src/routes/examples/pixel-ratio/App.svelte	css
+
+  .controls.svelte-erjzvw {
+    position: absolute;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 1em;
+    padding: 0.25em;
+  }
+
+=== 2597 src/routes/examples/pixel-ratio/App.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Canvas, Layer } from '$lib';
+
+var root = $.from_html(`<button> </button>`);
+var root_1 = $.from_html(`<div class="controls svelte-erjzvw"><div>canvas height: <!></div> <div>pixel ratio: <!></div></div> <!>`, 1);
+
+export default function App($$anchor) {
+	const heights = [
+		{ value: 1000, label: '1000' },
+		{ value: 10000, label: '10000' },
+		{ value: 100000, label: '100000' }
+	];
+
+	const pixelRatios = [
+		{ value: undefined, label: 'unset' },
+		{ value: 3, label: '3' },
+		{ value: 0.5, label: '0.5' },
+		{ value: 'auto', label: "'auto'" }
+	];
+
+	let heightSetting = $.state($.proxy(heights[0]));
+	let pixelRatioSetting = $.state($.proxy(pixelRatios[0]));
+	let pixelRatioValue = $.state(void 0);
+	var fragment = root_1();
+	var div = $.first_child(fragment);
+	var div_1 = $.child(div);
+	var node = $.sibling($.child(div_1));
+
+	$.each(node, 17, () => heights, $.index, ($$anchor, option) => {
+		var button = root();
+		var text = $.only_child(button, true);
+
+		$.template_effect(() => {
+			button.disabled = $.get(option).label === $.get(heightSetting).label;
+			$.set_text(text, $.get(option).label);
+		});
+
+		$.delegated('click', button, () => $.set(heightSetting, $.get(option), true));
+		$.append($$anchor, button);
+	});
+
+	$.reset(div_1);
+
+	var div_2 = $.sibling(div_1, 2);
+	var node_1 = $.sibling($.child(div_2));
+
+	$.each(node_1, 17, () => pixelRatios, $.index, ($$anchor, option) => {
+		var button_1 = root();
+		var text_1 = $.only_child(button_1, true);
+
+		$.template_effect(() => {
+			button_1.disabled = $.get(option).label === $.get(pixelRatioSetting).label;
+			$.set_text(text_1, $.get(option).label);
+		});
+
+		$.delegated('click', button_1, () => $.set(pixelRatioSetting, $.get(option), true));
+		$.append($$anchor, button_1);
+	});
+
+	$.reset(div_2);
+	$.reset(div);
+
+	var node_2 = $.sibling(div, 2);
+
+	Canvas(node_2, {
+		get height() {
+			return $.get(heightSetting).value;
+		},
+
+		get pixelRatio() {
+			return $.get(pixelRatioSetting).value;
+		},
+		onresize: (e) => $.set(pixelRatioValue, e.pixelRatio, true),
+		children: ($$anchor, $$slotProps) => {
+			Layer($$anchor, {
+				render: ({ context, width }) => {
+					context.font = `${width / 20}px 'Fira Mono', monospace`;
+					context.textAlign = 'center';
+					context.textBaseline = 'middle';
+					context.fillStyle = 'tomato';
+					context.fillText(`pixelRatio: ${$.get(pixelRatioValue)?.toFixed(1)}`, width / 2, width / 4);
+				}
+			});
+		},
+		$$slots: { default: true }
+	});
+
+	$.append($$anchor, fragment);
+}
+
+$.delegate(['click']);
+=== 994 src/routes/examples/reactive-render/App.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Canvas, Layer } from '$lib';
+import { onMount } from 'svelte';
+import { tweened } from 'svelte/motion';
+import { quadOut as easing } from 'svelte/easing';
+
+export default function App($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $position = () => $.store_get(position, '$position', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	const position = tweened([0.5, 0.5], { duration: 400, easing });
+
+	onMount(() => {
+		setInterval(() => $.store_set(position, [Math.random(), Math.random()]), 1000);
+	});
+
+	const render = ({ context, width, height }) => {
+		const [x, y] = $position();
+
+		context.fillStyle = 'tomato';
+		context.beginPath();
+		context.arc(x * width, y * height, 20, 0, 2 * Math.PI);
+		context.fill();
+	};
+
+	Canvas($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			Layer($$anchor, { render });
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+	$$cleanup();
+}
+=== 1539 src/routes/examples/resize/App.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Canvas, Layer } from '$lib';
+import ResizableLayer from './ResizableLayer.svelte';
+
+export default function App($$anchor) {
+	let colors = $.state($.proxy(['tomato', 'goldenrod', 'mediumturquoise']));
+	const sort = (color) => $.set(colors, $.get(colors).sort((a, b) => a === color ? 1 : b === color ? -1 : 0), true);
+
+	Canvas($$anchor, {
+		style: 'touch-action: none',
+		layerEvents: true,
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = $.comment();
+			var node = $.first_child(fragment_1);
+
+			$.each(node, 18, () => $.get(colors), (color) => color, ($$anchor, color, i) => {
+				const c = $.derived(() => ($.get(i) + 1) * 85);
+
+				{
+					const content = ($$anchor, bounds = $.noop) => {
+						Layer($$anchor, {
+							render: ({ context }) => {
+								const { x0, y0, x1, y1 } = bounds();
+
+								context.globalAlpha = 0.9;
+								context.fillStyle = color;
+								context.fillRect(x0, y0, x1 - x0, y1 - y0);
+								context.globalAlpha = 1;
+							}
+						});
+					};
+
+					let $0 = $.derived(() => ({
+						x0: $.get(c),
+						y0: $.get(c),
+						x1: $.get(c) + 338,
+						y1: $.get(c) + 338
+					}));
+
+					ResizableLayer($$anchor, {
+						get initialBounds() {
+							return $.get($0);
+						},
+						onmousedown: () => sort(color),
+						ontouchstart: () => sort(color),
+						content,
+						$$slots: { content: true }
+					});
+				}
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 4469 src/routes/examples/resize/ResizableLayer.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Handle from './ResizableLayerHandle.svelte';
+import Surface from './ResizableLayerSurface.svelte';
+
+var root = $.from_html(`<!> <!> <!>`, 1);
+
+export default function ResizableLayer($$anchor, $$props) {
+	$.push($$props, true);
+
+	const [N, S, E, W] = [1, 2, 4, 8];
+	const HANDLES = [N, S, E, W, N | E, N | W, S | E, S | W];
+	const SURFACE = N | S | E | W;
+	let initialBounds = $.prop($$props, 'initialBounds', 19, () => ({ x0: 160, y0: 160, x1: 480, y1: 480 }));
+	let x0 = $.state($.proxy(initialBounds().x0));
+	let y0 = $.state($.proxy(initialBounds().y0));
+	let x1 = $.state($.proxy(initialBounds().x1));
+	let y1 = $.state($.proxy(initialBounds().y1));
+	const bounds = $.derived(() => ({ x0: $.get(x0), y0: $.get(y0), x1: $.get(x1), y1: $.get(y1) }));
+	let hoveredHandle = $.state(null);
+	let draggedHandle = $.state(null);
+	let previousTouch = $.state(void 0);
+	const active = $.derived(() => Boolean($.get(hoveredHandle) || $.get(draggedHandle)));
+	const sortedHandles = $.derived(() => HANDLES.sort((a, b) => a === $.get(hoveredHandle) ? 1 : b === $.get(hoveredHandle) ? -1 : 0));
+	const setCursor = ({ style }) => ({ update: (cursor) => style.cursor = cursor });
+	var fragment = root();
+
+	$.action($.document.body, ($$node, $$action_arg) => setCursor?.($$node, $$action_arg), () => $.get(active) ? 'pointer' : 'auto');
+
+	$.event('mousemove', $.document.body, ({ movementX, movementY }) => {
+		$.set(x0, $.get(x0) + ($.get(draggedHandle) & W && movementX));
+		$.set(y0, $.get(y0) + ($.get(draggedHandle) & N && movementY));
+		$.set(x1, $.get(x1) + ($.get(draggedHandle) & E && movementX));
+		$.set(y1, $.get(y1) + ($.get(draggedHandle) & S && movementY));
+	});
+
+	$.event('mouseup', $.document.body, () => $.set(draggedHandle, null));
+	$.event('pointerdown', $.document.body, () => $.set(draggedHandle, null));
+	$.event('touchstart', $.document.body, (e) => $.set(previousTouch, e.touches[0], true), void 0, true);
+
+	$.event(
+		'touchmove',
+		$.document.body,
+		(e) => {
+			const { clientX, clientY } = e.touches[0];
+			const movementX = clientX - $.get(previousTouch).clientX;
+			const movementY = clientY - $.get(previousTouch).clientY;
+
+			$.set(x0, $.get(x0) + ($.get(draggedHandle) & W && movementX));
+			$.set(y0, $.get(y0) + ($.get(draggedHandle) & N && movementY));
+			$.set(x1, $.get(x1) + ($.get(draggedHandle) & E && movementX));
+			$.set(y1, $.get(y1) + ($.get(draggedHandle) & S && movementY));
+			$.set(previousTouch, e.touches[0], true);
+		},
+		void 0,
+		true
+	);
+
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.content, () => $.get(bounds));
+
+	var node_1 = $.sibling(node, 2);
+
+	Surface(node_1, {
+		get bounds() {
+			return $.get(bounds);
+		},
+
+		get show() {
+			return $.get(active);
+		},
+
+		onmouseenter: () => {
+			$.set(hoveredHandle, SURFACE);
+		},
+
+		ontouchstart: () => {
+			$.set(draggedHandle, SURFACE);
+			$$props.ontouchstart?.();
+		},
+
+		onmouseleave: () => {
+			$.set(hoveredHandle, null);
+		},
+
+		onmousedown: () => {
+			$.set(draggedHandle, SURFACE);
+			$$props.onmousedown?.();
+		}
+	});
+
+	var node_2 = $.sibling(node_1, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			var fragment_1 = $.comment();
+			var node_3 = $.first_child(fragment_1);
+
+			$.each(node_3, 16, () => $.get(sortedHandles), (handle) => handle, ($$anchor, handle) => {
+				{
+					let $0 = $.derived(() => handle === $.get(hoveredHandle) || handle === $.get(draggedHandle));
+
+					let $1 = $.derived(() => handle & W
+						? $.get(x0)
+						: handle & E ? $.get(x1) : ($.get(x0) + $.get(x1)) / 2);
+
+					let $2 = $.derived(() => handle & N
+						? $.get(y0)
+						: handle & S ? $.get(y1) : ($.get(y0) + $.get(y1)) / 2);
+
+					Handle($$anchor, {
+						get active() {
+							return $.get($0);
+						},
+
+						get x() {
+							return $.get($1);
+						},
+
+						get y() {
+							return $.get($2);
+						},
+
+						onmouseenter: () => {
+							$.set(hoveredHandle, handle, true);
+						},
+
+						ontouchstart: () => {
+							$.set(draggedHandle, handle, true);
+							$$props.ontouchstart?.();
+						},
+						onmouseleave: () => $.set(hoveredHandle, null),
+						onmousedown: () => {
+							$.set(draggedHandle, handle, true);
+							$$props.onmousedown?.();
+						}
+					});
+				}
+			});
+
+			$.append($$anchor, fragment_1);
+		};
+
+		$.if(node_2, ($$render) => {
+			if ($.get(active)) $$render(consequent);
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 1471 src/routes/examples/resize/ResizableLayer.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 16,
+			"column": 18,
+			"character": 394
+		},
+		"end": {
+			"line": 16,
+			"column": 31,
+			"character": 407
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 17,
+			"column": 18,
+			"character": 431
+		},
+		"end": {
+			"line": 17,
+			"column": 31,
+			"character": 444
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 18,
+			"column": 18,
+			"character": 468
+		},
+		"end": {
+			"line": 18,
+			"column": 31,
+			"character": 481
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 19,
+			"column": 18,
+			"character": 505
+		},
+		"end": {
+			"line": 19,
+			"column": 31,
+			"character": 518
+		}
+	}
+]
+
+=== 596 src/routes/examples/resize/ResizableLayerHandle.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Layer } from '$lib';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'x', 'y', 'active']);
+
+export default function ResizableLayerHandle($$anchor, $$props) {
+	let active = $.prop($$props, 'active', 3, false),
+		eventHandlers = $.rest_props($$props, rest_excludes);
+
+	const render = ({ context }) => {
+		context.fillStyle = active() ? '#111' : '#444';
+		context.fillRect($$props.x - 6, $$props.y - 6, 12, 12);
+	};
+
+	Layer($$anchor, $.spread_props({ render }, () => eventHandlers));
+}
+=== 758 src/routes/examples/resize/ResizableLayerSurface.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Layer } from '$lib';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'bounds', 'show']);
+
+export default function ResizableLayerSurface($$anchor, $$props) {
+	let show = $.prop($$props, 'show', 3, false),
+		eventHandlers = $.rest_props($$props, rest_excludes);
+
+	const render = ({ context }) => {
+		const { x0, y0, x1, y1 } = $$props.bounds;
+
+		if (show()) {
+			context.strokeStyle = '#444';
+			context.lineWidth = 2;
+			context.strokeRect(x0, y0, x1 - x0, y1 - y0);
+		}
+
+		context.globalAlpha = 0;
+		context.fillRect(x0, y0, x1 - x0, y1 - y0);
+		context.globalAlpha = 1;
+	};
+
+	Layer($$anchor, $.spread_props({ render }, () => eventHandlers));
+}
+=== 3174 src/routes/examples/scatterplot/App.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { onMount } from 'svelte';
+import { Canvas } from '$lib';
+import { extent } from 'd3-array';
+import { scaleLinear } from 'd3-scale';
+import { Delaunay } from 'd3-delaunay';
+import Point from './Point.svelte';
+import Axis from './Axis.svelte';
+
+var root = $.from_html(`<!> <!> <!>`, 1);
+
+export default function App($$anchor, $$props) {
+	$.push($$props, true);
+
+	const margin = { top: 24, right: 24, bottom: 36, left: 36 };
+	let points = $.state($.proxy([]));
+	let width = $.state(void 0);
+	let height = $.state(void 0);
+	let picked = $.state(null);
+	let click = $.state(false);
+
+	onMount(() => fetch('https://raw.githubusercontent.com/vega/vega/master/docs/data/cars.json').then((data) => data.json()).then((data) => {
+		$.set(points, data.map((d, id) => ({ mpg: d.Miles_per_Gallon, hp: d.Horsepower, id })).filter((d) => d.mpg && d.hp), true);
+	}));
+
+	let x = $.derived(() => scaleLinear().domain(extent($.get(points), (d) => d.mpg)).range([margin.left, $.get(width) - margin.right]).nice());
+	let y = $.derived(() => scaleLinear().domain(extent($.get(points), (d) => d.hp)).range([$.get(height) - margin.bottom, margin.top]).nice());
+	let delaunay = $.derived(() => Delaunay.from($.get(points), (d) => $.get(x)(d.mpg), (d) => $.get(y)(d.hp)));
+
+	Canvas($$anchor, {
+		style: 'cursor: pointer',
+		onresize: (e) => {
+			$.set(width, e.width, true);
+			$.set(height, e.height, true);
+		},
+
+		onmousemove: ({ offsetX, offsetY }) => {
+			const i = $.get(delaunay).find(offsetX, offsetY);
+
+			if (i) {
+				$.set(picked, $.get(points)[i].id, true);
+				$.get(points).push($.get(points).splice(i, 1)[0]);
+				$.set(points, $.get(points), true);
+			}
+		},
+		onmouseout: () => $.set(picked, null),
+		onmousedown: () => $.set(click, true),
+		onmouseup: () => $.set(click, false),
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var node = $.first_child(fragment_1);
+
+			Axis(node, {
+				type: 'x',
+				get scale() {
+					return $.get(x);
+				},
+				tickNumber: 8,
+				get margin() {
+					return margin;
+				}
+			});
+
+			var node_1 = $.sibling(node, 2);
+
+			Axis(node_1, {
+				type: 'y',
+				get scale() {
+					return $.get(y);
+				},
+				tickNumber: 10,
+				get margin() {
+					return margin;
+				}
+			});
+
+			var node_2 = $.sibling(node_1, 2);
+
+			$.each(node_2, 17, () => $.get(points), ({ mpg, hp, id }) => id, ($$anchor, $$item) => {
+				let mpg = () => $.get($$item).mpg;
+				let hp = () => $.get($$item).hp;
+				let id = () => $.get($$item).id;
+
+				{
+					let $0 = $.derived(() => $.get(x)(mpg()));
+					let $1 = $.derived(() => $.get(y)(hp()));
+					let $2 = $.derived(() => id() === $.get(picked) && !$.get(click) ? 5 : 3);
+					let $3 = $.derived(() => id() === $.get(picked) ? '#eee' : null);
+
+					Point($$anchor, {
+						get x() {
+							return $.get($0);
+						},
+
+						get y() {
+							return $.get($1);
+						},
+						fill: 'tomato',
+						get r() {
+							return $.get($2);
+						},
+
+						get stroke() {
+							return $.get($3);
+						}
+					});
+				}
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 1354 src/routes/examples/scatterplot/Axis.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Layer } from '$lib';
+
+export default function Axis($$anchor, $$props) {
+	$.push($$props, true);
+
+	const tickSize = $.prop($$props, 'tickSize', 3, 4),
+		tickNumber = $.prop($$props, 'tickNumber', 3, 10),
+		type = $.prop($$props, 'type', 3, 'x');
+
+	const render = ({ context, height }) => {
+		const ticks = $$props.scale.ticks(tickNumber());
+
+		context.beginPath();
+
+		ticks.forEach((d) => {
+			if (type() === 'x') {
+				context.moveTo($$props.scale(d), height - $$props.margin.bottom);
+				context.lineTo($$props.scale(d), height - $$props.margin.bottom + tickSize());
+			} else if (type() === 'y') {
+				context.moveTo($$props.margin.left, $$props.scale(d));
+				context.lineTo($$props.margin.left - tickSize(), $$props.scale(d));
+			}
+		});
+
+		context.strokeStyle = '#ccc';
+		context.stroke();
+		context.textAlign = type() === 'x' ? 'center' : 'right';
+		context.textBaseline = type() === 'x' ? 'top' : 'middle';
+		context.fillStyle = '#ccc';
+
+		ticks.forEach((d) => {
+			if (type() === 'x') {
+				context.fillText(d, $$props.scale(d), height - $$props.margin.bottom + tickSize() + 1);
+			} else if (type() === 'y') {
+				context.fillText(d, $$props.margin.left - tickSize() - 1, $$props.scale(d));
+			}
+		});
+	};
+
+	Layer($$anchor, { render });
+	$.pop();
+}
+=== 1171 src/routes/examples/scatterplot/Point.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Layer } from '$lib';
+import { spring } from 'svelte/motion';
+
+export default function Point($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $radius = () => $.store_get(radius, '$radius', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+
+	const x = $.prop($$props, 'x', 3, 0),
+		y = $.prop($$props, 'y', 3, 0),
+		r = $.prop($$props, 'r', 3, 1),
+		fill = $.prop($$props, 'fill', 3, 'black'),
+		stroke = $.prop($$props, 'stroke', 3, null),
+		strokeWidth = $.prop($$props, 'strokeWidth', 3, 1);
+
+	const radius = spring(r(), { stiffness: 0.15, damping: 0.3 });
+
+	$.user_effect(() => {
+		radius.set(r());
+	});
+
+	const render = ({ context }) => {
+		const r = Math.max($radius(), 0);
+
+		context.fillStyle = fill();
+		context.beginPath();
+		context.arc(x(), y(), r, 0, 2 * Math.PI);
+		context.fill();
+
+		if (stroke()) {
+			context.strokeStyle = stroke();
+			context.lineWidth = strokeWidth();
+			context.beginPath();
+			context.arc(x(), y(), r + strokeWidth() / 2, 0, 2 * Math.PI);
+			context.stroke();
+		}
+	};
+
+	Layer($$anchor, { render });
+	$.pop();
+	$$cleanup();
+}
+=== 358 src/routes/examples/scatterplot/Point.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `r`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 14,
+			"column": 24,
+			"character": 228
+		},
+		"end": {
+			"line": 14,
+			"column": 25,
+			"character": 229
+		}
+	}
+]
+

@@ -1,0 +1,1 @@
+<div use:foo={a b c}>x</div>

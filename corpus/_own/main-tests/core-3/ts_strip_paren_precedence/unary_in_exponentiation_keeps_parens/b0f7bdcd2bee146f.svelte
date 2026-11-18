@@ -1,0 +1,1 @@
+<script lang="ts">export function f(n:number){ return (-n as number) ** 2; }</script>

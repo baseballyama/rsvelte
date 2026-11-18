@@ -1,0 +1,1 @@
+<script>let { p, q } = { p: 1, q: 2 }; function f() { p++; }</script><p>{p}{q}</p>

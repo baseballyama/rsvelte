@@ -1,0 +1,38 @@
+[
+	{
+		"code": 1232,
+		"message": "An import declaration can only be used at the top level of a namespace or module.",
+		"start": {
+			"line": 1,
+			"character": 1
+		},
+		"end": {
+			"line": 1,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Z'.",
+		"start": {
+			"line": 1,
+			"character": 12
+		},
+		"end": {
+			"line": 1,
+			"character": 13
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'Z'.",
+		"start": {
+			"line": 1,
+			"character": 12
+		},
+		"end": {
+			"line": 1,
+			"character": 13
+		}
+	}
+]

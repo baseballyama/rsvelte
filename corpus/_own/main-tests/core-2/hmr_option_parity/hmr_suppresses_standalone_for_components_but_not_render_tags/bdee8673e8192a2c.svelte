@@ -1,0 +1,1 @@
+{#snippet s(x)}<b>{x}</b>{/snippet}{@render s(1)}

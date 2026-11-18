@@ -1,0 +1,2832 @@
+# rsvelte pack 1
+=== 8651 src/routes/(admin)/account/(menu)/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import "../../../../app.css";
+import { writable } from "svelte/store";
+import { setContext } from "svelte";
+import { WebsiteName } from "../../../../config";
+
+var root = $.from_html(`<div class="drawer lg:drawer-open"><input id="admin-drawer" type="checkbox" class="drawer-toggle"/> <div class="drawer-content"><div class="navbar bg-base-100 lg:hidden"><div class="flex-1"><a class="btn btn-ghost normal-case text-xl" href="/"> </a></div> <div class="flex-none"><div class="dropdown dropdown-end"><label for="admin-drawer" class="btn btn-ghost btn-circle"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg></label></div></div></div> <div class="container px-6 lg:px-12 py-3 lg:py-6"><!></div></div> <div class="drawer-side"><label for="admin-drawer" class="drawer-overlay"></label> <ul class="menu menu-lg p-4 w-80 min-h-full bg-base-100 lg:border-r text-primary"><li><div class="normal-case menu-title text-xl font-bold text-primary flex flex-row"><a href="/" class="grow"> </a> <label for="admin-drawer" class="lg:hidden ml-3">&#x2715;</label></div></li> <li><a href="/account"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg> Home</a></li> <li><a href="/account/billing"><svg class="h-5 w-5" viewBox="0 0 24 24" stroke="none" fill="currentColor"><path d="M18,1H6A3,3,0,0,0,3,4V22a1,1,0,0,0,1.8.6L6.829,19.9l1.276,2.552a1,1,0,0,0,.8.549.981.981,0,0,0,.89-.4L12,19.667,14.2,22.6a.983.983,0,0,0,.89.4,1,1,0,0,0,.8-.549L17.171,19.9,19.2,22.6a1,1,0,0,0,.8.4,1,1,0,0,0,1-1V4A3,3,0,0,0,18,1Zm1,18-1.2-1.6a.983.983,0,0,0-.89-.4,1,1,0,0,0-.8.549l-1.276,2.552L12.8,17.4a1,1,0,0,0-1.6,0L9.171,20.105,7.9,17.553A1,1,0,0,0,7.09,17a.987.987,0,0,0-.89.4L5,19V4A1,1,0,0,1,6,3H18a1,1,0,0,1,1,1ZM17,9a1,1,0,0,1-1,1H8A1,1,0,0,1,8,8h8A1,1,0,0,1,17,9Zm-4,4a1,1,0,0,1-1,1H8a1,1,0,0,1,0-2h4A1,1,0,0,1,13,13Z"></path></svg> Billing</a></li> <li><a href="/account/settings"><svg class="h-5 w-5" viewBox="0 0 24 24" stroke="none" fill="none"><g id="Interface / Settings"><g id="Vector"><path d="M20.3499 8.92293L19.9837 8.7192C19.9269 8.68756 19.8989 8.67169 19.8714 8.65524C19.5983 8.49165 19.3682 8.26564 19.2002 7.99523C19.1833 7.96802 19.1674 7.93949 19.1348 7.8831C19.1023 7.82677 19.0858 7.79823 19.0706 7.76998C18.92 7.48866 18.8385 7.17515 18.8336 6.85606C18.8331 6.82398 18.8332 6.79121 18.8343 6.72604L18.8415 6.30078C18.8529 5.62025 18.8587 5.27894 18.763 4.97262C18.6781 4.70053 18.536 4.44993 18.3462 4.23725C18.1317 3.99685 17.8347 3.82534 17.2402 3.48276L16.7464 3.1982C16.1536 2.85658 15.8571 2.68571 15.5423 2.62057C15.2639 2.56294 14.9765 2.56561 14.6991 2.62789C14.3859 2.69819 14.0931 2.87351 13.5079 3.22396L13.5045 3.22555L13.1507 3.43741C13.0948 3.47091 13.0665 3.48779 13.0384 3.50338C12.7601 3.6581 12.4495 3.74365 12.1312 3.75387C12.0992 3.7549 12.0665 3.7549 12.0013 3.7549C11.9365 3.7549 11.9024 3.7549 11.8704 3.75387C11.5515 3.74361 11.2402 3.65759 10.9615 3.50224C10.9334 3.48658 10.9056 3.46956 10.8496 3.4359L10.4935 3.22213C9.90422 2.86836 9.60915 2.69121 9.29427 2.62057C9.0157 2.55807 8.72737 2.55634 8.44791 2.61471C8.13236 2.68062 7.83577 2.85276 7.24258 3.19703L7.23994 3.1982L6.75228 3.48124L6.74688 3.48454C6.15904 3.82572 5.86441 3.99672 5.6517 4.23614C5.46294 4.4486 5.32185 4.69881 5.2374 4.97018C5.14194 5.27691 5.14703 5.61896 5.15853 6.3027L5.16568 6.72736C5.16676 6.79166 5.16864 6.82362 5.16817 6.85525C5.16343 7.17499 5.08086 7.48914 4.92974 7.77096C4.9148 7.79883 4.8987 7.8267 4.86654 7.88237C4.83436 7.93809 4.81877 7.96579 4.80209 7.99268C4.63336 8.26452 4.40214 8.49186 4.12733 8.65572C4.10015 8.67193 4.0715 8.68752 4.01521 8.71871L3.65365 8.91908C3.05208 9.25245 2.75137 9.41928 2.53256 9.65669C2.33898 9.86672 2.19275 10.1158 2.10349 10.3872C2.00259 10.6939 2.00267 11.0378 2.00424 11.7255L2.00551 12.2877C2.00706 12.9708 2.00919 13.3122 2.11032 13.6168C2.19979 13.8863 2.34495 14.134 2.53744 14.3427C2.75502 14.5787 3.05274 14.7445 3.64974 15.0766L4.00808 15.276C4.06907 15.3099 4.09976 15.3266 4.12917 15.3444C4.40148 15.5083 4.63089 15.735 4.79818 16.0053C4.81625 16.0345 4.8336 16.0648 4.8683 16.1255C4.90256 16.1853 4.92009 16.2152 4.93594 16.2452C5.08261 16.5229 5.16114 16.8315 5.16649 17.1455C5.16707 17.1794 5.16658 17.2137 5.16541 17.2827L5.15853 17.6902C5.14695 18.3763 5.1419 18.7197 5.23792 19.0273C5.32287 19.2994 5.46484 19.55 5.65463 19.7627C5.86915 20.0031 6.16655 20.1745 6.76107 20.5171L7.25478 20.8015C7.84763 21.1432 8.14395 21.3138 8.45869 21.379C8.73714 21.4366 9.02464 21.4344 9.30209 21.3721C9.61567 21.3017 9.90948 21.1258 10.4964 20.7743L10.8502 20.5625C10.9062 20.5289 10.9346 20.5121 10.9626 20.4965C11.2409 20.3418 11.5512 20.2558 11.8695 20.2456C11.9015 20.2446 11.9342 20.2446 11.9994 20.2446C12.0648 20.2446 12.0974 20.2446 12.1295 20.2456C12.4484 20.2559 12.7607 20.3422 13.0394 20.4975C13.0639 20.5112 13.0885 20.526 13.1316 20.5519L13.5078 20.7777C14.0971 21.1315 14.3916 21.3081 14.7065 21.3788C14.985 21.4413 15.2736 21.4438 15.5531 21.3855C15.8685 21.3196 16.1657 21.1471 16.7586 20.803L17.2536 20.5157C17.8418 20.1743 18.1367 20.0031 18.3495 19.7636C18.5383 19.5512 18.6796 19.3011 18.764 19.0297C18.8588 18.7252 18.8531 18.3858 18.8417 17.7119L18.8343 17.2724C18.8332 17.2081 18.8331 17.1761 18.8336 17.1445C18.8383 16.8247 18.9195 16.5104 19.0706 16.2286C19.0856 16.2007 19.1018 16.1726 19.1338 16.1171C19.166 16.0615 19.1827 16.0337 19.1994 16.0068C19.3681 15.7349 19.5995 15.5074 19.8744 15.3435C19.9012 15.3275 19.9289 15.3122 19.9838 15.2818L19.9857 15.2809L20.3472 15.0805C20.9488 14.7472 21.2501 14.5801 21.4689 14.3427C21.6625 14.1327 21.8085 13.8839 21.8978 13.6126C21.9981 13.3077 21.9973 12.9658 21.9958 12.2861L21.9945 11.7119C21.9929 11.0287 21.9921 10.6874 21.891 10.3828C21.8015 10.1133 21.6555 9.86561 21.463 9.65685C21.2457 9.42111 20.9475 9.25526 20.3517 8.92378L20.3499 8.92293Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M8.00033 12C8.00033 14.2091 9.79119 16 12.0003 16C14.2095 16 16.0003 14.2091 16.0003 12C16.0003 9.79082 14.2095 7.99996 12.0003 7.99996C9.79119 7.99996 8.00033 9.79082 8.00033 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></g></g></svg> Settings</a></li> <li class="mt-auto"><a href="/account/sign_out" class="mt-auto text-base">Sign Out</a></li></ul></div></div>`);
+
+export default function _layout($$anchor, $$props) {
+	$.push($$props, true);
+
+	const adminSectionStore = writable("");
+
+	setContext("adminSection", adminSectionStore);
+
+	let adminSection = $.state(void 0);
+
+	adminSectionStore.subscribe((value) => {
+		$.set(adminSection, value, true);
+	});
+
+	function closeDrawer() {
+		const adminDrawer = document.getElementById("admin-drawer");
+
+		adminDrawer.checked = false;
+	}
+
+	var div = root();
+	var div_1 = $.sibling($.child(div), 2);
+	var div_2 = $.child(div_1);
+	var div_3 = $.child(div_2);
+	var a = $.child(div_3);
+	var text = $.only_child(a, true);
+
+	$.reset(div_3);
+	$.next(2);
+	$.reset(div_2);
+
+	var div_4 = $.sibling(div_2, 2);
+	var node = $.child(div_4);
+
+	$.snippet(node, () => $$props.children ?? $.noop);
+	$.reset(div_4);
+	$.reset(div_1);
+
+	var div_5 = $.sibling(div_1, 2);
+	var ul = $.sibling($.child(div_5), 2);
+	var li = $.child(ul);
+	var div_6 = $.child(li);
+	var a_1 = $.child(div_6);
+	var text_1 = $.only_child(a_1, true);
+
+	$.next(2);
+	$.reset(div_6);
+	$.reset(li);
+
+	var li_1 = $.sibling(li, 2);
+	var a_2 = $.only_child(li_1);
+	var li_2 = $.sibling(li_1, 2);
+	var a_3 = $.only_child(li_2);
+	var li_3 = $.sibling(li_2, 2);
+	var a_4 = $.only_child(li_3);
+
+	$.next(2);
+	$.reset(ul);
+	$.reset(div_5);
+	$.reset(div);
+
+	$.template_effect(() => {
+		$.set_text(text, WebsiteName);
+		$.set_text(text_1, WebsiteName);
+		$.set_class(a_2, 1, $.clsx($.get(adminSection) === "home" ? "active" : ""));
+		$.set_class(a_3, 1, $.clsx($.get(adminSection) === "billing" ? "active" : ""));
+		$.set_class(a_4, 1, $.clsx($.get(adminSection) === "settings" ? "active" : ""));
+	});
+
+	$.delegated('click', a_2, closeDrawer);
+	$.delegated('click', a_3, closeDrawer);
+	$.delegated('click', a_4, closeDrawer);
+	$.append($$anchor, div);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 2765 src/routes/(admin)/account/(menu)/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getContext } from "svelte";
+
+var root = $.from_html(
+	`<h1 class="text-2xl font-bold mb-1">Dashboard</h1> <div class="alert alert-error max-w-lg mt-2"><svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg> <div><div class="font-bold">Demo Content</div> <div class="my-2">This page is just a placeholder. Replace this page with your app's content
+      and functionality.</div> <div class="my-2">The <a href="/account/billing" class="link">billing</a> and <a href="/account/settings" class="link">settings</a> pages are functional
+      demos.</div></div></div> <div class="my-6"><h1 class="text-xl font-bold mb-1">Users</h1> <div class="stats shadow-sm stats-vertical sm:stats-horizontal sm:w-[420px]"><div class="stat place-items-center"><div class="stat-title">Downloads</div> <div class="stat-value">31K</div> <div class="stat-desc">↗︎ 546 (2%)</div></div> <div class="stat place-items-center"><div class="stat-title">Users</div> <div class="stat-value text-secondary">4,200</div> <div class="stat-desc">↗︎ 40 (2%)</div></div></div></div> <div class="my-6"><h1 class="text-xl font-bold mb-1">Accounts</h1> <div class="stats shadow-sm stats-vertical sm:stats-horizontal sm:w-[420px]"><div class="stat place-items-center"><div class="stat-title">New Registers</div> <div class="stat-value">1,200</div> <div class="stat-desc">↘︎ 90 (14%)</div></div> <div class="stat place-items-center"><div class="stat-title">Churned Accounts</div> <div class="stat-value">42</div> <div class="stat-desc">↘︎ 6 (12%)</div></div></div></div> <div class="my-6"><h1 class="text-xl font-bold mb-1">Revenue</h1> <div class="stats shadow-sm stats-vertical sm:stats-horizontal sm:w-[420px]"><div class="stat place-items-center"><div class="stat-title text-success">Revenue</div> <div class="stat-value text-success">$4200</div> <div class="stat-desc">↗︎ $180 (4%)</div></div> <div class="stat place-items-center"><div class="stat-title">New Subscribers</div> <div class="stat-value">16</div> <div class="stat-desc">↘︎ 1 (%7)</div></div></div></div>`,
+	1
+);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let adminSection = getContext("adminSection");
+
+	adminSection.set("home");
+
+	var fragment = root();
+
+	$.head('1puyy3m', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Account';
+		});
+	});
+
+	$.next(8);
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 2624 src/routes/(admin)/account/(menu)/billing/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getContext } from "svelte";
+import SettingsModule from "../settings/settings_module.svelte";
+import PricingModule from "../../../../(marketing)/pricing/pricing_module.svelte";
+import { pricingPlans, defaultPlanId } from "../../../../(marketing)/pricing/pricing_plans";
+
+var root = $.from_html(`<div class="mt-10"><a href="/account/billing/manage" class="link">View past invoices</a></div>`);
+var root_1 = $.from_html(`<div class="mt-8"><!></div> <!>`, 1);
+var root_2 = $.from_html(`<h1 class="text-2xl font-bold mb-2"> </h1> <div>View our <a href="/pricing" target="_blank" class="link">pricing page</a> for details.</div> <!>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let adminSection = getContext("adminSection");
+
+	adminSection.set("billing");
+
+	let currentPlanId = $.derived(() => $$props.data.currentPlanId ?? defaultPlanId);
+	let currentPlanName = $.derived(() => pricingPlans.find((x) => x.id === $$props.data.currentPlanId)?.name);
+	var fragment = root_2();
+
+	$.head('9asqzq', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Billing';
+		});
+	});
+
+	var h1 = $.first_child(fragment);
+	var text = $.only_child(h1, true);
+	var node = $.sibling(h1, 4);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var fragment_1 = root_1();
+			var div = $.first_child(fragment_1);
+			var node_1 = $.child(div);
+
+			PricingModule(node_1, {
+				get currentPlanId() {
+					return $.get(currentPlanId);
+				},
+				callToAction: 'Select Plan',
+				center: false
+			});
+
+			$.reset(div);
+
+			var node_2 = $.sibling(div, 2);
+
+			{
+				var consequent = ($$anchor) => {
+					var div_1 = root();
+
+					$.append($$anchor, div_1);
+				};
+
+				$.if(node_2, ($$render) => {
+					if ($$props.data.hasEverHadSubscription) $$render(consequent);
+				});
+			}
+
+			$.append($$anchor, fragment_1);
+		};
+
+		var alternate = ($$anchor) => {
+			{
+				let $0 = $.derived(() => [
+					{
+						id: "plan",
+						label: "Current Plan",
+						initialValue: $.get(currentPlanName) || ""
+					}
+				]);
+
+				SettingsModule($$anchor, {
+					title: 'Subscription',
+					editable: false,
+					get fields() {
+						return $.get($0);
+					},
+					editButtonTitle: 'Manage Subscription',
+					editLink: '/account/billing/manage'
+				});
+			}
+		};
+
+		$.if(node, ($$render) => {
+			if (!$$props.data.isActiveCustomer) $$render(consequent_1); else $$render(alternate, -1);
+		});
+	}
+
+	$.template_effect(() => $.set_text(text, $$props.data.isActiveCustomer ? "Billing" : "Select a Plan"));
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 2610 src/routes/(admin)/account/(menu)/settings/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getContext } from "svelte";
+import SettingsModule from "./settings_module.svelte";
+
+var root = $.from_html(`<h1 class="text-2xl font-bold mb-6">Settings</h1> <!> <!> <!> <!> <!>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let adminSection = getContext("adminSection");
+
+	adminSection.set("settings");
+
+	let profile = $.derived(() => $$props.data.profile);
+	let user = $.derived(() => $$props.data.user);
+	var fragment = root();
+
+	$.head('1v5ld9s', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Settings';
+		});
+	});
+
+	var node = $.sibling($.first_child(fragment), 2);
+
+	{
+		let $0 = $.derived(() => [
+			{
+				id: "fullName",
+				label: "Name",
+				initialValue: $.get(profile)?.full_name ?? ""
+			},
+
+			{
+				id: "companyName",
+				label: "Company Name",
+				initialValue: $.get(profile)?.company_name ?? ""
+			},
+
+			{
+				id: "website",
+				label: "Company Website",
+				initialValue: $.get(profile)?.website ?? ""
+			}
+		]);
+
+		SettingsModule(node, {
+			title: 'Profile',
+			editable: false,
+			get fields() {
+				return $.get($0);
+			},
+			editButtonTitle: 'Edit Profile',
+			editLink: '/account/settings/edit_profile'
+		});
+	}
+
+	var node_1 = $.sibling(node, 2);
+
+	{
+		let $0 = $.derived(() => [{ id: "email", initialValue: $.get(user)?.email || "" }]);
+
+		SettingsModule(node_1, {
+			title: 'Email',
+			editable: false,
+			get fields() {
+				return $.get($0);
+			},
+			editButtonTitle: 'Change Email',
+			editLink: '/account/settings/change_email'
+		});
+	}
+
+	var node_2 = $.sibling(node_1, 2);
+
+	SettingsModule(node_2, {
+		title: 'Password',
+		editable: false,
+		fields: [{ id: "password", initialValue: "••••••••••••••••" }],
+		editButtonTitle: 'Change Password',
+		editLink: '/account/settings/change_password'
+	});
+
+	var node_3 = $.sibling(node_2, 2);
+
+	{
+		let $0 = $.derived(() => [
+			{
+				id: "subscriptionStatus",
+				initialValue: $.get(profile)?.unsubscribed ? "Unsubscribed" : "Subscribed"
+			}
+		]);
+
+		SettingsModule(node_3, {
+			title: 'Email Subscription',
+			editable: false,
+			get fields() {
+				return $.get($0);
+			},
+			editButtonTitle: 'Change Subscription',
+			editLink: '/account/settings/change_email_subscription'
+		});
+	}
+
+	var node_4 = $.sibling(node_3, 2);
+
+	SettingsModule(node_4, {
+		title: 'Danger Zone',
+		editable: false,
+		dangerous: true,
+		fields: [],
+		editButtonTitle: 'Delete Account',
+		editLink: '/account/settings/delete_account'
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 1290 src/routes/(admin)/account/(menu)/settings/change_email/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getContext } from "svelte";
+import SettingsModule from "../settings_module.svelte";
+
+var root = $.from_html(`<h1 class="text-2xl font-bold mb-6">Settings</h1> <!>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let adminSection = getContext("adminSection");
+
+	adminSection.set("settings");
+
+	let user = $.derived(() => $$props.data.user);
+	var fragment = root();
+
+	$.head('c58dwk', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Change Email';
+		});
+	});
+
+	var node = $.sibling($.first_child(fragment), 2);
+
+	{
+		let $0 = $.derived(() => [
+			{
+				id: "email",
+				label: "Email",
+				initialValue: $.get(user)?.email ?? "",
+				placeholder: "Email address"
+			}
+		]);
+
+		SettingsModule(node, {
+			title: 'Change Email',
+			editable: true,
+			successTitle: 'Email change initiated',
+			successBody: 'You should receive emails at both the old and new address to confirm the change. Please click the link in both emails to finalized the change. Until finalized, you must sign in with your current email.',
+			formTarget: '/account/api?/updateEmail',
+			get fields() {
+				return $.get($0);
+			}
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 1351 src/routes/(admin)/account/(menu)/settings/change_email_subscription/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import SettingsModule from "../settings_module.svelte";
+
+var root = $.from_html(`<h1 class="text-2xl font-bold mb-6">Email Subscription</h1> <!>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let profile = $.derived(() => $$props.data.profile);
+	let unsubscribed = $.derived(() => $.get(profile)?.unsubscribed);
+	var fragment = root();
+
+	$.head('1uxys4i', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Change Email Subscription';
+		});
+	});
+
+	var node = $.sibling($.first_child(fragment), 2);
+
+	{
+		let $0 = $.derived(() => $.get(unsubscribed)
+			? "You are currently unsubscribed from emails"
+			: "You are currently subscribed to emails");
+
+		let $1 = $.derived(() => $.get(unsubscribed) ? "Re-subscribe" : "Unsubscribe");
+
+		let $2 = $.derived(() => $.get(unsubscribed)
+			? "You have been re-subscribed to emails"
+			: "You have been unsubscribed from emails");
+
+		SettingsModule(node, {
+			editable: true,
+			title: 'Subscription',
+			get message() {
+				return $.get($0);
+			},
+
+			get saveButtonTitle() {
+				return $.get($1);
+			},
+
+			get successBody() {
+				return $.get($2);
+			},
+			formTarget: '/account/api?/toggleEmailSubscription',
+			fields: []
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 4695 src/routes/(admin)/account/(menu)/settings/change_password/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { page } from "$app/stores";
+import { getContext } from "svelte";
+import SettingsModule from "../settings_module.svelte";
+
+var root = $.from_html(
+	`<div class="font-bold">Set Password By Email</div> <div>You use oAuth to sign in ("Sign in with Github" or similar). You can
+          continue to access your account using only oAuth if you like!</div>`,
+	1
+);
+
+var root_1 = $.from_html(`<div class="font-bold">Change Password By Email</div>`);
+
+var root_2 = $.from_html(`<div class="card p-6 pb-7 mt-8 max-w-xl flex flex-col md:flex-row shadow-sm max-w-md"><div class="flex flex-col gap-y-4"><!> <div> </div> <button> </button> <div>Sent email! Please check your inbox and use the link to set your
+        password.</div></div></div>`);
+
+var root_3 = $.from_html(`<h1 class="text-2xl font-bold mb-6">Change Password</h1> <!>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $page = () => $.store_get(page, '$page', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	let adminSection = getContext("adminSection");
+
+	adminSection.set("settings");
+
+	let user = $.derived(() => $$props.data.user);
+	let supabase = $.derived(() => $$props.data.supabase);
+
+	// True if definitely has a password, but can be false if they
+	// logged in with oAuth or email link
+	// Supabase does not maintain an AMR typedef so we cast through any
+	let amr = $.derived(() => $.get(user)?.amr);
+
+	let hasPassword = $.derived(() => $.get(amr)?.find((x) => x.method === "password") ? true : false);
+	let usingOAuth = $.derived(() => $.get(amr)?.find((x) => x.method === "oauth") ? true : false);
+	let sendBtnDisabled = $.state(false);
+	let sendBtnText = $.state("Send Set Password Email");
+	let sentEmail = $.state(false);
+
+	let sendForgotPassword = () => {
+		$.set(sendBtnDisabled, true);
+		$.set(sendBtnText, "Sending...");
+
+		let email = $.get(user)?.email;
+
+		if (email) {
+			$.get(supabase).auth.resetPasswordForEmail(email, {
+				redirectTo: `${$page().url.origin}/auth/callback?next=%2Faccount%2Fsettings%2Freset_password`
+			}).then((d) => {
+				$.set(sentEmail, d.error ? false : true, true);
+				$.set(sendBtnDisabled, false);
+				$.set(sendBtnText, "Send Forgot Password Email");
+			});
+		}
+	};
+
+	var fragment = root_3();
+
+	$.head('b0aed7', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Change Password';
+		});
+	});
+
+	var node = $.sibling($.first_child(fragment), 2);
+
+	{
+		var consequent = ($$anchor) => {
+			SettingsModule($$anchor, {
+				title: 'Change Password',
+				editable: true,
+				saveButtonTitle: 'Change Password',
+				successTitle: 'Password Changed',
+				successBody: 'On next sign in, use your new password.',
+				formTarget: '/account/api?/updatePassword',
+				fields: [
+					{
+						id: "newPassword1",
+						label: "New Password",
+						initialValue: "",
+						inputType: "password"
+					},
+
+					{
+						id: "newPassword2",
+						label: "Confirm New Password",
+						initialValue: "",
+						inputType: "password"
+					},
+
+					{
+						id: "currentPassword",
+						label: "Current Password",
+						initialValue: "",
+						inputType: "password"
+					}
+				]
+			});
+		};
+
+		var alternate_1 = ($$anchor) => {
+			var div = root_2();
+			var div_1 = $.child(div);
+			var node_1 = $.child(div_1);
+
+			{
+				var consequent_1 = ($$anchor) => {
+					var fragment_2 = root();
+
+					$.next(2);
+					$.append($$anchor, fragment_2);
+				};
+
+				var alternate = ($$anchor) => {
+					var div_2 = root_1();
+
+					$.append($$anchor, div_2);
+				};
+
+				$.if(node_1, ($$render) => {
+					if ($.get(usingOAuth)) $$render(consequent_1); else $$render(alternate, -1);
+				});
+			}
+
+			var div_3 = $.sibling(node_1, 2);
+			var text = $.only_child(div_3);
+			var button = $.sibling(div_3, 2);
+			var text_1 = $.only_child(button, true);
+			var div_4 = $.sibling(button, 2);
+
+			$.reset(div_1);
+			$.reset(div);
+
+			$.template_effect(() => {
+				$.set_text(text, `The button below will send you an email at ${$.get(user)?.email ?? ''} which will allow
+        you to set your password.`);
+
+				$.set_class(button, 1, `btn btn-outline btn-wide ${$.get(sentEmail) ? 'hidden' : ''}`);
+				button.disabled = $.get(sendBtnDisabled);
+				$.set_text(text_1, $.get(sendBtnText));
+				$.set_class(div_4, 1, `success alert alert-success ${$.get(sentEmail) ? '' : 'hidden'}`);
+			});
+
+			$.delegated('click', button, sendForgotPassword);
+			$.append($$anchor, div);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(hasPassword)) $$render(consequent); else $$render(alternate_1, -1);
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+	$$cleanup();
+}
+
+$.delegate(['click']);
+=== 1327 src/routes/(admin)/account/(menu)/settings/delete_account/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getContext } from "svelte";
+import SettingsModule from "../settings_module.svelte";
+
+var root = $.from_html(`<h1 class="text-2xl font-bold mb-6">Settings</h1> <!>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let adminSection = getContext("adminSection");
+
+	adminSection.set("settings");
+
+	let session = $.derived(() => $$props.data.session);
+	var fragment = root();
+
+	$.head('1yv08kg', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Delete Account';
+		});
+	});
+
+	var node = $.sibling($.first_child(fragment), 2);
+
+	{
+		let $0 = $.derived(() => $.get(session)?.user?.email);
+
+		SettingsModule(node, {
+			title: 'Delete Account',
+			editable: true,
+			dangerous: true,
+			get message() {
+				return `Deleting your account can not be undone. You are currently logged in as '${$.get($0) ?? ''}'`;
+			},
+			saveButtonTitle: 'Delete Account',
+			successTitle: 'Account queued for deletion',
+			successBody: 'Your account will be deleted shortly.',
+			formTarget: '/account/api?/deleteAccount',
+			fields: [
+				{
+					id: "currentPassword",
+					label: "Current Password",
+					initialValue: "",
+					inputType: "password"
+				}
+			]
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 1359 src/routes/(admin)/account/(menu)/settings/edit_profile/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import SettingsModule from "../settings_module.svelte";
+import { getContext } from "svelte";
+
+var root = $.from_html(`<h1 class="text-2xl font-bold mb-6">Settings</h1> <!>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let adminSection = getContext("adminSection");
+
+	adminSection.set("settings");
+
+	let profile = $.derived(() => $$props.data.profile);
+	var fragment = root();
+
+	$.head('zrdtor', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Edit Profile';
+		});
+	});
+
+	var node = $.sibling($.first_child(fragment), 2);
+
+	{
+		let $0 = $.derived(() => [
+			{
+				id: "fullName",
+				label: "Name",
+				initialValue: $.get(profile)?.full_name ?? "",
+				placeholder: "Your full name",
+				maxlength: 50
+			},
+
+			{
+				id: "companyName",
+				label: "Company Name",
+				initialValue: $.get(profile)?.company_name ?? "",
+				maxlength: 50
+			},
+
+			{
+				id: "website",
+				label: "Company Website",
+				initialValue: $.get(profile)?.website ?? "",
+				maxlength: 50
+			}
+		]);
+
+		SettingsModule(node, {
+			editable: true,
+			title: 'Edit Profile',
+			successTitle: 'Saved Profile',
+			formTarget: '/account/api?/updateProfile',
+			get fields() {
+				return $.get($0);
+			}
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 1145 src/routes/(admin)/account/(menu)/settings/reset_password/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getContext } from "svelte";
+import SettingsModule from "../settings_module.svelte";
+
+var root = $.from_html(`<h1 class="text-2xl font-bold mb-6">Settings</h1> <!>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let adminSection = getContext("adminSection");
+
+	adminSection.set("settings");
+
+	var fragment = root();
+
+	$.head('12mkm6q', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Reset Password';
+		});
+	});
+
+	var node = $.sibling($.first_child(fragment), 2);
+
+	SettingsModule(node, {
+		title: 'Reset Password',
+		editable: true,
+		saveButtonTitle: 'Reset Password',
+		successTitle: 'Password Changed',
+		successBody: 'On next sign in, use your new password.',
+		formTarget: '/account/api?/updatePassword',
+		fields: [
+			{
+				id: "newPassword1",
+				label: "New Password",
+				initialValue: "",
+				inputType: "password"
+			},
+
+			{
+				id: "newPassword2",
+				label: "Confirm New Password",
+				initialValue: "",
+				inputType: "password"
+			}
+		]
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 9123 src/routes/(admin)/account/(menu)/settings/settings_module.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { enhance, applyAction } from "$app/forms";
+import { page } from "$app/stores";
+
+var root = $.from_html(`<div class="text-xl font-bold mb-3 w-48 md:pr-8 flex-none"> </div>`);
+var root_1 = $.from_svg(`<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`);
+var root_2 = $.from_html(`<div><!> <span> </span></div>`);
+var root_3 = $.from_html(`<label><span class="text-sm text-gray-500"> </span></label>`);
+var root_4 = $.from_html(`<input/>`);
+var root_5 = $.from_html(`<div class="text-lg mb-3"> </div>`);
+var root_6 = $.from_html(`<!> <!>`, 1);
+var root_7 = $.from_html(`<p class="text-red-700 text-sm font-bold mt-1"> </p>`);
+var root_8 = $.from_html(`<span class="loading loading-spinner loading-md align-middle mx-3"></span>`);
+var root_9 = $.from_html(`<div><button type="submit"><!></button></div>`);
+var root_10 = $.from_html(`<a class="mt-1"><button> </button></a>`);
+var root_11 = $.from_html(`<!> <form class="form-widget flex flex-col" method="POST"><!> <!> <!></form>`, 1);
+var root_12 = $.from_html(`<div><div class="text-l font-bold"> </div> <div class="text-base"> </div></div> <a href="/account/settings"><button class="btn btn-outline btn-sm mt-3 min-w-[145px]">Return to Settings</button></a>`, 1);
+var root_13 = $.from_html(`<div class="card p-6 pb-7 mt-8 max-w-xl flex flex-col md:flex-row shadow-sm"><!> <div class="w-full min-w-48"><!></div></div>`);
+
+export default function Settings_module($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $page = () => $.store_get(page, '$page', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+
+	const fieldError = (liveForm, name) => {
+		let errors = liveForm?.errorFields ?? [];
+
+		return errors.includes(name);
+	};
+
+	// Page state
+	let loading = $.state(false);
+
+	let showSuccess = $.state(false);
+
+	// default is "text"
+	// Module context
+	let editable = $.prop($$props, 'editable', 3, false),
+		dangerous = $.prop($$props, 'dangerous', 3, false),
+		title = $.prop($$props, 'title', 3, ""),
+		message = $.prop($$props, 'message', 3, ""),
+		formTarget = $.prop($$props, 'formTarget', 3, ""),
+		successTitle = $.prop($$props, 'successTitle', 3, "Success"),
+		successBody = $.prop($$props, 'successBody', 3, ""),
+		editButtonTitle = $.prop($$props, 'editButtonTitle', 3, null),
+		editLink = $.prop($$props, 'editLink', 3, null),
+		saveButtonTitle = $.prop($$props, 'saveButtonTitle', 3, "Save");
+
+	const handleSubmit = () => {
+		$.set(loading, true);
+
+		return async ({ update, result }) => {
+			await update({ reset: false });
+			await applyAction(result);
+			$.set(loading, false);
+
+			if (result.type === "success") {
+				$.set(showSuccess, true);
+			}
+		};
+	};
+
+	var div = root_13();
+	var node = $.child(div);
+
+	{
+		var consequent = ($$anchor) => {
+			var div_1 = root();
+			var text = $.only_child(div_1, true);
+
+			$.template_effect(() => $.set_text(text, title()));
+			$.append($$anchor, div_1);
+		};
+
+		$.if(node, ($$render) => {
+			if (title()) $$render(consequent);
+		});
+	}
+
+	var div_2 = $.sibling(node, 2);
+	var node_1 = $.child(div_2);
+
+	{
+		var consequent_9 = ($$anchor) => {
+			var fragment = root_11();
+			var node_2 = $.first_child(fragment);
+
+			{
+				var consequent_2 = ($$anchor) => {
+					var div_3 = root_2();
+					var node_3 = $.child(div_3);
+
+					{
+						var consequent_1 = ($$anchor) => {
+							var svg = root_1();
+
+							$.append($$anchor, svg);
+						};
+
+						$.if(node_3, ($$render) => {
+							if (dangerous()) $$render(consequent_1);
+						});
+					}
+
+					var span = $.sibling(node_3, 2);
+					var text_1 = $.only_child(span, true);
+
+					$.reset(div_3);
+
+					$.template_effect(() => {
+						$.set_class(div_3, 1, `mb-6 ${dangerous() ? 'alert alert-warning' : ''}`);
+						$.set_text(text_1, message());
+					});
+
+					$.append($$anchor, div_3);
+				};
+
+				$.if(node_2, ($$render) => {
+					if (message()) $$render(consequent_2);
+				});
+			}
+
+			var form = $.sibling(node_2, 2);
+			var node_4 = $.child(form);
+
+			$.each(node_4, 17, () => $$props.fields, $.index, ($$anchor, field) => {
+				var fragment_1 = root_6();
+				var node_5 = $.first_child(fragment_1);
+
+				{
+					var consequent_3 = ($$anchor) => {
+						var label = root_3();
+						var span_1 = $.child(label);
+						var text_2 = $.only_child(span_1, true);
+
+						$.reset(label);
+
+						$.template_effect(() => {
+							$.set_attribute(label, 'for', $.get(field).id);
+							$.set_text(text_2, $.get(field).label);
+						});
+
+						$.append($$anchor, label);
+					};
+
+					$.if(node_5, ($$render) => {
+						if ($.get(field).label) $$render(consequent_3);
+					});
+				}
+
+				var node_6 = $.sibling(node_5, 2);
+
+				{
+					var consequent_4 = ($$anchor) => {
+						var input = root_4();
+
+						$.remove_input_defaults(input);
+
+						$.template_effect(
+							($0) => {
+								$.set_attribute(input, 'id', $.get(field).id);
+								$.set_attribute(input, 'name', $.get(field).id);
+								$.set_attribute(input, 'type', $.get(field).inputType ?? "text");
+								input.disabled = !editable();
+								$.set_attribute(input, 'placeholder', $.get(field).placeholder ?? $.get(field).label ?? "");
+								$.set_class(input, 1, `${$0 ?? ''} input-sm mt-1 input input-bordered w-full max-w-xs mb-3 text-base py-4`);
+
+								$.set_value(input, $page().form
+									? $page().form[$.get(field).id]
+									: $.get(field).initialValue);
+
+								$.set_attribute(input, 'maxlength', $.get(field).maxlength ? $.get(field).maxlength : null);
+							},
+							[
+								() => fieldError($page()?.form, $.get(field).id) ? 'input-error' : ''
+							]
+						);
+
+						$.append($$anchor, input);
+					};
+
+					var alternate = ($$anchor) => {
+						var div_4 = root_5();
+						var text_3 = $.only_child(div_4, true);
+
+						$.template_effect(() => $.set_text(text_3, $.get(field).initialValue));
+						$.append($$anchor, div_4);
+					};
+
+					$.if(node_6, ($$render) => {
+						if (editable()) $$render(consequent_4); else $$render(alternate, -1);
+					});
+				}
+
+				$.append($$anchor, fragment_1);
+			});
+
+			var node_7 = $.sibling(node_4, 2);
+
+			{
+				var consequent_5 = ($$anchor) => {
+					var p = root_7();
+					var text_4 = $.only_child(p, true);
+
+					$.template_effect(() => $.set_text(text_4, $page()?.form?.errorMessage));
+					$.append($$anchor, p);
+				};
+
+				$.if(node_7, ($$render) => {
+					if ($page()?.form?.errorMessage) $$render(consequent_5);
+				});
+			}
+
+			var node_8 = $.sibling(node_7, 2);
+
+			{
+				var consequent_7 = ($$anchor) => {
+					var div_5 = root_9();
+					var button = $.child(div_5);
+					var node_9 = $.child(button);
+
+					{
+						var consequent_6 = ($$anchor) => {
+							var span_2 = root_8();
+
+							$.append($$anchor, span_2);
+						};
+
+						var alternate_1 = ($$anchor) => {
+							var text_5 = $.text();
+
+							$.template_effect(() => $.set_text(text_5, saveButtonTitle()));
+							$.append($$anchor, text_5);
+						};
+
+						$.if(node_9, ($$render) => {
+							if ($.get(loading)) $$render(consequent_6); else $$render(alternate_1, -1);
+						});
+					}
+
+					$.reset(button);
+					$.reset(div_5);
+
+					$.template_effect(() => {
+						$.set_class(button, 1, `ml-auto btn btn-sm mt-3 min-w-[145px] ${dangerous() ? 'btn-error' : 'btn-primary btn-outline'}`);
+						button.disabled = $.get(loading);
+					});
+
+					$.append($$anchor, div_5);
+				};
+
+				var consequent_8 = ($$anchor) => {
+					var a = root_10();
+					var button_1 = $.child(a);
+					var text_6 = $.only_child(button_1, true);
+
+					$.reset(a);
+
+					$.template_effect(() => {
+						$.set_attribute(a, 'href', editLink());
+						$.set_class(button_1, 1, `btn btn-outline btn-sm ${dangerous() ? 'btn-error' : ''} min-w-[145px]`);
+						$.set_text(text_6, editButtonTitle());
+					});
+
+					$.append($$anchor, a);
+				};
+
+				$.if(node_8, ($$render) => {
+					if (editable()) $$render(consequent_7); else if (editButtonTitle() && editLink()) $$render(consequent_8, 1);
+				});
+			}
+
+			$.reset(form);
+			$.action(form, ($$node, $$action_arg) => enhance?.($$node, $$action_arg), () => handleSubmit);
+			$.template_effect(() => $.set_attribute(form, 'action', formTarget()));
+			$.append($$anchor, fragment);
+		};
+
+		var alternate_2 = ($$anchor) => {
+			var fragment_3 = root_12();
+			var div_6 = $.first_child(fragment_3);
+			var div_7 = $.child(div_6);
+			var text_7 = $.only_child(div_7, true);
+			var div_8 = $.sibling(div_7, 2);
+			var text_8 = $.only_child(div_8, true);
+
+			$.reset(div_6);
+			$.next(2);
+
+			$.template_effect(() => {
+				$.set_text(text_7, successTitle());
+				$.set_text(text_8, successBody());
+			});
+
+			$.append($$anchor, fragment_3);
+		};
+
+		$.if(node_1, ($$render) => {
+			if (!$.get(showSuccess)) $$render(consequent_9); else $$render(alternate_2, -1);
+		});
+	}
+
+	$.reset(div_2);
+	$.reset(div);
+	$.append($$anchor, div);
+	$.pop();
+	$$cleanup();
+}
+=== 778 src/routes/(admin)/account/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { invalidate } from "$app/navigation";
+import { onMount } from "svelte";
+
+export default function _layout($$anchor, $$props) {
+	$.push($$props, true);
+
+	let supabase = $.derived(() => $$props.data.supabase);
+	let session = $.derived(() => $$props.data.session);
+
+	onMount(() => {
+		const { data } = $.get(supabase).auth.onAuthStateChange((event, _session) => {
+			if (_session?.expires_at !== $.get(session)?.expires_at) {
+				invalidate("supabase:auth");
+			}
+		});
+
+		return () => data.subscription.unsubscribe();
+	});
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children ?? $.noop);
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 4427 src/routes/(admin)/account/create_profile/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { applyAction, enhance } from "$app/forms";
+import "../../../../app.css";
+
+var root = $.from_html(`<p class="text-red-700 text-sm font-bold text-center mt-3"> </p>`);
+var root_1 = $.from_html(`<div class="text-center content-center max-w-lg mx-auto min-h-[100vh] pb-12 flex items-center place-content-center"><div class="flex flex-col w-64 lg:w-80"><div><h1 class="text-2xl font-bold mb-6">Create Profile</h1> <form class="form-widget" method="POST" action="/account/api?/updateProfile"><div class="mt-4"><label for="fullName"><span class="text-l text-center">Your Name</span></label> <input id="fullName" name="fullName" type="text" placeholder="Your full name" maxlength="50"/></div> <div class="mt-4"><label for="companyName"><span class="text-l text-center">Company Name</span></label> <input id="companyName" name="companyName" type="text" placeholder="Company name" maxlength="50"/></div> <div class="mt-4"><label for="website"><span class="text-l text-center">Company Website</span></label> <input id="website" name="website" type="text" placeholder="Company website" maxlength="50"/></div> <!> <div class="mt-4"><input type="submit" class="btn btn-primary mt-3 btn-wide"/></div></form> <div class="text-sm text-slate-800 mt-14"> <br/> <a class="underline" href="/account/sign_out">Sign out</a></div></div></div></div>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let user = $.derived(() => $$props.data.user);
+	let profile = $.derived(() => $$props.data.profile);
+	let loading = $.state(false);
+	let fullName = $.derived(() => $.get(profile)?.full_name ?? "");
+	let companyName = $.derived(() => $.get(profile)?.company_name ?? "");
+	let website = $.derived(() => $.get(profile)?.website ?? "");
+
+	const fieldError = (liveForm, name) => {
+		let errors = liveForm?.errorFields ?? [];
+
+		return errors.includes(name);
+	};
+
+	const handleSubmit = () => {
+		$.set(loading, true);
+
+		return async ({ update, result }) => {
+			await update({ reset: false });
+			await applyAction(result);
+			$.set(loading, false);
+		};
+	};
+
+	var div = root_1();
+
+	$.head('jtffe2', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Create Profile';
+		});
+	});
+
+	var div_1 = $.child(div);
+	var div_2 = $.child(div_1);
+	var form_1 = $.sibling($.child(div_2), 2);
+	var div_3 = $.child(form_1);
+	var input = $.sibling($.child(div_3), 2);
+
+	$.remove_input_defaults(input);
+	$.reset(div_3);
+
+	var div_4 = $.sibling(div_3, 2);
+	var input_1 = $.sibling($.child(div_4), 2);
+
+	$.remove_input_defaults(input_1);
+	$.reset(div_4);
+
+	var div_5 = $.sibling(div_4, 2);
+	var input_2 = $.sibling($.child(div_5), 2);
+
+	$.remove_input_defaults(input_2);
+	$.reset(div_5);
+
+	var node = $.sibling(div_5, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			var p = root();
+			var text = $.only_child(p, true);
+
+			$.template_effect(() => $.set_text(text, $$props.form?.errorMessage));
+			$.append($$anchor, p);
+		};
+
+		$.if(node, ($$render) => {
+			if ($$props.form?.errorMessage) $$render(consequent);
+		});
+	}
+
+	var div_6 = $.sibling(node, 2);
+	var input_3 = $.child(div_6);
+
+	$.remove_input_defaults(input_3);
+	$.reset(div_6);
+	$.reset(form_1);
+	$.action(form_1, ($$node, $$action_arg) => enhance?.($$node, $$action_arg), () => handleSubmit);
+
+	var div_7 = $.sibling(form_1, 2);
+	var text_1 = $.child(div_7);
+
+	$.next(3);
+	$.reset(div_7);
+	$.reset(div_2);
+	$.reset(div_1);
+	$.reset(div);
+
+	$.template_effect(
+		($0, $1, $2) => {
+			$.set_class(input, 1, `${$0 ?? ''} mt-1 input input-bordered w-full max-w-xs`);
+			$.set_value(input, $$props.form?.fullName ?? $.get(fullName));
+			$.set_class(input_1, 1, `${$1 ?? ''} mt-1 input input-bordered w-full max-w-xs`);
+			$.set_value(input_1, $$props.form?.companyName ?? $.get(companyName));
+			$.set_class(input_2, 1, `${$2 ?? ''} mt-1 input input-bordered w-full max-w-xs`);
+			$.set_value(input_2, $$props.form?.website ?? $.get(website));
+			$.set_value(input_3, $.get(loading) ? "..." : "Create Profile");
+			input_3.disabled = $.get(loading);
+			$.set_text(text_1, `You are logged in as ${$.get(user)?.email ?? ''}. `);
+		},
+		[
+			() => fieldError($$props.form, 'fullName') ? 'input-error' : '',
+			() => fieldError($$props.form, 'companyName') ? 'input-error' : '',
+			() => fieldError($$props.form, 'website') ? 'input-error' : ''
+		]
+	);
+
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 930 src/routes/(admin)/account/select_plan/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import PricingModule from "../../../(marketing)/pricing/pricing_module.svelte";
+
+var root = $.from_html(`<div class="text-center content-center min-h-[100vh] pb-12 mt-4 flex items-center place-content-center"><div class="flex flex-col w-full px-6"><div><h1 class="text-2xl font-bold mb-2">Select a Plan</h1> <div class="mb-6">View our <a href="/pricing" target="_blank" class="link">pricing page</a> for details.</div> <!></div></div></div>`);
+
+export default function _page($$anchor) {
+	var div = root();
+
+	$.head('1k4leo4', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Select a Plan';
+		});
+	});
+
+	var div_1 = $.child(div);
+	var div_2 = $.child(div_1);
+	var node = $.sibling($.child(div_2), 4);
+
+	PricingModule(node, { callToAction: 'Select Plan' });
+	$.reset(div_2);
+	$.reset(div_1);
+	$.reset(div);
+	$.append($$anchor, div);
+}
+=== 786 src/routes/(admin)/account/sign_out/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { goto } from "$app/navigation";
+import { onMount } from "svelte";
+
+var root = $.from_html(`<h1 class="text-2xl font-bold m-6 mx-auto my-auto"> </h1>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let supabase = $.derived(() => $$props.data.supabase);
+	let message = $.state("Signing out....");
+
+	// on mount, sign out
+	onMount(() => {
+		$.get(supabase).auth.signOut().then(({ error }) => {
+			if (error) {
+				$.set(message, "There was an issue signing out.");
+			} else {
+				goto("/");
+			}
+		});
+	});
+
+	var h1 = root();
+	var text = $.only_child(h1, true);
+
+	$.template_effect(() => $.set_text(text, $.get(message)));
+	$.append($$anchor, h1);
+	$.pop();
+}
+=== 3581 src/routes/(marketing)/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebsiteName } from "./../../config";
+import "../../app.css";
+
+var root = $.from_html(
+	`<div class="navbar bg-base-100 container mx-auto"><div class="flex-1"><a class="btn btn-ghost normal-case text-xl" href="/"> </a></div> <div class="flex-none"><ul class="menu menu-horizontal px-1 hidden sm:flex font-bold text-lg"><li class="md:mx-4"><a href="https://github.com/CriticalMoments/CMSaasStarter" class="border border-primary">★ us on Github</a></li> <li class="md:mx-2"><a href="/blog">Blog</a></li> <li class="md:mx-2"><a href="/pricing">Pricing</a></li> <li class="md:mx-2"><a href="/account">Account</a></li> <li class="md:mx-0"><a href="/search" aria-label="Search"><svg fill="#000000" class="w-6 h-6" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.545 15.467l-3.779-3.779a6.15 6.15 0 0 0 .898-3.21c0-3.417-2.961-6.377-6.378-6.377A6.185 6.185 0 0 0 2.1 8.287c0 3.416 2.961 6.377 6.377 6.377a6.15 6.15 0 0 0 3.115-.844l3.799 3.801a.953.953 0 0 0 1.346 0l.943-.943c.371-.371.236-.84-.135-1.211zM4.004 8.287a4.282 4.282 0 0 1 4.282-4.283c2.366 0 4.474 2.107 4.474 4.474a4.284 4.284 0 0 1-4.283 4.283c-2.366-.001-4.473-2.109-4.473-4.474z" fill="currentColor"></path></svg></a></li></ul> <div class="dropdown dropdown-end sm:hidden"><label tabindex="0" class="btn btn-ghost btn-circle"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg></label> <ul tabindex="0" class="menu menu-lg dropdown-content mt-3 z-1 p-2 shadow-sm bg-base-100 rounded-box w-52 font-bold"><li><a href="/blog">Blog</a></li> <li><a href="/pricing">Pricing</a></li> <li><a href="/account">Account</a></li> <li><a href="/search">Search</a></li> <li><a href="https://github.com/CriticalMoments/CMSaasStarter" class="border border-primary">★ us on Github</a></li></ul></div></div></div> <div><!></div> <div class="grow"></div> <div><div class="border-t max-w-[1000px] mx-auto"></div> <footer class="footer md:footer-horizontal p-10 gap-x-48 lg:gap-x-64 xl:gap-x-96 place-content-center text-base"><nav><span class="footer-title opacity-80">Explore</span> <a class="link link-hover mb-1" href="/">Overview</a> <a class="link link-hover my-1" href="/pricing">Pricing</a> <a class="link link-hover my-1" href="/blog">Blog</a> <a class="link link-hover my-1" href="/contact_us">Contact Us</a> <a class="link link-hover my-1" href="https://github.com/CriticalMoments/CMSaasStarter">Github</a></nav> <aside><span class="footer-title opacity-80">Sponsor</span> <a class="max-w-[260px]" href="https://getkiln.ai"><div class="font-bold text-3xl mb-1">Kiln AI</div> <div class="font-medium mb-3">Build High Quality AI Products</div> <div class="font-light">Use advanced AI tactics, and collaborate with your team. Free apps for
+          Mac and Windows.</div> <div class="link text-sm font-bold mt-2">Learn More</div></a></aside></footer></div>`,
+	1
+);
+
+export default function _layout($$anchor, $$props) {
+	var fragment = root();
+	var div = $.first_child(fragment);
+	var div_1 = $.child(div);
+	var a = $.child(div_1);
+	var text = $.only_child(a, true);
+
+	$.reset(div_1);
+	$.next(2);
+	$.reset(div);
+
+	var div_2 = $.sibling(div, 2);
+	var node = $.child(div_2);
+
+	$.snippet(node, () => $$props.children ?? $.noop);
+	$.reset(div_2);
+	$.next(4);
+	$.template_effect(() => $.set_text(text, WebsiteName));
+	$.append($$anchor, fragment);
+}
+=== 36828 src/routes/(marketing)/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebsiteName, WebsiteBaseUrl, WebsiteDescription } from "./../../config";
+
+var root = $.from_html(`<meta name="description"/> <!>`, 1);
+var root_1 = $.from_html(`<a class="pb-4"><button class="btn btn-xs btn-outline rounded-full btn-primary min-w-[100px]"> </button></a>`);
+var root_2 = $.from_html(`<div class="card bg-white w-[270px] min-h-[300px] flex-none shadow-xl"><div class="card-body items-center text-center p-[24px] pt-[32px]"><div><svg width="50px" height="50px" class="mb-2 mt-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"></svg></div> <h2 class="card-title"> </h2> <p class="text-sm"> </p> <!></div></div>`);
+var root_3 = $.from_html(`<div class="hero min-h-[60vh]"><div class="hero-content text-center py-12"><div class="max-w-xl"><div class="text-xl md:text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-primary to-accent mb-3 md:mb-7 pb-1">SaaS Starter Demo</div> <div class="text-4xl md:text-6xl font-bold px-2" style="line-height: 1.2;">The <span class="underline decoration-secondary decoration-4 md:decoration-[6px]">open source</span>, <span class="underline decoration-secondary decoration-4 md:decoration-[6px]">fast</span>, and <span class="underline decoration-secondary decoration-4 md:decoration-[6px]">free to host</span> <span>SaaS template</span></div> <div class="mt-6 md:mt-10 text-sm md:text-lg">Built with <a href="https://kit.svelte.dev" class="link font-bold" target="_blank">SvelteKit</a>, <a href="https://supabase.com" class="link font-bold" target="_blank">Supabase</a>, <a href="https://stripe.com" class="link font-bold" target="_blank">Stripe</a>, <a href="https://tailwindcss.com" class="link font-bold" target="_blank">Tailwind</a>, <a href="https://daisyui.com" class="link font-bold" target="_blank">DaisyUI</a>, and <a href="https://www.postgresql.org" class="link font-bold" target="_blank">Postgres</a></div> <div class="mt-6 md:mt-4 flex flex-row flex-wrap gap-4 place-content-center"><a href="https://github.com/CriticalMoments/CMSaasStarter"><button class="btn btn-primary px-6">★ us on Github</button></a> <a href="https://github.com/CriticalMoments/CMSaasStarter/tree/main#saas-starter"><button class="btn btn-outline btn-primary px-6">Read the Docs</button></a></div></div></div></div> <div class="min-h-[60vh]"><div class="pt-20 pb-8 px-7"><div class="max-w-lg mx-auto text-center"><div class="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-linear-to-r from-primary to-accent pb-2">Explore the Features</div> <div class="mt-4 text-xl font-bold">And try them on this <span class="underline decoration-secondary decoration-[3px] md:decoration-[4px]">fully functional demo</span></div></div> <div class="flex gap-6 mt-12 max-w-[1064px] mx-auto place-content-center flex-wrap"></div></div></div> <div class="hero min-h-[60vh] mt-12"><div class="hero-content text-center pb-16 pt-4 px-4"><div class="max-w-lg"><div class="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-linear-to-r from-primary to-accent mt-4 pb-2">See it in Action</div> <div class="flex flex-col lg:flex-row mt-6 gap-6 place-content-center content-center"><div class="hidden md:block"><a href="https://criticalmoments.io" target="_blank" class="link"><div class="mockup-browser border"><div class="mockup-browser-toolbar"><div class="input" style="background:#eee;">https://criticalmoments.io</div></div> <div class="flex justify-center"><img alt="Screenshot of criticalmoments.io homepage" class="aspect-2044/1242" src="/images/example-home.png"/></div></div></a></div> <div class="md:hidden"><a href="https://criticalmoments.io" target="_blank" class="link"><div class="card shadow-xl border overflow-hidden"><img alt="Screenshot of criticalmoments.io homepage" class="aspect-2044/1242" src="/images/example-home.png"/></div></a></div> <div class="min-w-[270px] lg:min-w-[420px] flex mt-6 lg:mt-0"><div class="my-auto"><div class="px-4 text-lg md:text-xl"><a href="https://criticalmoments.io" target="_blank">SaaS Starter was created by <span class="font-bold whitespace-nowrap">Critical Moments</span>: a SDK to to help mobile apps <span class="underline decoration-secondary decoration-[3px]">increase conversion rates and app-ratings.</span></a></div> <div class="px-4 mt-6 text-lg md:text-xl">Our <a href="https://criticalmoments.io" class="link font-bold" target="_blank">webpage</a> is the best example of SaaS Starter with style and real content.</div> <div class="mt-4 text-large"><a href="https://criticalmoments.io" target="_blank"><button class="btn btn-primary btn-wide mt-3">See it in Action</button></a></div></div></div></div></div></div></div>`, 1);
+
+export default function _page($$anchor) {
+	const ldJson = {
+		"@context": "https://schema.org",
+		"@type": "WebSite",
+		name: WebsiteName,
+		url: WebsiteBaseUrl
+	};
+
+	const jsonldScript = `<script type="application/ld+json">${JSON.stringify(ldJson) + "<"}/script>`;
+
+	const features = [
+		{
+			name: "Free to host",
+			description: "Instructions included for Cloudflare+Supabase. Free to start, and cost effective to scale.",
+			link: "https://github.com/CriticalMoments/CMSaasStarter?tab=readme-ov-file#suggested-hosting-stack",
+			linkText: "Docs",
+			newPage: true,
+			svgContent: `<path d="M4.01207 15.7618L5.70156 10.6933C6.46758 8.39525 6.85059 7.24623 7.75684 7.03229C8.6631 6.81835 9.51953 7.67478 11.2324 9.38764L14.6114 12.7666C16.3242 14.4795 17.1807 15.3359 16.9667 16.2422C16.7528 17.1484 15.6038 17.5314 13.3057 18.2975L8.23724 19.987C5.47183 20.9088 4.08912 21.3697 3.35924 20.6398C2.62936 19.9099 3.09026 18.5272 4.01207 15.7618Z" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M12.2351 18.3461C12.2351 18.3461 11.477 16.0649 11.477 14.5552C11.477 13.0454 12.2351 10.7643 12.2351 10.7643M8.06517 19.4833C8.06517 19.4833 7.42484 16.7314 7.307 14.9343C7.11229 11.965 8.06517 7.35254 8.06517 7.35254" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M14.5093 10.0061L14.6533 9.28614C14.7986 8.55924 15.3224 7.96597 16.0256 7.73155C16.7289 7.49714 17.2526 6.90387 17.398 6.17697L17.542 5.45703" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M17.5688 12.2533L17.7817 12.3762C18.4388 12.7556 19.265 12.6719 19.8327 12.1685C20.3468 11.7126 21.0789 11.597 21.7085 11.8723L22 11.9997" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M10.5352 3C10.1977 3.55206 10.2823 4.26344 10.7399 4.72097L10.8377 4.81885C11.2309 5.21201 11.3759 5.78959 11.215 6.32182" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M13.561 4.39648C13.7621 4.19542 13.8626 4.09489 13.9788 4.05804C14.0772 4.02688 14.1827 4.02688 14.281 4.05804C14.3973 4.09489 14.4978 4.19542 14.6989 4.39648C14.8999 4.59753 15.0004 4.69806 15.0373 4.8143C15.0685 4.91262 15.0685 5.01817 15.0373 5.11648C15.0004 5.23272 14.8999 5.33325 14.6989 5.53431C14.4978 5.73536 14.3973 5.83589 14.281 5.87274C14.1827 5.90391 14.0772 5.90391 13.9788 5.87274C13.8626 5.83589 13.7621 5.73536 13.561 5.53431C13.36 5.33325 13.2594 5.23272 13.2226 5.11648C13.1914 5.01817 13.1914 4.91262 13.2226 4.8143C13.2594 4.69806 13.36 4.59753 13.561 4.39648Z" fill="#1C274C"/>
+<path d="M19.4682 7.46822C19.7136 7.22283 19.8363 7.10014 19.9747 7.04681C20.1367 6.9844 20.3161 6.9844 20.4781 7.04681C20.6165 7.10014 20.7392 7.22283 20.9846 7.46822C21.23 7.71362 21.3527 7.83631 21.406 7.97472C21.4684 8.1367 21.4684 8.31609 21.406 8.47807C21.3527 8.61649 21.23 8.73918 20.9846 8.98457C20.7392 9.22996 20.6165 9.35266 20.4781 9.40599C20.3161 9.4684 20.1367 9.4684 19.9747 9.40599C19.8363 9.35266 19.7136 9.22996 19.4682 8.98457C19.2228 8.73918 19.1001 8.61649 19.0468 8.47807C18.9844 8.31609 18.9844 8.1367 19.0468 7.97472C19.1001 7.83631 19.2228 7.71362 19.4682 7.46822Z" fill="#1C274C"/>
+<path d="M6.92712 3.94079C7.13659 3.73132 7.47621 3.73132 7.68567 3.94079C7.89514 4.15026 7.89514 4.48988 7.68567 4.69935C7.47621 4.90882 7.13659 4.90882 6.92712 4.69935C6.71765 4.48988 6.71765 4.15026 6.92712 3.94079Z" fill="#1C274C"/>
+<path d="M19.058 15.3134C19.2674 15.1039 19.6071 15.1039 19.8165 15.3134C20.026 15.5228 20.026 15.8624 19.8165 16.0719C19.6071 16.2814 19.2674 16.2814 19.058 16.0719C18.8485 15.8624 18.8485 15.5228 19.058 15.3134Z" fill="#1C274C"/>
+<path d="M17.5 9.74145C17.7095 9.53198 18.0491 9.53198 18.2586 9.74145C18.468 9.95092 18.468 10.2905 18.2586 10.5C18.0491 10.7095 17.7095 10.7095 17.5 10.5C17.2905 10.2905 17.2905 9.95092 17.5 9.74145Z" fill="#1C274C"/>`
+		},
+
+		{
+			name: "User Auth",
+			link: "/login",
+			description: "Sign up, sign out, forgot password, email verification, and oAuth. Powered by Supabase Auth.",
+			svgContent: `<path
+                  d="M14.2084 13.5521C16.3025 13.5521 18 11.8615 18 9.77606C18 7.6906 16.3025 6 14.2084 6C12.1144 6 10.4169 7.6906 10.4169 9.77606C10.4169 10.742 10.8578 11.4446 10.8578 11.4446L6.27264 16.011C6.0669 16.2159 5.77886 16.7486 6.27264 17.2404L6.8017 17.7673C7.00743 17.9429 7.52471 18.1888 7.94796 17.7673L8.56519 17.1526C9.18242 17.7673 9.88782 17.416 10.1523 17.0647C10.5932 16.45 10.0642 15.8353 10.0642 15.8353L10.2405 15.6597C11.087 16.5027 11.8277 16.011 12.0922 15.6597C12.5331 15.045 12.0922 14.4303 12.0922 14.4303C11.9159 14.079 11.5632 14.079 12.004 13.64L12.5331 13.113C12.9564 13.4643 13.8264 13.5521 14.2084 13.5521Z"
+                  stroke="#1C274C"
+                  stroke-width="1.5"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M22 12C22 16.714 22 19.0711 20.5355 20.5355C19.0711 22 16.714 22 12 22C7.28595 22 4.92893 22 3.46447 20.5355C2 19.0711 2 16.714 2 12C2 7.28595 2 4.92893 3.46447 3.46447C4.92893 2 7.28595 2 12 2C16.714 2 19.0711 2 20.5355 3.46447C21.5093 4.43821 21.8356 5.80655 21.9449 8"
+                  stroke="#1C274C"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />`
+		},
+
+		{
+			name: "Pricing Page",
+			link: "/pricing",
+			description: "Customizable and fast pricing page, integrated into the billing portal.",
+			svgContent: `<path d="M12 6V18" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M15 9.5C15 8.11929 13.6569 7 12 7C10.3431 7 9 8.11929 9 9.5C9 10.8807 10.3431 12 12 12C13.6569 12 15 13.1193 15 14.5C15 15.8807 13.6569 17 12 17C10.3431 17 9 15.8807 9 14.5" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M7 3.33782C8.47087 2.48697 10.1786 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 10.1786 2.48697 8.47087 3.33782 7" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>`
+		},
+
+		{
+			name: "Blog",
+			link: "/blog",
+			description: "Blog engine with rich formatting, RSS and SEO optimization.",
+			svgContent: `<path d="M3 10C3 6.22876 3 4.34315 4.17157 3.17157C5.34315 2 7.22876 2 11 2H13C16.7712 2 18.6569 2 19.8284 3.17157C21 4.34315 21 6.22876 21 10V14C21 17.7712 21 19.6569 19.8284 20.8284C18.6569 22 16.7712 22 13 22H11C7.22876 22 5.34315 22 4.17157 20.8284C3 19.6569 3 17.7712 3 14V10Z" stroke="#1C274C" stroke-width="1.5"/>
+<path d="M6 12C6 10.5858 6 9.87868 6.43934 9.43934C6.87868 9 7.58579 9 9 9H15C16.4142 9 17.1213 9 17.5607 9.43934C18 9.87868 18 10.5858 18 12V16C18 17.4142 18 18.1213 17.5607 18.5607C17.1213 19 16.4142 19 15 19H9C7.58579 19 6.87868 19 6.43934 18.5607C6 18.1213 6 17.4142 6 16V12Z" stroke="#1C274C" stroke-width="1.5"/>
+<path d="M7 6H12" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>`
+		},
+
+		{
+			name: "Subscriptions",
+			link: "/pricing",
+			description: "User friendly subscriptions powered by Stripe Checkout.",
+			svgContent: `<path d="M2 12C2 8.22876 2 6.34315 3.17157 5.17157C4.34315 4 6.22876 4 10 4H14C17.7712 4 19.6569 4 20.8284 5.17157C22 6.34315 22 8.22876 22 12C22 15.7712 22 17.6569 20.8284 18.8284C19.6569 20 17.7712 20 14 20H10C6.22876 20 4.34315 20 3.17157 18.8284C2 17.6569 2 15.7712 2 12Z" stroke="#1C274C" stroke-width="1.5"/>
+<path d="M10 16.5H6" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M8 13.5H6" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M2 10L22 10" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M14 15C14 14.0572 14 13.5858 14.2929 13.2929C14.5858 13 15.0572 13 16 13C16.9428 13 17.4142 13 17.7071 13.2929C18 13.5858 18 14.0572 18 15C18 15.9428 18 16.4142 17.7071 16.7071C17.4142 17 16.9428 17 16 17C15.0572 17 14.5858 17 14.2929 16.7071C14 16.4142 14 15.9428 14 15Z" stroke="#1C274C" stroke-width="1.5"/>`
+		},
+
+		{
+			name: "Billing Portal",
+			link: "/account/billing",
+			description: "Self-serve portal for updating card, receipts, upgrades, downgrades and more.",
+			svgContent: `<path d="M7.5 18C8.32843 18 9 18.6716 9 19.5C9 20.3284 8.32843 21 7.5 21C6.67157 21 6 20.3284 6 19.5C6 18.6716 6.67157 18 7.5 18Z" stroke="#1C274C" stroke-width="1.5"/>
+<path d="M16.5 18.0001C17.3284 18.0001 18 18.6716 18 19.5001C18 20.3285 17.3284 21.0001 16.5 21.0001C15.6716 21.0001 15 20.3285 15 19.5001C15 18.6716 15.6716 18.0001 16.5 18.0001Z" stroke="#1C274C" stroke-width="1.5"/>
+<path d="M2.26121 3.09184L2.50997 2.38429H2.50997L2.26121 3.09184ZM2.24876 2.29246C1.85799 2.15507 1.42984 2.36048 1.29246 2.75124C1.15507 3.14201 1.36048 3.57016 1.75124 3.70754L2.24876 2.29246ZM4.58584 4.32298L5.20507 3.89983V3.89983L4.58584 4.32298ZM5.88772 14.5862L5.34345 15.1022H5.34345L5.88772 14.5862ZM20.6578 9.88275L21.3923 10.0342L21.3933 10.0296L20.6578 9.88275ZM20.158 12.3075L20.8926 12.4589L20.158 12.3075ZM20.7345 6.69708L20.1401 7.15439L20.7345 6.69708ZM19.1336 15.0504L18.6598 14.469L19.1336 15.0504ZM5.70808 9.76V7.03836H4.20808V9.76H5.70808ZM2.50997 2.38429L2.24876 2.29246L1.75124 3.70754L2.01245 3.79938L2.50997 2.38429ZM10.9375 16.25H16.2404V14.75H10.9375V16.25ZM5.70808 7.03836C5.70808 6.3312 5.7091 5.7411 5.65719 5.26157C5.60346 4.76519 5.48705 4.31247 5.20507 3.89983L3.96661 4.74613C4.05687 4.87822 4.12657 5.05964 4.1659 5.42299C4.20706 5.8032 4.20808 6.29841 4.20808 7.03836H5.70808ZM2.01245 3.79938C2.68006 4.0341 3.11881 4.18965 3.44166 4.34806C3.74488 4.49684 3.87855 4.61727 3.96661 4.74613L5.20507 3.89983C4.92089 3.48397 4.54304 3.21763 4.10241 3.00143C3.68139 2.79485 3.14395 2.60719 2.50997 2.38429L2.01245 3.79938ZM4.20808 9.76C4.20808 11.2125 4.22171 12.2599 4.35876 13.0601C4.50508 13.9144 4.79722 14.5261 5.34345 15.1022L6.43198 14.0702C6.11182 13.7325 5.93913 13.4018 5.83723 12.8069C5.72607 12.1578 5.70808 11.249 5.70808 9.76H4.20808ZM10.9375 14.75C9.52069 14.75 8.53763 14.7482 7.79696 14.6432C7.08215 14.5418 6.70452 14.3576 6.43198 14.0702L5.34345 15.1022C5.93731 15.7286 6.69012 16.0013 7.58636 16.1283C8.45674 16.2518 9.56535 16.25 10.9375 16.25V14.75ZM4.95808 6.87H17.0888V5.37H4.95808V6.87ZM19.9232 9.73135L19.4235 12.1561L20.8926 12.4589L21.3923 10.0342L19.9232 9.73135ZM17.0888 6.87C17.9452 6.87 18.6989 6.871 19.2937 6.93749C19.5893 6.97053 19.8105 7.01643 19.9659 7.07105C20.1273 7.12776 20.153 7.17127 20.1401 7.15439L21.329 6.23978C21.094 5.93436 20.7636 5.76145 20.4632 5.65587C20.1567 5.54818 19.8101 5.48587 19.4604 5.44678C18.7646 5.369 17.9174 5.37 17.0888 5.37V6.87ZM21.3933 10.0296C21.5625 9.18167 21.7062 8.47024 21.7414 7.90038C21.7775 7.31418 21.7108 6.73617 21.329 6.23978L20.1401 7.15439C20.2021 7.23508 20.2706 7.38037 20.2442 7.80797C20.2168 8.25191 20.1002 8.84478 19.9223 9.73595L21.3933 10.0296ZM16.2404 16.25C17.0021 16.25 17.6413 16.2513 18.1566 16.1882C18.6923 16.1227 19.1809 15.9794 19.6074 15.6318L18.6598 14.469C18.5346 14.571 18.3571 14.6525 17.9744 14.6994C17.5712 14.7487 17.0397 14.75 16.2404 14.75V16.25ZM19.4235 12.1561C19.2621 12.9389 19.1535 13.4593 19.0238 13.8442C18.9007 14.2095 18.785 14.367 18.6598 14.469L19.6074 15.6318C20.0339 15.2842 20.2729 14.8346 20.4453 14.3232C20.6111 13.8312 20.7388 13.2049 20.8926 12.4589L19.4235 12.1561Z" fill="#1C274C"/>`
+		},
+
+		{
+			name: "User Dashboard",
+			link: "/account/settings",
+			description: "User profile, user settings, update email/password, billing, and more.",
+			svgContent: `<circle cx="12" cy="12" r="3" stroke="#1C274C" stroke-width="1.5"/>
+<path d="M13.7654 2.15224C13.3978 2 12.9319 2 12 2C11.0681 2 10.6022 2 10.2346 2.15224C9.74457 2.35523 9.35522 2.74458 9.15223 3.23463C9.05957 3.45834 9.0233 3.7185 9.00911 4.09799C8.98826 4.65568 8.70226 5.17189 8.21894 5.45093C7.73564 5.72996 7.14559 5.71954 6.65219 5.45876C6.31645 5.2813 6.07301 5.18262 5.83294 5.15102C5.30704 5.08178 4.77518 5.22429 4.35436 5.5472C4.03874 5.78938 3.80577 6.1929 3.33983 6.99993C2.87389 7.80697 2.64092 8.21048 2.58899 8.60491C2.51976 9.1308 2.66227 9.66266 2.98518 10.0835C3.13256 10.2756 3.3397 10.437 3.66119 10.639C4.1338 10.936 4.43789 11.4419 4.43786 12C4.43783 12.5581 4.13375 13.0639 3.66118 13.3608C3.33965 13.5629 3.13248 13.7244 2.98508 13.9165C2.66217 14.3373 2.51966 14.8691 2.5889 15.395C2.64082 15.7894 2.87379 16.193 3.33973 17C3.80568 17.807 4.03865 18.2106 4.35426 18.4527C4.77508 18.7756 5.30694 18.9181 5.83284 18.8489C6.07289 18.8173 6.31632 18.7186 6.65204 18.5412C7.14547 18.2804 7.73556 18.27 8.2189 18.549C8.70224 18.8281 8.98826 19.3443 9.00911 19.9021C9.02331 20.2815 9.05957 20.5417 9.15223 20.7654C9.35522 21.2554 9.74457 21.6448 10.2346 21.8478C10.6022 22 11.0681 22 12 22C12.9319 22 13.3978 22 13.7654 21.8478C14.2554 21.6448 14.6448 21.2554 14.8477 20.7654C14.9404 20.5417 14.9767 20.2815 14.9909 19.902C15.0117 19.3443 15.2977 18.8281 15.781 18.549C16.2643 18.2699 16.8544 18.2804 17.3479 18.5412C17.6836 18.7186 17.927 18.8172 18.167 18.8488C18.6929 18.9181 19.2248 18.7756 19.6456 18.4527C19.9612 18.2105 20.1942 17.807 20.6601 16.9999C21.1261 16.1929 21.3591 15.7894 21.411 15.395C21.4802 14.8691 21.3377 14.3372 21.0148 13.9164C20.8674 13.7243 20.6602 13.5628 20.3387 13.3608C19.8662 13.0639 19.5621 12.558 19.5621 11.9999C19.5621 11.4418 19.8662 10.9361 20.3387 10.6392C20.6603 10.4371 20.8675 10.2757 21.0149 10.0835C21.3378 9.66273 21.4803 9.13087 21.4111 8.60497C21.3592 8.21055 21.1262 7.80703 20.6602 7C20.1943 6.19297 19.9613 5.78945 19.6457 5.54727C19.2249 5.22436 18.693 5.08185 18.1671 5.15109C17.9271 5.18269 17.6837 5.28136 17.3479 5.4588C16.8545 5.71959 16.2644 5.73002 15.7811 5.45096C15.2977 5.17191 15.0117 4.65566 14.9909 4.09794C14.9767 3.71848 14.9404 3.45833 14.8477 3.23463C14.6448 2.74458 14.2554 2.35523 13.7654 2.15224Z" stroke="#1C274C" stroke-width="1.5"/>`
+		},
+
+		{
+			name: "Contact Us",
+			link: "/contact_us",
+			description: "Contact form for customers to reach out for demos, quotes, and questions.",
+			svgContent: `<path d="M10.5 22V20M14.5 22V20" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M11 20V20.75H11.75V20H11ZM14 19.25C13.5858 19.25 13.25 19.5858 13.25 20C13.25 20.4142 13.5858 20.75 14 20.75V19.25ZM17.5 5.25C17.0858 5.25 16.75 5.58579 16.75 6C16.75 6.41421 17.0858 6.75 17.5 6.75V5.25ZM7 5.25C6.58579 5.25 6.25 5.58579 6.25 6C6.25 6.41421 6.58579 6.75 7 6.75V5.25ZM9 19.25C8.58579 19.25 8.25 19.5858 8.25 20C8.25 20.4142 8.58579 20.75 9 20.75V19.25ZM15 20.75C15.4142 20.75 15.75 20.4142 15.75 20C15.75 19.5858 15.4142 19.25 15 19.25V20.75ZM10.25 11.25V20H11.75V11.25H10.25ZM11 19.25H4.23256V20.75H11V19.25ZM2.75 17.3953V11.25H1.25V17.3953H2.75ZM4.23256 19.25C3.51806 19.25 2.75 18.5323 2.75 17.3953H1.25C1.25 19.1354 2.48104 20.75 4.23256 20.75V19.25ZM6.5 6.75C8.46677 6.75 10.25 8.65209 10.25 11.25H11.75C11.75 8.04892 9.50379 5.25 6.5 5.25V6.75ZM6.5 5.25C3.49621 5.25 1.25 8.04892 1.25 11.25H2.75C2.75 8.65209 4.53323 6.75 6.5 6.75V5.25ZM21.25 11.25V17.4253H22.75V11.25H21.25ZM19.7931 19.25H14V20.75H19.7931V19.25ZM21.25 17.4253C21.25 18.5457 20.4934 19.25 19.7931 19.25V20.75C21.5305 20.75 22.75 19.1488 22.75 17.4253H21.25ZM22.75 11.25C22.75 8.04892 20.5038 5.25 17.5 5.25V6.75C19.4668 6.75 21.25 8.65209 21.25 11.25H22.75ZM7 6.75H18V5.25H7V6.75ZM9 20.75H15V19.25H9V20.75Z" fill="#1C274C"/>
+<path d="M5 16H8" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M16 9.88432V5.41121M16 5.41121V2.63519C16 2.39905 16.1676 2.19612 16.3994 2.15144L16.8855 2.05779C17.4738 1.94443 18.0821 1.99855 18.6412 2.214L18.7203 2.24451C19.2746 2.4581 19.8807 2.498 20.4582 2.35891C20.7343 2.2924 21 2.50168 21 2.78573V5.00723C21 5.2442 20.8376 5.45031 20.6073 5.5058L20.5407 5.52184C19.9095 5.67387 19.247 5.63026 18.6412 5.39679C18.0821 5.18135 17.4738 5.12722 16.8855 5.24058L16 5.41121Z" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>`
+		},
+
+		{
+			name: "Search",
+			link: "/search",
+			description: "Lighting fast site search, without a backend.",
+			svgContent: `
+<path d="M22 13V12C22 8.22876 22 6.34315 20.8284 5.17157C19.6569 4 17.7712 4 14 4H10C6.22876 4 4.34315 4 3.17157 5.17157C2 6.34315 2 8.22876 2 12C2 15.7712 2 17.6569 3.17157 18.8284C4.34315 20 6.22876 20 10 20H13" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M10 16H6" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M2 10L22 10" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<circle cx="18" cy="17" r="3" stroke="#1C274C" stroke-width="1.5"/>
+<path d="M20.5 19.5L21.5 20.5" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>`
+		},
+
+		{
+			name: "Email",
+			link: "https://github.com/CriticalMoments/CMSaasStarter/blob/main/email_docs.md",
+			linkText: "Docs",
+			description: "Send emails to users, including template support.",
+			svgContent: `<path d="M22 10C22.0185 10.7271 22 11.0542 22 12C22 15.7712 22 17.6569 20.8284 18.8284C19.6569 20 17.7712 20 14 20H10C6.22876 20 4.34315 20 3.17157 18.8284C2 17.6569 2 15.7712 2 12C2 8.22876 2 6.34315 3.17157 5.17157C4.34315 4 6.22876 4 10 4H13" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M6 8L8.1589 9.79908C9.99553 11.3296 10.9139 12.0949 12 12.0949C13.0861 12.0949 14.0045 11.3296 15.8411 9.79908" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<circle cx="19" cy="5" r="3" stroke="#1C274C" stroke-width="1.5"/>`
+		},
+
+		{
+			name: "Performance",
+			newPage: true,
+			linkText: "Docs",
+			link: "https://github.com/CriticalMoments/CMSaasStarter?tab=readme-ov-file#performance--best-practices",
+			description: "Pre-rendering. Compiled on deployment to remove unused CSS/JS. Perfect 100/100 Google performance scores.",
+			svgContent: `<path d="M5.66953 9.91436L8.73167 5.77133C10.711 3.09327 11.7007 1.75425 12.6241 2.03721C13.5474 2.32018 13.5474 3.96249 13.5474 7.24712V7.55682C13.5474 8.74151 13.5474 9.33386 13.926 9.70541L13.946 9.72466C14.3327 10.0884 14.9492 10.0884 16.1822 10.0884C18.4011 10.0884 19.5106 10.0884 19.8855 10.7613C19.8917 10.7724 19.8977 10.7837 19.9036 10.795C20.2576 11.4784 19.6152 12.3475 18.3304 14.0857L15.2683 18.2287C13.2889 20.9067 12.2992 22.2458 11.3758 21.9628C10.4525 21.6798 10.4525 20.0375 10.4525 16.7528L10.4526 16.4433C10.4526 15.2585 10.4526 14.6662 10.074 14.2946L10.054 14.2754C9.6673 13.9117 9.05079 13.9117 7.81775 13.9117C5.59888 13.9117 4.48945 13.9117 4.1145 13.2387C4.10829 13.2276 4.10225 13.2164 4.09639 13.205C3.74244 12.5217 4.3848 11.6526 5.66953 9.91436Z" stroke="#1C274C" stroke-width="1.5"/>`
+		},
+
+		{
+			name: "Responsive",
+			description: "Designed for mobile and desktop.",
+			svgContent: `<path d="M11 17H8C5.17157 17 3.75736 17 2.87868 16.1213C2 15.2426 2 13.8284 2 11V10C2 6.22876 2 4.34315 3.17157 3.17157C4.34315 2 6.22876 2 10 2H15.5C17.8346 2 19.0019 2 19.8856 2.47231C20.5833 2.84525 21.1548 3.4167 21.5277 4.11441C22 4.99805 22 6.16537 22 8.5" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M14 15C14 13.1144 14 12.1716 14.5858 11.5858C15.1716 11 16.1144 11 18 11C19.8856 11 20.8284 11 21.4142 11.5858C22 12.1716 22 13.1144 22 15V18C22 19.8856 22 20.8284 21.4142 21.4142C20.8284 22 19.8856 22 18 22C16.1144 22 15.1716 22 14.5858 21.4142C14 20.8284 14 19.8856 14 18V15Z" stroke="#1C274C" stroke-width="1.5"/>
+<path d="M19 20H17" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M11 22H8" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M11 22V17" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M11 13H2" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>`
+		},
+
+		{
+			name: "Delightful Stack",
+			description: "Tools you'll love working with, including SvelteKit, Tailwind, DaisyUI, Postgres, and Supabase.",
+			linkText: "Docs",
+			newPage: true,
+			link: "https://github.com/CriticalMoments/CMSaasStarter?tab=readme-ov-file#tech-stack",
+			svgContent: `<path d="M4.97883 9.68508C2.99294 8.89073 2 8.49355 2 8C2 7.50645 2.99294 7.10927 4.97883 6.31492L7.7873 5.19153C9.77318 4.39718 10.7661 4 12 4C13.2339 4 14.2268 4.39718 16.2127 5.19153L19.0212 6.31492C21.0071 7.10927 22 7.50645 22 8C22 8.49355 21.0071 8.89073 19.0212 9.68508L16.2127 10.8085C14.2268 11.6028 13.2339 12 12 12C10.7661 12 9.77318 11.6028 7.7873 10.8085L4.97883 9.68508Z" stroke="#1C274C" stroke-width="1.5"/>
+<path d="M5.76613 10L4.97883 10.3149C2.99294 11.1093 2 11.5065 2 12C2 12.4935 2.99294 12.8907 4.97883 13.6851L7.7873 14.8085C9.77318 15.6028 10.7661 16 12 16C13.2339 16 14.2268 15.6028 16.2127 14.8085L19.0212 13.6851C21.0071 12.8907 22 12.4935 22 12C22 11.5065 21.0071 11.1093 19.0212 10.3149L18.2339 10" stroke="#1C274C" stroke-width="1.5"/>
+<path d="M5.76613 14L4.97883 14.3149C2.99294 15.1093 2 15.5065 2 16C2 16.4935 2.99294 16.8907 4.97883 17.6851L7.7873 18.8085C9.77318 19.6028 10.7661 20 12 20C13.2339 20 14.2268 19.6028 16.2127 18.8085L19.0212 17.6851C21.0071 16.8907 22 16.4935 22 16C22 15.5065 21.0071 15.1093 19.0212 14.3149L18.2339 14" stroke="#1C274C" stroke-width="1.5"/>`
+		},
+
+		{
+			name: "Extensible",
+			description: "All the tools you need to make additional marketing pages, UI components, admin portals, database backends, API endpoints, and more.",
+			svgContent: `<path d="M12.75 6.5C12.75 6.08579 12.4142 5.75 12 5.75C11.5858 5.75 11.25 6.08579 11.25 6.5H12.75ZM18 16.5L18.5303 17.0303C18.8232 16.7374 18.8232 16.2626 18.5303 15.9697L18 16.5ZM15.9697 17.4697C15.6768 17.7626 15.6768 18.2374 15.9697 18.5303C16.2626 18.8232 16.7374 18.8232 17.0303 18.5303L15.9697 17.4697ZM17.0303 14.4697C16.7374 14.1768 16.2626 14.1768 15.9697 14.4697C15.6768 14.7626 15.6768 15.2374 15.9697 15.5303L17.0303 14.4697ZM11.25 6.5V12.5H12.75V6.5H11.25ZM16 17.25H18V15.75H16V17.25ZM17.4697 15.9697L15.9697 17.4697L17.0303 18.5303L18.5303 17.0303L17.4697 15.9697ZM18.5303 15.9697L17.0303 14.4697L15.9697 15.5303L17.4697 17.0303L18.5303 15.9697ZM11.25 12.5C11.25 15.1234 13.3766 17.25 16 17.25V15.75C14.2051 15.75 12.75 14.2949 12.75 12.5H11.25Z" fill="#1C274C"/>
+<path d="M12.75 6.5C12.75 6.08579 12.4142 5.75 12 5.75C11.5858 5.75 11.25 6.08579 11.25 6.5H12.75ZM6 16.5L5.46967 15.9697C5.17678 16.2626 5.17678 16.7374 5.46967 17.0303L6 16.5ZM6.96967 18.5303C7.26256 18.8232 7.73744 18.8232 8.03033 18.5303C8.32322 18.2374 8.32322 17.7626 8.03033 17.4697L6.96967 18.5303ZM8.03033 15.5303C8.32322 15.2374 8.32322 14.7626 8.03033 14.4697C7.73744 14.1768 7.26256 14.1768 6.96967 14.4697L8.03033 15.5303ZM11.25 6.5V12.5H12.75V6.5H11.25ZM8 15.75H6V17.25H8V15.75ZM5.46967 17.0303L6.96967 18.5303L8.03033 17.4697L6.53033 15.9697L5.46967 17.0303ZM6.53033 17.0303L8.03033 15.5303L6.96967 14.4697L5.46967 15.9697L6.53033 17.0303ZM11.25 12.5C11.25 14.2949 9.79493 15.75 8 15.75V17.25C10.6234 17.25 12.75 15.1234 12.75 12.5H11.25Z" fill="#1C274C"/>
+<path d="M22 12C22 16.714 22 19.0711 20.5355 20.5355C19.0711 22 16.714 22 12 22C7.28595 22 4.92893 22 3.46447 20.5355C2 19.0711 2 16.714 2 12C2 7.28595 2 4.92893 3.46447 3.46447C4.92893 2 7.28595 2 12 2C16.714 2 19.0711 2 20.5355 3.46447C21.5093 4.43821 21.8356 5.80655 21.9449 8" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+`
+		},
+
+		{
+			name: "Developer Experience",
+			description: "Built in linting, type checking, formatting, and test framework. Run locally in your editor, and on Github CI.",
+			newPage: true,
+			linkText: "Docs",
+			link: "https://github.com/CriticalMoments/CMSaasStarter?tab=readme-ov-file#developer-tools",
+			svgContent: `<path d="M7 9C7 9.55228 6.55228 10 6 10C5.44772 10 5 9.55228 5 9C5 8.44772 5.44772 8 6 8C6.55228 8 7 8.44772 7 9Z" fill="#1C274C"/>
+<path d="M7 12C7 12.5523 6.55228 13 6 13C5.44772 13 5 12.5523 5 12C5 11.4477 5.44772 11 6 11C6.55228 11 7 11.4477 7 12Z" fill="#1C274C"/>
+<path d="M10 12C10 12.5523 9.55228 13 9 13C8.44772 13 8 12.5523 8 12C8 11.4477 8.44772 11 9 11C9.55228 11 10 11.4477 10 12Z" fill="#1C274C"/>
+<path d="M10 9C10 9.55228 9.55228 10 9 10C8.44772 10 8 9.55228 8 9C8 8.44772 8.44772 8 9 8C9.55228 8 10 8.44772 10 9Z" fill="#1C274C"/>
+<path d="M13 9C13 9.55228 12.5523 10 12 10C11.4477 10 11 9.55228 11 9C11 8.44772 11.4477 8 12 8C12.5523 8 13 8.44772 13 9Z" fill="#1C274C"/>
+<path d="M13 12C13 12.5523 12.5523 13 12 13C11.4477 13 11 12.5523 11 12C11 11.4477 11.4477 11 12 11C12.5523 11 13 11.4477 13 12Z" fill="#1C274C"/>
+<path d="M16 9C16 9.55228 15.5523 10 15 10C14.4477 10 14 9.55228 14 9C14 8.44772 14.4477 8 15 8C15.5523 8 16 8.44772 16 9Z" fill="#1C274C"/>
+<path d="M16 12C16 12.5523 15.5523 13 15 13C14.4477 13 14 12.5523 14 12C14 11.4477 14.4477 11 15 11C15.5523 11 16 11.4477 16 12Z" fill="#1C274C"/>
+<path d="M19 9C19 9.55228 18.5523 10 18 10C17.4477 10 17 9.55228 17 9C17 8.44772 17.4477 8 18 8C18.5523 8 19 8.44772 19 9Z" fill="#1C274C"/>
+<path d="M19 12C19 12.5523 18.5523 13 18 13C17.4477 13 17 12.5523 17 12C17 11.4477 17.4477 11 18 11C18.5523 11 19 11.4477 19 12Z" fill="#1C274C"/>
+<path d="M2 11C2 8.17157 2 6.75736 2.87868 5.87868C3.75736 5 5.17157 5 8 5H16C18.8284 5 20.2426 5 21.1213 5.87868C22 6.75736 22 8.17157 22 11V13C22 15.8284 22 17.2426 21.1213 18.1213C20.2426 19 18.8284 19 16 19H8C5.17157 19 3.75736 19 2.87868 18.1213C2 17.2426 2 15.8284 2 13V11Z" stroke="#1C274C" stroke-width="1.5"/>
+<path d="M7 16H17" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>`
+		},
+
+		{
+			name: "Scalable",
+			description: "Handle new users and scale with horizontally scaling edge functions.",
+			svgContent: `<path d="M3 22H21" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M3 11C3 10.0572 3 9.58579 3.29289 9.29289C3.58579 9 4.05719 9 5 9C5.94281 9 6.41421 9 6.70711 9.29289C7 9.58579 7 10.0572 7 11V17C7 17.9428 7 18.4142 6.70711 18.7071C6.41421 19 5.94281 19 5 19C4.05719 19 3.58579 19 3.29289 18.7071C3 18.4142 3 17.9428 3 17V11Z" stroke="#1C274C" stroke-width="1.5"/>
+<path d="M10 7C10 6.05719 10 5.58579 10.2929 5.29289C10.5858 5 11.0572 5 12 5C12.9428 5 13.4142 5 13.7071 5.29289C14 5.58579 14 6.05719 14 7V17C14 17.9428 14 18.4142 13.7071 18.7071C13.4142 19 12.9428 19 12 19C11.0572 19 10.5858 19 10.2929 18.7071C10 18.4142 10 17.9428 10 17V7Z" stroke="#1C274C" stroke-width="1.5"/>
+<path d="M17 4C17 3.05719 17 2.58579 17.2929 2.29289C17.5858 2 18.0572 2 19 2C19.9428 2 20.4142 2 20.7071 2.29289C21 2.58579 21 3.05719 21 4V17C21 17.9428 21 18.4142 20.7071 18.7071C20.4142 19 19.9428 19 19 19C18.0572 19 17.5858 19 17.2929 18.7071C17 18.4142 17 17.9428 17 17V4Z" stroke="#1C274C" stroke-width="1.5"/>`
+		},
+
+		{
+			name: "Extensions",
+			description: "Community extensions for internationalization, dark mode theme, and more.",
+			linkText: "Docs",
+			newPage: true,
+			link: "https://github.com/CriticalMoments/CMSaasStarter?tab=readme-ov-file#community-extensions",
+			svgContent: `
+      <circle cx="10" cy="6" r="4" stroke="#1C274C" stroke-width="1.5"/>
+<path d="M18 17.5C18 19.9853 18 22 10 22C2 22 2 19.9853 2 17.5C2 15.0147 5.58172 13 10 13C14.4183 13 18 15.0147 18 17.5Z" stroke="currentColor" stroke-width="1.5"/>
+<path d="M18.0885 12.5385L18.5435 11.9423L18.0885 12.5385ZM19 8.64354L18.4681 9.17232C18.6089 9.31392 18.8003 9.39354 19 9.39354C19.1997 9.39354 19.3911 9.31392 19.5319 9.17232L19 8.64354ZM19.9115 12.5385L19.4565 11.9423L19.9115 12.5385ZM18.5435 11.9423C18.0571 11.571 17.619 11.274 17.2659 10.8891C16.9387 10.5324 16.75 10.1638 16.75 9.69973H15.25C15.25 10.6481 15.6642 11.362 16.1606 11.9031C16.6311 12.4161 17.2372 12.8322 17.6335 13.1347L18.5435 11.9423ZM16.75 9.69973C16.75 9.28775 16.9898 8.95469 17.2973 8.81862C17.5635 8.7008 17.9874 8.68874 18.4681 9.17232L19.5319 8.11476C18.6627 7.24047 17.5865 7.0503 16.6903 7.44694C15.8352 7.82533 15.25 8.69929 15.25 9.69973H16.75ZM17.6335 13.1347C17.7825 13.2483 17.9756 13.3959 18.1793 13.5111C18.3832 13.6265 18.6656 13.75 19 13.75V12.25C19.0344 12.25 19.0168 12.2615 18.9179 12.2056C18.8187 12.1495 18.7061 12.0663 18.5435 11.9423L17.6335 13.1347ZM20.3665 13.1347C20.7628 12.8322 21.3689 12.4161 21.8394 11.9031C22.3358 11.362 22.75 10.6481 22.75 9.69973H21.25C21.25 10.1638 21.0613 10.5324 20.7341 10.8891C20.381 11.274 19.9429 11.571 19.4565 11.9423L20.3665 13.1347ZM22.75 9.69973C22.75 8.69929 22.1648 7.82533 21.3097 7.44694C20.4135 7.0503 19.3373 7.24047 18.4681 8.11476L19.5319 9.17232C20.0126 8.68874 20.4365 8.7008 20.7027 8.81862C21.0102 8.95469 21.25 9.28775 21.25 9.69973H22.75ZM19.4565 11.9423C19.2939 12.0663 19.1813 12.1495 19.0821 12.2056C18.9832 12.2615 18.9656 12.25 19 12.25V13.75C19.3344 13.75 19.6168 13.6265 19.8207 13.5111C20.0244 13.3959 20.2175 13.2483 20.3665 13.1347L19.4565 11.9423Z" fill="currentColor"/>
+      `
+		},
+
+		{
+			name: "Open Source",
+			description: "With the MIT license, you are free to use, modify, and distribute this template.",
+			linkText: "License",
+			newPage: true,
+			link: "https://github.com/CriticalMoments/CMSaasStarter/blob/main/LICENSE",
+			svgContent: `
+<path d="M0.90625 12.4866C1.01075 6.46069 5.22856 2.1707 10.3917 1.47632C16.551 0.652008 21.732 4.84163 22.7275 10.3994C23.6728 15.6704 20.7757 20.6046 15.9989 22.5599C15.5871 22.7276 15.3616 22.6348 15.2042 22.2161L12.8302 16.0499C12.6948 15.6876 12.7869 15.4621 13.1417 15.3019C14.2162 14.8145 14.8852 13.9984 15.0646 12.8269C15.3472 11.0119 14.0334 9.33651 12.2039 9.17838C10.5381 9.01682 9.03525 10.1773 8.76644 11.8273C8.53337 13.2924 9.25663 14.6564 10.6206 15.2758C11.0469 15.469 11.1328 15.6588 10.9678 16.0926L8.58287 22.3014C8.46806 22.6059 8.21781 22.7139 7.89537 22.5881C5.37844 21.6036 3.31181 19.7233 2.09494 17.3101C0.98875 15.1259 0.978437 13.4182 0.90625 12.4832V12.4866ZM1.83369 12.4014C1.85225 12.6949 1.86188 13.0346 1.89144 13.3824C2.16988 16.5724 4.08937 19.7487 7.70219 21.5066C7.84587 21.5706 7.8995 21.5424 7.95312 21.4069C8.61244 19.6696 9.27794 17.9337 9.94756 16.1964C10.0046 16.0534 9.97575 15.9853 9.84306 15.9028C8.43987 15.018 7.74137 13.7503 7.81975 12.0858C7.86306 11.1295 8.23225 10.288 8.87644 9.58607C10.2047 8.13613 12.2919 7.82057 14.0004 8.80576C15.4111 9.62182 16.1983 11.201 16.0051 12.8201C15.8436 14.1731 15.1499 15.2119 13.9749 15.9138C13.8567 15.9853 13.8209 16.0424 13.8753 16.1813C14.5483 17.922 15.2179 19.6621 15.88 21.4028C15.9343 21.5424 15.9879 21.5706 16.1275 21.5025C17.7067 20.7683 19.0205 19.7157 20.038 18.3125C21.5807 16.1709 22.2181 13.7894 21.9135 11.1687C21.3085 5.9547 16.6177 1.63651 10.5773 2.38176C5.87206 2.95857 1.91206 6.92957 1.833 12.4007L1.83369 12.4014Z" fill="currentColor" stroke="currentColor" stroke-width="0.5" stroke-linecap="round"/>
+      `
+		}
+	];
+
+	var fragment_1 = root_3();
+
+	$.head('skv6c4', ($$anchor) => {
+		var fragment = root();
+		var meta = $.first_child(fragment);
+		var node = $.sibling(meta, 2);
+
+		$.html(node, () => jsonldScript);
+		$.template_effect(() => $.set_attribute(meta, 'content', WebsiteDescription));
+
+		$.deferred_template_effect(() => {
+			$.document.title = WebsiteName ?? '';
+		});
+
+		$.append($$anchor, fragment);
+	});
+
+	var div = $.sibling($.first_child(fragment_1), 2);
+	var div_1 = $.child(div);
+	var div_2 = $.sibling($.child(div_1), 2);
+
+	$.each(div_2, 21, () => features, $.index, ($$anchor, feature) => {
+		var div_3 = root_2();
+		var div_4 = $.child(div_3);
+		var div_5 = $.child(div_4);
+		var svg = $.child(div_5);
+
+		$.html(svg, () => $.get(feature).svgContent, true);
+		$.reset(svg);
+		$.reset(div_5);
+
+		var h2 = $.sibling(div_5, 2);
+		var text = $.only_child(h2, true);
+		var p = $.sibling(h2, 2);
+		var text_1 = $.only_child(p, true);
+		var node_1 = $.sibling(p, 2);
+
+		{
+			var consequent = ($$anchor) => {
+				var a = root_1();
+				var button = $.child(a);
+				var text_2 = $.only_child(button, true);
+
+				$.reset(a);
+
+				$.template_effect(() => {
+					$.set_attribute(a, 'href', $.get(feature).link);
+					$.set_attribute(a, 'target', $.get(feature).newPage ? "_blank" : "");
+					$.set_text(text_2, $.get(feature).linkText ? $.get(feature).linkText : "Try It");
+				});
+
+				$.append($$anchor, a);
+			};
+
+			$.if(node_1, ($$render) => {
+				if ($.get(feature).link) $$render(consequent);
+			});
+		}
+
+		$.reset(div_4);
+		$.reset(div_3);
+
+		$.template_effect(() => {
+			$.set_text(text, $.get(feature).name);
+			$.set_text(text_1, $.get(feature).description);
+		});
+
+		$.append($$anchor, div_3);
+	});
+
+	$.reset(div_2);
+	$.reset(div_1);
+	$.reset(div);
+	$.next(2);
+	$.append($$anchor, fragment_1);
+}
+=== 3286 src/routes/(marketing)/blog/(posts)/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { page } from "$app/stores";
+import { error } from "@sveltejs/kit";
+import { sortedBlogPosts } from "./../posts";
+import { WebsiteName } from "../../../../config";
+
+var root = $.from_html(`<meta name="description"/> <meta property="og:title"/> <meta property="og:description"/> <meta property="og:site_name"/> <meta property="og:url"/>  <meta name="twitter:card" content="summary"/> <meta name="twitter:title"/> <meta name="twitter:description"/>  <!>`, 1);
+var root_1 = $.from_html(`<article class="prose mx-auto py-12 px-6 font-sans"><div class="text-sm text-accent"> </div> <h1> </h1> <!></article>`);
+
+export default function _layout($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $page = () => $.store_get(page, '$page', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+
+	function getCurrentPost(url) {
+		let searchPost = null;
+
+		for (const post of sortedBlogPosts) {
+			if (url == post.link || url == post.link + "/") {
+				searchPost = post;
+
+				continue;
+			}
+		}
+
+		if (!searchPost) {
+			error(404, "Blog post not found");
+		}
+
+		return searchPost;
+	}
+
+	let currentPost = $.derived(() => getCurrentPost($page().url.pathname));
+
+	function buildLdJson(post) {
+		return {
+			"@context": "https://schema.org",
+			"@type": "BlogPosting",
+			headline: post.title,
+			datePublished: post.parsedDate?.toISOString(),
+			dateModified: post.parsedDate?.toISOString()
+		};
+	}
+
+	let jsonldScript = $.derived(() => `<script type="application/ld+json">${JSON.stringify(buildLdJson($.get(currentPost))) + "<"}/script>`);
+	let pageUrl = $.derived(() => $page().url.origin + $page().url.pathname);
+	var article = root_1();
+
+	$.head('1lsl30p', ($$anchor) => {
+		var fragment = root();
+		var meta = $.first_child(fragment);
+		var meta_1 = $.sibling(meta, 2);
+		var meta_2 = $.sibling(meta_1, 2);
+		var meta_3 = $.sibling(meta_2, 2);
+		var meta_4 = $.sibling(meta_3, 2);
+		var meta_5 = $.sibling(meta_4, 4);
+		var meta_6 = $.sibling(meta_5, 2);
+		var node = $.sibling(meta_6, 2);
+
+		$.html(node, () => $.get(jsonldScript));
+
+		$.template_effect(() => {
+			$.set_attribute(meta, 'content', $.get(currentPost).description);
+			$.set_attribute(meta_1, 'content', $.get(currentPost).title);
+			$.set_attribute(meta_2, 'content', $.get(currentPost).description);
+			$.set_attribute(meta_3, 'content', WebsiteName);
+			$.set_attribute(meta_4, 'content', $.get(pageUrl));
+			$.set_attribute(meta_5, 'content', $.get(currentPost).title);
+			$.set_attribute(meta_6, 'content', $.get(currentPost).description);
+		});
+
+		$.deferred_template_effect(() => {
+			$.document.title = $.get(currentPost).title ?? '';
+		});
+
+		$.append($$anchor, fragment);
+	});
+
+	var div = $.child(article);
+	var text = $.only_child(div, true);
+	var h1 = $.sibling(div, 2);
+	var text_1 = $.only_child(h1, true);
+	var node_1 = $.sibling(h1, 2);
+
+	$.snippet(node_1, () => $$props.children ?? $.noop);
+	$.reset(article);
+
+	$.template_effect(
+		($0) => {
+			$.set_text(text, $0);
+			$.set_text(text_1, $.get(currentPost).title);
+		},
+		[
+			() => $.get(currentPost).parsedDate?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+		]
+	);
+
+	$.append($$anchor, article);
+	$.pop();
+	$$cleanup();
+}
+=== 781 src/routes/(marketing)/blog/(posts)/awesome_post/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(
+	`<p class="lead">A sample post</p> <p>This is a sample blog post to demonstrate the blog engine. It shows some of
+  the formatting options included in the template.</p> <h3>Section Titles are great</h3> <p>As are more paragraphs.</p> <blockquote><p>Block quotes are styled</p></blockquote> <pre><code class="language-bash"># Code blocks work too!
+npm install 
+</code></pre> <p>Check out more formatting options like lists, headers, and more in <a href="https://play.tailwindcss.com/uj1vGACRJA?layout=preview">the tailwind/typograpy docs</a>.</p>`,
+	1
+);
+
+export default function _page($$anchor) {
+	var fragment = root();
+
+	$.next(12);
+	$.append($$anchor, fragment);
+}
+=== 1267 src/routes/(marketing)/blog/(posts)/how_we_built_our_41kb_saas_website/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(
+	`<p class="lead">How to use this template you to bootstrap your own site.</p> <p>We've written a detailed blog post about how we took this template, and
+  created a real <a href="https://criticalmoments.io" target="_blank">SaaS company website</a>. Topics include:</p> <ul><li>Optimizing the stack for performance and developer productivity</li> <li>Creating rich interactive animations with Svelte</li> <li>Creating pixel perfect designs without rasterization</li> <li>Speed measurements: how we kept it small and lightning fast</li></ul> <a href="https://criticalmoments.io/blog/how_we_built_our_marketing_page" target="_blank"><button class="btn btn-primary">Read the Blog Post</button></a> <p>The blog post is over on <a href="https://criticalmoments.io" target="_blank">criticalmoments.io</a>, a page which uses this boilerplate as a starting point.</p> <p>If you are looking for examples of blog posts with rich content rendered
+  inside this template, checkout the other demo posts <a href="/blog" class="link">here</a>.</p>`,
+	1
+);
+
+export default function _page($$anchor) {
+	var fragment = root();
+
+	$.next(10);
+	$.append($$anchor, fragment);
+}
+=== 2437 src/routes/(marketing)/blog/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { sortedBlogPosts, blogInfo } from "./posts";
+
+var root = $.from_html(`<meta name="description" content="Our blog posts."/>`);
+var root_1 = $.from_html(`<a><div class="card my-6 bg-white shadow-xl flex-row overflow-hidden"><div class="flex-none w-6 md:w-32 bg-secondary"></div> <div class="py-6 px-6"><div class="text-xl"> </div> <div class="text-sm text-accent"> </div> <div class="text-slate-500"> </div></div></div></a>`);
+var root_2 = $.from_html(`<div class="py-8 lg:py-12 px-6 max-w-lg mx-auto"><div class="text-3xl lg:text-5xl font-medium text-primary flex gap-3 items-baseline text-center place-content-center"><div class="text-center leading-relaxed font-bold bg-clip-text text-transparent bg-linear-to-r from-primary to-accent"> </div> <a href="/blog/rss.xml" target="_blank" rel="noreferrer"><img class="flex-none w-5 h-5 object-contain" src="/images/rss.svg" alt="rss feed"/></a></div> <div class="text-lg text-center">A demo blog with sample content.</div> <!></div>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	var div = root_2();
+
+	$.head('8fdu19', ($$anchor) => {
+		var meta = root();
+
+		$.deferred_template_effect(() => {
+			$.document.title = blogInfo.name ?? '';
+		});
+
+		$.append($$anchor, meta);
+	});
+
+	var div_1 = $.child(div);
+	var div_2 = $.child(div_1);
+	var text = $.only_child(div_2, true);
+
+	$.next(2);
+	$.reset(div_1);
+
+	var node = $.sibling(div_1, 4);
+
+	$.each(node, 17, () => sortedBlogPosts, $.index, ($$anchor, post) => {
+		var a = root_1();
+		var div_3 = $.child(a);
+		var div_4 = $.sibling($.child(div_3), 2);
+		var div_5 = $.child(div_4);
+		var text_1 = $.only_child(div_5, true);
+		var div_6 = $.sibling(div_5, 2);
+		var text_2 = $.only_child(div_6, true);
+		var div_7 = $.sibling(div_6, 2);
+		var text_3 = $.only_child(div_7, true);
+
+		$.reset(div_4);
+		$.reset(div_3);
+		$.reset(a);
+
+		$.template_effect(
+			($0) => {
+				$.set_attribute(a, 'href', $.get(post).link);
+				$.set_text(text_1, $.get(post).title);
+				$.set_text(text_2, $0);
+				$.set_text(text_3, $.get(post).description);
+			},
+			[
+				() => $.get(post).parsedDate?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+			]
+		);
+
+		$.append($$anchor, a);
+	});
+
+	$.reset(div);
+	$.template_effect(() => $.set_text(text, blogInfo.name));
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 6722 src/routes/(marketing)/contact_us/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { enhance, applyAction } from "$app/forms";
+
+var root = $.from_html(`<div class="flex flex-col place-content-center lg:min-h-[70vh]"><div class="card card-bordered shadow-lg py-6 px-6 mx-2 lg:mx-0 lg:p-6 mb-10"><div class="text-2xl font-bold mb-4">Thank you!</div> <p>We've received your message and will be in touch soon.</p></div></div>`);
+var root_1 = $.from_html(`<div class="text-red-600 grow text-sm ml-2 text-right"> </div>`);
+var root_2 = $.from_html(`<textarea></textarea>`);
+var root_3 = $.from_html(`<input/>`);
+var root_4 = $.from_html(`<label><div class="flex flex-row"><div class="text-base font-bold"> </div> <!></div> <!></label>`);
+var root_5 = $.from_html(`<p class="text-red-600 text-sm mb-2">Please resolve above issues.</p>`);
+var root_6 = $.from_html(`<div class="card card-bordered shadow-lg p-4 pt-6 mx-2 lg:mx-0 lg:p-6"><form class="form-widget flex flex-col" method="POST" action="?/submitContactUs"><!> <!> <button> </button></form></div>`);
+
+var root_7 = $.from_html(`<div class="flex flex-col lg:flex-row mx-auto my-4 min-h-[70vh] place-items-center lg:place-items-start place-content-center"><div class="max-w-[400px] lg:max-w-[500px] flex flex-col place-content-center p-4 lg:mr-8 lg:mb-8 lg:min-h-[70vh]"><div class="px-6"><h1 class="text-2xl lg:text-4xl font-bold mb-4">Contact Us</h1> <p class="text-lg">Talk to one of our service professionals to:</p> <ul class="list-disc list-outside pl-6 py-4 space-y-1"><li>Get a live demo</li> <li>Discuss your specific needs</li> <li>Get a quote</li> <li>Answer any technical questions you have</li></ul> <p>Once you complete the form, we'll reach out to you! *</p> <p class="text-sm pt-8">*Not really for this demo page, but you should say something like that
+        😉</p></div></div> <div class="flex flex-col grow m-4 lg:ml-10 min-w-[300px] stdphone:min-w-[360px] max-w-[400px] place-content-center lg:min-h-[70vh]"><!></div></div>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let errors = $.state($.proxy({}));
+	let loading = $.state(false);
+	let showSuccess = $.state(false);
+
+	const formFields = [
+		{
+			id: "first_name",
+			label: "First Name *",
+			inputType: "text",
+			autocomplete: "given-name"
+		},
+
+		{
+			id: "last_name",
+			label: "Last Name *",
+			inputType: "text",
+			autocomplete: "family-name"
+		},
+
+		{
+			id: "email",
+			label: "Email *",
+			inputType: "email",
+			autocomplete: "email"
+		},
+
+		{
+			id: "phone",
+			label: "Phone Number",
+			inputType: "tel",
+			autocomplete: "tel"
+		},
+
+		{
+			id: "company",
+			label: "Company Name",
+			inputType: "text",
+			autocomplete: "organization"
+		},
+
+		{
+			id: "message",
+			label: "Message",
+			inputType: "textarea",
+			autocomplete: "off"
+		}
+	];
+
+	const handleSubmit = () => {
+		$.set(loading, true);
+		$.set(errors, {}, true);
+
+		return async ({ update, result }) => {
+			await update({ reset: false });
+			await applyAction(result);
+			$.set(loading, false);
+
+			if (result.type === "success") {
+				$.set(showSuccess, true);
+			} else if (result.type === "failure") {
+				$.set(errors, result.data?.errors ?? {}, true);
+			} else if (result.type === "error") {
+				$.set(errors, { _: "An error occurred. Please check inputs and try again." }, true);
+			}
+		};
+	};
+
+	var div = root_7();
+	var div_1 = $.sibling($.child(div), 2);
+	var node = $.child(div_1);
+
+	{
+		var consequent = ($$anchor) => {
+			var div_2 = root();
+
+			$.append($$anchor, div_2);
+		};
+
+		var alternate_1 = ($$anchor) => {
+			var div_3 = root_6();
+			var form = $.child(div_3);
+			var node_1 = $.child(form);
+
+			$.each(node_1, 17, () => formFields, $.index, ($$anchor, field) => {
+				var label = root_4();
+				var div_4 = $.child(label);
+				var div_5 = $.child(div_4);
+				var text = $.only_child(div_5, true);
+				var node_2 = $.sibling(div_5, 2);
+
+				{
+					var consequent_1 = ($$anchor) => {
+						var div_6 = root_1();
+						var text_1 = $.only_child(div_6, true);
+
+						$.template_effect(() => $.set_text(text_1, $.get(errors)[$.get(field).id]));
+						$.append($$anchor, div_6);
+					};
+
+					$.if(node_2, ($$render) => {
+						if ($.get(errors)[$.get(field).id]) $$render(consequent_1);
+					});
+				}
+
+				$.reset(div_4);
+
+				var node_3 = $.sibling(div_4, 2);
+
+				{
+					var consequent_2 = ($$anchor) => {
+						var textarea = root_2();
+
+						$.set_attribute(textarea, 'rows', 4);
+
+						$.template_effect(() => {
+							$.set_attribute(textarea, 'id', $.get(field).id);
+							$.set_attribute(textarea, 'name', $.get(field).id);
+							$.set_attribute(textarea, 'autocomplete', $.get(field).autocomplete);
+							$.set_class(textarea, 1, `${$.get(errors)[$.get(field).id] ? 'input-error' : ''} h-24 input-sm mt-1 input input-bordered w-full mb-3 text-base py-4`);
+						});
+
+						$.append($$anchor, textarea);
+					};
+
+					var alternate = ($$anchor) => {
+						var input = root_3();
+
+						$.template_effect(() => {
+							$.set_attribute(input, 'id', $.get(field).id);
+							$.set_attribute(input, 'name', $.get(field).id);
+							$.set_attribute(input, 'type', $.get(field).inputType);
+							$.set_attribute(input, 'autocomplete', $.get(field).autocomplete);
+							$.set_class(input, 1, `${$.get(errors)[$.get(field).id] ? 'input-error' : ''} input-sm mt-1 input input-bordered w-full mb-3 text-base py-4`);
+						});
+
+						$.append($$anchor, input);
+					};
+
+					$.if(node_3, ($$render) => {
+						if ($.get(field).inputType === "textarea") $$render(consequent_2); else $$render(alternate, -1);
+					});
+				}
+
+				$.reset(label);
+
+				$.template_effect(() => {
+					$.set_attribute(label, 'for', $.get(field).id);
+					$.set_text(text, $.get(field).label);
+				});
+
+				$.append($$anchor, label);
+			});
+
+			var node_4 = $.sibling(node_1, 2);
+
+			{
+				var consequent_3 = ($$anchor) => {
+					var p = root_5();
+
+					$.append($$anchor, p);
+				};
+
+				var d = $.derived(() => Object.keys($.get(errors)).length > 0);
+
+				$.if(node_4, ($$render) => {
+					if ($.get(d)) $$render(consequent_3);
+				});
+			}
+
+			var button = $.sibling(node_4, 2);
+			var text_2 = $.only_child(button, true);
+
+			$.reset(form);
+			$.action(form, ($$node, $$action_arg) => enhance?.($$node, $$action_arg), () => handleSubmit);
+			$.reset(div_3);
+
+			$.template_effect(() => {
+				$.set_class(button, 1, `btn btn-primary ${$.get(loading) ? 'btn-disabled' : ''}`);
+				$.set_text(text_2, $.get(loading) ? "Submitting" : "Submit");
+			});
+
+			$.append($$anchor, div_3);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(showSuccess)) $$render(consequent); else $$render(alternate_1, -1);
+		});
+	}
+
+	$.reset(div_1);
+	$.reset(div);
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 908 src/routes/(marketing)/login/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div class="text-center content-center max-w-lg mx-auto min-h-[70vh] pb-12 flex items-center place-content-center"><div class="flex flex-col w-64 lg:w-80"><!> <div>🍪 Logging in uses Cookies 🍪</div></div></div>`);
+
+export default function _layout($$anchor, $$props) {
+	$.push($$props, true);
+
+	let isEurope = $.state(false);
+
+	try {
+		$.set(isEurope, Intl.DateTimeFormat().resolvedOptions().timeZone.startsWith("Europe/"), true);
+	} catch {
+		/* continue */
+	}
+
+	var div = root();
+	var div_1 = $.child(div);
+	var node = $.child(div_1);
+
+	$.snippet(node, () => $$props.children ?? $.noop);
+
+	var div_2 = $.sibling(node, 2);
+
+	$.reset(div_1);
+	$.reset(div);
+	$.template_effect(() => $.set_class(div_2, 1, `mt-8 ${$.get(isEurope) ? 'block' : 'hidden'}`));
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 613 src/routes/(marketing)/login/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div><h1 class="text-xl font-bold">Get Started</h1> <a href="/login/sign_up"><button class="btn btn-primary mt-3 btn-wide">Sign Up</button></a> <h1 class="text-xl mt-6">Already have an account?</h1> <a href="/login/sign_in"><button class="btn btn-outline btn-primary mt-3 btn-wide">Sign In</button></a></div>`);
+
+export default function _page($$anchor) {
+	var div = root();
+
+	$.head('17q9lpe', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Log In';
+		});
+	});
+
+	$.append($$anchor, div);
+}
+=== 746 src/routes/(marketing)/login/current_password_error/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(
+	`<h1 class="text-2xl font-bold mb-6">Current Password Incorrect</h1> <p>You attempted edit your account with an incorrect current password, and have
+  been logged out.</p> <p class="mt-6">If you remember your password <a href="/login/sign_in" class="link">sign in</a> and try again.</p> <p class="mt-6">If you forget your password <a href="/login/forgot_password" class="link">reset it</a>.</p>`,
+	1
+);
+
+export default function _page($$anchor) {
+	var fragment = root();
+
+	$.head('ft80p9', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Current Password Incorrect';
+		});
+	});
+
+	$.next(6);
+	$.append($$anchor, fragment);
+}
+=== 1216 src/routes/(marketing)/login/forgot_password/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Auth } from "@supabase/auth-ui-svelte";
+import { sharedAppearance, oauthProviders } from "../login_config";
+
+var root = $.from_html(`<h1 class="text-2xl font-bold mb-6">Forgot Password</h1> <!> <div class="text-l text-slate-800 mt-4">Remember your password? <a class="underline" href="/login/sign_in">Sign in</a>.</div>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	var fragment = root();
+
+	$.head('1q99pjc', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Forgot Password';
+		});
+	});
+
+	var node = $.sibling($.first_child(fragment), 2);
+
+	{
+		let $0 = $.derived(() => `${$$props.data.url}/auth/callback?next=%2Faccount%2Fsettings%2Freset_password`);
+
+		Auth(node, {
+			get supabaseClient() {
+				return $$props.data.supabase;
+			},
+			view: 'forgotten_password',
+			get redirectTo() {
+				return $.get($0);
+			},
+
+			get providers() {
+				return oauthProviders;
+			},
+			socialLayout: 'horizontal',
+			showLinks: false,
+			get appearance() {
+				return sharedAppearance;
+			},
+			additionalData: undefined
+		});
+	}
+
+	$.next(2);
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 2706 src/routes/(marketing)/login/sign_in/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Auth } from "@supabase/auth-ui-svelte";
+import { sharedAppearance, oauthProviders } from "../login_config";
+import { goto } from "$app/navigation";
+import { onMount } from "svelte";
+import { page } from "$app/stores";
+
+var root = $.from_html(`<div role="alert" class="alert alert-success mb-5"><svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <span>Email verified! Please sign in.</span></div>`);
+var root_1 = $.from_html(`<!> <h1 class="text-2xl font-bold mb-6">Sign In</h1> <!> <div class="text-l text-slate-800 mt-4"><a class="underline" href="/login/forgot_password">Forgot password?</a></div> <div class="text-l text-slate-800 mt-3">Don't have an account? <a class="underline" href="/login/sign_up">Sign up</a>.</div>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $page = () => $.store_get(page, '$page', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	let supabase = $.derived(() => $$props.data.supabase);
+
+	onMount(() => {
+		const { data } = $.get(supabase).auth.onAuthStateChange((event) => {
+			// Redirect to account after successful login
+			if (event == "SIGNED_IN") {
+				// Delay needed because order of callback not guaranteed.
+				// Give the layout callback priority to update state or
+				// we'll just bounch back to login when /account tries to load
+				setTimeout(
+					() => {
+						goto("/account");
+					},
+					1
+				);
+			}
+		});
+
+		return () => data.subscription.unsubscribe();
+	});
+
+	var fragment = root_1();
+
+	$.head('434x9k', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Sign in';
+		});
+	});
+
+	var node = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			var div = root();
+
+			$.append($$anchor, div);
+		};
+
+		var d = $.derived(() => $page().url.searchParams.get("verified") == "true");
+
+		$.if(node, ($$render) => {
+			if ($.get(d)) $$render(consequent);
+		});
+	}
+
+	var node_1 = $.sibling(node, 4);
+
+	{
+		let $0 = $.derived(() => `${$$props.data.url}/auth/callback`);
+
+		Auth(node_1, {
+			get supabaseClient() {
+				return $$props.data.supabase;
+			},
+			view: 'sign_in',
+			get redirectTo() {
+				return $.get($0);
+			},
+
+			get providers() {
+				return oauthProviders;
+			},
+			socialLayout: 'horizontal',
+			showLinks: false,
+			get appearance() {
+				return sharedAppearance;
+			},
+			additionalData: undefined
+		});
+	}
+
+	$.next(4);
+	$.append($$anchor, fragment);
+	$.pop();
+	$$cleanup();
+}
+=== 1141 src/routes/(marketing)/login/sign_up/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Auth } from "@supabase/auth-ui-svelte";
+import { sharedAppearance, oauthProviders } from "../login_config";
+
+var root = $.from_html(`<h1 class="text-2xl font-bold mb-6">Sign Up</h1> <!> <div class="text-l text-slate-800 mt-4 mb-2">Have an account? <a class="underline" href="/login/sign_in">Sign in</a>.</div>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	var fragment = root();
+
+	$.head('hlagbe', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Sign up';
+		});
+	});
+
+	var node = $.sibling($.first_child(fragment), 2);
+
+	{
+		let $0 = $.derived(() => `${$$props.data.url}/auth/callback`);
+
+		Auth(node, {
+			get supabaseClient() {
+				return $$props.data.supabase;
+			},
+			view: 'sign_up',
+			get redirectTo() {
+				return $.get($0);
+			},
+			showLinks: false,
+			get providers() {
+				return oauthProviders;
+			},
+			socialLayout: 'horizontal',
+			get appearance() {
+				return sharedAppearance;
+			},
+			additionalData: undefined
+		});
+	}
+
+	$.next(2);
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 7288 src/routes/(marketing)/pricing/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import PricingModule from "./pricing_module.svelte";
+import { WebsiteName } from "./../../../config";
+
+var root = $.from_html(`<meta name="description"/>`);
+var root_1 = $.from_html(`<tr class="bg-base-200 font-bold"><td colspan="3"> </td></tr>`);
+var root_2 = $.from_svg(`<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 ml-2 inline text-success"><use href="#checkcircle"></use></svg>`);
+var root_3 = $.from_svg(`<svg xmlns="http://www.w3.org/2000/svg" class="w-[26px] h-[26px] inline text-base-200"><use href="#nocircle"></use></svg>`);
+var root_4 = $.from_html(`<tr class="relative"><td> </td><td class="text-center"><!></td><td class="text-center"><!></td></tr>`);
+
+var root_5 = $.from_html(`<div class="min-h-[70vh] pb-8 pt-[5vh] px-4"><h1 class="text-3xl font-bold text-center">Pricing</h1> <h2 class="text-xl text-center text-slate-500 mt-1 pb-3">Totally free, scale to millions of users</h2> <div class="w-full my-8"><!> <h1 class="text-2xl font-bold text-center mt-24">Pricing FAQ</h1> <div class="flex place-content-center"><div class="join join-vertical max-w-xl py-6 mx-auto"><div class="collapse collapse-arrow join-item border border-primary"><input type="radio" name="faq-accordion"/> <div class="collapse-title text-lg font-medium">Is this template free to use?</div> <div class="collapse-content"><p>Yup! This template is free to use for any project.</p></div></div> <div class="collapse collapse-arrow join-item border border-primary"><input type="radio" name="faq-accordion"/> <div class="collapse-title text-lg font-medium">Why does a free template have a pricing page?</div> <div class="collapse-content"><p>The pricing page is part of the boilerplate. It shows how the
+              pricing page integrates into the billing portal and the Stripe
+              Checkout flows.</p></div></div> <div class="collapse collapse-arrow join-item border border-primary"><input type="radio" name="faq-accordion"/> <div class="collapse-title text-lg font-medium">What license is the template under?</div> <div class="collapse-content"><p>The template is under the MIT license.</p></div></div> <div class="collapse collapse-arrow join-item border border-primary"><input type="radio" name="faq-accordion"/> <div class="collapse-title text-lg font-medium">Can I try out purchase flows without real a credit card?</div> <div class="collapse-content"><p>Our demo page <a href="https://saasstarter.work" class="link">SaasStarter.work</a> has a functional demo page, using Stripe's test environment.</p> <p class="mt-4">You can use the credit card number 4242 4242 4242 4242 with any
+              future expiry date to test the payment and upgrade flows.</p></div></div></div></div> <svg style="display:none" version="2.0"><defs><symbol id="checkcircle" viewBox="0 0 24 24" stroke-width="2" fill="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16.417 10.283A7.917 7.917 0 1 1 8.5 2.366a7.916 7.916 0 0 1 7.917 7.917zm-4.105-4.498a.791.791 0 0 0-1.082.29l-3.828 6.63-1.733-2.08a.791.791 0 1 0-1.216 1.014l2.459 2.952a.792.792 0 0 0 .608.285.83.83 0 0 0 .068-.003.791.791 0 0 0 .618-.393L12.6 6.866a.791.791 0 0 0-.29-1.081z"></path></symbol></defs></svg> <svg style="display:none" version="2.0"><defs><symbol id="nocircle" viewBox="0 0 24 24" fill="currentColor"><path d="M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm4,11H8a1,1,0,0,1,0-2h8a1,1,0,0,1,0,2Z"></path></symbol></defs></svg> <h1 class="text-2xl font-bold text-center mt-16">Plan Features</h1> <h2 class="text-xl text-center text-slate-500 mt-1 pb-3">Example feature table</h2> <div class="overflow-visible mx-auto max-w-xl mt-4"><table class="table"><thead class="text-lg sticky top-0 bg-base-100 bg-opacity-50 z-10 backdrop-blur-sm"><tr><th></th><th class="text-center">Free</th><th class="text-center">Pro</th></tr></thead><tbody></tbody></table></div></div></div>`);
+
+export default function _page($$anchor) {
+	const planFeatures = [
+		{ name: "Section 1", header: true },
+		{ name: "Feature 1", freeIncluded: true, proIncluded: true },
+		{ name: "Feature 2", freeIncluded: false, proIncluded: true },
+		{ name: "Feature 3", freeString: "3", proString: "Unlimited" },
+		{ name: "Section 2", header: true },
+		{ name: "Feature 4", freeIncluded: true, proIncluded: true },
+		{ name: "Feature 5", freeIncluded: false, proIncluded: true }
+	];
+
+	var div = root_5();
+
+	$.head('133tnjx', ($$anchor) => {
+		var meta = root();
+
+		$.template_effect(() => $.set_attribute(meta, 'content', `Pricing - ${WebsiteName ?? ''}`));
+
+		$.effect(() => {
+			$.document.title = 'Pricing';
+		});
+
+		$.append($$anchor, meta);
+	});
+
+	var div_1 = $.sibling($.child(div), 4);
+	var node = $.child(div_1);
+
+	PricingModule(node, { callToAction: 'Get Started', highlightedPlanId: 'pro' });
+
+	var div_2 = $.sibling(node, 14);
+	var table = $.child(div_2);
+	var tbody = $.sibling($.child(table));
+
+	$.each(tbody, 21, () => planFeatures, $.index, ($$anchor, feature) => {
+		var fragment = $.comment();
+		var node_1 = $.first_child(fragment);
+
+		{
+			var consequent = ($$anchor) => {
+				var tr = root_1();
+				var td = $.child(tr);
+				var text = $.only_child(td, true);
+
+				$.reset(tr);
+				$.template_effect(() => $.set_text(text, $.get(feature).name));
+				$.append($$anchor, tr);
+			};
+
+			var alternate_2 = ($$anchor) => {
+				var tr_1 = root_4();
+				var td_1 = $.child(tr_1);
+				var text_1 = $.only_child(td_1, true);
+				var td_2 = $.sibling(td_1);
+				var node_2 = $.child(td_2);
+
+				{
+					var consequent_1 = ($$anchor) => {
+						var text_2 = $.text();
+
+						$.template_effect(() => $.set_text(text_2, $.get(feature).freeString));
+						$.append($$anchor, text_2);
+					};
+
+					var consequent_2 = ($$anchor) => {
+						var svg = root_2();
+
+						$.append($$anchor, svg);
+					};
+
+					var alternate = ($$anchor) => {
+						var svg_1 = root_3();
+
+						$.append($$anchor, svg_1);
+					};
+
+					$.if(node_2, ($$render) => {
+						if ($.get(feature).freeString) $$render(consequent_1); else if ($.get(feature).freeIncluded) $$render(consequent_2, 1); else $$render(alternate, -1);
+					});
+				}
+
+				$.reset(td_2);
+
+				var td_3 = $.sibling(td_2);
+				var node_3 = $.child(td_3);
+
+				{
+					var consequent_3 = ($$anchor) => {
+						var text_3 = $.text();
+
+						$.template_effect(() => $.set_text(text_3, $.get(feature).proString));
+						$.append($$anchor, text_3);
+					};
+
+					var consequent_4 = ($$anchor) => {
+						var svg_2 = root_2();
+
+						$.append($$anchor, svg_2);
+					};
+
+					var alternate_1 = ($$anchor) => {
+						var svg_3 = root_3();
+
+						$.append($$anchor, svg_3);
+					};
+
+					$.if(node_3, ($$render) => {
+						if ($.get(feature).proString) $$render(consequent_3); else if ($.get(feature).proIncluded) $$render(consequent_4, 1); else $$render(alternate_1, -1);
+					});
+				}
+
+				$.reset(td_3);
+				$.reset(tr_1);
+				$.template_effect(() => $.set_text(text_1, $.get(feature).name));
+				$.append($$anchor, tr_1);
+			};
+
+			$.if(node_1, ($$render) => {
+				if ($.get(feature).header) $$render(consequent); else $$render(alternate_2, -1);
+			});
+		}
+
+		$.append($$anchor, fragment);
+	});
+
+	$.reset(tbody);
+	$.reset(table);
+	$.reset(div_2);
+	$.reset(div_1);
+	$.reset(div);
+	$.append($$anchor, div);
+}
+=== 3350 src/routes/(marketing)/pricing/pricing_module.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { pricingPlans } from "./pricing_plans";
+
+var root = $.from_html(`<li> </li>`);
+var root_1 = $.from_html(`<div class="btn btn-outline btn-success no-animation w-[80%] mx-auto cursor-default">Current Plan</div>`);
+var root_2 = $.from_html(`<a class="btn btn-primary w-[80%] mx-auto"> </a>`);
+var root_3 = $.from_html(`<div><div class="flex flex-col h-full"><div class="text-xl font-bold"> </div> <p class="mt-2 text-sm text-gray-500 leading-relaxed"> </p> <div class="mt-auto pt-4 text-sm text-gray-600">Plan Includes: <ul class="list-disc list-inside mt-2 space-y-1"><!> <ul></ul></ul></div> <div class="pt-8"><span class="text-4xl font-bold"> </span> <span class="text-gray-400"> </span> <div class="mt-6 pt-4 flex-1 flex flex-row items-center"><!></div></div></div></div>`);
+var root_4 = $.from_html(`<div></div>`);
+
+export default function Pricing_module($$anchor, $$props) {
+	// Module context
+	let highlightedPlanId = $.prop($$props, 'highlightedPlanId', 3, ""),
+		currentPlanId = $.prop($$props, 'currentPlanId', 3, ""),
+		center = $.prop($$props, 'center', 3, true);
+
+	var div = root_4();
+
+	$.each(div, 21, () => pricingPlans, $.index, ($$anchor, plan) => {
+		var div_1 = root_3();
+		var div_2 = $.child(div_1);
+		var div_3 = $.child(div_2);
+		var text = $.only_child(div_3, true);
+		var p = $.sibling(div_3, 2);
+		var text_1 = $.only_child(p, true);
+		var div_4 = $.sibling(p, 2);
+		var ul = $.sibling($.child(div_4));
+		var node = $.child(ul);
+
+		$.each(node, 17, () => $.get(plan).features, $.index, ($$anchor, feature) => {
+			var li = root();
+			var text_2 = $.only_child(li, true);
+
+			$.template_effect(() => $.set_text(text_2, $.get(feature)));
+			$.append($$anchor, li);
+		});
+
+		$.next(2);
+		$.reset(ul);
+		$.reset(div_4);
+
+		var div_5 = $.sibling(div_4, 2);
+		var span = $.child(div_5);
+		var text_3 = $.only_child(span, true);
+		var span_1 = $.sibling(span, 2);
+		var text_4 = $.only_child(span_1, true);
+		var div_6 = $.sibling(span_1, 2);
+		var node_1 = $.child(div_6);
+
+		{
+			var consequent = ($$anchor) => {
+				var div_7 = root_1();
+
+				$.append($$anchor, div_7);
+			};
+
+			var alternate = ($$anchor) => {
+				var a = root_2();
+				var text_5 = $.only_child(a, true);
+
+				$.template_effect(() => {
+					$.set_attribute(a, 'href', "/account/subscribe/" + ($.get(plan)?.stripe_price_id ?? "free_plan"));
+					$.set_text(text_5, $$props.callToAction);
+				});
+
+				$.append($$anchor, a);
+			};
+
+			$.if(node_1, ($$render) => {
+				if ($.get(plan).id === currentPlanId()) $$render(consequent); else $$render(alternate, -1);
+			});
+		}
+
+		$.reset(div_6);
+		$.reset(div_5);
+		$.reset(div_2);
+		$.reset(div_1);
+
+		$.template_effect(() => {
+			$.set_class(div_1, 1, `flex-none card card-bordered ${$.get(plan).id === highlightedPlanId() ? 'border-primary' : 'border-gray-200'} shadow-xl flex-1 grow min-w-[260px] max-w-[310px] p-6`);
+			$.set_text(text, $.get(plan).name);
+			$.set_text(text_1, $.get(plan).description);
+			$.set_text(text_3, $.get(plan).price);
+			$.set_text(text_4, $.get(plan).priceIntervalName);
+		});
+
+		$.append($$anchor, div_1);
+	});
+
+	$.reset(div);
+	$.template_effect(() => $.set_class(div, 1, `flex flex-col lg:flex-row gap-10 ${center() ? 'place-content-center' : ''} flex-wrap`));
+	$.append($$anchor, div);
+}
+=== 6534 src/routes/(marketing)/search/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { page } from "$app/stores";
+import { browser } from "$app/environment";
+import { onMount } from "svelte";
+import Fuse from "fuse.js";
+import { goto } from "$app/navigation";
+import { dev } from "$app/environment";
+
+var root = $.from_html(`<meta name="description" content="Search our website."/>`);
+var root_1 = $.from_html(`<div class="text-center mt-10 text-accent text-xl">Loading...</div>`);
+var root_2 = $.from_html(`<div class="text-center mt-10 text-accent text-xl">Error connecting to search. Please try again later.</div>`);
+
+var root_3 = $.from_html(`<div class="text-center mt-4 font-mono">Development mode only message: if you're missing content, rebuild your
+        local search index with \`npm run build\`</div>`);
+
+var root_4 = $.from_html(`<div class="text-center mt-10 text-accent text-xl">No results found</div> <!>`, 1);
+var root_5 = $.from_html(`<a class="card my-6 bg-white shadow-xl flex-row overflow-hidden focus:mx-[-10px] focus:my-[-5px] focus:border-4 focus:border-secondary"><div class="flex-none w-6 md:w-32 bg-secondary"></div> <div class="py-6 px-6"><div class="text-xl"> </div> <div class="text-sm text-accent"> </div> <div class="text-slate-500"> </div></div></a>`);
+var root_6 = $.from_html(`<div class="py-8 lg:py-12 px-6 max-w-lg mx-auto"><div class="text-3xl lg:text-5xl font-medium text-primary flex gap-3 items-baseline text-center place-content-center"><div class="text-center leading-relaxed font-bold bg-clip-text text-transparent bg-linear-to-r from-primary to-accent">Search</div></div> <label class="input input-bordered flex items-center gap-2 mt-10 mb-5 w-full"><input id="search-input" type="text" class="grow w-full" placeholder="Search" aria-label="Search input"/></label> <!> <!> <!> <div></div> <div></div></div>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $page = () => $.store_get(page, '$page', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+
+	const fuseOptions = {
+		keys: [
+			{ name: "title", weight: 3 },
+			{ name: "description", weight: 2 },
+			{ name: "body", weight: 1 }
+		],
+		ignoreLocation: true,
+		threshold: 0.3
+	};
+
+	let fuse = $.state(void 0);
+	let loading = $.state(true);
+	let error = $.state(false);
+
+	onMount(async () => {
+		try {
+			const response = await fetch("/search/api.json");
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			const searchData = await response.json();
+
+			if (searchData && searchData.index && searchData.indexData) {
+				const index = Fuse.parseIndex(searchData.index);
+
+				$.set(fuse, new Fuse(searchData.indexData, fuseOptions, index), true);
+			}
+		} catch(e) {
+			console.error("Failed to load search data", e);
+			$.set(error, true);
+		} finally {
+			$.set(loading, false);
+			document.getElementById("search-input")?.focus();
+		}
+	});
+
+	let results = $.state($.proxy([]));
+
+	// searchQuery is $page.url.hash minus the "#" at the beginning if present
+	let searchQuery = $.state($.proxy(decodeURIComponent($page().url.hash.slice(1) ?? "")));
+
+	$.user_effect(() => {
+		if ($.get(fuse)) {
+			$.set(results, $.get(fuse).search($.get(searchQuery)), true);
+		}
+	});
+
+	// Update the URL hash when searchQuery changes so the browser can bookmark/share the search results
+	$.user_effect(() => {
+		if (browser && window.location.hash.slice(1) !== $.get(searchQuery)) {
+			goto("#" + $.get(searchQuery), { keepFocus: true });
+		}
+	});
+
+	let focusItem = $.state(0);
+
+	function onKeyDown(event) {
+		if (event.key === "Escape") {
+			$.set(searchQuery, "");
+		} else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+			$.set(focusItem, $.get(focusItem) + (event.key === "ArrowDown" ? 1 : -1));
+
+			if ($.get(focusItem) < 0) {
+				$.set(focusItem, 0);
+			} else if ($.get(focusItem) > $.get(results).length) {
+				$.set(focusItem, $.get(results).length, true);
+			}
+
+			if ($.get(focusItem) === 0) {
+				document.getElementById("search-input")?.focus();
+			} else {
+				document.getElementById(`search-result-${$.get(focusItem)}`)?.focus();
+			}
+		}
+	}
+
+	var div = root_6();
+
+	$.event('keydown', $.window, onKeyDown);
+
+	$.head('1ou5319', ($$anchor) => {
+		var meta = root();
+
+		$.effect(() => {
+			$.document.title = 'Search';
+		});
+
+		$.append($$anchor, meta);
+	});
+
+	var label = $.sibling($.child(div), 2);
+	var input = $.child(label);
+
+	$.remove_input_defaults(input);
+	$.reset(label);
+
+	var node = $.sibling(label, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			var div_1 = root_1();
+
+			$.append($$anchor, div_1);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(loading) && $.get(searchQuery).length > 0) $$render(consequent);
+		});
+	}
+
+	var node_1 = $.sibling(node, 2);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var div_2 = root_2();
+
+			$.append($$anchor, div_2);
+		};
+
+		$.if(node_1, ($$render) => {
+			if ($.get(error)) $$render(consequent_1);
+		});
+	}
+
+	var node_2 = $.sibling(node_1, 2);
+
+	{
+		var consequent_3 = ($$anchor) => {
+			var fragment = root_4();
+			var node_3 = $.sibling($.first_child(fragment), 2);
+
+			{
+				var consequent_2 = ($$anchor) => {
+					var div_3 = root_3();
+
+					$.append($$anchor, div_3);
+				};
+
+				$.if(node_3, ($$render) => {
+					if (dev) $$render(consequent_2);
+				});
+			}
+
+			$.append($$anchor, fragment);
+		};
+
+		$.if(node_2, ($$render) => {
+			if (!$.get(loading) && $.get(searchQuery).length > 0 && $.get(results).length === 0 && !$.get(error)) $$render(consequent_3);
+		});
+	}
+
+	var div_4 = $.sibling(node_2, 2);
+
+	$.each(div_4, 21, () => $.get(results), $.index, ($$anchor, result, i) => {
+		var a = root_5();
+
+		$.set_attribute(a, 'id', `search-result-${i + 1}`);
+
+		var div_5 = $.sibling($.child(a), 2);
+		var div_6 = $.child(div_5);
+		var text = $.only_child(div_6, true);
+		var div_7 = $.sibling(div_6, 2);
+		var text_1 = $.only_child(div_7, true);
+		var div_8 = $.sibling(div_7, 2);
+		var text_2 = $.only_child(div_8, true);
+
+		$.reset(div_5);
+		$.reset(a);
+
+		$.template_effect(() => {
+			$.set_attribute(a, 'href', $.get(result).item.path || "/");
+			$.set_text(text, $.get(result).item.title);
+			$.set_text(text_1, $.get(result).item.path);
+			$.set_text(text_2, $.get(result).item.description);
+		});
+
+		$.append($$anchor, a);
+	});
+
+	$.reset(div_4);
+	$.next(2);
+	$.reset(div);
+	$.event('focus', input, () => $.set(focusItem, 0));
+	$.bind_value(input, () => $.get(searchQuery), ($$value) => $.set(searchQuery, $$value));
+	$.append($$anchor, div);
+	$.pop();
+	$$cleanup();
+}
+=== 988 src/routes/+error.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import "../app.css";
+import { page } from "$app/stores";
+
+var root = $.from_html(`<div class="hero min-h-[100vh]"><div class="hero-content text-center"><div class="max-w-lg"><h1 class="text-5xl font-bold">This is embarrassing...</h1> <p class="py-6 text-2xl"> </p> <div><a href="/" class="btn btn-primary btn-wide">Return Home</a></div></div></div></div>`);
+
+export default function _error($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $page = () => $.store_get(page, '$page', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	var div = root();
+	var div_1 = $.child(div);
+	var div_2 = $.child(div_1);
+	var p = $.sibling($.child(div_2), 2);
+	var text = $.only_child(p);
+
+	$.next(2);
+	$.reset(div_2);
+	$.reset(div_1);
+	$.reset(div);
+	$.template_effect(() => $.set_text(text, `There was an error: ${$page()?.error?.message ?? ''}`));
+	$.append($$anchor, div);
+	$.pop();
+	$$cleanup();
+}
+=== 1040 src/routes/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import "../app.css";
+import { navigating } from "$app/stores";
+import { expoOut } from "svelte/easing";
+import { slide } from "svelte/transition";
+
+var root = $.from_html(`<div class="fixed w-full top-0 right-0 left-0 h-1 z-50 bg-primary"></div>`);
+var root_1 = $.from_html(`<!> <!>`, 1);
+
+export default function _layout($$anchor, $$props) {
+	const $navigating = () => $.store_get(navigating, '$navigating', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	var fragment = root_1();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			var div = root();
+
+			$.transition(1, div, () => slide, () => ({ delay: 100, duration: 12000, axis: "x", easing: expoOut }));
+			$.append($$anchor, div);
+		};
+
+		$.if(node, ($$render) => {
+			if ($navigating()) $$render(consequent);
+		});
+	}
+
+	var node_1 = $.sibling(node, 2);
+
+	$.snippet(node_1, () => $$props.children ?? $.noop);
+	$.append($$anchor, fragment);
+	$$cleanup();
+}

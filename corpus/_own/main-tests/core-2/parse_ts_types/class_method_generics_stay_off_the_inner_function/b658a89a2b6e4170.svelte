@@ -1,0 +1,1 @@
+<script lang="ts">class C { m<T>(x: T){} }</script>

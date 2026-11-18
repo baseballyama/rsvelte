@@ -1,0 +1,76 @@
+# rsvelte pack 1
+=== 3 src/components/Util/Spacer.svelte	json
+[]
+
+=== 3 src/routes/breakpoints.svelte	json
+[]
+
+=== 3 src/routes/color.svelte	json
+[]
+
+=== 3 src/routes/components/buttons.svelte	json
+[]
+
+=== 3 src/routes/components/cards.svelte	json
+[]
+
+=== 3 src/routes/components/chips.svelte	json
+[]
+
+=== 3 src/routes/components/data-tables.svelte	json
+[]
+
+=== 3 src/routes/components/date-pickers.svelte	json
+[]
+
+=== 3 src/routes/components/dialogs.svelte	json
+[]
+
+=== 3 src/routes/components/images.svelte	json
+[]
+
+=== 3 src/routes/components/index.svelte	json
+[]
+
+=== 3 src/routes/components/lists.svelte	json
+[]
+
+=== 3 src/routes/components/menus.svelte	json
+[]
+
+=== 3 src/routes/components/navigation-drawers.svelte	json
+[]
+
+=== 3 src/routes/components/progress-indicators.svelte	json
+[]
+
+=== 3 src/routes/components/selection-controls.svelte	json
+[]
+
+=== 3 src/routes/components/sliders.svelte	json
+[]
+
+=== 3 src/routes/components/snackbars.svelte	json
+[]
+
+=== 3 src/routes/components/tabs.svelte	json
+[]
+
+=== 3 src/routes/components/text-fields.svelte	json
+[]
+
+=== 3 src/routes/components/tooltips.svelte	json
+[]
+
+=== 3 src/routes/components/treeviews.svelte	json
+[]
+
+=== 3 src/routes/dark-mode.svelte	json
+[]
+
+=== 3 src/routes/index.svelte	json
+[]
+
+=== 3 src/routes/typography.svelte	json
+[]
+

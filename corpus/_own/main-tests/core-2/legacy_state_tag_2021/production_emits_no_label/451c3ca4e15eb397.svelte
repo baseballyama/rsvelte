@@ -1,0 +1,1 @@
+<script>let n = 0; $: doubled = n * 2; function f() { n++; }</script><p>{doubled}</p>

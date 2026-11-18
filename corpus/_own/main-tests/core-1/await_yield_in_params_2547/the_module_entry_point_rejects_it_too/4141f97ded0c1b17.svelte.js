@@ -1,0 +1,1 @@
+export const f = async (p = /* c */ await load()) => p;

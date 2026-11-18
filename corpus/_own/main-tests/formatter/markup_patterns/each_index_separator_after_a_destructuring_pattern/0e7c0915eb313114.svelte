@@ -1,0 +1,1 @@
+{#each rows as {a, b} , i}<p>{a}{b}{i}</p>{/each}

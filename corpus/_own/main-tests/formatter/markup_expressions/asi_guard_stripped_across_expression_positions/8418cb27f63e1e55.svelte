@@ -1,0 +1,1 @@
+{#each items as item}<button onclick={() => remove(item)}>x</button>{/each}

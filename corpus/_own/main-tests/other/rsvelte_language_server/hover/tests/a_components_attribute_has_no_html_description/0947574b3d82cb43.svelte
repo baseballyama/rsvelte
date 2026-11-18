@@ -1,0 +1,1 @@
+<Widget style="color: red">x</Widget>

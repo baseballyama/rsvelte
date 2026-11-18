@@ -1,0 +1,1 @@
+<script>let x = 1; const s = '<script lang="ts">';</script><p>{x as number}</p>

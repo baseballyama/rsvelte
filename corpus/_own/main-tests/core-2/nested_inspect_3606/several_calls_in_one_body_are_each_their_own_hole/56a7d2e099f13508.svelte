@@ -1,0 +1,10 @@
+<script>
+	let a = $state(1);
+	let d = $derived(a * 2);
+	function f() {
+		$inspect(a);
+		$inspect(d);
+	}
+	f();
+</script>
+<b>{a}{d}</b>

@@ -1,0 +1,5 @@
+<script>
+	function f(a, b) { return a + b; }
+	const data = [{ c: "xx", k: 0 }, { c: "xx", k: 1 }, { c: "xx", k: 2 }, { c: "xx", k: 3 }, { c: "xx", k: 4 }, { c: "xx", k: 5 }, { c: "xx", k: 6 }, { c: "xx", k: 7 }, { c: "xx", k: 8 }, { c: "xx", k: 9 }, { c: "xx", k: 10 }, { c: "xx", k: 11 }, { c: "xx", k: 12 }, { c: "xx", k: 13 }, { c: "xx", k: 14 }, { c: "xx", k: 15 }, { c: "xx", k: 16 }, { c: "xx", k: 17 }, { c: "xx", k: 18 }, { c: "xx", k: 19 }];
+</script>
+<p>{data.length}</p>

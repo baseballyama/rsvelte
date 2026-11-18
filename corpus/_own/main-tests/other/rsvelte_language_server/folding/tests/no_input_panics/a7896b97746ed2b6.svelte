@@ -1,0 +1,2 @@
+<script>const a = {
+</script><p>x</p>

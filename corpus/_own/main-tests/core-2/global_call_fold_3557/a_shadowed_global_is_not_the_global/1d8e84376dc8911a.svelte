@@ -1,0 +1,9 @@
+<script>
+	let w = $state(1);
+	const k = 5;
+	function bump() { w += 1; }
+	const String = () => "z";
+	const v = String("a");
+</script>
+<button onclick={bump}>b</button>
+<u>{v}</u>

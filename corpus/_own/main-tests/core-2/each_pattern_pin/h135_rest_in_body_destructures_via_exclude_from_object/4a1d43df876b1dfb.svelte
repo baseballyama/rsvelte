@@ -1,0 +1,1 @@
+<script>let items = [{id:1,n:"x"}];</script>{#each items as { id, ...rest }}{id}-{rest.n}{/each}

@@ -1,0 +1,1 @@
+<script lang="ts">let accessor: any;</script><p>{(accessor satisfies string)}</p>

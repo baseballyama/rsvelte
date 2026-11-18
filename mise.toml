@@ -1,0 +1,55 @@
+[tools]
+node = "26.13.0"
+# The aqua registry does not know pnpm 12's asset names yet; npm has the same release.
+"npm:pnpm" = "12.16.1"
+
+# The Rust toolchain itself is pinned by rust-toolchain.toml; rustfmt runs on a pinned nightly
+# because the strict options in rustfmt.toml are unstable (stable rustfmt ignores them silently).
+[tasks.fmt]
+description = "Format the Rust workspace"
+run = "cargo +nightly-2026-11-03 fmt --all"
+
+[tasks."fmt:check"]
+description = "Fail when the Rust workspace is not formatted"
+run = "cargo +nightly-2026-11-03 fmt --all --check"
+
+[tasks.structure]
+description = "Check source file lengths, the crate graph, the kernel layers, and the checker controls"
+run = ["node --test tools/structure/*.test.ts", "node tools/structure/structure.ts"]
+
+[tasks.lint]
+depends = ["structure"]
+description = "The lint gate: every lint in [workspace.lints] denies"
+# Both feature sets: `metrics` swaps whole module bodies, so one set never checks the other's.
+run = [
+  "cargo clippy --offline --workspace --all-targets",
+  "cargo clippy --offline --workspace --all-targets --all-features",
+  # The rustdoc lints only run under `cargo doc`.
+  "cargo doc --offline --workspace --no-deps --all-features",
+  # The lint workload is its own workspace, so the commands above never build it.
+  "cargo check --locked --offline --manifest-path tools/performance/workloads/svelte-lint/Cargo.toml --all-features",
+]
+
+[tasks.buildtime]
+description = "Measure how long the workspace takes to compile (tools/buildtime)"
+run = "node tools/buildtime/buildtime.ts"
+
+[tasks.performance]
+description = "The performance ratchet: allocation (and on Linux, instruction) counts against tools/performance/baseline.json"
+run = "node tools/performance/performance.ts ratchet"
+
+[tasks."performance:update"]
+description = "Record the measured performance counters in tools/performance/baseline.json"
+run = "node tools/performance/performance.ts ratchet --update"
+
+[tasks."performance:cache"]
+description = "Profile cache locality and check a recorded baseline: <config.json> <report.json>"
+run = "node tools/performance/performance.ts cache-profile"
+
+[tasks."performance:hardware"]
+description = "Measure Linux hardware CPU and cache counters: <config.json> <report.json>"
+run = "node tools/performance/performance.ts linux-counters"
+
+[tasks."performance:test"]
+description = "Test the measurement tools and their defect controls"
+run = "node --test tools/performance/*.test.ts tools/performance/*/*.test.ts"

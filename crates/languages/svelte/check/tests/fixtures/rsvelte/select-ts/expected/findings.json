@@ -1,0 +1,14 @@
+[
+	{
+		"code": 2551,
+		"message": "Property 'toFixed' does not exist on type 'string'. Did you mean 'fixed'?",
+		"start": {
+			"line": 9,
+			"character": 20
+		},
+		"end": {
+			"line": 9,
+			"character": 27
+		}
+	}
+]

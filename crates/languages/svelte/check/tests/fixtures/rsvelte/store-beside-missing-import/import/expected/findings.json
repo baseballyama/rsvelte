@@ -1,0 +1,14 @@
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './absent.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]

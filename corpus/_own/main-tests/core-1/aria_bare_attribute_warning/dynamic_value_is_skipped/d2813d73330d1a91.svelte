@@ -1,0 +1,1 @@
+<script>let x = $state(true);</script><div aria-hidden={x}>x</div>

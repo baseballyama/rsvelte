@@ -1,0 +1,1 @@
+<script>let tag = 'div'</script><svelte:element this={tag}>x</svelte:element>

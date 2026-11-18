@@ -1,0 +1,7202 @@
+# rsvelte pack 1
+=== 1283 src/lib/components/AiSettingsView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/input' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ui/switch' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/core' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 41
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 113,
+			"character": 16
+		},
+		"end": {
+			"line": 113,
+			"character": 17
+		}
+	}
+]
+
+=== 1066 src/lib/components/AppList.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'fuse.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 27
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/core' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/core' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 46
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'result' implicitly has an 'any' type.",
+		"start": {
+			"line": 32,
+			"character": 38
+		},
+		"end": {
+			"line": 32,
+			"character": 44
+		}
+	}
+]
+
+=== 995 src/lib/components/BaseList.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtua/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 41
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/focus.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 86,
+			"character": 11
+		},
+		"end": {
+			"line": 86,
+			"character": 15
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 90,
+			"character": 21
+		},
+		"end": {
+			"line": 90,
+			"character": 25
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 90,
+			"character": 27
+		},
+		"end": {
+			"line": 90,
+			"character": 32
+		}
+	}
+]
+
+=== 217 src/lib/components/Calculator.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	}
+]
+
+=== 1992 src/lib/components/ClipboardHistoryView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/core' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtua/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/core' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 32
+		},
+		"end": {
+			"line": 6,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-clipboard-manager' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 27
+		},
+		"end": {
+			"line": 7,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ui/select' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 25
+		},
+		"end": {
+			"line": 8,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './nodes/shared/actions' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 39
+		},
+		"end": {
+			"line": 15,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/command-clipboard-history-1616x16@2x.png?inline' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 41
+		},
+		"end": {
+			"line": 16,
+			"character": 102
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 317,
+			"character": 29
+		},
+		"end": {
+			"line": 317,
+			"character": 33
+		}
+	}
+]
+
+=== 1542 src/lib/components/CommandDeeplinkConfirm.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@flare/protocol' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	},
+	{
+		"code": 2591,
+		"message": "Cannot find name 'path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+		"start": {
+			"line": 4,
+			"character": 18
+		},
+		"end": {
+			"line": 4,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/alert-dialog' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 63
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'isOpen' implicitly has an 'any' type.",
+		"start": {
+			"line": 18,
+			"character": 43
+		},
+		"end": {
+			"line": 18,
+			"character": 49
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 32,
+			"character": 22
+		},
+		"end": {
+			"line": 32,
+			"character": 27
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 43,
+			"character": 22
+		},
+		"end": {
+			"line": 43,
+			"character": 27
+		}
+	}
+]
+
+=== 2281 src/lib/components/Extensions.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/store' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/core' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtua/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 34
+		},
+		"end": {
+			"line": 8,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/viewManager.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 29
+		},
+		"end": {
+			"line": 10,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-http' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 23
+		},
+		"end": {
+			"line": 12,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/nodes/shared/ActionBar.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 23
+		},
+		"end": {
+			"line": 13,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-opener' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 25
+		},
+		"end": {
+			"line": 14,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-clipboard-manager' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 27
+		},
+		"end": {
+			"line": 15,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './nodes/shared/actions' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 39
+		},
+		"end": {
+			"line": 18,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/command-store-1616x16@2x.png?inline' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 30
+		},
+		"end": {
+			"line": 19,
+			"character": 79
+		}
+	}
+]
+
+=== 1593 src/lib/components/FileSearchView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/core' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 39
+		},
+		"end": {
+			"line": 3,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-clipboard-manager' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-shell' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 22
+		},
+		"end": {
+			"line": 8,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/focus.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 30
+		},
+		"end": {
+			"line": 9,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './nodes/shared/actions' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 39
+		},
+		"end": {
+			"line": 14,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/command-file-search-1616x16@2x.png?inline' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 35
+		},
+		"end": {
+			"line": 15,
+			"character": 90
+		}
+	}
+]
+
+=== 621 src/lib/components/HeaderInput.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/input' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 32
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 21,
+			"character": 13
+		},
+		"end": {
+			"line": 21,
+			"character": 14
+		}
+	}
+]
+
+=== 1071 src/lib/components/Icon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@flare/protocol' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons.svg' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'mode-watcher' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 22
+		},
+		"end": {
+			"line": 5,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/props/color' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 34
+		},
+		"end": {
+			"line": 6,
+			"character": 52
+		}
+	}
+]
+
+=== 1830 src/lib/components/ImportSnippets.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-dialog' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-fs' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/core' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 18
+		},
+		"end": {
+			"line": 5,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 67
+		},
+		"end": {
+			"line": 6,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/nodes/shared/ActionBar.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 23
+		},
+		"end": {
+			"line": 7,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/snippets-package-1616x16@2x.png?inline' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 25
+		},
+		"end": {
+			"line": 9,
+			"character": 77
+		}
+	}
+]
+
+=== 3 src/lib/components/InfoList.svelte	json
+[]
+
+=== 942 src/lib/components/KeyboardShortcut.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/props' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-os' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ui/kbd' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 7053,
+		"message": "Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ cmd: string; ctrl: string; opt: string; shift: string; }'.",
+		"start": {
+			"line": 42,
+			"character": 21
+		},
+		"end": {
+			"line": 42,
+			"character": 42
+		}
+	}
+]
+
+=== 3 src/lib/components/LoadingIndicator.svelte	json
+[]
+
+=== 423 src/lib/components/NodeRenderer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/nodes' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	}
+]
+
+=== 893 src/lib/components/OAuthView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-clipboard-manager' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@flare/protocol' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 32
+		},
+		"end": {
+			"line": 5,
+			"character": 49
+		}
+	}
+]
+
+=== 666 src/lib/components/PasswordInput.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/input' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	}
+]
+
+=== 2707 src/lib/components/PluginRunner.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/layout/MainLayout.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/layout/Header.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 20
+		},
+		"end": {
+			"line": 3,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/layout/Content.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 21
+		},
+		"end": {
+			"line": 4,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 41
+		}
+	},
+	{
+		"code": 2591,
+		"message": "Cannot find name 'path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+		"start": {
+			"line": 6,
+			"character": 18
+		},
+		"end": {
+			"line": 6,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/focus.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 30
+		},
+		"end": {
+			"line": 9,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/sidecar.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 32
+		},
+		"end": {
+			"line": 11,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './nodes/shared/actions' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 40
+		},
+		"end": {
+			"line": 13,
+			"character": 64
+		}
+	},
+	{
+		"code": 7053,
+		"message": "Element implicitly has an 'any' type because expression of type '1' can't be used to index type '{}'.\n  Property '1' does not exist on type '{}'.",
+		"start": {
+			"line": 33,
+			"character": 30
+		},
+		"end": {
+			"line": 33,
+			"character": 94
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'b' is of type 'unknown'.",
+		"start": {
+			"line": 33,
+			"character": 74
+		},
+		"end": {
+			"line": 33,
+			"character": 75
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'a' is of type 'unknown'.",
+		"start": {
+			"line": 33,
+			"character": 81
+		},
+		"end": {
+			"line": 33,
+			"character": 82
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'node' implicitly has an 'any' type.",
+		"start": {
+			"line": 123,
+			"character": 29
+		},
+		"end": {
+			"line": 123,
+			"character": 33
+		}
+	}
+]
+
+=== 2041 src/lib/components/QuicklinkForm.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/core' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/input' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 23
+		},
+		"end": {
+			"line": 4,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/textarea' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/select' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 18
+		},
+		"end": {
+			"line": 7,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 22
+		},
+		"end": {
+			"line": 8,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/quicklinks.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 49
+		},
+		"end": {
+			"line": 9,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/quicklinks-package-1616x16@2x.png?inline' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 27
+		},
+		"end": {
+			"line": 13,
+			"character": 81
+		}
+	}
+]
+
+=== 913 src/lib/components/SearchSnippets.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/core' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './nodes/shared/actions' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 39
+		},
+		"end": {
+			"line": 11,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/snippets-package-1616x16@2x.png?inline' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 25
+		},
+		"end": {
+			"line": 12,
+			"character": 77
+		}
+	}
+]
+
+=== 3823 src/lib/components/SettingsView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@flare/protocol' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/input' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ui/checkbox' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ui/select' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 37
+		}
+	},
+	{
+		"code": 2591,
+		"message": "Cannot find name 'path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+		"start": {
+			"line": 8,
+			"character": 18
+		},
+		"end": {
+			"line": 8,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-dialog' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 36
+		},
+		"end": {
+			"line": 9,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/apps.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 27
+		},
+		"end": {
+			"line": 10,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/tabs' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 23
+		},
+		"end": {
+			"line": 12,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/viewManager.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 29
+		},
+		"end": {
+			"line": 14,
+			"character": 54
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'checked' implicitly has an 'any' type.",
+		"start": {
+			"line": 261,
+			"character": 31
+		},
+		"end": {
+			"line": 261,
+			"character": 38
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 280,
+			"character": 24
+		},
+		"end": {
+			"line": 280,
+			"character": 25
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'value' implicitly has an 'any' type.",
+		"start": {
+			"line": 300,
+			"character": 29
+		},
+		"end": {
+			"line": 300,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'option' implicitly has an 'any' type.",
+		"start": {
+			"line": 307,
+			"character": 16
+		},
+		"end": {
+			"line": 307,
+			"character": 22
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'value' implicitly has an 'any' type.",
+		"start": {
+			"line": 320,
+			"character": 29
+		},
+		"end": {
+			"line": 320,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 325,
+			"character": 16
+		},
+		"end": {
+			"line": 325,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 339,
+			"character": 25
+		},
+		"end": {
+			"line": 339,
+			"character": 26
+		}
+	}
+]
+
+=== 1806 src/lib/components/SnippetForm.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/core' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/input' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/textarea' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 18
+		},
+		"end": {
+			"line": 5,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 22
+		},
+		"end": {
+			"line": 6,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/snippets-package-1616x16@2x.png?inline' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 25
+		},
+		"end": {
+			"line": 11,
+			"character": 77
+		}
+	}
+]
+
+=== 698 src/lib/components/command-palette/ActionBar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/command-palette.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/nodes/shared/ActionBar.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../nodes/shared/actions' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 39
+		},
+		"end": {
+			"line": 3,
+			"character": 64
+		}
+	}
+]
+
+=== 3523 src/lib/components/command-palette/CommandPalette.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@flare/protocol' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Calculator.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/BaseList.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 55
+		}
+	},
+	{
+		"code": 2591,
+		"message": "Cannot find name 'path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+		"start": {
+			"line": 5,
+			"character": 18
+		},
+		"end": {
+			"line": 5,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/quicklinks.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 32
+		},
+		"end": {
+			"line": 7,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/apps.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 27
+		},
+		"end": {
+			"line": 8,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/frecency.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 31
+		},
+		"end": {
+			"line": 9,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/quicklinks.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 33
+		},
+		"end": {
+			"line": 10,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/command-palette.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 66
+		},
+		"end": {
+			"line": 11,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/focus.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 30
+		},
+		"end": {
+			"line": 13,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/input' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 23
+		},
+		"end": {
+			"line": 15,
+			"character": 49
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'displayItems' does not exist on type 'unknown'.",
+		"start": {
+			"line": 38,
+			"character": 9
+		},
+		"end": {
+			"line": 38,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 167,
+			"character": 29
+		},
+		"end": {
+			"line": 167,
+			"character": 33
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 172,
+			"character": 28
+		},
+		"end": {
+			"line": 172,
+			"character": 32
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'isSelected' implicitly has an 'any' type.",
+		"start": {
+			"line": 172,
+			"character": 34
+		},
+		"end": {
+			"line": 172,
+			"character": 44
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'onclick' implicitly has an 'any' type.",
+		"start": {
+			"line": 172,
+			"character": 46
+		},
+		"end": {
+			"line": 172,
+			"character": 53
+		}
+	}
+]
+
+=== 1305 src/lib/components/extensions/CategoryFilter.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/popover' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/command' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 39
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/focus.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 30
+		},
+		"end": {
+			"line": 6,
+			"character": 49
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 22,
+			"character": 20
+		},
+		"end": {
+			"line": 22,
+			"character": 25
+		}
+	}
+]
+
+=== 3458 src/lib/components/extensions/ExtensionDetailView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/store' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 61
+		},
+		"end": {
+			"line": 1,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-opener' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../ui/separator' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/carousel/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/nodes/shared/ActionBar.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 23
+		},
+		"end": {
+			"line": 7,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/popover/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/command/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 26
+		},
+		"end": {
+			"line": 9,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/stars-square-1616x16@2x.png' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 25
+		},
+		"end": {
+			"line": 12,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/viewManager.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 29
+		},
+		"end": {
+			"line": 13,
+			"character": 54
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'p' implicitly has an 'any' type.",
+		"start": {
+			"line": 65,
+			"character": 4
+		},
+		"end": {
+			"line": 65,
+			"character": 5
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'p' implicitly has an 'any' type.",
+		"start": {
+			"line": 72,
+			"character": 6
+		},
+		"end": {
+			"line": 72,
+			"character": 7
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'p' implicitly has an 'any' type.",
+		"start": {
+			"line": 91,
+			"character": 49
+		},
+		"end": {
+			"line": 91,
+			"character": 50
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 308,
+			"character": 27
+		},
+		"end": {
+			"line": 308,
+			"character": 32
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'triggerProps' implicitly has an 'any' type.",
+		"start": {
+			"line": 312,
+			"character": 30
+		},
+		"end": {
+			"line": 312,
+			"character": 42
+		}
+	}
+]
+
+=== 1284 src/lib/components/extensions/ExtensionInstallConfirm.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/alert-dialog' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/accordion' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 31
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'isOpen' implicitly has an 'any' type.",
+		"start": {
+			"line": 24,
+			"character": 43
+		},
+		"end": {
+			"line": 24,
+			"character": 49
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 57,
+			"character": 22
+		},
+		"end": {
+			"line": 57,
+			"character": 27
+		}
+	}
+]
+
+=== 427 src/lib/components/extensions/ExtensionListItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/store' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 44
+		}
+	}
+]
+
+=== 1619 src/lib/components/extensions/ExtensionListView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/store' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/BaseList.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtua/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 34
+		},
+		"end": {
+			"line": 5,
+			"character": 49
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 40,
+			"character": 12
+		},
+		"end": {
+			"line": 40,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 42,
+			"character": 21
+		},
+		"end": {
+			"line": 42,
+			"character": 25
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 46,
+			"character": 26
+		},
+		"end": {
+			"line": 46,
+			"character": 30
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'isSelected' implicitly has an 'any' type.",
+		"start": {
+			"line": 46,
+			"character": 32
+		},
+		"end": {
+			"line": 46,
+			"character": 42
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'onclick' implicitly has an 'any' type.",
+		"start": {
+			"line": 46,
+			"character": 44
+		},
+		"end": {
+			"line": 46,
+			"character": 51
+		}
+	}
+]
+
+=== 429 src/lib/components/extensions/ImageLightbox.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 1156 src/lib/components/layout/Content.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/NodeRenderer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/nodes/List.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/nodes/Grid.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 18
+		},
+		"end": {
+			"line": 4,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/nodes/detail/Detail.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 20
+		},
+		"end": {
+			"line": 5,
+			"character": 64
+		}
+	}
+]
+
+=== 228 src/lib/components/layout/Header.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	}
+]
+
+=== 3 src/lib/components/layout/MainLayout.svelte	json
+[]
+
+=== 2195 src/lib/components/nodes/Grid.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/views' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtua/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 41
+		},
+		"end": {
+			"line": 6,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 25
+		},
+		"end": {
+			"line": 8,
+			"character": 41
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 19,
+			"character": 9
+		},
+		"end": {
+			"line": 19,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'handlerName' implicitly has an 'any' type.",
+		"start": {
+			"line": 27,
+			"character": 15
+		},
+		"end": {
+			"line": 27,
+			"character": 26
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'args' implicitly has an 'any' type.",
+		"start": {
+			"line": 27,
+			"character": 28
+		},
+		"end": {
+			"line": 27,
+			"character": 32
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 54,
+			"character": 13
+		},
+		"end": {
+			"line": 54,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 58,
+			"character": 23
+		},
+		"end": {
+			"line": 58,
+			"character": 27
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'f' implicitly has an 'any' type.",
+		"start": {
+			"line": 69,
+			"character": 53
+		},
+		"end": {
+			"line": 69,
+			"character": 54
+		}
+	}
+]
+
+=== 1097 src/lib/components/nodes/GridEmptyView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/no-results-placeholder-400100x78@2x.png' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 78
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 12,
+			"character": 9
+		},
+		"end": {
+			"line": 12,
+			"character": 14
+		}
+	}
+]
+
+=== 635 src/lib/components/nodes/GridItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/props' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 56
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 20
+		},
+		"end": {
+			"line": 3,
+			"character": 32
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'mode-watcher' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 22
+		},
+		"end": {
+			"line": 5,
+			"character": 36
+		}
+	}
+]
+
+=== 213 src/lib/components/nodes/GridSection.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/props' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 2057 src/lib/components/nodes/List.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/props' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/views/base.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 30
+		},
+		"end": {
+			"line": 6,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/BaseList.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 22
+		},
+		"end": {
+			"line": 7,
+			"character": 55
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 17,
+			"character": 9
+		},
+		"end": {
+			"line": 17,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 39,
+			"character": 22
+		},
+		"end": {
+			"line": 39,
+			"character": 26
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 42,
+			"character": 27
+		},
+		"end": {
+			"line": 42,
+			"character": 31
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'isSelected' implicitly has an 'any' type.",
+		"start": {
+			"line": 42,
+			"character": 33
+		},
+		"end": {
+			"line": 42,
+			"character": 43
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'onclick' implicitly has an 'any' type.",
+		"start": {
+			"line": 42,
+			"character": 45
+		},
+		"end": {
+			"line": 42,
+			"character": 52
+		}
+	}
+]
+
+=== 641 src/lib/components/nodes/ListItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/props' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/props/color' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 34
+		},
+		"end": {
+			"line": 5,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'mode-watcher' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 22
+		},
+		"end": {
+			"line": 6,
+			"character": 36
+		}
+	}
+]
+
+=== 213 src/lib/components/nodes/ListSection.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/props' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 1257 src/lib/components/nodes/detail/Detail.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/NodeRenderer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-marked' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'node' does not exist on type 'unknown'.",
+		"start": {
+			"line": 15,
+			"character": 9
+		},
+		"end": {
+			"line": 15,
+			"character": 13
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 15,
+			"character": 15
+		},
+		"end": {
+			"line": 15,
+			"character": 20
+		}
+	}
+]
+
+=== 618 src/lib/components/nodes/detail/Metadata.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 48
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'node' does not exist on type 'unknown'.",
+		"start": {
+			"line": 12,
+			"character": 9
+		},
+		"end": {
+			"line": 12,
+			"character": 13
+		}
+	}
+]
+
+=== 846 src/lib/components/nodes/detail/MetadataLabel.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 11,
+			"character": 9
+		},
+		"end": {
+			"line": 11,
+			"character": 14
+		}
+	}
+]
+
+=== 1480 src/lib/components/nodes/detail/MetadataLink.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-opener' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 18
+		},
+		"end": {
+			"line": 5,
+			"character": 47
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 13,
+			"character": 9
+		},
+		"end": {
+			"line": 13,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 27,
+			"character": 13
+		},
+		"end": {
+			"line": 27,
+			"character": 14
+		}
+	}
+]
+
+=== 213 src/lib/components/nodes/detail/MetadataSeparator.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	}
+]
+
+=== 809 src/lib/components/nodes/detail/MetadataTagList.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'node' does not exist on type 'unknown'.",
+		"start": {
+			"line": 12,
+			"character": 9
+		},
+		"end": {
+			"line": 12,
+			"character": 13
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 12,
+			"character": 15
+		},
+		"end": {
+			"line": 12,
+			"character": 20
+		}
+	}
+]
+
+=== 1487 src/lib/components/nodes/detail/MetadataTagListItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/props' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 34
+		},
+		"end": {
+			"line": 3,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 18
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'mode-watcher'.",
+		"start": {
+			"line": 5,
+			"character": 8
+		},
+		"end": {
+			"line": 5,
+			"character": 22
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'mode-watcher' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 22
+		},
+		"end": {
+			"line": 6,
+			"character": 36
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 14,
+			"character": 9
+		},
+		"end": {
+			"line": 14,
+			"character": 14
+		}
+	}
+]
+
+=== 809 src/lib/components/nodes/form/Description.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'node' does not exist on type 'unknown'.",
+		"start": {
+			"line": 11,
+			"character": 9
+		},
+		"end": {
+			"line": 11,
+			"character": 13
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 11,
+			"character": 15
+		},
+		"end": {
+			"line": 11,
+			"character": 20
+		}
+	}
+]
+
+=== 3197 src/lib/components/nodes/form/Dropdown.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 36
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/command' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/popover' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 26
+		},
+		"end": {
+			"line": 6,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/NodeRenderer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/nodes/shared/dropdown' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 34
+		},
+		"end": {
+			"line": 9,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/focus.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 30
+		},
+		"end": {
+			"line": 10,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/imperative.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 31
+		},
+		"end": {
+			"line": 11,
+			"character": 55
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'node' does not exist on type 'unknown'.",
+		"start": {
+			"line": 21,
+			"character": 9
+		},
+		"end": {
+			"line": 21,
+			"character": 13
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 21,
+			"character": 15
+		},
+		"end": {
+			"line": 21,
+			"character": 20
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'i' implicitly has an 'any' type.",
+		"start": {
+			"line": 30,
+			"character": 63
+		},
+		"end": {
+			"line": 30,
+			"character": 64
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'popoverTriggerProps' implicitly has an 'any' type.",
+		"start": {
+			"line": 121,
+			"character": 30
+		},
+		"end": {
+			"line": 121,
+			"character": 49
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'title' does not exist on type '{}'.",
+		"start": {
+			"line": 129,
+			"character": 22
+		},
+		"end": {
+			"line": 129,
+			"character": 27
+		}
+	}
+]
+
+=== 1044 src/lib/components/nodes/form/Form.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/NodeRenderer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 63
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'node' does not exist on type 'unknown'.",
+		"start": {
+			"line": 13,
+			"character": 9
+		},
+		"end": {
+			"line": 13,
+			"character": 13
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 13,
+			"character": 15
+		},
+		"end": {
+			"line": 13,
+			"character": 20
+		}
+	}
+]
+
+=== 1069 src/lib/components/nodes/form/LinkAccessory.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-opener' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 51
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 13,
+			"character": 9
+		},
+		"end": {
+			"line": 13,
+			"character": 14
+		}
+	}
+]
+
+=== 1459 src/lib/components/nodes/form/TextArea.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/textarea' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './utils' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 32
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/imperative.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 31
+		},
+		"end": {
+			"line": 5,
+			"character": 55
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 16,
+			"character": 9
+		},
+		"end": {
+			"line": 16,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 81,
+			"character": 13
+		},
+		"end": {
+			"line": 81,
+			"character": 14
+		}
+	}
+]
+
+=== 1456 src/lib/components/nodes/form/TextField.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/input' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './utils' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 32
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/imperative.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 31
+		},
+		"end": {
+			"line": 5,
+			"character": 55
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 16,
+			"character": 9
+		},
+		"end": {
+			"line": 16,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 81,
+			"character": 13
+		},
+		"end": {
+			"line": 81,
+			"character": 14
+		}
+	}
+]
+
+=== 1051 src/lib/components/nodes/list/ItemDetail.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/nodes/detail/Detail.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 48
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'node' does not exist on type 'unknown'.",
+		"start": {
+			"line": 13,
+			"character": 9
+		},
+		"end": {
+			"line": 13,
+			"character": 13
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 13,
+			"character": 15
+		},
+		"end": {
+			"line": 13,
+			"character": 20
+		}
+	}
+]
+
+=== 3602 src/lib/components/nodes/shared/AccessoryDropdown.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/command' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/popover' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 26
+		},
+		"end": {
+			"line": 6,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/NodeRenderer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 18
+		},
+		"end": {
+			"line": 9,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/nodes/shared/dropdown' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 34
+		},
+		"end": {
+			"line": 10,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/props' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 40
+		},
+		"end": {
+			"line": 11,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/focus.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 30
+		},
+		"end": {
+			"line": 12,
+			"character": 49
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'node' does not exist on type 'unknown'.",
+		"start": {
+			"line": 22,
+			"character": 9
+		},
+		"end": {
+			"line": 22,
+			"character": 13
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 22,
+			"character": 15
+		},
+		"end": {
+			"line": 22,
+			"character": 20
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'popoverTriggerProps' implicitly has an 'any' type.",
+		"start": {
+			"line": 96,
+			"character": 28
+		},
+		"end": {
+			"line": 96,
+			"character": 47
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'icon' does not exist on type '{}'.",
+		"start": {
+			"line": 106,
+			"character": 25
+		},
+		"end": {
+			"line": 106,
+			"character": 29
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'icon' does not exist on type '{}'.",
+		"start": {
+			"line": 108,
+			"character": 33
+		},
+		"end": {
+			"line": 108,
+			"character": 37
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'title' does not exist on type '{}'.",
+		"start": {
+			"line": 112,
+			"character": 22
+		},
+		"end": {
+			"line": 112,
+			"character": 27
+		}
+	}
+]
+
+=== 2017 src/lib/components/nodes/shared/ActionBar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@flare/protocol' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/separator/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 42
+		},
+		"end": {
+			"line": 5,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 41
+		},
+		"end": {
+			"line": 6,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/dropdown-menu' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 31
+		},
+		"end": {
+			"line": 9,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/KeyboardShortcut.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 30
+		},
+		"end": {
+			"line": 10,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './actions' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 39
+		},
+		"end": {
+			"line": 11,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/props' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 33
+		},
+		"end": {
+			"line": 12,
+			"character": 45
+		}
+	}
+]
+
+=== 1110 src/lib/components/nodes/shared/ActionMenu.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/dropdown-menu' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/KeyboardShortcut.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 30
+		},
+		"end": {
+			"line": 4,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/focus.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 49
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 35,
+			"character": 20
+		},
+		"end": {
+			"line": 35,
+			"character": 25
+		}
+	}
+]
+
+=== 1072 src/lib/components/nodes/shared/DropdownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/command' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 18
+		},
+		"end": {
+			"line": 5,
+			"character": 47
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 15,
+			"character": 9
+		},
+		"end": {
+			"line": 15,
+			"character": 14
+		}
+	}
+]
+
+=== 1270 src/lib/components/nodes/shared/DropdownSection.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/node.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/command' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/NodeRenderer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 63
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'node' does not exist on type 'unknown'.",
+		"start": {
+			"line": 15,
+			"character": 9
+		},
+		"end": {
+			"line": 15,
+			"character": 13
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'props' does not exist on type 'unknown'.",
+		"start": {
+			"line": 15,
+			"character": 15
+		},
+		"end": {
+			"line": 15,
+			"character": 20
+		}
+	}
+]
+
+=== 445 src/lib/components/nodes/shared/ListItemBase.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@flare/protocol' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	}
+]
+
+=== 1527 src/lib/components/nodes/shared/Toast.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/dropdown-menu' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/props' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 63
+		},
+		"end": {
+			"line": 3,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/KeyboardShortcut.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 30
+		},
+		"end": {
+			"line": 4,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/props/actions' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 33
+		},
+		"end": {
+			"line": 5,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/focus.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 30
+		},
+		"end": {
+			"line": 6,
+			"character": 49
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 72,
+			"character": 20
+		},
+		"end": {
+			"line": 72,
+			"character": 25
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/accordion/accordion-content.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 39
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/accordion/accordion-item.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 656 src/lib/components/ui/accordion/accordion-trigger.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/chevron-down' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 39
+		},
+		"end": {
+			"line": 3,
+			"character": 54
+		}
+	}
+]
+
+=== 210 src/lib/components/ui/accordion/accordion.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	}
+]
+
+=== 657 src/lib/components/ui/alert-dialog/alert-dialog-action.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 53
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 20
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	}
+]
+
+=== 657 src/lib/components/ui/alert-dialog/alert-dialog-cancel.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 53
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 20
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/alert-dialog/alert-dialog-content.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 53
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 68
+		},
+		"end": {
+			"line": 3,
+			"character": 83
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/alert-dialog/alert-dialog-description.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 53
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 216 src/lib/components/ui/alert-dialog/alert-dialog-footer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 41
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 216 src/lib/components/ui/alert-dialog/alert-dialog-header.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 41
+		},
+		"end": {
+			"line": 2,
+			"character": 56
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/alert-dialog/alert-dialog-overlay.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 53
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/alert-dialog/alert-dialog-title.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 53
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 210 src/lib/components/ui/alert-dialog/alert-dialog-trigger.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 53
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	}
+]
+
+=== 433 src/lib/components/ui/button/button.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 41
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'tailwind-variants' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 39
+		},
+		"end": {
+			"line": 3,
+			"character": 58
+		}
+	}
+]
+
+=== 649 src/lib/components/ui/carousel/carousel-content.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'embla-carousel-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './context.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 41
+		},
+		"end": {
+			"line": 4,
+			"character": 56
+		}
+	}
+]
+
+=== 428 src/lib/components/ui/carousel/carousel-item.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './context.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 33
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 41
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	}
+]
+
+=== 1101 src/lib/components/ui/carousel/carousel-next.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/arrow-right' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 38
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './context.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 20
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 36
+		},
+		"end": {
+			"line": 5,
+			"character": 72
+		}
+	}
+]
+
+=== 1100 src/lib/components/ui/carousel/carousel-previous.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/arrow-left' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 38
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './context.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 20
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 36
+		},
+		"end": {
+			"line": 5,
+			"character": 72
+		}
+	}
+]
+
+=== 427 src/lib/components/ui/carousel/carousel.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './context.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 8
+		},
+		"end": {
+			"line": 6,
+			"character": 22
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 41
+		},
+		"end": {
+			"line": 7,
+			"character": 56
+		}
+	}
+]
+
+=== 1273 src/lib/components/ui/checkbox/checkbox.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 47
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/check' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/minus' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 49
+		},
+		"end": {
+			"line": 4,
+			"character": 64
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'checked' implicitly has an 'any' type.",
+		"start": {
+			"line": 26,
+			"character": 22
+		},
+		"end": {
+			"line": 26,
+			"character": 29
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'indeterminate' implicitly has an 'any' type.",
+		"start": {
+			"line": 26,
+			"character": 31
+		},
+		"end": {
+			"line": 26,
+			"character": 44
+		}
+	}
+]
+
+=== 657 src/lib/components/ui/command/command-dialog.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 77
+		},
+		"end": {
+			"line": 1,
+			"character": 86
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/dialog/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 45
+		},
+		"end": {
+			"line": 5,
+			"character": 60
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/command/command-empty.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/command/command-group.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 52
+		},
+		"end": {
+			"line": 1,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/command/command-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/command/command-item.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/command/command-link-item.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/command/command-list.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/command/command-separator.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 216 src/lib/components/ui/command/command-shortcut.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 41
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/command/command.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 210 src/lib/components/ui/dialog/dialog-close.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	}
+]
+
+=== 855 src/lib/components/ui/dialog/dialog-content.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/x' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 49
+		},
+		"end": {
+			"line": 5,
+			"character": 64
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/dialog/dialog-description.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 216 src/lib/components/ui/dialog/dialog-footer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 41
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 216 src/lib/components/ui/dialog/dialog-header.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 41
+		},
+		"end": {
+			"line": 2,
+			"character": 56
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/dialog/dialog-overlay.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/dialog/dialog-title.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 210 src/lib/components/ui/dialog/dialog-trigger.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	}
+]
+
+=== 1273 src/lib/components/ui/dropdown-menu/dropdown-menu-checkbox-item.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 55
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/check' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/minus' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 49
+		},
+		"end": {
+			"line": 4,
+			"character": 64
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'checked' implicitly has an 'any' type.",
+		"start": {
+			"line": 30,
+			"character": 22
+		},
+		"end": {
+			"line": 30,
+			"character": 29
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'indeterminate' implicitly has an 'any' type.",
+		"start": {
+			"line": 30,
+			"character": 31
+		},
+		"end": {
+			"line": 30,
+			"character": 44
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/dropdown-menu/dropdown-menu-content.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 55
+		},
+		"end": {
+			"line": 2,
+			"character": 64
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/dropdown-menu/dropdown-menu-group-heading.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 55
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 210 src/lib/components/ui/dropdown-menu/dropdown-menu-group.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 55
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/dropdown-menu/dropdown-menu-item.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 55
+		},
+		"end": {
+			"line": 2,
+			"character": 64
+		}
+	}
+]
+
+=== 216 src/lib/components/ui/dropdown-menu/dropdown-menu-label.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 41
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 210 src/lib/components/ui/dropdown-menu/dropdown-menu-radio-group.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 55
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	}
+]
+
+=== 846 src/lib/components/ui/dropdown-menu/dropdown-menu-radio-item.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 55
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/circle' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 39
+		},
+		"end": {
+			"line": 3,
+			"character": 54
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'checked' implicitly has an 'any' type.",
+		"start": {
+			"line": 22,
+			"character": 22
+		},
+		"end": {
+			"line": 22,
+			"character": 29
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/dropdown-menu/dropdown-menu-separator.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 55
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 216 src/lib/components/ui/dropdown-menu/dropdown-menu-shortcut.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 41
+		},
+		"end": {
+			"line": 2,
+			"character": 56
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/dropdown-menu/dropdown-menu-sub-content.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 55
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 657 src/lib/components/ui/dropdown-menu/dropdown-menu-sub-trigger.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 55
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/chevron-right' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 20
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	}
+]
+
+=== 210 src/lib/components/ui/dropdown-menu/dropdown-menu-trigger.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 55
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	}
+]
+
+=== 216 src/lib/components/ui/input/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 41
+		},
+		"end": {
+			"line": 2,
+			"character": 56
+		}
+	}
+]
+
+=== 639 src/lib/components/ui/kbd/kbd.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'tailwind-variants' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 35
+		},
+		"end": {
+			"line": 2,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 34,
+			"character": 20
+		},
+		"end": {
+			"line": 34,
+			"character": 32
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/label/label.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 41
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/popover/popover-content.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 45
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/popover/popover-trigger.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 45
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/select/select-content.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 39
+		},
+		"end": {
+			"line": 4,
+			"character": 54
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/select/select-group-heading.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 210 src/lib/components/ui/select/select-group.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	}
+]
+
+=== 1046 src/lib/components/ui/select/select-item.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/check' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 43
+		},
+		"end": {
+			"line": 2,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 39
+		},
+		"end": {
+			"line": 3,
+			"character": 54
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'selected' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 22
+		},
+		"end": {
+			"line": 25,
+			"character": 30
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'highlighted' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 32
+		},
+		"end": {
+			"line": 25,
+			"character": 43
+		}
+	}
+]
+
+=== 216 src/lib/components/ui/select/select-label.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 41
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 656 src/lib/components/ui/select/select-scroll-down-button.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/chevron-down' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 43
+		},
+		"end": {
+			"line": 2,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 49
+		},
+		"end": {
+			"line": 3,
+			"character": 64
+		}
+	}
+]
+
+=== 654 src/lib/components/ui/select/select-scroll-up-button.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/chevron-up' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 43
+		},
+		"end": {
+			"line": 2,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 49
+		},
+		"end": {
+			"line": 3,
+			"character": 64
+		}
+	}
+]
+
+=== 660 src/lib/components/ui/select/select-separator.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 54
+		},
+		"end": {
+			"line": 1,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/separator/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 20
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	}
+]
+
+=== 656 src/lib/components/ui/select/select-trigger.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/chevron-down' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 39
+		},
+		"end": {
+			"line": 3,
+			"character": 54
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/separator/separator.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/switch/switch.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 49
+		},
+		"end": {
+			"line": 2,
+			"character": 64
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/tabs/tabs-content.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/tabs/tabs-list.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/tabs/tabs-trigger.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 423 src/lib/components/ui/tabs/tabs.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 216 src/lib/components/ui/textarea/textarea.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 63
+		},
+		"end": {
+			"line": 1,
+			"character": 78
+		}
+	}
+]
+
+=== 665 src/routes/+layout.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '@fontsource-variable/inter'.",
+		"start": {
+			"line": 1,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"character": 36
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../app.css'.",
+		"start": {
+			"line": 2,
+			"character": 8
+		},
+		"end": {
+			"line": 2,
+			"character": 20
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'mode-watcher' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	}
+]
+
+=== 7048 src/routes/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/sidecar.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/SettingsView.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@flare/protocol' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 33
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/event' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 24
+		},
+		"end": {
+			"line": 5,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/command-palette/CommandPalette.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 28
+		},
+		"end": {
+			"line": 7,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/PluginRunner.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Extensions.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 24
+		},
+		"end": {
+			"line": 9,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/OAuthView.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 23
+		},
+		"end": {
+			"line": 10,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-opener' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 25
+		},
+		"end": {
+			"line": 11,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ClipboardHistoryView.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 34
+		},
+		"end": {
+			"line": 12,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/QuicklinkForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 27
+		},
+		"end": {
+			"line": 13,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/viewManager.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 29
+		},
+		"end": {
+			"line": 14,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/SnippetForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 25
+		},
+		"end": {
+			"line": 15,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ImportSnippets.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 28
+		},
+		"end": {
+			"line": 16,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/SearchSnippets.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 28
+		},
+		"end": {
+			"line": 17,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/FileSearchView.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 28
+		},
+		"end": {
+			"line": 18,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/window' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 34
+		},
+		"end": {
+			"line": 19,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/CommandDeeplinkConfirm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 36
+		},
+		"end": {
+			"line": 20,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/command-clipboard-history-1616x16@2x.png?inline' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 41
+		},
+		"end": {
+			"line": 21,
+			"character": 102
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/command-file-search-1616x16@2x.png?inline' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 35
+		},
+		"end": {
+			"line": 22,
+			"character": 90
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/snippets-package-1616x16@2x.png?inline' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 25
+		},
+		"end": {
+			"line": 23,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/command-store-1616x16@2x.png?inline' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 30
+		},
+		"end": {
+			"line": 24,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/quicklinks-package-1616x16@2x.png?inline' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 27
+		},
+		"end": {
+			"line": 25,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/core' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 24
+		},
+		"end": {
+			"line": 26,
+			"character": 46
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'plugins' implicitly has an 'any' type.",
+		"start": {
+			"line": 145,
+			"character": 10
+		},
+		"end": {
+			"line": 145,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 148,
+			"character": 11
+		},
+		"end": {
+			"line": 148,
+			"character": 12
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 152,
+			"character": 48
+		},
+		"end": {
+			"line": 152,
+			"character": 53
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'fn' implicitly has an 'any' type.",
+		"start": {
+			"line": 159,
+			"character": 18
+		},
+		"end": {
+			"line": 159,
+			"character": 20
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'plugins' implicitly has an 'any' type.",
+		"start": {
+			"line": 210,
+			"character": 10
+		},
+		"end": {
+			"line": 210,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 213,
+			"character": 11
+		},
+		"end": {
+			"line": 213,
+			"character": 12
+		}
+	}
+]
+
+=== 632 src/routes/hud/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/event' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/window' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 47
+		},
+		"end": {
+			"line": 2,
+			"character": 71
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 29
+		}
+	}
+]
+

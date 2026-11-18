@@ -1,0 +1,1 @@
+{@render (cond ? a : b)()}

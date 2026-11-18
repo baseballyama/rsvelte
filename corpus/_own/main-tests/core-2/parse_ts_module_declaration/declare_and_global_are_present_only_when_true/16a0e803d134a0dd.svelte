@@ -1,0 +1,1 @@
+<script lang="ts">declare global { const a: number; }</script>

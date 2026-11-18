@@ -1,0 +1,1 @@
+<Foo><span let:x>{x}</span></Foo>

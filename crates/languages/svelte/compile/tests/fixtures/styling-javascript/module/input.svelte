@@ -1,0 +1,1 @@
+<script module>export const value="a";export function get(){return value;}</script><script>const local=get();</script><p class={local}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

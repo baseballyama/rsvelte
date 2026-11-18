@@ -1,0 +1,1 @@
+<span>{ fn ( a , b ) }</span>

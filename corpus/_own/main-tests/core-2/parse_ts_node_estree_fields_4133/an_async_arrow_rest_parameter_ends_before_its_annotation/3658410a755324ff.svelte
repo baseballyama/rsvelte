@@ -1,0 +1,1 @@
+<script lang="ts">const a = (...args: any) => 1;</script>

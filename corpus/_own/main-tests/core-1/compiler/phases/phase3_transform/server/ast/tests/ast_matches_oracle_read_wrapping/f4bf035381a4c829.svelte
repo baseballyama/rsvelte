@@ -1,0 +1,1 @@
+<script>let { count } = $props(); let double = $derived(count * 2);</script><p>{double}</p>

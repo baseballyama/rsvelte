@@ -1,0 +1,82 @@
+{
+	"rules": [
+		"no-unused-vars",
+		"vue/html-button-has-type",
+		"vue/multi-word-component-names",
+		"vue/no-unused-vars"
+	],
+	"findings": [
+		{
+			"rule": "vue/html-button-has-type",
+			"message": "Missing an explicit type attribute for button.",
+			"start": {
+				"line": 9,
+				"column": 5
+			},
+			"end": {
+				"line": 9,
+				"column": 13
+			}
+		},
+		{
+			"rule": "vue/html-button-has-type",
+			"message": "A value must be set for button type attribute.",
+			"start": {
+				"line": 10,
+				"column": 13
+			},
+			"end": {
+				"line": 10,
+				"column": 17
+			}
+		},
+		{
+			"rule": "vue/html-button-has-type",
+			"message": "A value must be set for button type attribute.",
+			"start": {
+				"line": 11,
+				"column": 18
+			},
+			"end": {
+				"line": 11,
+				"column": 20
+			}
+		},
+		{
+			"rule": "vue/html-button-has-type",
+			"message": "foo is an invalid value for button type attribute.",
+			"start": {
+				"line": 12,
+				"column": 18
+			},
+			"end": {
+				"line": 12,
+				"column": 23
+			}
+		},
+		{
+			"rule": "vue/html-button-has-type",
+			"message": "foo is an invalid value for button type attribute.",
+			"start": {
+				"line": 13,
+				"column": 18
+			},
+			"end": {
+				"line": 13,
+				"column": 21
+			}
+		},
+		{
+			"rule": "vue/html-button-has-type",
+			"message": "nope is an invalid value for button type attribute.",
+			"start": {
+				"line": 17,
+				"column": 31
+			},
+			"end": {
+				"line": 17,
+				"column": 37
+			}
+		}
+	]
+}

@@ -1,0 +1,38 @@
+;
+function $$render() {
+  
+	class Counter {
+		#a = $state();
+		#b = $state({ val: -1 });
+		constructor() {
+			this.#a ||= { val: 0 };
+			this.#b.val += 1;
+			this.sum = $derived(this.#a.val + this.#b.val);
+			this.copy = $state(this.#b);
+			this.later = () => this.#a;
+			function nested(self) {
+				return self.#b;
+			}
+			nested(this);
+		}
+		inc() {
+			this.#a.val += 1;
+		}
+	}
+
+	let counter = new Counter();
+
+;
+
+  async () => {
+    {
+      svelteHTML.createElement("button", {
+        "onclick": () => counter.inc(),
+      });
+      counter.sum;
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const ClassStateInConstructor__SvelteComponent_ = $$render();
+export default /** @type {__rsvelte_javascript_export<typeof ClassStateInConstructor__SvelteComponent_>} */ (ClassStateInConstructor__SvelteComponent_);

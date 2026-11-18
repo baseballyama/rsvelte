@@ -1,0 +1,1 @@
+<script>let f = () => 1;</script>{#snippet s(a = () => f())}<span>{a}</span>{/snippet}{@render s()}

@@ -1,0 +1,1 @@
+{#each xs as x, i (i)}<p>{x}</p>{/each}

@@ -1,0 +1,13 @@
+include_unmount = true
+
+[[steps]]
+click = "button.value"
+
+[[steps]]
+click = "button.other"
+
+[[steps]]
+click = "button.parent"
+
+[[steps]]
+click = "button.value"

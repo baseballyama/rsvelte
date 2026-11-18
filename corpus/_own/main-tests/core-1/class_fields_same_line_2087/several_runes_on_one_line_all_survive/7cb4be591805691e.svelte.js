@@ -1,0 +1,1 @@
+export class Foo { a = $state(1); r = $state.raw([]); b = $derived.by(() => this.a); c = $derived(this.a + 1); }

@@ -1,0 +1,4 @@
+include_unmount = true
+
+[[steps]]
+click = "button"

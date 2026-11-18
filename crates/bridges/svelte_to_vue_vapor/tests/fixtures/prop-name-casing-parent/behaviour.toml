@@ -1,0 +1,7 @@
+include_unmount = true
+[[steps]]
+click = "button:nth-child(2)"
+[[steps]]
+click = "button:first-child"
+[[steps]]
+click = "button:nth-child(2)"

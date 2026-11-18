@@ -1,0 +1,1 @@
+<script>let n = $state(5); $effect(() => console.log(n));</script><p>{n}</p>

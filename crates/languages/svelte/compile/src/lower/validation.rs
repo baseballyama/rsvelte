@@ -1,0 +1,265 @@
+use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
+use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature_where};
+
+mod awaits;
+mod declarations;
+pub(super) mod markup;
+mod runes;
+
+pub(super) use awaits::check as check_awaits;
+use runes::script_and_template_errors;
+pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, script_error};
+
+use super::{CompileInput, Diagnostic, Resolution, Span};
+
+/// Upstream's analysis errors in its order: the first it raises as it builds the scopes, then
+/// `$$props` and `$$restProps`, then the first its walk meets. `template` holds those of the
+/// template that the walk over elements does not find.
+///
+/// # Errors
+///
+/// The first such error.
+pub(super) fn check_analysis(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    names: &super::stores::Names<'_>,
+    unit: super::Unit,
+    mut errors: Vec<(Raised, Diagnostic)>,
+    custom_element: bool,
+) -> Result<(), Diagnostic> {
+    let component = input.component;
+    errors.extend(declarations::duplicates(input, res));
+    errors.extend(dollar_name_errors(
+        component.javascript,
+        component.instance,
+        component.module,
+        res,
+        true,
+    ));
+    let walk = |section, error: Diagnostic| {
+        let at = error.span.start_offset;
+        let raised = Raised {
+            phase: Phase::Walk,
+            section,
+            at,
+        };
+        (raised, error)
+    };
+    errors.extend(template_error(input).map(|(at, error)| {
+        let raised = Raised {
+            phase: Phase::Walk,
+            section: Section::Template,
+            at,
+        };
+        (raised, error)
+    }));
+    // Upstream raises these once its walk is done, in this order.
+    let after_walk = [
+        markup::mixed_syntaxes(input),
+        markup::slot_snippet_conflict(input, res, custom_element),
+    ];
+    errors.extend(after_walk.into_iter().flatten().map(|error| {
+        let raised = Raised {
+            phase: Phase::Walk,
+            section: Section::Template,
+            at: u32::MAX,
+        };
+        (raised, error)
+    }));
+    errors.extend(markup::unparenthesized_sequence(input).map(|(at, error)| {
+        let raised = Raised {
+            phase: Phase::Walk,
+            section: Section::Template,
+            at,
+        };
+        (raised, error)
+    }));
+    // The rune walk's template error, which upstream meets in the same walk as the template's.
+    let script = (errors.iter())
+        .any(|(raised, _)| raised.section == Section::Template)
+        .then(|| {
+            let (script, template) = script_and_template_errors(input, res, custom_element);
+            if let Some(error) = template.filter(|error| error.code != "unsupported") {
+                errors.push(walk(Section::Template, error));
+            }
+            script
+        });
+    // A walk error waits for the scripts' first, which the later rune checks raise anyway.
+    if errors.iter().any(|(raised, _)| raised.phase == Phase::Walk)
+        && let Some((module, error)) =
+            script.unwrap_or_else(|| script_error(input, res, custom_element))
+    {
+        let section = if module {
+            Section::Module
+        } else {
+            Section::Instance
+        };
+        errors.push(walk(section, error));
+    }
+    errors.sort_by_key(|&(raised, _)| raised);
+    let mut errors = errors.into_iter().peekable();
+    if let Some((_, error)) = errors.next_if(|(raised, _)| raised.phase == Phase::Scopes) {
+        return Err(error);
+    }
+    names.check(input, res, unit)?;
+    check_legacy_props(input, res)?;
+    errors.next().map_or(Ok(()), |(_, error)| Err(error))
+}
+
+/// The first error upstream's walk over the template raises, which it raises in either mode,
+/// with where the walk raises it.
+pub(super) fn template_error(input: &CompileInput<'_>) -> Option<(u32, Diagnostic)> {
+    [
+        super::special::analysis(input).map_err(|e| (e.span.start_offset, e)),
+        markup::check(input),
+    ]
+    .into_iter()
+    .filter_map(Result::err)
+    .min_by_key(|&(at, _)| at)
+}
+
+/// Upstream `legacy_props_invalid` and `legacy_rest_props_invalid` at a name no script declares.
+fn check_legacy_props(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
+    // Upstream reads `$$props` first, and meets the scripts' references before the template's.
+    let javascript = input.component.javascript;
+    let scripted = |offset: u32| {
+        [input.component.module, input.component.instance]
+            .into_iter()
+            .flatten()
+            .any(|p| {
+                let span = javascript.get_program(p).span;
+                span.start <= offset && offset < span.end
+            })
+    };
+    for (name, code, message) in [
+        (
+            "$$props",
+            "legacy_props_invalid",
+            "Cannot use `$$props` in runes mode",
+        ),
+        (
+            "$$restProps",
+            "legacy_rest_props_invalid",
+            "Cannot use `$$restProps` in runes mode",
+        ),
+    ] {
+        let first = res
+            .unbound(|n| n == name)
+            .flat_map(|(_, references)| references.into_iter().map(|r| res.reference_span(r)))
+            .min_by_key(|span| (!scripted(span.start), span.start));
+        if let Some(span) = first {
+            return super::special::invalid(code, message, Span::new(span.start, span.end));
+        }
+    }
+    Ok(())
+}
+
+/// The first value reference, in document order, to a name no binding declares that `wanted`
+/// takes.
+fn first_unresolved(res: &Resolution, wanted: impl Fn(&str) -> bool) -> Option<(&str, Span)> {
+    res.unbound(wanted)
+        .flat_map(|(name, references)| {
+            references
+                .into_iter()
+                .map(move |r| (name, res.reference_span(r)))
+        })
+        .min_by_key(|(_, span)| span.start)
+        .map(|(name, span)| (name, Span::new(span.start, span.end)))
+}
+
+/// Upstream `analysis.uses_slots`: the component reads `$$slots`, which it declares from
+/// `$.sanitize_slots`.
+pub(super) fn uses_slots(res: &Resolution) -> bool {
+    first_unresolved(res, |name| name == "$$slots").is_some()
+}
+
+/// Upstream `state_invalid_placement`, which the rune walk and the markup walk both raise.
+fn state_invalid_placement<T>(rune: &str, span: Span) -> Result<T, Diagnostic> {
+    super::special::invalid(
+        "state_invalid_placement",
+        &format!(
+            "`{rune}(...)` can only be used as a variable declaration initializer, a class field \
+             declaration, or the first assignment to a class field at the top level of the \
+             constructor."
+        ),
+        span,
+    )
+}
+
+/// Whether the scripts hold any feature [`check_typescript`] or [`refuse_typescript`] looks for,
+/// so that a component without one is walked once instead of once for each.
+pub(super) fn has_typescript_feature(input: &CompileInput<'_>) -> bool {
+    first_typescript_feature(input, |_| true).is_err()
+}
+
+/// Upstream's refusal of a TypeScript feature with a runtime value, which it raises as it erases
+/// the types, before it analyzes.
+pub(super) fn check_typescript(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
+    first_typescript_feature(input, |feature| !port_refuses(feature))
+}
+
+/// This port's refusal of a TypeScript feature upstream keeps and prints, which waits for every
+/// error upstream raises.
+pub(super) fn refuse_typescript(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
+    first_typescript_feature(input, port_refuses)
+}
+
+/// What upstream keeps as it is and this compiler does not lower.
+const fn port_refuses(feature: Feature) -> bool {
+    matches!(feature, Feature::ImportEquals | Feature::ExportAssignment)
+}
+
+fn first_typescript_feature(
+    input: &CompileInput<'_>,
+    wanted: fn(Feature) -> bool,
+) -> Result<(), Diagnostic> {
+    let javascript = input.component.javascript;
+    let mut programs = [input.component.module, input.component.instance]
+        .map(|p| p.map(|p| javascript.get_program(p)));
+    // The parser met the scripts in document order.
+    programs.sort_by_key(|p| p.map(|p| p.span.start));
+    match (programs.into_iter().flatten())
+        .find_map(|program| first_svelte_runtime_feature_where(program, wanted))
+    {
+        Some((feature, span)) => Err(typescript_invalid_feature(
+            feature,
+            Span::new(span.start, span.end),
+        )),
+        None => Ok(()),
+    }
+}
+
+/// Upstream `remove_typescript_nodes` erases types and refuses what has a runtime value; what it
+/// keeps for esrap to print, this compiler does not lower.
+fn typescript_invalid_feature(feature: Feature, span: Span) -> Diagnostic {
+    let feature = match feature {
+        Feature::Enum => "enums",
+        Feature::NamespaceWithValues => "namespaces with non-type nodes",
+        Feature::Decorator => "decorators (related TSC proposal is not stage 4 yet)",
+        Feature::Accessor => "accessor fields (related TSC proposal is not stage 4 yet)",
+        Feature::ParameterProperty => "accessibility modifiers on constructor parameters",
+        Feature::ImportEquals => {
+            return Diagnostic::error(
+                "unsupported",
+                "`import name = …` is not supported yet",
+                span,
+            );
+        }
+        Feature::ExportAssignment => {
+            return Diagnostic::error("unsupported", "`export = …` is not supported yet", span);
+        }
+    };
+    Diagnostic::error(
+        "typescript_invalid_feature",
+        format!(
+            "TypeScript language features like {feature} are not natively supported, and their \
+             use is generally discouraged. Outside of `<script>` tags, these features are not \
+             supported. For use within `<script>` tags, you will need to use a preprocessor to \
+             convert it to JavaScript before it gets passed to the Svelte compiler. If you are \
+             using `vitePreprocess`, make sure to specifically enable preprocessing script tags \
+             (`vitePreprocess({{ script: true }})`)\n\
+             https://svelte.dev/e/typescript_invalid_feature"
+        ),
+        span,
+    )
+}

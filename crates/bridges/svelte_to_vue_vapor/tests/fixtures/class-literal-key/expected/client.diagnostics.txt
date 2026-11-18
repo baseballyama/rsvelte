@@ -1,0 +1,1 @@
+error vuelte_unsupported 3:9-3:18 not supported by vuelte: this use of `$state`

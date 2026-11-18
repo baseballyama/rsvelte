@@ -1,0 +1,1 @@
+<script>const a = typeof $derived;</script>

@@ -1,0 +1,1 @@
+<script lang="ts">let without = { foo: 2 };</script><input bind:value={(without as { foo: number }).foo as number} />

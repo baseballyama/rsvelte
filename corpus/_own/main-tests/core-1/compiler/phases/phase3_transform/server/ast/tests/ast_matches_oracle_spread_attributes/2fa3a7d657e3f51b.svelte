@@ -1,0 +1,1 @@
+<script>let spread = $state({}); let c = $state('red');</script><div {...spread} style:color={c}></div>

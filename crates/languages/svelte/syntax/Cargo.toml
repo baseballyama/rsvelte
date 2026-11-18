@@ -1,0 +1,26 @@
+[package]
+name = "rsvelte_svelte_syntax"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+rsvelte_kernel.workspace = true
+rsvelte_typescript_tree.workspace = true
+oxc_allocator.workspace = true
+oxc_ast.workspace = true
+oxc_ast_visit.workspace = true
+oxc_parser.workspace = true
+oxc_span.workspace = true
+oxc_syntax.workspace = true
+rsvelte_stylesheet_syntax.workspace = true
+rsvelte_markup_syntax.workspace = true
+unicode-id-start.workspace = true
+memchr = "2.8.3"
+rustc-hash.workspace = true
+
+[lints]
+workspace = true

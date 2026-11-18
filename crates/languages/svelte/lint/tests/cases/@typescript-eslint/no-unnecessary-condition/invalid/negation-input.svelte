@@ -1,0 +1,1 @@
+<script lang="ts">if (!true) console.log(1); if (!!true) console.log(2); if (!(Math.random() && true)) console.log(3);</script>

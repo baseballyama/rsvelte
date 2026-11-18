@@ -1,0 +1,79 @@
+;
+function $$render() {
+  
+	/** @type {typeof __rsvelte_public_props0} */ let { v = 1, o } = $props();
+	let s = $state(2);
+
+;
+
+  const __rsvelte_public_props0 = __rsvelte_props({
+    o: __rsvelte_untyped_prop(),
+  }, {
+    v: 1,
+  }, false);
+  async () => {
+    {
+      svelteHTML.createElement("my-el", {
+        "a": "1",
+        "b": v,
+        "c": s,
+        "class": "x",
+        "style": "color: red",
+        "onclick": () => s++,
+      });
+    }
+    {
+      svelteHTML.createElement("lite-youtube", {
+        "videoid": "abc",
+        "params": `x=${v}`,
+      });
+    }
+    {
+      svelteHTML.createElement("x-foo", {
+        ...(o),
+        "d": s,
+      });
+      {
+        svelteHTML.createElement("span", {});
+        s;
+      }
+    }
+    {
+      o = svelteHTML.createElement("x-bar", {});
+    }
+    {
+      svelteHTML.createElement("div", {
+        "is": "my-div",
+        "title": v,
+      });
+    }
+    {
+      svelteHTML.createElement("x-baz", {
+        ...(__sveltets_2_empty({
+          "data-a": s,
+        })),
+      });
+      __sveltets_2_ensureType(String, Number, "red");
+      (s);
+    }
+    {
+      svelteHTML.createElement("p", {
+        "title": "t",
+        "is": "my-p",
+        ...(__sveltets_2_empty({
+          "data-x": Math.max(v, 1),
+        })),
+        "fooBar": "Q",
+      });
+    }
+    {
+      svelteHTML.createElement("x-qux", {
+        ...(o),
+        "fooBar": "Q",
+      });
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+}
+const CustomElementAttributes__SvelteComponent_ = $$render();
+export default /** @type {__rsvelte_javascript_export<typeof CustomElementAttributes__SvelteComponent_>} */ (CustomElementAttributes__SvelteComponent_);

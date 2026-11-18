@@ -1,0 +1,72 @@
+{
+	"valid-compile/invalid/invalid-svelte-ignore03-input.svelte": {
+		"reason": "upstream blanks svelte-ignore comments before compiling, so a block holding only one reports block_empty, which the compiler does not",
+		"errors": [
+			{
+				"message": "noninteractive element cannot have nonnegative tabIndex value\nhttps://svelte.dev/e/a11y_no_noninteractive_tabindex(a11y_no_noninteractive_tabindex)",
+				"line": 5,
+				"column": 3,
+				"suggestions": null
+			},
+			{
+				"message": "A form label must be associated with a control\nhttps://svelte.dev/e/a11y_label_has_associated_control(a11y_label_has_associated_control)",
+				"line": 5,
+				"column": 3,
+				"suggestions": null
+			},
+			{
+				"message": "noninteractive element cannot have nonnegative tabIndex value\nhttps://svelte.dev/e/a11y_no_noninteractive_tabindex(a11y_no_noninteractive_tabindex)",
+				"line": 6,
+				"column": 3,
+				"suggestions": null
+			},
+			{
+				"message": "noninteractive element cannot have nonnegative tabIndex value\nhttps://svelte.dev/e/a11y_no_noninteractive_tabindex(a11y_no_noninteractive_tabindex)",
+				"line": 9,
+				"column": 3,
+				"suggestions": null
+			},
+			{
+				"message": "A form label must be associated with a control\nhttps://svelte.dev/e/a11y_label_has_associated_control(a11y_label_has_associated_control)",
+				"line": 9,
+				"column": 3,
+				"suggestions": null
+			},
+			{
+				"message": "noninteractive element cannot have nonnegative tabIndex value\nhttps://svelte.dev/e/a11y_no_noninteractive_tabindex(a11y_no_noninteractive_tabindex)",
+				"line": 10,
+				"column": 3,
+				"suggestions": null
+			},
+			{
+				"message": "noninteractive element cannot have nonnegative tabIndex value\nhttps://svelte.dev/e/a11y_no_noninteractive_tabindex(a11y_no_noninteractive_tabindex)",
+				"line": 17,
+				"column": 3,
+				"suggestions": null
+			},
+			{
+				"message": "A form label must be associated with a control\nhttps://svelte.dev/e/a11y_label_has_associated_control(a11y_label_has_associated_control)",
+				"line": 17,
+				"column": 3,
+				"suggestions": null
+			},
+			{
+				"message": "noninteractive element cannot have nonnegative tabIndex value\nhttps://svelte.dev/e/a11y_no_noninteractive_tabindex(a11y_no_noninteractive_tabindex)",
+				"line": 18,
+				"column": 3,
+				"suggestions": null
+			}
+		]
+	},
+	"valid-compile/invalid/ts/enum01-input.svelte": {
+		"reason": "the fixture predates Svelte 5.57.3, which refuses the enum as it removes the types, before the analysis checks the `$` name",
+		"errors": [
+			{
+				"message": "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)",
+				"line": 2,
+				"column": 3,
+				"suggestions": null
+			}
+		]
+	}
+}

@@ -1,0 +1,1 @@
+{#snippet s(a = class { x? = 1 })}{/snippet}

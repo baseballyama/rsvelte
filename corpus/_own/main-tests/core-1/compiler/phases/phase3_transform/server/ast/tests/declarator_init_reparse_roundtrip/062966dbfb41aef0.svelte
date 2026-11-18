@@ -1,0 +1,1 @@
+<script>let d = $derived({ y: 2 });</script><p>x</p>

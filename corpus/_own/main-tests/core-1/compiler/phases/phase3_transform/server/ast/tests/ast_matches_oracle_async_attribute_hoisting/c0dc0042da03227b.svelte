@@ -1,0 +1,1 @@
+<my-element class:on={await p}></my-element>

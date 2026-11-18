@@ -1,0 +1,1 @@
+<my-element style:color={await p}></my-element>

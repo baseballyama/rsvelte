@@ -1,0 +1,1 @@
+<script>let d = $derived(fn);</script><p>{d(1)}</p>

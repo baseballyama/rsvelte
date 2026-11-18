@@ -1,0 +1,1 @@
+<script>; export let p = 1;</script><span>{p}</span>

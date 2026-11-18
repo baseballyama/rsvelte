@@ -1,0 +1,1 @@
+<script lang="ts">class M { m<U>(u: U) {} }</script>

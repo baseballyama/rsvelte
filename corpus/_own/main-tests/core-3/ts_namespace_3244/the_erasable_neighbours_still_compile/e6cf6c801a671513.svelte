@@ -1,0 +1,6 @@
+<script lang="ts">
+namespace N { export type T = 1; }
+const s = 1;
+</script>
+
+<p>{s}</p>

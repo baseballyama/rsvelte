@@ -1,0 +1,14 @@
+experimental_async = true
+include_unmount = true
+[[steps]]
+click = "#first"
+[[steps]]
+click = "#change"
+[[steps]]
+click = "#change"
+[[steps]]
+click = "#current"
+[[steps]]
+click = "#second"
+[[steps]]
+click = "#change"

@@ -1,0 +1,1 @@
+<script module>const value="a";export {value as name};export {other} from "./other.js";export * from "./x.js";</script><p class={value}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

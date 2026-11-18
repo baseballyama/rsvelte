@@ -1,0 +1,1 @@
+<script>let x = $state(false);</script><input bind:indeterminate={x} />

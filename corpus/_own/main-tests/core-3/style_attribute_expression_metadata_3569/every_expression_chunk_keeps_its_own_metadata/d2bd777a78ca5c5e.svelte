@@ -1,0 +1,1 @@
+<script>let color = $state(); function make() {}</script><div style="color:{color};width:{make().width}px"></div>

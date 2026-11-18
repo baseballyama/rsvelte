@@ -1,0 +1,9 @@
+experimental_async = true
+include_head = true
+include_unmount = true
+
+[[steps]]
+click = "button"
+
+[[steps]]
+click = "button"

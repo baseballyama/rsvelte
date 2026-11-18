@@ -1,0 +1,3 @@
+browser = true
+custom_element = "vapor-closed-shadow"
+include_unmount = true

@@ -1,0 +1,1 @@
+<script>let d = $state(true);</script><input disabled={d}>

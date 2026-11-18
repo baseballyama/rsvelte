@@ -1,0 +1,16 @@
+include_unmount = true
+
+[[steps]]
+click = "button.tick"
+
+[[steps]]
+click = "button.provide"
+
+[[steps]]
+click = "button.mutate"
+
+[[steps]]
+click = "button.clear"
+
+[[steps]]
+click = "button.tick"

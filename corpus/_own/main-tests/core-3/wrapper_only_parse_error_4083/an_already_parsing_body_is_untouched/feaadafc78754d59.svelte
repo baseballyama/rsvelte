@@ -1,0 +1,1 @@
+<script>let a;</script><p title={{ v: a }}>x</p>

@@ -1,0 +1,65 @@
+//! The parentheses upstream's parser keeps: in a snippet's parameters, and around a `bind:`
+//! value.
+
+use oxc_allocator::{Allocator, TakeIn};
+use oxc_ast::ast::Expression;
+use oxc_ast_visit::{VisitMut, walk_mut};
+use oxc_parser::ParseOptions;
+use oxc_span::GetSpan;
+
+/// `ESTree` has no parentheses, and the formatter requires that they are not kept, so a part
+/// keeps them only to `strip` them. Regular expressions are validated, as acorn validates them.
+impl super::Builder<'_> {
+    /// Records that the source wrapped the node at `span` in `pairs` pairs of parentheses, which
+    /// the tree drops.
+    pub fn record_parentheses(&mut self, span: oxc_span::Span, pairs: u8) {
+        // Sorted once, when the trees are finished.
+        self.parentheses.push((span, pairs));
+    }
+}
+
+pub(super) fn options(parenthesized: bool) -> ParseOptions {
+    ParseOptions {
+        preserve_parens: parenthesized,
+        parse_regular_expression: true,
+        ..ParseOptions::default()
+    }
+}
+
+/// Removes every parenthesized expression from `expression`, and records how many pairs wrapped
+/// each node that had any, at its span `shift` bytes later.
+pub(super) fn strip<'a>(
+    allocator: &'a Allocator,
+    expression: &mut Expression<'a>,
+    shift: u32,
+    recorded: &mut Vec<(oxc_span::Span, u8)>,
+) {
+    Strip {
+        allocator,
+        shift,
+        recorded,
+    }
+    .visit_expression(expression);
+}
+
+struct Strip<'a, 'r> {
+    allocator: &'a Allocator,
+    shift: u32,
+    recorded: &'r mut Vec<(oxc_span::Span, u8)>,
+}
+
+impl<'a> VisitMut<'a> for Strip<'a, '_> {
+    fn visit_expression(&mut self, it: &mut Expression<'a>) {
+        let mut pairs: u8 = 0;
+        while let Expression::ParenthesizedExpression(parenthesized) = it {
+            *it = parenthesized.expression.take_in(&self.allocator);
+            pairs = pairs.saturating_add(1);
+        }
+        if pairs > 0 {
+            let span = it.span();
+            let shifted = oxc_span::Span::new(span.start + self.shift, span.end + self.shift);
+            self.recorded.push((shifted, pairs));
+        }
+        walk_mut::walk_expression(self, it);
+    }
+}

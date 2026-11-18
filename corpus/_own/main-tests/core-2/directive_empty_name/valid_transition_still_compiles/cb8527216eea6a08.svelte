@@ -1,0 +1,1 @@
+<script>import { fade } from 'x';</script><div transition:fade|global>x</div>

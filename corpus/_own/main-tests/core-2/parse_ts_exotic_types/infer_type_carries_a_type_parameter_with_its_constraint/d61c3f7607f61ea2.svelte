@@ -1,0 +1,1 @@
+<script lang="ts">type E<T> = T extends Array<infer U> ? U : never;</script>

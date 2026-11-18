@@ -1,0 +1,1689 @@
+# rsvelte pack 1
+=== 575 src/examples/docs/SvelteTweakpaneEventExample.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 65
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 24,
+			"character": 18
+		},
+		"end": {
+			"line": 24,
+			"character": 19
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 18
+		},
+		"end": {
+			"line": 25,
+			"character": 19
+		}
+	}
+]
+
+=== 207 src/examples/docs/SvelteTweakpaneRange.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 30
+		}
+	}
+]
+
+=== 207 src/examples/docs/SvelteTweakpaneThemeBasic.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	}
+]
+
+=== 207 src/examples/docs/SvelteTweakpaneThemeCustom.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	}
+]
+
+=== 207 src/examples/docs/SvelteTweakpaneThemeExtend.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 48
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	}
+]
+
+=== 207 src/examples/docs/SvelteTweakpaneThemeOverride.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 30
+		}
+	}
+]
+
+=== 207 src/examples/docs/SvelteTweakpaneThemePicker.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	}
+]
+
+=== 207 src/examples/docs/SvelteTweakpaneWideSlideExample.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 83
+		},
+		"end": {
+			"line": 1,
+			"character": 89
+		}
+	}
+]
+
+=== 212 src/examples/docs/VanillaTweakpaneRange.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'tweakpane' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 33
+		}
+	}
+]
+
+=== 583 src/examples/tests/TestAutoObject.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 42,
+			"character": 13
+		},
+		"end": {
+			"line": 42,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 52,
+			"character": 13
+		},
+		"end": {
+			"line": 52,
+			"character": 18
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestAutoObjectNesting.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 34
+		}
+	}
+]
+
+=== 1713 src/examples/tests/TestAutoValue.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 33
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 30,
+			"character": 13
+		},
+		"end": {
+			"line": 30,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 41,
+			"character": 13
+		},
+		"end": {
+			"line": 41,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 53,
+			"character": 13
+		},
+		"end": {
+			"line": 53,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 64,
+			"character": 13
+		},
+		"end": {
+			"line": 64,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 76,
+			"character": 13
+		},
+		"end": {
+			"line": 76,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 87,
+			"character": 13
+		},
+		"end": {
+			"line": 87,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 99,
+			"character": 13
+		},
+		"end": {
+			"line": 99,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 110,
+			"character": 13
+		},
+		"end": {
+			"line": 110,
+			"character": 18
+		}
+	}
+]
+
+=== 787 src/examples/tests/TestBinding.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 31
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 16,
+			"character": 13
+		},
+		"end": {
+			"line": 16,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 28,
+			"character": 13
+		},
+		"end": {
+			"line": 28,
+			"character": 18
+		}
+	}
+]
+
+=== 583 src/examples/tests/TestCheckbox.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 19,
+			"character": 13
+		},
+		"end": {
+			"line": 19,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 30,
+			"character": 13
+		},
+		"end": {
+			"line": 30,
+			"character": 18
+		}
+	}
+]
+
+=== 208 src/examples/tests/TestCls.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 42,
+			"character": 8
+		},
+		"end": {
+			"line": 42,
+			"character": 14
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestCollapseExpand.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 53
+		},
+		"end": {
+			"line": 1,
+			"character": 59
+		}
+	}
+]
+
+=== 959 src/examples/tests/TestColor.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 75
+		},
+		"end": {
+			"line": 1,
+			"character": 81
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 19,
+			"character": 13
+		},
+		"end": {
+			"line": 19,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 30,
+			"character": 13
+		},
+		"end": {
+			"line": 30,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 41,
+			"character": 13
+		},
+		"end": {
+			"line": 41,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 52,
+			"character": 13
+		},
+		"end": {
+			"line": 52,
+			"character": 18
+		}
+	}
+]
+
+=== 583 src/examples/tests/TestCubicBezier.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 14,
+			"character": 13
+		},
+		"end": {
+			"line": 14,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 13
+		},
+		"end": {
+			"line": 25,
+			"character": 18
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestElementIfStatement.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 60
+		},
+		"end": {
+			"line": 3,
+			"character": 66
+		}
+	}
+]
+
+=== 583 src/examples/tests/TestFile.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 38
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 14,
+			"character": 13
+		},
+		"end": {
+			"line": 14,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 13
+		},
+		"end": {
+			"line": 25,
+			"character": 18
+		}
+	}
+]
+
+=== 389 src/examples/tests/TestFormat.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 30
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 17
+		},
+		"end": {
+			"line": 5,
+			"character": 18
+		}
+	}
+]
+
+=== 395 src/examples/tests/TestFpsEvent.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 32
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'value' implicitly has an 'any' type.",
+		"start": {
+			"line": 10,
+			"character": 13
+		},
+		"end": {
+			"line": 10,
+			"character": 18
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestGridLayoutPane.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestGridLayoutWrapper.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	}
+]
+
+=== 583 src/examples/tests/TestImage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 29,
+			"character": 13
+		},
+		"end": {
+			"line": 29,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 41,
+			"character": 13
+		},
+		"end": {
+			"line": 41,
+			"character": 18
+		}
+	}
+]
+
+=== 583 src/examples/tests/TestIntervalSlider.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 30
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 16,
+			"character": 13
+		},
+		"end": {
+			"line": 16,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 29,
+			"character": 13
+		},
+		"end": {
+			"line": 29,
+			"character": 18
+		}
+	}
+]
+
+=== 389 src/examples/tests/TestIntervalSliderWide.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 42
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 26
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestInvisibleFolder.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	}
+]
+
+=== 583 src/examples/tests/TestList.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 16,
+			"character": 13
+		},
+		"end": {
+			"line": 16,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 28,
+			"character": 13
+		},
+		"end": {
+			"line": 28,
+			"character": 18
+		}
+	}
+]
+
+=== 659 src/examples/tests/TestOrder.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 8
+		},
+		"end": {
+			"line": 9,
+			"character": 14
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/control/Button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/Folder.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 20
+		},
+		"end": {
+			"line": 11,
+			"character": 45
+		}
+	}
+]
+
+=== 602 src/examples/tests/TestPane.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'tweakpane' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 36
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 9,
+			"character": 23
+		},
+		"end": {
+			"line": 9,
+			"character": 28
+		}
+	}
+]
+
+=== 1208 src/examples/tests/TestPaneAdvanced.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'tweakpane' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/control/Checkbox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 16,
+			"character": 24
+		},
+		"end": {
+			"line": 16,
+			"character": 29
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 21,
+			"character": 24
+		},
+		"end": {
+			"line": 21,
+			"character": 29
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 26,
+			"character": 24
+		},
+		"end": {
+			"line": 26,
+			"character": 29
+		}
+	}
+]
+
+=== 583 src/examples/tests/TestPoint.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 65
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 22,
+			"character": 13
+		},
+		"end": {
+			"line": 22,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 36,
+			"character": 13
+		},
+		"end": {
+			"line": 36,
+			"character": 18
+		}
+	}
+]
+
+=== 583 src/examples/tests/TestRadioGrid.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 33
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 15,
+			"character": 13
+		},
+		"end": {
+			"line": 15,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 27,
+			"character": 13
+		},
+		"end": {
+			"line": 27,
+			"character": 18
+		}
+	}
+]
+
+=== 951 src/examples/tests/TestRing.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 18,
+			"character": 10
+		},
+		"end": {
+			"line": 18,
+			"character": 11
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 24,
+			"character": 13
+		},
+		"end": {
+			"line": 24,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 33,
+			"character": 10
+		},
+		"end": {
+			"line": 33,
+			"character": 11
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 39,
+			"character": 13
+		},
+		"end": {
+			"line": 39,
+			"character": 18
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestRingWide.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 38
+		}
+	}
+]
+
+=== 583 src/examples/tests/TestRotationEuler.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 62
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 16,
+			"character": 13
+		},
+		"end": {
+			"line": 16,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 29,
+			"character": 13
+		},
+		"end": {
+			"line": 29,
+			"character": 18
+		}
+	}
+]
+
+=== 583 src/examples/tests/TestRotationQuaternion.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 71
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 16,
+			"character": 13
+		},
+		"end": {
+			"line": 16,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 29,
+			"character": 13
+		},
+		"end": {
+			"line": 29,
+			"character": 18
+		}
+	}
+]
+
+=== 583 src/examples/tests/TestSlider.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 30
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 14,
+			"character": 13
+		},
+		"end": {
+			"line": 14,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 13
+		},
+		"end": {
+			"line": 25,
+			"character": 18
+		}
+	}
+]
+
+=== 757 src/examples/tests/TestSliderWide.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 8,
+			"character": 10
+		},
+		"end": {
+			"line": 8,
+			"character": 11
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 16,
+			"character": 10
+		},
+		"end": {
+			"line": 16,
+			"character": 11
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 24,
+			"character": 10
+		},
+		"end": {
+			"line": 24,
+			"character": 11
+		}
+	}
+]
+
+=== 583 src/examples/tests/TestStepper.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 31
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 14,
+			"character": 13
+		},
+		"end": {
+			"line": 14,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 13
+		},
+		"end": {
+			"line": 25,
+			"character": 18
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestStepperValue.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestStoreInitialization.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 24
+		},
+		"end": {
+			"line": 5,
+			"character": 30
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestTabIndexBinding.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 49
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestTabIndexBindingAlt.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 49
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestTabsNested.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 49
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestTabsSort.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 49
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	}
+]
+
+=== 583 src/examples/tests/TestText.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 38
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 18,
+			"character": 13
+		},
+		"end": {
+			"line": 18,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 30,
+			"character": 13
+		},
+		"end": {
+			"line": 30,
+			"character": 18
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestTextStringDetection.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 52
+		},
+		"end": {
+			"line": 7,
+			"character": 58
+		}
+	}
+]
+
+=== 583 src/examples/tests/TestTextarea.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 19,
+			"character": 13
+		},
+		"end": {
+			"line": 19,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 32,
+			"character": 13
+		},
+		"end": {
+			"line": 32,
+			"character": 18
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestTitlelessDraggable.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	}
+]
+
+=== 951 src/examples/tests/TestWheel.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 29
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 12,
+			"character": 10
+		},
+		"end": {
+			"line": 12,
+			"character": 11
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 17,
+			"character": 13
+		},
+		"end": {
+			"line": 17,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 26,
+			"character": 10
+		},
+		"end": {
+			"line": 26,
+			"character": 11
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 31,
+			"character": 13
+		},
+		"end": {
+			"line": 31,
+			"character": 18
+		}
+	}
+]
+
+=== 207 src/examples/tests/TestWheelWide.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+

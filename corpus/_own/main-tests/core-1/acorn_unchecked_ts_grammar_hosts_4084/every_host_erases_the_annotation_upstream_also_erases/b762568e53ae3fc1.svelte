@@ -1,0 +1,1 @@
+<script lang="ts">let a: any;</script>{#await (<string>() => a)}y{:then v}{v}{/await}

@@ -1,0 +1,1 @@
+{#if a}<p>A</p>{:else}{@const x = 1}<p>{x}</p>{/if}{#key k}{@const x = 2}<p>{x}</p>{/key}

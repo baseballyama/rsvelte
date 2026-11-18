@@ -1,0 +1,1 @@
+<script lang="ts">type Q3 = typeof import("x");</script>

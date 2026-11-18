@@ -1,0 +1,1 @@
+<script>let key = "a";</script>{#if true}{@const { [key]: value } = { a: 1 } }{value}{/if}

@@ -1,0 +1,1 @@
+<div style:color={ active?'red':'blue' }></div>

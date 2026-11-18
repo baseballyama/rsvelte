@@ -1,0 +1,7 @@
+include_unmount = true
+[props]
+count = 3
+label = "solo"
+
+[[steps]]
+click = "button.child-update"

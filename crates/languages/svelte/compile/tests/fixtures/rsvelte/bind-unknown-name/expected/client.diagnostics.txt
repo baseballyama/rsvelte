@@ -1,0 +1,2 @@
+error bind_invalid_name 5:6-5:23 `bind:whatever` is not a valid binding
+    https://svelte.dev/e/bind_invalid_name

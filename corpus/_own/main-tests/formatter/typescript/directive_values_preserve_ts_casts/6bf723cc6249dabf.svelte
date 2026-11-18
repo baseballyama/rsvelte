@@ -1,0 +1,1 @@
+<script lang="ts"></script><div use:action={value as string}></div>

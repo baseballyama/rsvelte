@@ -1,0 +1,1 @@
+<script module lang="ts">let a = 1</script><script>let b = 1</script>

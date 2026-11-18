@@ -1,0 +1,1 @@
+<div transition:fade={a b c}>y</div>

@@ -1,0 +1,1 @@
+<p>before<!-- inline -->after</p>

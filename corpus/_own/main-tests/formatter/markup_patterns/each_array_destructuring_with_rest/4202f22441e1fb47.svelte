@@ -1,0 +1,1 @@
+{#each pairs as [first,...rest]}<li>{first}</li>{/each}

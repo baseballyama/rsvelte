@@ -1,0 +1,1 @@
+{#each items as item, index (item.id, index)}<p>{item.name}</p>{/each}

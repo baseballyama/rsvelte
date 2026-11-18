@@ -1,0 +1,1 @@
+<script>const c = 5;</script><p>{c}</p>

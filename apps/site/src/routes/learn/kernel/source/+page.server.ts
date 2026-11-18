@@ -1,0 +1,22 @@
+import { excerpts } from '#lib/server/source.ts';
+
+export const load = () => ({
+	code: excerpts({
+		span: 'kernel/source/positions/Span',
+		spanNew: 'kernel/source/positions/Span::new',
+		location: 'kernel/source/positions/SourceLocation',
+		locationSpan: 'kernel/source/positions/SourceLocation::span',
+		synthetic: 'kernel/source/positions/SourceLocation::SYNTHETIC',
+		max: 'kernel/source/positions/MAXIMUM_SOURCE_LENGTH',
+		docNew: 'kernel/source/document/Document::new',
+		lineIndex: 'kernel/source/positions/LineIndex',
+		lineCol: 'kernel/source/positions/LineColumn',
+		indexNew: 'kernel/source/positions/LineIndex::with_breaks',
+		utf16: 'kernel/source/positions/LineIndex::utf16',
+		offset: 'kernel/source/positions/LineIndex::offset',
+		wide: 'kernel/source/positions/Wide',
+		roundTest:
+			'kernel/source/positions/tests/an_offset_inside_a_character_rounds_down_to_its_start',
+		located: 'typescript/check/check/run/located',
+	}),
+});

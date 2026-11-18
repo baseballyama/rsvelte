@@ -1,0 +1,1 @@
+<script>function handler(event) { console.log(event.type); }</script><svelte:window onclick={handler} onresize={handler}/><svelte:document onkeydown={handler}/><svelte:body ontouchstart={handler}/><p>Body</p>

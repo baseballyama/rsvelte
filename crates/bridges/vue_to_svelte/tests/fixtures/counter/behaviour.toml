@@ -1,0 +1,9 @@
+[[steps]]
+click = "button.inc"
+
+[[steps]]
+click = "button.inc"
+
+[[steps]]
+click = "button.dec"
+

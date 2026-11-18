@@ -1,0 +1,1 @@
+<script lang="ts"></script><button on:click={handler as any}>x</button>

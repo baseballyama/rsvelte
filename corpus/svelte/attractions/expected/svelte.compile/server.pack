@@ -1,0 +1,769 @@
+# rsvelte pack 1
+=== 426 attractions/autocomplete/more-horizontal.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function More_horizontal($$renderer) {
+	$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>`);
+}
+=== 353 attractions/date-picker/chevron-left.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Chevron_left($$renderer) {
+	$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>`);
+}
+=== 353 attractions/date-picker/chevron-right.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Chevron_right($$renderer) {
+	$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`);
+}
+=== 382 attractions/dialog/x.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function X($$renderer) {
+	$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`);
+}
+=== 690 attractions/file-input/paperclip.svelte	js
+import * as $ from 'svelte/internal/server';
+import classes from '../utils/classes.js';
+
+export default function Paperclip($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let _class = null;
+
+		$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"${$.attr_class($.clsx(
+			/** @type {string | false | null} */ (
+			classes(_class))
+		))}><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>`);
+
+		$.bind_props($$props, { class: _class });
+	});
+}
+=== 350 attractions/file-input/paperclip.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`_class` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 140
+		},
+		"end": {
+			"line": 5,
+			"column": 12,
+			"character": 146
+		}
+	}
+]
+
+=== 642 attractions/file-input/plus.svelte	js
+import * as $ from 'svelte/internal/server';
+import classes from '../utils/classes.js';
+
+export default function Plus($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let _class = null;
+
+		$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"${$.attr_class($.clsx(
+			/** @type {string | false | null} */ (
+			classes(_class))
+		))}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`);
+
+		$.bind_props($$props, { class: _class });
+	});
+}
+=== 350 attractions/file-input/plus.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`_class` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 135
+		},
+		"end": {
+			"line": 5,
+			"column": 12,
+			"character": 141
+		}
+	}
+]
+
+=== 531 attractions/file-input/trash-2.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Trash_2($$renderer) {
+	$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`);
+}
+=== 1 attractions/loading/loading.svelte	css
+
+
+=== 475 attractions/loading/loading.svelte	js
+import * as $ from 'svelte/internal/server';
+import classes from '../utils/classes.js';
+
+export default function Loading($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let _class = null;
+
+		$$renderer.push(`<div${$.attr_class($.clsx(
+			/** @type {string | false | null} */ (
+			classes('spinner', _class))
+		))}><div class="bounce1"></div> <div class="bounce2"></div> <div class="bounce3"></div></div>`);
+
+		$.bind_props($$props, { class: _class });
+	});
+}
+=== 1463 attractions/loading/loading.svelte	warnings.json
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 11,
+			"column": 2,
+			"character": 279
+		},
+		"end": {
+			"line": 11,
+			"column": 25,
+			"character": 302
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 12,
+			"column": 2,
+			"character": 305
+		},
+		"end": {
+			"line": 12,
+			"column": 25,
+			"character": 328
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 13,
+			"column": 2,
+			"character": 331
+		},
+		"end": {
+			"line": 13,
+			"column": 25,
+			"character": 354
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`_class` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 141
+		},
+		"end": {
+			"line": 5,
+			"column": 12,
+			"character": 147
+		}
+	}
+]
+
+=== 410 attractions/star-rating/star.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Star($$renderer) {
+	$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`);
+}
+=== 387 attractions/time-picker/clock.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Clock($$renderer) {
+	$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`);
+}
+=== 1 docs/src/containers/docs/showcase.svelte	css
+
+
+=== 939 docs/src/containers/docs/showcase.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Label } from 'attractions';
+import CopyableCode from 'src/components/docs/copyable-code.svelte';
+
+export default function Showcase($$renderer, $$props) {
+	$$renderer.push(`<section class="showcase">`);
+
+	Label($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Showcase`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----> <!--[-->`);
+	$.slot($$renderer, $$props, 'showcase', {}, null);
+	$$renderer.push(`<!--]--> `);
+
+	Label($$renderer, {
+		class: 'code',
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Source`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----> `);
+
+	CopyableCode($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<!--[-->`);
+			$.slot($$renderer, $$props, 'source', {}, null);
+			$$renderer.push(`<!--]-->`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></section>`);
+}
+=== 661 docs/src/containers/docs/showcase.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 8,
+			"column": 2,
+			"character": 185
+		},
+		"end": {
+			"line": 8,
+			"column": 26,
+			"character": 209
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 11,
+			"column": 4,
+			"character": 268
+		},
+		"end": {
+			"line": 11,
+			"column": 26,
+			"character": 290
+		}
+	}
+]
+
+=== 1 docs/src/containers/home/info-tiles.svelte	css
+
+
+=== 1826 docs/src/containers/home/info-tiles.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+import * as attractions from 'attractions';
+import { s, formatFileSize } from 'attractions/utils';
+import { GridIcon, Edit2Icon, FeatherIcon } from 'svelte-feather-icons';
+import InfoTile from 'src/components/home/info-tile.svelte';
+
+export default function Info_tiles($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const totalComponents = Object.keys(attractions).length - 1 - // utils
+		1; // importer
+
+		let bundleSizePromise = Promise.resolve(Infinity);
+
+		onMount(() => {
+			bundleSizePromise = fetch(`https://bundlephobia.com/api/size?package=attractions@${process.latest_version}`).then((response) => response.json());
+		});
+
+		$$renderer.push(`<div class="info-tiles">`);
+
+		InfoTile($$renderer, {
+			icon: GridIcon,
+			title: `${$.stringify(totalComponents)} component${$.stringify(s(totalComponents))}`,
+			subtitle: 'and more to come!',
+			href: './docs/components/button'
+		});
+
+		$$renderer.push(`<!----> `);
+
+		InfoTile($$renderer, {
+			icon: Edit2Icon,
+			title: 'Stylable with Sass',
+			subtitle: 'customize colors, fonts, shadows!',
+			href: './docs/installation'
+		});
+
+		$$renderer.push(`<!----> `);
+
+		$.await(
+			$$renderer,
+			bundleSizePromise,
+			() => {
+				InfoTile($$renderer, {
+					icon: FeatherIcon,
+					title: 'Calculating bundle size',
+					subtitle: 'gimme a sec...',
+					href: 'https://bundlephobia.com/result?p=attractions'
+				});
+			},
+			(bundleSize) => {
+				InfoTile($$renderer, {
+					icon: FeatherIcon,
+					title: `${$.stringify(formatFileSize(bundleSize['size']))} in size`,
+					subtitle: `and only ${$.stringify(formatFileSize(bundleSize['gzip']))} gzipped!`,
+					href: 'https://bundlephobia.com/result?p=attractions'
+				});
+			}
+		);
+
+		$$renderer.push(`<!--]--></div>`);
+	});
+}
+=== 363 docs/src/containers/home/info-tiles.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`bundleSizePromise` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 6,
+			"character": 393
+		},
+		"end": {
+			"line": 12,
+			"column": 23,
+			"character": 410
+		}
+	}
+]
+
+=== 924 docs/src/mdsvex/layout-no-head.svelte	js
+import * as $ from 'svelte/internal/server';
+import Heading1 from 'src/mdsvex/h1.svelte';
+import Heading2 from 'src/mdsvex/h2.svelte';
+import Heading3 from 'src/mdsvex/h3.svelte';
+import UnorderedList from 'src/mdsvex/ul.svelte';
+import ListItem from 'src/mdsvex/li.svelte';
+import Table from 'src/mdsvex/table.svelte';
+import TableHead from 'src/mdsvex/th.svelte';
+import TableRow from 'src/mdsvex/tr.svelte';
+import TableData from 'src/mdsvex/td.svelte';
+import Mark from 'src/mdsvex/mark.svelte';
+import Paragraph from 'src/mdsvex/p.svelte';
+
+export {
+	Heading1 as h1,
+	Heading2 as h2,
+	Heading3 as h3,
+	UnorderedList as ul,
+	ListItem as li,
+	Table as table,
+	TableHead as th,
+	TableRow as tr,
+	TableData as td,
+	Mark as mark,
+	Paragraph as p
+};
+
+export default function Layout_no_head($$renderer, $$props) {
+	$$renderer.push(`<!--[-->`);
+	$.slot($$renderer, $$props, 'default', {}, null);
+	$$renderer.push(`<!--]-->`);
+}
+=== 644 docs/src/mdsvex/layout-no-head.svelte	warnings.json
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"column": 24,
+			"character": 24
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 29,
+			"column": 0,
+			"character": 801
+		},
+		"end": {
+			"line": 29,
+			"column": 8,
+			"character": 809
+		}
+	}
+]
+
+=== 1 docs/src/mdsvex/li.svelte	css
+
+
+=== 217 docs/src/mdsvex/li.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Li($$renderer, $$props) {
+	$$renderer.push(`<li><!--[-->`);
+	$.slot($$renderer, $$props, 'default', {}, null);
+	$$renderer.push(`<!--]--></li>`);
+}
+=== 328 docs/src/mdsvex/li.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 2,
+			"column": 2,
+			"character": 7
+		},
+		"end": {
+			"line": 2,
+			"column": 10,
+			"character": 15
+		}
+	}
+]
+
+=== 1 docs/src/mdsvex/mark.svelte	css
+
+
+=== 223 docs/src/mdsvex/mark.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Mark($$renderer, $$props) {
+	$$renderer.push(`<mark><!--[-->`);
+	$.slot($$renderer, $$props, 'default', {}, null);
+	$$renderer.push(`<!--]--></mark>`);
+}
+=== 328 docs/src/mdsvex/mark.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 1,
+			"column": 6,
+			"character": 6
+		},
+		"end": {
+			"line": 1,
+			"column": 14,
+			"character": 14
+		}
+	}
+]
+
+=== 1 docs/src/mdsvex/p.svelte	css
+
+
+=== 214 docs/src/mdsvex/p.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function P($$renderer, $$props) {
+	$$renderer.push(`<p><!--[-->`);
+	$.slot($$renderer, $$props, 'default', {}, null);
+	$$renderer.push(`<!--]--></p>`);
+}
+=== 328 docs/src/mdsvex/p.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 2,
+			"column": 2,
+			"character": 6
+		},
+		"end": {
+			"line": 2,
+			"column": 10,
+			"character": 14
+		}
+	}
+]
+
+=== 1 docs/src/mdsvex/table.svelte	css
+
+
+=== 226 docs/src/mdsvex/table.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Table($$renderer, $$props) {
+	$$renderer.push(`<table><!--[-->`);
+	$.slot($$renderer, $$props, 'default', {}, null);
+	$$renderer.push(`<!--]--></table>`);
+}
+=== 329 docs/src/mdsvex/table.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 2,
+			"column": 2,
+			"character": 10
+		},
+		"end": {
+			"line": 2,
+			"column": 10,
+			"character": 18
+		}
+	}
+]
+
+=== 1 docs/src/mdsvex/td.svelte	css
+
+
+=== 217 docs/src/mdsvex/td.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Td($$renderer, $$props) {
+	$$renderer.push(`<td><!--[-->`);
+	$.slot($$renderer, $$props, 'default', {}, null);
+	$$renderer.push(`<!--]--></td>`);
+}
+=== 328 docs/src/mdsvex/td.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 2,
+			"column": 2,
+			"character": 7
+		},
+		"end": {
+			"line": 2,
+			"column": 10,
+			"character": 15
+		}
+	}
+]
+
+=== 1 docs/src/mdsvex/th.svelte	css
+
+
+=== 403 docs/src/mdsvex/th.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Label } from 'attractions';
+
+export default function Th($$renderer, $$props) {
+	$$renderer.push(`<th>`);
+
+	Label($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<!--[-->`);
+			$.slot($$renderer, $$props, 'default', {}, null);
+			$$renderer.push(`<!--]-->`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></th>`);
+}
+=== 329 docs/src/mdsvex/th.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 7,
+			"column": 4,
+			"character": 78
+		},
+		"end": {
+			"line": 7,
+			"column": 12,
+			"character": 86
+		}
+	}
+]
+
+=== 1 docs/src/mdsvex/tr.svelte	css
+
+
+=== 217 docs/src/mdsvex/tr.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Tr($$renderer, $$props) {
+	$$renderer.push(`<tr><!--[-->`);
+	$.slot($$renderer, $$props, 'default', {}, null);
+	$$renderer.push(`<!--]--></tr>`);
+}
+=== 328 docs/src/mdsvex/tr.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 2,
+			"column": 2,
+			"character": 7
+		},
+		"end": {
+			"line": 2,
+			"column": 10,
+			"character": 15
+		}
+	}
+]
+
+=== 1 docs/src/mdsvex/ul.svelte	css
+
+
+=== 217 docs/src/mdsvex/ul.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Ul($$renderer, $$props) {
+	$$renderer.push(`<ul><!--[-->`);
+	$.slot($$renderer, $$props, 'default', {}, null);
+	$$renderer.push(`<!--]--></ul>`);
+}
+=== 328 docs/src/mdsvex/ul.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 2,
+			"column": 2,
+			"character": 7
+		},
+		"end": {
+			"line": 2,
+			"column": 10,
+			"character": 15
+		}
+	}
+]
+
+=== 1 docs/src/routes/index.svelte	css
+
+
+=== 2105 docs/src/routes/index.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Card, Button, H1 } from 'attractions';
+import { BookOpenIcon, GithubIcon } from 'svelte-feather-icons';
+import InfoTiles from 'src/containers/home/info-tiles.svelte';
+
+export default function Routes($$renderer) {
+	$.head('1iahb9e', $$renderer, ($$renderer) => {
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>Attractions</title>`);
+		});
+
+		$$renderer.push(`<meta name="og:title" content="Attractions"/>`);
+	});
+
+	$$renderer.push(`<main>`);
+
+	Card($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<header><img src="logo-no-bg.svg" alt="Attractions logo"/> `);
+
+			H1($$renderer, {
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->Attractions`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <a href="./docs/changelog" class="hide-on-tb-more" sapper:prefetch="">v${$.escape(process.latest_version)}</a></header> <p>A <mark>pretty cool</mark> UI kit for <a href="https://svelte.dev">Svelte</a>.</p> <div class="actions">`);
+
+			Button($$renderer, {
+				filled: true,
+				href: './docs',
+				children: ($$renderer) => {
+					BookOpenIcon($$renderer, { size: '24', class: 'mr' });
+					$$renderer.push(`<!----> docs`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Button($$renderer, {
+				outline: true,
+				class: 'ml',
+				href: 'https://github.com/illright/attractions',
+				children: ($$renderer) => {
+					GithubIcon($$renderer, { size: '24', class: 'mr' });
+					$$renderer.push(`<!----> GitHub`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----></div>`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----> <div class="strip"></div> `);
+	InfoTiles($$renderer, {});
+
+	$$renderer.push(`<!----> <footer><p>made with ❤ by <a href="https://github.com/aabounegm">@aabounegm</a> and <a href="https://github.com/illright">@illright</a></p> <p>${$.escape(process.license)}
+      licensed  •  <a href="./docs/changelog" sapper:prefetch="">v${$.escape(process.latest_version)}</a></p></footer></main>`);
+}
+=== 1041 docs/src/routes/index.svelte	warnings.json
+[
+	{
+		"code": "attribute_illegal_colon",
+		"message": "Attributes should not contain ':' characters to prevent ambiguity with Svelte directives\nhttps://svelte.dev/e/attribute_illegal_colon",
+		"start": {
+			"line": 17,
+			"column": 57,
+			"character": 481
+		},
+		"end": {
+			"line": 17,
+			"column": 72,
+			"character": 496
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 36,
+			"column": 2,
+			"character": 981
+		},
+		"end": {
+			"line": 36,
+			"column": 23,
+			"character": 1002
+		}
+	},
+	{
+		"code": "attribute_illegal_colon",
+		"message": "Attributes should not contain ':' characters to prevent ambiguity with Svelte directives\nhttps://svelte.dev/e/attribute_illegal_colon",
+		"start": {
+			"line": 48,
+			"column": 33,
+			"character": 1290
+		},
+		"end": {
+			"line": 48,
+			"column": 48,
+			"character": 1305
+		}
+	}
+]
+

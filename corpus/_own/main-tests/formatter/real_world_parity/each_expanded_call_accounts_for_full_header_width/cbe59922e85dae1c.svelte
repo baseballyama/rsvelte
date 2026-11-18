@@ -1,0 +1,19 @@
+<section>
+  <div>
+    <div>
+      <div>
+        <div>
+          <div>
+            <div>
+              <div>
+                {#each options.filter((option) => selectedValues.has(option.value)) as option (option)}
+                  <div>{option.value}</div>
+                {/each}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

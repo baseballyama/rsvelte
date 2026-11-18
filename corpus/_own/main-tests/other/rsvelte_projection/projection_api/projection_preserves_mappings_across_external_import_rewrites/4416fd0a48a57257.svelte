@@ -1,0 +1,1 @@
+<script>const emoji = "😀"; import x from "../../outside/😀.js";</script><p>{x}</p>

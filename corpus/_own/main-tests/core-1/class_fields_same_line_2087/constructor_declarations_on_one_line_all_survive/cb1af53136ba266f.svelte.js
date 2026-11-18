@@ -1,0 +1,1 @@
+export class Foo { constructor() { this.n = $state(1); this.d = $derived(this.n * 2); } }

@@ -1,0 +1,1 @@
+<script lang="ts">const g = <T,>(x: T) => x;</script><p>{g(1)}</p>

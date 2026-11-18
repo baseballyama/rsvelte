@@ -1,0 +1,1 @@
+<style>:is(.x, .y) + .c { color: red }</style>

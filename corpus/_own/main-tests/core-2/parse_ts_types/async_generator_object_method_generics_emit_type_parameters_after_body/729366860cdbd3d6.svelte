@@ -1,0 +1,1 @@
+<script lang="ts">const o = { async *m<T>(x: T){ yield x } }</script>

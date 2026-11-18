@@ -1,0 +1,1 @@
+<script>const value=123n;</script><p class={value}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

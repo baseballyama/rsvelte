@@ -1,0 +1,1 @@
+<script>let x = new class { v = $state(0); constructor(a, b){} }(1, 2);</script>

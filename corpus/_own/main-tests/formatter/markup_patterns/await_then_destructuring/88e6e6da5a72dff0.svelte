@@ -1,0 +1,1 @@
+{#await req}<p>...</p>{:then {data,status}}<p>{data}</p>{/await}

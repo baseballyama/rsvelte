@@ -1,0 +1,1 @@
+<template lang="pug">p image</template>

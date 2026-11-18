@@ -1,0 +1,4 @@
+<script lang="ts">
+  let { a }: { a: number } = $props();
+</script>
+{a}

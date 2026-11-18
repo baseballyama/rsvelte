@@ -1,0 +1,1 @@
+<script>let d = $derived(true);</script>{#if d}a{/if}

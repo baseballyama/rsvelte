@@ -1,0 +1,4538 @@
+# rsvelte pack 1
+=== 66 posts/entry-and-exit-css-transitions/examples/Dialog.svelte	css
+
+	.sandbox.svelte-plokgv {
+		margin-bottom: var(--spacing-32);
+	}
+
+=== 2178 posts/entry-and-exit-css-transitions/examples/Dialog.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Sandbox } from '@sveltecraft/sandbox';
+
+export default function Dialog($$renderer) {
+	$$renderer.push(`<div class="sandbox svelte-plokgv">`);
+
+	Sandbox($$renderer, {
+		height: 400,
+		code: {
+			html: `
+				<button class="show">
+					Open Modal
+				</button>
+
+				<dialog>
+					<img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExenhpdjk1c3lybTI5cjVuYWEzaDYxNnc1NDA2eXpzMXdtNnY1YnpkNyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/lgcUUCXgC8mEo/giphy.gif" />
+					<button class="close">Close</button>
+				</dialog>
+			`,
+
+			css: `
+				body {
+					display: grid;
+					place-content: center;
+				}
+
+				button {
+					margin: 0;
+					padding: 1rem;
+					font-weight: 600;
+					color: #fff;
+					background: #1d1f24;
+					border: 1px solid #2c2e33;
+					border-radius: 0.5rem;
+
+					&.close {
+						margin-top: 1rem;
+					}
+				}
+
+				dialog {
+					margin: auto;
+					padding: 1rem;
+					border-radius: 0.5rem;
+					color: #fff;
+					background: #191a1f;
+					border: 1px solid #2c2e33;
+
+					translate: 0 100svh;
+					transition:
+						translate 1s,
+						overlay 1s allow-discrete,
+						display 1s allow-discrete;
+
+					img {
+						border-radius: 0.5rem;
+					}
+				}
+
+				dialog:open {
+					translate: 0 0;
+
+					@starting-style {
+						translate: 0 -100svh;
+					}
+				}
+
+				dialog::backdrop {
+					background-color: transparent;
+					transition:
+						display 1s allow-discrete,
+						overlay 1s allow-discrete,
+						background-color 1s;
+				}
+
+				dialog:open::backdrop {
+					background-color: oklch(0% 0 0 / 50%);
+				}
+
+				@starting-style {
+					dialog:open::backdrop {
+						background-color: transparent;
+					}
+				}
+			`,
+
+			script: `
+				const show = document.querySelector('.show');
+				const close = document.querySelector('.close');
+				const dialog = document.querySelector('dialog');
+
+				show.addEventListener('click', () => {
+					dialog.showModal();
+				});
+
+				close.addEventListener('click', () => {
+					dialog.close();
+				});
+
+				dialog.addEventListener('click', (e) => {
+					if (e.target === dialog) {
+						dialog.close();
+					}
+				});
+			`
+		}
+	});
+
+	$$renderer.push(`<!----></div>`);
+}
+=== 66 posts/entry-and-exit-css-transitions/examples/Discrete.svelte	css
+
+	.sandbox.svelte-iss2fw {
+		margin-bottom: var(--spacing-32);
+	}
+
+=== 1421 posts/entry-and-exit-css-transitions/examples/Discrete.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Sandbox } from '@sveltecraft/sandbox';
+
+export default function Discrete($$renderer) {
+	$$renderer.push(`<div class="sandbox svelte-iss2fw">`);
+
+	Sandbox($$renderer, {
+		height: 400,
+		code: {
+			html: `
+				<p>click a box to remove it</p>
+
+				<div class="boxes">
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+				</div>
+			`,
+
+			css: `
+				body {
+					display: grid;
+					place-content: center;
+					text-align: center;
+				}
+
+				.boxes {
+					display: flex;
+					gap: 0.5rem;
+
+					.box {
+						width: clamp(60px, 20dvw, 100px);
+						height: clamp(60px, 20dvw, 100px);
+						background: #00ffcc;
+						border-radius: 0.5rem;
+						transition:
+							opacity 0.5s,
+							translate 0.5s,
+							background 0.5s,
+							display 0.5s allow-discrete;
+						transition-delay: calc(0.1s * sibling-index());
+
+						@starting-style {
+							opacity: 0;
+							translate: 0 20px;
+						}
+
+						&[hidden] {
+							display: none;
+							opacity: 0;
+							translate: 0 20px;
+						}
+					}
+				}
+			`,
+
+			script: `
+				document
+					.querySelector('.boxes')
+					.addEventListener('click', (e) => {
+						const box = e.target.closest('.box');
+						if (!box) return;
+						box.hidden = true;
+						box.ontransitionend = () => box.remove();
+					});
+			`
+		}
+	});
+
+	$$renderer.push(`<!----></div>`);
+}
+=== 66 posts/entry-and-exit-css-transitions/examples/KeyframeToggle.svelte	css
+
+	.sandbox.svelte-krv4xr {
+		margin-bottom: var(--spacing-32);
+	}
+
+=== 1700 posts/entry-and-exit-css-transitions/examples/KeyframeToggle.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Sandbox } from '@sveltecraft/sandbox';
+
+export default function KeyframeToggle($$renderer) {
+	$$renderer.push(`<div class="sandbox svelte-krv4xr">`);
+
+	Sandbox($$renderer, {
+		height: 400,
+		code: {
+			html: `
+				<div class="toggle">
+					<input type="checkbox" id="toggle" checked />
+					<label for="toggle">
+						<span>Toggle Keyframes</span>
+					</label>
+				</div>
+
+				<div class="boxes">
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+				</div>
+			`,
+
+			css: `
+				body {
+					display: grid;
+					place-content: center;
+				}
+
+				body:has(#toggle:checked) .box {
+					animation: fadeIn 0.8s forwards;
+					animation-delay: calc(0.1s * sibling-index());
+				}
+
+				.toggle {
+					display: grid;
+					place-content: center;
+					margin-bottom: 2rem;
+
+					input[type="checkbox"] {
+						display: none;
+					}
+
+					#toggle:checked + label {
+						color: #000;
+						background: #00ffcc;
+					}
+
+					label {
+						display: flex;
+						align-items: center;
+						padding: 1rem;
+						font-weight: 600;
+						color: #fff;
+						background: #1d1f24;
+						border: 1px solid #2c2e33;
+						border-radius: 0.5rem;
+						transition: color 0.4s, background 0.4s;
+					}
+				}
+
+				.boxes {
+					display: flex;
+					gap: 0.5rem;
+
+					.box {
+						width: clamp(60px, 20dvw, 100px);
+						height: clamp(60px, 20dvw, 100px);
+						background: #00ffcc;
+						border-radius: 0.5rem;
+						opacity: 0;
+						translate: 0 20px;
+					}
+				}
+
+				@keyframes fadeIn {
+					to {
+						opacity: 1;
+						translate: 0 0;
+					}
+				}
+			`
+		}
+	});
+
+	$$renderer.push(`<!----></div>`);
+}
+=== 67 posts/entry-and-exit-css-transitions/examples/Keyframes.svelte	css
+
+	.sandbox.svelte-1wse75o {
+		margin-bottom: var(--spacing-32);
+	}
+
+=== 1027 posts/entry-and-exit-css-transitions/examples/Keyframes.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Sandbox } from '@sveltecraft/sandbox';
+
+export default function Keyframes($$renderer) {
+	$$renderer.push(`<div class="sandbox svelte-1wse75o">`);
+
+	Sandbox($$renderer, {
+		height: 400,
+		code: {
+			html: `
+				<h2>@keyframes</h2>
+
+				<div class="boxes">
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+				</div>
+			`,
+
+			css: `
+				body {
+					display: grid;
+					place-content: center;
+				}
+
+				@keyframes fadeIn {
+					from {
+						opacity: 0;
+						translate: 0 20px;
+					}
+					to {
+						opacity: 1;
+						translate: 0 0;
+					}
+				}
+
+				.boxes {
+					display: flex;
+					gap: 0.5rem;
+
+					.box {
+						width: clamp(60px, 20dvw, 100px);
+						height: clamp(60px, 20dvw, 100px);
+						background: #00ffcc;
+						border-radius: 0.5rem;
+						animation: fadeIn 0.8s backwards;
+						animation-delay: calc(0.3s * sibling-index());
+					}
+				}
+			`
+		}
+	});
+
+	$$renderer.push(`<!----></div>`);
+}
+=== 67 posts/entry-and-exit-css-transitions/examples/TransitionToggle.svelte	css
+
+	.sandbox.svelte-1b4asbw {
+		margin-bottom: var(--spacing-32);
+	}
+
+=== 1744 posts/entry-and-exit-css-transitions/examples/TransitionToggle.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Sandbox } from '@sveltecraft/sandbox';
+
+export default function TransitionToggle($$renderer) {
+	$$renderer.push(`<div class="sandbox svelte-1b4asbw">`);
+
+	Sandbox($$renderer, {
+		height: 400,
+		code: {
+			html: `
+				<div class="toggle">
+					<input type="checkbox" id="toggle" checked />
+					<label for="toggle">
+						<span>Toggle Transition</span>
+					</label>
+				</div>
+
+				<div class="boxes">
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+				</div>
+			`,
+
+			css: `
+				body {
+					display: grid;
+					place-content: center;
+				}
+
+				body:has(#toggle:checked) .box {
+					opacity: 1;
+					translate: 0 0;
+				}
+
+				.toggle {
+					display: grid;
+					place-content: center;
+					margin-bottom: 2rem;
+
+					input[type="checkbox"] {
+						display: none;
+					}
+
+					#toggle:checked + label {
+						color: #000;
+						background: #ffff00;
+					}
+
+					label {
+						display: flex;
+						align-items: center;
+						padding: 1rem;
+						font-weight: 600;
+						color: #fff;
+						background: #1d1f24;
+						border: 1px solid #2c2e33;
+						border-radius: 0.5rem;
+						transition: color 0.4s, background 0.4s;
+					}
+				}
+
+				.boxes {
+					display: flex;
+					gap: 0.5rem;
+
+					.box {
+						width: clamp(60px, 20dvw, 100px);
+						height: clamp(60px, 20dvw, 100px);
+						background: #ffff00;
+						border-radius: 0.5rem;
+						opacity: 0;
+						translate: 0 20px;
+						transition: opacity 0.8s, translate 0.8s;
+						transition-delay: calc(0.1s * sibling-index());
+
+						@starting-style {
+							opacity: 0;
+							translate: 0 20px;
+						}
+					}
+				}
+			`
+		}
+	});
+
+	$$renderer.push(`<!----></div>`);
+}
+=== 66 posts/entry-and-exit-css-transitions/examples/Transitions.svelte	css
+
+	.sandbox.svelte-cyayiv {
+		margin-bottom: var(--spacing-32);
+	}
+
+=== 970 posts/entry-and-exit-css-transitions/examples/Transitions.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Sandbox } from '@sveltecraft/sandbox';
+
+export default function Transitions($$renderer) {
+	$$renderer.push(`<div class="sandbox svelte-cyayiv">`);
+
+	Sandbox($$renderer, {
+		height: 400,
+		code: {
+			html: `
+				<h2>@starting-style</h2>
+
+				<div class="boxes">
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+				</div>
+			`,
+
+			css: `
+				body {
+					display: grid;
+					place-content: center;
+				}
+
+				.boxes {
+					display: flex;
+					gap: 0.5rem;
+
+					.box {
+						width: clamp(60px, 20dvw, 100px);
+						height: clamp(60px, 20dvw, 100px);
+						background: #ffff00;
+						border-radius: 0.5rem;
+						transition: opacity 0.8s, translate 0.8s;
+						transition-delay: calc(0.3s * sibling-index());
+
+						@starting-style {
+							opacity: 0;
+							translate: 0 20px;
+						}
+					}
+				}
+			`
+		}
+	});
+
+	$$renderer.push(`<!----></div>`);
+}
+=== 66 posts/entry-and-exit-css-transitions/examples/ViewTransition.svelte	css
+
+	.sandbox.svelte-wniarl {
+		margin-bottom: var(--spacing-32);
+	}
+
+=== 1664 posts/entry-and-exit-css-transitions/examples/ViewTransition.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Sandbox } from '@sveltecraft/sandbox';
+
+export default function ViewTransition($$renderer) {
+	$$renderer.push(`<div class="sandbox svelte-wniarl">`);
+
+	Sandbox($$renderer, {
+		height: 400,
+		code: {
+			html: `
+				<p>click a box to remove it</p>
+
+				<div class="boxes">
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+				</div>
+			`,
+
+			css: `
+				body {
+					display: grid;
+					place-content: center;
+					text-align: center;
+				}
+
+				.boxes {
+					display: flex;
+					gap: 0.5rem;
+
+					.box {
+						width: clamp(60px, 20dvw, 100px);
+						height: clamp(60px, 20dvw, 100px);
+						background: #00ffcc;
+						border-radius: 0.5rem;
+					}
+				}
+
+				::view-transition-group(.box) {
+					animation-delay: 0.3s;
+				}
+
+				::view-transition-new(enter) {
+					animation: enter 0.5s;
+				}
+
+				::view-transition-old(leave) {
+					animation: leave 0.5s forwards;
+				}
+
+				@keyframes enter {
+					from { opacity: 0; translate: 0 20px; }
+					to { opacity: 1; translate: 0 0; }
+				}
+
+				@keyframes leave {
+					to { opacity: 0; translate: 0 20px; }
+				}
+			`,
+
+			script: `
+				document.querySelector('.boxes').addEventListener('click', (e) => {
+					const box = e.target.closest('.box');
+					if (!box) return;
+
+					document.querySelectorAll('.box').forEach((b, i) => {
+						const name = b === box ? 'leave' : \`box-\${i}\`;
+						b.style.viewTransitionName = name;
+						b.style.viewTransitionClass = 'box';
+					});
+
+					document.startViewTransition(() => box.remove());
+				});
+			`
+		}
+	});
+
+	$$renderer.push(`<!----></div>`);
+}
+=== 53 posts/learn-svelte/examples/accordion.svelte	css
+
+	.container.svelte-1rjire7 {
+		text-align: left;
+	}
+
+=== 1168 posts/learn-svelte/examples/accordion.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Accordion, AccordionItem } from './accordion/index';
+
+export default function Accordion_1($$renderer) {
+	$$renderer.push(`<div class="container svelte-1rjire7">`);
+
+	Accordion($$renderer, {
+		children: ($$renderer) => {
+			AccordionItem($$renderer, {
+				title: 'Item A',
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->Content A`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			AccordionItem($$renderer, {
+				title: 'Item B',
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->Content A`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			AccordionItem($$renderer, {
+				title: 'Item C',
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->Content A`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			AccordionItem($$renderer, {
+				title: 'Item D',
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->Content A`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!---->`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></div>`);
+}
+=== 434 posts/learn-svelte/examples/accordion/accordion-item.svelte	css
+
+	.accordion-item.svelte-sjmdz8 {
+		&:not(:last-child) {
+			margin-bottom: var(--spacing-24);
+		}
+
+		.accordion-heading:where(.svelte-sjmdz8) {
+			display: flex;
+			gap: var(--spacing-32);
+			padding: 0px;
+			border: none;
+		}
+
+		.accordion-trigger:where(.svelte-sjmdz8) {
+			transition: rotate 0.2s ease;
+
+			&.open {
+				rotate: -90deg;
+			}
+		}
+
+		.accordion-content:where(.svelte-sjmdz8) {
+			margin-top: var(--spacing-8);
+		}
+	}
+
+=== 731 posts/learn-svelte/examples/accordion/accordion-item.svelte	js
+import * as $ from 'svelte/internal/server';
+import { slide } from 'svelte/transition';
+
+export default function Accordion_item($$renderer, $$props) {
+	let { title, children } = $$props;
+	let open = false;
+
+	function toggle() {
+		open = !open;
+	}
+
+	$$renderer.push(`<div class="accordion-item svelte-sjmdz8"><button class="accordion-heading svelte-sjmdz8"><div>${$.escape(title)}</div> <div${$.attr_class('accordion-trigger svelte-sjmdz8', void 0, { 'open': open })}>👈️</div></button> `);
+
+	if (open) {
+		$$renderer.push(`<!--[0--><div class="accordion-content svelte-sjmdz8">`);
+		children?.($$renderer);
+		$$renderer.push(`<!----></div>`);
+	} else {
+		$$renderer.push('<!--[-1-->');
+	}
+
+	$$renderer.push(`<!--]--></div>`);
+}
+=== 239 posts/learn-svelte/examples/accordion/accordion.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Accordion($$renderer, $$props) {
+	let { children } = $$props;
+
+	$$renderer.push(`<div class="accordion">`);
+	children?.($$renderer);
+	$$renderer.push(`<!----></div>`);
+}
+=== 113 posts/learn-svelte/examples/attachment.svelte	css
+
+	.box.svelte-dfd248 {
+		width: 100px;
+		height: 100px;
+		background-color: orangered;
+		border-radius: 1rem;
+	}
+
+=== 184 posts/learn-svelte/examples/attachment.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Attachment($$renderer) {
+	$$renderer.push(`<div class="container"><div class="box svelte-dfd248"></div></div>`);
+}
+=== 277 posts/learn-svelte/examples/attributes.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Attributes($$renderer) {
+	let src = 'https://svelte.dev/tutorial/image.gif';
+	let alt = 'Person dancing';
+
+	$$renderer.push(`<div class="container"><img${$.attr('src', src)}${$.attr('alt', alt)}/></div>`);
+}
+=== 203 posts/learn-svelte/examples/counter.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Counter($$renderer) {
+	let count = 0;
+
+	$$renderer.push(`<div class="container"><button>Count: ${$.escape(count)}</button></div>`);
+}
+=== 561 posts/learn-svelte/examples/crossfade-flip.svelte	css
+
+	.container.svelte-i6picb {
+		text-align: left;
+	}
+
+	.posts.svelte-i6picb {
+		display: flex;
+
+		section:where(.svelte-i6picb) {
+			display: grid;
+			grid-template-columns: repeat(2, 240px);
+			gap: var(--spacing-32);
+		}
+	}
+
+	.archive.svelte-i6picb {
+		section:where(.svelte-i6picb) {
+			display: block;
+			width: 200px;
+			margin-top: 1rem;
+
+			article:where(.svelte-i6picb):not(:last-child) {
+				margin-bottom: var(--spacing-16);
+			}
+		}
+	}
+
+	p.svelte-i6picb {
+		margin-bottom: var(--spacing-8);
+	}
+
+	button.svelte-i6picb {
+		padding: var(--spacing-4);
+	}
+
+=== 2471 posts/learn-svelte/examples/crossfade-flip.svelte	js
+import * as $ from 'svelte/internal/server';
+import { flip } from 'svelte/animate';
+import { crossfade } from 'svelte/transition';
+
+export default function Crossfade_flip($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const [send, receive] = crossfade({});
+
+		let posts = [
+			{
+				id: 1,
+				title: 'Post A',
+				description: 'Content',
+				published: true
+			},
+
+			{
+				id: 2,
+				title: 'Post B',
+				description: 'Content',
+				published: true
+			},
+
+			{
+				id: 3,
+				title: 'Post C',
+				description: 'Content',
+				published: true
+			},
+
+			{
+				id: 4,
+				title: 'Post D',
+				description: 'Content',
+				published: true
+			}
+		];
+
+		function togglePublished(post) {
+			const index = posts.findIndex((p) => p.id === post.id);
+
+			posts[index].published = !posts[index].published;
+		}
+
+		function removePost(post) {
+			const index = posts.findIndex((p) => p.id === post.id);
+
+			posts.splice(index, 1);
+		}
+
+		$$renderer.push(`<div class="container svelte-i6picb"><div><div class="posts svelte-i6picb"><div><section class="svelte-i6picb">`);
+
+		const each_array = $.ensure_array_like(posts.filter((posts) => posts.published));
+
+		if (each_array.length !== 0) {
+			$$renderer.push('<!--[-->');
+
+			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+				let post = each_array[$$index];
+
+				$$renderer.push(`<article><h3>${$.escape(post.title)}</h3> <p class="svelte-i6picb">${$.escape(post.description)}</p> <div><button class="svelte-i6picb">✏️</button> <button class="svelte-i6picb">💾</button> <button class="svelte-i6picb">❌</button></div></article>`);
+			}
+		} else {
+			$$renderer.push(`<!--[!--><p class="svelte-i6picb">There are no posts.</p>`);
+		}
+
+		$$renderer.push(`<!--]--></section></div> <div class="archive svelte-i6picb"><section class="svelte-i6picb">`);
+
+		const each_array_1 = $.ensure_array_like(posts.filter((posts) => !posts.published));
+
+		if (each_array_1.length !== 0) {
+			$$renderer.push('<!--[-->');
+
+			for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+				let post = each_array_1[$$index_1];
+
+				$$renderer.push(`<article class="svelte-i6picb"><h3>${$.escape(post.title)}</h3> <div><button class="svelte-i6picb">♻️</button></div></article>`);
+			}
+		} else {
+			$$renderer.push(`<!--[!--><p class="svelte-i6picb">Archived items go here.</p>`);
+		}
+
+		$$renderer.push(`<!--]--></section></div></div></div></div>`);
+	});
+}
+=== 561 posts/learn-svelte/examples/crossfade.svelte	css
+
+	.container.svelte-63h3nf {
+		text-align: left;
+	}
+
+	.posts.svelte-63h3nf {
+		display: flex;
+
+		section:where(.svelte-63h3nf) {
+			display: grid;
+			grid-template-columns: repeat(2, 240px);
+			gap: var(--spacing-32);
+		}
+	}
+
+	.archive.svelte-63h3nf {
+		section:where(.svelte-63h3nf) {
+			display: block;
+			width: 200px;
+			margin-top: 1rem;
+
+			article:where(.svelte-63h3nf):not(:last-child) {
+				margin-bottom: var(--spacing-16);
+			}
+		}
+	}
+
+	p.svelte-63h3nf {
+		margin-bottom: var(--spacing-8);
+	}
+
+	button.svelte-63h3nf {
+		padding: var(--spacing-4);
+	}
+
+=== 2427 posts/learn-svelte/examples/crossfade.svelte	js
+import * as $ from 'svelte/internal/server';
+import { crossfade } from 'svelte/transition';
+
+export default function Crossfade($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const [send, receive] = crossfade({});
+
+		let posts = [
+			{
+				id: 1,
+				title: 'Post A',
+				description: 'Content',
+				published: true
+			},
+
+			{
+				id: 2,
+				title: 'Post B',
+				description: 'Content',
+				published: true
+			},
+
+			{
+				id: 3,
+				title: 'Post C',
+				description: 'Content',
+				published: true
+			},
+
+			{
+				id: 4,
+				title: 'Post D',
+				description: 'Content',
+				published: true
+			}
+		];
+
+		function togglePublished(post) {
+			const index = posts.findIndex((p) => p.id === post.id);
+
+			posts[index].published = !posts[index].published;
+		}
+
+		function removePost(post) {
+			const index = posts.findIndex((p) => p.id === post.id);
+
+			posts.splice(index, 1);
+		}
+
+		$$renderer.push(`<div class="container svelte-63h3nf"><div><div class="posts svelte-63h3nf"><div><section class="svelte-63h3nf">`);
+
+		const each_array = $.ensure_array_like(posts.filter((posts) => posts.published));
+
+		if (each_array.length !== 0) {
+			$$renderer.push('<!--[-->');
+
+			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+				let post = each_array[$$index];
+
+				$$renderer.push(`<article><h3>${$.escape(post.title)}</h3> <p class="svelte-63h3nf">${$.escape(post.description)}</p> <div><button class="svelte-63h3nf">✏️</button> <button class="svelte-63h3nf">💾</button> <button class="svelte-63h3nf">❌</button></div></article>`);
+			}
+		} else {
+			$$renderer.push(`<!--[!--><p class="svelte-63h3nf">There are no posts.</p>`);
+		}
+
+		$$renderer.push(`<!--]--></section></div> <div class="archive svelte-63h3nf"><section class="svelte-63h3nf">`);
+
+		const each_array_1 = $.ensure_array_like(posts.filter((posts) => !posts.published));
+
+		if (each_array_1.length !== 0) {
+			$$renderer.push('<!--[-->');
+
+			for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+				let post = each_array_1[$$index_1];
+
+				$$renderer.push(`<article class="svelte-63h3nf"><h3>${$.escape(post.title)}</h3> <div><button class="svelte-63h3nf">♻️</button></div></article>`);
+			}
+		} else {
+			$$renderer.push(`<!--[!--><p class="svelte-63h3nf">Archived items go here.</p>`);
+		}
+
+		$$renderer.push(`<!--]--></section></div></div></div></div>`);
+	});
+}
+=== 165 posts/learn-svelte/examples/custom-transition.svelte	css
+
+	.text.svelte-1hdyhhy {
+		font-size: var(--font-48);
+	}
+
+	button.svelte-1hdyhhy {
+		margin-inline: auto;
+		justify-self: start;
+		margin-top: var(--spacing-32);
+	}
+
+=== 862 posts/learn-svelte/examples/custom-transition.svelte	js
+import * as $ from 'svelte/internal/server';
+import { elasticOut } from 'svelte/easing';
+
+export default function Custom_transition($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		function customTransition(node, options) {
+			const { duration = 2000, delay = 0, easing = elasticOut } = options;
+
+			return {
+				duration,
+				delay,
+				easing,
+				css: (t) => `
+				color: hsl(${360 * t} , 100%, 80%);
+				transform: scale(${t});
+			`
+			};
+		}
+
+		let play = false;
+		let replay = false;
+
+		$$renderer.push(`<div class="container">`);
+
+		if (play) {
+			$$renderer.push(`<!--[0--><!---->`);
+
+			{
+				$$renderer.push(`<div class="text svelte-1hdyhhy">Whoooo!</div>`);
+			}
+
+			$$renderer.push(`<!---->`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> <button class="svelte-1hdyhhy">Replay</button></div>`);
+	});
+}
+=== 264 posts/learn-svelte/examples/derived-by.svelte	css
+
+	.container.svelte-7s141g {
+		text-align: left;
+	}
+
+	div.svelte-7s141g {
+		display: grid;
+		justify-items: start;
+		gap: var(--spacing-16);
+
+		> :where(.svelte-7s141g) {
+			margin: 0;
+		}
+	}
+
+	hr.svelte-7s141g {
+		width: 100%;
+		margin-top: var(--spacing-24);
+	}
+
+=== 738 posts/learn-svelte/examples/derived-by.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Derived_by($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let cart = [{ item: '🍎', total: 10 }, { item: '🍌', total: 10 }];
+
+		let total = $.derived(() => {
+			let sum = 0;
+
+			for (let item of cart) {
+				sum += item.total;
+			}
+
+			return sum;
+		});
+
+		let price = (Math.random() * 100).toFixed();
+
+		$$renderer.push(`<div class="container svelte-7s141g"><div class="svelte-7s141g"><h2 class="svelte-7s141g">Random Item</h2> <p class="svelte-7s141g">Price: ${$.escape(price)}€</p> <button class="svelte-7s141g">Add to cart</button></div> <hr class="svelte-7s141g"/> <b class="svelte-7s141g">Total: ${$.escape(total())}€</b></div>`);
+	});
+}
+=== 84 posts/learn-svelte/examples/derived.svelte	css
+
+	p.svelte-anvqu {
+		font-size: var(--font-32);
+		margin-top: var(--spacing-24);
+	}
+
+=== 416 posts/learn-svelte/examples/derived.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Derived($$renderer) {
+	let count = 0;
+	let factor = 2;
+	let result = $.derived(() => count * factor);
+
+	$$renderer.push(`<div class="container"><div><p class="svelte-anvqu">${$.escape(count)} * ${$.escape(factor)} = ${$.escape(result())}</p> <button>Count: ${$.escape(count)}</button> <button>Factor: ${$.escape(factor)}</button></div></div>`);
+}
+=== 211 posts/learn-svelte/examples/dynamic-classes.svelte	css
+
+	.container.svelte-1qwf8ul {
+		button:where(.svelte-1qwf8ul) {
+			border: none;
+		}
+	}
+
+	.trigger.svelte-1qwf8ul {
+		display: inline-block;
+		transition: rotate 0.2s ease;
+
+		&.open {
+			rotate: -90deg;
+		}
+	}
+
+=== 336 posts/learn-svelte/examples/dynamic-classes.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Dynamic_classes($$renderer) {
+	let open = false;
+
+	$$renderer.push(`<div class="container svelte-1qwf8ul"><button class="svelte-1qwf8ul"><span>Accordion</span> <span${$.attr_class(`trigger ${open ? 'open' : ''}`, 'svelte-1qwf8ul')}>👈️</span></button></div>`);
+}
+=== 190 posts/learn-svelte/examples/editor.svelte	css
+
+	.editor.svelte-i39yxc {
+		text-align: left;
+
+		textarea:where(.svelte-i39yxc) {
+			width: 600px;
+			height: 200px;
+			padding: var(--spacing-8);
+			border-radius: var(--rounded-4);
+		}
+	}
+
+=== 439 posts/learn-svelte/examples/editor.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Editor($$renderer) {
+	let editor = { theme: 'dark', content: '<h1>Svelte</h1>' };
+
+	$$renderer.push(`<div class="container editor svelte-i39yxc"><textarea spellcheck="false" class="svelte-i39yxc">`);
+
+	const $$body = $.escape(editor.content);
+
+	if ($$body) {
+		$$renderer.push(`${$$body}`);
+	} else {}
+
+	$$renderer.push(`</textarea> ${$.html(editor.content)}</div>`);
+}
+=== 701 posts/learn-svelte/examples/example-loader.svelte	css
+
+	.example.svelte-14xmduv {
+		accent-color: orangered;
+
+		height: 400px;
+		margin-bottom: var(--spacing-32);
+		background: var(--clr-code-bg);
+		border-radius: var(--rounded-20);
+		text-align: center;
+		box-shadow: var(--shadow-md);
+		overflow: hidden auto;
+
+		.content:where(.svelte-14xmduv) {
+			height: 100%;
+		}
+
+		/* :global {*/
+			.container {
+				height: 100%;
+				display: grid;
+				place-content: center;
+				padding: var(--spacing-24);
+			}
+
+			button {
+				padding: var(--spacing-16);
+				border: 4px solid var(--clr-primary);
+				border-radius: var(--rounded-20);
+				text-transform: capitalize;
+				transition: scale 0.15s ease-out;
+
+				&:active {
+					scale: 0.9;
+				}
+			}
+		/*}*/
+	}
+
+=== 1388 posts/learn-svelte/examples/example-loader.svelte	js
+import * as $ from 'svelte/internal/server';
+import { fade } from 'svelte/transition';
+
+export default function Example_loader($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { name } = $$props;
+		let status = 'load';
+		let Component = null;
+
+		// @ts-ignore
+		const modules = import.meta.glob('./*.svelte');
+
+		async function load() {
+			const module = modules[`./${name}.svelte`];
+
+			if (module) {
+				Component = (await module()).default;
+				status = 'loaded';
+			} else {
+				console.error(`${name}.svelte not found`);
+			}
+		}
+
+		$.head('14xmduv', $$renderer, ($$renderer) => {
+			$$renderer.push(`<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>`);
+			$$renderer.push(` `);
+			$$renderer.push(`<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Flip.min.js"></script>`);
+		});
+
+		$$renderer.push(`<div class="example svelte-14xmduv">`);
+
+		if (status === 'load') {
+			$$renderer.push(`<!--[0--><div class="container"><button>Show example</button></div>`);
+		} else {
+			$$renderer.push(`<!--[-1--><div class="content svelte-14xmduv">`);
+
+			if (Component) {
+				$$renderer.push('<!--[-->');
+				Component($$renderer, {});
+				$$renderer.push('<!--]-->');
+			} else {
+				$$renderer.push('<!--[!-->');
+				$$renderer.push('<!--]-->');
+			}
+
+			$$renderer.push(`</div>`);
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+	});
+}
+=== 123 posts/learn-svelte/examples/expressions.svelte	css
+
+	.example.svelte-8raa54 {
+		display: flex;
+		align-items: center;
+
+		span:where(.svelte-8raa54) {
+			width: 240px;
+		}
+	}
+
+=== 402 posts/learn-svelte/examples/expressions.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Expressions($$renderer) {
+	let banana = 1;
+
+	$$renderer.push(`<div class="container"><div class="example svelte-8raa54"><button${$.attr('disabled', banana === 0, true)}>-</button> <span class="svelte-8raa54">There's ${$.escape(banana)} ${$.escape(banana === 1 ? 'banana' : 'bananas')} left</span> <button>+</button></div></div>`);
+}
+=== 59 posts/learn-svelte/examples/fade-transition.svelte	css
+
+	.message.svelte-sb6kir {
+		font-size: var(--font-48);
+	}
+
+=== 518 posts/learn-svelte/examples/fade-transition.svelte	js
+import * as $ from 'svelte/internal/server';
+import { fade } from 'svelte/transition';
+
+export default function Fade_transition($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let play = false;
+
+		setInterval(() => play = !play, 2000);
+		$$renderer.push(`<div class="container">`);
+
+		if (play) {
+			$$renderer.push(`<!--[0--><div class="message svelte-sb6kir"><span>Hello</span> <span>World</span></div>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+	});
+}
+=== 236 posts/learn-svelte/examples/global-transitions.svelte	css
+
+	.items.svelte-flcjwr {
+		width: 400px;
+		display: grid;
+		grid-template-columns: repeat(10, 1fr);
+		gap: var(--spacing-16);
+	}
+
+	button.svelte-flcjwr {
+		margin-top: var(--spacing-32);
+		margin-inline: auto;
+		justify-self: start;
+	}
+
+=== 815 posts/learn-svelte/examples/global-transitions.svelte	js
+import * as $ from 'svelte/internal/server';
+import { fade } from 'svelte/transition';
+
+export default function Global_transitions($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let play = false;
+		let replay = false;
+
+		$$renderer.push(`<div class="container">`);
+
+		if (play) {
+			$$renderer.push(`<!--[0--><!---->`);
+
+			{
+				$$renderer.push(`<div class="items svelte-flcjwr"><!--[-->`);
+
+				const each_array = $.ensure_array_like(Array(50));
+
+				for (let i = 0, $$length = each_array.length; i < $$length; i++) {
+					$$renderer.push(`<div>${$.escape(i + 1)}</div>`);
+				}
+
+				$$renderer.push(`<!--]--></div>`);
+			}
+
+			$$renderer.push(`<!---->`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> <button class="svelte-flcjwr">Replay</button></div>`);
+	});
+}
+=== 174 posts/learn-svelte/examples/gsap-box.svelte	css
+
+	.box.svelte-s15w6y {
+		width: 100px;
+		height: 100px;
+		background-color: orangered;
+		border-radius: 1rem;
+	}
+
+	button.svelte-s15w6y {
+		margin-top: var(--spacing-32);
+	}
+
+=== 439 posts/learn-svelte/examples/gsap-box.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+
+export default function Gsap_box($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let animation;
+
+		onMount(() => {
+			animation = window.gsap.to('.box', { rotation: 180, x: 100, duration: 1 });
+		});
+
+		$$renderer.push(`<div class="container"><div class="box svelte-s15w6y"></div> <button class="svelte-s15w6y">Replay</button></div>`);
+	});
+}
+=== 482 posts/learn-svelte/examples/gsap-flip.svelte	css
+
+	.items.svelte-r5xqhe {
+		width: 600px;
+		display: grid;
+		grid-template-columns: repeat(5, 1fr);
+		gap: var(--spacing-8);
+		color: orangered;
+		font-size: var(--font-32);
+		font-weight: 700;
+		text-shadow: 2px 2px 0px #000;
+
+		.item:where(.svelte-r5xqhe) {
+			display: grid;
+			place-content: center;
+			aspect-ratio: 1;
+			background-color: #222;
+			border: 1px solid #333;
+			border-radius: var(--rounded-20);
+		}
+	}
+
+	button.svelte-r5xqhe {
+		margin-top: var(--spacing-24);
+	}
+
+=== 912 posts/learn-svelte/examples/gsap-flip.svelte	js
+import * as $ from 'svelte/internal/server';
+import { tick } from 'svelte';
+
+export default function Gsap_flip($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		gsap.registerPlugin(Flip);
+
+		let items = [...Array(10).keys()];
+
+		// track `items` as a dependency
+		// measure elements before the DOM updates
+		// wait for the DOM update
+		// do the FLIP animation
+		function shuffle() {
+			items = items.toSorted(() => Math.random() - 0.5);
+		}
+
+		$$renderer.push(`<div class="container"><div><div class="items svelte-r5xqhe"><!--[-->`);
+
+		const each_array = $.ensure_array_like(items);
+
+		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+			let item = each_array[$$index];
+
+			$$renderer.push(`<div class="item svelte-r5xqhe">${$.escape(item)}</div>`);
+		}
+
+		$$renderer.push(`<!--]--></div> <button class="svelte-r5xqhe">Shuffle</button></div></div>`);
+	});
+}
+=== 220 posts/learn-svelte/examples/input-binding.svelte	css
+
+	.container.svelte-1tjsi4d {
+		text-align: left;
+	}
+
+	input.svelte-1tjsi4d {
+		color: #000;
+		padding: var(--spacing-16);
+		border-radius: var(--rounded-20);
+	}
+
+	ul.svelte-1tjsi4d {
+		margin-top: var(--spacing-32);
+	}
+
+=== 950 posts/learn-svelte/examples/input-binding.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Input_binding($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let list = ['Angular', 'React', 'Solid', 'Svelte', 'Vue', 'Qwik'];
+		let filteredList = $.derived(() => list.filter((item) => item.toLowerCase().includes(search.toLowerCase())));
+		let search = '';
+
+		$$renderer.push(`<div class="container svelte-1tjsi4d"><input type="search" placeholder="Search"${$.attr('value', search)} class="svelte-1tjsi4d"/> <ul class="svelte-1tjsi4d">`);
+
+		const each_array = $.ensure_array_like(filteredList());
+
+		if (each_array.length !== 0) {
+			$$renderer.push('<!--[-->');
+
+			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+				let item = each_array[$$index];
+
+				$$renderer.push(`<li>${$.escape(item)}</li>`);
+			}
+		} else {
+			$$renderer.push(`<!--[!--><p>No results</p>`);
+		}
+
+		$$renderer.push(`<!--]--></ul></div>`);
+	});
+}
+=== 57 posts/learn-svelte/examples/mouse-position.svelte	css
+
+	div.svelte-1yst2r4 {
+		width: 100%;
+		height: 100%;
+	}
+
+=== 488 posts/learn-svelte/examples/mouse-position.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Mouse_position($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let mouse = { x: 0, y: 0 };
+
+		function onmousemove(e) {
+			const rect = this.getBoundingClientRect();
+
+			mouse.x = e.clientX - rect.left;
+			mouse.y = e.clientY - rect.top;
+		}
+
+		$$renderer.push(`<div class="container svelte-1yst2r4">The mouse position is ${$.escape(mouse.x.toFixed())} x ${$.escape(mouse.y.toFixed())}</div>`);
+	});
+}
+=== 324 posts/learn-svelte/examples/mouse-position.svelte	warnings.json
+[
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a mousemove handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 11,
+			"column": 0,
+			"character": 220
+		},
+		"end": {
+			"line": 13,
+			"column": 6,
+			"character": 329
+		}
+	}
+]
+
+=== 212 posts/learn-svelte/examples/pokemon-search.svelte	css
+
+	input.svelte-m5x4cx {
+		padding: var(--spacing-16);
+		color: #000;
+		border-radius: var(--rounded-20);
+	}
+
+	img.svelte-m5x4cx {
+		width: 200px;
+		margin-top: var(--spacing-24);
+		image-rendering: pixelated;
+	}
+
+=== 732 posts/learn-svelte/examples/pokemon-search.svelte	js
+import * as $ from 'svelte/internal/server';
+import { getAbortSignal } from 'svelte';
+
+export default function Pokemon_search($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let pokemon = 'charizard';
+		let image = '';
+
+		async function getPokemon(pokemon) {
+			const baseUrl = 'https://pokeapi.co/api/v2/pokemon';
+			const response = await fetch(`${baseUrl}/${pokemon}`, { signal: getAbortSignal() });
+
+			if (!response.ok) throw new Error('💣️ oops!');
+
+			return response.json();
+		}
+
+		$$renderer.push(`<div class="container"><div><input type="search" placeholder="Enter Pokemon name" class="svelte-m5x4cx"/> <img${$.attr('src', image)}${$.attr('alt', pokemon)} class="svelte-m5x4cx"/></div></div>`);
+	});
+}
+=== 252 posts/learn-svelte/examples/reactive-events.svelte	css
+
+	.box.svelte-tpp10s {
+		aspect-ratio: 1;
+		width: 100px;
+		margin-bottom: var(--spacing-8);
+		background-color: orangered;
+		border-radius: 1rem;
+	}
+
+	label.svelte-tpp10s {
+		display: flex;
+		gap: var(--spacing-8);
+		margin-top: var(--spacing-32);
+	}
+
+=== 1325 posts/learn-svelte/examples/reactive-events.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+import { createSubscriber } from 'svelte/reactivity';
+
+export default function Reactive_events($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		class Timeline {
+			#timeline = window.gsap.timeline();
+			#subscribe;
+
+			constructor(tweens) {
+				this.populateTimeline(tweens);
+
+				this.#subscribe = createSubscriber((update) => {
+					this.#timeline.eventCallback('onUpdate', update);
+
+					return () => this.#timeline.eventCallback('onUpdate', null);
+				});
+			}
+
+			populateTimeline(tweens) {
+				onMount(() => {
+					tweens.forEach(([element, vars]) => {
+						this.#timeline.to(element, vars);
+					});
+				});
+			}
+
+			get time() {
+				// makes it reactive when read inside an effect
+				this.#subscribe();
+
+				return this.#timeline.time();
+			}
+
+			set time(v) {
+				this.#timeline.seek(v);
+			}
+		}
+
+		const tl = new Timeline([
+			['.box1', { x: 200, duration: 1 }],
+			['.box2', { x: 200, duration: 1 }]
+		]);
+
+		$$renderer.push(`<div class="container"><div class="box box1 svelte-tpp10s"></div> <div class="box box2 svelte-tpp10s"></div> <label class="svelte-tpp10s"><span>Time:</span> <input${$.attr('value', tl.time)} type="range"${$.attr('min', 0)}${$.attr('max', 2)}${$.attr('step', 0.01)}/></label></div>`);
+	});
+}
+=== 460 posts/learn-svelte/examples/reactive-map.svelte	css
+
+	.container.svelte-2hwqol {
+		text-align: left;
+	}
+
+	input.svelte-2hwqol,
+	button.svelte-2hwqol {
+		width: 100%;
+	}
+
+	input.svelte-2hwqol {
+		margin-bottom: var(--spacing-32);
+		padding: var(--spacing-16);
+		color: #000;
+		border-radius: var(--rounded-20);
+	}
+
+	summary.svelte-2hwqol {
+		text-transform: capitalize;
+	}
+
+	details.svelte-2hwqol {
+		overflow: hidden;
+		margin-bottom: var(--spacing-32);
+
+		.data:where(.svelte-2hwqol) {
+			height: 200px;
+		}
+	}
+
+=== 1384 posts/learn-svelte/examples/reactive-map.svelte	js
+import * as $ from 'svelte/internal/server';
+import { getAbortSignal } from 'svelte';
+import { SvelteMap } from 'svelte/reactivity';
+
+export default function Reactive_map($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let name = '';
+		const pokemon = new SvelteMap();
+
+		async function getPokemon() {
+			if (!name || pokemon.has(name)) return;
+
+			const baseUrl = 'https://pokeapi.co/api/v2/pokemon';
+			const response = await fetch(`${baseUrl}/${name}`, { signal: getAbortSignal() });
+
+			if (!response.ok) throw new Error('💣️ oops!');
+
+			const data = await response.json();
+
+			pokemon.set(name, data);
+		}
+
+		$$renderer.push(`<div class="container svelte-2hwqol"><div${$.attr_style('', { width: '400px' })}><input type="search"${$.attr('value', name)} placeholder="Enter Pokemon name" class="svelte-2hwqol"/> <div class="pokemon"><!--[-->`);
+
+		const each_array = $.ensure_array_like(pokemon);
+
+		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+			let [name, details] = each_array[$$index];
+
+			$$renderer.push(`<details class="svelte-2hwqol"><summary class="svelte-2hwqol">${$.escape(name)}</summary> <div class="data svelte-2hwqol"><pre>${$.escape(JSON.stringify(details, null, 2))}</pre></div></details>`);
+		}
+
+		$$renderer.push(`<!--]--></div> <button class="svelte-2hwqol">🧹 Clear</button></div></div>`);
+	});
+}
+=== 410 posts/learn-svelte/examples/readonly-bindings.svelte	css
+
+	.example.svelte-l9ubyg {
+		position: relative;
+		display: inline-block;
+		padding: 0.5rem;
+		border: 1px solid orangered;
+
+		.text:where(.svelte-l9ubyg) {
+			font-size: 2rem;
+		}
+
+		.size:where(.svelte-l9ubyg) {
+			position: absolute;
+			left: 50%;
+			bottom: 0px;
+			padding: 0.5rem;
+			translate: -50% 100%;
+			color: black;
+			background-color: orangered;
+			font-weight: 700;
+			white-space: pre;
+		}
+	}
+
+=== 389 posts/learn-svelte/examples/readonly-bindings.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Readonly_bindings($$renderer) {
+	let width = void 0;
+	let height = void 0;
+
+	$$renderer.push(`<div class="container"><div class="example svelte-l9ubyg"><div class="text svelte-l9ubyg" contenteditable="">Edit this text</div> <div class="size svelte-l9ubyg">${$.escape(width)} x ${$.escape(height)}</div></div></div>`);
+}
+=== 159 posts/learn-svelte/examples/scramble-text.svelte	css
+
+	p.svelte-1739996 {
+		font-family: 'JetBrains Mono';
+		font-size: var(--font-32);
+	}
+
+	button.svelte-1739996 {
+		margin-inline: auto;
+		align-self: start;
+	}
+
+=== 916 posts/learn-svelte/examples/scramble-text.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Scramble_text($$renderer) {
+	const chars = '!@#$%&*1234567890-=_+[]{}|;:,.<>/?';
+
+	function getRandomCharacter() {
+		return chars[Math.floor(Math.random() * chars.length)];
+	}
+
+	function scrambleText(node, options) {
+		const { duration = 4000 } = options;
+		const finalText = node.textContent;
+		const length = finalText.length;
+
+		return {
+			duration,
+			tick: (t) => {
+				let output = '';
+
+				for (let i = 0; i < length; i++) {
+					if (t > i / length) {
+						output += finalText[i];
+					} else {
+						output += getRandomCharacter();
+					}
+				}
+
+				node.textContent = output;
+			}
+		};
+	}
+
+	let play = false;
+
+	$$renderer.push(`<div class="container"><!---->`);
+
+	{
+		$$renderer.push(`<p class="svelte-1739996">Scrambling Text Effect</p>`);
+	}
+
+	$$renderer.push(`<!----> <button class="svelte-1739996">Scramble text</button></div>`);
+}
+=== 45 posts/learn-svelte/examples/single-file-component.svelte	css
+
+	h1.svelte-1ikswi4 {
+		color: orangered;
+	}
+
+=== 220 posts/learn-svelte/examples/single-file-component.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Single_file_component($$renderer) {
+	let title = 'Svelte';
+
+	$$renderer.push(`<div class="container"><h1 class="svelte-1ikswi4">Svelte</h1></div>`);
+}
+=== 129 posts/learn-svelte/examples/spongebob-case.svelte	css
+
+	textarea.svelte-11c92f9 {
+		width: 600px;
+		height: 300px;
+		padding: var(--spacing-16);
+		border-radius: var(--rounded-4);
+	}
+
+=== 556 posts/learn-svelte/examples/spongebob-case.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Spongebob_case($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let text = 'I love Svelte';
+
+		function toSpongeBobCase(text) {
+			return text.split('').map((c, i) => i % 2 === 1 ? c.toUpperCase() : c.toLowerCase()).join('');
+		}
+
+		$$renderer.push(`<div class="container"><textarea class="svelte-11c92f9">`);
+
+		const $$body = $.escape(toSpongeBobCase(text));
+
+		if ($$body) {
+			$$renderer.push(`${$$body}`);
+		} else {}
+
+		$$renderer.push(`</textarea></div>`);
+	});
+}
+=== 566 posts/learn-svelte/examples/spring.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Spring } from 'svelte/motion';
+
+export default function Spring_1($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const size = new Spring(50, { stiffness: 0.1, damping: 0.25, precision: 0.1 });
+
+		function onmousedown() {
+			size.target = 150;
+		}
+
+		function onmouseup() {
+			size.target = 50;
+		}
+
+		$$renderer.push(`<div class="container"><svg width="400" height="400" viewBox="0 0 400 400"><circle cx="200" cy="200"${$.attr('r', size.current)} fill="orangered"></circle></svg></div>`);
+	});
+}
+=== 126 posts/learn-svelte/examples/svg-grid.svelte	css
+
+	label.svelte-1mwag0w {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-8);
+		margin-top: var(--spacing-16);
+	}
+
+=== 1116 posts/learn-svelte/examples/svg-grid.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Svg_grid($$renderer) {
+	let size = 300;
+	let tiles = 8;
+
+	$$renderer.push(`<div class="container"><svg${$.attr('width', size)}${$.attr('height', size)}><!--[-->`);
+
+	const each_array = $.ensure_array_like(Array(tiles));
+
+	for (let col = 0, $$length = each_array.length; col < $$length; col++) {
+		$$renderer.push(`<!--[-->`);
+
+		const each_array_1 = $.ensure_array_like(Array(tiles));
+
+		for (let row = 0, $$length = each_array_1.length; row < $$length; row++) {
+			const tile = size / tiles;
+			const x = col * tile;
+			const y = row * tile;
+			const width = tile;
+			const height = tile;
+			const fill = (col + row) % 2 === 0 ? 'orangered' : 'white';
+
+			$$renderer.push(`<rect${$.attr('x', x)}${$.attr('y', y)}${$.attr('width', width)}${$.attr('height', height)}${$.attr('fill', fill)}></rect>`);
+		}
+
+		$$renderer.push(`<!--]-->`);
+	}
+
+	$$renderer.push(`<!--]--></svg> <label class="svelte-1mwag0w"><span>${$.escape(tiles)} tiles:</span> <input type="range"${$.attr('value', tiles)}${$.attr('min', 1)}${$.attr('max', 40)}/></label></div>`);
+}
+=== 296 posts/learn-svelte/examples/todo-list.svelte	css
+
+	.container.svelte-15bpv6s {
+		text-align: left;
+	}
+
+	ul.svelte-15bpv6s {
+		margin-block: var(--spacing-24);
+	}
+
+	ul.svelte-15bpv6s li:where(.svelte-15bpv6s)::before {
+		content: '';
+	}
+
+	input.svelte-15bpv6s {
+		padding: var(--spacing-16);
+		color: #000;
+		border-radius: var(--rounded-20);
+	}
+
+=== 2151 posts/learn-svelte/examples/todo-list.svelte	js
+import * as $ from 'svelte/internal/server';
+import { slide } from 'svelte/transition';
+
+export default function Todo_list($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let todo = '';
+		let todos = [];
+		let filter = 'all';
+		let filteredTodos = $.derived(filterTodos);
+		let remaining = $.derived(remainingTodos);
+
+		function addTodo(e) {
+			e.preventDefault();
+			todos.push({ id: crypto.randomUUID(), text: todo, completed: false });
+			todo = '';
+		}
+
+		function removeTodo(todo) {
+			todos = todos.filter((t) => t.id !== todo.id);
+		}
+
+		function filterTodos() {
+			return todos.filter((todo) => {
+				if (filter === 'all') return true;
+				if (filter === 'active') return !todo.completed;
+				if (filter === 'completed') return todo.completed;
+			});
+		}
+
+		function setFilter(newFilter) {
+			filter = newFilter;
+		}
+
+		function remainingTodos() {
+			return todos.filter((todo) => !todo.completed).length;
+		}
+
+		function clearCompleted() {
+			todos = todos.filter((todo) => !todo.completed);
+		}
+
+		$$renderer.push(`<div class="container svelte-15bpv6s"><form><input type="text"${$.attr('value', todo)} placeholder="Add todo" class="svelte-15bpv6s"/></form> <ul class="svelte-15bpv6s"><!--[-->`);
+
+		const each_array = $.ensure_array_like(filteredTodos());
+
+		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+			let todo = each_array[$$index];
+
+			$$renderer.push(`<li class="svelte-15bpv6s"><input type="checkbox"${$.attr('checked', todo.completed, true)} class="svelte-15bpv6s"/> <input type="text"${$.attr('value', todo.text)} class="svelte-15bpv6s"/> <button>🗙</button></li>`);
+		}
+
+		$$renderer.push(`<!--]--></ul> <div><p>${$.escape(remaining())} ${$.escape(remaining() === 1 ? 'item' : 'items')} left</p> <!--[-->`);
+
+		const each_array_1 = $.ensure_array_like(['all', 'active', 'completed']);
+
+		for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+			let filter = each_array_1[$$index_1];
+
+			$$renderer.push(`<button>${$.escape(filter)}</button>`);
+		}
+
+		$$renderer.push(`<!--]--> <button>Clear completed</button></div></div>`);
+	});
+}
+=== 595 posts/learn-svelte/examples/tween.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Tween } from 'svelte/motion';
+import { cubicInOut } from 'svelte/easing';
+
+export default function Tween_1($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const size = new Tween(50, { duration: 300, easing: cubicInOut });
+
+		function onmousedown() {
+			size.target = 150;
+		}
+
+		function onmouseup() {
+			size.target = 50;
+		}
+
+		$$renderer.push(`<div class="container"><svg width="400" height="400" viewBox="0 0 400 400"><circle cx="200" cy="200"${$.attr('r', size.current)} fill="orangered"></circle></svg></div>`);
+	});
+}
+=== 313 posts/learn-svelte/examples/video-bindings.svelte	css
+
+	.example.svelte-7vj7zx {
+		width: 500px;
+
+		video:where(.svelte-7vj7zx) {
+			margin-bottom: var(--spacing-8);
+			border-radius: 0.5rem;
+		}
+
+		.controls:where(.svelte-7vj7zx) {
+			display: flex;
+			align-items: center;
+			gap: 1rem;
+
+			input[type='range']:where(.svelte-7vj7zx) {
+				flex-grow: 1;
+			}
+		}
+	}
+
+=== 724 posts/learn-svelte/examples/video-bindings.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Video_bindings($$renderer) {
+	let clip = 'https://5ad4a01a-eb56-49a7-b0a7-a9e4bed9c1aa.mdnplay.dev/shared-assets/videos/flower.webm';
+	let currentTime = 0;
+	let duration = 0;
+	let paused = true;
+
+	$$renderer.push(`<div class="container"><div class="example svelte-7vj7zx"><video${$.attr('src', clip)} class="svelte-7vj7zx"></video> <div class="controls svelte-7vj7zx"><button>${$.escape(paused ? '▶️' : '⏸️')}</button> <span>${$.escape(currentTime.toFixed(1))}/${$.escape(duration.toFixed(1))}</span> <input type="range"${$.attr('value', currentTime)}${$.attr('max', duration)}${$.attr('step', 0.1)} class="svelte-7vj7zx"/></div></div></div>`);
+}
+=== 678 src/lib/components/card.svelte	css
+
+	.card.svelte-1u0xoi6 {
+		position: relative;
+		margin-block-end: var(--spacing-32);
+		padding: var(--spacing-32);
+		background: none;
+		border: 4px solid var(--border-color, #fff);
+		border-radius: var(--rounded-20, #fff);
+
+		.icon:where(.svelte-1u0xoi6) {
+			width: 48px;
+			height: 48px;
+			padding: var(--spacing-4);
+			position: absolute;
+			left: 0px;
+			top: 0px;
+			translate: -50% -50%;
+			color: var(--icon-color);
+			background: var(--clr-bg);
+		}
+
+		&.info {
+			--icon-color: #00b5ff;
+			--border-color: #00b5ff;
+		}
+
+		&.warning {
+			--icon-color: #f6ff00;
+			--border-color: #f6ff00;
+		}
+
+		&.danger {
+			--icon-color: #ff0000;
+			--border-color: #ff0000;
+		}
+	}
+
+=== 1751 src/lib/components/card.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Card($$renderer, $$props) {
+	let { children, type } = $$props;
+
+	if (type === 'danger') {
+		$$renderer.push(`<!--[0--><div class="card danger svelte-1u0xoi6"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon svelte-1u0xoi6"><circle cx="12" cy="12" r="10"></circle><path d="m15 9-6 6"></path><path d="m9 9 6 6"></path></svg> `);
+		children($$renderer);
+		$$renderer.push(`<!----></div>`);
+	} else {
+		$$renderer.push('<!--[-1-->');
+	}
+
+	$$renderer.push(`<!--]--> `);
+
+	if (type === 'info') {
+		$$renderer.push(`<!--[0--><div class="card info svelte-1u0xoi6"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon svelte-1u0xoi6"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg> `);
+		children($$renderer);
+		$$renderer.push(`<!----></div>`);
+	} else {
+		$$renderer.push('<!--[-1-->');
+	}
+
+	$$renderer.push(`<!--]--> `);
+
+	if (type === 'warning') {
+		$$renderer.push(`<!--[0--><div class="card warning svelte-1u0xoi6"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon svelte-1u0xoi6"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> `);
+		children($$renderer);
+		$$renderer.push(`<!----></div>`);
+	} else {
+		$$renderer.push('<!--[-1-->');
+	}
+
+	$$renderer.push(`<!--]-->`);
+}
+=== 406 src/lib/components/embed.svelte	css
+
+	.embed.svelte-2a7m49 {
+		aspect-ratio: 16/9;
+		place-content: center;
+		background: var(--clr-footer-bg);
+		border: 1px solid var(--clr-menu-border);
+		border-radius: var(--rounded-20);
+		overflow: hidden;
+
+		button:where(.svelte-2a7m49) {
+			display: flex;
+			align-items: center;
+			gap: 5px;
+			margin-inline: auto;
+			text-shadow: var(--shadow-sm);
+		}
+	}
+
+	iframe.svelte-2a7m49 {
+		height: 100%;
+	}
+
+=== 731 src/lib/components/embed.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Embed($$renderer, $$props) {
+	let { src, title } = $$props;
+	let loaded = false;
+
+	$$renderer.push(`<p class="embed example svelte-2a7m49">`);
+
+	if (!loaded) {
+		$$renderer.push(`<!--[0--><button class="svelte-2a7m49"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--clr-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Load ${$.escape(title)}</button>`);
+	} else {
+		$$renderer.push(`<!--[-1--><iframe${$.attr('title', title)}${$.attr('src', src)} loading="lazy" allowfullscreen="" class="svelte-2a7m49"></iframe>`);
+	}
+
+	$$renderer.push(`<!--]--></p>`);
+}
+=== 546 src/lib/components/image.svelte	js
+import * as $ from 'svelte/internal/server';
+import { page } from '$app/state';
+import { dev } from '$app/environment';
+import { imagesLocal, imagesUrl } from '$lib/site/config';
+
+export default function Image($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { src, alt } = $$props;
+		const images = dev ? imagesLocal : imagesUrl;
+		const slug = page.params.slug;
+
+		$$renderer.push(`<img${$.attr('src', `${$.stringify(images)}/${$.stringify(slug)}/images/${$.stringify(src)}`)}${$.attr('alt', alt)} loading="lazy"/>`);
+	});
+}
+=== 536 src/lib/components/video.svelte	js
+import * as $ from 'svelte/internal/server';
+import { page } from '$app/state';
+
+export default function Video($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { src } = $$props;
+		const images = `https://raw.githubusercontent.com/mattcroat/joy-of-code/main/posts`;
+		const slug = page.params.slug;
+
+		$$renderer.push(`<video controls=""><source${$.attr('src', `https://raw.githubusercontent.com/mattcroat/joy-of-code/main/posts/${$.stringify(slug)}/images/${$.stringify(src)}`)} type="video/mp4"/></video>`);
+	});
+}
+=== 248 src/lib/components/youtube.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Youtube($$renderer, $$props) {
+	let { id, title } = $$props;
+
+	$$renderer.push(`<div><lite-youtube${$.attr('videoid', id)}${$.attr('playlabel', title)}></lite-youtube></div>`);
+}
+=== 214 src/lib/embed/youtube.svelte	js
+import * as $ from 'svelte/internal/server';
+import 'lite-youtube-embed/src/lite-yt-embed.css';
+
+export default function Youtube($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		// @ts-ignore
+	});
+}
+=== 500 src/lib/icons/arrow-right.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Arrow_right($$renderer, $$props) {
+	let { $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<svg${$.attributes(
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			viewBox: '0 0 24 24',
+			'stroke-width': '1.5',
+			stroke: 'currentColor',
+			fill: 'none',
+			...rest
+		},
+		void 0,
+		void 0,
+		void 0,
+		3
+	)}><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3"></path></svg>`);
+}
+=== 1033 src/lib/icons/bluesky.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Bluesky($$renderer, $$props) {
+	let { $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<svg${$.attributes(
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			width: '24',
+			height: '24',
+			viewBox: '0 0 600 600',
+			fill: 'none',
+			stroke: 'currentColor',
+			'stroke-width': '30',
+			...rest
+		},
+		void 0,
+		void 0,
+		void 0,
+		3
+	)}><path d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.108 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z"></path></svg>`);
+}
+=== 516 src/lib/icons/chevron-double-left.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Chevron_double_left($$renderer, $$props) {
+	let { $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<svg${$.attributes(
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			viewBox: '0 0 24 24',
+			'stroke-width': '2',
+			stroke: 'currentColor',
+			fill: 'none',
+			...rest
+		},
+		void 0,
+		void 0,
+		void 0,
+		3
+	)}><path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5"></path></svg>`);
+}
+=== 515 src/lib/icons/chevron-double-right.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Chevron_double_right($$renderer, $$props) {
+	let { $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<svg${$.attributes(
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			viewBox: '0 0 24 24',
+			'stroke-width': '2',
+			stroke: 'currentColor',
+			fill: 'none',
+			...rest
+		},
+		void 0,
+		void 0,
+		void 0,
+		3
+	)}><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5"></path></svg>`);
+}
+=== 1610 src/lib/icons/cog.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Cog($$renderer, $$props) {
+	let { $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<svg${$.attributes(
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			viewBox: '0 0 24 24',
+			'stroke-width': '2',
+			stroke: 'currentColor',
+			fill: 'none',
+			...rest
+		},
+		void 0,
+		void 0,
+		void 0,
+		3
+	)}><path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>`);
+}
+=== 701 src/lib/icons/envelope.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Envelope($$renderer, $$props) {
+	let { $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<svg${$.attributes(
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			viewBox: '0 0 24 24',
+			'stroke-width': '2',
+			stroke: 'currentColor',
+			fill: 'none',
+			...rest
+		},
+		void 0,
+		void 0,
+		void 0,
+		3
+	)}><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"></path></svg>`);
+}
+=== 729 src/lib/icons/eye.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Eye($$renderer, $$props) {
+	let { $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<svg${$.attributes(
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			viewBox: '0 0 24 24',
+			'stroke-width': '2',
+			stroke: 'currentColor',
+			fill: 'none',
+			...rest
+		},
+		void 0,
+		void 0,
+		void 0,
+		3
+	)}><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>`);
+}
+=== 787 src/lib/icons/github.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Github($$renderer, $$props) {
+	let { $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<svg${$.attributes(
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			width: '24',
+			height: '24',
+			viewBox: '0 0 24 24',
+			fill: 'none',
+			stroke: 'currentColor',
+			'stroke-width': '2',
+			'stroke-linecap': 'round',
+			'stroke-linejoin': 'round',
+			...rest
+		},
+		void 0,
+		void 0,
+		void 0,
+		3
+	)}><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"></path><path d="M9 18c-4.51 2-5-2-7-2"></path></svg>`);
+}
+=== 609 src/lib/icons/heart.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Heart($$renderer, $$props) {
+	let { $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<svg${$.attributes(
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			viewBox: '0 0 24 24',
+			'stroke-width': '2',
+			stroke: 'currentColor',
+			fill: 'none',
+			...rest
+		},
+		void 0,
+		void 0,
+		void 0,
+		3
+	)}><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"></path></svg>`);
+}
+=== 594 src/lib/icons/mail.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Mail($$renderer, $$props) {
+	let { $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<svg${$.attributes(
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			width: '24',
+			height: '24',
+			viewBox: '0 0 24 24',
+			fill: 'none',
+			stroke: 'currentColor',
+			'stroke-width': '2',
+			'stroke-linecap': 'round',
+			'stroke-linejoin': 'round',
+			...rest
+		},
+		void 0,
+		void 0,
+		void 0,
+		3
+	)}><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>`);
+}
+=== 466 src/lib/icons/menu.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Menu($$renderer, $$props) {
+	let { $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<svg${$.attributes(
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			viewBox: '0 0 24 24',
+			stroke: 'currentColor',
+			fill: 'none',
+			...rest
+		},
+		void 0,
+		void 0,
+		void 0,
+		3
+	)}><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16"></path></svg>`);
+}
+=== 705 src/lib/icons/pencil-square.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Pencil_square($$renderer, $$props) {
+	let { $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<svg${$.attributes(
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			viewBox: '0 0 24 24',
+			'stroke-width': '2',
+			stroke: 'currentColor',
+			fill: 'none',
+			...rest
+		},
+		void 0,
+		void 0,
+		void 0,
+		3
+	)}><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"></path></svg>`);
+}
+=== 594 src/lib/icons/rss.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Rss($$renderer, $$props) {
+	let { $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<svg${$.attributes(
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			width: '24',
+			height: '24',
+			viewBox: '0 0 24 24',
+			fill: 'none',
+			stroke: 'currentColor',
+			'stroke-width': '2',
+			'stroke-linecap': 'round',
+			'stroke-linejoin': 'round',
+			...rest
+		},
+		void 0,
+		void 0,
+		void 0,
+		3
+	)}><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>`);
+}
+=== 628 src/lib/icons/x.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function X($$renderer, $$props) {
+	let { $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<svg${$.attributes(
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			width: '24',
+			height: '24',
+			viewBox: '0 0 24 24',
+			fill: 'none',
+			stroke: 'currentColor',
+			...rest
+		},
+		void 0,
+		void 0,
+		void 0,
+		3
+	)}><path d="M 2.8671875 3 L 9.7363281 12.818359 L 2.734375 21 L 5.3808594 21 L 10.919922 14.509766 L 15.460938 21 L 21.371094 21 L 14.173828 10.697266 L 20.744141 3 L 18.138672 3 L 12.996094 9.0097656 L 8.7988281 3 L 2.8671875 3 z"></path></svg>`);
+}
+=== 707 src/lib/icons/youtube.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Youtube($$renderer, $$props) {
+	let { $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<svg${$.attributes(
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			width: '24',
+			height: '24',
+			viewBox: '0 0 24 24',
+			fill: 'none',
+			stroke: 'currentColor',
+			'stroke-width': '2',
+			'stroke-linecap': 'round',
+			'stroke-linejoin': 'round',
+			...rest
+		},
+		void 0,
+		void 0,
+		void 0,
+		3
+	)}><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"></path><path d="m10 15 5-3-5-3z"></path></svg>`);
+}
+=== 1055 src/lib/ui/footer.svelte	css
+
+	footer.svelte-5aznnr {
+		--gap: var(--spacing-64);
+
+		display: flex;
+		flex-direction: column;
+		gap: var(--gap);
+		margin-block-start: var(--spacing-64);
+		padding: var(--spacing-32);
+		background-color: var(--clr-footer-bg);
+		border: 1px solid var(--clr-menu-border);
+		border-radius: var(--rounded-20) var(--rounded-20) 0px 0px;
+
+		@media (width >= 600px) {
+			--gap: var(--spacing-128);
+			flex-direction: row;
+			padding-inline: var(--spacing-128);
+		}
+
+		p:where(.svelte-5aznnr) {
+			font-weight: 700;
+		}
+
+		ul:where(.svelte-5aznnr) {
+			width: max-content;
+			display: grid;
+			grid-template-rows: repeat(5, 1fr);
+			grid-auto-flow: column;
+			column-gap: var(--spacing-32);
+			row-gap: var(--spacing-16);
+			margin-top: var(--spacing-16);
+
+			li:where(.svelte-5aznnr) a:where(.svelte-5aznnr) {
+				display: flex;
+				align-items: center;
+				gap: var(--spacing-8);
+			}
+		}
+
+		li:where(.svelte-5aznnr) a:where(.svelte-5aznnr) {
+			font-weight: inherit;
+			color: var(--clr-footer-txt);
+
+			&:hover {
+				color: var(--clr-primary);
+			}
+		}
+	}
+
+=== 1854 src/lib/ui/footer.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Bluesky, Mail, RSS, X, YouTube } from '$lib/icons';
+import * as config from '$lib/site/config';
+
+export default function Footer($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		$$renderer.push(`<footer class="svelte-5aznnr"><div class="follow"><p class="svelte-5aznnr">Follow</p> <ul class="svelte-5aznnr"><li class="svelte-5aznnr"><a href="/newsletter" class="svelte-5aznnr">`);
+		Mail($$renderer, { width: 20, height: 20, 'aria-hidden': true });
+		$$renderer.push(`<!----> <span>Newsletter</span></a></li> <li class="svelte-5aznnr"><a${$.attr('href', config.youtube)} target="_blank" rel="noreferrer" class="svelte-5aznnr">`);
+		YouTube($$renderer, { width: 20, height: 20, 'aria-hidden': true });
+		$$renderer.push(`<!----> <span>YouTube</span></a></li> <li class="svelte-5aznnr"><a${$.attr('href', config.twitter)} target="_blank" rel="noreferrer" class="svelte-5aznnr">`);
+		X($$renderer, { width: 20, height: 20, 'aria-hidden': true });
+		$$renderer.push(`<!----> <span>Twitter</span></a></li> <li class="svelte-5aznnr"><a${$.attr('href', config.bluesky)} target="_blank" rel="noreferrer" class="svelte-5aznnr">`);
+		Bluesky($$renderer, { width: 20, height: 20, 'aria-hidden': true });
+		$$renderer.push(`<!----> <span>Bluesky</span></a></li> <li class="svelte-5aznnr"><a href="/rss.xml" target="_blank" class="svelte-5aznnr">`);
+		RSS($$renderer, { width: 20, height: 20, 'aria-hidden': true });
+		$$renderer.push(`<!----> <span>RSS</span></a></li></ul></div> <div class="other"><p class="svelte-5aznnr">Other</p> <ul class="svelte-5aznnr"><li class="svelte-5aznnr"><a href="/about" class="svelte-5aznnr">About</a></li> <li class="svelte-5aznnr"><a${$.attr('href', config.uses)} target="_blank" rel="noreferrer" class="svelte-5aznnr">Uses</a></li></ul></div></footer>`);
+	});
+}
+=== 989 src/lib/ui/header/header.svelte	css
+
+	header.svelte-1zwcjd {
+		position: sticky;
+		top: 10px;
+		width: 90%;
+		max-width: 800px;
+		margin-inline: auto;
+		padding: var(--spacing-16) var(--spacing-24);
+		font-size: var(--font-18);
+		border-radius: 10px;
+		z-index: 20;
+		view-transition-name: header;
+		transition:
+			background-color 0.3s ease,
+			color 0.3s ease,
+			box-shadow 0.3s ease,
+			backdrop-filter 0.3s ease;
+
+		&.scrolled {
+			background-color: var(--clr-header-bg);
+			color: var(--clr-primary);
+			box-shadow: 1px 1px 10px hsl(0 0% 0% / 40%);
+			backdrop-filter: blur(20px);
+		}
+	}
+
+	.container.svelte-1zwcjd {
+		max-inline-size: 1200px;
+		display: flex;
+		justify-content: space-between;
+
+		.logo:where(.svelte-1zwcjd) {
+			display: flex;
+			align-items: center;
+			gap: var(--spacing-8);
+
+			a:where(.svelte-1zwcjd) {
+				text-box: trim-both cap alphabetic;
+			}
+
+			a:where(.svelte-1zwcjd)::before {
+				content: none;
+			}
+		}
+
+		nav:where(.svelte-1zwcjd) {
+			display: flex;
+			gap: var(--spacing-8);
+		}
+	}
+
+=== 1025 src/lib/ui/header/header.svelte	js
+import * as $ from 'svelte/internal/server';
+import Logo from './logo.svelte';
+import Search from './search';
+import Socials from './socials.svelte';
+import Preferences from './preferences/index.svelte';
+import Menu from './menu.svelte';
+import * as config from '$lib/site/config';
+
+export default function Header($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let scrollY = 0;
+		let scrolled = $.derived(() => scrollY > 0);
+
+		$$renderer.push(`<header${$.attr_class('svelte-1zwcjd', void 0, { 'scrolled': scrolled() })}><div class="container svelte-1zwcjd"><div class="logo svelte-1zwcjd">`);
+		Logo($$renderer, {});
+		$$renderer.push(`<!----> <a href="/" class="svelte-1zwcjd">${$.escape(config.siteName)}</a></div> `);
+		Search($$renderer, {});
+		$$renderer.push(`<!----> `);
+		Socials($$renderer, {});
+		$$renderer.push(`<!----> <nav class="svelte-1zwcjd">`);
+		Preferences($$renderer, {});
+		$$renderer.push(`<!----> `);
+		Menu($$renderer, {});
+		$$renderer.push(`<!----></nav></div></header>`);
+	});
+}
+=== 720 src/lib/ui/header/logo.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Logo($$renderer) {
+	$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="gradient" x1="12" y1="1" x2="12" y2="23" gradientUnits="userSpaceOnUse"><stop stop-color="#fabd2d"></stop><stop offset="1" stop-color="#ed40da"></stop></linearGradient></defs><g><path d="M12 24C18.6274 24 24 18.6274 24 12C24 5.37258 18.6274 0 12 0C5.37258 0 0 5.37258 0 12C0 18.6274 5.37258 24 12 24Z" fill="#6E0C41"></path><path d="M12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23Z" fill="url(#gradient)"></path></g></svg>`);
+}
+=== 1058 src/lib/ui/header/menu.svelte	css
+
+	.menu.svelte-1lw21xf {
+		position: relative;
+		padding: var(--spacing-24);
+		font-size: var(--font-18);
+		background: var(--clr-menu-bg);
+		border: 1px solid var(--clr-menu-border);
+		border-radius: var(--rounded-20);
+		box-shadow: var(--shadow-lg);
+		z-index: 20;
+
+		/* (unused) [data-melt-dropdown-menu-arrow] {
+			border-top: 1px solid var(--clr-menu-border);
+			border-left: 1px solid var(--clr-menu-border);
+		}*/
+
+		.title:where(.svelte-1lw21xf) {
+			display: block;
+			padding-bottom: var(--spacing-24);
+			font-size: var(--font-24);
+			line-height: 32px;
+			border-bottom: 1px solid var(--clr-menu-border);
+		}
+
+		a:where(.svelte-1lw21xf) {
+			font-weight: inherit;
+			color: var(--clr-menu-text);
+
+			&:hover {
+				color: var(--clr-primary);
+			}
+		}
+
+		ul:where(.svelte-1lw21xf) {
+			display: grid;
+			grid-template-rows: repeat(6, 1fr);
+			row-gap: var(--spacing-24);
+			column-gap: var(--spacing-64);
+			grid-auto-flow: column;
+			margin-top: var(--spacing-24);
+
+			@media (width >= 480px) {
+				grid-template-rows: repeat(4, 1fr);
+			}
+		}
+	}
+
+=== 1378 src/lib/ui/header/menu.svelte	js
+import * as $ from 'svelte/internal/server';
+import { fade } from 'svelte/transition';
+import { createDropdownMenu, melt } from '@melt-ui/svelte';
+import { Menu } from '$lib/icons';
+import { sfx } from '$lib/sfx';
+import * as config from '$lib/site/config';
+
+export default function Menu_1($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+		const { elements: { trigger, menu, item, arrow }, states: { open } } = createDropdownMenu({ arrowSize: 16 });
+
+		$$renderer.push(`<button aria-label="Categories">`);
+		Menu($$renderer, { width: 24, height: 24, 'aria-hidden': true });
+		$$renderer.push(`<!----></button> `);
+
+		if (open) {
+			$$renderer.push(`<!--[0--><div class="menu svelte-1lw21xf"><div></div> <span class="title svelte-1lw21xf">Categories</span> <ul class="svelte-1lw21xf"><!--[-->`);
+
+			const each_array = $.ensure_array_like(Object.entries(config.categories));
+
+			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+				let [slug, category] = each_array[$$index];
+
+				$$renderer.push(`<li><a${$.attr('href', `/categories/${$.stringify(slug)}`)} class="svelte-1lw21xf">${$.escape(category)}</a></li>`);
+			}
+
+			$$renderer.push(`<!--]--></ul></div>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]-->`);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 295 src/lib/ui/header/menu.svelte	warnings.json
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"[data-melt-dropdown-menu-arrow]\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 43,
+			"column": 2,
+			"character": 1113
+		},
+		"end": {
+			"line": 43,
+			"column": 33,
+			"character": 1144
+		}
+	}
+]
+
+=== 761 src/lib/ui/header/preferences/dyslexic.svelte	css
+
+	.container.svelte-1whwdji {
+		width: 100%;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.toggle.svelte-1whwdji {
+		--width: 68px;
+		--padding: 10px;
+		--background: var(--clr-switch-off-bg);
+
+		width: var(--width);
+		height: 36px;
+		background-color: var(--background);
+		border-radius: 9999px;
+		transition: background-color 0.15s ease;
+
+		.thumb:where(.svelte-1whwdji) {
+			--size: 34px;
+
+			display: block;
+			width: var(--size);
+			height: var(--size);
+			background-color: var(--clr-primary);
+			border-radius: 50%;
+			transition: translate 0.15s ease;
+		}
+
+		/* (unused) &[data-state='checked'] {
+			--background: var(--clr-switch-on-bg);
+
+			.thumb {
+				translate: calc(var(--width) - var(--size)) 0px;
+			}
+		}*/
+	}
+
+=== 1129 src/lib/ui/header/preferences/dyslexic.svelte	js
+import * as $ from 'svelte/internal/server';
+import { browser } from '$app/environment';
+import { createSwitch, melt } from '@melt-ui/svelte';
+import { preferences } from './preferences.svelte';
+
+export default function Dyslexic($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+		let enabled = false;
+
+		if (browser) {
+			localStorage.font ? enabled = true : enabled = false;
+		}
+
+		function handleChange() {
+			const html = document.documentElement;
+
+			enabled = !enabled;
+
+			if (enabled) {
+				localStorage.font = 'dyslexic';
+				html.dataset.font = 'dyslexic';
+			}
+
+			if (!enabled) {
+				localStorage.removeItem('font');
+				delete html.dataset.font;
+			}
+		}
+
+		const { elements: { root, input }, states: { checked } } = createSwitch();
+
+		$$renderer.push(`<form><div class="container svelte-1whwdji"><label for="dyslexic-font">Use font for dyslexia</label> <button class="toggle svelte-1whwdji" aria-labelledby="dyslexic-font"><span class="thumb svelte-1whwdji"></span></button> <input id="dyslexic-font"/></div></form>`);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 553 src/lib/ui/header/preferences/dyslexic.svelte	warnings.json
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&[data-state='checked']\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 86,
+			"column": 2,
+			"character": 1597
+		},
+		"end": {
+			"line": 86,
+			"column": 25,
+			"character": 1620
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".thumb\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 89,
+			"column": 3,
+			"character": 1669
+		},
+		"end": {
+			"line": 89,
+			"column": 9,
+			"character": 1675
+		}
+	}
+]
+
+=== 1275 src/lib/ui/header/preferences/index.svelte	css
+
+	.menu.svelte-ejy25z {
+		position: relative;
+		background: var(--clr-menu-bg);
+		z-index: 20;
+
+		/* (unused) [data-melt-dropdown-menu-arrow] {
+			border-top: 1px solid var(--clr-menu-border);
+			border-left: 1px solid var(--clr-menu-border);
+		}*/
+	}
+
+	.preferences.svelte-ejy25z {
+		position: relative;
+		padding: var(--spacing-24);
+		font-size: var(--font-18);
+		background: var(--clr-menu-bg);
+		border: 1px solid var(--clr-menu-border);
+		border-radius: var(--rounded-20);
+		box-shadow: var(--shadow-lg);
+
+		@media (width >= 480px) {
+			width: 420px;
+		}
+
+		.title:where(.svelte-ejy25z) {
+			display: block;
+			padding-bottom: var(--spacing-24);
+			font-size: var(--font-24);
+			line-height: 32px;
+			border-bottom: 1px solid var(--clr-menu-border);
+		}
+
+		.options:where(.svelte-ejy25z) {
+			color: var(--clr-menu-text);
+
+			/* :global {*/
+				> * {
+					display: flex;
+					justify-content: space-between;
+					align-items: center;
+					gap: var(--spacing-32);
+					padding: var(--spacing-24) 0;
+
+					@media (width >= 480px) {
+						gap: var(--spacing-64);
+					}
+				}
+
+				> *:not(:last-child) {
+					border-bottom: 1px solid var(--clr-menu-border);
+				}
+
+				> *:last-child {
+					padding-bottom: 0;
+				}
+
+				span {
+					max-width: 180px;
+				}
+			/*}*/
+		}
+	}
+
+=== 1377 src/lib/ui/header/preferences/index.svelte	js
+import * as $ from 'svelte/internal/server';
+import { fade } from 'svelte/transition';
+import { createDropdownMenu, melt } from '@melt-ui/svelte';
+import { Cog } from '$lib/icons';
+import { sfx } from '$lib/sfx';
+import Themes from './themes.svelte';
+import Reading from './reading.svelte';
+import Dyslexic from './dyslexic.svelte';
+import Reset from './reset.svelte';
+
+export default function Preferences($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+		const { elements: { trigger, menu, arrow }, states: { open } } = createDropdownMenu({ arrowSize: 16 });
+
+		$$renderer.push(`<button aria-label="Preferences">`);
+		Cog($$renderer, { width: 24, height: 24, 'aria-hidden': true });
+		$$renderer.push(`<!----></button> `);
+
+		if (open) {
+			$$renderer.push(`<!--[0--><div class="menu svelte-ejy25z"><div></div> <div class="preferences svelte-ejy25z"><span class="title svelte-ejy25z">Preferences</span> <div class="options svelte-ejy25z">`);
+			Themes($$renderer, {});
+			$$renderer.push(`<!----> `);
+			Reading($$renderer, {});
+			$$renderer.push(`<!----> `);
+			Dyslexic($$renderer, {});
+			$$renderer.push(`<!----> `);
+			Reset($$renderer, {});
+			$$renderer.push(`<!----></div></div></div>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]-->`);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 295 src/lib/ui/header/preferences/index.svelte	warnings.json
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"[data-melt-dropdown-menu-arrow]\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 47,
+			"column": 2,
+			"character": 1012
+		},
+		"end": {
+			"line": 47,
+			"column": 33,
+			"character": 1043
+		}
+	}
+]
+
+=== 652 src/lib/ui/header/preferences/reading.svelte	css
+
+	.slider.svelte-7mfisf {
+		display: grid;
+		justify-items: center;
+		row-gap: var(--spacing-16);
+	}
+
+	input[type='range'].svelte-7mfisf {
+		appearance: none;
+		height: 4px;
+		background-color: hsl(0 0% 24%);
+		border-radius: var(--rounded-20);
+
+		&::-webkit-slider-thumb {
+			appearance: none;
+			width: 16px;
+			height: 16px;
+			background-color: var(--clr-primary);
+			border-radius: 50%;
+			box-shadow: var(--shadow-sm);
+			cursor: pointer;
+		}
+
+		&::-moz-range-thumb {
+			appearance: none;
+			width: 16px;
+			height: 16px;
+			background-color: var(--clr-primary);
+			border-radius: 50%;
+			box-shadow: var(--shadow-sm);
+			cursor: pointer;
+		}
+	}
+
+=== 1219 src/lib/ui/header/preferences/reading.svelte	js
+import * as $ from 'svelte/internal/server';
+import { preferences } from './preferences.svelte';
+
+export default function Reading($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		$$renderer.push(`<div class="reading-size"><label for="text-size"><span>Reading size</span></label> <div class="slider svelte-7mfisf"><span>${$.escape(preferences.textSize)}px</span> <input${$.attr('value', preferences.textSize)} type="range" name="text-size" id="text-size" min="16" max="24" step="2" class="svelte-7mfisf"/></div></div> <div class="reading-length"><label for="text-length"><span>Reading length</span></label> <div class="slider svelte-7mfisf"><span>${$.escape(preferences.textLength)}ch</span> <input${$.attr('value', preferences.textLength)} type="range" name="text-length" id="text-length" min="60" max="100" step="10" class="svelte-7mfisf"/></div></div> <div class="reading-height"><label for="text-height"><span>Reading line height</span></label> <div class="slider svelte-7mfisf"><span>${$.escape(preferences.textHeight)}px</span> <input${$.attr('value', preferences.textHeight)} type="range" name="text-height" id="text-height" min="32" max="48" step="8" class="svelte-7mfisf"/></div></div>`);
+	});
+}
+=== 234 src/lib/ui/header/preferences/reset.svelte	css
+
+	button.svelte-1knw26i {
+		padding: var(--spacing-8) var(--spacing-16);
+		font-weight: 700;
+		color: var(--clr-input-txt);
+		background-color: var(--clr-primary);
+		border-radius: var(--rounded-4);
+		box-shadow: var(--shadow-sm);
+	}
+
+=== 336 src/lib/ui/header/preferences/reset.svelte	js
+import * as $ from 'svelte/internal/server';
+import { preferences } from './preferences.svelte';
+
+export default function Reset($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		$$renderer.push(`<div class="reset-preferences"><span>Use default settings</span> <button class="svelte-1knw26i">Reset</button></div>`);
+	});
+}
+=== 555 src/lib/ui/header/preferences/themes.svelte	css
+
+	.trigger.svelte-6ji32x,
+	.menu.svelte-6ji32x {
+		background-color: var(--clr-primary);
+		color: var(--clr-theme-txt);
+		border-radius: var(--rounded-4);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.trigger.svelte-6ji32x {
+		width: 180px;
+		padding: var(--spacing-16) var(--spacing-24);
+		font-weight: 700;
+	}
+
+	.menu.svelte-6ji32x {
+		display: grid;
+		overflow: hidden;
+		z-index: 1000;
+
+		> :where(.svelte-6ji32x) {
+			padding: var(--spacing-16);
+			transition: background 0.1s ease;
+
+			&:hover {
+				background-color: #fff;
+				cursor: pointer;
+			}
+		}
+	}
+
+=== 2747 src/lib/ui/header/preferences/themes.svelte	js
+import * as $ from 'svelte/internal/server';
+import { fade } from 'svelte/transition';
+import { createSelect, melt } from '@melt-ui/svelte';
+import { browser } from '$app/environment';
+import { preferences } from './preferences.svelte';
+
+export default function Themes($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+
+		function getTheme() {
+			if (!browser) return;
+
+			const html = document.documentElement;
+			const userTheme = localStorage.theme;
+			const prefersDarkMode = window.matchMedia('prefers-color-scheme: dark').matches;
+			const prefersLightMode = window.matchMedia('prefers-color-scheme: light').matches;
+
+			// check if the user set a theme
+			if (userTheme) {
+				html.dataset.theme = userTheme;
+
+				return themes[userTheme];
+			}
+
+			// otherwise check for user preference
+			if (!userTheme && prefersDarkMode) {
+				html.dataset.theme = '🌛 Night';
+				localStorage.theme = '🌛 Night';
+			}
+
+			if (!userTheme && prefersLightMode) {
+				html.dataset.theme = '☀️ Daylight';
+				localStorage.theme = '☀️ Daylight';
+			}
+
+			// if nothing is set default to dark mode
+			if (!userTheme && !prefersDarkMode && !prefersLightMode) {
+				html.dataset.theme = '🌛 Night';
+				localStorage.theme = '🌛 Night';
+			}
+
+			return themes[userTheme];
+		}
+
+		function updateTheme(theme) {
+			if (!browser || !theme) return;
+
+			const htmlElement = document.documentElement;
+
+			htmlElement.dataset.theme = theme;
+			localStorage.theme = theme;
+		}
+
+		const themes = {
+			'🌛 Night': { name: '🌛 Night' },
+			'☀️ Daylight': { name: '☀️ Daylight' },
+			'🐺 Night Howl': { name: '🐺 Night Howl' },
+			'🧠 Night Mind': { name: '🧠 Night Mind' }
+		};
+
+		const selectedTheme = getTheme() ?? themes['🌛 Night'];
+
+		const {
+			elements: { trigger, menu, option, label },
+			states: { open, selected, selectedLabel }
+		} = createSelect();
+
+		$$renderer.push(`<div class="select"><label>Theme</label> <button class="trigger svelte-6ji32x" aria-label="Theme">${$.escape($.store_get($$store_subs ??= {}, '$selectedLabel', selectedLabel) || selectedTheme.name)}</button> `);
+
+		if ($.store_get($$store_subs ??= {}, '$open', open)) {
+			$$renderer.push(`<!--[0--><div class="menu svelte-6ji32x"><!--[-->`);
+
+			const each_array = $.ensure_array_like(Object.entries(themes));
+
+			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+				let [key, theme] = each_array[$$index];
+
+				$$renderer.push(`<div class="svelte-6ji32x">${$.escape(theme.name)}</div>`);
+			}
+
+			$$renderer.push(`<!--]--></div>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 398 src/lib/ui/header/search/search-icon.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Search_icon($$renderer) {
+	$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><title>Search</title><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>`);
+}
+=== 1959 src/lib/ui/header/search/search.svelte	css
+
+	.overlay.svelte-gmozwn {
+		position: fixed;
+		inset: 0px;
+		background-color: hsl(0 0% 0% / 80%);
+		backdrop-filter: blur(4px);
+		z-index: 30;
+	}
+
+	.content.svelte-gmozwn {
+		width: 90vw;
+		max-width: 600px;
+		position: fixed;
+		left: 50%;
+		top: 20%;
+		translate: -50% -0%;
+		border-radius: var(--rounded-4);
+		box-shadow: 0px 0px 20px hsl(0 0% 0% / 40%);
+		overflow: hidden;
+		z-index: 40;
+
+		input:where(.svelte-gmozwn) {
+			width: 100%;
+			padding: var(--spacing-16);
+			color: var(--clr-search-input-txt);
+			background-color: var(--clr-search-input-bg);
+
+			&:focus {
+				box-shadow: none;
+				border-radius: 0px;
+			}
+		}
+	}
+
+	.results.svelte-gmozwn {
+		max-height: 60vh;
+		padding: var(--spacing-16);
+		background-color: var(--clr-search-results-bg);
+		overflow-y: auto;
+		scrollbar-width: thin;
+
+		ol:where(.svelte-gmozwn) {
+			margin-block-start: var(--spacing-8);
+		}
+
+		li:where(.svelte-gmozwn):not(:last-child) {
+			margin-block-end: var(--spacing-16);
+			padding-block-end: var(--spacing-16);
+			border-bottom: 1px solid var(--clr-results-border);
+		}
+
+		a:where(.svelte-gmozwn) {
+			display: block;
+			font-size: var(--font-24);
+		}
+
+		mark {
+			background-color: var(--clr-primary);
+		}
+	}
+
+	.open-search.svelte-gmozwn {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-8);
+		padding: var(--spacing-8) var(--spacing-16);
+		color: var(--clr-search-txt);
+		background-color: var(--clr-search-bg);
+		border: 1px solid var(--clr-search-border);
+		border-radius: var(--rounded-20);
+		transition: color 0.3s ease;
+
+		&:hover {
+			color: var(--clr-primary);
+		}
+
+		span:where(.svelte-gmozwn),
+		.shortcut:where(.svelte-gmozwn) {
+			display: none;
+
+			@media (width >= 600px) {
+				display: block;
+			}
+		}
+
+		kbd:where(.svelte-gmozwn) {
+			padding: 4px 8px;
+			color: var(--clr-search-kbd-txt);
+			background-color: var(--clr-search-kbd-bg);
+			border: 1px solid var(--clr-search-kbd-border);
+			border-radius: var(--rounded-4);
+		}
+	}
+
+=== 3216 src/lib/ui/header/search/search.svelte	js
+import * as $ from 'svelte/internal/server';
+import { createDialog, melt } from '@melt-ui/svelte';
+import { fade } from 'svelte/transition';
+import { onNavigate } from '$app/navigation';
+import { browser } from '$app/environment';
+import SearchIcon from './search-icon.svelte';
+import SearchWorker from './search-worker?worker';
+
+export default function Search($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+
+		const {
+			elements: { trigger, portalled, overlay, content },
+			states: { open }
+		} = createDialog();
+
+		const platform = browser && window.navigator.platform;
+		let search = 'idle';
+		let searchTerm = '';
+		let results = [];
+		let searchWorker = void 0;
+
+		function initialize() {
+			if (search === 'ready') return;
+
+			search = 'load';
+			searchWorker = new SearchWorker();
+
+			searchWorker.addEventListener('message', (e) => {
+				const { type, payload } = e.data;
+
+				type === 'ready' && (search = 'ready');
+				type === 'results' && (results = payload.results);
+			});
+
+			searchWorker.postMessage({ type: 'load' });
+		}
+
+		onNavigate(() => {
+			$.store_set(open, false);
+		});
+
+		$$renderer.push(`<button class="open-search svelte-gmozwn">`);
+		SearchIcon($$renderer, {});
+		$$renderer.push(`<!----> <span class="svelte-gmozwn">Search</span> <div class="shortcut svelte-gmozwn"><kbd class="svelte-gmozwn">${$.escape(platform === 'MacIntel' ? '⌘' : 'Ctrl')}</kbd> + <kbd class="svelte-gmozwn">K</kbd></div></button> <div>`);
+
+		if ($.store_get($$store_subs ??= {}, '$open', open)) {
+			$$renderer.push(`<!--[0--><div class="overlay svelte-gmozwn"></div> <div class="content svelte-gmozwn"><input${$.attr('value', searchTerm)} placeholder="Search" autocomplete="off" spellcheck="false" type="search" class="svelte-gmozwn"/> `);
+
+			if (results.length > 0) {
+				$$renderer.push(`<!--[0--><div class="results svelte-gmozwn">`);
+
+				if (search === 'load') {
+					$$renderer.push(`<!--[0--><p>Loading...</p>`);
+				} else {
+					$$renderer.push('<!--[-1-->');
+				}
+
+				$$renderer.push(`<!--]--> <ul><!--[-->`);
+
+				const each_array = $.ensure_array_like(results);
+
+				for (let $$index_1 = 0, $$length = each_array.length; $$index_1 < $$length; $$index_1++) {
+					let result = each_array[$$index_1];
+
+					if (result.content.length > 0) {
+						$$renderer.push(`<!--[0--><li class="svelte-gmozwn"><a${$.attr('href', `/${$.stringify(result.slug)}`)} class="svelte-gmozwn">${$.html(result.title)}</a> <ol class="svelte-gmozwn"><!--[-->`);
+
+						const each_array_1 = $.ensure_array_like(result.content);
+
+						for (let $$index = 0, $$length = each_array_1.length; $$index < $$length; $$index++) {
+							let content = each_array_1[$$index];
+
+							$$renderer.push(`<li class="svelte-gmozwn">${$.html(content)}</li>`);
+						}
+
+						$$renderer.push(`<!--]--></ol></li>`);
+					} else {
+						$$renderer.push('<!--[-1-->');
+					}
+
+					$$renderer.push(`<!--]-->`);
+				}
+
+				$$renderer.push(`<!--]--></ul></div>`);
+			} else {
+				$$renderer.push('<!--[-1-->');
+			}
+
+			$$renderer.push(`<!--]--></div>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 149 src/lib/ui/header/socials.svelte	css
+
+	.socials.svelte-21474c {
+		display: none;
+
+		@media (width >= 768px) {
+			display: flex;
+			align-items: center;
+			gap: var(--spacing-16);
+		}
+	}
+
+=== 982 src/lib/ui/header/socials.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Bluesky, RSS, X, YouTube } from '$lib/icons';
+import * as config from '$lib/site/config';
+
+export default function Socials($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		$$renderer.push(`<div class="socials svelte-21474c"><a${$.attr('href', config.youtube)} target="_blank" rel="noreferrer">`);
+		YouTube($$renderer, { width: 24, height: 24, 'aria-label': 'YouTube' });
+		$$renderer.push(`<!----></a> <a${$.attr('href', config.twitter)} target="_blank" rel="noreferrer">`);
+		X($$renderer, { width: 24, height: 24, 'aria-label': 'Twitter' });
+		$$renderer.push(`<!----></a> <a${$.attr('href', config.bluesky)} target="_blank" rel="noreferrer">`);
+		Bluesky($$renderer, { width: 20, height: 20, 'aria-label': 'Bluesky' });
+		$$renderer.push(`<!----></a> <a href="/rss.xml" target="_blank">`);
+		RSS($$renderer, { width: 24, height: 24, 'aria-label': 'RSS feed' });
+		$$renderer.push(`<!----></a></div>`);
+	});
+}
+=== 270 src/lib/ui/heading.svelte	css
+
+	h1.svelte-qy2nrw {
+		margin: var(--spacing-64) 0;
+		font-size: clamp(var(--font-48), 8vw, var(--font-96));
+		line-height: clamp(48px, 10vw, 112px);
+		color: var(--clr-primary);
+		text-align: center;
+
+		@media (width >= 860px) {
+			margin: var(--spacing-128) 0;
+		}
+	}
+
+=== 313 src/lib/ui/heading.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Heading($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { $$slots, $$events, ...props } = $$props;
+
+		$$renderer.push(`<h1 class="svelte-qy2nrw">`);
+		props.children?.($$renderer);
+		$$renderer.push(`<!----></h1>`);
+	});
+}
+=== 1260 src/lib/ui/newsletter.svelte	css
+
+	form.svelte-1w81ggn {
+		display: flex;
+		max-width: 360px;
+		height: 48px;
+		margin: var(--spacing-16) 0;
+		border-radius: var(--rounded-4);
+		border: 1px solid var(--clr-input-border);
+		box-shadow: var(--shadow-sm);
+
+		input:where(.svelte-1w81ggn) {
+			width: 100%;
+			padding: var(--spacing-8) var(--spacing-16);
+			background-color: var(--clr-input-bg);
+			border-radius: var(--rounded-4) 0 0 var(--rounded-4);
+			flex: 1;
+
+			&::placeholder {
+				color: var(--clr-input-placeholder-txt);
+			}
+		}
+
+		button:where(.svelte-1w81ggn) {
+			padding: var(--spacing-8);
+			color: var(--clr-input-txt);
+			background-color: var(--clr-primary);
+			border-radius: 0 var(--rounded-4) var(--rounded-4) 0;
+
+			span:where(.svelte-1w81ggn) {
+				font-size: var(--font-16);
+				font-weight: 700;
+				text-box: trim-both cap alphabetic;
+			}
+
+			@media (width >= 860px) {
+				display: flex;
+				align-items: center;
+				gap: var(--spacing-4);
+			}
+
+			svg {
+				display: none;
+
+				@media (width >= 860px) {
+					display: block;
+				}
+			}
+		}
+	}
+
+	.message.svelte-1w81ggn {
+		margin-bottom: var(--spacing-16);
+		font-weight: 700;
+
+		.error:where(.svelte-1w81ggn) {
+			color: hsl(9 100% 64%);
+		}
+
+		.success:where(.svelte-1w81ggn) {
+			color: var(--clr-primary);
+		}
+	}
+
+=== 1522 src/lib/ui/newsletter.svelte	js
+import * as $ from 'svelte/internal/server';
+import { fade } from 'svelte/transition';
+import { Envelope } from '$lib/icons';
+
+export default function Newsletter($$renderer) {
+	let email = '';
+	let error = '';
+	let success = '';
+
+	async function onsubmit(e) {
+		e.preventDefault();
+
+		const response = await fetch('/api/subscribe', {
+			method: 'post',
+			body: JSON.stringify(email),
+			headers: { 'Content-Type': 'application/json' }
+		});
+
+		const subscribe = await response.json();
+
+		if (subscribe.error) {
+			success = '';
+			error = subscribe.error;
+		}
+
+		if (subscribe.success) {
+			error = '';
+			success = subscribe.success;
+		}
+	}
+
+	$$renderer.push(`<form class="svelte-1w81ggn"><label for="email" class="sr-only">Enter your email</label> <input${$.attr('value', email)} type="email" id="email" name="email" placeholder="your@email.com" autocomplete="on" class="svelte-1w81ggn"/> <button type="submit" class="svelte-1w81ggn">`);
+	Envelope($$renderer, { width: 24, height: 24, 'aria-hidden': true });
+	$$renderer.push(`<!----> <span class="svelte-1w81ggn">Subscribe</span></button></form> <div class="message svelte-1w81ggn">`);
+
+	if (error) {
+		$$renderer.push(`<!--[0--><span class="error svelte-1w81ggn">${$.escape(error)}</span>`);
+	} else {
+		$$renderer.push('<!--[-1-->');
+	}
+
+	$$renderer.push(`<!--]--> `);
+
+	if (success) {
+		$$renderer.push(`<!--[0--><span class="success svelte-1w81ggn">${$.escape(success)}</span>`);
+	} else {
+		$$renderer.push('<!--[-1-->');
+	}
+
+	$$renderer.push(`<!--]--></div>`);
+}
+=== 1089 src/lib/ui/posts.svelte	css
+
+	section.svelte-55b60l {
+		max-width: 960px;
+		margin-inline: auto;
+		margin-top: var(--spacing-64);
+	}
+
+	.card.svelte-55b60l {
+		padding-block: var(--spacing-32);
+		border-bottom: 1px solid var(--clr-menu-border);
+
+		a:where(.svelte-55b60l) {
+			--color: inherit;
+			display: inline-block;
+		}
+
+		html[data-font='dyslexic'] & .title:where(.svelte-55b60l) {
+			font-family: var(--font-dyslexic);
+			font-size: var(--font-24);
+			line-height: 32px;
+		}
+
+		.title:where(.svelte-55b60l) {
+			font-family: var(--font-serif);
+			font-size: clamp(var(--font-24), 4vw, var(--font-32));
+			line-height: 40px;
+			text-transform: capitalize;
+			text-wrap: balance;
+		}
+
+		.published:where(.svelte-55b60l) {
+			margin-block-start: var(--spacing-4);
+			font-size: var(--font-18);
+			color: var(--clr-card-txt);
+		}
+
+		.description:where(.svelte-55b60l) {
+			max-width: 60ch;
+			margin-top: var(--spacing-16);
+			font-size: var(--font-20);
+			color: var(--clr-card-txt);
+		}
+	}
+
+	a[href='/archive'] {
+		width: max-content;
+		display: flex;
+		gap: var(--spacing-4);
+		margin-top: var(--spacing-32);
+	}
+
+=== 1100 src/lib/ui/posts.svelte	js
+import * as $ from 'svelte/internal/server';
+import { fade } from 'svelte/transition';
+import { formatDate } from '$lib/utils';
+
+export default function Posts($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { posts, title, more } = $$props;
+
+		$$renderer.push(`<section class="svelte-55b60l">`);
+		title?.($$renderer);
+		$$renderer.push(`<!----> <div class="cards"><!--[-->`);
+
+		const each_array = $.ensure_array_like(posts);
+
+		for (let i = 0, $$length = each_array.length; i < $$length; i++) {
+			let post = each_array[i];
+
+			$$renderer.push(`<div><article class="card svelte-55b60l"><a${$.attr('href', `/${$.stringify(post.slug)}`)} class="svelte-55b60l"><div class="title svelte-55b60l"${$.attr_style('', { 'view-transition-name': post.slug })}>${$.escape(post.title)}</div></a> <div class="published svelte-55b60l">Published ${$.escape(formatDate(post.published))}</div> <p class="description svelte-55b60l">${$.escape(post.description)}</p></article></div>`);
+		}
+
+		$$renderer.push(`<!--]--></div> `);
+		more?.($$renderer);
+		$$renderer.push(`<!----></section>`);
+	});
+}
+=== 268 src/routes/+error.svelte	css
+
+	.error.svelte-1j96wlh {
+		height: 100%;
+		display: grid;
+		place-content: center;
+
+		h1:where(.svelte-1j96wlh) {
+			margin-top: var(--spacing-64);
+			font-family: var(--font-sans);
+			font-size: var(--font-32);
+			text-align: center;
+			text-transform: none;
+		}
+	}
+
+=== 500 src/routes/+error.svelte	js
+import * as $ from 'svelte/internal/server';
+import { page } from '$app/stores';
+
+export default function _error($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+
+		$$renderer.push(`<div class="error svelte-1j96wlh"><h1 class="svelte-1j96wlh">${$.escape($.store_get($$store_subs ??= {}, '$page', page).status)}: ${$.escape($.store_get($$store_subs ??= {}, '$page', page)?.error?.message)}</h1></div>`);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 385 src/routes/+layout.svelte	css
+
+	.container.svelte-12qhfyh {
+		min-height: 100%;
+		padding-block-start: var(--spacing-24);
+	}
+
+	.layout.svelte-12qhfyh {
+		height: 100%;
+		max-inline-size: 1200px;
+		display: grid;
+		grid-template-rows: 1fr auto;
+		gap: var(--spacing-24);
+		margin-inline: auto;
+
+		@media (width >= 300px) {
+			padding: 0px var(--spacing-16);
+		}
+
+		@media (width >= 1240px) {
+			padding: 0px;
+		}
+	}
+
+=== 825 src/routes/+layout.svelte	js
+import * as $ from 'svelte/internal/server';
+import Header from '$lib/ui/header/header.svelte';
+import Footer from '$lib/ui/footer.svelte';
+import LiteYouTubeEmbed from '$lib/embed/youtube.svelte';
+import { useAnalytics } from '$lib/analytics';
+import { setupViewTransition } from '$lib/utils';
+import '../styles/styles.css';
+
+export default function _layout($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		useAnalytics();
+		setupViewTransition();
+
+		let { children } = $$props;
+
+		LiteYouTubeEmbed($$renderer, {});
+		$$renderer.push(`<!----> <div class="container svelte-12qhfyh">`);
+		Header($$renderer, {});
+		$$renderer.push(`<!----> <div class="layout svelte-12qhfyh">`);
+		children?.($$renderer);
+		$$renderer.push(`<!----> `);
+		Footer($$renderer, {});
+		$$renderer.push(`<!----></div></div>`);
+	});
+}
+=== 1612 src/routes/+page.svelte	css
+
+	.hero.svelte-1uha8ag {
+		margin-block-start: var(--spacing-64);
+		padding: var(--spacing-32) var(--spacing-24);
+		background: var(--clr-footer-bg);
+		border: 1px solid var(--clr-menu-border);
+		border-radius: var(--rounded-20);
+		box-shadow: var(--shadow-sm);
+
+		@media (width >= 860px) {
+			display: grid;
+			grid-template-columns: repeat(12, [column-start] 1fr);
+			column-gap: var(--spacing-24);
+		}
+
+		.divider:where(.svelte-1uha8ag) {
+			border-bottom: 1px solid var(--clr-menu-border);
+			margin: var(--spacing-32) 0;
+
+			@media (width >= 860px) {
+				grid-column: column-start 7 / span 1;
+				justify-self: center;
+				margin: 0;
+				border-left: 1px solid var(--clr-menu-border);
+				border-bottom: none;
+			}
+		}
+	}
+
+	.latest-post.svelte-1uha8ag {
+		@media (width >= 860px) {
+			grid-column: column-start 2 / span 5;
+		}
+
+		.title:where(.svelte-1uha8ag) {
+			padding-block: var(--spacing-16);
+			font-size: clamp(var(--font-24), 4vw, 40px);
+		}
+
+		.description:where(.svelte-1uha8ag) {
+			font-size: var(--font-20);
+			color: var(--clr-card-txt);
+		}
+
+		.continue-reading:where(.svelte-1uha8ag) {
+			width: max-content;
+			display: flex;
+			align-items: center;
+			margin-top: var(--spacing-32);
+		}
+
+		a:where(.svelte-1uha8ag) {
+			display: flex;
+			gap: var(--spacing-4);
+		}
+	}
+
+	.newsletter.svelte-1uha8ag {
+		@media (width >= 860px) {
+			display: grid;
+			place-content: center;
+			grid-auto-rows: min-content;
+			grid-column: column-start 8 / span 4;
+		}
+
+		h2:where(.svelte-1uha8ag) {
+			font-size: var(--font-32);
+			line-height: 32px;
+		}
+	}
+
+	.latest.svelte-1uha8ag {
+		font-weight: 700;
+	}
+
+=== 2528 src/routes/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import Newsletter from '$lib/ui/newsletter.svelte';
+import Posts from '$lib/ui/posts.svelte';
+import { ArrowRight } from '$lib/icons';
+import * as config from '$lib/site/config';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { data } = $$props;
+		const posts = $.derived(() => data.posts);
+
+		$.head('1uha8ag', $$renderer, ($$renderer) => {
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(config.siteTitle)}</title>`);
+			});
+
+			$$renderer.push(`<meta${$.attr('content', config.siteDescription)} name="description"/> <meta${$.attr('content', config.siteTitle)} property="og:title"/> <meta${$.attr('content', config.siteImage)} property="og:image"/> <meta${$.attr('content', config.siteUrl)} property="og:url"/> <meta${$.attr('content', config.siteDescription)} property="og:description"/> <meta${$.attr('content', config.siteName)} property="og:site_name"/> <meta${$.attr('content', config.twitterHandle)} name="twitter:creator"/> <meta content="summary_large_image" name="twitter:card"/> <meta${$.attr('content', config.siteTitle)} name="twitter:title"/> <meta${$.attr('content', config.siteDescription)} name="twitter:description"/> <meta${$.attr('content', config.siteImage)} name="twitter:image"/>`);
+		});
+
+		$$renderer.push(`<main><section class="hero svelte-1uha8ag"><div class="latest-post svelte-1uha8ag"><h1 class="title svelte-1uha8ag">${$.escape(posts()[0].title)}</h1> <p class="description svelte-1uha8ag">${$.escape(posts()[0].description)}</p> <a class="continue-reading svelte-1uha8ag"${$.attr('href', posts()[0].slug)}><span>Continue reading</span> `);
+		ArrowRight($$renderer, { width: 24, height: 24, 'aria-hidden': true });
+		$$renderer.push(`<!----></a></div> <div class="divider svelte-1uha8ag"></div> <div class="newsletter svelte-1uha8ag"><h2 class="svelte-1uha8ag">Subscribe for updates</h2> `);
+		Newsletter($$renderer, {});
+		$$renderer.push(`<!----></div></section> `);
+
+		{
+			function title($$renderer) {
+				$$renderer.push(`<h3 class="latest svelte-1uha8ag">Latest</h3>`);
+			}
+
+			function more($$renderer) {
+				$$renderer.push(`<a href="/archive"><span>See more posts</span> `);
+				ArrowRight($$renderer, { width: '24', height: '24', 'aria-hidden': 'true' });
+				$$renderer.push(`<!----></a>`);
+			}
+
+			Posts($$renderer, {
+				posts: posts(),
+				title,
+				more,
+				$$slots: { title: true, more: true }
+			});
+		}
+
+		$$renderer.push(`<!----></main>`);
+	});
+}
+=== 304 src/routes/[slug]/+page.svelte	css
+
+	.cards.svelte-jot9ci {
+		display: grid;
+		row-gap: var(--spacing-32);
+		max-width: var(--post-txt-length);
+		margin: var(--spacing-64) 0;
+		margin-inline: auto;
+	}
+
+	.title.svelte-jot9ci {
+		width: fit-content;
+		margin-inline: auto;
+	}
+
+	.published.svelte-jot9ci {
+		margin-top: var(--spacing-24);
+	}
+
+=== 2422 src/routes/[slug]/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import { formatDate } from '$lib/utils';
+import * as config from '$lib/site/config';
+import Card from './card.svelte';
+import Clipboard from './clipboard.svelte';
+import TableOfContents from './toc.svelte';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { data } = $$props;
+		let editUrl = $.derived(() => `${config.fileUrl}/${data.frontmatter.slug}/${data.frontmatter.slug}.md`);
+		let image = $.derived(() => `${config.postImage}${encodeURIComponent(data.frontmatter.title)}.png`);
+
+		$.head('jot9ci', $$renderer, ($$renderer) => {
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(data.frontmatter.title)}</title>`);
+			});
+
+			$$renderer.push(`<meta${$.attr('content', data.frontmatter.description)} name="description"/> <meta${$.attr('content', data.frontmatter.title)} property="og:title"/> <meta${$.attr('content', image())} property="og:image"/> <meta${$.attr('content', config.siteUrl)} property="og:url"/> <meta${$.attr('content', data.frontmatter.description)} property="og:description"/> <meta${$.attr('content', config.siteName)} property="og:site_name"/> <meta${$.attr('content', config.twitterHandle)} name="twitter:creator"/> <meta content="summary_large_image" name="twitter:card"/> <meta${$.attr('content', data.frontmatter.title)} name="twitter:title"/> <meta${$.attr('content', data.frontmatter.description)} name="twitter:description"/> <meta${$.attr('content', image())} name="twitter:image"/>`);
+		});
+
+		Clipboard($$renderer, {});
+		$$renderer.push(`<!----> <main>`);
+		TableOfContents($$renderer, {});
+		$$renderer.push(`<!----> <article class="prose"><header><h1 class="title svelte-jot9ci"${$.attr_style('', { 'view-transition-name': data.frontmatter.slug })}>${$.escape(data.frontmatter.title)}</h1> <p class="published svelte-jot9ci">Published ${$.escape(formatDate(data.frontmatter.published))}</p></header> `);
+
+		if (data.component) {
+			$$renderer.push('<!--[-->');
+			data.component($$renderer, {});
+			$$renderer.push('<!--]-->');
+		} else {
+			$$renderer.push('<!--[!-->');
+			$$renderer.push('<!--]-->');
+		}
+
+		$$renderer.push(`</article> <div class="cards svelte-jot9ci">`);
+		Card($$renderer, { preset: 'support' });
+		$$renderer.push(`<!----> `);
+		Card($$renderer, { preset: 'edit', editUrl: editUrl() });
+		$$renderer.push(`<!----></div></main>`);
+	});
+}
+=== 895 src/routes/[slug]/card.svelte	css
+
+	.card.svelte-ssx89u {
+		position: relative;
+		padding: var(--spacing-32);
+		border: 4px solid var(--clr-primary);
+		border-radius: var(--rounded-20);
+
+		.decorative:where(.svelte-ssx89u) {
+			display: grid;
+			place-content: center;
+			width: 48px;
+			height: 48px;
+			position: absolute;
+			top: 0;
+			left: 0;
+			transform: translateX(-50%) translateY(-50%);
+			border-radius: 50%;
+			background-color: var(--clr-bg);
+
+			svg {
+				color: var(--clr-primary);
+			}
+		}
+
+		.title:where(.svelte-ssx89u) {
+			font-size: var(--font-24);
+			font-weight: 700;
+			line-height: 32px;
+		}
+
+		.text:where(.svelte-ssx89u) {
+			color: var(--clr-card-txt);
+			margin-top: var(--spacing-8);
+			margin-bottom: var(--spacing-32);
+		}
+
+		.link:where(.svelte-ssx89u) {
+			width: max-content;
+			display: flex;
+			gap: var(--spacing-16);
+		}
+
+		form {
+			margin: var(--spacing-16) 0;
+			background: red;
+		}
+	}
+
+=== 1662 src/routes/[slug]/card.svelte	js
+import * as $ from 'svelte/internal/server';
+import { ArrowRight, PencilSquare, Heart } from '$lib/icons';
+
+export default function Card($$renderer, $$props) {
+	let { preset, editUrl = '' } = $$props;
+
+	if (preset === 'support') {
+		$$renderer.push(`<!--[0--><div class="card svelte-ssx89u"><div class="decorative svelte-ssx89u">`);
+		Heart($$renderer, { width: 24, height: 24, 'aria-hidden': true });
+		$$renderer.push(`<!----></div> <span class="title svelte-ssx89u">Support</span> <p class="text svelte-ssx89u">You can support my work on Patreon.</p> <a class="link svelte-ssx89u" href="https://www.patreon.com/joyofcode" target="_blank" rel="noreferrer"><span>Patreon</span> `);
+		ArrowRight($$renderer, { width: 24, height: 24, 'aria-hidden': true });
+		$$renderer.push(`<!----></a></div>`);
+	} else {
+		$$renderer.push('<!--[-1-->');
+	}
+
+	$$renderer.push(`<!--]--> `);
+
+	if (preset === 'edit') {
+		$$renderer.push(`<!--[0--><div class="card svelte-ssx89u"><div class="decorative svelte-ssx89u">`);
+		PencilSquare($$renderer, { width: 24, height: 24, 'aria-hidden': true });
+
+		$$renderer.push(`<!----></div> <span class="title svelte-ssx89u">Found a mistake?</span> <p class="text svelte-ssx89u">Every post is a Markdown file so contributing is simple as following the
+			link below and pressing the pencil icon inside GitHub to edit it.</p> <a class="link svelte-ssx89u"${$.attr('href', editUrl)} target="_blank" rel="noreferrer"><span>Edit on GitHub</span> `);
+
+		ArrowRight($$renderer, { width: 24, height: 24, 'aria-hidden': true });
+		$$renderer.push(`<!----></a></div>`);
+	} else {
+		$$renderer.push('<!--[-1-->');
+	}
+
+	$$renderer.push(`<!--]-->`);
+}
+=== 573 src/routes/[slug]/clipboard.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Clipboard($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		function copyToClipboard(event) {
+			const buttonEl = event.currentTarget;
+			const codeTitleEl = buttonEl.parentElement;
+			const text = codeTitleEl?.nextElementSibling?.textContent;
+
+			text && navigator.clipboard.writeText(text);
+			showCopiedMessage(buttonEl);
+		}
+
+		function showCopiedMessage(el) {
+			let contents = el.innerHTML;
+
+			el.innerHTML = 'Copied';
+			setTimeout(() => el.innerHTML = contents, 1000);
+		}
+	});
+}
+=== 1535 src/routes/[slug]/toc.svelte	css
+
+	aside.svelte-1it2h8m {
+		max-width: 400px;
+		position: fixed;
+		top: 50%;
+		right: 8px;
+		translate: 0% -50%;
+		z-index: 10;
+	}
+
+	.sidebar-toggle.svelte-1it2h8m,
+	.table-of-contents.svelte-1it2h8m {
+		padding: var(--spacing-16);
+		background-color: var(--clr-footer-bg);
+		border: 1px solid var(--clr-menu-border);
+		border-radius: var(--rounded-20);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.table-of-contents.svelte-1it2h8m {
+		counter-reset: section;
+
+		button:where(.svelte-1it2h8m) {
+			padding-block: var(--spacing-8);
+			display: flex;
+			align-items: center;
+			gap: var(--spacing-4);
+		}
+
+		ul:where(.svelte-1it2h8m) {
+			max-height: 400px;
+			padding: var(--spacing-4);
+			overflow-y: auto;
+			scrollbar-width: thin;
+		}
+
+		li:where(.svelte-1it2h8m) {
+			padding-block: var(--spacing-16);
+			font-size: var(--font-18);
+
+			&:not(:last-of-type) {
+				border-bottom: 0.5px solid var(--clr-menu-border);
+			}
+		}
+
+		a:where(.svelte-1it2h8m) {
+			display: inline-block;
+			font-weight: 400;
+
+			&[data-active='true'] {
+				color: var(--clr-primary);
+			}
+
+			&::before {
+				all: unset;
+				counter-increment: section;
+				content: counter(section) '. ';
+			}
+		}
+	}
+
+	.table-of-contents-title.svelte-1it2h8m {
+		font-size: var(--font-24);
+	}
+
+	/* :global {*/
+		[data-theme='🌛 Night'] .table-of-contents a {
+			--color: hsl(224 28% 78%);
+		}
+
+		[data-theme='☀️ Daylight'] .table-of-contents a {
+			--color: hsl(0 0% 40%);
+		}
+
+		[data-theme='🧠 Night Mind'] .table-of-contents a {
+			--color: hsl(280 20% 80%);
+		}
+	/*}*/
+
+=== 2840 src/routes/[slug]/toc.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+import { fly } from 'svelte/transition';
+import { ChevronDoubleLeft, ChevronDoubleRight } from '$lib/icons';
+
+export default function Toc($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const TABLE_OF_CONTENTS = '#table-of-contents + ul';
+		let tableOfContents = [];
+		let showSidebar = false;
+
+		onMount(() => {
+			const toc = document.querySelector(TABLE_OF_CONTENTS);
+
+			if (!toc) return;
+
+			tableOfContents = [...toc.querySelectorAll('a')].map((a, i) => ({
+				title: a.textContent,
+				href: a.getAttribute('href'),
+				active: false
+			}));
+
+			if (window.innerWidth >= 1440) {
+				const observer = new IntersectionObserver(([entry]) => {
+					showSidebar = entry.boundingClientRect.bottom < 0;
+				});
+
+				observer.observe(toc);
+
+				return () => observer.unobserve(toc);
+			}
+		});
+
+		onMount(() => {
+			const headings = document.querySelectorAll('h2');
+
+			const observer = new IntersectionObserver(
+				([entry]) => {
+					if (entry.isIntersecting) {
+						tableOfContents.forEach((i) => i.active = false);
+
+						const title = entry.target.textContent;
+						const index = tableOfContents.findIndex((i) => i.title === title);
+
+						if (index >= 0) tableOfContents[index].active = true;
+					}
+				},
+				{ rootMargin: '0px 0px -90% 0px' }
+			);
+
+			headings.forEach((heading) => observer.observe(heading));
+
+			return () => observer.disconnect();
+		});
+
+		function toggleSidebar() {
+			showSidebar = !showSidebar;
+		}
+
+		if (tableOfContents) {
+			$$renderer.push(`<!--[0--><aside class="svelte-1it2h8m"><section>`);
+
+			if (showSidebar) {
+				$$renderer.push(`<!--[0--><div class="table-of-contents svelte-1it2h8m"><button aria-label="Hide table of contents" class="svelte-1it2h8m">`);
+				ChevronDoubleRight($$renderer, { width: 24, height: 24, 'aria-hidden': true });
+				$$renderer.push(`<!----> <h2 class="table-of-contents-title svelte-1it2h8m">Sections</h2></button> <ul class="svelte-1it2h8m"><!--[-->`);
+
+				const each_array = $.ensure_array_like(tableOfContents);
+
+				for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+					let { active, title, href } = each_array[$$index];
+
+					$$renderer.push(`<li class="svelte-1it2h8m"><a${$.attr('href', href)}${$.attr('data-active', active)} class="svelte-1it2h8m">${$.escape(title)}</a></li>`);
+				}
+
+				$$renderer.push(`<!--]--></ul></div>`);
+			} else {
+				$$renderer.push(`<!--[-1--><button class="sidebar-toggle svelte-1it2h8m" aria-label="Show table of contents">`);
+				ChevronDoubleLeft($$renderer, { width: 24, height: 24, 'aria-hidden': true });
+				$$renderer.push(`<!----></button>`);
+			}
+
+			$$renderer.push(`<!--]--></section></aside>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]-->`);
+	});
+}
+=== 151 src/routes/about/+page.svelte	css
+
+	main.svelte-cwls5q {
+		max-width: 50ch;
+		margin-inline: auto;
+		display: grid;
+		row-gap: var(--spacing-32);
+		margin-bottom: var(--spacing-64);
+	}
+
+=== 1139 src/routes/about/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import Heading from '$lib/ui/heading.svelte';
+
+export default function _page($$renderer) {
+	$.head('cwls5q', $$renderer, ($$renderer) => {
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>About</title>`);
+		});
+	});
+
+	Heading($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->About`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----> <main class="svelte-cwls5q"><p>Hey! 👋</p> <p>I'm <b>Matia</b> from 🇭🇷 <b>Croatia</b> and I'm infinitely curious at how
+		things work but I'm mostly passionate about ☕ <b>JavaScript and</b> 🎨 <b>UI/UX design</b>.</p> <p>I created <b>Joy of Code</b> because I think a lot of tutorials don't help you
+		learn how to solve problems but just read the documentation to you and go from
+		point A to point B.</p> <p><strong>I want to show you steps between A and B</strong> by sharing what I learn
+		and how I think about solving problems.</p> <p>I'm trying to create something I wish existed — it's more like having a
+		friend help you out instead of someone talking over your head.</p></main>`);
+}
+=== 945 src/routes/archive/+page.svelte	css
+
+	section.svelte-1d6nxft {
+		max-width: 740px;
+		margin-inline: auto;
+		margin-block-start: var(--spacing-64);
+
+		.container:where(.svelte-1d6nxft) {
+			display: flex;
+			justify-content: space-between;
+
+			.results:where(.svelte-1d6nxft) {
+				font-weight: 700;
+			}
+		}
+	}
+
+	.posts.svelte-1d6nxft {
+		margin-top: var(--spacing-64);
+
+		a:where(.svelte-1d6nxft)::before {
+			content: none;
+		}
+
+		.post:where(.svelte-1d6nxft) {
+			margin-block-start: var(--spacing-32);
+			padding-block-end: var(--spacing-32);
+			border-bottom: 1px solid var(--clr-menu-border);
+
+			html[data-font='dyslexic'] & .title:where(.svelte-1d6nxft) {
+				font-family: var(--font-dyslexic);
+				font-size: var(--font-24);
+				line-height: 32px;
+			}
+
+			.title:where(.svelte-1d6nxft) {
+				font-family: var(--font-sans);
+				font-size: clamp(var(--font-24), 4vw, var(--font-32));
+				font-weight: 500;
+				line-height: 40px;
+				text-transform: capitalize;
+			}
+		}
+	}
+
+=== 1445 src/routes/archive/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import Heading from '$lib/ui/heading.svelte';
+import { fade } from 'svelte/transition';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { data } = $$props;
+
+		$.head('1d6nxft', $$renderer, ($$renderer) => {
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>Archive</title>`);
+			});
+
+			$$renderer.push(`<meta${$.attr('content', `List of ${$.stringify(data.posts.length)} posts.`)} name="description"/>`);
+		});
+
+		Heading($$renderer, {
+			children: ($$renderer) => {
+				$$renderer.push(`<!---->Archive`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> <section class="svelte-1d6nxft"><div class="container svelte-1d6nxft"><h3>Posts</h3> <div><span class="results svelte-1d6nxft">${$.escape(data.posts.length)}</span> results</div></div> <div class="posts svelte-1d6nxft"><!--[-->`);
+
+		const each_array = $.ensure_array_like(data.posts);
+
+		for (let i = 0, $$length = each_array.length; i < $$length; i++) {
+			let post = each_array[i];
+
+			$$renderer.push(`<div><a${$.attr('href', `/${$.stringify(post.slug)}`)} class="svelte-1d6nxft"><article class="post svelte-1d6nxft"><div class="details"><span class="title svelte-1d6nxft"${$.attr_style('', { '--view-transition-name': post.slug })}>${$.escape(post.title)}</span></div></article></a></div>`);
+		}
+
+		$$renderer.push(`<!--]--></div></section>`);
+	});
+}
+=== 338 src/routes/categories/[category]/+page.svelte	css
+
+	.container.svelte-j39hja {
+		display: flex;
+		justify-content: space-between;
+
+		.tag:where(.svelte-j39hja) {
+			padding: var(--spacing-16);
+			font-weight: 700;
+			background-color: var(--clr-bg);
+			border-radius: var(--rounded-20);
+			box-shadow: var(--shadow-sm);
+		}
+
+		.results:where(.svelte-j39hja) {
+			font-weight: 700;
+		}
+	}
+
+=== 1438 src/routes/categories/[category]/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import { page } from '$app/stores';
+import Heading from '$lib/ui/heading.svelte';
+import Posts from '$lib/ui/posts.svelte';
+import * as config from '$lib/site/config';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+		let { data } = $$props;
+		const posts = $.derived(() => data.posts);
+		const category = $.store_get($$store_subs ??= {}, '$page', page).params.category;
+
+		$.head('j39hja', $$renderer, ($$renderer) => {
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(config.categories[category])}</title>`);
+			});
+
+			$$renderer.push(`<meta${$.attr('content', `${$.stringify(config.categories[category])} category.`)} name="description"/>`);
+		});
+
+		Heading($$renderer, {
+			children: ($$renderer) => {
+				$$renderer.push(`<!---->${$.escape(config.categories[category])}`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> `);
+
+		{
+			function title($$renderer) {
+				$$renderer.push(`<div class="container svelte-j39hja"><div><span class="tag svelte-j39hja">${$.escape(category)}</span></div> <div><span class="results svelte-j39hja">${$.escape(posts().length)}</span> results</div></div>`);
+			}
+
+			Posts($$renderer, { posts: posts(), title, $$slots: { title: true } });
+		}
+
+		$$renderer.push(`<!---->`);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 945 src/routes/drafts/+page.svelte	css
+
+	section.svelte-1nln88x {
+		max-width: 740px;
+		margin-inline: auto;
+		margin-block-start: var(--spacing-64);
+
+		.container:where(.svelte-1nln88x) {
+			display: flex;
+			justify-content: space-between;
+
+			.results:where(.svelte-1nln88x) {
+				font-weight: 700;
+			}
+		}
+	}
+
+	.posts.svelte-1nln88x {
+		margin-top: var(--spacing-64);
+
+		a:where(.svelte-1nln88x)::before {
+			content: none;
+		}
+
+		.post:where(.svelte-1nln88x) {
+			margin-block-start: var(--spacing-32);
+			padding-block-end: var(--spacing-32);
+			border-bottom: 1px solid var(--clr-menu-border);
+
+			html[data-font='dyslexic'] & .title:where(.svelte-1nln88x) {
+				font-family: var(--font-dyslexic);
+				font-size: var(--font-24);
+				line-height: 32px;
+			}
+
+			.title:where(.svelte-1nln88x) {
+				font-family: var(--font-sans);
+				font-size: clamp(var(--font-24), 4vw, var(--font-32));
+				font-weight: 500;
+				line-height: 40px;
+				text-transform: capitalize;
+			}
+		}
+	}
+
+=== 1391 src/routes/drafts/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import { fade } from 'svelte/transition';
+import Heading from '$lib/ui/heading.svelte';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { data } = $$props;
+
+		$.head('1nln88x', $$renderer, ($$renderer) => {
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>Drafts</title>`);
+			});
+
+			$$renderer.push(`<meta${$.attr('content', `List of ${$.stringify(data.posts.length)} posts.`)} name="description"/>`);
+		});
+
+		Heading($$renderer, {
+			children: ($$renderer) => {
+				$$renderer.push(`<!---->Drafts`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> <section class="svelte-1nln88x"><div class="container svelte-1nln88x"><h3>Drafts</h3> <div><span class="results svelte-1nln88x">${$.escape(data.posts.length)}</span> results</div></div> <div class="posts svelte-1nln88x"><!--[-->`);
+
+		const each_array = $.ensure_array_like(data.posts);
+
+		for (let i = 0, $$length = each_array.length; i < $$length; i++) {
+			let post = each_array[i];
+
+			$$renderer.push(`<div><a${$.attr('href', `/drafts/${$.stringify(post.slug)}`)} class="svelte-1nln88x"><article class="post svelte-1nln88x"><div class="details"><span class="title svelte-1nln88x">${$.escape(post.title)}</span></div></article></a></div>`);
+		}
+
+		$$renderer.push(`<!--]--></div></section>`);
+	});
+}
+=== 305 src/routes/drafts/[slug]/+page.svelte	css
+
+	.cards.svelte-1qeaqd3 {
+		display: grid;
+		row-gap: var(--spacing-32);
+		max-width: var(--post-txt-length);
+		margin: var(--spacing-64) 0;
+		margin-inline: auto;
+	}
+
+	.title.svelte-1qeaqd3 {
+		max-width: 600px;
+		margin-inline: auto;
+	}
+
+	.published.svelte-1qeaqd3 {
+		margin-top: var(--spacing-24);
+	}
+
+=== 2389 src/routes/drafts/[slug]/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import { formatDate } from '$lib/utils';
+import * as config from '$lib/site/config';
+import Card from '../../[slug]/card.svelte';
+import Clipboard from '../../[slug]/clipboard.svelte';
+import TableOfContents from '../../[slug]/toc.svelte';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { data } = $$props;
+		let editUrl = $.derived(() => `${config.fileUrl}/${data.frontmatter.slug}/${data.frontmatter.slug}.md`);
+		let image = $.derived(() => `${config.postImage}${encodeURIComponent(data.frontmatter.title)}.png`);
+
+		$.head('1qeaqd3', $$renderer, ($$renderer) => {
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(data.frontmatter.title)}</title>`);
+			});
+
+			$$renderer.push(`<meta${$.attr('content', data.frontmatter.description)} name="description"/> <meta${$.attr('content', data.frontmatter.title)} property="og:title"/> <meta${$.attr('content', image())} property="og:image"/> <meta${$.attr('content', config.siteUrl)} property="og:url"/> <meta${$.attr('content', data.frontmatter.description)} property="og:description"/> <meta${$.attr('content', config.siteName)} property="og:site_name"/> <meta${$.attr('content', config.twitterHandle)} name="twitter:creator"/> <meta content="summary_large_image" name="twitter:card"/> <meta${$.attr('content', data.frontmatter.title)} name="twitter:title"/> <meta${$.attr('content', data.frontmatter.description)} name="twitter:description"/> <meta${$.attr('content', image())} name="twitter:image"/>`);
+		});
+
+		Clipboard($$renderer, {});
+		$$renderer.push(`<!----> <main>`);
+		TableOfContents($$renderer, {});
+		$$renderer.push(`<!----> <article class="prose"><header><h1 class="title svelte-1qeaqd3">${$.escape(data.frontmatter.title)}</h1> <p class="published svelte-1qeaqd3">Published ${$.escape(formatDate(data.frontmatter.published))}</p></header> `);
+
+		if (data.component) {
+			$$renderer.push('<!--[-->');
+			data.component($$renderer, {});
+			$$renderer.push('<!--]-->');
+		} else {
+			$$renderer.push('<!--[!-->');
+			$$renderer.push('<!--]-->');
+		}
+
+		$$renderer.push(`</article> <div class="cards svelte-1qeaqd3">`);
+		Card($$renderer, { preset: 'support' });
+		$$renderer.push(`<!----> `);
+		Card($$renderer, { preset: 'edit', editUrl: editUrl() });
+		$$renderer.push(`<!----></div></main>`);
+	});
+}
+=== 193 src/routes/newsletter/+page.svelte	css
+
+	.newsletter.svelte-12eivhs {
+		display: grid;
+		justify-items: center;
+
+		@media (min-width: 860px) {
+			display: grid;
+			justify-items: center;
+			margin-bottom: var(--spacing-128);
+		}
+	}
+
+=== 719 src/routes/newsletter/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import Heading from '$lib/ui/heading.svelte';
+import Newsletter from '$lib/ui/newsletter.svelte';
+
+export default function _page($$renderer) {
+	$.head('12eivhs', $$renderer, ($$renderer) => {
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>Newsletter</title>`);
+		});
+
+		$$renderer.push(`<meta content="Subscribe for updates and tasty web development treats." name="description"/>`);
+	});
+
+	Heading($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Newsletter`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----> <div class="newsletter svelte-12eivhs">`);
+	Newsletter($$renderer, {});
+	$$renderer.push(`<!----></div>`);
+}

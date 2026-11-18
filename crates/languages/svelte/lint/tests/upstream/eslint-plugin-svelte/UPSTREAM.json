@@ -1,0 +1,13 @@
+{
+	"repository": "https://github.com/sveltejs/eslint-plugin-svelte",
+	"commit": "24201e06a1a8e270c1143d1fb460e6ae635719d8",
+	"fixtures": "packages/eslint-plugin-svelte/tests/fixtures/rules",
+	"license": "MIT",
+	"versions": {
+		"eslint-plugin-svelte": "3.23.1",
+		"svelte": "5.57.3",
+		"eslint": "10.14.0",
+		"typescript": "6.0.3",
+		"@typescript-eslint/parser": "8.72.1"
+	}
+}

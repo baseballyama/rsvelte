@@ -1,0 +1,1 @@
+{#snippet a()}{@const x = 1}<p>{x}</p>{/snippet}{#snippet b()}{@const x = 2}<p>{x}</p>{/snippet}{@render a()}{@render b()}

@@ -1,0 +1,113 @@
+# rsvelte pack 1
+=== 3 examples/basic-routing/src/App.svelte	json
+[]
+
+=== 3 examples/basic-routing/src/routes/Home.svelte	json
+[]
+
+=== 3 examples/basic-routing/src/routes/Name.svelte	json
+[]
+
+=== 3 examples/basic-routing/src/routes/NotFound.svelte	json
+[]
+
+=== 3 examples/basic-routing/src/routes/Wild.svelte	json
+[]
+
+=== 3 examples/dynamic-imports/src/App.svelte	json
+[]
+
+=== 3 examples/dynamic-imports/src/routes/Home.svelte	json
+[]
+
+=== 3 examples/dynamic-imports/src/routes/Loading.svelte	json
+[]
+
+=== 3 examples/dynamic-imports/src/routes/Wild.svelte	json
+[]
+
+=== 848 src/Router.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 85
+		},
+		"end": {
+			"line": 5,
+			"character": 97
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 7
+		},
+		"end": {
+			"line": 20,
+			"character": 19
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'regexparam' or its corresponding type declarations.",
+		"start": {
+			"line": 301,
+			"character": 20
+		},
+		"end": {
+			"line": 301,
+			"character": 32
+		}
+	}
+]
+
+=== 3 test/app/src/App.svelte	json
+[]
+
+=== 3 test/app/src/routes/Catalog.svelte	json
+[]
+
+=== 3 test/app/src/routes/Foo.svelte	json
+[]
+
+=== 3 test/app/src/routes/Home.svelte	json
+[]
+
+=== 3 test/app/src/routes/Loading.svelte	json
+[]
+
+=== 3 test/app/src/routes/Lucky.svelte	json
+[]
+
+=== 3 test/app/src/routes/Name.svelte	json
+[]
+
+=== 3 test/app/src/routes/Nested.svelte	json
+[]
+
+=== 3 test/app/src/routes/NotFound.svelte	json
+[]
+
+=== 3 test/app/src/routes/Regex.svelte	json
+[]
+
+=== 3 test/app/src/routes/Wild.svelte	json
+[]
+

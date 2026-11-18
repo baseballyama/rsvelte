@@ -1,0 +1,1 @@
+<svelte:options customElement={{ shadow: 'bogus', tag: 123 }} />

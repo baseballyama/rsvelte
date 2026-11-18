@@ -1,0 +1,1 @@
+<script>class Value{#value="a";get value(){return this.#value;}set value(next){this.#value=next;}}const value=new Value();</script><p class={value.value}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

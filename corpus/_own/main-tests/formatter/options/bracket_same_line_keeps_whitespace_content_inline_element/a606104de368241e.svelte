@@ -1,0 +1,1 @@
+<p>Some prose text <span>   </span> more prose after</p>

@@ -1,0 +1,1 @@
+<script>let s = "a‮b";</script>

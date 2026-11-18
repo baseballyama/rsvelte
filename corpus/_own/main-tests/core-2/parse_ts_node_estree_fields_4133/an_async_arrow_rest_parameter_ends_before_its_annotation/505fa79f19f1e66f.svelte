@@ -1,0 +1,1 @@
+<script lang="ts">const a = async (...args: any) => 1;</script>

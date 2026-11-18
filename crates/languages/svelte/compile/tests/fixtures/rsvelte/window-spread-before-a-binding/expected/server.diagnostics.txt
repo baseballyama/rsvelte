@@ -1,0 +1,2 @@
+error illegal_element_attribute 6:36-6:45 `<svelte:window>` does not support non-event attributes or spread attributes
+    https://svelte.dev/e/illegal_element_attribute

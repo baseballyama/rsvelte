@@ -1,0 +1,1 @@
+<script>export let componentOptions;</script><audio on:abort={componentOptions?.events?.onabort}></audio>

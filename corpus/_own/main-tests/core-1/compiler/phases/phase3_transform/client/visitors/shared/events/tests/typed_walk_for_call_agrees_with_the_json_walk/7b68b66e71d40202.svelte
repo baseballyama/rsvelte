@@ -1,0 +1,1 @@
+<div onclick={cond ? a() : b}></div>

@@ -1,0 +1,16 @@
+- message: Using svelte/internal is prohibited. This will be removed in Svelte 6.
+  line: 2
+  column: 2
+  suggestions: null
+- message: Using svelte/internal is prohibited. This will be removed in Svelte 6.
+  line: 3
+  column: 2
+  suggestions: null
+- message: Using svelte/internal is prohibited. This will be removed in Svelte 6.
+  line: 4
+  column: 2
+  suggestions: null
+- message: Using svelte/internal is prohibited. This will be removed in Svelte 6.
+  line: 5
+  column: 2
+  suggestions: null

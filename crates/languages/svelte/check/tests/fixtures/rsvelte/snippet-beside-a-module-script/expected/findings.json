@@ -1,0 +1,26 @@
+[
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'row'.",
+		"start": {
+			"line": 4,
+			"character": 10
+		},
+		"end": {
+			"line": 4,
+			"character": 13
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'row'.",
+		"start": {
+			"line": 2,
+			"character": 14
+		},
+		"end": {
+			"line": 2,
+			"character": 17
+		}
+	}
+]

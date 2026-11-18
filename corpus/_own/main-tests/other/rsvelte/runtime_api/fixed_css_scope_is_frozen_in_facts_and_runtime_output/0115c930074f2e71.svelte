@@ -1,0 +1,1 @@
+<style>.card { color: blue }</style><div class="card">ok</div>

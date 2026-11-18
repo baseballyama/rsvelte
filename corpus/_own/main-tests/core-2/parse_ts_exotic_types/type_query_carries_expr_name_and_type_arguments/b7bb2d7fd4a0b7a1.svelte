@@ -1,0 +1,1 @@
+<script lang="ts">declare const n: any; type Q = typeof n.a.b;</script>

@@ -1,0 +1,1 @@
+{#each arr as item (item.id)}{item}{/each}

@@ -1,0 +1,1 @@
+<script>let x = 1;</script>{#if x}<p>a</p>{>/if}

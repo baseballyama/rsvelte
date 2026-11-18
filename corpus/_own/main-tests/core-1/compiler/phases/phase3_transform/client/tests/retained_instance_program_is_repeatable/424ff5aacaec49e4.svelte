@@ -1,0 +1,1 @@
+<script>let count = $state(0); const read = () => count;</script><p>{read()}</p>

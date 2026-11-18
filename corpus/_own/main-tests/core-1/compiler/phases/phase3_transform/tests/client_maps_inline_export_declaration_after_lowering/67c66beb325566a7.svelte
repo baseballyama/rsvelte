@@ -1,0 +1,1 @@
+<script>export const b = 2;</script>

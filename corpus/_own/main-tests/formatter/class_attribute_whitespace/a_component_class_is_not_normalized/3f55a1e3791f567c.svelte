@@ -1,0 +1,1 @@
+<Comp class="a  b  " />

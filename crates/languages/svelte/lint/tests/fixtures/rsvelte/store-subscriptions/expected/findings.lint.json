@@ -1,0 +1,32 @@
+{
+	"rules": [
+		"no-unused-vars",
+		"svelte/button-has-type"
+	],
+	"findings": [
+		{
+			"rule": "no-unused-vars",
+			"message": "'inc' is defined but never used.",
+			"start": {
+				"line": 7,
+				"column": 11
+			},
+			"end": {
+				"line": 7,
+				"column": 14
+			}
+		},
+		{
+			"rule": "svelte/button-has-type",
+			"message": "Missing an explicit type attribute for button.",
+			"start": {
+				"line": 13,
+				"column": 1
+			},
+			"end": {
+				"line": 13,
+				"column": 36
+			}
+		}
+	]
+}

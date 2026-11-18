@@ -1,0 +1,1 @@
+{#if true}{@const { a, ...rest } = { a: 1, b: 2 } }{a}-{rest.b}{/if}

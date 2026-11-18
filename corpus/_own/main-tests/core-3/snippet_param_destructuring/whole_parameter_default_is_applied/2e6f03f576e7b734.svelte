@@ -1,0 +1,1 @@
+{#snippet foo({ id } = { id: 1 })}<p>{id}</p>{/snippet}{@render foo()}

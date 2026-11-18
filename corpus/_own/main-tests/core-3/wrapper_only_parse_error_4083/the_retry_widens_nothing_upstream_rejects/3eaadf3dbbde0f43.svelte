@@ -1,0 +1,1 @@
+<script>let accessor;</script><p>{accessor satisfies string}</p>

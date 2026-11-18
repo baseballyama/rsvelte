@@ -1,0 +1,1 @@
+{#snippet foo(a, b)}<p>{a}{b}</p>{/snippet}{@render foo(await p, bar())}

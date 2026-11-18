@@ -1,0 +1,1 @@
+<script lang="ts">type M3 = { -readonly [K in "a"]-?: number };</script>

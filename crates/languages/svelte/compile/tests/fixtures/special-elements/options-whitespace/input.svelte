@@ -1,0 +1,1 @@
+<svelte:options preserveWhitespace={true}/><div>  hello   world  </div>

@@ -1,0 +1,1 @@
+<script>import Foo from './Foo.svelte'; let x = $derived(Math.random());</script>z<Foo>hi</Foo>

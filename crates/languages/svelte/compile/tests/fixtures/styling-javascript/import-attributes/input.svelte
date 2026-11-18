@@ -1,0 +1,1 @@
+<script>import data from "./data.json" with {type:"json"};</script><p class={data.value}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

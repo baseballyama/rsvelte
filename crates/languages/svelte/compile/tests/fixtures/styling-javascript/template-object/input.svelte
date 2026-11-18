@@ -1,0 +1,1 @@
+<script>const items=Array.from({length:2},(_,i)=>({text:`a${i}`}));</script><p class={items[0].text}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

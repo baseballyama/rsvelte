@@ -1,0 +1,14 @@
+{
+	"name": "@rsvelte-experimental/performance",
+	"private": true,
+	"description": "The performance ratchet: allocation and instruction counts against a committed baseline, and the profiles behind them",
+	"type": "module",
+	"scripts": {
+		"performance": "node performance.ts",
+		"test": "node --test '*.test.ts' '*/*.test.ts'",
+		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
+	},
+	"engines": {
+		"node": ">=26"
+	}
+}

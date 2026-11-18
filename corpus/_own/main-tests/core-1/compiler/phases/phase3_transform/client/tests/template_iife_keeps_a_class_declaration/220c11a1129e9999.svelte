@@ -1,0 +1,1 @@
+<p>{(() => { class T {} return new T(); })()}</p>

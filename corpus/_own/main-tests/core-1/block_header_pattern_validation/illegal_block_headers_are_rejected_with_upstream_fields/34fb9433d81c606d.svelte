@@ -1,0 +1,1 @@
+{#await p}w{:then v = 1}{v}{/await}

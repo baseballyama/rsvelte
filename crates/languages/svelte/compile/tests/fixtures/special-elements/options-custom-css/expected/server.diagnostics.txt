@@ -1,0 +1,2 @@
+warning options_missing_custom_element 1:17-1:43 The `customElement` option is used when generating a custom element. Did you forget the `customElement: true` compile option?
+    https://svelte.dev/e/options_missing_custom_element

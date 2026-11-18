@@ -1,0 +1,1 @@
+<script>import Comp from './Comp.svelte';</script><Comp><div slot="s" let:item>{item}</div></Comp>

@@ -1,0 +1,1 @@
+<svg><rect MUTED /></svg>

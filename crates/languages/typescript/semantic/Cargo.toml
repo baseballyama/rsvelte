@@ -1,0 +1,22 @@
+[package]
+name = "rsvelte_typescript_semantic"
+description = "Scopes and constant folding over JavaScript and TypeScript trees"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+rsvelte_kernel.workspace = true
+rsvelte_typescript_tree.workspace = true
+oxc_ast.workspace = true
+oxc_semantic.workspace = true
+oxc_span.workspace = true
+self_cell.workspace = true
+rustc-hash.workspace = true
+
+[lints]
+workspace = true

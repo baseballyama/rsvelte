@@ -1,0 +1,1 @@
+<script>let s = $state([1, 2]);</script><p>x</p>

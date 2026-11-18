@@ -1,0 +1,4 @@
+- message: Attribute 'ﬁ' should go before '😀'.
+  line: 1
+  column: 9
+  suggestions: null

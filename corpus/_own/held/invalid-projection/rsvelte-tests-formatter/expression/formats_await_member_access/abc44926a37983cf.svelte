@@ -1,0 +1,1 @@
+<p lang="ts">{await (await a.nested).one}</p>

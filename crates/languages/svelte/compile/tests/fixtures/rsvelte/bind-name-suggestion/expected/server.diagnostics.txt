@@ -1,0 +1,2 @@
+error bind_invalid_name 5:16-5:35 `bind:innerwidth` is not a valid binding. Did you mean 'innerWidth'?
+    https://svelte.dev/e/bind_invalid_name

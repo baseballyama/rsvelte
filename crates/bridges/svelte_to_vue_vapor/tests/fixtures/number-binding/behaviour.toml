@@ -1,0 +1,8 @@
+[[steps]]
+input = ["input[type=number]", "12"]
+
+[[steps]]
+input = ["input[type=number]", ""]
+
+[[steps]]
+input = ["input[type=range]", "75"]

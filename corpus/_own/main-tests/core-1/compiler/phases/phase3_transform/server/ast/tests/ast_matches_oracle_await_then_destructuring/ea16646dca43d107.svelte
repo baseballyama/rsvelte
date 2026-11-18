@@ -1,0 +1,1 @@
+{#await p then { [`prop${1}`]: { x }, ...rest }}<p>{x}{JSON.stringify(rest)}</p>{/await}

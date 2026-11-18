@@ -1,0 +1,1 @@
+<script>let o = {k: "a‮b"};</script>

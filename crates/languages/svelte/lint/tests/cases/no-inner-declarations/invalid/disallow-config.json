@@ -1,0 +1,8 @@
+{
+	"options": [
+		"functions",
+		{
+			"blockScopedFunctions": "disallow"
+		}
+	]
+}

@@ -1,0 +1,1 @@
+<script>let s = $state(1); let { p = $bindable(s) } = $props();</script><b>{typeof p}</b>

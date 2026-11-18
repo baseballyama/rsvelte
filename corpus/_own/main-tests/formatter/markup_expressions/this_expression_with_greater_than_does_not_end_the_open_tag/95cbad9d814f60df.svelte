@@ -1,0 +1,1 @@
+<svelte:element this={n > 0 ? 'p' : 'span'}>{n}</svelte:element>

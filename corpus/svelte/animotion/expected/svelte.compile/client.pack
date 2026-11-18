@@ -1,0 +1,2531 @@
+# rsvelte pack 1
+=== 1777 src/lib/components/action.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Action from '$lib/components/action.svelte';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'order', 'actions']);
+var root = $.from_html(`<div class="fragment hidden"></div>`);
+
+export default function Action_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	let props = $.rest_props($$props, rest_excludes);
+	let el = $.state(void 0);
+	const noop = () => {};
+	const action = () => $$props?.do?.() ?? noop();
+	const undo = () => $$props?.undo?.() ?? noop();
+
+	$.user_effect(() => {
+		$.get(el)?.addEventListener('current', action);
+		$.get(el)?.addEventListener('out', undo);
+
+		return () => {
+			$.get(el)?.removeEventListener('current', action);
+			$.get(el)?.removeEventListener('out', undo);
+		};
+	});
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			var fragment_1 = $.comment();
+			var node_1 = $.first_child(fragment_1);
+
+			$.each(node_1, 17, () => $$props.actions, $.index, ($$anchor, action, i, $$array) => {
+				const previousAction = $.derived(() => i === 0 ? undo : $$props.actions[i - 1]);
+
+				Action($$anchor, {
+					get do() {
+						return $.get(action);
+					},
+
+					get undo() {
+						return $.get(previousAction);
+					}
+				});
+			});
+
+			$.append($$anchor, fragment_1);
+		};
+
+		var alternate = ($$anchor) => {
+			var div = root();
+
+			$.bind_this(div, ($$value) => $.set(el, $$value), () => $.get(el));
+			$.template_effect(() => $.set_attribute(div, 'data-fragment-index', $$props.order));
+			$.append($$anchor, div);
+		};
+
+		$.if(node, ($$render) => {
+			if ($$props.actions) $$render(consequent); else $$render(alternate, -1);
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 20552 src/lib/components/code.svelte	js
+import 'svelte/internal/disclose-version';
+import { createHighlighter } from 'shiki';
+import * as $ from 'svelte/internal/client';
+import Action from '$lib/components/action.svelte';
+import Code from '$lib/components/code.svelte';
+import { codeToKeyedTokens, createMagicMoveMachine } from '@shikijs/magic-move/core';
+import { MagicMoveRenderer } from '@shikijs/magic-move/renderer';
+import { getPresentation } from './store.svelte.js';
+import '../styles/shiki.css';
+
+const highlighterCache = new Map();
+
+function getHighlighter(theme, lang) {
+	const key = `${theme}-${lang}`;
+
+	if (!highlighterCache.has(key)) {
+		highlighterCache.set(key, createHighlighter({ themes: [theme], langs: [lang] }));
+	}
+
+	return highlighterCache.get(key);
+}
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'code',
+	'codes',
+	'lang',
+	'theme',
+	'options',
+	'autoIndent',
+	'ref'
+]);
+
+var root = $.from_html(`<!> <!>`, 1);
+var root_1 = $.from_html(`<pre></pre>`);
+
+export default function Code_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	let theme = $.prop($$props, 'theme', 3, 'poimandres'),
+		options = $.prop($$props, 'options', 19, () => ({})),
+		autoIndent = $.prop($$props, 'autoIndent', 3, true),
+		props = $.rest_props($$props, rest_excludes);
+
+	let container = $.state(void 0);
+	let self = $.state(void 0);
+	let highlighter;
+	let machine;
+	let renderer;
+	let ready = false;
+	let currentCode = '';
+	let currentTokens = [];
+
+	const is = {
+		htmlEl: (el) => el instanceof HTMLElement,
+		token: (el) => el.className.includes('shiki-magic-move-item'),
+		newLine: (el) => el.tagName === 'BR'
+	};
+
+	function getRevealScale() {
+		const deck = getPresentation().slides;
+
+		return deck?.getScale?.() ?? 1;
+	}
+
+	// splits bracket characters for finer-grained selection
+	function splitPunctuationTokens(result) {
+		const brackets = /[{}\[\]()]/g;
+		const newTokens = [];
+
+		for (const token of result.tokens) {
+			if (token.content === '\n') {
+				newTokens.push(token);
+
+				continue;
+			}
+
+			const matches = [...token.content.matchAll(brackets)];
+
+			if (matches.length === 0) {
+				newTokens.push(token);
+
+				continue;
+			}
+
+			const splitPositions = matches.map((m) => m.index);
+			let lastEnd = 0;
+			const splits = [];
+
+			for (const pos of splitPositions) {
+				if (pos > lastEnd) {
+					splits.push({
+						content: token.content.slice(lastEnd, pos),
+						offset: token.offset + lastEnd
+					});
+				}
+
+				splits.push({
+					content: token.content.slice(pos, pos + 1),
+					offset: token.offset + pos
+				});
+
+				lastEnd = pos + 1;
+			}
+
+			if (lastEnd < token.content.length) {
+				splits.push({
+					content: token.content.slice(lastEnd),
+					offset: token.offset + lastEnd
+				});
+			}
+
+			for (let i = 0; i < splits.length; i++) {
+				newTokens.push({
+					...token,
+					content: splits[i].content,
+					offset: splits[i].offset,
+					key: i === 0 ? token.key : `${token.key}-${i}`
+				});
+			}
+		}
+
+		return { ...result, tokens: newTokens };
+	}
+
+	/**
+	 * removes common leading indentation from code
+	 */
+	function indent(text) {
+		const trimmed = text.trim();
+		const lines = trimmed.split('\n');
+
+		if (lines.length === 1) return trimmed;
+
+		const firstIndented = lines.find((line) => (/^[\t ]/).test(line));
+
+		if (!firstIndented) return trimmed;
+
+		const isTabs = firstIndented[0] === '\t';
+
+		if (isTabs) {
+			const common = lines.map((line) => line.match(/^(\t+)/)?.[1] || '').filter((tabs) => tabs.length > 0).sort((a, b) => a.length - b.length)[0];
+
+			if (!common || common === '\t') return trimmed;
+
+			return lines.map((line) => line.replace(common, '')).join('\n');
+		} else {
+			const common = lines.map((line) => line.match(/^( +)/)?.[1] || '').filter((spaces) => spaces.length > 0).sort((a, b) => a.length - b.length)[0];
+
+			if (!common || common === ' ') return trimmed;
+
+			return lines.map((line) => line.replace(common, '')).join('\n');
+		}
+	}
+
+	/**
+	 * modified indent mostly used by replace
+	 */
+	function dedent(text) {
+		const lines = text.split('\n');
+		let baseIndent = '';
+
+		for (const line of lines) {
+			if (line.trim() === '') continue;
+
+			baseIndent = line.match(/^(\s*)/)?.[1] ?? '';
+
+			break;
+		}
+
+		if (!baseIndent) return text.trim();
+
+		const result = lines.map((line) => {
+			if (line.trim() === '') return '';
+			if (line.startsWith(baseIndent)) return line.slice(baseIndent.length);
+
+			return line.trimStart();
+		});
+
+		while (result.length && result[0].trim() === '') result.shift();
+		while (result.length && result[result.length - 1].trim() === '') result.pop();
+
+		return result.join('\n');
+	}
+
+	function parseSelection(raw) {
+		let line = null;
+		let index = null;
+		let pattern = raw.trim();
+		const indexMatch = pattern.match(/:(\d+)$/);
+
+		if (indexMatch) {
+			index = parseInt(indexMatch[1], 10);
+			pattern = pattern.slice(0, -indexMatch[0].length).trim();
+		}
+
+		const parts = pattern.split(/\s+/);
+
+		if (parts.length > 0 && (/^\d+$/).test(parts[0])) {
+			line = parseInt(parts[0], 10);
+			pattern = parts.slice(1).join(' ');
+		}
+
+		return { line, index, pattern };
+	}
+
+	function stripWhitespace(code) {
+		const stripped = [];
+		const positions = [];
+
+		for (let i = 0; i < code.length; i++) {
+			if (!(/\s/).test(code[i])) {
+				stripped.push(code[i]);
+				positions.push(i);
+			}
+		}
+
+		return { stripped: stripped.join(''), positions };
+	}
+
+	function findOccurrences(code, pattern, line, index) {
+		const { stripped: strippedSource, positions } = stripWhitespace(code);
+		const strippedPattern = pattern.replace(/\s+/g, '');
+
+		if (!strippedPattern) return [];
+
+		const occurrences = [];
+		let searchPos = 0;
+
+		while (searchPos < strippedSource.length) {
+			const found = strippedSource.indexOf(strippedPattern, searchPos);
+
+			if (found === -1) break;
+
+			const start = positions[found];
+			const end = positions[found + strippedPattern.length - 1] + 1;
+
+			occurrences.push({ start, end });
+			searchPos = found + 1;
+		}
+
+		if (occurrences.length === 0) return [];
+
+		// filter by line if specified
+		if (line !== null) {
+			const lines = code.split('\n');
+			let charPos = 0;
+			const lineRanges = [];
+
+			for (let i = 0; i < lines.length; i++) {
+				lineRanges.push({ start: charPos, end: charPos + lines[i].length });
+				charPos += lines[i].length + 1;
+			}
+
+			const lineIndex = line - 1;
+
+			if (lineIndex >= 0 && lineIndex < lineRanges.length) {
+				const targetRange = lineRanges[lineIndex];
+
+				return occurrences.filter((occ) => occ.start >= targetRange.start && occ.end <= targetRange.end);
+			}
+		}
+
+		// apply index if specified
+		if (index !== null) {
+			const idx = index;
+
+			return occurrences[idx] ? [occurrences[idx]] : [];
+		}
+
+		return occurrences;
+	}
+
+	function getTokenOffsets(tokens, occurrences) {
+		const offsets = new Set();
+
+		for (const occ of occurrences) {
+			for (const token of tokens) {
+				const tokenStart = token.offset;
+				const tokenEnd = token.offset + token.content.length;
+
+				if (tokenEnd > occ.start && tokenStart < occ.end) {
+					offsets.add(token.offset);
+				}
+			}
+		}
+
+		return offsets;
+	}
+
+	function addLineNumbers(tokens) {
+		let line = 1;
+
+		return tokens.map((token) => {
+			const tokenWithLine = { ...token, line };
+
+			if (token.content === '\n') line++;
+
+			return tokenWithLine;
+		});
+	}
+
+	function createRange(start, end) {
+		return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+	}
+
+	function getLines(range) {
+		if (range === '*') return [];
+
+		return range.split(',').flatMap((part) => {
+			if (part.includes('-')) {
+				const [start, end] = part.split('-').map(Number);
+
+				return createRange(start, end);
+			}
+
+			return [+part];
+		});
+	}
+
+	function merge(strings, expressions) {
+		let result = '';
+
+		for (let i = 0; i < strings.length; i++) {
+			result += strings[i];
+
+			if (expressions[i]) result += expressions[i].trim();
+		}
+
+		return result;
+	}
+
+	function transition(el, selected) {
+		const { promise, resolve } = Promise.withResolvers();
+		const willTransition = !selected && el.classList.contains('selected') || selected && el.classList.contains('deselected') || !selected && !el.classList.contains('deselected');
+
+		if (willTransition) {
+			el.ontransitionend = resolve;
+		} else {
+			resolve('finished');
+		}
+
+		el.classList.toggle('selected', selected);
+		el.classList.toggle('deselected', !selected);
+
+		return promise;
+	}
+
+	function applyToTokens(container, tokens, selectedOffsets, mode) {
+		const children = container.children;
+		const promises = [];
+		let tokenIndex = 0;
+
+		for (const el of children) {
+			if (!is.htmlEl(el)) continue;
+
+			if (is.token(el)) {
+				const token = tokens[tokenIndex];
+
+				tokenIndex++;
+
+				if (token) {
+					const isSelected = selectedOffsets.has(token.offset);
+
+					if (mode === 'replace') {
+						promises.push(transition(el, isSelected));
+					} else if (mode === 'add' && isSelected) {
+						promises.push(transition(el, true));
+					}
+				}
+			}
+
+			if (is.newLine(el)) {
+				tokenIndex++;
+			}
+		}
+
+		return Promise.all(promises);
+	}
+
+	async function init() {
+		if (!$.get(container)) return;
+
+		highlighter = await getHighlighter(theme(), $$props.lang);
+
+		machine = createMagicMoveMachine(
+			(code) => {
+				const result = codeToKeyedTokens(highlighter, code, { lang: $$props.lang, theme: theme() }, options().lineNumbers);
+
+				return splitPunctuationTokens(result);
+			},
+			options()
+		);
+
+		renderer = new MagicMoveRenderer($.get(container));
+		Object.assign(renderer.options, { ...options(), globalScale: getRevealScale() });
+
+		const indentedCode = autoIndent() ? indent($$props.code) : $$props.code;
+
+		currentCode = indentedCode;
+
+		const result = machine.commit(indentedCode);
+
+		currentTokens = addLineNumbers(result.current.tokens);
+		renderer.render(result.current);
+		ready = true;
+	}
+
+	async function render(code) {
+		if (!ready) return;
+
+		const indentedCode = autoIndent() ? indent(code) : code;
+
+		currentCode = indentedCode;
+
+		const result = machine.commit(indentedCode);
+
+		if (result.previous) renderer.replace(result.previous);
+
+		currentTokens = addLineNumbers(result.current.tokens);
+		renderer.options.globalScale = getRevealScale();
+		await renderer.render(result.current);
+	}
+
+	/**
+	 * updates the code with animation
+	 */
+	function update(strings, ...expressions) {
+		return expressions.length > 0
+			? render(merge(strings, expressions))
+			: render(strings[0]);
+	}
+
+	/**
+	 * appends code to the current code with animation
+	 */
+	function append(strings, ...expressions) {
+		const newCode = expressions.length > 0 ? merge(strings, expressions) : strings[0];
+		const dedentedCode = autoIndent() ? indent(newCode) : newCode;
+
+		return render(currentCode + '\n\n' + dedentedCode);
+	}
+
+	/**
+	 * removes lines by line number with animation
+	 * supports: single line (5), range (5-7), multiple (5,7,9), or combinations (5,7-10)
+	 */
+	function remove(strings, ...expressions) {
+		const input = expressions.length > 0 ? merge(strings, expressions) : strings[0];
+		const lineNumbers = getLines(input.trim());
+
+		if (lineNumbers.length === 0) {
+			console.warn('remove: invalid line range');
+
+			return Promise.resolve();
+		}
+
+		const lines = currentCode.split('\n');
+		const sortedLines = [...lineNumbers].sort((a, b) => b - a);
+
+		for (const lineNum of sortedLines) {
+			if (lineNum >= 1 && lineNum <= lines.length) {
+				lines.splice(lineNum - 1, 1);
+			}
+		}
+
+		return render(lines.join('\n'));
+	}
+
+	function detectIndentStyle(lines) {
+		for (const line of lines) {
+			const match = line.match(/^(\s+)/);
+
+			if (match) {
+				const whitespace = match[1];
+
+				if (whitespace.includes('\t')) {
+					return { char: '\t', size: 1 };
+				}
+
+				const spaces = whitespace.length;
+
+				return { char: ' ', size: spaces <= 2 ? 2 : 4 };
+			}
+		}
+
+		return { char: ' ', size: 2 };
+	}
+
+	/**
+	 * inserts code at a specific line with animation
+	 * format: `<lineNumber>:<indentLevel> <code>` where line number is 1-indexed
+	 * indentLevel is optional (defaults to 0)
+	 */
+	function insert(strings, ...expressions) {
+		const input = expressions.length > 0 ? merge(strings, expressions) : strings[0];
+		const match = input.match(/^(\d+)(?::(\d+))?[ \t]*/);
+
+		if (!match) {
+			console.warn('insert: line number required at start of code');
+
+			return Promise.resolve();
+		}
+
+		const lineNumber = parseInt(match[1], 10);
+		const indentLevel = match[2] ? parseInt(match[2], 10) : 0;
+		const codeFragment = input.slice(match[0].length);
+
+		// preserve leading newlines before dedenting
+		const leadingNewlines = codeFragment.match(/^\n*/)?.[0].length ?? 0;
+
+		const codeWithoutLeadingNewlines = codeFragment.slice(leadingNewlines);
+
+		const dedentedCode = autoIndent()
+			? indent(codeWithoutLeadingNewlines)
+			: codeWithoutLeadingNewlines;
+
+		const lines = currentCode.split('\n');
+		const { char, size } = detectIndentStyle(lines);
+
+		const actualIndent = char === '\t'
+			? ('\t').repeat(indentLevel)
+			: (' ').repeat(indentLevel * size);
+
+		const codeLines = dedentedCode.split('\n');
+		const indentedLines = codeLines.map((line) => line ? actualIndent + line : line);
+		const blankLines = Array(leadingNewlines).fill('');
+
+		lines.splice(lineNumber - 1, 0, ...blankLines, ...indentedLines);
+
+		return render(lines.join('\n'));
+	}
+
+	/**
+	 * replaces matching code with new code with animation
+	 */
+	function replace(from, to) {
+		const dedentedFrom = autoIndent() ? dedent(from) : from;
+		const dedentedTo = autoIndent() ? dedent(to) : to;
+		const [occ] = findOccurrences(currentCode, dedentedFrom, null, 0);
+
+		if (!occ) {
+			console.warn('replace: pattern not found');
+
+			return Promise.resolve();
+		}
+
+		const lineStart = currentCode.lastIndexOf('\n', occ.start - 1) + 1;
+		const lineIndent = currentCode.slice(lineStart).match(/^\s*/)?.[0] ?? '';
+		const toLines = dedentedTo.split('\n');
+		const reindentedTo = toLines.map((line, i) => i === 0 ? line : line ? lineIndent + line : line).join('\n');
+
+		return render(currentCode.slice(0, occ.start) + reindentedTo + currentCode.slice(occ.end));
+	}
+
+	/**
+	 * highlights specific lines, or all lines if `*` is passed
+	 */
+	function selectLines(strings, ...expressions) {
+		if (!$.get(container)) return;
+
+		const range = expressions.length > 0 ? merge(strings, expressions) : strings[0];
+		const lines = getLines(range);
+		const children = $.get(container).children;
+		const promises = [];
+		let currentLine = 1;
+
+		for (const el of children) {
+			if (!is.htmlEl(el)) return;
+
+			if (is.token(el)) {
+				const selected = lines.length === 0 ? true : lines.includes(currentLine);
+
+				promises.push(transition(el, selected));
+			}
+
+			if (is.newLine(el)) currentLine++;
+		}
+
+		return Promise.all(promises);
+	}
+
+	/**
+	 * adds specific lines to the current selection without deselecting others
+	 */
+	function selectLinesAdd(strings, ...expressions) {
+		if (!$.get(container)) return;
+
+		const range = expressions.length > 0 ? merge(strings, expressions) : strings[0];
+		const lines = getLines(range);
+		const children = $.get(container).children;
+		const promises = [];
+		let currentLine = 1;
+
+		for (const el of children) {
+			if (!is.htmlEl(el)) return;
+
+			if (is.token(el)) {
+				const shouldSelect = lines.length === 0 ? true : lines.includes(currentLine);
+
+				if (shouldSelect) {
+					promises.push(transition(el, true));
+				}
+			}
+
+			if (is.newLine(el)) currentLine++;
+		}
+
+		return Promise.all(promises);
+	}
+
+	/**
+	 * scrolls to make a specific line visible
+	 */
+	function scrollToLine(strings, ...expressions) {
+		if (!$.get(container)) return;
+
+		const raw = expressions.length > 0 ? merge(strings, expressions) : strings[0];
+		const line = parseInt(raw.trim());
+
+		if (isNaN(line) || line < 1) return;
+
+		let tokenIndex = 0;
+		let targetElement = null;
+
+		/*
+		 * shiki inserts an anchor span at index 0, then renders
+		 * every token (including \n as <br>) as a direct child.
+		 * we skip the anchor and map each remaining child 1:1 with currentTokens
+		 * to find the first token element on the target line.
+		 */
+		for (let i = 1; i < $.get(container).children.length; i++) {
+			const el = $.get(container).children[i];
+
+			if (!is.htmlEl(el)) continue;
+			if (tokenIndex >= currentTokens.length) break;
+
+			const token = currentTokens[tokenIndex];
+
+			tokenIndex++;
+
+			if (is.token(el) && token.line === line) {
+				targetElement = el;
+
+				break;
+			}
+		}
+
+		if (!targetElement) return;
+
+		return new Promise((resolve) => {
+			/*
+			 * calculate where the target would be when centered so we can
+			 * skip the animation if we're already there
+			 */
+			const containerRect = $.get(container).getBoundingClientRect();
+
+			const targetRect = targetElement.getBoundingClientRect();
+			const targetOffsetTop = targetRect.top - containerRect.top + $.get(container).scrollTop;
+			const centerOffset = containerRect.height / 2 - targetRect.height / 2;
+			const scrollPosition = Math.max(0, targetOffsetTop - centerOffset);
+
+			if (Math.abs($.get(container).scrollTop - scrollPosition) < 1) {
+				resolve();
+
+				return;
+			}
+
+			targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+			let resolved = false;
+
+			const done = () => {
+				if (resolved) return;
+
+				resolved = true;
+				resolve();
+			};
+
+			$.get(container).addEventListener('scrollend', done, { once: true });
+			setTimeout(done, 500);
+		});
+	}
+
+	/**
+	 * selects tokens matching a pattern, optionally filtered by line number or index
+	 */
+	function select(strings, ...expressions) {
+		if (!$.get(container) || !currentCode) return;
+
+		const raw = expressions.length > 0 ? merge(strings, expressions) : strings[0];
+		const { line, index, pattern } = parseSelection(raw);
+
+		if (!pattern) return;
+
+		const occurrences = findOccurrences(currentCode, pattern, line, index);
+		const selectedOffsets = getTokenOffsets(currentTokens, occurrences);
+
+		return applyToTokens($.get(container), currentTokens, selectedOffsets, 'replace');
+	}
+
+	/**
+	 * adds to the current selection without deselecting other tokens
+	 */
+	function selectAdd(strings, ...expressions) {
+		if (!$.get(container) || !currentCode) return;
+
+		const raw = expressions.length > 0 ? merge(strings, expressions) : strings[0];
+		const { line, index, pattern } = parseSelection(raw);
+
+		if (!pattern) return;
+
+		const occurrences = findOccurrences(currentCode, pattern, line, index);
+		const selectedOffsets = getTokenOffsets(currentTokens, occurrences);
+
+		return applyToTokens($.get(container), currentTokens, selectedOffsets, 'add');
+	}
+
+	/**
+	 * @deprecated use `select` instead
+	 */
+	function selectToken(strings, ...expressions) {
+		console.warn('selectToken is deprecated, use select instead');
+
+		return select(strings, ...expressions);
+	}
+
+	$.user_effect(() => {
+		init();
+	});
+
+	$.user_effect(() => {
+		$$props.ref?.($.get(self));
+	});
+
+	var $$exports = {
+		indent,
+		update,
+		append,
+		remove,
+		insert,
+		replace,
+		selectLines,
+		selectLinesAdd,
+		scrollToLine,
+		select,
+		selectAdd,
+		selectToken
+	};
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var fragment_1 = root();
+			var node_1 = $.first_child(fragment_1);
+
+			$.bind_this(
+				Code(node_1, $.spread_props(
+					{
+						get code() {
+							return $$props.codes[0];
+						},
+
+						get lang() {
+							return $$props.lang;
+						},
+
+						get theme() {
+							return theme();
+						},
+
+						get options() {
+							return options();
+						},
+
+						get autoIndent() {
+							return autoIndent();
+						}
+					},
+					() => props
+				)),
+				($$value) => $.set(self, $$value, true),
+				() => $.get(self)
+			);
+
+			var node_2 = $.sibling(node_1, 2);
+
+			$.each(node_2, 17, () => $$props.codes, $.index, ($$anchor, _, i) => {
+				var fragment_2 = $.comment();
+				var node_3 = $.first_child(fragment_2);
+
+				{
+					var consequent = ($$anchor) => {
+						Action($$anchor, {
+							do: () => $.get(self).update`${$$props.codes[i + 1]}`,
+							undo: () => $.get(self).update`${$$props.codes[i]}`
+						});
+					};
+
+					$.if(node_3, ($$render) => {
+						if ($$props.codes[i + 1]) $$render(consequent);
+					});
+				}
+
+				$.append($$anchor, fragment_2);
+			});
+
+			$.append($$anchor, fragment_1);
+		};
+
+		var alternate = ($$anchor) => {
+			var pre = root_1();
+
+			$.attribute_effect(pre, () => ({
+				...props,
+				class: `shiki-magic-move-container ${$$props.class ?? ''}`
+			}));
+
+			$.bind_this(pre, ($$value) => $.set(container, $$value), () => $.get(container));
+			$.append($$anchor, pre);
+		};
+
+		$.if(node, ($$render) => {
+			if ($$props.codes) $$render(consequent_1); else $$render(alternate, -1);
+		});
+	}
+
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}
+=== 127 src/lib/components/embed.svelte	css
+
+	.reveal.svelte-2a7m49 {
+		height: 200px;
+		margin-block: var(--size-3);
+
+		@media (width > 600px) {
+			height: 480px;
+		}
+	}
+
+=== 3746 src/lib/components/embed.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { tick } from 'svelte';
+import { setPresentation } from './store.svelte.js';
+import 'reveal.js/reveal.css';
+import '../styles/theme.css';
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'children',
+	'options',
+	'plugins'
+]);
+
+var root = $.from_html(`<div class="reveal svelte-2a7m49"><div><!></div></div>`);
+
+export default function Embed($$anchor, $$props) {
+	$.push($$props, true);
+
+	let props = $.rest_props($$props, rest_excludes);
+	let deck;
+
+	async function init() {
+		const Reveal = (await import('reveal.js')).default;
+		const pluginDefaults = { markdown: false, highlight: false, math: false, notes: false };
+		const enabled = { ...pluginDefaults, ...$$props.plugins };
+		const activePlugins = [];
+
+		if (enabled.markdown) {
+			const Markdown = (await import('reveal.js/plugin/markdown')).default;
+
+			activePlugins.push(Markdown);
+		}
+
+		if (enabled.highlight) {
+			const Highlight = (await import('reveal.js/plugin/highlight')).default;
+
+			activePlugins.push(Highlight);
+		}
+
+		if (enabled.math) {
+			const Math = (await import('reveal.js/plugin/math')).default;
+
+			activePlugins.push(Math.KaTeX);
+		}
+
+		if (enabled.notes) {
+			const Notes = (await import('reveal.js/plugin/notes')).default;
+
+			activePlugins.push(Notes);
+		}
+
+		/*
+			to have multiple slides we pass the new reference
+			to animotion and have to set `embedded: true`
+		*/
+		deck = new Reveal(animotion, {
+			display: 'grid',
+			disableLayout: false,
+			plugins: activePlugins,
+			keyboardCondition: 'focused',
+			embedded: true,
+			...$$props.options
+		});
+
+		setPresentation(deck);
+
+		// custom event listeners
+		const inEvent = new CustomEvent('in');
+
+		const outEvent = new CustomEvent('out');
+		const currentEvent = new CustomEvent('current');
+
+		// dispatch event for current active fragment
+		// so `do` works in both directions
+		async function dispatchFocused(event) {
+			await tick();
+
+			const currentEmbedEl = event.target;
+			const currentFragmentEl = currentEmbedEl.querySelector('.current-fragment');
+
+			if (currentFragmentEl) {
+				currentFragmentEl.dispatchEvent(currentEvent);
+			}
+		}
+
+		// keep track of current slide
+		deck.on('slidechanged', (event) => {
+			if ('currentSlide' in event) {
+				const currentSlideEl = event.currentSlide;
+
+				currentSlideEl?.dispatchEvent(inEvent);
+			}
+
+			if ('previousSlide' in event) {
+				const currentPreviousEl = event.previousSlide;
+
+				currentPreviousEl?.dispatchEvent(outEvent);
+			}
+
+			dispatchFocused(event);
+		});
+
+		deck.on('slidetransitionend', (event) => {
+			dispatchFocused(event);
+		});
+
+		deck.on('fragmentshown', (event) => {
+			if ('fragment' in event) {
+				const el = event.fragment;
+				let eventType;
+
+				if (el.tagName === 'CODE') {
+					const codeEvent = new CustomEvent('change', { bubbles: true, detail: { step: el.dataset.lineNumbers } });
+
+					eventType = codeEvent;
+				} else {
+					eventType = inEvent;
+				}
+
+				el?.dispatchEvent(eventType);
+				dispatchFocused(event);
+			}
+		});
+
+		deck.on('fragmenthidden', (event) => {
+			if ('fragment' in event) {
+				const fragmentEl = event.fragment;
+
+				fragmentEl?.dispatchEvent(outEvent);
+				dispatchFocused(event);
+			}
+		});
+
+		deck.initialize();
+	}
+
+	$.user_effect(() => {
+		init();
+
+		return () => {
+			deck?.destroy();
+		};
+	});
+
+	let animotion;
+	var div = root();
+	var div_1 = $.child(div);
+	var node = $.child(div_1);
+
+	$.snippet(node, () => $$props.children);
+	$.reset(div_1);
+	$.reset(div);
+	$.bind_this(div, ($$value) => animotion = $$value, () => animotion);
+	$.template_effect(() => $.set_class(div_1, 1, `slides ${$$props.class ?? ''}`, 'svelte-2a7m49'));
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 339 src/lib/components/notes.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<aside class="notes"><!></aside>`);
+
+export default function Notes($$anchor, $$props) {
+	var aside = root();
+	var node = $.child(aside);
+
+	$.snippet(node, () => $$props.children);
+	$.reset(aside);
+	$.append($$anchor, aside);
+}
+=== 4752 src/lib/components/presentation.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { tick } from 'svelte';
+import { setPresentation } from './store.svelte.js';
+import 'reveal.js/reveal.css';
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'children',
+	'options',
+	'plugins'
+]);
+
+var root = $.from_html(`<div class="reveal"><div><!></div></div>`);
+
+export default function Presentation($$anchor, $$props) {
+	$.push($$props, true);
+
+	let props = $.rest_props($$props, rest_excludes);
+	let deck;
+
+	async function init() {
+		const Reveal = (await import('reveal.js')).default;
+		const pluginDefaults = { markdown: false, highlight: false, math: false, notes: false };
+		const enabled = { ...pluginDefaults, ...$$props.plugins };
+		const activePlugins = [];
+
+		if (enabled.markdown) {
+			const Markdown = (await import('reveal.js/plugin/markdown')).default;
+
+			activePlugins.push(Markdown);
+		}
+
+		if (enabled.highlight) {
+			const Highlight = (await import('reveal.js/plugin/highlight')).default;
+
+			activePlugins.push(Highlight);
+		}
+
+		if (enabled.math) {
+			const Math = (await import('reveal.js/plugin/math')).default;
+
+			activePlugins.push(Math.KaTeX);
+		}
+
+		if (enabled.notes) {
+			const Notes = (await import('reveal.js/plugin/notes')).default;
+
+			activePlugins.push(Notes);
+		}
+
+		const defaults = {
+			// presentation size respecting aspect ratio
+			width: 960,
+			height: 700,
+			// content padding
+			margin: 0.04,
+
+			// smallest and largest possible scale
+			minScale: 0.2,
+			maxScale: 2.0,
+			// plugins
+			plugins: activePlugins,
+
+			// slide controls
+			controls: true,
+
+			// slide progress bar
+			progress: true,
+
+			// slide transition
+			transition: 'slide',
+
+			// bring your own layout
+			disableLayout: false,
+
+			// display mode used to show slides
+			display: 'grid',
+
+			// center slides on the screen
+			center: true,
+
+			// auto-animate duration
+			autoAnimateDuration: 1,
+
+			// auto-animate easing
+			autoAnimateEasing: 'ease',
+
+			// animate unmatched elements
+			autoAnimateUnmatched: true,
+
+			// hide cursor
+			hideInactiveCursor: true,
+
+			// time before cursor is hidden (ms)
+			hideCursorTime: 5000,
+
+			// show current slide
+			hash: false
+		};
+
+		// create deck instance
+		deck = new Reveal({ ...defaults, ...$$props.options });
+
+		// expose reveal instance
+		setPresentation(deck);
+
+		// custom event listeners
+		const inEvent = new CustomEvent('in');
+
+		const outEvent = new CustomEvent('out');
+		const currentEvent = new CustomEvent('current');
+
+		// dispatch event for current active fragment
+		// so `do` works in both directions
+		async function dispatchFocused() {
+			await tick();
+
+			let currentFragmentEl = document.querySelector('.current-fragment');
+
+			if (currentFragmentEl) {
+				currentFragmentEl.dispatchEvent(currentEvent);
+			}
+		}
+
+		// keep track of current slide
+		deck.on('slidechanged', (event) => {
+			if ('currentSlide' in event) {
+				const currentSlideEl = event.currentSlide;
+
+				currentSlideEl?.dispatchEvent(inEvent);
+			}
+
+			if ('previousSlide' in event) {
+				const currentPreviousEl = event.previousSlide;
+
+				currentPreviousEl?.dispatchEvent(outEvent);
+			}
+
+			dispatchFocused();
+		});
+
+		deck.on('slidetransitionend', (event) => {
+			dispatchFocused();
+		});
+
+		deck.on('fragmentshown', (event) => {
+			if ('fragment' in event) {
+				const el = event.fragment;
+				let eventType;
+
+				if (el.tagName === 'CODE') {
+					const codeEvent = new CustomEvent('change', { bubbles: true, detail: { step: el.dataset.lineNumbers } });
+
+					eventType = codeEvent;
+				} else {
+					eventType = inEvent;
+				}
+
+				el?.dispatchEvent(eventType);
+				dispatchFocused();
+			}
+		});
+
+		deck.on('fragmenthidden', (event) => {
+			if ('fragment' in event) {
+				const fragmentEl = event.fragment;
+
+				fragmentEl?.dispatchEvent(outEvent);
+				dispatchFocused();
+			}
+		});
+
+		deck.initialize();
+
+		if ($$props.options?.reload) {
+			// reload page after update to avoid HMR issues
+			reloadPageAfterUpdate();
+		}
+	}
+
+	function reloadPageAfterUpdate() {
+		if (import.meta.hot) {
+			import.meta.hot.on('vite:afterUpdate', () => {
+				location.reload();
+			});
+		}
+	}
+
+	$.user_effect(() => {
+		init();
+
+		return () => {
+			deck?.destroy();
+		};
+	});
+
+	var div = root();
+	var div_1 = $.child(div);
+	var node = $.child(div_1);
+
+	{
+		var consequent = ($$anchor) => {
+			var fragment = $.comment();
+			var node_1 = $.first_child(fragment);
+
+			$.snippet(node_1, () => $$props.children);
+			$.append($$anchor, fragment);
+		};
+
+		$.if(node, ($$render) => {
+			if ($$props.children) $$render(consequent);
+		});
+	}
+
+	$.reset(div_1);
+	$.reset(div);
+	$.template_effect(() => $.set_class(div_1, 1, `slides ${$$props.class ?? ''}`));
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 1189 src/lib/components/recorder.svelte	css
+
+	.recorder.svelte-1aujns6 {
+		--txt-clr: oklch(98% 0% 0);
+		--circle-bg-clr: oklch(64% 100% 26);
+		--circle-border-clr: oklch(98% 0% 0);
+
+		position: fixed;
+		left: 50%;
+		bottom: 80px;
+		translate: -50% 0px;
+		font-family: var(--r-main-font);
+		color: var(--txt-clr);
+		text-align: center;
+		z-index: 10;
+
+		&[data-state='ready.countdown'] {
+			& .circle:where(.svelte-1aujns6) {
+				--txt-clr: oklch(10% 0% 0);
+				--circle-bg-clr: oklch(98% 0% 0);
+			}
+		}
+
+		.record:where(.svelte-1aujns6) {
+			width: 80px;
+			height: 80px;
+			padding: 4px;
+			border: 4px solid var(--circle-border-clr);
+			border-radius: 50%;
+
+			&:hover {
+				cursor: pointer;
+			}
+
+			.circle:where(.svelte-1aujns6) {
+				width: 100%;
+				height: 100%;
+				display: grid;
+				place-content: center;
+				font-size: 2rem;
+				font-weight: 700;
+				color: var(--txt-clr);
+				background: var(--circle-bg-clr);
+				border-radius: 50%;
+				transition: background-color 0.6s;
+			}
+		}
+
+		.info:where(.svelte-1aujns6) {
+			margin-block-start: 1rem;
+
+			& .shortcut:where(.svelte-1aujns6) {
+				font-weight: 700;
+			}
+
+			& .description:where(.svelte-1aujns6) {
+				margin-block-start: 4px;
+				opacity: 0.6;
+			}
+		}
+	}
+
+=== 4841 src/lib/components/recorder.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p class="shortcut svelte-1aujns6">Shift + R</p> <p class="description svelte-1aujns6">To start recording</p>`, 1);
+var root_1 = $.from_html(`<p class="shortcut svelte-1aujns6">Shift + S</p> <p class="description svelte-1aujns6">To stop recording</p>`, 1);
+var root_2 = $.from_html(`<div class="recorder svelte-1aujns6"><button class="record svelte-1aujns6"><div class="circle svelte-1aujns6"><!></div></button> <div class="info svelte-1aujns6"><!> <!></div></div>`);
+
+export default function Recorder($$anchor, $$props) {
+	$.push($$props, true);
+
+	let codec = $.prop($$props, 'codec', 3, 'video/mp4;codecs="vp9,opus"'),
+		fps = $.prop($$props, 'fps', 3, 60),
+		videoBitrate = $.prop($$props, 'videoBitrate', 3, 2500),
+		audioBitrate = $.prop($$props, 'audioBitrate', 3, 320),
+		systemAudio = $.prop($$props, 'systemAudio', 3, true),
+		useMicrophone = $.prop($$props, 'useMicrophone', 3, true),
+		useTimer = $.prop($$props, 'useTimer', 3, true);
+
+	let recorder = $.state('ready');
+	let videoStream;
+	let audioStream;
+	let mediaRecorder;
+	let chunks = [];
+	let timer;
+	let seconds = $.state(3);
+
+	function kbpsToBits(kbps) {
+		return kbps * 1000;
+	}
+
+	async function getMediaStream() {
+		try {
+			videoStream = await navigator.mediaDevices.getDisplayMedia({
+				video: { frameRate: fps() },
+				audio: true,
+				selfBrowserSurface: 'include',
+				systemAudio: systemAudio() ? 'include' : 'exclude'
+			});
+
+			videoStream.oninactive = stopRecording;
+
+			if (useMicrophone()) {
+				audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+				const [microphone] = audioStream.getAudioTracks();
+
+				videoStream.addTrack(microphone);
+			}
+
+			audioStream.oninactive = stopRecording;
+		} catch(e) {
+			console.error(e);
+		}
+	}
+
+	async function startRecording() {
+		await getMediaStream();
+
+		if (useTimer()) {
+			await countdown();
+		}
+
+		$.set(recorder, 'recording');
+
+		mediaRecorder = new MediaRecorder(videoStream, {
+			mimeType: codec(),
+			videoBitsPerSecond: kbpsToBits(videoBitrate()),
+			audioBitsPerSecond: kbpsToBits(audioBitrate())
+		});
+
+		mediaRecorder.ondataavailable = (e) => {
+			chunks.push(e.data);
+			download();
+		};
+
+		mediaRecorder.start();
+	}
+
+	function stopRecording() {
+		$.set(recorder, 'ready');
+		mediaRecorder?.stop();
+		clearInterval(timer);
+		$.set(seconds, 3);
+	}
+
+	function countdown() {
+		$.set(recorder, 'ready.countdown');
+
+		let { promise, resolve } = Promise.withResolvers();
+
+		timer = setInterval(
+			() => {
+				if ($.get(seconds) === 0) {
+					clearInterval(timer);
+					resolve($.get(seconds));
+
+					return;
+				}
+
+				$.update(seconds, -1);
+			},
+			1000
+		);
+
+		return promise;
+	}
+
+	function download() {
+		const blob = new Blob(chunks, { type: codec() });
+		const a = document.createElement('a');
+
+		a.href = URL.createObjectURL(blob);
+		a.download = 'video.mp4';
+		a.click();
+		URL.revokeObjectURL(a.href);
+		chunks = [];
+	}
+
+	function handleKeydown(event) {
+		switch (event.key) {
+			case 'R':
+				$.get(recorder) === 'ready' && startRecording();
+				break;
+
+			case 'S':
+				$.get(recorder) !== 'ready' && stopRecording();
+				break;
+		}
+	}
+
+	var fragment = $.comment();
+
+	$.event('keydown', $.window, handleKeydown);
+
+	var node = $.first_child(fragment);
+
+	{
+		var consequent_3 = ($$anchor) => {
+			var div = root_2();
+			var button = $.child(div);
+			var div_1 = $.child(button);
+			var node_1 = $.child(div_1);
+
+			{
+				var consequent = ($$anchor) => {
+					var text = $.text();
+
+					$.template_effect(() => $.set_text(text, $.get(seconds)));
+					$.append($$anchor, text);
+				};
+
+				$.if(node_1, ($$render) => {
+					if ($.get(recorder) === 'ready.countdown') $$render(consequent);
+				});
+			}
+
+			$.reset(div_1);
+			$.reset(button);
+
+			var div_2 = $.sibling(button, 2);
+			var node_2 = $.child(div_2);
+
+			{
+				var consequent_1 = ($$anchor) => {
+					var fragment_2 = root();
+
+					$.next(2);
+					$.append($$anchor, fragment_2);
+				};
+
+				$.if(node_2, ($$render) => {
+					if ($.get(recorder) === 'ready') $$render(consequent_1);
+				});
+			}
+
+			var node_3 = $.sibling(node_2, 2);
+
+			{
+				var consequent_2 = ($$anchor) => {
+					var fragment_3 = root_1();
+
+					$.next(2);
+					$.append($$anchor, fragment_3);
+				};
+
+				$.if(node_3, ($$render) => {
+					if ($.get(recorder) === 'ready.countdown') $$render(consequent_2);
+				});
+			}
+
+			$.reset(div_2);
+			$.reset(div);
+			$.template_effect(() => $.set_attribute(div, 'data-state', $.get(recorder)));
+			$.delegated('click', button, startRecording);
+			$.append($$anchor, div);
+		};
+
+		var d = $.derived(() => $.get(recorder).includes('ready'));
+
+		$.if(node, ($$render) => {
+			if ($.get(d)) $$render(consequent_3);
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 2148 src/lib/components/slide.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'children']);
+var root = $.from_html(`<section><!></section>`);
+
+export default function Slide($$anchor, $$props) {
+	$.push($$props, true);
+
+	let props = $.rest_props($$props, rest_excludes);
+
+	function listeners(el) {
+		const events = ['in', 'out'];
+
+		const handlers = events.map((event) => {
+			const handler = () => props[event]?.();
+
+			el.addEventListener(event, handler);
+
+			return { event, handler };
+		});
+
+		return () => {
+			handlers.forEach(({ event, handler }) => el.removeEventListener(event, handler));
+		};
+	}
+
+	var section = root();
+	var node = $.child(section);
+
+	{
+		var consequent = ($$anchor) => {
+			var fragment = $.comment();
+			var node_1 = $.first_child(fragment);
+
+			$.snippet(node_1, () => $$props.children);
+			$.append($$anchor, fragment);
+		};
+
+		$.if(node, ($$render) => {
+			if ($$props.children) $$render(consequent);
+		});
+	}
+
+	$.reset(section);
+	$.attach(section, () => listeners);
+
+	$.template_effect(() => {
+		$.set_attribute(section, 'data-auto-animate', $$props.animate);
+		$.set_attribute(section, 'data-auto-animate-easing', $$props.animateEasing);
+		$.set_attribute(section, 'data-auto-animate-unmatched', $$props.animateUnmatched);
+		$.set_attribute(section, 'data-auto-animate-id', $$props.animateId);
+		$.set_attribute(section, 'data-auto-animate-restart', $$props.animateRestart);
+		$.set_attribute(section, 'data-autoslide', $$props.stepDuration);
+		$.set_attribute(section, 'data-background-color', $$props.background);
+		$.set_attribute(section, 'data-background-gradient', $$props.gradient);
+		$.set_attribute(section, 'data-background-image', $$props.image);
+		$.set_attribute(section, 'data-background-video', $$props.video);
+		$.set_attribute(section, 'data-background-iframe', $$props.iframe);
+		$.set_attribute(section, 'data-background-interactive', $$props.interactive);
+		$.set_attribute(section, 'data-transition', $$props.transition);
+		$.set_class(section, 1, $.clsx($$props.class));
+	});
+
+	$.append($$anchor, section);
+	$.pop();
+}
+=== 1665 src/lib/components/slides.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import AnimotionSlide from './slide.svelte';
+
+export default function Slides($$anchor, $$props) {
+	$.push($$props, true);
+
+	let center = $.prop($$props, 'center', 3, false);
+
+	const slides = Object.entries(import.meta.glob('/src/slides/**/slide.svelte', { eager: true })).map(([filename, exports]) => {
+		const matches = filename.match(/slides\/(?<number>\d+)\/slide.svelte/);
+
+		return [+matches.groups.number, exports];
+	}).sort(([a], [b]) => a - b);
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.each(node, 17, () => slides, $.index, ($$anchor, $$item) => {
+		var $$array = $.derived(() => $.to_array($.get($$item), 2));
+		let _ = () => $.get($$array)[0];
+		let Slide = () => $.get($$array)[1];
+		const Wrapper = $.derived(() => Slide().component ?? AnimotionSlide);
+
+		const props = $.derived(() => ({
+			class: center()
+				? 'h-full place-content-center place-items-center'
+				: null,
+			...Slide().props ?? {}
+		}));
+
+		var fragment_1 = $.comment();
+		var node_1 = $.first_child(fragment_1);
+
+		$.component(node_1, () => $.get(Wrapper), ($$anchor, Wrapper_1) => {
+			Wrapper_1($$anchor, $.spread_props(() => $.get(props), {
+				children: ($$anchor, $$slotProps) => {
+					var fragment_2 = $.comment();
+					var node_2 = $.first_child(fragment_2);
+
+					$.component(node_2, () => Slide().default, ($$anchor, Slide_default) => {
+						Slide_default($$anchor, {});
+					});
+
+					$.append($$anchor, fragment_2);
+				},
+				$$slots: { default: true }
+			}));
+		});
+
+		$.append($$anchor, fragment_1);
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 47 src/lib/components/transition.svelte	css
+
+	.ignore.svelte-1oofcvt {
+		display: none;
+	}
+
+=== 4843 src/lib/components/transition.svelte	js
+import 'svelte/internal/disclose-version';
+import { browser } from '$app/environment';
+import * as $ from 'svelte/internal/client';
+import Transition from '$lib/components/transition.svelte';
+
+let customViewTransitions = $.state(void 0);
+
+if (browser) {
+	const style = document.createElement('style');
+
+	style.dataset.id = 'view-transitions';
+	document.head.appendChild(style);
+	$.set(customViewTransitions, style, true);
+}
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'children',
+	'order',
+	'stepDuration',
+	'name',
+	'visible',
+	'transitions',
+	'hidden',
+	'entry',
+	'exit',
+	'duration',
+	'delay'
+]);
+
+var root = $.from_html(`<div><!></div>`);
+
+export default function Transition_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const noop = () => {};
+
+	let visible = $.prop($$props, 'visible', 3, false),
+		props = $.rest_props($$props, rest_excludes);
+
+	let el = $.state(void 0);
+
+	let viewTransitionName = $.derived(() => $$props.name
+		? `transition-${$$props.name}`
+		: `transition-${crypto.randomUUID()}`);
+
+	function viewTransition(fn) {
+		if (!document.startViewTransition) {
+			console.warn('The View Transitions API is not supported by your browser');
+			fn();
+
+			return;
+		}
+
+		document.startViewTransition(fn);
+	}
+
+	/**
+	 * Transition elements are hidden so we can animate the change in position
+	 * otherwise the layout would never change if they're already in the DOM
+	 * so this checks for fragments that aren't visible and hides them.
+	 */
+	function prepareTransition() {
+		const currentSlide = $.get(el)?.closest('section');
+
+		currentSlide.querySelectorAll('.fragment').forEach((fragment) => {
+			if (!fragment.classList.contains('visible')) {
+				fragment.classList.add('hidden');
+			}
+		});
+	}
+
+	function enterTransition() {
+		prepareTransition();
+
+		viewTransition(() => {
+			$$props?.do?.() ?? noop();
+			$.get(el)?.classList.remove('hidden');
+		});
+	}
+
+	function leaveTransition() {
+		prepareTransition();
+
+		viewTransition(() => {
+			$$props?.undo?.() ?? noop();
+		});
+	}
+
+	$.user_effect(() => {
+		if (!$.get(el)) return;
+
+		$.get(el).addEventListener('current', enterTransition);
+		$.get(el).addEventListener('out', leaveTransition);
+
+		return () => {
+			$.get(el)?.removeEventListener('current', enterTransition);
+			$.get(el)?.removeEventListener('out', leaveTransition);
+		};
+	});
+
+	$.user_effect(() => {
+		if (!$.get(customViewTransitions)) return;
+
+		if ($$props.entry || $$props.exit) {
+			let transitions = '';
+
+			if ($$props.entry) {
+				transitions += `
+					::view-transition-new(${$.get(viewTransitionName)}):only-child {
+						${$$props.duration
+					? `--view-transition-duration: ${$$props.duration}s;`
+					: ''}
+						animation: ${$$props.entry} var(--view-transition-duration) var(--ease);
+						animation-delay: ${$$props.delay ?? 0}s;
+						animation-fill-mode: both;
+					}
+				`;
+			}
+
+			if ($$props.exit) {
+				transitions += `
+					::view-transition-old(${$.get(viewTransitionName)}):only-child {
+						${$$props.duration
+					? `--view-transition-duration: ${$$props.duration}s;`
+					: ''}
+						animation: ${$$props.exit} var(--view-transition-duration) var(--ease);
+						animation-delay: ${$$props.delay ?? 0}s;
+						animation-fill-mode: both;
+					}
+				`;
+			}
+
+			$.get(customViewTransitions).textContent += transitions;
+		}
+	});
+
+	var fragment_1 = $.comment();
+	var node = $.first_child(fragment_1);
+
+	{
+		var consequent = ($$anchor) => {
+			var fragment_2 = $.comment();
+			var node_1 = $.first_child(fragment_2);
+
+			$.each(node_1, 17, () => $$props.transitions, $.index, ($$anchor, transition, i) => {
+				const previousTransition = $.derived(() => i === 0 ? noop : $$props.transitions[i - 1]);
+
+				Transition($$anchor, {
+					get do() {
+						return $.get(transition);
+					},
+
+					get undo() {
+						return $.get(previousTransition);
+					}
+				});
+			});
+
+			$.append($$anchor, fragment_2);
+		};
+
+		var alternate = ($$anchor) => {
+			var div = root();
+			let classes;
+			let styles;
+			var node_2 = $.child(div);
+
+			$.snippet(node_2, () => $$props.children ?? $.noop);
+			$.reset(div);
+			$.bind_this(div, ($$value) => $.set(el, $$value), () => $.get(el));
+
+			$.template_effect(() => {
+				classes = $.set_class(
+					div,
+					1,
+					$.clsx([
+						{ hidden: !visible(), ignore: $$props.hidden },
+						$$props.class
+					]),
+					'svelte-1oofcvt',
+					classes,
+					{ fragment: !visible() }
+				);
+
+				$.set_attribute(div, 'data-fragment-index', $$props.order);
+				$.set_attribute(div, 'data-autoslide', $$props.stepDuration);
+				styles = $.set_style(div, $$props.style, styles, { 'view-transition-name': $.get(viewTransitionName) });
+			});
+
+			$.append($$anchor, div);
+		};
+
+		$.if(node, ($$render) => {
+			if ($$props.transitions) $$render(consequent); else $$render(alternate, -1);
+		});
+	}
+
+	$.append($$anchor, fragment_1);
+	$.pop();
+}
+=== 413 src/routes/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import '../styles/app.css';
+
+export default function _layout($$anchor, $$props) {
+	var fragment = $.comment();
+
+	$.head('12qhfyh', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Animotion';
+		});
+	});
+
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children);
+	$.append($$anchor, fragment);
+}
+=== 8070 src/routes/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Presentation, Slide, Code, Transition, Action } from '$lib/index.js';
+import { tween } from '@animotion/motion';
+
+var root = $.from_html(`<p class="text-4xl font-bold drop-shadow-sm">🪄 Use arrow keys to navigate</p>`);
+var root_1 = $.from_html(`<p class="text-8xl font-bold drop-shadow-sm">🪄 Animotion</p>`);
+var root_2 = $.from_svg(`<svg width="560"><circle></circle><text font-family="Monaspace Neon" text-anchor="middle" dominant-baseline="middle"> </text></svg>`);
+var root_3 = $.from_html(`<!> <!> <!> <!>`, 1);
+var root_4 = $.from_html(`<p class="text-6xl font-bold drop-shadow-sm">🪄 Layout Animations</p>`);
+var root_5 = $.from_html(`<div></div>`);
+var root_6 = $.from_html(`<!> <!> <!>`, 1);
+var root_7 = $.from_html(`<p class="mt-8 text-6xl font-bold">🪄 Animotion</p> <p class="mt-16 text-3xl">Learn more by reading the <a class="underline" href="https://animotion.pages.dev/docs" target="_blank">Animotion docs</a>.</p>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let text;
+	let code;
+	let circle = tween({ x: 0, y: 80, r: 80, fill: '#00ffff' });
+	let items = $.state($.proxy([1, 2, 3, 4]));
+	let layout = $.state('flex gap-4');
+
+	Presentation($$anchor, {
+		options: {
+			history: true,
+			transition: 'slide',
+			controls: true,
+			progress: true
+		},
+
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_3();
+			var node = $.first_child(fragment_1);
+
+			Slide(node, {
+				class: 'h-full place-content-center place-items-center',
+				children: ($$anchor, $$slotProps) => {
+					var p = root();
+
+					$.append($$anchor, p);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_1 = $.sibling(node, 2);
+
+			Slide(node_1, {
+				class: 'h-full place-content-center place-items-center',
+				children: ($$anchor, $$slotProps) => {
+					var fragment_2 = root_3();
+					var node_2 = $.first_child(fragment_2);
+
+					Transition(node_2, {
+						do: async () => {
+							text.classList.replace('text-6xl', 'text-8xl');
+							await code.update``;
+						},
+
+						children: ($$anchor, $$slotProps) => {
+							var p_1 = root_1();
+
+							$.bind_this(p_1, ($$value) => text = $$value, () => text);
+							$.append($$anchor, p_1);
+						},
+						$$slots: { default: true }
+					});
+
+					var node_3 = $.sibling(node_2, 2);
+
+					Transition(node_3, {
+						do: async () => {
+							text.classList.replace('text-8xl', 'text-6xl');
+
+							await code.update`
+					async function animate() {
+						// ...
+					}
+				`;
+
+							await circle.to({ x: 0, fill: '#00ffff' });
+						},
+						class: 'mt-16 rounded-lg border-t border-t-zinc-800 bg-zinc-900 px-8 py-4',
+						children: ($$anchor, $$slotProps) => {
+							$.bind_this(
+								Code($$anchor, {
+									lang: 'ts',
+									theme: 'poimandres',
+									code: ``,
+									options: { duration: 600, stagger: 0.3, containerStyle: false }
+								}),
+								($$value) => code = $$value,
+								() => code
+							);
+						},
+						$$slots: { default: true }
+					});
+
+					var node_4 = $.sibling(node_3, 2);
+
+					Transition(node_4, {
+						do: async () => {
+							await code.update`
+					async function animate() {
+						// ...
+					}
+				`;
+
+							await circle.to({ x: 0, fill: '#00ffff' });
+						},
+						class: 'mt-16',
+						children: ($$anchor, $$slotProps) => {
+							var svg = root_2();
+							var circle_1 = $.child(svg);
+							var text_1 = $.sibling(circle_1);
+							var text_2 = $.only_child(text_1, true);
+
+							$.reset(svg);
+
+							$.template_effect(
+								($0) => {
+									$.set_attribute(svg, 'height', circle.r * 2);
+									$.set_attribute(svg, 'viewBox', `-80 0 560 ${circle.r * 2}`);
+									$.set_attribute(circle_1, 'cx', circle.x);
+									$.set_attribute(circle_1, 'cy', circle.y);
+									$.set_attribute(circle_1, 'r', circle.r);
+									$.set_attribute(circle_1, 'fill', circle.fill);
+									$.set_attribute(text_1, 'x', circle.x);
+									$.set_attribute(text_1, 'y', circle.y);
+									$.set_attribute(text_1, 'font-size', circle.r * 0.4);
+									$.set_text(text_2, $0);
+								},
+								[() => circle.x.toFixed(0)]
+							);
+
+							$.append($$anchor, svg);
+						},
+						$$slots: { default: true }
+					});
+
+					var node_5 = $.sibling(node_4, 2);
+
+					Action(node_5, {
+						actions: [
+							async () => {
+								await code.update`
+						async function animate() {
+							await circle.to({ x: 400, fill: '#ffff00' });
+						}
+					`;
+
+								await code.selectLines`2`;
+								await circle.to({ x: 400, fill: '#ffff00' });
+							},
+
+							async () => {
+								await code.update`
+						async function animate() {
+							await circle.to({ x: 400, fill: '#ffff00' });
+							await circle.to({ x: 0, fill: '#00ffff' });
+						}
+					`;
+
+								await code.selectLines`3`;
+								await circle.to({ x: 0, fill: '#00ffff' });
+							},
+
+							async () => {
+								await code.selectLines`*`;
+
+								await code.update`
+						async function animate() {
+							await circle.to({ x: 400, fill: '#ffff00' });
+							await circle.to({ x: 0, fill: '#00ffff' });
+						}
+					`;
+
+								await circle.to({ x: 0, fill: '#00ffff' });
+							}
+						]
+					});
+
+					$.append($$anchor, fragment_2);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_6 = $.sibling(node_1, 2);
+
+			Slide(node_6, {
+				class: 'h-full place-content-center place-items-center',
+				children: ($$anchor, $$slotProps) => {
+					var fragment_4 = root_6();
+					var node_7 = $.first_child(fragment_4);
+
+					Transition(node_7, {
+						children: ($$anchor, $$slotProps) => {
+							var p_2 = root_4();
+
+							$.append($$anchor, p_2);
+						},
+						$$slots: { default: true }
+					});
+
+					var node_8 = $.sibling(node_7, 2);
+
+					Transition(node_8, {
+						do: () => {
+							$.set(items, [1, 2, 3, 4], true);
+							$.set(layout, 'flex gap-4');
+						},
+						class: 'mt-16',
+						children: ($$anchor, $$slotProps) => {
+							var div = root_5();
+
+							$.each(div, 22, () => $.get(items), (item) => item, ($$anchor, item, i) => {
+								{
+									let $0 = $.derived(() => $.get(i) * 0.1);
+
+									Transition($$anchor, {
+										class: 'grid h-45 w-45 place-content-center rounded-2xl border-t-2 border-white bg-gray-200 text-6xl font-semibold text-black shadow-2xl',
+										entry: 'rotate',
+										duration: 2,
+										get delay() {
+											return $.get($0);
+										},
+										visible: true,
+										children: ($$anchor, $$slotProps) => {
+											$.next();
+
+											var text_3 = $.text();
+
+											$.template_effect(() => $.set_text(text_3, item));
+											$.append($$anchor, text_3);
+										},
+										$$slots: { default: true }
+									});
+								}
+							});
+
+							$.reset(div);
+							$.template_effect(() => $.set_class(div, 1, $.clsx($.get(layout))));
+							$.append($$anchor, div);
+						},
+						$$slots: { default: true }
+					});
+
+					var node_9 = $.sibling(node_8, 2);
+
+					Transition(node_9, {
+						transitions: [
+							() => {
+								$.set(layout, 'grid grid-cols-2 grid-rows-2 gap-4');
+								$.set(items, [4, 3, 2, 1], true);
+							},
+
+							() => {
+								$.set(layout, 'grid grid-cols-2 grid-rows-2 gap-4');
+								$.set(items, [2, 1, 4, 3], true);
+							},
+
+							() => {
+								$.set(layout, 'grid grid-cols-2 grid-rows-2 gap-4');
+								$.set(items, [4, 3, 2, 1], true);
+							},
+
+							() => {
+								$.set(layout, 'grid grid-cols-2 grid-rows-2 gap-4');
+								$.set(items, [1, 2, 3, 4], true);
+							},
+							() => $.set(layout, 'flex gap-4')
+						]
+					});
+
+					$.append($$anchor, fragment_4);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_10 = $.sibling(node_6, 2);
+
+			Slide(node_10, {
+				class: 'h-full place-content-center place-items-center',
+				children: ($$anchor, $$slotProps) => {
+					var fragment_7 = root_7();
+
+					$.next(2);
+					$.append($$anchor, fragment_7);
+				},
+				$$slots: { default: true }
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 429 src/routes/file-based/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Presentation, Slides } from '$lib/index.js';
+
+export default function _page($$anchor) {
+	Presentation($$anchor, {
+		options: {
+			history: true,
+			transition: 'slide',
+			controls: true,
+			progress: true
+		},
+
+		children: ($$anchor, $$slotProps) => {
+			Slides($$anchor, { center: true });
+		},
+		$$slots: { default: true }
+	});
+}
+=== 283 src/slides/100/slide.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p class="text-4xl font-bold drop-shadow-sm">🪄 Use arrow keys to navigate</p>`);
+
+export default function Slide($$anchor) {
+	var p = root();
+
+	$.append($$anchor, p);
+}
+=== 3584 src/slides/200/slide.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Code, Transition, Action } from '$lib/index.js';
+import { tween } from '@animotion/motion';
+
+var root = $.from_html(`<p class="text-8xl font-bold drop-shadow-sm">🪄 Animotion</p>`);
+var root_1 = $.from_svg(`<svg width="560"><circle></circle><text font-family="Monaspace Neon" text-anchor="middle" dominant-baseline="middle"> </text></svg>`);
+var root_2 = $.from_html(`<!> <!> <!> <!>`, 1);
+
+export default function Slide($$anchor, $$props) {
+	$.push($$props, true);
+
+	let text;
+	let code;
+	let circle = tween({ x: 0, y: 80, r: 80, fill: '#00ffff' });
+	var fragment = root_2();
+	var node = $.first_child(fragment);
+
+	Transition(node, {
+		do: async () => {
+			text.classList.replace('text-6xl', 'text-8xl');
+			await code.update``;
+		},
+
+		children: ($$anchor, $$slotProps) => {
+			var p = root();
+
+			$.bind_this(p, ($$value) => text = $$value, () => text);
+			$.append($$anchor, p);
+		},
+		$$slots: { default: true }
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	Transition(node_1, {
+		do: async () => {
+			text.classList.replace('text-8xl', 'text-6xl');
+
+			await code.update`
+					async function animate() {
+						// ...
+					}
+				`;
+
+			await circle.to({ x: 0, fill: '#00ffff' });
+		},
+		class: 'mt-16',
+		children: ($$anchor, $$slotProps) => {
+			$.bind_this(
+				Code($$anchor, {
+					lang: 'ts',
+					theme: 'poimandres',
+					code: ``,
+					options: { duration: 600, stagger: 0.3, containerStyle: false }
+				}),
+				($$value) => code = $$value,
+				() => code
+			);
+		},
+		$$slots: { default: true }
+	});
+
+	var node_2 = $.sibling(node_1, 2);
+
+	Transition(node_2, {
+		do: async () => {
+			await code.update`
+					async function animate() {
+						// ...
+					}
+				`;
+
+			await circle.to({ x: 0, fill: '#00ffff' });
+		},
+		class: 'mt-16',
+		children: ($$anchor, $$slotProps) => {
+			var svg = root_1();
+			var circle_1 = $.child(svg);
+			var text_1 = $.sibling(circle_1);
+			var text_2 = $.only_child(text_1, true);
+
+			$.reset(svg);
+
+			$.template_effect(
+				($0) => {
+					$.set_attribute(svg, 'height', circle.r * 2);
+					$.set_attribute(svg, 'viewBox', `-80 0 560 ${circle.r * 2}`);
+					$.set_attribute(circle_1, 'cx', circle.x);
+					$.set_attribute(circle_1, 'cy', circle.y);
+					$.set_attribute(circle_1, 'r', circle.r);
+					$.set_attribute(circle_1, 'fill', circle.fill);
+					$.set_attribute(text_1, 'x', circle.x);
+					$.set_attribute(text_1, 'y', circle.y);
+					$.set_attribute(text_1, 'font-size', circle.r * 0.4);
+					$.set_text(text_2, $0);
+				},
+				[() => circle.x.toFixed(0)]
+			);
+
+			$.append($$anchor, svg);
+		},
+		$$slots: { default: true }
+	});
+
+	var node_3 = $.sibling(node_2, 2);
+
+	Action(node_3, {
+		actions: [
+			async () => {
+				await code.update`
+						async function animate() {
+							await circle.to({ x: 400, fill: '#ffff00' })
+						}
+					`;
+
+				await code.selectLines`2`;
+				await circle.to({ x: 400, fill: '#ffff00' });
+			},
+
+			async () => {
+				await code.update`
+						async function animate() {
+							await circle.to({ x: 400, fill: '#ffff00' })
+							await circle.to({ x: 0, fill: '#00ffff' })
+						}
+					`;
+
+				await code.selectLines`3`;
+				await circle.to({ x: 0, fill: '#00ffff' });
+			},
+
+			async () => {
+				await code.selectLines`*`;
+
+				await code.update`
+						async function animate() {
+							await circle.to({ x: 400, fill: '#ffff00' })
+							await circle.to({ x: 0, fill: '#00ffff' })
+						}
+					`;
+
+				await circle.to({ x: 0, fill: '#00ffff' });
+			}
+		]
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 2324 src/slides/300/slide.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Transition } from '$lib/index.js';
+
+var root = $.from_html(`<p class="text-6xl font-bold drop-shadow-sm">🪄 Layout Animations</p>`);
+var root_1 = $.from_html(`<div></div>`);
+var root_2 = $.from_html(`<!> <!> <!>`, 1);
+
+export default function Slide($$anchor) {
+	let items = $.state($.proxy([1, 2, 3, 4]));
+	let layout = $.state('flex gap-4');
+	var fragment = root_2();
+	var node = $.first_child(fragment);
+
+	Transition(node, {
+		children: ($$anchor, $$slotProps) => {
+			var p = root();
+
+			$.append($$anchor, p);
+		},
+		$$slots: { default: true }
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	Transition(node_1, {
+		do: () => {
+			$.set(items, [1, 2, 3, 4], true);
+			$.set(layout, 'flex gap-4');
+		},
+		class: 'mt-16',
+		children: ($$anchor, $$slotProps) => {
+			var div = root_1();
+
+			$.each(div, 22, () => $.get(items), (item) => item, ($$anchor, item, i) => {
+				{
+					let $0 = $.derived(() => $.get(i) * 0.1);
+
+					Transition($$anchor, {
+						class: 'grid h-[180px] w-[180px] place-content-center rounded-2xl border-t-2 border-white bg-gray-200 text-6xl font-semibold text-black shadow-2xl',
+						entry: 'rotate',
+						duration: 2,
+						get delay() {
+							return $.get($0);
+						},
+						visible: true,
+						children: ($$anchor, $$slotProps) => {
+							$.next();
+
+							var text = $.text();
+
+							$.template_effect(() => $.set_text(text, item));
+							$.append($$anchor, text);
+						},
+						$$slots: { default: true }
+					});
+				}
+			});
+
+			$.reset(div);
+			$.template_effect(() => $.set_class(div, 1, $.clsx($.get(layout))));
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+
+	var node_2 = $.sibling(node_1, 2);
+
+	Transition(node_2, {
+		transitions: [
+			() => {
+				$.set(layout, 'grid grid-cols-2 grid-rows-2 gap-4');
+				$.set(items, [4, 3, 2, 1], true);
+			},
+
+			() => {
+				$.set(layout, 'grid grid-cols-2 grid-rows-2 gap-4');
+				$.set(items, [2, 1, 4, 3], true);
+			},
+
+			() => {
+				$.set(layout, 'grid grid-cols-2 grid-rows-2 gap-4');
+				$.set(items, [4, 3, 2, 1], true);
+			},
+
+			() => {
+				$.set(layout, 'grid grid-cols-2 grid-rows-2 gap-4');
+				$.set(items, [1, 2, 3, 4], true);
+			},
+			() => $.set(layout, 'flex gap-4')
+		]
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 438 src/slides/400/slide.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p class="mt-8 text-6xl font-bold">🪄 Animotion</p> <p class="mt-16 text-3xl">Learn more by reading the <a class="underline" href="https://animotion.pages.dev/docs" target="_blank">Animotion docs</a>.</p>`, 1);
+
+export default function Slide($$anchor) {
+	var fragment = root();
+
+	$.next(2);
+	$.append($$anchor, fragment);
+}

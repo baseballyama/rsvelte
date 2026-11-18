@@ -1,0 +1,916 @@
+# rsvelte pack 1
+=== 150 src/routes/+page.svelte	css
+
+	.theming.svelte-1uha8ag {
+		display: grid;
+		gap: 10px;
+		column-gap: 20px;
+		@media (min-width: 800px) {
+			grid-template-columns: 1fr 1fr;
+		}
+	}
+
+=== 4681 src/routes/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import DemoDatePicker from './DemoDatePicker.svelte';
+import DemoDateInput from './DemoDateInput.svelte';
+import { Color } from 'color-picker-svelte';
+import Prop from './prop.svelte';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		function readCssVar(name) {
+			const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+			return new Color(value);
+		}
+
+		function getCssVars() {
+			if (typeof document === 'undefined') {
+				return {};
+			}
+
+			return {
+				'--date-picker-foreground': readCssVar('--date-picker-foreground'),
+				'--date-picker-background': readCssVar('--date-picker-background'),
+				'--date-picker-highlight-border': readCssVar('--date-picker-highlight-border'),
+				'--date-picker-highlight-shadow': readCssVar('--date-picker-highlight-shadow'),
+				'--date-picker-today-border': readCssVar('--date-picker-today-border'),
+				'--date-picker-selected-color': readCssVar('--date-picker-selected-color'),
+				'--date-picker-selected-background': readCssVar('--date-picker-selected-background')
+			};
+		}
+
+		let cssVars = getCssVars();
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			$.head('1uha8ag', $$renderer, ($$renderer) => {
+				$$renderer.title(($$renderer) => {
+					$$renderer.push(`<title>Date Picker Svelte</title>`);
+				});
+			});
+
+			$$renderer.push(`<p>Date and time picker for Svelte</p> <p>Features:</p> <ul><li>Theming</li> <li>Custom formats</li> <li>Internationalization (i18n)</li> <li>Autopunctuation (e.g typing "20201111111111" gives you "2020-11-11 11:11:11" with the default
+		format)</li> <li>Keyboard shortcuts</li></ul> <h2 id="install">Install</h2> <pre class="language-">npm install -D date-picker-svelte</pre> <div${$.attr_style(Object.entries(cssVars).map(([key, value]) => {
+				if (value === null) {
+					return null;
+				}
+
+				return `${key}: ${value.toHex8String()};`;
+			}).join(''))}><h2 id="dateinput">DateInput</h2> `);
+
+			DemoDateInput($$renderer, {});
+			$$renderer.push(`<!----> <h2 id="datepicker">DatePicker</h2> `);
+			DemoDatePicker($$renderer, {});
+			$$renderer.push(`<!----></div> <h2>Theming</h2> <div class="theming svelte-1uha8ag">`);
+
+			Prop($$renderer, {
+				label: '--date-picker-foreground',
+				labelWide: true,
+				get value() {
+					return cssVars['--date-picker-foreground'];
+				},
+
+				set value($$value) {
+					cssVars['--date-picker-foreground'] = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Prop($$renderer, {
+				label: '--date-picker-background',
+				labelWide: true,
+				get value() {
+					return cssVars['--date-picker-background'];
+				},
+
+				set value($$value) {
+					cssVars['--date-picker-background'] = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Prop($$renderer, {
+				label: '--date-picker-highlight-border',
+				labelWide: true,
+				get value() {
+					return cssVars['--date-picker-highlight-border'];
+				},
+
+				set value($$value) {
+					cssVars['--date-picker-highlight-border'] = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Prop($$renderer, {
+				label: '--date-picker-highlight-shadow',
+				labelWide: true,
+				get value() {
+					return cssVars['--date-picker-highlight-shadow'];
+				},
+
+				set value($$value) {
+					cssVars['--date-picker-highlight-shadow'] = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Prop($$renderer, {
+				label: '--date-picker-today-border',
+				labelWide: true,
+				get value() {
+					return cssVars['--date-picker-today-border'];
+				},
+
+				set value($$value) {
+					cssVars['--date-picker-today-border'] = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Prop($$renderer, {
+				label: '--date-picker-selected-color',
+				labelWide: true,
+				get value() {
+					return cssVars['--date-picker-selected-color'];
+				},
+
+				set value($$value) {
+					cssVars['--date-picker-selected-color'] = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Prop($$renderer, {
+				label: '--date-picker-selected-background',
+				labelWide: true,
+				get value() {
+					return cssVars['--date-picker-selected-background'];
+				},
+
+				set value($$value) {
+					cssVars['--date-picker-selected-background'] = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----></div>`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 304 src/routes/404/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+import { goto } from '$app/navigation';
+import { resolve } from '$app/paths';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		onMount(() => {
+			goto(resolve('/'));
+		});
+	});
+}
+=== 8393 src/routes/DemoDateInput.svelte	js
+import * as $ from 'svelte/internal/server';
+import DateInput from '$lib/DateInput.svelte';
+import Prop from './prop.svelte';
+import Split from './split.svelte';
+import { localeFromDateFnsLocale } from '$lib';
+import { hy, de, nb } from 'date-fns/locale';
+import { toText, toValidDate } from '$lib/date-utils';
+import { createFormat } from '$lib/parse';
+
+export default function DemoDateInput($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let locales = [
+			{ key: 'default', value: localeFromDateFnsLocale({}) },
+			{ key: 'nb (date-fns)', value: localeFromDateFnsLocale(nb) },
+			{ key: 'de (date-fns)', value: localeFromDateFnsLocale(de) },
+			{ key: 'hy (date-fns)', value: localeFromDateFnsLocale(hy) }
+		];
+
+		let localeEntry = locales[0];
+		let value = null;
+		const now = new Date();
+		let initialBrowseDate = now;
+		let min = new Date(now.getFullYear() - 20, 0, 1);
+		let max = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+		let id = null;
+		let placeholder = '2020-12-31 23:00:00';
+		let valid = true;
+		let disabled = false;
+		let required = false;
+		let format = 'yyyy-MM-dd HH:mm:ss';
+		let isDisabledDate = null;
+
+		// svelte-ignore state_referenced_locally
+		let text = toText(
+			value
+				? toValidDate(initialBrowseDate, value, min, max, isDisabledDate)
+				: value,
+			createFormat(format, localeEntry.value)
+		);
+
+		let visible = false;
+		let closeOnSelection = false;
+		let browseWithoutSelecting = false;
+		let timePrecision = null;
+		let dynamicPositioning = true;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Split($$renderer, {
+				$$slots: {
+					left: ($$renderer) => {
+						DateInput($$renderer, {
+							slot: 'left',
+							id,
+							initialBrowseDate,
+							min,
+							max,
+							placeholder,
+							format,
+							disabled,
+							required,
+							closeOnSelection,
+							browseWithoutSelecting,
+							dynamicPositioning,
+							timePrecision,
+							locale: localeEntry.value,
+							get value() {
+								return value;
+							},
+
+							set value($$value) {
+								value = $$value;
+								$$settled = false;
+							},
+
+							get valid() {
+								return valid;
+							},
+
+							set valid($$value) {
+								valid = $$value;
+								$$settled = false;
+							},
+
+							get visible() {
+								return visible;
+							},
+
+							set visible($$value) {
+								visible = $$value;
+								$$settled = false;
+							},
+
+							get text() {
+								return text;
+							},
+
+							set text($$value) {
+								text = $$value;
+								$$settled = false;
+							}
+						});
+					},
+
+					right: ($$renderer) => {
+						{
+							$$renderer.push(`<h3 class="no-top">Props</h3> `);
+
+							Prop($$renderer, {
+								label: 'value',
+								children: ($$renderer) => {
+									$$renderer.push(`<!---->${$.escape(value)}`);
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'initialBrowseDate',
+								get value() {
+									return initialBrowseDate;
+								},
+
+								set value($$value) {
+									initialBrowseDate = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'min',
+								get value() {
+									return min;
+								},
+
+								set value($$value) {
+									min = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'max',
+								get value() {
+									return max;
+								},
+
+								set value($$value) {
+									max = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'id',
+								get value() {
+									return id;
+								},
+
+								set value($$value) {
+									id = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'placeholder',
+								get value() {
+									return placeholder;
+								},
+
+								set value($$value) {
+									placeholder = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'valid',
+								get value() {
+									return valid;
+								},
+
+								set value($$value) {
+									valid = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'format',
+								get value() {
+									return format;
+								},
+
+								set value($$value) {
+									format = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'visible',
+								get value() {
+									return visible;
+								},
+
+								set value($$value) {
+									visible = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'disabled',
+								get value() {
+									return disabled;
+								},
+
+								set value($$value) {
+									disabled = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'required',
+								get value() {
+									return required;
+								},
+
+								set value($$value) {
+									required = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'closeOnSelection',
+								get value() {
+									return closeOnSelection;
+								},
+
+								set value($$value) {
+									closeOnSelection = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'browseWithoutSelecting',
+								get value() {
+									return browseWithoutSelecting;
+								},
+
+								set value($$value) {
+									browseWithoutSelecting = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'dynamicPositioning',
+								get value() {
+									return dynamicPositioning;
+								},
+
+								set value($$value) {
+									dynamicPositioning = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'locale',
+								values: locales,
+								get value() {
+									return localeEntry;
+								},
+
+								set value($$value) {
+									localeEntry = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'text',
+								get value() {
+									return text;
+								},
+
+								set value($$value) {
+									text = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'timePrecision',
+								values: [null, 'minute', 'second', 'millisecond'],
+								get value() {
+									return timePrecision;
+								},
+
+								set value($$value) {
+									timePrecision = $$value;
+									$$settled = false;
+								},
+
+								children: ($$renderer) => {
+									$$renderer.push(`<!---->${$.escape(timePrecision)}`);
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'class',
+								children: ($$renderer) => {
+									$$renderer.push(`<span style="font-family:monospace">ClassValue</span>`);
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'isDisabledDate',
+								children: ($$renderer) => {
+									$$renderer.push(`<span style="font-family:monospace">(date: Date) => boolean</span>`);
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Prop($$renderer, {
+								label: 'onselect',
+								children: ($$renderer) => {
+									$$renderer.push(`<span style="font-family:monospace">(date: Date) => void</span>`);
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!---->`);
+						}
+					}
+				}
+			});
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 4368 src/routes/DemoDatePicker.svelte	js
+import * as $ from 'svelte/internal/server';
+import DatePicker from '$lib/DatePicker.svelte';
+import { localeFromDateFnsLocale } from '$lib/locale.js';
+import Prop from './prop.svelte';
+import Split from './split.svelte';
+import { hy, de, nb } from 'date-fns/locale';
+
+export default function DemoDatePicker($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let value = null;
+		const now = new Date();
+		let initialBrowseDate = now;
+		let min = new Date(now.getFullYear() - 20, 0, 1);
+		let max = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+
+		let locales = [
+			{ key: 'default', value: localeFromDateFnsLocale({}) },
+			{ key: 'nb (date-fns)', value: localeFromDateFnsLocale(nb) },
+			{ key: 'de (date-fns)', value: localeFromDateFnsLocale(de) },
+			{ key: 'hy (date-fns)', value: localeFromDateFnsLocale(hy) }
+		];
+
+		let locale = locales[3];
+		let browseWithoutSelecting = false;
+		let timePrecision = 'millisecond';
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Split($$renderer, {
+				$$slots: {
+					left: ($$renderer) => {
+						$$renderer.push(`<div class="left" slot="left">`);
+
+						DatePicker($$renderer, {
+							initialBrowseDate,
+							min,
+							max,
+							locale: locale.value,
+							browseWithoutSelecting,
+							timePrecision,
+							get value() {
+								return value;
+							},
+
+							set value($$value) {
+								value = $$value;
+								$$settled = false;
+							}
+						});
+
+						$$renderer.push(`<!----></div>`);
+					},
+
+					right: ($$renderer) => {
+						$$renderer.push(`<div slot="right"><h3 class="no-top">Props</h3> `);
+
+						Prop($$renderer, {
+							label: 'value',
+							children: ($$renderer) => {
+								$$renderer.push(`<!---->${$.escape(value)}`);
+							},
+							$$slots: { default: true }
+						});
+
+						$$renderer.push(`<!----> `);
+
+						Prop($$renderer, {
+							label: 'initialBrowseDate',
+							get value() {
+								return initialBrowseDate;
+							},
+
+							set value($$value) {
+								initialBrowseDate = $$value;
+								$$settled = false;
+							}
+						});
+
+						$$renderer.push(`<!----> `);
+
+						Prop($$renderer, {
+							label: 'min',
+							get value() {
+								return min;
+							},
+
+							set value($$value) {
+								min = $$value;
+								$$settled = false;
+							}
+						});
+
+						$$renderer.push(`<!----> `);
+
+						Prop($$renderer, {
+							label: 'max',
+							get value() {
+								return max;
+							},
+
+							set value($$value) {
+								max = $$value;
+								$$settled = false;
+							}
+						});
+
+						$$renderer.push(`<!----> `);
+
+						Prop($$renderer, {
+							label: 'locale',
+							values: locales,
+							get value() {
+								return locale;
+							},
+
+							set value($$value) {
+								locale = $$value;
+								$$settled = false;
+							}
+						});
+
+						$$renderer.push(`<!----> `);
+
+						Prop($$renderer, {
+							label: 'browseWithoutSelecting',
+							get value() {
+								return browseWithoutSelecting;
+							},
+
+							set value($$value) {
+								browseWithoutSelecting = $$value;
+								$$settled = false;
+							}
+						});
+
+						$$renderer.push(`<!----> `);
+
+						Prop($$renderer, {
+							label: 'timePrecision',
+							values: [null, 'minute', 'second', 'millisecond'],
+							get value() {
+								return timePrecision;
+							},
+
+							set value($$value) {
+								timePrecision = $$value;
+								$$settled = false;
+							},
+
+							children: ($$renderer) => {
+								$$renderer.push(`<!---->${$.escape(timePrecision)}`);
+							},
+							$$slots: { default: true }
+						});
+
+						$$renderer.push(`<!----> `);
+
+						Prop($$renderer, {
+							label: 'isDisabledDate',
+							children: ($$renderer) => {
+								$$renderer.push(`<span style="font-family:monospace">(date: Date) => boolean</span>`);
+							},
+							$$slots: { default: true }
+						});
+
+						$$renderer.push(`<!----> `);
+
+						Prop($$renderer, {
+							label: 'onselect',
+							children: ($$renderer) => {
+								$$renderer.push(`<span style="font-family:monospace">(date: Date) => void</span>`);
+							},
+							$$slots: { default: true }
+						});
+
+						$$renderer.push(`<!----></div>`);
+					}
+				}
+			});
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 806 src/routes/bug/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import DatePicker from '$lib/DatePicker.svelte';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let value = void 0;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			$$renderer.push(`<button>Set to precise value</button> `);
+
+			DatePicker($$renderer, {
+				timePrecision: 'minute',
+				get value() {
+					return value;
+				},
+
+				set value($$value) {
+					value = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> ${$.escape(value?.toISOString() ?? 'null')}`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 902 src/routes/bug/isdisableddate/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import DateInput from '$lib/DateInput.svelte';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let min = new Date(2024, 1, 26, 17, 30);
+		let value = void 0;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			DateInput($$renderer, {
+				timePrecision: 'minute',
+				min,
+				isDisabledDate: (date) => {
+					return date.getDate() === 15 || date.getDate() === 16;
+				},
+
+				get value() {
+					return value;
+				},
+
+				set value($$value) {
+					value = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <button>Set to 2024-10-15</button> ${$.escape(value)}`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 780 src/routes/bug/timeprecision/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import DatePicker from '$lib/DatePicker.svelte';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let value = void 0;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			$$renderer.push(`<button>chhh</button> `);
+
+			DatePicker($$renderer, {
+				timePrecision: 'minute',
+				get value() {
+					return value;
+				},
+
+				set value($$value) {
+					value = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> ${$.escape(value?.toISOString())}`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 627 src/routes/demo/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import DemoDatePicker from '../DemoDatePicker.svelte';
+import DemoDateInput from '../DemoDateInput.svelte';
+
+export default function _page($$renderer) {
+	$.head('1du1zi4', $$renderer, ($$renderer) => {
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>Demo • Date Picker Svelte</title>`);
+		});
+	});
+
+	$$renderer.push(`<a id="Demo"></a> <h1>Demo</h1> <a id="DateInput"></a> <h2>DateInput</h2> `);
+	DemoDateInput($$renderer, {});
+	$$renderer.push(`<!----> <a id="DatePicker"></a> <h2>DatePicker</h2> `);
+	DemoDatePicker($$renderer, {});
+	$$renderer.push(`<!---->`);
+}

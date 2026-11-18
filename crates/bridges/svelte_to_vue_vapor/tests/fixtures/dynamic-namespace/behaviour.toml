@@ -1,0 +1,13 @@
+include_unmount = true
+
+[[steps]]
+click = "button.html"
+
+[[steps]]
+click = "button.svg"
+
+[[steps]]
+click = "button.remove"
+
+[[steps]]
+click = "button.svg"

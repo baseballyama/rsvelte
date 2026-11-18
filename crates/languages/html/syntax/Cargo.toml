@@ -1,0 +1,15 @@
+[package]
+name = "rsvelte_markup_syntax"
+description = "HTML facts the Svelte and Vue crates share: character references, void elements, DOM properties and the script language"
+version = "0.0.0"
+edition.workspace = true
+publish = false
+
+[lib]
+doctest = false
+
+[dependencies]
+memchr.workspace = true
+
+[lints]
+workspace = true

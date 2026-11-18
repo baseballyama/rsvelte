@@ -1,171 +1,212 @@
 [workspace]
 resolver = "3"
 members = [
-    "crates/rsvelte",
-    "crates/rsvelte_ast_equiv",
-    "crates/rsvelte_capi",
-    "crates/rsvelte_bindings_support",
-    "crates/rsvelte_bench",
-    "crates/rsvelte_check",
-    "crates/rsvelte_compiler_wasm",
-    "crates/rsvelte_compiler_wasm_bindings",
-    "crates/rsvelte_content_mapper",
-    "crates/rsvelte_core",
-    "crates/rsvelte_devtools",
-    "crates/rsvelte_diagnostics",
-    "crates/rsvelte_esrap",
-    "crates/rsvelte_fmt",
-    "crates/rsvelte_fmt_wasm",
-    "crates/rsvelte_formatter",
-    "crates/rsvelte_language_server",
-    "crates/rsvelte_lint",
-    "crates/rsvelte_lint_bindings",
-    "crates/rsvelte_napi",
-    "crates/rsvelte_preprocess",
-    "crates/rsvelte_projection",
-    "crates/tailwind_class_order",
+  "crates/language_independent/*",
+  "crates/hosts/*",
+  "crates/languages/*/*",
+  "crates/bridges/*",
+  "examples/*",
 ]
 
-[profile.release]
-lto = "fat"
-codegen-units = 1
-opt-level = 3
-strip = false
-debug = false
-panic = "abort"
+[workspace.package]
+edition = "2024"
+version = "0.0.0"
+license = "MIT"
+publish = false
 
-# Distribution profile for the artifacts published to npm / GitHub Releases
-# (svelte_check, rsvelte-fmt, rsvelte-lint CLIs and the NAPI `.node` cdylib).
-# Identical optimization to `release` — same speed — but strips local + debug
-# symbols, which measured ~13–16% smaller on every artifact. We keep the shared
-# `[profile.release]` at `strip = false` because CodSpeed / profiling builds rely
-# on its symbols; release.yml's `cargo build` steps opt into `--profile dist`.
-# `strip = "symbols"` preserves the dynamic export table, so the `.node` addon's
-# napi registration symbols survive (this is exactly what oxc ships).
-[profile.dist]
-inherits = "release"
-strip = "symbols"
+[workspace.dependencies]
+rsvelte_configuration_loading = { path = "crates/hosts/configuration_loading" }
+rsvelte_plugin_interface = { path = "crates/language_independent/plugin_interface" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.154", features = ["raw_value"] }
+serde-saphyr = "2.1.0"
+regress = "0.12.0"
+toml = "1.1.5"
+rsvelte_lint_runner = { path = "crates/language_independent/lint_runner" }
+rsvelte_kernel = { path = "crates/language_independent/kernel" }
+rsvelte_corpus = { path = "crates/language_independent/corpus" }
+rsvelte_test_harness = { path = "crates/language_independent/test_harness" }
+rsvelte_document_printer = { path = "crates/language_independent/document_printer" }
+rsvelte_typescript_tree = { path = "crates/languages/typescript/tree" }
+rsvelte_typescript_semantic = { path = "crates/languages/typescript/semantic" }
+rsvelte_stylesheet_syntax = { path = "crates/languages/css/syntax" }
+rsvelte_stylesheet_semantic = { path = "crates/languages/css/semantic" }
+rsvelte_stylesheet_compile = { path = "crates/languages/css/compile" }
+rsvelte_svelte_syntax = { path = "crates/languages/svelte/syntax" }
+rsvelte_svelte_semantic = { path = "crates/languages/svelte/semantic" }
+rsvelte_markup_syntax = { path = "crates/languages/html/syntax" }
+rsvelte_markup_lint = { path = "crates/languages/html/lint" }
+rsvelte_vue_syntax = { path = "crates/languages/vue/syntax" }
+rsvelte_vue_semantic = { path = "crates/languages/vue/semantic" }
+rsvelte_vue_to_svelte = { path = "crates/bridges/vue_to_svelte" }
+rsvelte_svelte_to_vue_vapor = { path = "crates/bridges/svelte_to_vue_vapor" }
+rsvelte_typescript_format = { path = "crates/languages/typescript/format" }
+rsvelte_typescript_lint = { path = "crates/languages/typescript/lint" }
+rsvelte_typescript_content_mapper = { path = "crates/languages/typescript/content_mapper" }
+rsvelte_typescript_check = { path = "crates/languages/typescript/check" }
+rsvelte_typescript_api = { path = "crates/languages/typescript/api" }
+rsvelte_svelte_format = { path = "crates/languages/svelte/format" }
+rsvelte_svelte_lint = { path = "crates/languages/svelte/lint" }
+rsvelte_svelte_typescript_projection = { path = "crates/languages/svelte/typescript_projection" }
+rsvelte_svelte_check = { path = "crates/languages/svelte/check" }
+rsvelte_vue_format = { path = "crates/languages/vue/format" }
+rsvelte_vue_lint = { path = "crates/languages/vue/lint" }
+rsvelte_vue_check = { path = "crates/languages/vue/check" }
+rsvelte_typescript_compile = { path = "crates/languages/typescript/compile" }
+rsvelte_svelte_compile = { path = "crates/languages/svelte/compile" }
+rsvelte_vue_compile = { path = "crates/languages/vue/compile" }
+# TODO(oxc-project/oxc#29124, oxc-project/oxc#29211, oxc-project/oxc#29235): back to an upstream
+# revision once `parse_expression_at`, `parse_statement_at`, `with_start`,
+# `ExpressionRoot::without_parent` and `SemanticBuilder::build_with_host` merge.
+# Every oxc crate stays on one revision; `oxc_formatter` is not on crates.io.
+oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+oxc_ast = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+oxc_ast_visit = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+oxc_codegen = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+oxc_diagnostics = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+oxc_formatter = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+oxc_formatter_core = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+oxc_formatter_css = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+oxc_parser = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+oxc_semantic = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+oxc_span = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+oxc_str = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+oxc_syntax = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+oxc_transformer = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+self_cell = "1.2.0"
+rayon = "1.12.0"
+stacker = "0.1.25"
+memchr = "2.8.3"
+mimalloc = { version = "0.1.52", default-features = false }
+semver = "1.0.28"
+rustc-hash = "2.1.3"
+num-bigint = "0.5.1"
+num-traits = "0.2.19"
+sha2 = { version = "0.11.1", default-features = false }
+libc = "0.2.191"
+unicode-id-start = "1.5.0"
 
-# Distribution profile for the `rsvelte-lint` CLI. It isolates a per-file
-# compiler panic via `catch_unwind` (see `crates/rsvelte_lint/src/main.rs`), a
-# guarantee that only holds when the binary UNWINDS — the shared `release`/`dist`
-# profiles set `panic = "abort"` (smaller/faster), which turns that isolation
-# into an immediate `SIGABRT` for the whole run. This profile keeps dist's
-# optimization + symbol stripping but restores unwinding, so one pathological
-# file can be skipped instead of aborting the entire lint pass. Build the CLI
-# with `--profile dist-lint`.
-[profile.dist-lint]
-inherits = "dist"
-panic = "unwind"
-
-# Distribution profile for the `rsvelte-language-server` binary. Its analysis
-# worker isolates a per-document compiler panic via `catch_unwind` (see
-# `crates/rsvelte_language_server/src/worker.rs`), which only holds when the
-# binary UNWINDS — the shared `release`/`dist` profiles set `panic = "abort"`,
-# turning that isolation into an immediate `SIGABRT` that kills the editor's
-# whole language server. Same reasoning as `dist-lint` above. Build the server
-# with `--profile dist-lsp`.
-[profile.dist-lsp]
-inherits = "dist"
-panic = "unwind"
-
-# Distribution profile for the NAPI `.node` addon (`crates/rsvelte_napi`).
-# Every `#[napi(...)]` export isolates a per-call compiler panic via the
-# napi-derive `catch_unwind` attribute (see `crates/rsvelte_napi/src/lib.rs`),
-# which only holds when the binary UNWINDS — the shared `release`/`dist`
-# profiles set `panic = "abort"`, turning that isolation into an immediate
-# `SIGABRT` that kills the whole Node process (a Vite dev server, a build,
-# svelte-check's compiler calls, ...) instead of surfacing a JS exception for
-# the one call. Same reasoning as `dist-lint`/`dist-lsp` above. Build with
-# `--profile dist-napi`.
-[profile.dist-napi]
-inherits = "dist"
-panic = "unwind"
-
-# Distribution profile for the C ABI libraries. C has no Rust panic runtime,
-# so every compiler entry point catches an unwind and returns its JSON error
-# envelope instead of allowing an abort to terminate the embedding process.
-# Build C ABI artifacts with `--profile dist-capi`.
-[profile.dist-capi]
-inherits = "dist"
-panic = "unwind"
-
-[profile.profiling]
-inherits = "release"
-lto = "thin"          # thin LTO keeps profiling builds within the dev box's RAM
-codegen-units = 16    # and split codegen so the opt-level-3 lib build does not OOM
-debug = "line-tables-only"
-strip = false
-
-# One test binary per integration-test file (242 for `rsvelte_core`) means a
-# local `--tests` build writes 14.9 GiB per checkout. `line-tables-only` keeps
-# the file and line a panic backtrace needs and drops the type/variable tables it
-# does not, for 13.7 GiB. Set on `test` and not `dev`: measured, `dev` alone
-# changes nothing here, because the artifacts that dominate are built under the
-# test profile. Most of the tree is unoptimized code, not debuginfo — `debug = 0`
-# only reaches 11.9 GiB — so this is a trim, not a fix; the fix is to build named
-# `--test` targets rather than all of them.
-[profile.test]
-debug = "line-tables-only"
-
-[profile.bench]
-inherits = "release"
-debug = true
-# Note: the `bench` profile always unwinds (Cargo ignores an explicit `panic`
-# setting here), which is exactly what Criterion needs to catch panics — so we
-# rely on that default rather than setting `panic` and triggering a manifest warning.
-
-[profile.ci-bench]
-inherits = "release"
-lto = "off"
-codegen-units = 16
-
-# Workspace-wide lint policy. Every crate opts in via `[lints] workspace = true`,
-# so these are the single source of truth for the project's quality gates.
-# Keep this table to lints that the whole workspace passes cleanly — CI runs
-# `cargo clippy --all-targets --all-features -- -D warnings`, so a regression here
-# fails the build rather than emitting a warning.
+# Everything below is `deny`: a lint that only warns is one nobody reads. A lint is left out only
+# with a reason written here; a local exception is `#[expect(lint, reason = "...")]`, never `allow`.
 [workspace.lints.rust]
-# Force every `unsafe` operation inside an `unsafe fn` to sit in an explicit
-# `unsafe {}` block, so the unsafe surface is always visible at the call site.
+unsafe_code = "deny"
 unsafe_op_in_unsafe_fn = "deny"
+rust_2018_idioms = { level = "deny", priority = -1 }
+explicit_outlives_requirements = "deny"
+let_underscore_drop = "deny"
+meta_variable_misuse = "deny"
+missing_debug_implementations = "deny"
+missing_unsafe_on_extern = "deny"
+redundant_lifetimes = "deny"
+single_use_lifetimes = "deny"
+trivial_casts = "deny"
+trivial_numeric_casts = "deny"
+unit_bindings = "deny"
+unnameable_types = "deny"
+unreachable_pub = "deny"
+unused_lifetimes = "deny"
+unused_qualifications = "deny"
+# Not enabled: missing_docs (would document wholesale rather than where a reader needs it),
+# unused_results (nearly all are builder calls and deliberate `insert`s), unused_crate_dependencies
+# (fires in every test and example target).
 
 [workspace.lints.clippy]
-# Every `unsafe {}` block must carry a `// SAFETY:` comment justifying its
-# soundness. This is the project's contract for reviewing unsafe code.
-undocumented_unsafe_blocks = "deny"
-
-# Ban the `out.push_str(&format!(...))` anti-pattern: it heap-allocates a throwaway
-# `String` per call, which profiling showed dominates the codegen hot path. Use
-# `write!`/`writeln!` into the target buffer instead (zero extra allocation).
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
+# Positions are u32 by design (P4); a source over `MAX_SOURCE_LEN` is refused before it is lexed,
+# so every usize -> u32 offset cast is in range. The other `cast_*` lints stay on.
+cast_possible_truncation = "allow"
+# Contradicts rustc's `unreachable_pub` above, which asks for exactly the `pub(crate)` this rejects.
+redundant_pub_crate = "allow"
+# The restriction group is not meant to be enabled whole; these are the ones that catch defects
+# or hidden state rather than enforce a style.
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+assertions_on_result_states = "deny"
+cfg_not_test = "deny"
+clone_on_ref_ptr = "deny"
+create_dir = "deny"
+dbg_macro = "deny"
+deref_by_slicing = "deny"
+empty_drop = "deny"
+empty_enum_variants_with_brackets = "deny"
+empty_structs_with_brackets = "deny"
+error_impl_error = "deny"
+exit = "deny"
+filetype_is_file = "deny"
+fn_to_numeric_cast_any = "deny"
 format_push_string = "deny"
+get_unwrap = "deny"
+if_then_some_else_none = "deny"
+infinite_loop = "deny"
+iter_over_hash_type = "deny"
+large_include_file = "deny"
+let_underscore_must_use = "deny"
+let_underscore_untyped = "deny"
+lossy_float_literal = "deny"
+map_err_ignore = "deny"
+mem_forget = "deny"
+missing_assert_message = "deny"
+mixed_read_write_in_expression = "deny"
+mod_module_files = "deny"
+multiple_unsafe_ops_per_block = "deny"
+needless_raw_strings = "deny"
+non_zero_suggestions = "deny"
+panic_in_result_fn = "deny"
+precedence_bits = "deny"
+print_stderr = "deny"
+print_stdout = "deny"
+pub_without_shorthand = "deny"
+rc_buffer = "deny"
+redundant_test_prefix = "deny"
+redundant_type_annotations = "deny"
+ref_patterns = "deny"
+renamed_function_params = "deny"
+rest_pat_in_fully_bound_structs = "deny"
+same_name_method = "deny"
+str_to_string = "deny"
+string_add = "deny"
+string_lit_chars_any = "deny"
+suspicious_xor_used_as_pow = "deny"
+todo = "deny"
+try_err = "deny"
+undocumented_unsafe_blocks = "deny"
+unimplemented = "deny"
+unnecessary_safety_comment = "deny"
+unnecessary_safety_doc = "deny"
+unnecessary_self_imports = "deny"
+unneeded_field_pattern = "deny"
+unused_result_ok = "deny"
+unwrap_in_result = "deny"
+unwrap_used = "deny"
+verbose_file_reads = "deny"
+# Restriction lints left out: expect_used, panic and unreachable (each names its invariant, and
+# unwrap_used makes every site do so); indexing_slicing, string_slice, arithmetic_side_effects and
+# as_conversions (lexers index by offsets they have just checked); wildcard_enum_match_arm (the
+# token enum); the style-only rest.
 
-# Intentional, project-wide allowances (centralised here instead of scattered as
-# inline `#[allow(...)]`, so the policy is reviewable in one place):
-#
-# `too_many_arguments` / `type_complexity`: this crate is a line-for-line port of
-# the official Svelte compiler, so many functions deliberately mirror upstream
-# signatures (and the closure/visitor types they pass around) rather than being
-# re-factored into config structs. Refactoring for argument count alone would
-# diverge from the reference implementation we verify against.
-too_many_arguments = "allow"
-type_complexity = "allow"
+[workspace.lints.rustdoc]
+bare_urls = "deny"
+broken_intra_doc_links = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_html_tags = "deny"
+invalid_rust_codeblocks = "deny"
+private_intra_doc_links = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
 
-# SPIKE: redirect every published oxc_* crate to the same git rev so
-# rsvelte's AST types unify with oxc_formatter's transitive deps
-# (avoids "two Program<'a> types from different source units" errors).
+# oxc's CSS parser comes from crates.io and allocates in `oxc_allocator`'s arena, which must be
+# the one the rest of oxc uses.
 [patch.crates-io]
-oxc_allocator         = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
-oxc_parser            = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
-oxc_ast               = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
-oxc_ast_macros        = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
-oxc_ast_visit         = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
-oxc_span              = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
-oxc_diagnostics       = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
-oxc_codegen           = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
-oxc_syntax            = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
-oxc_semantic          = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
-oxc_regular_expression = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
-oxc_ecmascript        = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
-oxc_str               = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
-oxc_data_structures   = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
+oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+
+[profile.release]
+debug = "line-tables-only"
+lto = "thin"
+codegen-units = 1
+
+# The profile benchmarks and performance gates measure: release plus symbols for profilers.
+[profile.benchmark]
+inherits = "release"

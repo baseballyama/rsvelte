@@ -1,0 +1,1 @@
+<button on:click={f}>{key} {a}</button>

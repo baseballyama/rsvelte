@@ -1,0 +1,1 @@
+<script module>let value=$state("a");export function set(next){value=next;}export function get(){return value;}</script><p class={get()}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

@@ -1,0 +1,1 @@
+const value = $derived(await load());

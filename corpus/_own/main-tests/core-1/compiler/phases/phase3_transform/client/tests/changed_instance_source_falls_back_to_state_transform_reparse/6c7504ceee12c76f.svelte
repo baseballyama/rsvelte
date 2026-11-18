@@ -1,0 +1,1 @@
+<script>class Counter { value = $state(0); } let count = $state(0);</script><p>{count + new Counter().value}</p>

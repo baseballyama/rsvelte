@@ -1,0 +1,1 @@
+<Child let:v={{ a = 1 }}>{typeof a}</Child>

@@ -1,0 +1,1 @@
+<Foo let:y><div let:x>{x}</div></Foo>

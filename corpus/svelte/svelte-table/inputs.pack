@@ -1,0 +1,560 @@
+# rsvelte pack 1
+=== 3606 example/Example1.svelte	svelte	runes	neutral
+<script>
+  import SvelteTable from "../src/SvelteTable.svelte";
+  // import SvelteTable from "svelte-table";
+  import faker from "faker";
+  faker.seed(5);
+
+  const colums = [
+    {
+      key: "id",
+      title: "ID",
+      value: v => v.id,
+      sortable: false,
+      filterOptions: rows => {
+        let nums = {};
+        rows.forEach(row => {
+          let num = Math.floor(row.id / 10);
+          if (nums[num] === undefined)
+            nums[num] = {
+              name: `${num * 10} to ${(num + 1) * 10}`,
+              value: num,
+            };
+        });
+        // fix order
+        nums = Object.entries(nums)
+          .sort()
+          .reduce((o, [k, v]) => ((o[k] = v), o), {});
+        return Object.values(nums);
+      },
+      filterValue: (r, f) => f === Math.floor(r.id / 10),
+      headerClass: "text-left",
+    },
+    {
+      key: "first_name",
+      title: "FIRST NAME",
+      value: v => v.first_name,
+      sortable: true,
+      filterOptions: rows => {
+        let letrs = {};
+        rows.forEach(row => {
+          let letr = row.first_name.charAt(0);
+          if (letrs[letr] === undefined)
+            letrs[letr] = {
+              name: `${letr.toUpperCase()}`,
+              value: letr.toLowerCase(),
+            };
+        });
+        // fix order
+        letrs = Object.entries(letrs)
+          .sort()
+          .reduce((o, [k, v]) => ((o[k] = v), o), {});
+        return Object.values(letrs);
+      },
+      filterValue: (r, f) => f === r.first_name.charAt(0).toLowerCase(),
+    },
+    {
+      key: "last_name",
+      title: "LAST NAME",
+      value: v => v.last_name,
+      sortable: true,
+      filterOptions: rows => {
+        let letrs = {};
+        rows.forEach(row => {
+          let letr = row.last_name.charAt(0);
+          if (letrs[letr] === undefined)
+            letrs[letr] = {
+              name: `${letr.toUpperCase()}`,
+              value: letr.toLowerCase(),
+            };
+        });
+        // fix order
+        letrs = Object.entries(letrs)
+          .sort()
+          .reduce((o, [k, v]) => ((o[k] = v), o), {});
+        return Object.values(letrs);
+      },
+      filterValue: (r, f) => f === r.last_name.charAt(0).toLowerCase(),
+    },
+    {
+      key: "email",
+      title: "EMAIL",
+      value: v => v.email,
+      searchValue: v => v.email,
+      filterPlaceholder: "email",
+      sortable: true,
+      class: "text-center",
+    },
+    {
+      key: "pet",
+      title: "pet",
+      value: v => v.pet,
+      renderValue: v => {
+        let icon = v.pet.toLowerCase() === "cat" ? "🐱" : "";
+        icon = v.pet.toLowerCase() === "dog" ? "🐶" : icon;
+        return `${icon} ${v.pet}`;
+      },
+      sortable: true,
+      filterOptions: ["dog", "cat"],
+      filterPlaceholder: "all",
+    },
+    {
+      key: "ip_address",
+      title: "IP ADDRESS",
+      value: v => v.ip_address,
+      sortable: true,
+    },
+  ];
+
+  const numRows = 50;
+  const data = Array(numRows)
+    .fill("")
+    .map((n, i) => {
+      let d = {
+        id: i,
+        first_name: faker.name.firstName(),
+        last_name: faker.name.lastName(),
+        pet: faker.random.number(1) ? "cat" : "dog",
+        ip_address:
+          "192.168." +
+          faker.random.number(128) +
+          "." +
+          faker.random.number(255),
+      };
+      d.email =
+        d.first_name[0].toLowerCase() +
+        d.last_name.toLowerCase() +
+        "@zipit.org.ca";
+      return d;
+    });
+</script>
+
+<SvelteTable columns={colums} rows={data} />
+
+<style>
+  :global(.text-center) {
+    text-align: center;
+  }
+  :global(.text-left) {
+    text-align: left;
+  }
+</style>
+
+=== 4232 example/Example5.svelte	svelte	runes	neutral
+<script>
+  import SvelteTable from "../src/SvelteTable.svelte";
+  import { generateFilter } from "./helper.js";
+  // import SvelteTable from "svelte-table";
+  import faker from "faker";
+  faker.seed(15);
+
+  let selection = { first_name: "", last_name: "b" };
+
+  const colums = [
+    {
+      key: "id",
+      title: "ID",
+      value: v => v.id,
+      sortable: false,
+      headerClass: "text-left",
+    },
+    {
+      key: "first_name",
+      title: "FIRST NAME",
+      value: v => v.first_name,
+      sortable: true,
+      searchValue: v => v.first_name,
+      hideFilterHeader: true,
+    },
+    {
+      key: "last_name",
+      title: "LAST NAME",
+      value: v => v.last_name,
+      sortable: true,
+      searchValue: (v, s) =>
+        v.last_name.toString().toLowerCase().startsWith(s.toLowerCase()),
+    },
+    {
+      key: "email",
+      title: "EMAIL",
+      value: v => v.email,
+      sortable: true,
+      class: "text-center",
+    },
+    {
+      key: "age",
+      title: "Age",
+      value: v => v.age,
+      sortable: true,
+      filterOptions: generateFilter("age"),
+    },
+    {
+      key: "pet",
+      title: "Pet",
+      value: v => v.pet,
+      sortable: true,
+      filterOptions: generateFilter("pet"),
+    },
+    {
+      key: "ip_address",
+      title: "IP ADDRESS",
+      value: v => v.ip_address,
+      sortable: true,
+    },
+  ];
+
+  const numRows = 50;
+  const data = Array(numRows)
+    .fill("")
+    .map((n, i) => {
+      let d = {
+        id: i,
+        first_name: faker.name.firstName(),
+        last_name: faker.name.lastName(),
+        pet: faker.random.number(1) ? "Dog" : "Cat",
+        age: 26 + faker.random.number(37),
+        ip_address:
+          "192.168." +
+          faker.random.number(128) +
+          "." +
+          faker.random.number(255),
+      };
+      d.email =
+        d.first_name[0].toLowerCase() +
+        d.last_name.toLowerCase() +
+        "@zipit.org.ca";
+      return d;
+    });
+
+  function setFilter(key, value = undefined) {
+    if (selection[key] || value != undefined) {
+      selection[key] = value;
+    }
+  }
+
+  function clearAll() {
+    selection = {};
+  }
+
+  let filteredRows = [];
+</script>
+
+<div class="card" style="width: 100%; margin:8px auto;">
+  <div class="card-body">
+    <p class="card-text">
+      This search example uses <code>searchValue</code> for both first and last name
+      fields
+    </p>
+    <p class="card-text">
+      The first name field uses a <strong>single parameter</strong> searchValue
+      function which returns a <code>string</code>. The search logic is handled
+      by SvelteTable.
+      <strong>
+        This functionality will likely be deprecated in the future.
+      </strong>
+    </p>
+    <p class="card-text">
+      The last name field uses a <strong>two parameters</strong> searchValue
+      function which returns a <code>boolean</code>. This allows more
+      flexibility in the search behaviour.
+    </p>
+  </div>
+</div>
+
+<div class="d-flex justify-content-center" role="group">
+  <input bind:value={selection["first_name"]} placeholder="First Name" />
+  <button
+    class="btn btn-outline-primary"
+    disabled={selection["first_name"] === undefined}
+    on:click={() => setFilter("first_name")}
+  >
+    CLEAR FIRST NAME
+  </button>
+  <button
+    class="btn btn-outline-primary"
+    disabled={selection["last_name"] === undefined}
+    on:click={() => setFilter("last_name")}
+  >
+    CLEAR LAST NAME
+  </button>
+  <button
+    class="btn btn-outline-primary"
+    disabled={selection["age"] === undefined}
+    on:click={() => setFilter("age")}
+  >
+    CLEAR AGE
+  </button>
+  <button
+    class="btn btn-outline-primary"
+    disabled={!Object.values(selection).some(v => v != undefined)}
+    on:click={() => clearAll()}
+  >
+    CLEAR ALL
+  </button>
+  <button
+    class="btn btn-outline-primary"
+    on:click={() => setFilter("first_name", "R") + setFilter("age", 48)}
+  >
+    Find Rosie
+  </button>
+</div>
+
+<SvelteTable
+  classNameTable="table"
+  columns={colums}
+  rows={data}
+  bind:filterSelections={selection}
+  bind:filteredRows
+/>
+
+<h2>Number of filtered rows: {filteredRows.length}</h2>
+
+<style>
+  div :global(.text-center) {
+    text-align: center;
+  }
+  div :global(.text-left) {
+    text-align: left;
+  }
+</style>
+
+=== 2032 example/Example6.svelte	svelte	runes	neutral
+<script>
+  import SvelteTable from "../src/SvelteTable.svelte";
+  import ContactButtonComponent from "./example6/ContactButtonComponent.svelte";
+  import HelpButtonComponent from "./example6/HelpButtonComponent.svelte";
+  // import SvelteTable from "svelte-table";
+  import faker from "faker";
+  faker.seed(15);
+
+  const onContactButtonClick = row =>
+    alert(`Contacted ${row.first_name} ${row.last_name}`);
+
+  const colums = [
+    {
+      key: "id",
+      title: "ID",
+      value: v => v.id,
+      sortable: false,
+      headerClass: "text-left",
+    },
+    {
+      key: "first_name",
+      title: "FIRST NAME",
+      value: v => v.first_name,
+      sortable: true,
+      searchValue: v => v.first_name,
+    },
+    {
+      key: "last_name",
+      title: "LAST NAME",
+      value: v => v.last_name,
+      sortable: true,
+      searchValue: v => v.last_name,
+    },
+    {
+      key: "email",
+      title: "EMAIL",
+      value: v => v.email,
+      sortable: true,
+      class: "text-center",
+    },
+    {
+      key: "contact",
+      title: "",
+      sortable: false,
+      renderComponent: {
+        component: ContactButtonComponent,
+        props: { onContactButtonClick },
+      },
+    },
+    {
+      key: "help",
+      title: "",
+      sortable: false,
+      renderComponent: HelpButtonComponent,
+    },
+  ];
+
+  const numRows = 50;
+  const data = Array(numRows)
+    .fill("")
+    .map((n, i) => {
+      let d = {
+        id: i,
+        first_name: faker.name.firstName(),
+        last_name: faker.name.lastName(),
+        pet: faker.random.number(1) ? "Dog" : "Cat",
+        ip_address:
+          "192.168." +
+          faker.random.number(128) +
+          "." +
+          faker.random.number(255),
+      };
+      d.email =
+        d.first_name[0].toLowerCase() +
+        d.last_name.toLowerCase() +
+        "@zipit.org.ca";
+      return d;
+    });
+</script>
+
+<SvelteTable columns={colums} rows={data} />
+
+<style>
+  :global(.text-center) {
+    text-align: center;
+  }
+  :global(.text-left) {
+    text-align: left;
+  }
+</style>
+
+=== 3000 example/Example8.svelte	svelte	runes	neutral
+<script lang="ts">
+  import SvelteTable from "../src/SvelteTable.svelte";
+  import type { RowClassName, TableColumns } from "../src/types";
+  globalThis.faker.seed(5);
+
+  type RowData = {
+    id: number;
+    first_name: string;
+    last_name: string;
+    county: string;
+    state: string;
+    country: string;
+    email: string;
+  };
+
+  const classNameRow: RowClassName<RowData> = (v, rowIndex) =>
+    rowIndex % 2 == 0 ? null : "row-odd";
+
+  const generateData = numRows => {
+    return Array(numRows)
+      .fill("")
+      .map((n, i) => {
+        let d = {
+          id: i,
+          first_name: globalThis.faker.name.firstName() + "",
+          last_name: globalThis.faker.name.lastName() + "",
+          county: globalThis.faker.address.county() + "",
+          state: globalThis.faker.address.state() + "",
+          country: globalThis.faker.address.country() + "",
+          email: "",
+        } as RowData;
+
+        // update email
+        d.email =
+          d.first_name[0].toLowerCase() +
+          d.last_name.toLowerCase() +
+          "@zipit.org.ca";
+        return d;
+      });
+  };
+  const data1 = generateData(9);
+  const data2 = generateData(9);
+
+  const cols1: TableColumns<RowData> = [
+    {
+      key: "id",
+      title: "ID",
+      value: v => v.id,
+      sortable: true,
+      class: (v, r, c) => (v.id % 2 == 1 ? null : "cell"),
+    },
+    {
+      key: "first_name",
+      title: "FIRST NAME",
+      value: v => v.first_name,
+      sortable: true,
+    },
+    {
+      key: "last_name",
+      title: "LAST NAME",
+      value: v => v.last_name,
+      sortable: true,
+    },
+    {
+      key: "email",
+      title: "EMAIL (rowIndex)",
+      value: v => v.email,
+      sortable: true,
+      class: (v, r, c) => (r % 2 == 1 ? null : "cell"),
+    },
+  ];
+
+  const cols2: TableColumns<RowData> = [
+    {
+      key: "id",
+      title: "ID",
+      value: v => v.id,
+      sortable: true,
+    },
+    {
+      key: "first_name",
+      title: "FIRST NAME",
+      value: v => v.first_name,
+      sortable: true,
+    },
+    {
+      key: "last_name",
+      title: "LAST NAME",
+      value: v => v.last_name,
+      sortable: true,
+    },
+    {
+      key: "email",
+      title: "EMAIL (rowIndex)",
+      value: v => v.email,
+      sortable: true,
+    },
+  ];
+</script>
+
+<div class="container">
+  <h1>SvelteTable example 8 ~ dynamic column classes</h1>
+
+  <div class="row">
+    <SvelteTable
+      columns={cols1}
+      rows={data1}
+      classNameTable="table table1"
+      classNameThead="table-primary"
+      sortBy="first_name"
+    />
+  </div>
+</div>
+
+<div class="container">
+  <h1>SvelteTable example 8 ~ dynamic row class</h1>
+
+  <div class="row">
+    <SvelteTable
+      columns={cols2}
+      rows={data2}
+      classNameTable="table table2"
+      classNameThead="table-primary"
+      {classNameRow}
+    />
+  </div>
+</div>
+
+<style>
+  :global(.table1 td.cell) {
+    background: rgba(65, 255, 65, 0.178);
+  }
+
+  :global(.table2 tr.row-odd) {
+    background: rgba(0, 0, 0, 0.05);
+  }
+</style>
+
+=== 137 example/example6/HelpButtonComponent.svelte	svelte	runes	neutral
+<button
+  on:click={() =>
+    alert(
+      "Read the svelte-table docs: https://github.com/dasDaniel/svelte-table"
+    )}>Help</button
+>
+

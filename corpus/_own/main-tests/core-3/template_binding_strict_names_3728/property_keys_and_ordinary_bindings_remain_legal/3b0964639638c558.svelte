@@ -1,0 +1,1 @@
+{#if true}{@const { arguments: value } = { arguments: 1 }}{value}{/if}

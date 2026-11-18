@@ -1,0 +1,6550 @@
+# rsvelte pack 1
+=== 206 src/Accordion/Accordion.spec.svelte	svelte	runes	neutral
+<script>
+  import Accordion from './Accordion.svelte';
+  import { AccordionItem } from '../AccordionItem';
+</script>
+
+<Accordion>
+  <AccordionItem active class="peek-a-boo" header="Header!" />
+</Accordion>
+
+=== 4517 src/Accordion/Accordion.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Accordion from './Accordion.svelte';
+
+  export const meta = {
+    title: 'Stories/Accordion',
+    component: Accordion,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      flush: {
+        control: 'boolean'
+      },
+      stayOpen: {
+        control: 'boolean'
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      class: '',
+      flush: false,
+      stayOpen: false,
+      theme: null
+    }
+  };
+</script>
+
+<script>
+  import { Story } from '@storybook/addon-svelte-csf';
+  import { AccordionItem } from '@sveltestrap/sveltestrap';
+
+  let id = 1;
+  let open = true;
+
+  const basicSource = `<Accordion>
+  <AccordionItem header="Home">Fallbrook</AccordionItem>
+  <AccordionItem header="School">
+    <a href="#home">Buena Vista Elementary</a>
+  </AccordionItem>
+  <AccordionItem header="Library">UCSB Library</AccordionItem>
+</Accordion>`;
+</script>
+
+<Story name="Basic" let:args source={basicSource}>
+  {#key args}
+    <Accordion {...args}>
+      <AccordionItem header="Home">Fallbrook</AccordionItem>
+      <AccordionItem header="School">
+        <a href="#home">Buena Vista Elementary</a>
+      </AccordionItem>
+      <AccordionItem header="Library">UCSB Library</AccordionItem>
+    </Accordion>
+  {/key}
+</Story>
+
+<Story name="Events">
+  <Accordion on:toggle={console.log}>
+    <AccordionItem
+      active
+      header="Home"
+      on:toggle={(e) => {
+        id = 1;
+        open = e.detail;
+      }}
+    >
+      Fallbrook
+    </AccordionItem>
+    <AccordionItem
+      header="School"
+      on:toggle={(e) => {
+        id = 2;
+        open = e.detail;
+      }}
+    >
+      <a href="#home">Buena Vista Elementary</a>
+    </AccordionItem>
+    <AccordionItem
+      header="Library"
+      on:toggle={(e) => {
+        id = 3;
+        open = e.detail;
+      }}
+    >
+      UCSB Library
+    </AccordionItem>
+  </Accordion>
+  <br />
+  <code>Item #{id} is {open ? 'open' : 'closed'}</code>
+</Story>
+
+<Story name="Flush">
+  <Accordion flush>
+    <AccordionItem header="Home">Fallbrook</AccordionItem>
+    <AccordionItem header="School">
+      <a href="#home">Buena Vista Elementary</a>
+    </AccordionItem>
+    <AccordionItem header="Library">UCSB Library</AccordionItem>
+  </Accordion>
+</Story>
+
+<Story name="Stay Open">
+  <Accordion stayOpen>
+    <AccordionItem header="Home">Fallbrook</AccordionItem>
+    <AccordionItem header="School">
+      <a href="#home">Buena Vista Elementary</a>
+    </AccordionItem>
+    <AccordionItem header="Library">UCSB Library</AccordionItem>
+  </Accordion>
+</Story>
+
+<Story name="Slots">
+  <Accordion>
+    <AccordionItem active>
+      <h4 class="m-0" slot="header">Home</h4>
+      Fallbrook
+    </AccordionItem>
+    <AccordionItem>
+      <h4 class="m-0" slot="header">School</h4>
+      <a href="#home">Buena Vista Elementary</a>
+    </AccordionItem>
+    <AccordionItem>
+      <h4 class="m-0" slot="header">Library</h4>
+      UCSB Library
+    </AccordionItem>
+  </Accordion>
+</Story>
+
+<Story name="Theming">
+  <Accordion theme="dark" class="mb-4">
+    <AccordionItem active>
+      <h4 class="m-0" slot="header">Home</h4>
+      Fallbrook
+    </AccordionItem>
+    <AccordionItem>
+      <h4 class="m-0" slot="header">School</h4>
+      <a href="#home">Buena Vista Elementary</a>
+    </AccordionItem>
+    <AccordionItem>
+      <h4 class="m-0" slot="header">Library</h4>
+      UCSB Library
+    </AccordionItem>
+  </Accordion>
+
+  <Accordion theme="light">
+    <AccordionItem active>
+      <h4 class="m-0" slot="header">Home</h4>
+      Fallbrook
+    </AccordionItem>
+    <AccordionItem>
+      <h4 class="m-0" slot="header">School</h4>
+      <a href="#home">Buena Vista Elementary</a>
+    </AccordionItem>
+    <AccordionItem>
+      <h4 class="m-0" slot="header">Library</h4>
+      UCSB Library
+    </AccordionItem>
+  </Accordion>
+</Story>
+
+=== 4183 src/Alert/Alert.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Alert from './Alert.svelte';
+
+  export const meta = {
+    title: 'Stories/Alert',
+    component: Alert,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      content: {
+        control: ''
+      },
+      closeClassName: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      closeAriaLabel: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      color: {
+        control: {
+          type: 'select'
+        },
+        options: ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark']
+      },
+      dismissible: {
+        control: 'boolean'
+      },
+      fade: {
+        control: 'boolean'
+      },
+      heading: {
+        control: ''
+      },
+      isOpen: {
+        control: 'boolean'
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      toggle: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      transition: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      'heading ': {
+        description: 'This is the slot to use for custom headings.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      class: '',
+      content: undefined,
+      color: 'success',
+      closeClassName: '',
+      closeAriaLabel: 'Close',
+      dismissible: false,
+      fade: true,
+      heading: '',
+      isOpen: true,
+      theme: null
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { Button } from '@sveltestrap/sveltestrap';
+
+  const colors = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'];
+
+  let isOpen = true;
+  let toggle = () => (isOpen = !isOpen);
+</script>
+
+<Template let:args>
+  <Alert {...args} on:click></Alert>
+</Template>
+
+<Story name="Basic" args={{ content: "Hello, I'm a warning message.", color: 'warning' }} />
+
+<Story name="Colors">
+  {#each colors as color}
+    <Alert {color}>
+      <h4 class="alert-heading text-capitalize">Heading</h4>
+      This is the contents of a&nbsp;<b><u>{color}</u></b> alert message.&nbsp;
+
+      <a href="#todo" class="alert-link">Also, links are colored to match the assigned alert color! </a>
+    </Alert>
+  {/each}
+</Story>
+
+<Story name="Fade">
+  <Alert color="primary" {isOpen} toggle={() => (isOpen = false)} fade={false}>
+    I am a primary alert and I can be dismissed without animating!
+  </Alert>
+</Story>
+
+<Story name="Header">
+  <Alert color="primary" heading="Hey here's header text">Lorem ipsum lorem dolor sit amet.</Alert>
+</Story>
+
+<Story name="Dismissible">
+  <Alert color="info" dismissible>I am an alert and I can be dismissed!</Alert>
+</Story>
+
+<Story name="Controlled">
+  <Alert color="primary" {isOpen} toggle={() => (isOpen = false)}>
+    I can be controlled via <code>isOpen</code> and <code>toggle</code>.
+  </Alert>
+
+  <Button color="danger" on:click={toggle}>You can toggle me here.</Button>
+</Story>
+
+<Story name="Theming">
+  <Alert theme="dark" color="primary" isOpen={true}>
+    <h4 class="alert-heading">Dark Theme</h4>
+    I am a&nbsp;<code>dark</code> themed primary alert!
+  </Alert>
+
+  <Alert theme="light" heading="Light Theme" color="primary" isOpen={true}>
+    I am a&nbsp;<code>light</code> themed primary alert!
+  </Alert>
+</Story>
+
+=== 4097 src/Badge/Badge.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Badge from './Badge.svelte';
+
+  export const meta = {
+    title: 'Stories/Badges',
+    component: Badge,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      ariaLabel: {
+        control: ''
+      },
+      border: {
+        control: {
+          type: 'select'
+        },
+        options: ['', 'border', 'border-top', 'border-end', 'border-bottom', 'border-start']
+      },
+      class: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      content: {
+        control: ''
+      },
+      color: {
+        control: {
+          type: 'select'
+        },
+        options: ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark']
+      },
+      href: {
+        control: ''
+      },
+      indicator: {
+        control: 'boolean'
+      },
+      pill: {
+        control: 'boolean'
+      },
+      positioned: {
+        control: 'boolean'
+      },
+      placement: {
+        control: ''
+      },
+      shadow: {
+        control: {
+          type: 'select'
+        },
+        options: ['', 'shadow-none', 'shadow-sm', 'shadow', 'shadow-lg']
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      ariaLabel: '',
+      border: false,
+      class: '',
+      content: '',
+      color: 'primary',
+      href: '',
+      indicator: false,
+      pill: false,
+      placement: 'top-0 start-100',
+      positioned: false,
+      shadow: false,
+      theme: null
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { Button } from '@sveltestrap/sveltestrap';
+
+  const colors = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'];
+
+  const basicSource = `
+   <Badge color="primary">Badge</Badge>
+  `;
+</script>
+
+<Template let:args>
+  <Badge {...args} />
+</Template>
+
+<Story name="Basic" args={{ color: 'primary', content: 'Badge' }} source={basicSource} />
+
+<Story name="Colors">
+  <div class="horizontal">
+    {#each colors as color}
+      <Badge {color}>{color}</Badge>
+    {/each}
+  </div>
+</Story>
+
+<Story name="Buttons">
+  <div class="horizontal">
+    <Button color="primary">
+      Notifications
+      <Badge color="dark">4</Badge>
+    </Button>
+
+    <Button color="primary" outline>
+      Notifications
+      <Badge color="primary">7</Badge>
+    </Button>
+  </div>
+</Story>
+
+<Story name="Positioned">
+  <div class="mb-3">
+    <Button color="primary" class="position-relative">
+      Inbox <Badge color="danger" pill positioned ariaLabel="Unread messages">100+</Badge>
+    </Button>
+  </div>
+  <div>
+    <Button color="primary" class="position-relative">
+      Profile <Badge color="danger" pill indicator border positioned ariaLabel="New alerts"></Badge>
+    </Button>
+  </div>
+</Story>
+
+<Story name="Pills">
+  <div class="horizontal">
+    {#each colors as color}
+      <Badge pill {color}>{color}</Badge>
+    {/each}
+  </div>
+</Story>
+
+<Story name="Links">
+  <Badge href="https://svelte.dev" color="primary">Link Badge</Badge>
+</Story>
+
+<Story name="Headings">
+  <div class="headings-example">
+    <h1>Example heading <Badge color="secondary">New</Badge></h1>
+    <h2>Example heading <Badge color="secondary">New</Badge></h2>
+    <h3>Example heading <Badge color="secondary">New</Badge></h3>
+    <h4>Example heading <Badge color="secondary">New</Badge></h4>
+    <h5>Example heading <Badge color="secondary">New</Badge></h5>
+    <h6>Example heading <Badge color="secondary">New</Badge></h6>
+  </div>
+</Story>
+
+=== 2321 src/Breadcrumb/Breadcrumb.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Breadcrumb from './Breadcrumb.svelte';
+
+  export const meta = {
+    title: 'Stories/Breadcrumbs',
+    component: Breadcrumb,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      content: {
+        control: ''
+      },
+      divider: {
+        control: ''
+      },
+      listClassName: {
+        control: ''
+      },
+      style: {
+        control: ''
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      class: '',
+      content: '',
+      divider: '/',
+      listClassName: '',
+      style: ''
+    }
+  };
+</script>
+
+<script>
+  import { Story } from '@storybook/addon-svelte-csf';
+  import { BreadcrumbItem } from '@sveltestrap/sveltestrap';
+</script>
+
+<Story name="Basic" let:args>
+  <div class="breadcrumbs-example">
+    <Breadcrumb {...args}>
+      <BreadcrumbItem active>Home</BreadcrumbItem>
+    </Breadcrumb>
+
+    <Breadcrumb {...args}>
+      <BreadcrumbItem>
+        <a href="#home">Home</a>
+      </BreadcrumbItem>
+      <BreadcrumbItem active>Library</BreadcrumbItem>
+    </Breadcrumb>
+
+    <Breadcrumb {...args}>
+      <BreadcrumbItem>
+        <a href="#home">Home</a>
+      </BreadcrumbItem>
+      <BreadcrumbItem>
+        <a href="#library">Library</a>
+      </BreadcrumbItem>
+      <BreadcrumbItem active>Data</BreadcrumbItem>
+    </Breadcrumb>
+  </div>
+</Story>
+
+<Story name="Divider">
+  <div class="breadcrumbs-example">
+    <Breadcrumb divider="・">
+      <BreadcrumbItem>
+        <a href="#home">Home</a>
+      </BreadcrumbItem>
+      <BreadcrumbItem>
+        <a href="#library">Library</a>
+      </BreadcrumbItem>
+      <BreadcrumbItem active>Data</BreadcrumbItem>
+    </Breadcrumb>
+
+    <Breadcrumb divider="⟫">
+      <BreadcrumbItem>
+        <a href="#home">Home</a>
+      </BreadcrumbItem>
+      <BreadcrumbItem>
+        <a href="#library">Library</a>
+      </BreadcrumbItem>
+      <BreadcrumbItem active>Data</BreadcrumbItem>
+    </Breadcrumb>
+  </div>
+</Story>
+
+=== 3549 src/Button/Button.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Button from './Button.svelte';
+
+  export const meta = {
+    title: 'Stories/Button',
+    component: Button,
+    parameters: {
+      controls: {
+        exclude: /^(click|default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      content: {
+        control: ''
+      },
+      active: {
+        control: 'boolean'
+      },
+      block: {
+        control: 'boolean'
+      },
+      disabled: {
+        control: 'boolean'
+      },
+      close: {
+        control: 'boolean'
+      },
+      outline: {
+        control: 'boolean'
+      },
+      href: {
+        control: ''
+      },
+      value: {
+        control: ''
+      },
+      inner: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      color: {
+        control: {
+          type: 'select'
+        },
+        options: ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark', 'link']
+      },
+      size: {
+        control: {
+          type: 'select'
+        },
+        options: ['sm', 'md', 'lg']
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      class: '',
+      active: false,
+      block: false,
+      content: undefined,
+      close: false,
+      color: 'secondary',
+      disabled: false,
+      href: '',
+      inner: undefined,
+      outline: false,
+      size: null,
+      value: ''
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { ButtonGroup, ButtonToolbar } from '@sveltestrap/sveltestrap';
+
+  const colors = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark', 'link'];
+
+  const sizesMap = {
+    sm: 'Small',
+    md: 'Medium',
+    lg: 'Large'
+  };
+</script>
+
+<Template let:args>
+  <Button {...args} on:click></Button>
+</Template>
+
+<Story name="Basic" args={{ size: 'md', color: 'primary', content: 'Button' }} />
+
+<Story name="Colors" args={{ color: 'primary' }}>
+  <div class="horizontal capitalize">
+    {#each colors as color}
+      <Button class="capitalize" {color}>{color}</Button>
+    {/each}
+  </div>
+</Story>
+
+<Story name="Outlines" args={{ color: 'primary' }}>
+  <div class="horizontal">
+    {#each colors as color}
+      <Button class="capitalize" outline {color}>{color}</Button>
+    {/each}
+  </div>
+</Story>
+
+<Story name="Sizes" args={{ size: 'md' }}>
+  <div class="horizontal">
+    {#each Object.keys(sizesMap) as size}
+      <Button {size} color="primary">{sizesMap[size]}</Button>
+    {/each}
+  </div>
+</Story>
+
+<Story name="Groups">
+  <ButtonGroup>
+    <Button color="primary" active>Alpha</Button>
+    <Button color="primary">Bravo</Button>
+    <Button color="primary">Charlie</Button>
+  </ButtonGroup>
+</Story>
+
+<Story name="Toolbar">
+  <ButtonToolbar>
+    <ButtonGroup class="me-2">
+      <Button color="primary">1</Button>
+      <Button color="primary">2</Button>
+      <Button color="primary">3</Button>
+      <Button color="primary">4</Button>
+    </ButtonGroup>
+    <ButtonGroup class="me-2">
+      <Button color="primary">5</Button>
+      <Button color="primary">6</Button>
+      <Button color="primary">7</Button>
+    </ButtonGroup>
+    <ButtonGroup>
+      <Button color="primary">8</Button>
+    </ButtonGroup>
+  </ButtonToolbar>
+</Story>
+
+=== 2782 src/ButtonGroup/ButtonGroup.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import ButtonGroup from './ButtonGroup.svelte';
+
+  export const meta = {
+    title: 'Stories/ButtonGroup',
+    component: ButtonGroup,
+    parameters: {
+      controls: {
+        exclude: /^(click|default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      color: {
+        control: {
+          type: 'select'
+        },
+        options: ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark', 'link']
+      },
+      outline: {
+        control: 'boolean'
+      },
+      size: {
+        control: {
+          type: 'select'
+        },
+        options: ['sm', 'md', 'lg']
+      },
+      vertical: {
+        control: 'boolean'
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      class: '',
+      color: 'primary',
+      outline: false,
+      size: '',
+      vertical: false
+    }
+  };
+</script>
+
+<script>
+  import { Story } from '@storybook/addon-svelte-csf';
+  import { Button } from '@sveltestrap/sveltestrap';
+
+  const sizeMap = ['sm', 'md', 'lg'];
+
+  const sizeToColorMap = {
+    sm: 'primary',
+    md: 'warning',
+    lg: 'danger'
+  };
+
+  const basicSource = `
+<ButtonGroup>
+  <Button color="primary">Left</Button>
+  <Button color="primary">Right</Button>
+</ButtonGroup>
+`;
+</script>
+
+<Story name="Basic" let:args={argss} source={basicSource}>
+  <ButtonGroup {...argss}>
+    <Button color={argss.color} outline={argss.outline}>Left</Button>
+    <Button color={argss.color} outline={argss.outline}>Right</Button>
+  </ButtonGroup>
+</Story>
+
+<Story name="Styles">
+  <ButtonGroup>
+    <Button color="danger">Left</Button>
+    <Button color="warning">Middle</Button>
+    <Button color="success">Right</Button>
+  </ButtonGroup>
+</Story>
+
+<Story name="Outlines">
+  <ButtonGroup>
+    <Button color="primary" outline>Left</Button>
+    <Button color="primary" outline>Middle</Button>
+    <Button color="primary" outline>Right</Button>
+  </ButtonGroup>
+</Story>
+
+<Story name="Sizes">
+  <div class="horizontal">
+    {#each sizeMap as size}
+      <ButtonGroup {size}>
+        <Button color={sizeToColorMap[size]}>Left</Button>
+        <Button color={sizeToColorMap[size]}>Middle</Button>
+        <Button color={sizeToColorMap[size]}>Right</Button>
+      </ButtonGroup>
+    {/each}
+  </div>
+</Story>
+
+<Story name="Vertical">
+  <ButtonGroup vertical>
+    <Button color="primary">Top</Button>
+    <Button color="primary">Middle</Button>
+    <Button color="primary">Bottom</Button>
+  </ButtonGroup>
+</Story>
+
+=== 4241 src/Card/Card.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Card from './Card.svelte';
+
+  export const meta = {
+    title: 'Stories/Card',
+    component: Card,
+    parameters: {
+      controls: {
+        exclude: /^(click|default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        className: 'string',
+        table: { disable: true }
+      },
+      body: {
+        control: 'boolean'
+      },
+      color: {
+        control: {
+          type: 'select'
+        },
+        options: ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark']
+      },
+      inverse: {
+        control: 'boolean'
+      },
+      outline: {
+        control: 'boolean'
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      body: false,
+      color: undefined,
+      inverse: false,
+      outline: false,
+      theme: null
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import {
+    Button,
+    CardBody,
+    CardFooter,
+    CardHeader,
+    CardSubtitle,
+    CardText,
+    CardTitle
+  } from '@sveltestrap/sveltestrap';
+</script>
+
+<Template let:args>
+  <div class="card-example">
+    <div class="card-width">
+      <Card {...args}>
+        <CardBody>Hello World</CardBody>
+      </Card>
+    </div>
+  </div>
+</Template>
+
+<Story name="Basic" />
+
+<Story name="Body">
+  <div class="card-example">
+    <div class="card-width">
+      <Card body>Goodbye Cruel World</Card>
+    </div>
+  </div>
+</Story>
+
+<Story name="HeaderFooter">
+  <div class="card-example">
+    <div class="card-width">
+      <Card class="mb-3">
+        <CardHeader>
+          <CardTitle>Card title</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <CardSubtitle>Card subtitle</CardSubtitle>
+          <CardText>
+            Some quick example text to build on the card title and make up the bulk of the card's content.
+          </CardText>
+          <Button>Button</Button>
+        </CardBody>
+        <CardFooter>Footer</CardFooter>
+      </Card>
+    </div>
+  </div>
+</Story>
+
+<Story name="ColorInverse">
+  <div class="card-example">
+    <div class="card-width">
+      <Card body color="primary" inverse class="mb-3">Primary</Card>
+
+      <Card body color="secondary" class="mb-3">Secondary</Card>
+
+      <Card body color="success" class="mb-3">Success</Card>
+
+      <Card body color="danger" class="mb-3">Danger</Card>
+
+      <Card body color="warning" class="mb-3">Warning</Card>
+
+      <Card body color="info" class="mb-3">Info</Card>
+
+      <Card body color="dark" inverse class="mb-3">Dark</Card>
+
+      <Card body color="light" class="mb-3">Light</Card>
+    </div>
+  </div>
+</Story>
+
+<Story name="Theming">
+  <div class="card-example vertical gap-lg">
+    <div class="card-width">
+      <Card theme="dark" class="mb-3">
+        <CardHeader>
+          <CardTitle>Dark Theme</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <CardSubtitle>Card subtitle</CardSubtitle>
+          <CardText>
+            Some quick example text to build on the card title and make up the bulk of the card's content.
+          </CardText>
+          <Button>Button</Button>
+        </CardBody>
+        <CardFooter>Footer</CardFooter>
+      </Card>
+    </div>
+    <div class="card-width">
+      <Card theme="light">
+        <CardHeader>
+          <CardTitle>Light Theme</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <CardSubtitle>Card subtitle</CardSubtitle>
+          <CardText>
+            Some quick example text to build on the card title and make up the bulk of the card's content.
+          </CardText>
+          <Button>Button</Button>
+        </CardBody>
+        <CardFooter>Footer</CardFooter>
+      </Card>
+    </div>
+  </div>
+</Story>
+
+=== 8508 src/Carousel/Carousel.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Carousel from './Carousel.svelte';
+
+  export const meta = {
+    title: 'Stories/Carousel',
+    component: Carousel,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        className: 'string',
+        table: { disable: true }
+      },
+      activeIndex: {
+        control: 'number',
+        table: { disable: true }
+      },
+      interval: {
+        control: 'number'
+      },
+      items: {
+        control: 'array',
+        table: { disable: true }
+      },
+      keyboard: {
+        control: 'boolean'
+      },
+      pause: {
+        control: 'boolean'
+      },
+      ride: {
+        control: 'boolean'
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      activeIndex: 0,
+      interval: 5000,
+      items: [],
+      keyboard: true,
+      pause: true,
+      ride: true,
+      theme: null
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { CarouselControl, CarouselIndicators, CarouselItem, CarouselCaption } from '@sveltestrap/sveltestrap';
+
+  const exampleItems = [
+    {
+      url: 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22800%22%20height%3D%22400%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20400%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_15ba800aa1d%20text%20%7B%20fill%3A%23555%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A40pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_15ba800aa1d%22%3E%3Crect%20width%3D%22800%22%20height%3D%22400%22%20fill%3D%22%23777%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22285.921875%22%20y%3D%22218.3%22%3EFirst%20slide%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E',
+      title: 'Slide 1',
+      subTitle: 'Slide 1'
+    },
+    {
+      url: 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22800%22%20height%3D%22400%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20400%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_15ba800aa20%20text%20%7B%20fill%3A%23444%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A40pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_15ba800aa20%22%3E%3Crect%20width%3D%22800%22%20height%3D%22400%22%20fill%3D%22%23666%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22247.3203125%22%20y%3D%22218.3%22%3ESecond%20slide%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E',
+      title: 'Slide 2',
+      subTitle: 'Slide 2'
+    },
+    {
+      url: 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22800%22%20height%3D%22400%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20400%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_15ba800aa21%20text%20%7B%20fill%3A%23333%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A40pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_15ba800aa21%22%3E%3Crect%20width%3D%22800%22%20height%3D%22400%22%20fill%3D%22%23555%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22277%22%20y%3D%22218.3%22%3EThird%20slide%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E',
+      title: 'Slide 3',
+      subTitle: 'Slide 3'
+    }
+  ];
+
+  const items = [
+    'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22800%22%20height%3D%22400%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20400%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_15ba800aa1d%20text%20%7B%20fill%3A%23555%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A40pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_15ba800aa1d%22%3E%3Crect%20width%3D%22800%22%20height%3D%22400%22%20fill%3D%22%23777%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22285.921875%22%20y%3D%22218.3%22%3EFirst%20slide%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E',
+    'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22800%22%20height%3D%22400%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20400%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_15ba800aa20%20text%20%7B%20fill%3A%23444%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A40pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_15ba800aa20%22%3E%3Crect%20width%3D%22800%22%20height%3D%22400%22%20fill%3D%22%23666%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22247.3203125%22%20y%3D%22218.3%22%3ESecond%20slide%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E',
+    'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22800%22%20height%3D%22400%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20400%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_15ba800aa21%20text%20%7B%20fill%3A%23333%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A40pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_15ba800aa21%22%3E%3Crect%20width%3D%22800%22%20height%3D%22400%22%20fill%3D%22%23555%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22277%22%20y%3D%22218.3%22%3EThird%20slide%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E'
+  ];
+  let activeIndex = 0;
+</script>
+
+<Template let:args>
+  <div class="carousel-example">
+    <div class="carousel-size">
+      <Carousel {...args} {items} bind:activeIndex>
+        <CarouselIndicators bind:activeIndex {items} />
+
+        <div class="carousel-inner">
+          {#each exampleItems as item, index}
+            <CarouselItem bind:activeIndex itemIndex={index}>
+              <img src={item.url} class="d-block w-100" alt={item.title} />
+              <CarouselCaption captionHeader={item.title} captionText={item.subTitle} />
+            </CarouselItem>
+          {/each}
+        </div>
+
+        <CarouselControl direction="prev" bind:activeIndex {items} />
+        <CarouselControl direction="next" bind:activeIndex {items} />
+      </Carousel>
+    </div>
+  </div>
+</Template>
+
+<Story name="Basic" />
+
+<Story name="Slide">
+  <div class="carousel-example">
+    <div class="carousel-size">
+      <Carousel {items} bind:activeIndex>
+        <div class="carousel-inner">
+          {#each items as item, index}
+            <CarouselItem bind:activeIndex itemIndex={index}>
+              <img src={item} class="d-block w-100" alt={`${item} ${index + 1}`} />
+            </CarouselItem>
+          {/each}
+        </div>
+      </Carousel>
+    </div>
+  </div>
+</Story>
+
+<Story name="WithControls">
+  <div class="carousel-example">
+    <div class="carousel-size">
+      <Carousel {items} bind:activeIndex>
+        <div class="carousel-inner">
+          {#each items as item, index}
+            <CarouselItem bind:activeIndex itemIndex={index}>
+              <img src={item} class="d-block w-100" alt={`${item} ${index + 1}`} />
+            </CarouselItem>
+          {/each}
+        </div>
+
+        <CarouselControl direction="prev" bind:activeIndex {items} />
+        <CarouselControl direction="next" bind:activeIndex {items} />
+      </Carousel>
+    </div>
+  </div>
+</Story>
+
+<Story name="WithIndicators">
+  <div class="carousel-example">
+    <div class="carousel-size">
+      <Carousel {items} bind:activeIndex>
+        <CarouselIndicators bind:activeIndex {items} />
+
+        <div class="carousel-inner">
+          {#each items as item, index}
+            <CarouselItem bind:activeIndex itemIndex={index}>
+              <img src={item} class="d-block w-100" alt={`${item} ${index + 1}`} />
+            </CarouselItem>
+          {/each}
+        </div>
+
+        <CarouselControl direction="prev" bind:activeIndex {items} />
+        <CarouselControl direction="next" bind:activeIndex {items} />
+      </Carousel>
+    </div>
+  </div>
+</Story>
+
+=== 126 src/Colgroup/Colgroup.svelte	svelte	runes	neutral
+<script>
+  import { setContext } from 'svelte';
+
+  setContext('colgroup', true);
+</script>
+
+<colgroup>
+  <slot />
+</colgroup>
+
+=== 1901 src/Container/Container.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Container from './Container.svelte';
+
+  export const meta = {
+    title: 'Stories/Container',
+    component: Container,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        className: 'string',
+        table: { disable: true }
+      },
+      sm: {
+        control: 'boolean'
+      },
+      md: {
+        control: 'boolean'
+      },
+      lg: {
+        control: 'boolean'
+      },
+      xl: {
+        control: 'boolean'
+      },
+      xxl: {
+        control: 'boolean'
+      },
+      fluid: {
+        control: 'boolean'
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      sm: true,
+      md: true,
+      lg: true,
+      xl: true,
+      xxl: true,
+      fluid: true
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+</script>
+
+<Template let:args>
+  <Container {...args}>
+    <h3 class="container">fluid</h3>
+  </Container>
+</Template>
+
+<Story name="Basic">
+  <div class="grid-example">
+    <div class="container-wrapper">
+      <Container fluid>
+        <h3 class="container">fluid</h3>
+      </Container>
+      <div class="contained">
+        <Container sm>
+          <h3 class="container">sm</h3>
+        </Container>
+
+        <Container md>
+          <h3 class="container">md</h3>
+        </Container>
+
+        <Container lg>
+          <h3 class="container">lg</h3>
+        </Container>
+
+        <Container xl>
+          <h3 class="container">xl</h3>
+        </Container>
+
+        <Container xxl>
+          <h3 class="container">xxl</h3>
+        </Container>
+      </div>
+    </div>
+  </div>
+</Story>
+
+=== 391 src/Dropdown/Dropdown.spec.svelte	svelte	runes	neutral
+<script>
+  import Dropdown from './Dropdown.svelte';
+  import { DropdownMenu } from '../DropdownMenu';
+  import { DropdownItem } from '../DropdownItem';
+  import { DropdownToggle } from '../DropdownToggle';
+</script>
+
+<Dropdown>
+  <DropdownToggle caret class="coconut">Open</DropdownToggle>
+  <DropdownMenu class="cocoa">
+    <DropdownItem>Alpha</DropdownItem>
+  </DropdownMenu>
+</Dropdown>
+
+=== 9175 src/Dropdown/Dropdown.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Dropdown from './Dropdown.svelte';
+
+  export const meta = {
+    title: 'Stories/Dropdown',
+    component: Dropdown,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        className: 'string',
+        table: { disable: true }
+      },
+      active: {
+        control: 'boolean'
+      },
+      autoClose: {
+        control: 'boolean'
+      },
+      direction: {
+        control: {
+          type: 'select'
+        },
+        options: ['down', 'up', 'left', 'right', 'start', 'end'],
+        table: { disable: true }
+      },
+      dropup: {
+        control: 'boolean'
+      },
+      group: {
+        control: 'boolean'
+      },
+      inNavbar: {
+        control: 'boolean',
+        table: { disable: true }
+      },
+      isOpen: {
+        control: 'boolean'
+      },
+      nav: {
+        control: 'boolean',
+        table: { disable: true }
+      },
+      setActiveFromChild: {
+        control: 'boolean',
+        table: { disable: true }
+      },
+      size: {
+        control: {
+          type: 'select'
+        },
+        options: ['sm', '', 'lg']
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      toggle: {
+        control: 'boolean',
+        table: { disable: true }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      active: false,
+      autoClose: true,
+      direction: 'down',
+      dropup: false,
+      group: true,
+      isOpen: false,
+      nav: false,
+      setActiveFromChild: false,
+      size: '',
+      theme: null,
+      toggle: false
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import {
+    ButtonToolbar,
+    DropdownItem,
+    DropdownMenu,
+    DropdownToggle,
+    Input,
+    Nav,
+    NavItem,
+    NavLink,
+    Navbar
+  } from '@sveltestrap/sveltestrap';
+
+  let isOpen = false;
+
+  const directions = ['down', 'up', 'left', 'right', 'start', 'end'];
+  const sizes = ['sm', '', 'lg'];
+
+  const basicSource = `<Dropdown direction="down">
+  <DropdownToggle color="primary" caret>Dropdown</DropdownToggle>
+  <DropdownMenu>
+    <DropdownItem header>Header</DropdownItem>
+    <DropdownItem>Some Action</DropdownItem>
+    <DropdownItem disabled>Action (disabled)</DropdownItem>
+    <DropdownItem divider />
+    <DropdownItem>Foo Action</DropdownItem>
+    <DropdownItem>Bar Action</DropdownItem>
+    <DropdownItem>Quo Action</DropdownItem>
+  </DropdownMenu>
+</Dropdown>`;
+</script>
+
+<Template let:args>
+  <div class="dropdown-example">
+    <div class="drop-height">
+      <Dropdown {...args}>
+        <DropdownToggle color="primary" caret>Drop{args.direction}</DropdownToggle>
+        <DropdownMenu>
+          <DropdownItem header>Header</DropdownItem>
+          <DropdownItem>Some Action</DropdownItem>
+          <DropdownItem disabled>Action (disabled)</DropdownItem>
+          <DropdownItem divider />
+          <DropdownItem>Foo Action</DropdownItem>
+          <DropdownItem>Bar Action</DropdownItem>
+          <DropdownItem>Quo Action</DropdownItem>
+        </DropdownMenu>
+      </Dropdown>
+    </div>
+  </div>
+</Template>
+
+<Story name="Basic" source={basicSource} />
+
+<Story name="Alignment">
+  <div class="dropdown-example">
+    <div class="drop-height">
+      <Dropdown>
+        <DropdownToggle color="primary" caret>Dropdown's menu is right-aligned</DropdownToggle>
+        <DropdownMenu end>
+          <DropdownItem header>Header</DropdownItem>
+          <DropdownItem disabled>Action</DropdownItem>
+          <DropdownItem>Another Action</DropdownItem>
+        </DropdownMenu>
+      </Dropdown>
+    </div>
+  </div>
+</Story>
+
+<Story name="Direction">
+  <div class="dropdown-example">
+    <div class="horizontal drop-height">
+      {#each directions as direction}
+        <Dropdown {direction}>
+          <DropdownToggle color="primary" caret>Drop{direction}</DropdownToggle>
+          <DropdownMenu>
+            <DropdownItem>Another Action</DropdownItem>
+            <DropdownItem>Another Action</DropdownItem>
+          </DropdownMenu>
+        </Dropdown>
+      {/each}
+    </div>
+  </div>
+</Story>
+
+<Story name="Sizes">
+  <div class="dropdown-example">
+    <div class="horizontal drop-height">
+      {#each sizes as size}
+        <Dropdown {size}>
+          <DropdownToggle color="primary" caret>Dropdown {size}</DropdownToggle>
+          <DropdownMenu>
+            <DropdownItem>Another Action</DropdownItem>
+            <DropdownItem>Another Action</DropdownItem>
+          </DropdownMenu>
+        </Dropdown>
+      {/each}
+    </div>
+  </div>
+</Story>
+
+<Story name="Container">
+  <div class="dropdown-example">
+    <div class="drop-height">
+      <Dropdown {isOpen} toggle={() => (isOpen = !isOpen)}>
+        <DropdownToggle tag="div" class="d-inline-block">
+          <Input />
+        </DropdownToggle>
+        <DropdownMenu>
+          <DropdownItem header>Header</DropdownItem>
+          <DropdownItem disabled>Action</DropdownItem>
+          <DropdownItem>Another Action</DropdownItem>
+          <DropdownItem divider />
+          <DropdownItem>Another Action</DropdownItem>
+        </DropdownMenu>
+      </Dropdown>
+    </div>
+  </div>
+</Story>
+
+<Story name="SetActiveFromChild">
+  <div class="dropdown-example">
+    <div class="drop-height">
+      <Navbar color="dark" dark expand="md">
+        <Nav navbar>
+          <NavItem>
+            <NavLink href="/components/">Inactive Link</NavLink>
+          </NavItem>
+          <Dropdown nav setActiveFromChild>
+            <DropdownToggle nav class="nav-link" caret>Dropdown</DropdownToggle>
+            <DropdownMenu>
+              <DropdownItem href="#" active>Lancelot</DropdownItem>
+              <DropdownItem href="#">Link</DropdownItem>
+              <DropdownItem href="#">Secret</DropdownItem>
+              <DropdownItem href="#">Chimp</DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+        </Nav>
+      </Navbar>
+    </div>
+  </div>
+</Story>
+
+<Story name="AutoClose">
+  <div class="dropdown-example">
+    <div class="drop-height">
+      <ButtonToolbar>
+        <div class="horizontal">
+          <Dropdown autoClose={true}>
+            <DropdownToggle color="primary" caret>Default dropdown</DropdownToggle>
+            <DropdownMenu>
+              <DropdownItem>Menu item</DropdownItem>
+              <DropdownItem>Menu item</DropdownItem>
+              <DropdownItem>Menu item</DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+          <Dropdown autoClose="outside">
+            <DropdownToggle color="success" caret>Clickable inside</DropdownToggle>
+            <DropdownMenu>
+              <DropdownItem>Menu item</DropdownItem>
+              <DropdownItem>Menu item</DropdownItem>
+              <DropdownItem>Menu item</DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+          <Dropdown autoClose="inside">
+            <DropdownToggle color="warning" caret>Clickable outside</DropdownToggle>
+            <DropdownMenu>
+              <DropdownItem>Menu item</DropdownItem>
+              <DropdownItem>Menu item</DropdownItem>
+              <DropdownItem>Menu item</DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+          <Dropdown autoClose={false}>
+            <DropdownToggle color="danger" caret>Manually close</DropdownToggle>
+            <DropdownMenu>
+              <DropdownItem>Menu item</DropdownItem>
+              <DropdownItem>Menu item</DropdownItem>
+              <DropdownItem>Menu item</DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+        </div>
+      </ButtonToolbar>
+    </div>
+  </div>
+</Story>
+
+<Story name="Theming">
+  <div class="horizontal gap-xxl dropdown-example">
+    <div class="drop-height">
+      <Dropdown theme="dark" autoClose="manual" isOpen={true}>
+        <DropdownToggle color="dark" caret>Dark Theme</DropdownToggle>
+        <DropdownMenu>
+          <DropdownItem header>Header</DropdownItem>
+          <DropdownItem disabled>Action</DropdownItem>
+          <DropdownItem>Another Action</DropdownItem>
+          <DropdownItem divider />
+          <DropdownItem>Another Action</DropdownItem>
+        </DropdownMenu>
+      </Dropdown>
+    </div>
+    <div class="drop-height">
+      <Dropdown theme="light" autoClose="manual" isOpen={true}>
+        <DropdownToggle color="light" caret>Light Theme</DropdownToggle>
+        <DropdownMenu>
+          <DropdownItem header>Header</DropdownItem>
+          <DropdownItem disabled>Action</DropdownItem>
+          <DropdownItem>Another Action</DropdownItem>
+          <DropdownItem divider />
+          <DropdownItem>Another Action</DropdownItem>
+        </DropdownMenu>
+      </Dropdown>
+    </div>
+  </div>
+</Story>
+
+=== 2404 src/Fade/Fade.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Fade from './Fade.svelte';
+
+  export const meta = {
+    title: 'Stories/Fade',
+    component: Fade,
+    parameters: {},
+    argTypes: {
+      class: {
+        className: 'string',
+        table: { disable: true }
+      },
+      isOpen: {
+        control: 'boolean'
+      },
+      toggler: {
+        control: { disable: true }
+      }
+    },
+    args: {
+      isOpen: false
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { Button, Card } from '@sveltestrap/sveltestrap';
+
+  let isOpen = false;
+  let status = 'Closed';
+</script>
+
+<Template let:args>
+  <div class="fade-example">
+    <Button color="primary" on:click={() => (isOpen = !isOpen)} class="mb-3">Toggle</Button>
+    <Fade {isOpen}>
+      <div class="card-width">
+        <Card body>
+          Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. Nihil anim
+          keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident.
+        </Card>
+      </div>
+    </Fade>
+  </div>
+</Template>
+
+<Story name="Basic" />
+
+<Story name="Events">
+  <div class="fade-example">
+    <div class="text-content">
+      <Button color="primary" on:click={() => (isOpen = !isOpen)} class="mb-3">Toggle</Button>
+
+      <h5>Current state: {status}</h5>
+    </div>
+    <Fade
+      {isOpen}
+      on:opening={() => (status = 'Opening...')}
+      on:open={() => (status = 'Opened')}
+      on:closing={() => (status = 'Closing...')}
+      on:close={() => (status = 'Closed')}
+    >
+      <div class="card-width">
+        <Card body>
+          Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. Nihil anim
+          keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident.
+        </Card>
+      </div>
+    </Fade>
+  </div>
+</Story>
+
+<Story name="Uncontrolled">
+  <div class="fade-example">
+    <Button color="primary" id="toggler" class="mb-3">Toggle</Button>
+    <Fade toggler="#toggler">
+      <div class="card-width">
+        <Card body>
+          Lorem ipsum dolor sit amet consectetur adipisicing elit. Nesciunt magni, voluptas debitis similique porro a
+          molestias consequuntur earum odio officiis natus, amet hic, iste sed dignissimos esse fuga! Minus, alias.
+        </Card>
+      </div>
+    </Fade>
+  </div>
+</Story>
+
+=== 2808 src/FormGroup/FormGroup.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import FormGroup from './FormGroup.svelte';
+
+  export const meta = {
+    title: 'Stories/FormGroup',
+    component: FormGroup,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        className: 'string',
+        table: { disable: true }
+      },
+      className: {
+        control: 'text',
+        table: { disable: true }
+      },
+      check: {
+        control: 'boolean',
+        table: { disable: true }
+      },
+      disabled: {
+        control: 'boolean'
+      },
+      floating: {
+        control: 'boolean'
+      },
+      inline: {
+        control: 'boolean'
+      },
+      label: {
+        control: 'text'
+      },
+      row: {
+        control: 'boolean'
+      },
+      spacing: {
+        control: 'text'
+      },
+      tag: {
+        control: {
+          type: 'select'
+        },
+        options: ['div', 'fieldset'],
+        table: { disable: true }
+      },
+      'label ': {
+        description: 'This slot is used for provided a custom label.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      check: false,
+      disabled: false,
+      floating: false,
+      inline: false,
+      spacing: 'mb-3',
+      label: '',
+      row: false
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { Badge, Form, Input } from '@sveltestrap/sveltestrap';
+</script>
+
+<Template let:args>
+  <div class="form-width form-groups-example">
+    <Form {...args}>
+      <FormGroup {...args}>
+        <Input {...args} placeholder="Enter a value" />
+      </FormGroup>
+    </Form>
+  </div>
+</Template>
+
+<Story name="Basic" />
+
+<Story name="Floating">
+  <Form>
+    <div class="form-width">
+      <FormGroup floating label="Floating Label">
+        <Input placeholder="Enter a value" />
+      </FormGroup>
+
+      <FormGroup floating label="Select labels always float">
+        <Input type="select" placeholder="Enter a value">
+          <option />
+          <option value="alpha">Alpha</option>
+          <option value="bravo">Bravo</option>
+          <option value="charlie">Charlie</option>
+        </Input>
+      </FormGroup>
+
+      <FormGroup floating>
+        <Input placeholder="Enter a value" />
+        <div slot="label">
+          Floating Label Slot <Badge>3</Badge>
+        </div>
+      </FormGroup>
+    </div>
+  </Form>
+</Story>
+
+=== 3748 src/Grid/Grid.stories.svelte	svelte	runes	neutral
+<script context="module">
+  export const meta = {
+    title: 'Stories/Grid',
+    parameters: {},
+    argTypes: {
+      class: {
+        className: 'string',
+        table: { disable: true }
+      },
+      sm: {
+        control: 'boolean'
+      },
+      md: {
+        control: 'boolean'
+      },
+      lg: {
+        control: 'boolean'
+      },
+      xl: {
+        control: 'boolean'
+      },
+      xxl: {
+        control: 'boolean'
+      },
+      fluid: {
+        control: 'boolean'
+      }
+    },
+    args: {
+      sm: true,
+      md: true,
+      lg: true,
+      xl: true,
+      xxl: true,
+      fluid: true
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { Col, Container, Row } from '@sveltestrap/sveltestrap';
+
+  const cell = 'grid-cell';
+  const row = 'grid-row';
+</script>
+
+<Story name="Basic">
+  <div class="grid-example">
+    <Container fluid>
+      <Row noGutters class={row}>
+        <Col>
+          <div class={cell}>col</div>
+        </Col>
+      </Row>
+      <Row noGutters class={row}>
+        <Col>
+          <div class={cell}>col</div>
+        </Col>
+        <Col>
+          <div class={cell}>col</div>
+        </Col>
+        <Col>
+          <div class={cell}>col</div>
+        </Col>
+        <Col>
+          <div class={cell}>col</div>
+        </Col>
+      </Row>
+      <Row noGutters class={row}>
+        <Col xs="3">
+          <div class={cell}>col-3</div>
+        </Col>
+        <Col xs="auto">
+          <div class={cell}>col-auto</div>
+        </Col>
+        <Col xs="3">
+          <div class={cell}>col-3</div>
+        </Col>
+      </Row>
+      <Row noGutters class={row}>
+        <Col xs="6">
+          <div class={cell}>col-6</div>
+        </Col>
+        <Col xs="6">
+          <div class={cell}>col-6</div>
+        </Col>
+      </Row>
+      <Row noGutters class={row}>
+        <Col xs="6" sm="4">
+          <div class={cell}>col-6 col-sm-4</div>
+        </Col>
+        <Col xs="6" sm="4">
+          <div class={cell}>col-6 col-sm-4</div>
+        </Col>
+        <Col sm="4">
+          <div class={cell}>col-sm-4</div>
+        </Col>
+      </Row>
+      <Row noGutters class={row}>
+        <Col sm={{ size: 6, order: 2, offset: 1 }}>
+          <div class={cell}>col-sm-6 order-sm-2 offset-sm-1</div>
+        </Col>
+      </Row>
+      <Row noGutters class={row}>
+        <Col sm="12" md={{ size: 6, offset: 3 }}>
+          <div class={cell}>col-sm-1 rounded2 col-md-6 offset-md-3</div>
+        </Col>
+      </Row>
+      <Row noGutters class={row}>
+        <Col sm={{ size: 'auto', offset: 1 }}>
+          <div class={cell}>col-offset-sm-1</div>
+        </Col>
+        <Col sm={{ size: 'auto', offset: 1 }}>
+          <div class={cell}>col-sm-auto offset-sm-1</div>
+        </Col>
+      </Row>
+      <Row cols={2} class={row}>
+        <Col>
+          <div class={cell}>col-1</div>
+        </Col>
+        <Col>
+          <div class={cell}>col-2</div>
+        </Col>
+        <Col>
+          <div class={cell}>col-3</div>
+        </Col>
+        <Col>
+          <div class={cell}>col-4</div>
+        </Col>
+        <Col>
+          <div class={cell}>col-5</div>
+        </Col>
+        <Col>
+          <div class={cell}>col-6</div>
+        </Col>
+      </Row>
+      <Row cols={{ lg: 3, md: 2, sm: 1 }} class={row}>
+        <Col>
+          <div class={cell}>col-1</div>
+        </Col>
+        <Col>
+          <div class={cell}>col-2</div>
+        </Col>
+        <Col>
+          <div class={cell}>col-3</div>
+        </Col>
+        <Col>
+          <div class={cell}>col-4</div>
+        </Col>
+        <Col>
+          <div class={cell}>col-5</div>
+        </Col>
+        <Col>
+          <div class={cell}>col-6</div>
+        </Col>
+      </Row>
+    </Container>
+  </div>
+</Story>
+
+=== 2662 src/Image/Image.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Image from './Image.svelte';
+
+  export const meta = {
+    title: 'Stories/Images',
+    component: Image,
+    parameters: {},
+    argTypes: {
+      class: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      alt: {
+        control: 'text'
+      },
+      figure: {
+        control: 'boolean'
+      },
+      fluid: {
+        control: 'boolean'
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      thumbnail: {
+        control: 'boolean'
+      },
+      src: {
+        control: false,
+        table: {
+          disable: true
+        }
+      }
+    },
+    args: {
+      alt: '',
+      fluid: false,
+      theme: null,
+      thumbnail: false
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { Figure } from '@sveltestrap/sveltestrap';
+
+  const thumbnails = [
+    'https://picsum.photos/100/100?random=' + Math.round(Math.random() * 1000),
+    'https://picsum.photos/100/100?random=' + Math.round(Math.random() * 1000),
+    'https://picsum.photos/100/100?random=' + Math.round(Math.random() * 1000)
+  ];
+</script>
+
+<Template let:args>
+  {#if args.figure}
+    <Figure caption="This is a figure caption">
+      <Image {...args} />
+    </Figure>
+  {:else}
+    <Image {...args} />
+  {/if}
+</Template>
+
+<Story
+  name="Basic"
+  args={{
+    alt: '',
+    fluid: false,
+    thumbnail: false,
+    figure: false,
+    src: 'https://picsum.photos/id/155/1400/400.jpg'
+  }}
+/>
+
+<Story
+  name="Fluid"
+  args={{ fluid: true, alt: 'This is a fluid Image', src: 'https://picsum.photos/id/518/1500/667.jpg' }}
+/>
+
+<Story name="Thumbnail">
+  <div class="horizontal">
+    {#each thumbnails as thumbnail}
+      <Image thumbnail alt="This is a thumbnail Image" src={thumbnail} />
+    {/each}
+  </div>
+</Story>
+
+<Story name="Figures">
+  <Figure caption="I believe this is a cow needing a haircut">
+    <Image fluid alt="Landscape" src="https://picsum.photos/id/200/800/600" />
+  </Figure>
+</Story>
+
+<Story name="Theming">
+  <div class="horizontal">
+    {#each thumbnails as thumbnail}
+      <Image theme="dark" thumbnail alt="This is a thumbnail Image" src={thumbnail} />
+    {/each}
+  </div>
+
+  <div class="horizontal">
+    {#each thumbnails as thumbnail}
+      <Image theme="light" thumbnail alt="This is a thumbnail Image" src={thumbnail} />
+    {/each}
+  </div>
+</Story>
+
+=== 20 src/InlineContainer/InlineContainer.svelte	svelte	runes	neutral
+<div><slot /></div>
+
+=== 9824 src/Input/Input.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Input from './Input.svelte';
+
+  export const meta = {
+    title: 'Stories/Inputs',
+    component: Input,
+    parameters: {
+      controls: {
+        exclude: /^(blur|change|default|focus|input|keydown|keypress|keyup)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        className: 'string',
+        table: {
+          disable: true
+        }
+      },
+      bsSize: {
+        control: {
+          type: 'select'
+        },
+        options: ['sm', '', 'lg']
+      },
+      type: {
+        control: {
+          type: 'select'
+        },
+        options: [
+          'checkbox',
+          'color',
+          'date',
+          'datetime-local',
+          'email',
+          'file',
+          'number',
+          'password',
+          'radio',
+          'range',
+          'search',
+          'select',
+          'switch',
+          'text',
+          'textarea',
+          'time',
+          'url'
+        ]
+      },
+      plaintext: {
+        control: {
+          type: 'boolean'
+        },
+        table: {
+          disable: false
+        }
+      },
+      size: {
+        control: {
+          type: 'select'
+        },
+        options: ['sm', 'lg'],
+        table: {
+          disable: true
+        }
+      },
+      color: {
+        control: 'color',
+        table: {
+          disable: true
+        }
+      },
+      feedback: {
+        control: 'text',
+        table: {
+          disable: true
+        }
+      },
+      disabled: {
+        control: 'boolean'
+      },
+      checked: {
+        control: 'boolean',
+        table: {
+          disable: true
+        }
+      },
+      files: {
+        control: 'array',
+        table: {
+          disable: true
+        }
+      },
+      group: {
+        control: 'text',
+        table: {
+          disable: true
+        }
+      },
+      inner: {
+        control: 'text',
+        table: {
+          disable: true
+        }
+      },
+      label: {
+        control: 'text',
+        table: {
+          disable: true
+        }
+      },
+      max: {
+        control: 'number',
+        table: {
+          disable: true
+        }
+      },
+      min: {
+        control: 'number',
+        table: {
+          disable: true
+        }
+      },
+      multiple: {
+        control: 'boolean',
+        table: {
+          disable: true
+        }
+      },
+      name: {
+        control: 'text',
+        table: {
+          disable: true
+        }
+      },
+      placeholder: {
+        control: 'text'
+      },
+      readonly: {
+        control: 'boolean',
+        table: {
+          disable: true
+        }
+      },
+      reverse: {
+        control: 'boolean'
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      value: {
+        control: 'text'
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      bsSize: undefined,
+      disabled: false,
+      invalid: false,
+      placeholder: 'placeholder',
+      plaintext: false,
+      reverse: false,
+      theme: null,
+      type: 'text',
+      valid: false,
+      value: ''
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { FormGroup, FormText, Label } from '@sveltestrap/sveltestrap';
+
+  let changeValue = '';
+  let focused = false;
+  let inner = '';
+  let inputValue = '';
+  let radioGroup;
+
+  const resize = () => {
+    inner.style.height = 'auto';
+    inner.style.height = 4 + inner.scrollHeight + 'px';
+  };
+
+  const changeEvent = (e) => {
+    changeValue = e.target.value;
+  };
+
+  const inputEvent = (e) => {
+    inputValue = e.target.value;
+  };
+</script>
+
+<Template let:args>
+  <div class="form-width">
+    <Input {...args} />
+  </div>
+</Template>
+
+<Story name="Basic" />
+
+<Story name="Text">
+  <div class="form-width">
+    <div class="input-example">
+      <div class="text-content">
+        <Input id="plainExample" plaintext value="Some plain text/ static value" />
+        <br />
+        <Input placeholder="text placeholder" value="Some text value" />
+        <br />
+        <Input type="email" placeholder="email placeholder" />
+        <br />
+        <Input type="password" placeholder="password placeholder" />
+        <br />
+        <Input type="url" placeholder="url placeholder" />
+        <br />
+        <Input type="search" placeholder="search placeholder" />
+        <br />
+        <Input type="textarea" placeholder="textarea placeholder" />
+      </div>
+    </div>
+  </div>
+</Story>
+
+<Story name="Numbers">
+  <div class="form-width">
+    <Input type="range" min={0} max={100} step={10} placeholder="range placeholder" />
+    <br /><br />
+    <Input type="number" placeholder="number placeholder" />
+  </div>
+</Story>
+
+<Story name="DateTime">
+  <div class="form-width">
+    <Input type="datetime-local" placeholder="datetime placeholder" />
+    <br />
+    <Input type="date" placeholder="date placeholder" />
+    <br />
+    <Input type="time" placeholder="time placeholder" />
+  </div>
+</Story>
+
+<Story name="Color">
+  <Input type="color" placeholder="color placeholder" />
+</Story>
+
+<Story name="SelectRadioCheckSwitch">
+  <div class="form-width">
+    <div class="input-example">
+      <div class="text-content">
+        <Input type="select">
+          {#each [1, 2, 3, 4, 5] as option}
+            <option>{option}</option>
+          {/each}
+        </Input>
+        <br />
+        {#each ['eenie', 'meanie', 'minie', 'moe'] as value}
+          <Input type="radio" bind:group={radioGroup} {value} label={value.charAt(0).toUpperCase() + value.slice(1)} />
+        {/each}
+        <br />
+        <Input type="checkbox" label="Check me out" />
+        <br />
+        <Input type="checkbox" reverse label="Reverse Label" />
+        <br />
+        <Input type="switch" label="Switch me on" />
+      </div>
+    </div>
+  </div>
+</Story>
+
+<Story name="Files">
+  <div class="form-width">
+    <Input type="file" name="file" id="exampleFile" />
+    <FormText>
+      This is some placeholder block-level help text for the above input. It's a bit lighter and easily wraps to a new
+      line.
+    </FormText>
+  </div>
+</Story>
+
+<Story name="Validation">
+  <div class="form-width">
+    <FormGroup>
+      <Input value="Invalid input" invalid feedback="I could be wrong" />
+    </FormGroup>
+
+    <FormGroup>
+      <Input value="Valid input" valid feedback="I could be right" />
+    </FormGroup>
+
+    <FormGroup>
+      <Input value="Multiple feedback" valid feedback={['I could be here', 'I could be there']} />
+    </FormGroup>
+  </div>
+</Story>
+
+<Story name="Binding">
+  <div class="form-width">
+    <div class="input-example">
+      <FormGroup>
+        <Label>Type here</Label>
+        <Input type="text" bind:value={inputValue} />
+      </FormGroup>
+      {#if inputValue}
+        <p>You typed: {inputValue}</p>
+      {/if}
+
+      <FormGroup>
+        <Label>This textarea resizes as you type</Label>
+        <Input rows={1} type="textarea" bind:inner on:input={resize} />
+      </FormGroup>
+    </div>
+  </div>
+</Story>
+
+<Story name="Events">
+  <div class="form-width">
+    <div class="input-example">
+      <FormGroup>
+        <Label>Type here</Label>
+        <Input
+          type="text"
+          value={inputValue}
+          on:blur={() => (focused = false)}
+          on:focus={() => (focused = true)}
+          on:change={changeEvent}
+          on:input={inputEvent}
+        />
+      </FormGroup>
+      {#if changeValue}
+        <p>
+          <code>on:change</code>
+          says you typed: {changeValue}
+        </p>
+      {/if}
+      {#if inputValue}
+        <p>
+          <code>on:input</code>
+          says you are typing: {inputValue}
+        </p>
+      {/if}
+      {#if !focused}
+        <p>
+          <code>on:blur</code>
+          says you are not focused.
+        </p>
+      {:else}
+        <p>
+          <code>on:focus</code>
+          says you are focused.
+        </p>
+      {/if}
+    </div>
+  </div>
+</Story>
+
+<Story name="Theming">
+  <div class="horizontal gap-xl form-width input-example">
+    <div>
+      <Input type="select" theme="dark">
+        {#each [1, 2, 3, 4, 5] as option}
+          <option>{option}</option>
+        {/each}
+      </Input>
+      <br />
+      {#each ['eenie', 'meanie', 'minie', 'moe'] as value}
+        <Input
+          type="radio"
+          theme="dark"
+          bind:group={radioGroup}
+          {value}
+          label={value.charAt(0).toUpperCase() + value.slice(1)}
+        />
+      {/each}
+      <br />
+      <Input theme="dark" type="checkbox" label="Check me out" />
+      <br />
+      <Input theme="dark" type="checkbox" reverse label="Reverse Label" />
+      <br />
+      <Input theme="dark" type="switch" label="Switch me on" />
+    </div>
+    <div>
+      <Input type="select" theme="light">
+        {#each [1, 2, 3, 4, 5] as option}
+          <option>{option}</option>
+        {/each}
+      </Input>
+      <br />
+      {#each ['eenie', 'meanie', 'minie', 'moe'] as value}
+        <Input
+          type="radio"
+          theme="light"
+          bind:group={radioGroup}
+          {value}
+          label={value.charAt(0).toUpperCase() + value.slice(1)}
+        />
+      {/each}
+      <br />
+      <Input theme="light" type="checkbox" label="Check me out" />
+      <br />
+      <Input theme="light" type="checkbox" reverse label="Reverse Label" />
+      <br />
+      <Input theme="light" type="switch" label="Switch me on" />
+    </div>
+  </div>
+</Story>
+
+=== 3774 src/InputGroup/InputGroup.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import InputGroup from './InputGroup.svelte';
+
+  export const meta = {
+    title: 'Stories/InputGroup',
+    component: InputGroup,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        className: 'string',
+        table: { disable: true }
+      },
+      size: {
+        control: {
+          type: 'select'
+        },
+        options: ['sm', '', 'lg']
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      size: '',
+      theme: null
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { InputGroupText, Input } from '@sveltestrap/sveltestrap';
+</script>
+
+<Template let:args>
+  <div class="form-width">
+    <InputGroup {...args}>
+      <InputGroupText>@</InputGroupText>
+      <Input placeholder="username" />
+    </InputGroup>
+  </div>
+</Template>
+
+<Story name="Basic" />
+
+<Story name="Groups">
+  <div class="form-width">
+    <InputGroup>
+      <InputGroupText>
+        <Input addon type="checkbox" aria-label="Checkbox for following text input" />
+      </InputGroupText>
+
+      <Input placeholder="Check it out" />
+    </InputGroup>
+    <br />
+    <InputGroup>
+      <Input placeholder="placeholder email" />
+      <InputGroupText>@example.com</InputGroupText>
+    </InputGroup>
+    <br />
+    <InputGroup>
+      <InputGroupText>$</InputGroupText>
+      <InputGroupText>$</InputGroupText>
+      <Input placeholder="Dolla dolla billz yo!" />
+      <InputGroupText>$</InputGroupText>
+      <InputGroupText>$</InputGroupText>
+    </InputGroup>
+    <br />
+    <InputGroup>
+      <InputGroupText>$</InputGroupText>
+      <Input placeholder="Amount" min={0} max={100} type="number" step="1" />
+      <InputGroupText>.00</InputGroupText>
+    </InputGroup>
+  </div>
+</Story>
+
+<Story name="Size">
+  <div class="form-width">
+    <div>
+      <InputGroup size="lg">
+        <InputGroupText>@lg</InputGroupText>
+        <Input />
+      </InputGroup>
+      <br />
+      <InputGroup>
+        <InputGroupText>@default</InputGroupText>
+        <Input />
+      </InputGroup>
+      <br />
+      <InputGroup size="sm">
+        <InputGroupText>@sm</InputGroupText>
+        <Input />
+      </InputGroup>
+    </div>
+  </div>
+</Story>
+
+<Story name="Theming">
+  <div class="form-width vertical gap-lg">
+    <InputGroup theme="dark">
+      <InputGroupText>
+        <Input addon type="checkbox" aria-label="Checkbox for following text input" />
+      </InputGroupText>
+
+      <Input placeholder="Check it out" />
+    </InputGroup>
+
+    <InputGroup theme="light">
+      <Input placeholder="placeholder email" />
+      <InputGroupText>@example.com</InputGroupText>
+    </InputGroup>
+
+    <InputGroup theme="dark">
+      <InputGroupText>$</InputGroupText>
+      <InputGroupText>$</InputGroupText>
+      <Input placeholder="Dolla dolla billz yo!" />
+      <InputGroupText>$</InputGroupText>
+      <InputGroupText>$</InputGroupText>
+    </InputGroup>
+
+    <InputGroup theme="light">
+      <InputGroupText>$</InputGroupText>
+      <Input placeholder="Amount" min={0} max={100} type="number" step="1" />
+      <InputGroupText>.00</InputGroupText>
+    </InputGroup>
+  </div>
+</Story>
+
+=== 5786 src/ListGroup/ListGroup.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import ListGroup from './ListGroup.svelte';
+
+  export const meta = {
+    title: 'Stories/ListGroup',
+    component: ListGroup,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        className: 'string',
+        table: { disable: true }
+      },
+      flush: {
+        control: 'boolean'
+      },
+      horizontal: {
+        control: 'boolean'
+      },
+      numbered: {
+        control: 'boolean'
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      flush: false,
+      horizontal: false,
+      numbered: false,
+      theme: null
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { ListGroupItem } from '@sveltestrap/sveltestrap';
+
+  const colors = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'];
+</script>
+
+<Template let:args>
+  <div class="listgroup-example">
+    <div class="listgroup-item-size">
+      <ListGroup {...args}>
+        <ListGroupItem active>Active</ListGroupItem>
+        <ListGroupItem>Bravo</ListGroupItem>
+        <ListGroupItem>Charlie</ListGroupItem>
+        <ListGroupItem>Delta</ListGroupItem>
+        <ListGroupItem>Echo</ListGroupItem>
+        <ListGroupItem disabled>Disabled</ListGroupItem>
+      </ListGroup>
+    </div>
+  </div>
+</Template>
+
+<Story name="Basic" />
+
+<Story name="Colors">
+  <div class="listgroup-example">
+    <div class="listgroup-item-size">
+      <ListGroup>
+        {#each colors as color}
+          <ListGroupItem {color}>{color}</ListGroupItem>
+        {/each}
+      </ListGroup>
+    </div>
+  </div>
+</Story>
+
+<Story name="Actions">
+  <div class="listgroup-example">
+    <div class="listgroup-item-size">
+      <h4 class="text-content">Anchors</h4>
+      <ListGroup>
+        <ListGroupItem active tag="a" href="https://svelte.dev" action>Active</ListGroupItem>
+        <ListGroupItem tag="a" href="https://svelte.dev" action>Bravo</ListGroupItem>
+        <ListGroupItem tag="a" href="https://svelte.dev" action>Charlie</ListGroupItem>
+        <ListGroupItem tag="a" href="https://svelte.dev" action>Delta</ListGroupItem>
+        <ListGroupItem disabled tag="a" href="https://svelte.dev" action>Disabled</ListGroupItem>
+      </ListGroup>
+
+      <h4 class="mt-3 text-content">Buttons</h4>
+      <ListGroup>
+        <ListGroupItem active tag="button" action>Active</ListGroupItem>
+        <ListGroupItem tag="button" action>Bravo</ListGroupItem>
+        <ListGroupItem tag="button" action>Charlie</ListGroupItem>
+        <ListGroupItem tag="button" action>Delta</ListGroupItem>
+        <ListGroupItem disabled tag="button" action>Disabled</ListGroupItem>
+      </ListGroup>
+    </div>
+  </div>
+</Story>
+
+<Story name="Flush">
+  <div class="listgroup-example">
+    <div class="listgroup-item-size">
+      <ListGroup flush>
+        <ListGroupItem disabled tag="a" href="#" active>Active</ListGroupItem>
+        <ListGroupItem tag="a" href="#">Dapibus ac facilisis in</ListGroupItem>
+        <ListGroupItem tag="a" href="#">Morbi leo risus</ListGroupItem>
+        <ListGroupItem tag="a" href="#">Porta ac consectetur ac</ListGroupItem>
+        <ListGroupItem tag="a" href="#" disabled>Disabled</ListGroupItem>
+      </ListGroup>
+    </div>
+  </div>
+</Story>
+
+<Story name="Horizontal">
+  <div class="listgroup-example">
+    <div class="listgroup-item-size">
+      <ListGroup horizontal>
+        <ListGroupItem active>Active</ListGroupItem>
+        <ListGroupItem>Lorem</ListGroupItem>
+        <ListGroupItem>Ipsum</ListGroupItem>
+        <ListGroupItem>Dolor</ListGroupItem>
+        <ListGroupItem>Sit</ListGroupItem>
+        <ListGroupItem disabled>Amet</ListGroupItem>
+      </ListGroup>
+    </div>
+  </div>
+</Story>
+
+<Story name="Numbered">
+  <div class="listgroup-example">
+    <div class="listgroup-item-size">
+      <ListGroup numbered>
+        <ListGroupItem active>Active</ListGroupItem>
+        <ListGroupItem>Dapibus ac facilisis in</ListGroupItem>
+        <ListGroupItem>Morbi leo risus</ListGroupItem>
+        <ListGroupItem>Porta ac consectetur ac</ListGroupItem>
+        <ListGroupItem disabled>Disabled</ListGroupItem>
+      </ListGroup>
+    </div>
+  </div>
+</Story>
+
+<Story name="Theming">
+  <div class="listgroup-example vertical gap-xxl">
+    <div class="listgroup-item-size">
+      <ListGroup theme="dark">
+        <ListGroupItem active>Active</ListGroupItem>
+        <ListGroupItem color="primary">Bravo</ListGroupItem>
+        <ListGroupItem color="success">Charlie</ListGroupItem>
+        <ListGroupItem color="warning">Delta</ListGroupItem>
+        <ListGroupItem color="danger">Echo</ListGroupItem>
+        <ListGroupItem disabled>Disabled</ListGroupItem>
+      </ListGroup>
+    </div>
+    <div class="listgroup-item-size">
+      <ListGroup theme="light">
+        <ListGroupItem active>Active</ListGroupItem>
+        <ListGroupItem color="primary">Bravo</ListGroupItem>
+        <ListGroupItem color="success">Charlie</ListGroupItem>
+        <ListGroupItem color="warning">Delta</ListGroupItem>
+        <ListGroupItem color="danger">Echo</ListGroupItem>
+        <ListGroupItem disabled>Disabled</ListGroupItem>
+      </ListGroup>
+    </div>
+  </div>
+</Story>
+
+=== 12647 src/Modal/Modal.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Modal from './Modal.svelte';
+
+  export const meta = {
+    title: 'Stories/Modal',
+    component: Modal,
+    parameters: {
+      controls: {
+        exclude: /^(close|closing|default|external|open|opening)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        className: 'string',
+        table: { disable: true }
+      },
+      static: {
+        staticModal: 'string',
+        table: { disable: true }
+      },
+      isOpen: {
+        control: 'boolean'
+      },
+      autoFocus: {
+        control: 'boolean'
+      },
+      body: {
+        control: 'boolean'
+      },
+      centered: {
+        control: 'boolean'
+      },
+      container: {
+        control: 'text',
+        table: { disable: true }
+      },
+      fullscreen: {
+        control: 'boolean'
+      },
+      header: {
+        control: 'text'
+      },
+      keyboard: {
+        control: 'boolean'
+      },
+      scrollable: {
+        control: 'boolean'
+      },
+      size: {
+        control: {
+          type: 'select'
+        },
+        options: ['sm', 'md', 'lg', 'xl']
+      },
+      toggle: {
+        control: 'text',
+        table: { disable: true }
+      },
+      labelledBy: {
+        control: 'text',
+        table: { disable: true }
+      },
+      backdrop: {
+        control: 'boolean'
+      },
+      wrapClassName: {
+        control: 'text',
+        table: { disable: true }
+      },
+      modalClassName: {
+        control: 'text',
+        table: { disable: true }
+      },
+      contentClassName: {
+        control: 'text',
+        table: { disable: true }
+      },
+      fade: {
+        control: 'boolean'
+      },
+      unmountOnClose: {
+        control: 'boolean',
+        table: { disable: true }
+      },
+      returnFocusAfterClose: {
+        control: 'boolean',
+        table: { disable: true }
+      },
+      modalStyle: {
+        control: 'text',
+        table: { disable: true }
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      'on:open': {
+        control: false,
+        description: 'This event is fired once the Modal has opened.',
+        table: {
+          category: 'events',
+          type: {
+            summary: 'Function'
+          },
+          defaultValue: {
+            summary: 'null'
+          }
+        }
+      },
+      'on:opening': {
+        control: false,
+        description: 'This event is fired immediately once open has been triggered.',
+        table: {
+          category: 'events',
+          type: {
+            summary: 'Function'
+          },
+          defaultValue: {
+            summary: 'null'
+          }
+        }
+      },
+      'on:close': {
+        description: 'This event is fired once the Modal has closed.',
+        table: {
+          category: 'events',
+          type: {
+            summary: 'Function'
+          },
+          defaultValue: {
+            summary: 'null'
+          }
+        }
+      },
+      'on:closing': {
+        description: 'This event is fired immediately once close has been triggered.',
+        table: {
+          category: 'events',
+          type: {
+            summary: 'Function'
+          },
+          defaultValue: {
+            summary: 'null'
+          }
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      },
+      'external ': {
+        description: 'This is for any content to include outside of the modal.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      autoFocus: true,
+      backdrop: true,
+      body: false,
+      centered: false,
+      container: undefined,
+      fade: true,
+      fullscreen: false,
+      header: undefined,
+      isOpen: false,
+      keyboard: true,
+      returnFocusAfterClose: true,
+      scrollable: false,
+      size: 'md',
+      theme: null,
+      toggle: undefined,
+      unmountOnClose: true
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { Button, ButtonGroup, Icon, ModalBody, ModalFooter, ModalHeader } from '@sveltestrap/sveltestrap';
+
+  let open = false;
+  let openScrollable = false;
+  let status = 'Closed';
+  let fullscreen;
+  let size;
+
+  const toggle = () => {
+    size = undefined;
+    open = !open;
+  };
+
+  const toggleLg = () => {
+    size = 'lg';
+    open = !open;
+  };
+
+  const toggleSm = () => {
+    size = 'sm';
+    open = !open;
+  };
+
+  const toggleXl = () => {
+    size = 'xl';
+    open = !open;
+  };
+
+  const toggleAlways = () => {
+    fullscreen = true;
+    open = !open;
+  };
+
+  const toggleScrollable = () => (openScrollable = !openScrollable);
+</script>
+
+<Template let:args>
+  <div>
+    <Button color="danger" on:click={toggle}>Open Modal</Button>
+    <Modal {...args} isOpen={open} {toggle} modalStyle="--bs-modal-color: {args.theme === 'dark' ? '#fff' : '#111'}">
+      <ModalHeader {toggle}>Modal title</ModalHeader>
+      <ModalBody>
+        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+        magna aliqua.
+      </ModalBody>
+      <ModalFooter>
+        <Button color="primary" on:click={toggle}>Do Something</Button>
+        <Button color="secondary" on:click={toggle}>Cancel</Button>
+      </ModalFooter>
+    </Modal>
+  </div>
+</Template>
+
+<Story name="Basic" />
+
+<Story name="Shorthand">
+  <div>
+    <Button color="danger" on:click={toggle}>Open Modal</Button>
+    <Modal body header="Modal title" isOpen={open} {toggle}>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </Modal>
+  </div>
+</Story>
+
+<Story name="Sizes">
+  <div>
+    <div>
+      <ButtonGroup>
+        <Button color="success" on:click={toggleSm}>Open Small Modal</Button>
+        <Button color="warning" on:click={toggle}>Open Default Modal</Button>
+        <Button color="danger" on:click={toggleLg}>Open Large Modal</Button>
+        <Button color="light" on:click={toggleXl}>Open Extra Large Modal</Button>
+      </ButtonGroup>
+
+      <Modal isOpen={open} {toggle} {size}>
+        <ModalHeader {toggle}>Modal title</ModalHeader>
+        <ModalBody>
+          Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+          magna aliqua.
+        </ModalBody>
+        <ModalFooter>
+          <Button color="primary" on:click={toggle}>Do Something</Button>
+          <Button color="secondary" on:click={toggle}>Cancel</Button>
+        </ModalFooter>
+      </Modal>
+    </div>
+  </div>
+</Story>
+
+<Story name="Fullscreen">
+  <div>
+    <Button color="primary" on:click={toggleAlways}>Open Fullscreen Modal</Button>
+
+    <Modal isOpen={open} {toggle} {fullscreen}>
+      <ModalHeader {toggle}>Modal title</ModalHeader>
+      <ModalBody>
+        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+        magna aliqua.
+      </ModalBody>
+      <ModalFooter>
+        <Button color="primary" on:click={toggle}>Do Something</Button>
+        <Button color="secondary" on:click={toggle}>Cancel</Button>
+      </ModalFooter>
+    </Modal>
+  </div>
+</Story>
+
+<Story name="Scrolling">
+  <div>
+    <Button color="primary" on:click={toggle}>Default scrolling</Button>
+    <Button color="success" on:click={toggleScrollable}>Scrollable modal body</Button>
+    <Modal isOpen={open} {toggle}>
+      <ModalHeader {toggle}>Modal title</ModalHeader>
+      <ModalBody>
+        <p style="min-height: 1000px;">
+          This is some placeholder content to show the scrolling behavior for modals. Instead of repeating the text the
+          modal, we use an inline style set a minimum height, thereby extending the length of the overall modal and
+          demonstrating the overflow scrolling. When content becomes longer than the height of the viewport, scrolling
+          will move the modal as needed.
+        </p>
+      </ModalBody>
+      <ModalFooter>
+        <Button color="primary" on:click={toggle}>Do Something</Button>
+        <Button color="secondary" on:click={toggle}>Cancel</Button>
+      </ModalFooter>
+    </Modal>
+
+    <Modal isOpen={openScrollable} toggle={toggleScrollable} scrollable>
+      <ModalHeader toggle={toggleScrollable}>Modal title</ModalHeader>
+      <ModalBody>
+        <p style="min-height: 1000px;">
+          This is some placeholder content to show the scrolling behavior for modals. Instead of repeating the text the
+          modal, we use an inline style set a minimum height, thereby extending the length of the overall modal and
+          demonstrating the overflow scrolling. When content becomes longer than the height of the viewport, scrolling
+          will move the modal as needed.
+        </p>
+      </ModalBody>
+      <ModalFooter>
+        <Button color="primary" on:click={toggleScrollable}>Do Something</Button>
+        <Button color="secondary" on:click={toggleScrollable}>Cancel</Button>
+      </ModalFooter>
+    </Modal>
+  </div>
+</Story>
+
+<Story name="Backdrop">
+  <div>
+    <Button color="danger" on:click={toggle}>Modal with no Backdrop</Button>
+    <Modal isOpen={open} backdrop={false} {toggle}>
+      <ModalHeader {toggle}>Modal title</ModalHeader>
+      <ModalBody>
+        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+        magna aliqua.
+      </ModalBody>
+      <ModalFooter>
+        <Button color="primary" on:click={toggle}>Do Something</Button>
+        <Button color="secondary" on:click={toggle}>Cancel</Button>
+      </ModalFooter>
+    </Modal>
+  </div>
+</Story>
+
+<Story name="StaticBackdrop">
+  <div>
+    <Button color="danger" on:click={toggle}>Modal with Static Backdrop</Button>
+    <Modal isOpen={open} backdrop="static" {toggle}>
+      <ModalHeader {toggle}>Modal title</ModalHeader>
+      <ModalBody>Clicking outside modal or hitting Escape does not dismiss.</ModalBody>
+      <ModalFooter>
+        <Button color="primary" on:click={toggle}>Do Something</Button>
+        <Button color="secondary" on:click={toggle}>Cancel</Button>
+      </ModalFooter>
+    </Modal>
+  </div>
+</Story>
+
+<Story name="Fade">
+  <div>
+    <Button color="danger" on:click={toggle}>Modal with no Fade</Button>
+    <Modal isOpen={open} fade={false} {toggle}>
+      <ModalHeader {toggle}>Modal title</ModalHeader>
+      <ModalBody>
+        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+        magna aliqua.
+      </ModalBody>
+      <ModalFooter>
+        <Button color="primary" on:click={toggle}>Do Something</Button>
+        <Button color="secondary" on:click={toggle}>Cancel</Button>
+      </ModalFooter>
+    </Modal>
+  </div>
+</Story>
+
+<Story name="Events">
+  <div class="modal-example">
+    <h5 class="text-content">Current state: {status}</h5>
+    <Button color="danger" on:click={toggle}>Open Modal</Button>
+    <Modal
+      body
+      header="Modal title"
+      isOpen={open}
+      {toggle}
+      on:opening={() => (status = 'Opening...')}
+      on:open={() => (status = 'Opened')}
+      on:closing={() => (status = 'Closing...')}
+      on:close={() => (status = 'Closed')}
+    >
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </Modal>
+  </div>
+</Story>
+
+<Story name="Static">
+  <div>
+    <Modal static isOpen>
+      <ModalHeader>Static Modal</ModalHeader>
+      <ModalBody>
+        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+        magna aliqua.
+      </ModalBody>
+    </Modal>
+  </div>
+</Story>
+
+<Story name="ExternalContent">
+  <div>
+    <Button color="danger" on:click={toggle}>Open Modal</Button>
+    <Modal isOpen={open} {toggle} body>
+      <div slot="external" class="text-end">
+        <Button color="link" class="text-white" size="lg" on:click={toggle}>
+          <Icon name="x" class="h1" />
+        </Button>
+      </div>
+      <h4>You can add content outside the Modal.</h4>
+      <p>Click the X on right to close.</p>
+    </Modal>
+  </div>
+</Story>
+
+=== 7434 src/Nav/Nav.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Nav from './Nav.svelte';
+
+  export const meta = {
+    title: 'Stories/Nav',
+    component: Nav,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      card: {
+        control: 'boolean'
+      },
+      class: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      fill: {
+        control: 'boolean'
+      },
+      horizontal: {
+        control: ''
+      },
+      navbar: {
+        control: 'boolean'
+      },
+      pills: {
+        control: 'boolean'
+      },
+      tabs: {
+        control: 'boolean'
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      underline: {
+        control: 'boolean'
+      },
+      vertical: {
+        control: {
+          type: 'select'
+        },
+        options: ['', 'xs', 'sm', 'md', 'lg', 'xl']
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      card: false,
+      class: '',
+      fill: false,
+      horizontal: '',
+      justified: false,
+      navbar: false,
+      pills: false,
+      tabs: false,
+      theme: null,
+      underline: false,
+      vertical: ''
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+
+  import { NavItem, Dropdown, DropdownItem, DropdownToggle, DropdownMenu, NavLink } from '@sveltestrap/sveltestrap';
+
+  let isOpen = false;
+
+  let basicSource = `<script lang="ts">
+  import { Nav, NavItem, NavLink } from '@sveltestrap/sveltestrap';
+<\/script>
+
+<p>List Based</p>
+
+<Nav>
+  <NavItem active>
+    <NavLink href="#">Link</NavLink>
+  </NavItem>
+  <NavItem>
+    <NavLink href="#">Link</NavLink>
+  </NavItem>
+  <NavItem>
+    <NavLink href="#">Another Link</NavLink>
+  </NavItem>
+  <NavItem>
+    <NavLink disabled href="#">Disabled Link</NavLink>
+  </NavItem>
+</Nav>
+
+<hr />
+
+<p>Link Based</p>
+
+<Nav>
+  <NavLink href="#" active>Link</NavLink>
+  <NavLink href="#">Link</NavLink>
+  <NavLink href="#">Another Link</NavLink>
+  <NavLink disabled href="#">Disabled Link</NavLink>
+</Nav>`;
+</script>
+
+<Story name="Basic" let:args source={basicSource}>
+  <div class="nav-example">
+    <p>List Based</p>
+
+    <Nav {...args} color="dark">
+      <NavItem active>
+        <NavLink href="#">Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink href="#">Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink href="#">Another Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink disabled href="#">Disabled Link</NavLink>
+      </NavItem>
+    </Nav>
+
+    <hr />
+
+    <p>Link Based</p>
+
+    <Nav {...args} color="dark">
+      <NavLink href="#" active>Link</NavLink>
+      <NavLink href="#">Link</NavLink>
+      <NavLink href="#">Another Link</NavLink>
+      <NavLink disabled href="#">Disabled Link</NavLink>
+    </Nav>
+  </div>
+</Story>
+
+<Story name="Tabs">
+  <div class="nav-example tabs">
+    <Nav tabs>
+      <NavItem>
+        <NavLink href="#" active>Link</NavLink>
+      </NavItem>
+      <Dropdown nav {isOpen} toggle={() => (isOpen = !isOpen)}>
+        <DropdownToggle nav caret>Dropdown</DropdownToggle>
+        <DropdownMenu>
+          <DropdownItem header>Header</DropdownItem>
+          <DropdownItem disabled>Action</DropdownItem>
+          <DropdownItem>Another Action</DropdownItem>
+          <DropdownItem divider />
+          <DropdownItem>Another Action</DropdownItem>
+        </DropdownMenu>
+      </Dropdown>
+      <NavItem>
+        <NavLink href="#">Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink href="#">Another Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink disabled href="#">Disabled Link</NavLink>
+      </NavItem>
+    </Nav>
+  </div>
+</Story>
+
+<Story name="Pills">
+  <div class="nav-example">
+    <Nav pills>
+      <NavItem>
+        <NavLink href="#" active>Link</NavLink>
+      </NavItem>
+      <Dropdown nav {isOpen} toggle={() => (isOpen = !isOpen)}>
+        <DropdownToggle nav caret>Dropdown</DropdownToggle>
+        <DropdownMenu>
+          <DropdownItem header>Header</DropdownItem>
+          <DropdownItem disabled>Action</DropdownItem>
+          <DropdownItem>Another Action</DropdownItem>
+          <DropdownItem divider />
+          <DropdownItem>Another Action</DropdownItem>
+        </DropdownMenu>
+      </Dropdown>
+      <NavItem>
+        <NavLink href="#">Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink href="#">Another Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink disabled href="#">Disabled Link</NavLink>
+      </NavItem>
+    </Nav>
+  </div>
+</Story>
+
+<Story name="Underline">
+  <div class="nav-example">
+    <Nav underline>
+      <NavItem>
+        <NavLink href="#" active>Link</NavLink>
+      </NavItem>
+      <Dropdown nav {isOpen} toggle={() => (isOpen = !isOpen)}>
+        <DropdownToggle nav caret>Dropdown</DropdownToggle>
+        <DropdownMenu>
+          <DropdownItem header>Header</DropdownItem>
+          <DropdownItem disabled>Action</DropdownItem>
+          <DropdownItem>Another Action</DropdownItem>
+          <DropdownItem divider />
+          <DropdownItem>Another Action</DropdownItem>
+        </DropdownMenu>
+      </Dropdown>
+      <NavItem>
+        <NavLink href="#">Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink href="#">Another Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink disabled href="#">Disabled Link</NavLink>
+      </NavItem>
+    </Nav>
+  </div>
+</Story>
+
+<Story name="Vertical">
+  <div class="nav-example">
+    <p>List Based</p>
+
+    <Nav vertical>
+      <NavItem>
+        <NavLink href="#">Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink href="#">Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink href="#">Another Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink disabled href="#">Disabled Link</NavLink>
+      </NavItem>
+    </Nav>
+
+    <hr />
+
+    <p>Link based</p>
+
+    <Nav vertical>
+      <NavLink href="#">Link</NavLink>
+      <NavLink href="#">Link</NavLink>
+      <NavLink href="#">Another Link</NavLink>
+      <NavLink disabled href="#">Disabled Link</NavLink>
+    </Nav>
+  </div>
+</Story>
+
+<Story name="Theming">
+  <div class="nav-example">
+    <Nav tabs theme="dark" class="mb-3">
+      <NavItem>
+        <NavLink href="#" active>Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink href="#">Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink href="#">Another Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink disabled href="#">Disabled Link</NavLink>
+      </NavItem>
+    </Nav>
+
+    <Nav tabs theme="light">
+      <NavItem>
+        <NavLink href="#" active>Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink href="#">Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink href="#">Another Link</NavLink>
+      </NavItem>
+      <NavItem>
+        <NavLink disabled href="#">Disabled Link</NavLink>
+      </NavItem>
+    </Nav>
+  </div>
+</Story>
+
+=== 6501 src/Navbar/Navbar.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Navbar from './Navbar.svelte';
+
+  export const meta = {
+    title: 'Stories/Navbar',
+    component: Navbar,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      color: {
+        control: {
+          type: 'select'
+        },
+        options: [
+          '',
+          'primary',
+          'secondary',
+          'success',
+          'danger',
+          'warning',
+          'info',
+          'light',
+          'dark',
+          'primary-subtle',
+          'secondary-subtle',
+          'success-subtle',
+          'danger-subtle',
+          'warning-subtle',
+          'info-subtle',
+          'light-subtle',
+          'dark-subtle'
+        ]
+      },
+      container: {
+        control: {
+          type: 'select'
+        },
+        options: ['sm', 'md', 'lg', 'xl', 'xxl', 'fluid']
+      },
+      dark: {
+        control: 'boolean'
+      },
+      expand: {
+        control: ''
+      },
+      fixed: {
+        control: ''
+      },
+      light: {
+        control: 'boolean'
+      },
+      sticky: {
+        control: ''
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      class: '',
+      container: 'xl',
+      color: 'light',
+      dark: false,
+      expand: 'md',
+      fixed: '',
+      light: true,
+      sticky: '',
+      theme: null
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+
+  import {
+    Collapse,
+    NavbarToggler,
+    NavbarBrand,
+    Nav,
+    NavItem,
+    NavLink,
+    Dropdown,
+    DropdownToggle,
+    DropdownMenu,
+    DropdownItem
+  } from '@sveltestrap/sveltestrap';
+
+  let isOpen = false;
+
+  function handleUpdate(event) {
+    isOpen = event.detail.isOpen;
+  }
+
+  const toggle = () => (isOpen = !isOpen);
+
+  const widths = ['sm', 'md', 'lg', 'xl', 'xxl', 'fluid'];
+
+  const colors = [
+    'primary',
+    'secondary',
+    'success',
+    'danger',
+    'warning',
+    'info',
+    'light',
+    'dark',
+    'primary-subtle',
+    'secondary-subtle',
+    'success-subtle',
+    'danger-subtle',
+    'warning-subtle',
+    'info-subtle',
+    'light-subtle',
+    'dark-subtle'
+  ];
+</script>
+
+<Story name="Basic" let:args>
+  <Navbar {...args}>
+    <NavbarBrand href="/">sveltestrap</NavbarBrand>
+    <NavbarToggler on:click={() => (isOpen = !isOpen)} />
+    <Collapse {isOpen} navbar expand="md" on:update={handleUpdate}>
+      <Nav class="ms-auto" navbar>
+        <NavItem>
+          <NavLink href="#components/">Components</NavLink>
+        </NavItem>
+        <NavItem>
+          <NavLink href="https://github.com/sveltestrap/sveltestrap">GitHub</NavLink>
+        </NavItem>
+        <Dropdown nav inNavbar>
+          <DropdownToggle nav caret>Options</DropdownToggle>
+          <DropdownMenu end>
+            <DropdownItem>Option 1</DropdownItem>
+            <DropdownItem>Option 2</DropdownItem>
+            <DropdownItem divider />
+            <DropdownItem>Reset</DropdownItem>
+          </DropdownMenu>
+        </Dropdown>
+      </Nav>
+    </Collapse>
+  </Navbar>
+</Story>
+
+<Story name="Colors">
+  {#each colors as color}
+    <Navbar
+      {color}
+      dark={color === 'dark' || color === 'primary'}
+      light={color !== 'dark' && color !== 'primary'}
+      class="mb-2"
+    >
+      <NavbarBrand href="/">{color} Navbar</NavbarBrand>
+    </Navbar>
+  {/each}
+</Story>
+
+<Story name="Sizes">
+  {#each widths as width}
+    <Navbar color="light" light expand="md" container={width} class="mb-2">
+      <NavbarBrand href="/">NavBar with {width} container</NavbarBrand>
+      <NavbarToggler on:click={() => (isOpen = !isOpen)} />
+      <Collapse {isOpen} navbar expand="md" on:update={handleUpdate}>
+        <Nav class="ms-auto" navbar>
+          <NavItem>
+            <NavLink href="#components/">Components</NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink href="https://github.com/sveltestrap/sveltestrap">GitHub</NavLink>
+          </NavItem>
+          <Dropdown nav inNavbar>
+            <DropdownToggle nav caret>Options</DropdownToggle>
+            <DropdownMenu end>
+              <DropdownItem>Option 1</DropdownItem>
+              <DropdownItem>Option 2</DropdownItem>
+              <DropdownItem divider />
+              <DropdownItem>Reset</DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+        </Nav>
+      </Collapse>
+    </Navbar>
+  {/each}
+</Story>
+
+<Story name="Toggler">
+  <Navbar color="light" light>
+    <NavbarBrand href="/" class="me-auto">sveltestrap</NavbarBrand>
+    <NavbarToggler on:click={toggle} class="me-2" />
+    <Collapse {isOpen} navbar>
+      <Nav navbar>
+        <NavItem>
+          <NavLink href="#components/">Components</NavLink>
+        </NavItem>
+        <NavItem>
+          <NavLink href="https://github.com/sveltestrap/sveltestrap">GitHub</NavLink>
+        </NavItem>
+      </Nav>
+    </Collapse>
+  </Navbar>
+</Story>
+
+<Story name="Theming">
+  <Navbar color="dark" theme="dark">
+    <NavbarBrand href="/" class="me-auto">sveltestrap</NavbarBrand>
+    <NavbarToggler on:click={toggle} class="me-2" />
+    <Collapse {isOpen} navbar>
+      <Nav navbar>
+        <NavItem>
+          <NavLink href="#components/">Components</NavLink>
+        </NavItem>
+        <NavItem>
+          <NavLink href="https://github.com/sveltestrap/sveltestrap">GitHub</NavLink>
+        </NavItem>
+      </Nav>
+    </Collapse>
+  </Navbar>
+
+  <Navbar color="light" theme="light">
+    <NavbarBrand href="/" class="me-auto">sveltestrap</NavbarBrand>
+    <NavbarToggler on:click={toggle} class="me-2" />
+    <Collapse {isOpen} navbar>
+      <Nav navbar>
+        <NavItem>
+          <NavLink href="#components/">Components</NavLink>
+        </NavItem>
+        <NavItem>
+          <NavLink href="https://github.com/sveltestrap/sveltestrap">GitHub</NavLink>
+        </NavItem>
+      </Nav>
+    </Collapse>
+  </Navbar>
+</Story>
+
+=== 9444 src/Offcanvas/Offcanvas.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Offcanvas from './Offcanvas.svelte';
+
+  export const meta = {
+    title: 'Stories/Offcanvas',
+    component: Offcanvas,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      backdrop: {
+        control: 'boolean'
+      },
+      body: {
+        control: 'boolean'
+      },
+      fade: {
+        control: 'boolean'
+      },
+      header: {
+        control: ''
+      },
+      isOpen: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      keyboard: {
+        control: 'boolean'
+      },
+      placement: {
+        control: {
+          type: 'select'
+        },
+        options: ['start', 'end', 'top', 'bottom']
+      },
+      scroll: {
+        control: 'boolean'
+      },
+      style: {
+        control: ''
+      },
+      sm: {
+        control: 'boolean'
+      },
+      md: {
+        control: 'boolean'
+      },
+      lg: {
+        control: 'boolean'
+      },
+      xl: {
+        control: 'boolean'
+      },
+      xxl: {
+        control: 'boolean'
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      'header ': {
+        description: 'This is the slot to use for custom headings.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      backdrop: true,
+      body: true,
+      class: '',
+      container: 'body',
+      fade: true,
+      header: 'Offcanvas',
+      isOpen: false,
+      keyboard: true,
+      placement: 'start',
+      scroll: false,
+      sm: false,
+      md: false,
+      lg: false,
+      xl: false,
+      xxl: false,
+      style: '',
+      theme: null,
+      toggle: undefined
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { Button } from '@sveltestrap/sveltestrap';
+
+  let isOpen = false;
+  let status = 'Closed';
+  let endOpen = false;
+  let bottomOpen = false;
+  let topOpen = false;
+  const toggleEnd = () => (endOpen = !endOpen);
+  const toggleBottom = () => (bottomOpen = !bottomOpen);
+  const toggleTop = () => (topOpen = !topOpen);
+
+  const toggle = () => {
+    isOpen = !isOpen;
+  };
+
+  const basicSource = `<Button color="primary" on:click={toggle}>Open Start</Button>
+
+<Offcanvas {isOpen} {toggle} header="Start">
+  Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
+  tempor incididunt ut labore et dolore magna aliqua.
+</Offcanvas>`;
+</script>
+
+<Story name="Basic" let:args source={basicSource}>
+  <Button color="primary capitalize" on:click={toggle}>Open {args.placement}</Button>
+
+  <Offcanvas {...args} {isOpen} {toggle}>
+    Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna
+    aliqua.
+  </Offcanvas>
+</Story>
+
+<Story name="Backdrop">
+  <Button color="primary" on:click={toggle}>Open</Button>
+
+  <Offcanvas header="No Backdrop" backdrop={false} {isOpen} {toggle}>Look ma, no backdrop.</Offcanvas>
+</Story>
+
+<Story name="Events">
+  <Button color="primary" on:click={toggle}>Open</Button>
+  <code>&nbsp; Current state: {status}</code>
+
+  <Offcanvas
+    {isOpen}
+    {toggle}
+    placement="end"
+    on:opening={() => (status = 'Opening...')}
+    on:open={() => (status = 'Opened')}
+    on:closing={() => (status = 'Closing...')}
+    on:close={() => (status = 'Closed')}
+  >
+    Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna
+    aliqua.
+  </Offcanvas>
+</Story>
+
+<Story name="Placement">
+  <Button color="danger" on:click={toggle}>Start</Button>
+  <Button color="warning" on:click={() => (endOpen = !endOpen)}>End</Button>
+  <Button color="success" on:click={() => (topOpen = !topOpen)}>Top</Button>
+  <Button color="info" on:click={() => (bottomOpen = !bottomOpen)}>Bottom</Button>
+
+  <Offcanvas {isOpen} {toggle} header="Start" placement="start">
+    Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna
+    aliqua.
+  </Offcanvas>
+
+  <Offcanvas isOpen={endOpen} toggle={toggleEnd} placement="end" header="Right">
+    Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna
+    aliqua.
+  </Offcanvas>
+
+  <Offcanvas isOpen={topOpen} toggle={toggleTop} placement="top" header="Top">
+    Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna
+    aliqua.
+  </Offcanvas>
+
+  <Offcanvas isOpen={bottomOpen} toggle={toggleBottom} placement="bottom" header="Bottom">
+    Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna
+    aliqua.
+  </Offcanvas>
+</Story>
+
+<Story name="Slots">
+  <Button color="primary" on:click={toggle}>Open</Button>
+
+  <Offcanvas scroll {isOpen} {toggle}>
+    <h1 slot="header">
+      <i>Hello <b>World!</b></i>
+    </h1>
+    Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna
+    aliqua.
+  </Offcanvas>
+</Story>
+
+<Story name="Manual">
+  <Button color="primary" on:click={() => (isOpen = true)}>Open</Button>
+
+  <Offcanvas header="No toggle or esc" scroll {isOpen}>
+    <Button color="danger" on:click={() => (isOpen = false)}>Close Me</Button>
+  </Offcanvas>
+</Story>
+
+<Story name="Scrolling">
+  <Button color="primary" on:click={toggle}>Open</Button>
+
+  <Offcanvas header="You can scroll the body" scroll {isOpen} {toggle} backdrop={false}>
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </p>
+
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </p>
+
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </p>
+
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </p>
+
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </p>
+
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </p>
+
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </p>
+
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </p>
+
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </p>
+
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </p>
+
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </p>
+
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </p>
+
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </p>
+
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua.
+    </p>
+  </Offcanvas>
+</Story>
+
+<Story name="Custom">
+  <Button color="primary" on:click={() => (isOpen = true)}>Open</Button>
+
+  <Offcanvas {isOpen} body={false} style="width: 150px" class="bg-danger">
+    <div on:click={() => (isOpen = false)}>
+      <img src="https://picsum.photos/150/1200" alt="Meaningless content" />
+    </div>
+  </Offcanvas>
+</Story>
+
+<Story name="Theming">
+  <Button color="dark" on:click={toggle}>Dark Theme</Button>
+  <Button color="light" on:click={() => (endOpen = !endOpen)}>Light Theme</Button>
+
+  <Offcanvas theme="dark" {isOpen} {toggle} header="Dark Theme" placement="start">
+    Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna
+    aliqua.
+  </Offcanvas>
+
+  <Offcanvas theme="light" isOpen={endOpen} toggle={toggleEnd} header="Light Theme" placement="end">
+    Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna
+    aliqua.
+  </Offcanvas>
+</Story>
+
+=== 4688 src/Pagination/Pagination.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Pagination from './Pagination.svelte';
+
+  export const meta = {
+    title: 'Stories/Pagination',
+    component: Pagination,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      ariaLabel: {
+        control: 'text'
+      },
+      class: {
+        className: 'string',
+        table: { disable: true }
+      },
+      listClassName: {
+        control: 'text'
+      },
+      size: {
+        control: {
+          type: 'select'
+        },
+        options: ['', 'sm', 'lg']
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      ariaLabel: 'Page navigation example',
+      listClassName: '',
+      size: '',
+      theme: null
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { PaginationItem, PaginationLink } from '@sveltestrap/sveltestrap';
+</script>
+
+<Template let:args>
+  <Pagination {...args}>
+    <PaginationItem disabled>
+      <PaginationLink first href="#" />
+    </PaginationItem>
+    <PaginationItem disabled>
+      <PaginationLink previous href="#" />
+    </PaginationItem>
+    <PaginationItem active>
+      <PaginationLink href="#">1</PaginationLink>
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationLink href="#">2</PaginationLink>
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationLink href="#">3</PaginationLink>
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationLink href="#">4</PaginationLink>
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationLink href="#">5</PaginationLink>
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationLink next href="#" />
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationLink last href="#" />
+    </PaginationItem>
+  </Pagination>
+</Template>
+
+<Story name="Basic" />
+
+<Story name="Sizes">
+  <Pagination size="lg" ariaLabel="Page navigation example">
+    <PaginationItem>
+      <PaginationLink first href="#" />
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationLink previous href="#" />
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationLink href="#">1</PaginationLink>
+    </PaginationItem>
+    <PaginationItem active>
+      <PaginationLink href="#">2</PaginationLink>
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationLink href="#">3</PaginationLink>
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationLink next href="#" />
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationLink last href="#" />
+    </PaginationItem>
+  </Pagination>
+</Story>
+
+<Story name="Theming">
+  <div class="vertical gap-xl">
+    <Pagination theme="dark" ariaLabel="Dark page navigation example">
+      <PaginationItem>
+        <PaginationLink first href="#" />
+      </PaginationItem>
+      <PaginationItem>
+        <PaginationLink previous href="#" />
+      </PaginationItem>
+      <PaginationItem>
+        <PaginationLink href="#">1</PaginationLink>
+      </PaginationItem>
+      <PaginationItem active>
+        <PaginationLink href="#">2</PaginationLink>
+      </PaginationItem>
+      <PaginationItem>
+        <PaginationLink href="#">3</PaginationLink>
+      </PaginationItem>
+      <PaginationItem>
+        <PaginationLink next href="#" />
+      </PaginationItem>
+      <PaginationItem>
+        <PaginationLink last href="#" />
+      </PaginationItem>
+    </Pagination>
+
+    <Pagination theme="light" ariaLabel="Light page navigation example">
+      <PaginationItem>
+        <PaginationLink first href="#" />
+      </PaginationItem>
+      <PaginationItem>
+        <PaginationLink previous href="#" />
+      </PaginationItem>
+      <PaginationItem>
+        <PaginationLink href="#">1</PaginationLink>
+      </PaginationItem>
+      <PaginationItem active>
+        <PaginationLink href="#">2</PaginationLink>
+      </PaginationItem>
+      <PaginationItem>
+        <PaginationLink href="#">3</PaginationLink>
+      </PaginationItem>
+      <PaginationItem>
+        <PaginationLink next href="#" />
+      </PaginationItem>
+      <PaginationItem>
+        <PaginationLink last href="#" />
+      </PaginationItem>
+    </Pagination>
+  </div>
+</Story>
+
+=== 5926 src/Popover/Popover.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Popover from './Popover.svelte';
+
+  export const meta = {
+    title: 'Stories/Popovers',
+    component: Popover,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      animation: {
+        control: 'boolean'
+      },
+      content: {
+        control: ''
+      },
+      class: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      container: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      dismissible: {
+        control: 'boolean'
+      },
+      hideOnOutsideClick: {
+        control: 'boolean'
+      },
+      isOpen: {
+        control: 'boolean'
+      },
+      placement: {
+        control: {
+          type: 'select'
+        },
+        options: ['top', 'left', 'right', 'bottom', 'auto']
+      },
+      target: {
+        control: false,
+        table: {
+          disable: true
+        }
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      title: {
+        control: ''
+      },
+      trigger: {
+        control: {
+          type: 'select'
+        },
+        options: ['click', 'hover', 'focus']
+      },
+      'title ': {
+        description: 'This slot is used for provided a custom title.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      animation: true,
+      content: '',
+      container: undefined,
+      dismissible: false,
+      hideOnOutsideClick: false,
+      isOpen: false,
+      placement: 'top',
+      theme: null,
+      title: 'Popover',
+      trigger: 'click'
+    }
+  };
+</script>
+
+<script>
+  import { Story } from '@storybook/addon-svelte-csf';
+  import { Button } from '@sveltestrap/sveltestrap';
+
+  const placements = ['top', 'right', 'left', 'bottom', 'auto'];
+  const colors = ['primary', 'success', 'danger', 'warning'];
+
+  const basicSource = `<Button color="primary" id="btn-top-basic">Show on top</Button>
+
+<Popover
+  target="btn-top-basic"
+  placement="top"
+  title="Popover Top">
+  This Popover will be shown above the trigger element.
+</Popover>`;
+</script>
+
+<Story name="Basic" let:args source={basicSource}>
+  <Button color="primary" id="btn-top-basic">Show on {args.placement}</Button>
+  {#key args}
+    <Popover {...args} target="btn-top-basic" style={args.theme === 'dark' ? 'color: #fff;' : ''}>
+      This Popover is using <b>{args.placement}</b> placement.
+    </Popover>
+  {/key}
+</Story>
+
+<Story name="Placement">
+  <div class="horizontal">
+    {#each placements as placement, index}
+      <Button color={colors[index]} id="btn-{placement}">Show on {placement}</Button>
+
+      <Popover target="btn-{placement}" {placement} title="Popover {placement}">
+        This Popover placement is <b>{placement}</b>.
+      </Popover>
+    {/each}
+  </div>
+</Story>
+
+<Story name="Triggers">
+  <div class="horizontal">
+    <div>
+      <Button color="primary" id="btn-trigger-click">Click me</Button>
+      <Popover trigger="click" placement="top" target="btn-trigger-click" title="Popover on click">
+        This Popover is shown when clicking on the trigger element.
+      </Popover>
+    </div>
+    <div>
+      <Button color="warning" id="btn-trigger-hover">Hover me</Button>
+      <Popover trigger="hover" placement="right" target="btn-trigger-hover" title="Popover with hover">
+        This Popover is shown while hovering over the trigger element.
+      </Popover>
+    </div>
+    <div>
+      <Button color="danger" id="btn-trigger-focus">Focus me</Button>
+      <Popover trigger="focus" placement="bottom" target="btn-trigger-focus" title="Popover with focus">
+        This Popover is shown while focusing on the trigger element.
+      </Popover>
+    </div>
+  </div>
+</Story>
+
+<Story name="Dismissible">
+  <Button color="primary" id="btn-dismissible">Click me</Button>
+
+  <Popover placement="right" target="btn-dismissible" dismissible>
+    <div slot="title">
+      <i>Hello</i> <b>World!</b>
+    </div>
+    This Popover is dismissesed when any click occurs.
+  </Popover>
+</Story>
+
+<Story name="OutsideClick">
+  <Button color="primary" id="btn-outside-click">Click me</Button>
+
+  <Popover placement="right" target="btn-outside-click" hideOnOutsideClick>
+    <div slot="title">
+      <i>Hello</i> <b>World!</b>
+    </div>
+    You can click inside this Popover and it will not dismiss. Dismissal will only occur if the click is outside of the popover.
+  </Popover>
+</Story>
+
+<Story name="Theming">
+  <div class="horizontal gap-lg">
+    <Button color="dark" id="btn-dark-theme">Show dark theme</Button>
+    <Button color="light" id="btn-light-theme">Show light theme</Button>
+  </div>
+
+  <Popover theme="light" placement="right" target="btn-light-theme" hideOnOutsideClick>
+    <div slot="title">
+      <i>Hello</i> <b>World!</b>
+    </div>
+    You can click inside this Popover and it will not dismiss. Dismissal will only occur if the click is outside of the popover.
+  </Popover>
+
+  <Popover theme="dark" placement="right" target="btn-dark-theme" hideOnOutsideClick>
+    <div slot="title" style="color: #fff;">
+      <i>Hello</i> <b>World!</b>
+    </div>
+    You can click inside this Popover and it will not dismiss. Dismissal will only occur if the click is outside of the popover.
+  </Popover>
+</Story>
+
+=== 6270 src/Progress/Progress.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Progress from './Progress.svelte';
+
+  export const meta = {
+    title: 'Stories/Progress',
+    component: Progress,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      animated: {
+        control: 'boolean'
+      },
+      bar: {
+        control: 'boolean'
+      },
+      barClassName: {
+        control: 'text'
+      },
+      class: {
+        className: 'string',
+        table: { disable: true }
+      },
+      color: {
+        control: {
+          type: 'select'
+        },
+        options: ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark']
+      },
+      max: {
+        control: 'number'
+      },
+      multi: {
+        control: 'boolean'
+      },
+      striped: {
+        control: 'boolean'
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      value: {
+        control: 'number'
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      animated: false,
+      bar: false,
+      barClassName: '',
+      color: 'primary',
+      max: 100,
+      multi: false,
+      striped: false,
+      theme: null,
+      value: 0
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  const colors = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'];
+</script>
+
+<Template let:args>
+  {#each colors as color}
+    <Progress {...args} {color} value={Math.random() * 50 + 50} class="mb-2">
+      {color}
+    </Progress>
+  {/each}
+</Template>
+
+<Story name="Basic" />
+
+<Story name="Labels">
+  <Progress value={25} class="mb-2">25%</Progress>
+  <Progress value={50} class="mb-2">1/2</Progress>
+  <Progress value={75} class="mb-2">You're almost there!</Progress>
+  <Progress color="success" value={100} class="mb-2">You did it!</Progress>
+
+  <Progress multi class="mb-2">
+    <Progress bar value={15}>Meh</Progress>
+    <Progress bar color="success" value={30}>Wow!</Progress>
+    <Progress bar color="info" value={25}>Cool</Progress>
+    <Progress bar color="warning" value={20}>20%</Progress>
+    <Progress bar color="danger" value={5}>!!</Progress>
+  </Progress>
+</Story>
+
+<Story name="Striped">
+  <Progress striped value={2 * 5} class="mb-2" />
+  <Progress striped color="success" value={25} class="mb-2" />
+  <Progress striped color="info" value={50} class="mb-2" />
+  <Progress striped color="warning" value={75} class="mb-2" />
+  <Progress striped color="danger" value={100} class="mb-2" />
+
+  <Progress multi class="mb-2">
+    <Progress striped bar value={10} />
+    <Progress striped bar color="success" value={30} />
+    <Progress striped bar color="warning" value={20} />
+    <Progress striped bar color="danger" value={20} />
+  </Progress>
+</Story>
+
+<Story name="Animated">
+  <Progress animated value={2 * 5} class="mb-2" />
+  <Progress animated color="success" value={25} class="mb-2" />
+  <Progress animated color="info" value={50} class="mb-2" />
+  <Progress animated color="warning" value={75} class="mb-2" />
+  <Progress animated color="danger" value={100} class="mb-2" />
+
+  <Progress multi class="mb-2">
+    <Progress animated bar value={10} />
+    <Progress animated bar color="success" value={30} />
+    <Progress animated bar color="warning" value={20} />
+    <Progress animated bar color="danger" value={20} />
+  </Progress>
+</Story>
+
+<Story name="Multi">
+  <div class="progress-example">
+    <div class="text-content">Plain</div>
+    <Progress multi>
+      <Progress bar value={15} />
+      <Progress bar color="success" value={20} />
+      <Progress bar color="info" value={20} />
+      <Progress bar color="warning" value={20} />
+      <Progress bar color="danger" value={15} />
+    </Progress>
+
+    <br />
+
+    <div class="text-content">With Labels</div>
+    <Progress multi>
+      <Progress bar value={15}>Meh</Progress>
+      <Progress bar color="success" value={35}>Wow!</Progress>
+      <Progress bar color="warning" value={25}>25%</Progress>
+      <Progress bar color="danger" value={25}>LOOK OUT!!</Progress>
+    </Progress>
+
+    <br />
+
+    <div class="text-content">Stripes and Animations</div>
+    <Progress multi>
+      <Progress bar striped value={15}>Stripes</Progress>
+      <Progress bar animated color="success" value={30}>Animated Stripes</Progress>
+      <Progress bar color="info" value={25}>Plain</Progress>
+    </Progress>
+  </div>
+</Story>
+
+<Story name="Max">
+  <div class="progress-example">
+    <div class="text-content">1 of 5</div>
+    <Progress value={1} max={5} />
+
+    <br />
+
+    <div class="text-content">50 of 135</div>
+    <Progress value={50} max={135} />
+
+    <br />
+
+    <div class="text-content">75 of 111</div>
+    <Progress value={75} max={111} />
+
+    <br />
+
+    <div class="text-content">463 of 500</div>
+    <Progress value={463} max={500} />
+
+    <br />
+
+    <div class="text-content">Various (40) of 55</div>
+
+    <Progress multi>
+      <Progress bar value={5} max={55}>5</Progress>
+      <Progress bar color="success" value={15} max={55}>15</Progress>
+      <Progress bar color="warning" value={10} max={55}>10</Progress>
+      <Progress bar color="danger" value={10} max={55}>10</Progress>
+    </Progress>
+  </div>
+</Story>
+
+<Story name="Theming">
+  <div class="progress-example">
+    <div class="text-content">Dark Theme</div>
+    <Progress theme="dark" value={25} class="mb-2">25%</Progress>
+    <Progress theme="dark" striped value={2 * 5} class="mb-2" />
+    <Progress theme="dark" animated value={2 * 5} class="mb-2" />
+
+    <div class="text-content">Light Theme</div>
+    <Progress theme="light" value={25} class="mb-2">25%</Progress>
+    <Progress theme="light" striped value={2 * 5} class="mb-2" />
+    <Progress theme="light" animated value={2 * 5} class="mb-2" />
+  </div>
+</Story>
+
+=== 1457 src/Spinner/Spinner.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Spinner from './Spinner.svelte';
+
+  export const meta = {
+    title: 'Stories/Spinner',
+    component: Spinner,
+    parameters: {},
+    argTypes: {
+      class: {
+        className: 'string',
+        table: { disable: true }
+      },
+      type: {
+        control: {
+          type: 'select'
+        },
+        options: ['border', 'grow']
+      },
+      size: {
+        control: {
+          type: 'select'
+        },
+        options: ['', 'sm']
+      },
+      color: {
+        control: {
+          type: 'select'
+        },
+        options: ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark']
+      }
+    },
+    args: {
+      type: 'border',
+      size: '',
+      color: 'primary'
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  const colors = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'];
+</script>
+
+<Template let:args>
+  {#each colors as color}
+    <Spinner {...args} {color} />
+  {/each}
+</Template>
+
+<Story name="Basic" />
+
+<Story name="Types">
+  {#each colors as color}
+    <Spinner type="border" {color} />
+  {/each}
+  <br />
+  {#each colors as color}
+    <Spinner type="grow" {color} />
+  {/each}
+</Story>
+
+<Story name="Sizes">
+  {#each colors as color}
+    <Spinner size="sm" {color} />
+  {/each}
+  <br />
+  {#each colors as color}
+    <Spinner size="sm" type="grow" {color} />
+  {/each}
+</Story>
+
+=== 1447 src/Styles/Styles.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Styles from './Styles.svelte';
+
+  export const meta = {
+    title: 'Stories/Styles',
+    component: Styles
+  };
+</script>
+
+<script>
+  import { Story } from '@storybook/addon-svelte-csf';
+
+  import {
+    Button,
+    Icon,
+    Dropdown,
+    DropdownItem,
+    DropdownMenu,
+    DropdownToggle,
+    ThemeToggler,
+    colorMode,
+    toggleColorMode,
+    useColorMode
+  } from '@sveltestrap/sveltestrap';
+
+  let theme = $colorMode;
+</script>
+
+<Story name="Basic">
+  <Styles />
+
+  <Button color="primary">
+    Nice! <Icon name="emoji-smile-fill" />
+  </Button>
+</Story>
+
+<Story name="Theme">
+  <Styles {theme} />
+
+  <div class="horizontal style-example">
+    <Dropdown isOpen={true} autoClose="manual">
+      <DropdownToggle caret>Menu</DropdownToggle>
+      <DropdownMenu>
+        <DropdownItem>Another Action</DropdownItem>
+        <DropdownItem>Another Action</DropdownItem>
+      </DropdownMenu>
+    </Dropdown>
+
+    <Button color="primary" outline active={$colorMode === 'light'} on:click={() => ($colorMode = 'light')}>
+      light <Icon name="sun-fill" />
+    </Button>
+    <Button color="primary" outline active={$colorMode === 'dark'} on:click={() => ($colorMode = 'dark')}>
+      dark <Icon name="moon-stars-fill" />
+    </Button>
+    <Button color="primary" outline active={$colorMode === 'auto'} on:click={() => ($colorMode = 'auto')}>
+      auto <Icon name="circle-half" />
+    </Button>
+  </div>
+</Story>
+
+=== 5864 src/Table/Table.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Table from './Table.svelte';
+
+  export const meta = {
+    title: 'Stories/Table',
+    component: Table,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        className: 'string',
+        table: {
+          disable: true
+        }
+      },
+      size: {
+        control: {
+          type: 'select'
+        },
+        options: ['sm', 'lg']
+      },
+      bordered: {
+        control: 'boolean'
+      },
+      borderless: {
+        control: 'boolean'
+      },
+      striped: {
+        control: 'boolean'
+      },
+      hover: {
+        control: 'boolean'
+      },
+      responsive: {
+        control: 'boolean'
+      },
+      rows: {
+        control: 'object',
+        table: {
+          disable: true
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      size: 'lg',
+      bordered: false,
+      borderless: false,
+      striped: false,
+      hover: false,
+      responsive: false
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { Column } from '@sveltestrap/sveltestrap';
+
+  const ROWS = [
+    {
+      first: 'Rufus',
+      last: 'Sarsparilla',
+      email: 'rufus.sarsparilla@example.com',
+      dob: new Date(1968, 6, 15)
+    },
+    {
+      first: 'Albert',
+      last: 'Armadillo',
+      email: 'albert.armadillo@example.com',
+      dob: new Date(1972, 7, 17)
+    },
+    {
+      first: 'Arron',
+      last: 'Douglas',
+      email: 'arron.douglas@example.com',
+      dob: new Date(1982, 4, 1)
+    },
+    {
+      first: 'Reginald',
+      last: 'Rhodes',
+      email: 'reginald.rhodes@example.com',
+      dob: new Date(1968, 8, 14)
+    },
+    {
+      first: 'Jimmy',
+      last: 'Mendoza',
+      email: 'jimmy.mendoza@example.com',
+      dob: new Date(1964, 1, 1)
+    },
+    {
+      first: 'Georgia',
+      last: 'Montgomery',
+      email: 'georgia.montgomery@example.com',
+      dob: new Date(1960, 6, 4)
+    },
+    {
+      first: 'Serenity',
+      last: 'Thomas',
+      email: 'serenity.thomas@example.com',
+      dob: new Date(1973, 0, 11)
+    },
+    {
+      first: 'Tonya',
+      last: 'Elliott',
+      email: 'tonya.elliott@example.com',
+      dob: new Date(1954, 7, 17)
+    },
+    {
+      first: 'Maxine',
+      last: 'Turner',
+      email: 'maxine.turner@example.com',
+      dob: new Date(1961, 8, 19)
+    },
+    {
+      first: 'Max',
+      last: 'Headroom',
+      email: 'max.headroom@example.com',
+      dob: new Date(1984, 6, 1)
+    }
+  ];
+
+  const basicSource = `<Table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>First Name</th>
+      <th>Last Name</th>
+      <th>Username</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th scope="row">1</th>
+      <td>Mark</td>
+      <td>Otto</td>
+      <td>@mdo</td>
+    </tr>
+    <tr>
+      <th scope="row">2</th>
+      <td>Jacob</td>
+      <td>Thornton</td>
+      <td>@fat</td>
+    </tr>
+    <tr>
+      <th scope="row">3</th>
+      <td>Larry</td>
+      <td>the Bird</td>
+      <td>@twitter</td>
+    </tr>
+  </tbody>
+</Table>`;
+</script>
+
+<Template let:args>
+  <Table {...args}>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>First Name</th>
+        <th>Last Name</th>
+        <th>Username</th>
+        {#if args.responsive}
+          {#each Array(10) as _, count}
+            <th>Header {count + 4}</th>
+          {/each}
+        {/if}
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">1</th>
+        <td>Mark</td>
+        <td>Otto</td>
+        <td>@mdo</td>
+        {#if args.responsive}
+          {#each Array(10) as _, count}
+            <td>Cell {count + 4}</td>
+          {/each}
+        {/if}
+      </tr>
+      <tr>
+        <th scope="row">2</th>
+        <td>Jacob</td>
+        <td>Thornton</td>
+        <td>@fat</td>
+        {#if args.responsive}
+          {#each Array(10) as _, count}
+            <td>Cell {count + 4}</td>
+          {/each}
+        {/if}
+      </tr>
+      <tr>
+        <th scope="row">3</th>
+        <td>Larry</td>
+        <td>the Bird</td>
+        <td>@twitter</td>
+        {#if args.responsive}
+          {#each Array(10) as _, count}
+            <td>Cell {count + 4}</td>
+          {/each}
+        {/if}
+      </tr>
+    </tbody>
+  </Table>
+</Template>
+
+<Story name="Basic" source={basicSource} />
+
+<Story name="Bordered" args={{ bordered: true }} />
+
+<Story name="Borderless" args={{ borderless: true }} />
+
+<Story name="Hover" args={{ hover: true }} />
+
+<Story name="Striped" args={{ striped: true }} />
+
+<Story name="Sizes" args={{ size: 'sm' }} />
+
+<Story name="Responsive">
+  <Table responsive>
+    <thead>
+      <tr>
+        <th>#</th>
+        {#each Array(15) as _, count}
+          <th>Header {count + 1}</th>
+        {/each}
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">1</th>
+        {#each Array(15) as _, count}
+          <td>Cell {count + 1}</td>
+        {/each}
+      </tr>
+      <tr>
+        <th scope="row">2</th>
+        {#each Array(15) as _, count}
+          <td>Cell {count + 1}</td>
+        {/each}
+      </tr>
+      <tr>
+        <th scope="row">3</th>
+        {#each Array(15) as _, count}
+          <td>Cell {count + 1}</td>
+        {/each}
+      </tr>
+    </tbody>
+  </Table>
+</Story>
+
+<Story name="Columns">
+  <Table rows={ROWS} let:row>
+    <Column header="First Name" width="8rem">
+      {row.first}
+    </Column>
+    <Column header="Last Name" width="8rem">
+      {row.last}
+    </Column>
+    <Column header="Email">
+      {row.email}
+    </Column>
+    <Column header="Birthdate" width="10rem" class="text-right">
+      {row.dob.toDateString()}
+    </Column>
+  </Table>
+</Story>
+
+=== 5242 src/Tabs/Tabs.stories.svelte	svelte	runes	neutral
+<script context="module">
+  export const meta = {
+    title: 'Stories/Tabs',
+    parameters: {},
+    argTypes: {},
+    args: {}
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { Icon, TabContent, TabPane } from '@sveltestrap/sveltestrap';
+
+  let status = 'alpha';
+</script>
+
+<Template let:args>
+  <div class="tab-example">
+    <TabContent>
+      <TabPane class="pt-3" tabId="alpha" tab="Alpha" active>
+        <h2 class="text-content">Alpha</h2>
+        <img
+          alt="Alpha Flight"
+          src="https://upload.wikimedia.org/wikipedia/en/4/49/Alpha_Flight_cast_picture_%28John_Byrne_era%29.gif"
+        />
+      </TabPane>
+      <TabPane class="pt-3" tabId="bravo" tab="Bravo">
+        <h2 class="text-content">Bravo</h2>
+        <img
+          alt="Johnny Bravo"
+          src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Johnny_Bravo_series_logo.png/320px-Johnny_Bravo_series_logo.png"
+        />
+      </TabPane>
+      <TabPane class="pt-3" tabId="charlie" tab="Charlie">
+        <h2 class="text-content">Charlie</h2>
+        <img alt="Charlie Brown" src="https://upload.wikimedia.org/wikipedia/en/2/22/Charlie_Brown.png" />
+      </TabPane>
+    </TabContent>
+  </div>
+</Template>
+
+<Story name="Basic" />
+
+<Story name="Pills">
+  <TabContent pills>
+    <TabPane class="pt-3" tabId="alpha" tab="Alpha" active>
+      <img
+        alt="Alpha Flight"
+        src="https://upload.wikimedia.org/wikipedia/en/4/49/Alpha_Flight_cast_picture_%28John_Byrne_era%29.gif"
+      />
+    </TabPane>
+    <TabPane class="pt-3" tabId="bravo" tab="Bravo">
+      <img
+        alt="Johnny Bravo"
+        src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Johnny_Bravo_series_logo.png/320px-Johnny_Bravo_series_logo.png"
+      />
+    </TabPane>
+    <TabPane class="pt-3" tabId="charlie" tab="Charlie">
+      <img alt="Charlie Brown" src="https://upload.wikimedia.org/wikipedia/en/2/22/Charlie_Brown.png" />
+    </TabPane>
+  </TabContent>
+</Story>
+
+<Story name="Disabled">
+  <div class="tab-example">
+    <TabContent class="disabled-tab" pills>
+      <TabPane class="pt-3" tabId="alpha" tab="Alpha" active>
+        <img
+          alt="Alpha Flight"
+          src="https://upload.wikimedia.org/wikipedia/en/4/49/Alpha_Flight_cast_picture_%28John_Byrne_era%29.gif"
+        />
+      </TabPane>
+      <TabPane class="pt-3" tabId="bravo" tab="Bravo">
+        <img
+          alt="Johnny Bravo"
+          src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Johnny_Bravo_series_logo.png/320px-Johnny_Bravo_series_logo.png"
+        />
+      </TabPane>
+      <TabPane class="pt-3" tabId="charlie" tab="Charlie" disabled>
+        <img alt="Charlie Brown" src="https://upload.wikimedia.org/wikipedia/en/2/22/Charlie_Brown.png" />
+      </TabPane>
+    </TabContent>
+  </div>
+</Story>
+
+<Story name="Slots">
+  <TabContent>
+    <TabPane class="pt-3" tabId="alpha" active>
+      <span slot="tab">
+        Alpha <Icon name="gear" />
+      </span>
+      <img
+        alt="Alpha Flight"
+        src="https://upload.wikimedia.org/wikipedia/en/4/49/Alpha_Flight_cast_picture_%28John_Byrne_era%29.gif"
+      />
+    </TabPane>
+    <TabPane class="pt-3" tabId="bravo">
+      <span slot="tab">
+        Bravo <Icon name="hand-thumbs-up" />
+      </span>
+      <img
+        alt="Johnny Bravo"
+        src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Johnny_Bravo_series_logo.png/320px-Johnny_Bravo_series_logo.png"
+      />
+    </TabPane>
+    <TabPane class="pt-3" tabId="charlie">
+      <span slot="tab">
+        Charlie <Icon name="alarm" />
+      </span>
+      <img alt="Charlie Brown" src="https://upload.wikimedia.org/wikipedia/en/2/22/Charlie_Brown.png" />
+    </TabPane>
+  </TabContent>
+</Story>
+
+<Story name="Vertical">
+  <div class="tab-example">
+    <TabContent vertical pills>
+      <TabPane tabId="alpha" tab="Alpha" active>
+        <h2 class="text-content">Alpha</h2>
+        <img
+          alt="Alpha Flight"
+          src="https://upload.wikimedia.org/wikipedia/en/4/49/Alpha_Flight_cast_picture_%28John_Byrne_era%29.gif"
+        />
+      </TabPane>
+      <TabPane tabId="bravo" tab="Bravo">
+        <h2 class="text-content">Bravo</h2>
+        <img
+          alt="Johnny Bravo"
+          src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Johnny_Bravo_series_logo.png/320px-Johnny_Bravo_series_logo.png"
+        />
+      </TabPane>
+      <TabPane tabId="charlie" tab="Charlie">
+        <h2 class="text-content">Charlie</h2>
+        <img alt="Charlie Brown" src="https://upload.wikimedia.org/wikipedia/en/2/22/Charlie_Brown.png" />
+      </TabPane>
+    </TabContent>
+  </div>
+</Story>
+
+<Story name="Events">
+  <div class="tab-example">
+    <h5 class="text-content">Current state: {status}</h5>
+    <TabContent class="pt-3" on:tab={(e) => (status = e.detail)}>
+      <TabPane class="pt-3" tabId="alpha" tab="Alpha" active>
+        <h2 class="text-content">Alpha</h2>
+      </TabPane>
+      <TabPane class="pt-3" tabId="bravo" tab="Bravo">
+        <h2 class="text-content">Bravo</h2>
+      </TabPane>
+      <TabPane class="pt-3" tabId="charlie" tab="Charlie">
+        <h2 class="text-content">Charlie</h2>
+      </TabPane>
+    </TabContent>
+  </div>
+</Story>
+
+=== 2889 src/Theme/Theme.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Theme from './Theme.svelte';
+
+  export const meta = {
+    title: 'Stories/Theme',
+    component: Theme
+  };
+</script>
+
+<script>
+  import { Story } from '@storybook/addon-svelte-csf';
+
+  import {
+    Button,
+    Card,
+    CardBody,
+    CardHeader,
+    CardFooter,
+    CardSubtitle,
+    CardText,
+    CardTitle,
+    Toast,
+    ThemeToggler,
+    Icon,
+    colorMode,
+    useColorMode
+  } from '@sveltestrap/sveltestrap';
+</script>
+
+<Story name="Basic">
+  <Theme theme="dark">
+    <Card class="mb-3">
+      <CardHeader>
+        <CardTitle>Dark Theme</CardTitle>
+      </CardHeader>
+      <CardBody>
+        <CardSubtitle>Card subtitle</CardSubtitle>
+        <CardText>
+          Some quick example text to build on the card title and make up the bulk of the card's content.
+        </CardText>
+        <Button>Button</Button>
+      </CardBody>
+      <CardFooter>Footer</CardFooter>
+    </Card>
+
+    <Toast body header="Dark Theme" style="--bs-toast-color: #fff;" isOpen={true}>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+      consequat.
+    </Toast>
+  </Theme>
+</Story>
+
+<Story name="Hook">
+  <Button color="primary" outline active={$colorMode === 'light'} on:click={() => useColorMode('light')}>
+    light <Icon name="sun-fill" />
+  </Button>
+  <Button color="primary" outline active={$colorMode === 'dark'} on:click={() => useColorMode('dark')}>
+    dark <Icon name="moon-stars-fill" />
+  </Button>
+  <Button color="primary" outline active={$colorMode === 'auto'} on:click={() => useColorMode('auto')}>
+    auto <Icon name="circle-half" />
+  </Button>
+</Story>
+
+<Story name="Store">
+  <Button color="primary" outline active={$colorMode === 'light'} on:click={() => ($colorMode = 'light')}>
+    light <Icon name="sun-fill" />
+  </Button>
+  <Button color="primary" outline active={$colorMode === 'dark'} on:click={() => ($colorMode = 'dark')}>
+    dark <Icon name="moon-stars-fill" />
+  </Button>
+  <Button color="primary" outline active={$colorMode === 'auto'} on:click={() => ($colorMode = 'auto')}>
+    auto <Icon name="circle-half" />
+  </Button>
+</Story>
+
+<Story name="Toggler">
+  <ThemeToggler let:currentColorMode let:toggleColorMode>
+    <Button color="primary" on:click={() => toggleColorMode()}>Toggle Theme: {currentColorMode}</Button>
+  </ThemeToggler>
+
+  <Card class="mt-3">
+    <CardHeader>
+      <CardTitle>Dark Theme</CardTitle>
+    </CardHeader>
+    <CardBody>
+      <CardSubtitle>Card subtitle</CardSubtitle>
+      <CardText>
+        Some quick example text to build on the card title and make up the bulk of the card's content.
+      </CardText>
+      <Button>Button</Button>
+    </CardBody>
+    <CardFooter>Footer</CardFooter>
+  </Card>
+</Story>
+
+=== 234 src/Theme/ThemeToggler.svelte	svelte	runes	neutral
+<script>
+  import { colorMode, toggleColorMode } from './helpers';
+
+  let currentColorMode = $colorMode;
+
+  colorMode.subscribe((value) => {
+    currentColorMode = value;
+  });
+</script>
+
+<slot {currentColorMode} {toggleColorMode} />
+
+=== 8183 src/Toast/Toast.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Toast from './Toast.svelte';
+
+  export const meta = {
+    title: 'Stories/Toast',
+    component: Toast,
+    parameters: {
+      controls: {
+        exclude: /^(close|closing|default|open|opening)$/g
+      }
+    },
+    argTypes: {
+      color: {
+        control: {
+          type: 'select'
+        },
+        options: ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'],
+        description: 'Color of the Toast background.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'primary'
+          }
+        }
+      },
+      class: {
+        className: 'string',
+        table: { disable: true }
+      },
+      autohide: {
+        control: 'boolean'
+      },
+      body: {
+        control: 'boolean'
+      },
+      delay: {
+        control: 'number'
+      },
+      duration: {
+        control: 'number'
+      },
+      fade: {
+        control: 'boolean'
+      },
+      header: {
+        control: 'text',
+        table: { disable: true }
+      },
+      isOpen: {
+        control: 'boolean'
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      toggle: {
+        control: 'null',
+        table: {
+          disable: true
+        }
+      },
+      'on:open': {
+        control: false,
+        description: 'This event is fired once the Toast has opened.',
+        table: {
+          category: 'events',
+          type: {
+            summary: 'Function'
+          },
+          defaultValue: {
+            summary: 'null'
+          }
+        }
+      },
+      'on:opening': {
+        control: false,
+        description: 'This event is fired immediately once open has been triggered.',
+        table: {
+          category: 'events',
+          type: {
+            summary: 'Function'
+          },
+          defaultValue: {
+            summary: 'null'
+          }
+        }
+      },
+      'on:close': {
+        description: 'This event is fired once the Toast has closed.',
+        table: {
+          category: 'events',
+          type: {
+            summary: 'Function'
+          },
+          defaultValue: {
+            summary: 'null'
+          }
+        }
+      },
+      'on:closing': {
+        description: 'This event is fired immediately once close has been triggered.',
+        table: {
+          category: 'events',
+          type: {
+            summary: 'Function'
+          },
+          defaultValue: {
+            summary: 'null'
+          }
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      color: 'primary',
+      autohide: false,
+      body: false,
+      delay: 5000,
+      duration: 200,
+      fade: true,
+      isOpen: true
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { Button, Icon, ToastBody, ToastHeader } from '@sveltestrap/sveltestrap';
+
+  const colors = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'];
+
+  let isOpen = false;
+  let status = 'Closed';
+
+  function toggle() {
+    isOpen = !isOpen;
+  }
+
+  function reopen() {
+    isOpen = true;
+  }
+
+  let seconds = 5;
+  let countdownInterval = null;
+
+  function startCountdown() {
+    countdownInterval = setInterval(() => {
+      if (seconds <= 0) {
+        clearInterval(countdownInterval);
+      } else {
+        seconds--;
+      }
+    }, 1000);
+  }
+
+  function startCount() {
+    isOpen = true;
+    seconds = 5;
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+    startCountdown();
+  }
+
+  const basicStorySource = `
+<div class="p-3 bg-primary mb-3 rounded">
+  <Toast>
+    <ToastHeader>Sveltestrap</ToastHeader>
+    <ToastBody>
+      This is a toast on a primary background — check it out!
+    </ToastBody>
+  </Toast>
+</div>`;
+</script>
+
+<Template let:args>
+  <div class="toast-width">
+    <div class="p-3 bg-{args.color} mb-3 rounded">
+      <Toast
+        {...args}
+        theme={args.theme || null}
+        style="--bs-toast-color: {args.theme === 'dark' ? '#fff' : '#111'};"
+        class="me-1"
+      >
+        <ToastHeader>Sveltestrap</ToastHeader>
+        <ToastBody>
+          This is a toast on a {args.color} background — check it out!
+        </ToastBody>
+      </Toast>
+    </div>
+  </div>
+</Template>
+
+<Story name="Basic" source={basicStorySource} />
+
+<Story name="Icons">
+  <div class="columns">
+    {#each colors as color}
+      <div class="column">
+        <div class="p-2 mb-3">
+          <Toast class="me-1">
+            <ToastHeader icon={color}>{color}</ToastHeader>
+            <ToastBody>
+              This is a toast with a {color} icon.
+            </ToastBody>
+          </Toast>
+        </div>
+      </div>
+    {/each}
+
+    <div class="column">
+      <div class="p-2 mb-3">
+        <Toast class="me-1">
+          <ToastHeader>
+            <Icon slot="icon" name="emoji-sunglasses" class="me-2" />
+            Sveltestrap
+          </ToastHeader>
+          <ToastBody>This is a toast with a custom icon.</ToastBody>
+        </Toast>
+      </div>
+    </div>
+  </div>
+</Story>
+
+<Story name="Dismissible">
+  <Toast {isOpen}>
+    <ToastHeader {toggle}>Toast title</ToastHeader>
+    <ToastBody>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+      consequat.
+    </ToastBody>
+  </Toast>
+
+  {#if !isOpen}
+    <Button color="primary" on:click={reopen}>Show Toast</Button>
+  {/if}
+</Story>
+
+<Story name="Autohide">
+  <Button color="primary" on:click={startCount} disabled={isOpen}>Show Toast that autohides</Button>
+  <Toast autohide body header="Autohides in {seconds} sec" {isOpen} on:close={() => (isOpen = false)}>
+    Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna
+    aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+  </Toast>
+</Story>
+
+<Story name="Events">
+  <div class="toast-events">
+    <h5>Current state: {status}</h5>
+
+    <Button color="danger" on:click={toggle}>{isOpen ? 'Close' : 'Open'} Toast</Button>
+
+    <Toast
+      body
+      theme="dark"
+      header="It's Toasterific"
+      --bs-toast-color="#fff"
+      {isOpen}
+      on:open={() => (status = 'Opened')}
+      on:opening={() => (status = 'Opening...')}
+      on:closing={() => (status = 'Closing...')}
+      on:close={() => (status = 'Closed')}
+    >
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+      consequat.
+    </Toast>
+  </div>
+</Story>
+
+<Story name="Theming">
+  <div class="horizontal gap-lg toast-events">
+    <Toast body theme="dark" header="Dark Theme" style="--bs-toast-color: #fff;" isOpen={true}>
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+      consequat.
+    </Toast>
+
+    <Toast theme="light" style="--bs-toast-color: #000;">
+      <ToastHeader>Light Theme</ToastHeader>
+      <ToastBody>
+        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore
+        magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+        consequat.
+      </ToastBody>
+    </Toast>
+  </div>
+</Story>
+
+=== 4045 src/Tooltip/Tooltip.stories.svelte	svelte	runes	neutral
+<script context="module">
+  import Tooltip from './Tooltip.svelte';
+
+  export const meta = {
+    title: 'Stories/Tooltip',
+    component: Tooltip,
+    parameters: {
+      controls: {
+        exclude: /^(default)$/g
+      }
+    },
+    argTypes: {
+      class: {
+        className: 'string',
+        table: { disable: true }
+      },
+      animation: {
+        control: 'boolean'
+      },
+      content: {
+        control: 'text'
+      },
+      container: {
+        control: 'text',
+        table: { disable: true }
+      },
+      delay: {
+        control: 'number'
+      },
+      id: {
+        control: 'text',
+        table: { disable: true }
+      },
+      isOpen: {
+        control: 'boolean'
+      },
+      placement: {
+        control: {
+          type: 'select'
+        },
+        options: ['top', 'left', 'right', 'bottom']
+      },
+      target: {
+        control: 'text',
+        table: { disable: true }
+      },
+      theme: {
+        control: {
+          type: 'select'
+        },
+        options: ['dark', 'light', 'auto'],
+        description: 'The theme style to apply.',
+        table: {
+          type: {
+            summary: 'string'
+          },
+          defaultValue: {
+            summary: 'auto'
+          }
+        }
+      },
+      'default ': {
+        description: 'This is the default content slot.',
+        table: {
+          category: 'slots',
+          type: {
+            summary: 'any'
+          },
+          defaultValue: {
+            summary: 'empty'
+          }
+        }
+      }
+    },
+    args: {
+      animation: true,
+      content: '',
+      container: undefined,
+      delay: 0,
+      id: '',
+      isOpen: false,
+      placement: 'top',
+      target: ''
+    }
+  };
+</script>
+
+<script>
+  import { Story, Template } from '@storybook/addon-svelte-csf';
+  import { Button } from '@sveltestrap/sveltestrap';
+
+  const placements = ['top', 'right', 'left', 'bottom'];
+
+  let isOpen = false;
+
+  let myHtmlElementA, myHtmlElementB;
+</script>
+
+<Template let:args>
+  {#key args}
+    <div class="mt-3">
+      <Button id={`btn-${args.placement}`} color="primary">Show {args.placement}</Button>
+      <Tooltip {...args} target={`btn-${args.placement}`} args.placement>{args.placement} tooltip!</Tooltip>
+    </div>
+  {/key}
+</Template>
+
+<Story name="Basic" />
+
+<Story name="HTML">
+  <div>
+    <Button id="btn-right-html" color="primary">HTML Tooltips</Button>
+    <Tooltip target="btn-right-html" placement="right">
+      <strong>Hello</strong> <i>World</i>!
+    </Tooltip>
+  </div>
+</Story>
+
+<Story name="Controlled">
+  <div class="tooltip-example">
+    <div class="text-content">
+      <div class="mt-3">
+        <Button id="controlledBtn" color="primary">You could hover here</Button>
+        <Tooltip bind:isOpen placement="right" target="controlledBtn" delay="500"
+          >This is a Tooltip controlled externally.</Tooltip
+        >
+        <hr />
+        <label>
+          <input type="checkbox" bind:checked={isOpen} />
+          Or you can check this to control the Tooltip state.
+        </label>
+      </div>
+    </div>
+  </div>
+</Story>
+
+<Story name="ElementTarget">
+  <div class="tooltip-example">
+    <div class="tooltip-width">
+      <div class="mt-3">
+        <div style="background: lightgreen" bind:this={myHtmlElementA}>A</div>
+        <Tooltip target={myHtmlElementA} placement="right">A</Tooltip>
+      </div>
+
+      <div class="mt-3">
+        <div style="background: lightblue" bind:this={myHtmlElementB}>B</div>
+        <Tooltip target={myHtmlElementB} placement="right">B</Tooltip>
+      </div>
+    </div>
+  </div>
+</Story>
+
+<Story name="Theming">
+  <div class="horizontal gap-lg">
+    <Button id="btn-dark-theme" color="dark">Dark Theme</Button>
+    <Button id="btn-light-theme" color="light">Light Theme</Button>
+  </div>
+
+  <Tooltip theme="dark" target="btn-dark-theme" placement="top">
+    This a <strong>dark theme</strong> tooltip!
+  </Tooltip>
+
+  <Tooltip theme="light" target="btn-light-theme" placement="top">
+    This a <strong>light theme</strong> tooltip!
+  </Tooltip>
+</Story>
+
+=== 1162 src/Validation/Validation.stories.svelte	svelte	runes	neutral
+<script context="module">
+  export const meta = {
+    title: 'Stories/Validation',
+    parameters: {},
+    argTypes: {},
+    args: {}
+  };
+</script>
+
+<script>
+  import { Story, Source, Template } from '@storybook/addon-svelte-csf';
+  import { Button, Form, FormGroup, Input } from '@sveltestrap/sveltestrap';
+
+  let validated = false;
+</script>
+
+<Template>
+  <div class="vertical form-width">
+    <FormGroup>
+      <Input value="Bad value" feedback="Invalid feedback" invalid />
+    </FormGroup>
+
+    <FormGroup>
+      <Input value="Correct value" feedback="Valid feedback" valid />
+    </FormGroup>
+  </div>
+</Template>
+
+<Story name="Basic" />
+
+<Story name="Dynanic">
+  <Form {validated} on:submit={(e) => e.preventDefault()}>
+    <div class="form-width vertical">
+      <FormGroup>
+        <Input feedback="This requires a value" placeholder="This requires a value" required />
+      </FormGroup>
+      <FormGroup>
+        <Input feedback="This requires an email" placeholder="This requires an email" required type="email" />
+      </FormGroup>
+      <Button type="submit" on:click={() => (validated = true)}>Fake Submit</Button>
+    </div>
+  </Form>
+</Story>
+
+=== 10251 tests/app/src/routes/+page.svelte	svelte	runes	neutral
+<script>
+  import {
+    Accordion,
+    AccordionItem,
+    Alert,
+    Badge,
+    Breadcrumb,
+    BreadcrumbItem,
+    Button,
+    ButtonDropdown,
+    ButtonGroup,
+    ButtonToolbar,
+    Card,
+    CardBody,
+    CardColumns,
+    CardDeck,
+    CardFooter,
+    CardGroup,
+    CardHeader,
+    CardImg,
+    CardImgOverlay,
+    CardLink,
+    CardSubtitle,
+    CardText,
+    CardTitle,
+    Carousel,
+    CarouselCaption,
+    CarouselControl,
+    CarouselIndicators,
+    CarouselItem,
+    Col,
+    Collapse,
+    Column,
+    Container,
+    Dropdown,
+    DropdownItem,
+    DropdownMenu,
+    DropdownToggle,
+    Fade,
+    Figure,
+    Form,
+    FormCheck,
+    FormFeedback,
+    FormGroup,
+    FormText,
+    Icon,
+    Image,
+    InlineContainer,
+    Input,
+    InputGroup,
+    InputGroupText,
+    Jumbotron,
+    Label,
+    ListGroup,
+    ListGroupItem,
+    Modal,
+    ModalBackdrop,
+    ModalBody,
+    ModalFooter,
+    ModalHeader,
+    Nav,
+    Navbar,
+    NavItem,
+    NavLink,
+    NavbarBrand,
+    NavbarToggler,
+    Offcanvas,
+    OffcanvasBackdrop,
+    OffcanvasBody,
+    OffcanvasHeader,
+    Pagination,
+    PaginationItem,
+    PaginationLink,
+    Popover,
+    Portal,
+    Progress,
+    Row,
+    Spinner,
+    Styles,
+    Table,
+    TabContent,
+    TabPane,
+    Toast,
+    ToastBody,
+    ToastHeader,
+    Tooltip
+  } from '@sveltestrap/sveltestrap';
+
+  const colors = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'];
+
+  const carouselItems = [
+    {
+      url: 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22800%22%20height%3D%22400%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20400%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_15ba800aa1d%20text%20%7B%20fill%3A%23555%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A40pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_15ba800aa1d%22%3E%3Crect%20width%3D%22800%22%20height%3D%22400%22%20fill%3D%22%23777%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22285.921875%22%20y%3D%22218.3%22%3EFirst%20slide%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E',
+      title: 'Slide 1',
+      subTitle: 'Slide 1'
+    },
+    {
+      url: 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22800%22%20height%3D%22400%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20400%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_15ba800aa20%20text%20%7B%20fill%3A%23444%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A40pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_15ba800aa20%22%3E%3Crect%20width%3D%22800%22%20height%3D%22400%22%20fill%3D%22%23666%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22247.3203125%22%20y%3D%22218.3%22%3ESecond%20slide%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E',
+      title: 'Slide 2',
+      subTitle: 'Slide 2'
+    },
+    {
+      url: 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22800%22%20height%3D%22400%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20400%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_15ba800aa21%20text%20%7B%20fill%3A%23333%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A40pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_15ba800aa21%22%3E%3Crect%20width%3D%22800%22%20height%3D%22400%22%20fill%3D%22%23555%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22277%22%20y%3D%22218.3%22%3EThird%20slide%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E',
+      title: 'Slide 3',
+      subTitle: 'Slide 3'
+    }
+  ];
+
+  const items = [
+    'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22800%22%20height%3D%22400%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20400%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_15ba800aa1d%20text%20%7B%20fill%3A%23555%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A40pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_15ba800aa1d%22%3E%3Crect%20width%3D%22800%22%20height%3D%22400%22%20fill%3D%22%23777%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22285.921875%22%20y%3D%22218.3%22%3EFirst%20slide%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E',
+    'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22800%22%20height%3D%22400%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20400%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_15ba800aa20%20text%20%7B%20fill%3A%23444%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A40pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_15ba800aa20%22%3E%3Crect%20width%3D%22800%22%20height%3D%22400%22%20fill%3D%22%23666%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22247.3203125%22%20y%3D%22218.3%22%3ESecond%20slide%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E',
+    'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22800%22%20height%3D%22400%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20400%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_15ba800aa21%20text%20%7B%20fill%3A%23333%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A40pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_15ba800aa21%22%3E%3Crect%20width%3D%22800%22%20height%3D%22400%22%20fill%3D%22%23555%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22277%22%20y%3D%22218.3%22%3EThird%20slide%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E'
+  ];
+
+  let activeIndex = 0;
+  let isDropdownOpen = false;
+</script>
+
+<main>
+  <h1>Sveltestrap</h1>
+
+  <section data-testid="accordion">
+    <h2>Accordion</h2>
+
+    <Accordion>
+      <AccordionItem active>
+        <h4 class="m-0" slot="header">Home</h4>
+        Fallbrook
+      </AccordionItem>
+      <AccordionItem>
+        <h4 class="m-0" slot="header">School</h4>
+        <a href="#home">Buena Vista Elementary</a>
+      </AccordionItem>
+      <AccordionItem>
+        <h4 class="m-0" slot="header">Library</h4>
+        UCSB Library
+      </AccordionItem>
+    </Accordion>
+  </section>
+
+  <section data-testid="alert">
+    <h2>Alerts</h2>
+
+    {#each colors as color}
+      <Alert {color}>
+        <h4 class="alert-heading text-capitalize">{color}</h4>
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+        <a href="#todo" class="alert-link"> Also, alert-links are colored to match </a>
+        .
+      </Alert>
+    {/each}
+  </section>
+
+  <section data-testid="badge">
+    <h2>Badges</h2>
+
+    {#each colors as color}
+      <Badge {color}>{color}</Badge>
+    {/each}
+  </section>
+
+  <section data-testid="breadcrumb">
+    <h2>Breadcrumbs</h2>
+
+    <Breadcrumb>
+      <BreadcrumbItem active>Home</BreadcrumbItem>
+    </Breadcrumb>
+
+    <Breadcrumb>
+      <BreadcrumbItem>
+        <a href="#home">Home</a>
+      </BreadcrumbItem>
+      <BreadcrumbItem active>Library</BreadcrumbItem>
+    </Breadcrumb>
+
+    <Breadcrumb>
+      <BreadcrumbItem>
+        <a href="#home">Home</a>
+      </BreadcrumbItem>
+      <BreadcrumbItem>
+        <a href="#library">Library</a>
+      </BreadcrumbItem>
+      <BreadcrumbItem active>Data</BreadcrumbItem>
+    </Breadcrumb>
+  </section>
+
+  <section data-testid="button">
+    <h2>Buttons</h2>
+
+    <Button>Hello World</Button>
+    <Button color="primary">Hello World</Button>
+    <Button color="warning">Hello World</Button>
+    <Button color="danger">Hello World</Button>
+    <Button>Hello World</Button>
+  </section>
+
+  <section data-testid="button-group">
+    <h2>Button Group</h2>
+
+    <ButtonGroup>
+      <Button color="primary" active>Alpha</Button>
+      <Button color="primary">Bravo</Button>
+      <Button color="primary">Charlie</Button>
+    </ButtonGroup>
+  </section>
+
+  <section data-testid="button-toolbar">
+    <h2>Button Toolbar</h2>
+
+    <ButtonToolbar>
+      <Button color="primary">File</Button>
+      <Button color="primary">Edit</Button>
+      <Button color="primary">View</Button>
+    </ButtonToolbar>
+  </section>
+
+  <section data-testid="card">
+    <h2>Cards</h2>
+
+    <Card class="mb-3">
+      <CardHeader>
+        <CardTitle>Card title</CardTitle>
+      </CardHeader>
+      <CardBody>
+        <CardSubtitle>Card subtitle</CardSubtitle>
+        <CardText>
+          Some quick example text to build on the card title and make up the bulk of the card's content.
+        </CardText>
+        <Button>Button</Button>
+      </CardBody>
+      <CardFooter>Footer</CardFooter>
+    </Card>
+  </section>
+
+  <section data-testid="carousel">
+    <h2>Carousel</h2>
+
+    <div class="carousel-example">
+      <div class="carousel-size">
+        <Carousel {items} bind:activeIndex>
+          <CarouselIndicators bind:activeIndex {items} />
+
+          <div class="carousel-inner">
+            {#each carouselItems as item, index}
+              <CarouselItem bind:activeIndex itemIndex={index}>
+                <img src={item.url} class="d-block w-100" alt={item.title} />
+                <CarouselCaption captionHeader={item.title} captionText={item.subTitle} />
+              </CarouselItem>
+            {/each}
+          </div>
+
+          <CarouselControl direction="prev" bind:activeIndex {items} />
+          <CarouselControl direction="next" bind:activeIndex {items} />
+        </Carousel>
+      </div>
+    </div>
+  </section>
+
+  <section data-testid="dropdown">
+    <h2>Dropdown</h2>
+
+    <Dropdown isOpen={isDropdownOpen} toggle={() => (isDropdownOpen = !isDropdownOpen)}>
+      <DropdownToggle color="primary" caret>Dropdown</DropdownToggle>
+      <DropdownMenu>
+        <DropdownItem header>Header</DropdownItem>
+        <DropdownItem disabled>Action</DropdownItem>
+        <DropdownItem>Another Action</DropdownItem>
+        <DropdownItem divider />
+        <DropdownItem>Another Action</DropdownItem>
+      </DropdownMenu>
+    </Dropdown>
+  </section>
+</main>
+
+<Styles />
+
+<style>
+  main {
+    display: grid;
+    gap: 24px;
+    grid-template-columns: 1fr;
+    max-width: 800px;
+    padding: 32px;
+  }
+
+  main,
+  main * {
+    box-sizing: border-box;
+  }
+</style>
+

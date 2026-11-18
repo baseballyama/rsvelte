@@ -1,0 +1,1 @@
+{#await p then { error: { message, code } }}<p>{message}{code}</p>{/await}

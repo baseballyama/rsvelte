@@ -1,0 +1,1 @@
+<script>import Foo from './Foo.svelte';</script>{#each [1] as n}<Foo/>{/each}

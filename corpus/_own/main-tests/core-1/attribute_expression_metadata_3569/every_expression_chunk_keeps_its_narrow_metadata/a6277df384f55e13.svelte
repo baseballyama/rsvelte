@@ -1,0 +1,1 @@
+<script>let title = $state(); function make() {}</script><div title="{String(title)} / {make().value}"></div>

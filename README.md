@@ -1,103 +1,54 @@
-# rsvelte
+# rsvelte (experimental)
 
-rsvelte is a Rust port of the official Svelte 5 compiler and related developer
-tools. It aims to match the official compiler output and work directly with the
-[OXC](https://oxc.rs/) toolchain.
+A native toolchain for Svelte 5 (and Vue), written in Rust: compile, lint, format
+and type check. It reads each file once and keeps immutable trees and a database of facts derived
+from them. A task computes only what it needs, one file per thread. The old port on `main` is
+only a diff oracle and a performance baseline.
 
-[Website](https://baseballyama.github.io/rsvelte/) |
-[Playground](https://baseballyama.github.io/rsvelte/playground) |
-[Compatibility](https://baseballyama.github.io/rsvelte/progress) |
-[Benchmarks](https://baseballyama.github.io/rsvelte/benchmark)
+![ESLint, then `rsvelte lint` with the same rules, on a large open-source Svelte project](.github/assets/lint.gif)
 
-> [!WARNING]
-> rsvelte passes all in-scope fixtures in the official Svelte 5 test suite, but
-> it is still pre-1.0. APIs and behavior may change. Test it carefully before
-> using it in production.
+## Layout
 
-## Why rsvelte
+| Directory                           | What it holds                                                                 |
+| ----------------------------------- | ----------------------------------------------------------------------------- |
+| [`crates/`](crates/README.md)       | The Rust toolchain                                                            |
+| [`examples/`](examples/)            | Code the site's guides quote; it builds and is tested with the workspace      |
+| [`corpus/`](corpus/README.md)       | Real files from open-source projects, and the official tools' output for them |
+| [`tools/`](tools/README.md)         | TypeScript tools: the fixture runner, the performance gate, …                 |
+| [`apps/site/`](apps/site/README.md) | The project site, built with SvelteKit                                        |
 
-Most native JavaScript tools only understand JavaScript and TypeScript files.
-They must call the JavaScript-based Svelte compiler to work with `.svelte`
-files. rsvelte implements the compiler and related tools in Rust.
+## How it works
 
-This lets tools such as oxlint, oxfmt, Rolldown, and tsgo add Svelte support
-without starting the JavaScript compiler.
+- The **kernel** knows no language. It holds sources and spans, a database of derived
+  artifacts (computed once per document and shared), and the scheduler that runs tasks.
+- Next to it, the **plugin interface** is how a host installs a plugin. The lint runner and the
+  document printer are parts that lint and format tasks may use; any other task needs neither.
+- A language's **syntax** crate holds its trees and parser; its **semantic** crate analyses those
+  trees. Each registers its work as artifacts.
+- Each **tool** (compile, lint, format, check) is its own crate. It registers one task, which
+  reads the artifacts it needs. Syntax and semantic never depend on a tool, so tools share one
+  parse.
+- A **host** (the `rsvelte` command line, the browser build) chooses which tools to register
+  and runs them.
 
-## Quick start
+## Correctness and speed
 
-Use the Vite plugin in a standard Vite and Svelte project:
+The expected output for the files in `corpus/` comes from the official tools, such as `svelte`,
+`prettier`, `eslint` and `svelte-check`. rsvelte must match it. The performance gate compares
+allocation and instruction counts with `tools/performance/baseline.json`.
 
-```bash
-npm install -D @rsvelte/vite-plugin-svelte
+## Commands
+
+```sh
+cargo test                                        # Rust tests, the fixture tests included
+mise run lint                                     # clippy and rustdoc, every lint denies
+mise run fmt                                      # rustfmt on the pinned nightly
+pnpm install && pnpm run check                    # TypeScript side: oxfmt, oxlint, knip, tsc, the English prose lint
+node tools/oracle/oracle.ts run-all               # rsvelte's output for every corpus unit
+cargo test -p rsvelte_command_line --test corpus  # compare it with the official tools' output
+node tools/performance/performance.ts ratchet     # the performance gate
+cargo run -p rsvelte_command_line -- run App.svelte --task svelte.compile/client
 ```
 
-```js
-// vite.config.js
-import { svelte } from "@rsvelte/vite-plugin-svelte";
-import { defineConfig } from "vite";
-
-export default defineConfig({
-  plugins: [svelte()],
-});
-```
-
-SvelteKit requires a package manager override. Do not add a second Vite plugin.
-See the
-[`@rsvelte/vite-plugin-svelte` setup guide](apps/npm/vite-plugin-svelte/README.md)
-for the exact configuration.
-
-## Packages
-
-Each package has its own installation guide, API details, and current
-limitations.
-
-| Use case                                           | Package                                                                              |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Vite and SvelteKit                                 | [`@rsvelte/vite-plugin-svelte`](apps/npm/vite-plugin-svelte/README.md)               |
-| Svelte compiler for JavaScript and browsers (Wasm) | [`@rsvelte/compiler`](apps/npm/compiler/README.md)                                   |
-| Svelte compiler for Node.js (native N-API)         | [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native/README.md) |
-| Type-checking CLI                                  | [`@rsvelte/svelte-check`](apps/npm/svelte-check/README.md)                           |
-| Svelte-to-TSX conversion                           | [`@rsvelte/svelte2tsx`](apps/npm/svelte2tsx/README.md)                               |
-| Formatting                                         | [`@rsvelte/fmt`](apps/npm/fmt/README.md)                                             |
-| Standalone linting                                 | [`@rsvelte/lint`](apps/npm/lint/README.md)                                           |
-| Svelte diagnostics in oxlint                       | [`@rsvelte/oxlint-plugin`](apps/npm/oxlint-plugin/README.md)                         |
-| Language server                                    | [`@rsvelte/language-server`](apps/npm/language-server/README.md)                     |
-| VS Code                                            | [`rsvelte`](apps/npm/vscode/README.md)                                        |
-| Neovim, Sublime Text, Helix, and Emacs             | [Editor setup](editors/README.md)                                                    |
-| Zed                                                | [`rsvelte` Zed extension](apps/zed/README.md)                                        |
-| Rust API                                           | [`rsvelte`](crates/rsvelte/README.md)                                                |
-| C API and other languages                          | [`rsvelte_capi`](crates/rsvelte_capi/README.md)                                      |
-
-## Compatibility and performance
-
-<!-- svelte-target-version -->
-
-**Targeting Svelte `v5.57.3`** ([`23bb146306ff`](https://github.com/sveltejs/svelte/commit/23bb146306ff)). This line is updated by `pnpm run update-docs`.
-<!-- /svelte-target-version -->
-
-rsvelte passes 100% of the official Svelte fixtures currently in scope. CI also
-compares compiler output, diagnostics, formatting, linting, TypeScript output,
-source maps, and generated edge cases with the official tools.
-
-- [Live compatibility results](https://baseballyama.github.io/rsvelte/progress)
-- [Compatibility checks](compatibility/GATES.md#README)
-- [Real-world test method](scripts/compat-corpus/README.md)
-- [Live benchmarks and test details](https://baseballyama.github.io/rsvelte/benchmark)
-
-The Svelte 4-to-5 migration tool is not in scope.
-
-## Contributing
-
-```bash
-git submodule update --init --checkout --recursive
-pnpm install
-pnpm run generate-fixtures
-cargo test --release
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for requirements, test commands,
-debugging steps, performance tests, and pull request rules.
-
-## License
-
-[MIT](LICENSE)
+`rust-toolchain.toml` and `mise.toml` pin the versions. Contributor rules are in
+[AGENTS.md](AGENTS.md).

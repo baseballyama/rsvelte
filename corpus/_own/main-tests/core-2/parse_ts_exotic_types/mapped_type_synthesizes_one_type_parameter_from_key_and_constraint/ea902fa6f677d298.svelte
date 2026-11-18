@@ -1,0 +1,1 @@
+<script lang="ts">type M2 = { readonly [K in "a" as `x${K}`]?: number };</script>

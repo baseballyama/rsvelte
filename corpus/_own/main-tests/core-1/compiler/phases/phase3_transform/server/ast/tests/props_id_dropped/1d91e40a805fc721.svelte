@@ -1,0 +1,1 @@
+<script>const uid = $props.id();</script><p>x</p>

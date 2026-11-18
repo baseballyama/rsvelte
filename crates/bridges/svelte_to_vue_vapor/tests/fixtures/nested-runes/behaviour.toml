@@ -1,0 +1,7 @@
+include_unmount = true
+[[steps]]
+click = "#first"
+[[steps]]
+click = "#first"
+[[steps]]
+click = "#second"

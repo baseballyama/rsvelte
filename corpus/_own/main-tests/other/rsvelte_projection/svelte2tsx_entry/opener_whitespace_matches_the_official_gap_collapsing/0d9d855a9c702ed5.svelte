@@ -1,0 +1,1 @@
+<div class="a" {...attributes}>x</div>

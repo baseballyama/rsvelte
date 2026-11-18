@@ -1,0 +1,1 @@
+<script lang="ts">import X from './deeper/Leaf.svelte';</script>

@@ -1,0 +1,1 @@
+<script>function probe(flag) { switch (flag) { case true: var value = $derived(1); return value; } }</script>

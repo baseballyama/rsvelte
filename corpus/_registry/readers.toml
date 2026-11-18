@@ -1,0 +1,7 @@
+# Tasks that compare one file of another task's official output instead of a pack of their own.
+# A unit keeps its entries in that pack while the pack's own task or any reader of it applies,
+# and each reader is skipped in units.toml under its own name.
+
+["svelte.compile.warnings"]
+pack = "svelte.compile/client"
+file = "warnings.json"

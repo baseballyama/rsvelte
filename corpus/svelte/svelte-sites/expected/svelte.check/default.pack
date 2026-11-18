@@ -1,0 +1,373 @@
+# rsvelte pack 1
+=== 213 sites/hn.svelte.dev/src/lib/Nav.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 3 sites/hn.svelte.dev/src/lib/PreloadingIndicator.svelte	json
+[]
+
+=== 430 sites/hn.svelte.dev/src/lib/SubsetHTML.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './htmlSubsetParse' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	}
+]
+
+=== 3 sites/hn.svelte.dev/src/lib/ThemeToggler.svelte	json
+[]
+
+=== 213 sites/hn.svelte.dev/src/routes/+error.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	}
+]
+
+=== 1100 sites/hn.svelte.dev/src/routes/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Nav.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/PreloadingIndicator.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ThemeToggler.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../app.css'.",
+		"start": {
+			"line": 5,
+			"character": 8
+		},
+		"end": {
+			"line": 5,
+			"character": 20
+		}
+	}
+]
+
+=== 421 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	}
+]
+
+=== 942 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/ItemSummary.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	},
+	{
+		"code": 2552,
+		"message": "Cannot find name 'HNStory'. Did you mean 'History'?",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 29
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'HNJob'.",
+		"start": {
+			"line": 4,
+			"character": 32
+		},
+		"end": {
+			"line": 4,
+			"character": 37
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'HNPoll'.",
+		"start": {
+			"line": 4,
+			"character": 40
+		},
+		"end": {
+			"line": 4,
+			"character": 46
+		}
+	}
+]
+
+=== 3 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/NullItem.svelte	json
+[]
+
+=== 3 sites/hn.svelte.dev/src/routes/about/+page.svelte	json
+[]
+
+=== 853 sites/hn.svelte.dev/src/routes/item/[id=numeric]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/SubsetHTML.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 37
+		}
+	}
+]
+
+=== 818 sites/hn.svelte.dev/src/routes/item/[id=numeric]/Comment.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/SubsetHTML.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 37
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'AlgoliaComment'.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	}
+]
+
+=== 643 sites/hn.svelte.dev/src/routes/user/[name]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/SubsetHTML.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 37
+		}
+	}
+]
+

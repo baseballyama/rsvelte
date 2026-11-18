@@ -1,0 +1,1 @@
+{#each rows as item , i (item.id)}<p>{item}{i}</p>{/each}

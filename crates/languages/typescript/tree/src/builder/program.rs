@@ -1,0 +1,142 @@
+use oxc_diagnostics::Diagnostics;
+use oxc_parser::Parser;
+use oxc_parser::config::TokensParserConfig;
+use oxc_span::SourceType;
+use rsvelte_kernel::source::positions::Span;
+
+use super::{Builder, Part, parentheses};
+use crate::ProgramIdentifier;
+use crate::acorn_grammar::{rejection, whitespace};
+use crate::syntax_error::{SyntaxError, acorn, syntax_error, typescript_eslint_at};
+
+impl<'a> Builder<'a> {
+    /// Parses `range` of the document as a program, such as the body of a `<script>` element.
+    ///
+    /// # Errors
+    ///
+    /// The first syntax error.
+    pub fn program(
+        &mut self,
+        range: Span,
+        source_type: SourceType,
+    ) -> Result<ProgramIdentifier, SyntaxError> {
+        let text = &self.source_text[..range.end_offset as usize];
+        (self.read_program(text, range.start_offset, source_type, false)).map_err(|read| read.error)
+    }
+
+    /// [`Self::program`], for a host that reports another error than the first, or whose own
+    /// parser tolerates some of oxc's errors.
+    ///
+    /// # Errors
+    ///
+    /// Every error oxc reported, in order, with the program oxc recovered when no error stopped
+    /// it.
+    pub fn program_or_errors(
+        &mut self,
+        range: Span,
+        source_type: SourceType,
+    ) -> Result<ProgramIdentifier, Rejected> {
+        let text = &self.source_text[..range.end_offset as usize];
+        let start = range.start_offset;
+        self.read_program(text, start, source_type, true)
+            .map_err(|rejected| {
+                let program = (rejected.recovered).map(|program| &self.programs[program.index()]);
+                let errors = rejected.diagnostics.into_iter().map(|e| {
+                    let at = program.and_then(|program| {
+                        typescript_eslint_at(&e, |locator| Part::Program(program).walk(locator))
+                    });
+                    let mut error = syntax_error([e], text, &[], start, 0);
+                    error.typescript_eslint_at = at;
+                    error
+                });
+                Rejected {
+                    errors: errors.collect(),
+                    recovered: rejected.recovered,
+                }
+            })
+    }
+
+    /// Parses `text[start..]`, where `text` is the document up to the program's end, with oxc's
+    /// errors when it fails, and, when `keep_recovered`, the program oxc recovered unless an error
+    /// stopped it.
+    fn read_program(
+        &mut self,
+        text: &'a str,
+        start: u32,
+        source_type: SourceType,
+        keep_recovered: bool,
+    ) -> Result<ProgramIdentifier, Box<Read>> {
+        let parsed = Parser::new(self.allocator, text, source_type)
+            .with_options(parentheses::options(false))
+            .with_config(TokensParserConfig)
+            .with_start(start)
+            .parse();
+        if parsed.fatal_error {
+            let acorn = (parsed.diagnostics.first())
+                .and_then(|first| acorn(first, text, (&parsed.tokens, None), |_| {}));
+            let mut error = syntax_error(parsed.diagnostics.iter().cloned(), text, &[], start, 0);
+            error.acorn = acorn;
+            let stop = (self.as_acorn)
+                .then(|| whitespace(text, &parsed.irregular_whitespaces, 0))
+                .flatten();
+            if let Some(stop) = stop.filter(|stop| stop.0 <= error.acorn_at()) {
+                error = rejection(stop);
+            }
+            return Err(Box::new(Read {
+                error,
+                diagnostics: parsed.diagnostics,
+                recovered: None,
+            }));
+        }
+        let part = Part::Program(&parsed.program);
+        let rejection = match self.check(
+            &parsed.diagnostics,
+            (text, start, 0),
+            (&parsed.tokens, None, &parsed.irregular_whitespaces),
+            (part, source_type),
+        ) {
+            Ok(()) => None,
+            Err(error) if keep_recovered => Some(error),
+            Err(error) => {
+                return Err(Box::new(Read {
+                    error,
+                    diagnostics: parsed.diagnostics,
+                    recovered: None,
+                }));
+            }
+        };
+        let mut program = parsed.program;
+        // The program keeps its comments; the part keeps a copy, as few programs have many.
+        let comments =
+            oxc_allocator::Vec::from_iter_in(program.comments.iter().cloned(), &self.allocator);
+        let comments = comments.into_arena_slice();
+        self.record(parsed.tokens.into_arena_slice(), comments, 0);
+        // Its spans are the document's, so a task that reads text at a span reads the document.
+        program.source_text = self.source_text;
+        let identifier = crate::push(&mut self.programs, program);
+        match rejection {
+            None => Ok(identifier),
+            Some(error) => Err(Box::new(Read {
+                error,
+                diagnostics: parsed.diagnostics,
+                recovered: Some(identifier),
+            })),
+        }
+    }
+}
+
+/// What oxc read of a program the host's parser rejects.
+#[derive(Debug)]
+pub struct Rejected {
+    /// Every error oxc reported, in order.
+    pub errors: Vec<SyntaxError>,
+    /// The program oxc recovered; `None` when an error stopped it.
+    pub recovered: Option<ProgramIdentifier>,
+}
+
+/// [`Builder::read_program`]'s rejection.
+struct Read {
+    error: SyntaxError,
+    diagnostics: Diagnostics,
+    recovered: Option<ProgramIdentifier>,
+}

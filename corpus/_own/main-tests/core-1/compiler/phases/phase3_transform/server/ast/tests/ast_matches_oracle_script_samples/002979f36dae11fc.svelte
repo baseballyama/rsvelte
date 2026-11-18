@@ -1,0 +1,1 @@
+<script>class C { r = $state.raw(7); }</script><p>x</p>

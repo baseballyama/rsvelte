@@ -1,0 +1,99 @@
+use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
+
+use super::*;
+
+fn task_output(source_text: &str) -> TaskOutput {
+    let mut registry = Registry::new();
+    register(&mut registry);
+    let document = registry.document("A.svelte", source_text).expect("small");
+    let result = run(
+        &registry,
+        &[document],
+        &RunOptions {
+            tasks: &["svelte.format/default"],
+            sharing: Sharing::Shared,
+            threads: Some(1),
+        },
+    )
+    .expect("valid plugins")
+    .remove(0);
+    result.outputs.into_iter().next().expect("the task ran").1
+}
+
+#[test]
+fn format_gives_what_the_task_writes() {
+    let source_text = "<script>let a=1</script>\n<p   class='x'>{a}</p>\n";
+    let output = task_output(source_text);
+    assert_eq!(output.files.len(), 1);
+    assert_eq!(
+        format(source_text, &Options::default()).expect("formats"),
+        output.files[0].text
+    );
+}
+
+#[test]
+fn format_reports_what_the_task_reports() {
+    let source_text = "<p>{</p>";
+    let output = task_output(source_text);
+    let error = format(source_text, &Options::default()).expect_err("does not parse");
+    let reported = output.diagnostics.first().expect("the task reports it");
+    assert_eq!(
+        (&error.code, &error.message, error.span),
+        (&reported.code, &reported.message, reported.span)
+    );
+}
+
+// Prettier 3.9.10 with prettier-plugin-svelte 4.1.1 cuts the first two sheets at the `</style>`
+// inside them and rejects the rest as markup; the formatter refuses them.
+#[test]
+fn a_sheet_the_plugin_cuts_at_a_closing_tag_inside_it_is_refused() {
+    for source_text in [
+        "<p class=\"a\">x</p>\n<style>.a { content: \"a</style>b\" }</style>\n",
+        "<p class=\"a\">x</p>\n<style>/* </style > */ .a { color: red }</style>\n",
+    ] {
+        let error = format(source_text, &Options::default()).expect_err(source_text);
+        assert_eq!(error.code, "format_unsupported", "{source_text}");
+        let output = task_output(source_text);
+        assert_eq!(output.diagnostics[0].code, "format_unsupported");
+    }
+    // A `</style` the plugin does not read as a closing tag is the sheet's.
+    let source_text = "<p class=\"a\">x</p>\n<style>.a { content: \"</styles>\" }</style>\n";
+    format(source_text, &Options::default()).expect("the sheet is whole");
+}
+
+// The plugin reads a script the compiler rejects with `babel-ts`, and keeps the body of one Babel
+// throws on as it is, as the units of `ts_class_modifiers_3100_3203` record.
+#[test]
+fn a_script_the_compiler_rejects_is_formatted_as_the_plugin_reads_it() {
+    for (source_text, formatted) in [
+        (
+            "<script>\n\tclass C {\n\t\tprivate m() {}\n\t}\n</script>\n",
+            "<script>\n  class C {\n    private m() {}\n  }\n</script>\n",
+        ),
+        (
+            "<script>\n\tclass C {\n\t\toverride m() {}\n\t}\n</script>\n",
+            "<script>\n\tclass C {\n\t\toverride m() {}\n\t}\n</script>\n",
+        ),
+        // Prettier's TypeScript parser, which reads `lang="ts"`, accepts it.
+        (
+            "<script lang=\"ts\">\n\tclass C {\n\t\toverride m() {}\n\t}\n</script>\n",
+            "<script lang=\"ts\">\n  class C {\n    override m() {}\n  }\n</script>\n",
+        ),
+        (
+            "<script>\n\tclass B {}\n\tclass C extends B {\n\t\toverride m() {}\n\t}\n</script>\n",
+            "<script>\n  class B {}\n  class C extends B {\n    override m() {}\n  }\n</script>\n",
+        ),
+    ] {
+        let output = task_output(source_text);
+        assert_eq!(output.files[0].text, formatted, "{source_text}");
+        let text = format(source_text, &Options::default()).expect(source_text);
+        assert_eq!(text, formatted, "{source_text}");
+    }
+    // TypeScript rejects it too, so the plugin prints it as written.
+    let source_text = "<script>\n\tlet x = ;\n</script>\n";
+    assert_eq!(
+        format(source_text, &Options::default()).expect(source_text),
+        source_text
+    );
+    assert_eq!(task_output(source_text).files[0].text, source_text);
+}

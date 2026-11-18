@@ -1,0 +1,1 @@
+<script>let o = {[1 + "a‮b"]: 1};</script>

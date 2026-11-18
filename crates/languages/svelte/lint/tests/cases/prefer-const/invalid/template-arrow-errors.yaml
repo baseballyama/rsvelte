@@ -1,0 +1,4 @@
+- message: "'b' is never reassigned. Use 'const' instead."
+  line: 8
+  column: 7
+  suggestions: null

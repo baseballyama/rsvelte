@@ -1,0 +1,1 @@
+<script>class C { x = $state(")"); }</script>

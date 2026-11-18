@@ -1,0 +1,1 @@
+<slot let:item>{item}</slot>

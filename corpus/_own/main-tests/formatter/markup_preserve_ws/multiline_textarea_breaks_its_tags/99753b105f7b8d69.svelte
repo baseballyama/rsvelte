@@ -1,0 +1,2 @@
+<textarea>static
+	multiline</textarea>

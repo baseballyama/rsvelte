@@ -1,0 +1,1 @@
+<script>const c = 'p';</script><a href="/{c}/q">x</a>

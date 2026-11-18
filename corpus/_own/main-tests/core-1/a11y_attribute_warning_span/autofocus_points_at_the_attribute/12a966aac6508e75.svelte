@@ -1,0 +1,1 @@
+<input class="a" autofocus />

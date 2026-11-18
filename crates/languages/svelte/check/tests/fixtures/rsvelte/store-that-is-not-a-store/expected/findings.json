@@ -1,0 +1,26 @@
+[
+	{
+		"code": 2769,
+		"message": "Cannot use 'count' as a store. 'count' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  The last overload gave the following error.\n    Argument of type 'number' is not assignable to parameter of type 'SvelteStore<any>'.",
+		"start": {
+			"line": 5,
+			"character": 17
+		},
+		"end": {
+			"line": 5,
+			"character": 23
+		}
+	},
+	{
+		"code": 2769,
+		"message": "Cannot use 'count' as a store. 'count' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  The last overload gave the following error.\n    Argument of type 'number' is not assignable to parameter of type 'SvelteStore<any>'.",
+		"start": {
+			"line": 8,
+			"character": 4
+		},
+		"end": {
+			"line": 8,
+			"character": 10
+		}
+	}
+]

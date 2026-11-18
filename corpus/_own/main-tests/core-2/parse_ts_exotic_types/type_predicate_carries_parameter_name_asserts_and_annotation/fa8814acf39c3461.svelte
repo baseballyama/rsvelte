@@ -1,0 +1,1 @@
+<script lang="ts">type P4 = (this: unknown) => this is string;</script>

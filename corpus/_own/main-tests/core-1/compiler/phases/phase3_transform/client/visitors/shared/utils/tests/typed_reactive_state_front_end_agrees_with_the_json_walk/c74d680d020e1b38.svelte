@@ -1,0 +1,1 @@
+<Test a={new Foo(1)} />

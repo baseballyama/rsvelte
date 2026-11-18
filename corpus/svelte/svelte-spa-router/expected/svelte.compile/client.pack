@@ -1,0 +1,1449 @@
+# rsvelte pack 1
+=== 647 examples/basic-routing/src/App.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Router from 'svelte-spa-router';
+import routes from './routes';
+
+var root = $.from_html(`<h1>svelte-spa-router sample</h1> <h2>Basic routing</h2> <ul><li><a href="#/">Home</a></li> <li><a href="#/hello/svelte">Say hi!</a></li> <li><a href="#/wild/card">Wildcard route</a></li> <li><a href="#/does/not/exist">Not found</a></li></ul> <!>`, 1);
+
+export default function App($$anchor) {
+	var fragment = root();
+	var node = $.sibling($.first_child(fragment), 6);
+
+	Router(node, {
+		get routes() {
+			return routes;
+		}
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 680 examples/basic-routing/src/routes/Home.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h2>Home component</h2> <p>This sample shows how to set up the router with minimum functionality. <br/> The route definition object contains a number of routes (including some with parameters and a catch-all at the end).<br/> The links below allow navigating between pages.</p> <p>This is the Home component, which contains markup only.</p> <p><em>Hint:</em> Try navigating with the links below, then use your browser's back and forward buttons.</p>`, 1);
+
+export default function Home($$anchor) {
+	var fragment = root();
+
+	$.next(6);
+	$.append($$anchor, fragment);
+}
+=== 1131 examples/basic-routing/src/routes/Name.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h2>Hi there!</h2> <p>Your name is: <b> </b> <b><!></b></p> <p>This comes from the URL, matching <code>/hello/:first/:last?</code>, where the last name is optional.</p> <p><em>Hint:</em> Try changing the URL and add your name, e.g. <code>/hello/alex</code> or <code>/hello/jane/doe</code></p>`, 1);
+
+export default function Name($$anchor, $$props) {
+	$.push($$props, true);
+
+	const params = $.prop($$props, 'params', 19, () => ({}));
+	var fragment = root();
+	var p = $.sibling($.first_child(fragment), 2);
+	var b = $.sibling($.child(p));
+	var text = $.only_child(b, true);
+	var b_1 = $.sibling(b, 2);
+	var node = $.child(b_1);
+
+	{
+		var consequent = ($$anchor) => {
+			var text_1 = $.text();
+
+			$.template_effect(() => $.set_text(text_1, params().last));
+			$.append($$anchor, text_1);
+		};
+
+		$.if(node, ($$render) => {
+			if (params().last) $$render(consequent);
+		});
+	}
+
+	$.reset(b_1);
+	$.reset(p);
+	$.next(4);
+	$.template_effect(() => $.set_text(text, params().first));
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 291 examples/basic-routing/src/routes/NotFound.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h2>NotFound</h2> <p>Oops, this route doesn't exist!</p>`, 1);
+
+export default function NotFound($$anchor) {
+	var fragment = root();
+
+	$.next(2);
+	$.append($$anchor, fragment);
+}
+=== 643 examples/basic-routing/src/routes/Wild.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h2>Wildcard</h2> <p>Anything in the URL after <code>/wild/</code> is shown below as message. That's found in the <code>params.wild</code> prop.</p> <p> </p>`, 1);
+
+export default function Wild($$anchor, $$props) {
+	$.push($$props, true);
+
+	const params = $.prop($$props, 'params', 19, () => ({}));
+	var fragment = root();
+	var p = $.sibling($.first_child(fragment), 4);
+	var text = $.only_child(p);
+
+	$.template_effect(() => $.set_text(text, `Your message is: ${params().wild ?? ''}`));
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 742 examples/dynamic-imports/src/App.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Router from 'svelte-spa-router';
+import routes from './routes';
+
+var root = $.from_html(`<h1>svelte-spa-router sample</h1> <h2>Dynamic imports</h2> <ul><li><a href="#/">Home</a></li> <li><a href="#/hello/svelte">Say hi!</a> (dynamically imported route)</li> <li><a href="#/wild/card">Wildcard route</a> (dynamically imported route, with a 5 seconds artificial delay)</li> <li><a href="#/does/not/exist">Not found</a></li></ul> <!>`, 1);
+
+export default function App($$anchor) {
+	var fragment = root();
+	var node = $.sibling($.first_child(fragment), 6);
+
+	Router(node, {
+		get routes() {
+			return routes;
+		}
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 992 examples/dynamic-imports/src/routes/Home.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h2>Home component</h2> <p>This sample shows how to dynamically import components. These are modules imported on-demand with the <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import"><code>import()</code> method</a>.<br/> Bundlers like Vite, Rollup and Webpack support automatic code splitting when you use dynamic imports, so after compiling this sample, in the <code>dist/</code> folder you'll see a bunch of different JavaScript files. At runtime, the browser requests them only when you first navigate to the route (and then they're cached).</p> <p>This is the Home component, which contains markup only.</p> <p><em>Hint:</em> Try navigating with the links below, then use your browser's back and forward buttons.</p>`, 1);
+
+export default function Home($$anchor) {
+	var fragment = root();
+
+	$.next(6);
+	$.append($$anchor, fragment);
+}
+=== 546 examples/dynamic-imports/src/routes/Loading.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h2>Loading…</h2> <p>We're loading the route! Please wait 5 seconds.</p> <p> </p>`, 1);
+
+export default function Loading($$anchor, $$props) {
+	$.push($$props, true);
+
+	var fragment = root();
+	var p = $.sibling($.first_child(fragment), 4);
+	var text = $.only_child(p);
+
+	$.template_effect(() => $.set_text(text, `Here's your message: ${($$props.params && $$props.params.message) ?? ''}`));
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 833 examples/dynamic-imports/src/routes/Wild.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h2>Wildcard</h2> <p>Anything in the URL after <code>/wild/</code> is shown below as message. That's found in the <code>params.wild</code> prop.</p> <p> </p> <p>Note that this route was artificially delayed for 5 seconds to let us see the <code>Loading</code> component even when the network is fast (such as testing on localhost).</p>`, 1);
+
+export default function Wild($$anchor, $$props) {
+	$.push($$props, true);
+
+	const params = $.prop($$props, 'params', 19, () => ({}));
+	var fragment = root();
+	var p = $.sibling($.first_child(fragment), 4);
+	var text = $.only_child(p);
+
+	$.next(2);
+	$.template_effect(() => $.set_text(text, `Your message is: ${params().wild ?? ''}`));
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 15950 src/Router.svelte	js
+import 'svelte/internal/disclose-version';
+import { tick, untrack } from 'svelte';
+import * as $ from 'svelte/internal/client';
+import { parse } from 'regexparam';
+
+class RouterStateImpl {
+	#_loc = /** The current full location (incl. querystring) */
+	$.state(getLocation());
+
+	get _loc() {
+		return $.get(this.#_loc);
+	}
+
+	set _loc(value) {
+		$.set(this.#_loc, value);
+	}
+
+	#_location = $.derived(() => this._loc.location);
+
+	get _location() {
+		return $.get(this.#_location);
+	}
+
+	set _location(value) {
+		$.set(this.#_location, value);
+	}
+
+	#_querystring = $.derived(() => this._loc.querystring);
+
+	get _querystring() {
+		return $.get(this.#_querystring);
+	}
+
+	set _querystring(value) {
+		$.set(this.#_querystring, value);
+	}
+
+	#_params = $.state(undefined);
+
+	get _params() {
+		return $.get(this.#_params);
+	}
+
+	set _params(value) {
+		$.set(this.#_params, value);
+	}
+
+	get loc() {
+		return this._loc;
+	}
+
+	/** The current location (excluding querystring) */
+	get location() {
+		return this._location;
+	}
+
+	/** The current querystring */
+	get querystring() {
+		return this._querystring;
+	}
+
+	get params() {
+		return this._params;
+	}
+
+	constructor() {
+		if (typeof window !== 'undefined') {
+			window.addEventListener('hashchange', () => {
+				this._loc = getLocation();
+			});
+		} else {
+			// eslint-disable-next-line no-console
+			console.warn("[svelte-spa-router] window 'window' is not defined, skipping initiation");
+		}
+	}
+}
+
+/** Router state object, containing the current location, querystring and params. */
+export const router = new RouterStateImpl();
+
+/** Returns the current location from the hash. */
+function getLocation() {
+	const currentHref = typeof window !== 'undefined' ? window.location.href : '';
+	const hashPosition = currentHref.indexOf('#/');
+	let location = hashPosition > -1 ? currentHref.substr(hashPosition + 1) : '/';
+
+	// Check if there's a querystring
+	const qsPosition = location.indexOf('?');
+
+	let querystring = '';
+
+	if (qsPosition > -1) {
+		querystring = location.substr(qsPosition + 1);
+		location = location.substr(0, qsPosition);
+	}
+
+	return { location, querystring };
+}
+
+/**
+ * Navigates to a new page programmatically.
+ *
+ * @param location - Path to navigate to (must start with `/` or `#/`)
+ * @returns Promise that resolves after the page navigation has completed
+ */
+export async function push(location) {
+	if (!location || location.length < 1 || location.charAt(0) != '/' && location.indexOf('#/') !== 0) {
+		throw Error('Invalid parameter location');
+	}
+
+	// Execute this code when the current call stack is complete
+	await tick();
+
+	// Note: this will include scroll state in history even when restoreScrollState is false
+	history.replaceState(
+		{
+			...history.state,
+			__svelte_spa_router_scrollX: window.scrollX,
+			__svelte_spa_router_scrollY: window.scrollY
+		},
+		''
+	);
+
+	window.location.hash = (location.charAt(0) == '#' ? '' : '#') + location;
+}
+
+/**
+ * Navigates back in history (equivalent to pressing the browser's back button).
+ *
+ * @returns Promise that resolves after the page navigation has completed
+ */
+export async function pop() {
+	// Execute this code when the current call stack is complete
+	await tick();
+
+	window.history.back();
+}
+
+/**
+ * Replaces the current page but without modifying the history stack.
+ *
+ * @param location - Path to navigate to (must start with `/` or `#/`)
+ * @returns Promise that resolves after the page navigation has completed
+ */
+export async function replace(location) {
+	if (!location || location.length < 1 || location.charAt(0) != '/' && location.indexOf('#/') !== 0) {
+		throw Error('Invalid parameter location');
+	}
+
+	// Execute this code when the current call stack is complete
+	await tick();
+
+	const dest = (location.charAt(0) == '#' ? '' : '#') + location;
+
+	try {
+		const newState = { ...history.state };
+
+		delete newState['__svelte_spa_router_scrollX'];
+		delete newState['__svelte_spa_router_scrollY'];
+		window.history.replaceState(newState, '', dest);
+	} catch {
+		// eslint-disable-next-line no-console
+		console.warn('Caught exception while replacing the current page. If you\'re running this in the Svelte REPL, please note that the `replace` method might not work in this environment.');
+	}
+
+	// The method above doesn't trigger the hashchange event, so let's do that manually
+	window.dispatchEvent(new Event('hashchange'));
+}
+
+/**
+ * Svelte Action that enables a link element (`<a>`) to use our history management.
+ *
+ * For example:
+ *
+ * ```html
+ * <a href="/books" use:link>View books</a>
+ * ```
+ */
+export function link(node, opts) {
+	let currentOpts = linkOpts(opts);
+
+	// Only apply to <a> tags
+	if (!node || !node.tagName || node.tagName.toLowerCase() != 'a') {
+		throw Error('Action "link" can only be used with <a> tags');
+	}
+
+	// Set initial href
+	updateLinkHref(node, currentOpts);
+
+	// Add click handler once, using currentOpts reference
+	const clickHandler = (event) => {
+		event.preventDefault();
+
+		if (!currentOpts.disabled) {
+			const target = event.currentTarget;
+			const href = target ? target.getAttribute('href') : null;
+
+			if (href) {
+				scrollstateHistoryHandler(href);
+			}
+		}
+	};
+
+	node.addEventListener('click', clickHandler);
+
+	return {
+		update(updated) {
+			currentOpts = linkOpts(updated);
+			updateLinkHref(node, currentOpts);
+		},
+
+		destroy() {
+			node.removeEventListener('click', clickHandler);
+		}
+	};
+}
+
+/** Tries to restore the scroll state from the given history state. */
+export function restoreScroll(state) {
+	// If this exists, then this is a back navigation: restore the scroll position
+	if (state) {
+		window.scrollTo(state.__svelte_spa_router_scrollX || 0, state.__svelte_spa_router_scrollY || 0);
+	} else {
+		// Otherwise this is a forward navigation: scroll to top
+		window.scrollTo(0, 0);
+	}
+}
+
+// Internal function used by the link function to update href attribute
+function updateLinkHref(node, opts) {
+	let href = opts.href || node.getAttribute('href');
+
+	// Destination must start with '/' or '#/'
+	if (href && href.charAt(0) == '/') {
+		// Add # to the href attribute
+		href = '#' + href;
+	} else if (!href || href.length < 2 || href.slice(0, 2) != '#/') {
+		throw Error('Invalid value for "href" attribute: ' + href);
+	}
+
+	node.setAttribute('href', href);
+}
+
+// Internal function that ensures the argument of the link action is always an object
+function linkOpts(val) {
+	if (typeof val == 'string') {
+		return { href: val };
+	}
+
+	return val || {};
+}
+
+/**
+ * The handler attached to an anchor tag responsible for updating the
+ * current history state with the current scroll state.
+ */
+function scrollstateHistoryHandler(href) {
+	// Setting the url (3rd arg) to href will break clicking for reasons, so don't try to do that
+	history.replaceState(
+		{
+			...history.state,
+			__svelte_spa_router_scrollX: window.scrollX,
+			__svelte_spa_router_scrollY: window.scrollY
+		},
+		''
+	);
+
+	// This will force an update as desired, but this time our scroll state will be attached
+	window.location.hash = href;
+}
+
+export default function Router($$anchor, $$props) {
+	$.push($$props, true);
+
+	const routes = $.prop($$props, 'routes', 19, () => ({})),
+		prefix = $.prop($$props, 'prefix', 3, ''),
+		restoreScrollState = $.prop($$props, 'restoreScrollState', 3, false),
+		onConditionsFailed = $.prop($$props, 'onConditionsFailed', 3, () => {}),
+		onRouteLoaded = $.prop($$props, 'onRouteLoaded', 3, () => {}),
+		onRouteLoading = $.prop($$props, 'onRouteLoading', 3, () => {}),
+		onRouteEvent = $.prop($$props, 'onRouteEvent', 3, () => {});
+
+	/** Container for a route: path, component */
+	class RouteItem {
+		path;
+		component;
+		conditions;
+		userData;
+		props;
+		_pattern;
+		_keys;
+
+		constructor(path, component) {
+			// The _sveltesparouter marker is set by `wrap()` via Object.defineProperty and is intentionally absent from the public WrappedComponent type
+			const isWrapped = (c) => typeof c == 'object' && c !== null && c._sveltesparouter === true;
+
+			if (!component || typeof component != 'function' && !isWrapped(component)) {
+				throw Error('Invalid component object');
+			}
+
+			// Path must be a regular expression, or a string starting with '/' or '*'
+			if (!path || typeof path == 'string' && (path.length < 1 || path.charAt(0) != '/' && path.charAt(0) != '*') || typeof path == 'object' && !(path instanceof RegExp)) {
+				throw Error('Invalid value for "path" argument - strings must start with / or *');
+			}
+
+			const parsed = typeof path == 'string' ? parse(path) : parse(path);
+
+			this.path = path;
+
+			// Check if the component is wrapped and we have conditions
+			if (isWrapped(component)) {
+				const wrapped = component;
+
+				this.component = wrapped.component;
+				this.conditions = wrapped.conditions || [];
+				this.userData = wrapped.userData;
+				this.props = wrapped.props || {};
+			} else {
+				const sync = component;
+
+				this.component = () => Promise.resolve(sync);
+				this.conditions = [];
+				this.props = {};
+			}
+
+			this._pattern = parsed.pattern;
+			this._keys = parsed.keys;
+		}
+
+		/**
+		 * Checks if `path` matches the current route.
+		 * Returns the list of parameters from the URL, or `null` if no match.
+		 */
+		match(path) {
+			// If there's a prefix, check if it matches the start of the path
+			// If not, bail early, else remove it before we run the matching
+			if (prefix()) {
+				if (typeof prefix() == 'string') {
+					if (path.startsWith(prefix())) {
+						path = path.substr(prefix().length) || '/';
+					} else {
+						return null;
+					}
+				} else if (prefix() instanceof RegExp) {
+					const m = path.match(prefix());
+
+					if (m && m[0]) {
+						path = path.substr(m[0].length) || '/';
+					} else {
+						return null;
+					}
+				}
+			}
+
+			// Check if the pattern matches
+			const matches = this._pattern.exec(path);
+
+			if (matches === null) {
+				return null;
+			}
+
+			// If the input was a regular expression, _keys is false; return matches as is
+			if (this._keys === false) {
+				return matches;
+			}
+
+			const out = {};
+			let i = 0;
+
+			while (i < this._keys.length) {
+				// URL-decode all values
+				try {
+					out[this._keys[i]] = decodeURIComponent(matches[i + 1] || '') || null;
+				} catch {
+					out[this._keys[i]] = null;
+				}
+
+				i++;
+			}
+
+			return out;
+		}
+
+		/** Executes all conditions in order; returns false at the first failure. */
+		async checkConditions(detail) {
+			for (let i = 0; i < this.conditions.length; i++) {
+				if (!await this.conditions[i](detail)) {
+					return false;
+				}
+			}
+
+			return true;
+		}
+	}
+
+	// Set up all routes
+	const routesList = [];
+
+	// svelte-ignore state_referenced_locally
+	// routes are static, initial capture is intended
+	if (routes() instanceof Map) {
+		routes().forEach((route, path) => {
+			routesList.push(new RouteItem(path, route));
+		});
+	} else {
+		Object.keys(routes()).forEach((path) => {
+			const map = routes();
+
+			routesList.push(new RouteItem(path, map[path]));
+		});
+	}
+
+	// State declarations for the currently-rendered route
+	let component = $.state(null);
+
+	let componentParams = $.state(null);
+	let routeProps = $.state({});
+	let previousScrollState = null;
+	let componentObj = null;
+
+	// Effects
+	$.user_effect(() => {
+		history.scrollRestoration = restoreScrollState() ? 'manual' : 'auto';
+	});
+
+	$.user_effect(() => {
+		if (!restoreScrollState()) {
+			return;
+		}
+
+		const popStateChanged = (event) => {
+			if (event.state && (event.state.__svelte_spa_router_scrollY || event.state.__svelte_spa_router_scrollX)) {
+				previousScrollState = event.state;
+			} else {
+				previousScrollState = null;
+			}
+		};
+
+		window.addEventListener('popstate', popStateChanged);
+
+		return () => window.removeEventListener('popstate', popStateChanged);
+	});
+
+	async function dispatchNextTick(event, detail) {
+		// Execute this code when the current call stack is complete
+		await tick();
+
+		event(detail);
+	}
+
+	$.user_effect(() => {
+		// React to loc changing and untrack everything else to prevent accidental dependencies
+		// Cancel operation after async work in case a new loc change happened in the meantime
+		const newLoc = router.loc;
+
+		let cancelled = false;
+
+		untrack(async () => {
+			let i = 0;
+
+			while (i < routesList.length) {
+				const match = routesList[i].match(newLoc.location);
+
+				if (!match) {
+					i++;
+
+					continue;
+				}
+
+				const matchParams = matchToParams(match);
+
+				const detail = {
+					route: routesList[i].path,
+					location: newLoc.location,
+					querystring: newLoc.querystring || '',
+					userData: routesList[i].userData,
+					params: matchParams
+				};
+
+				if (!await routesList[i].checkConditions(detail)) {
+					if (cancelled) {
+						return;
+					}
+
+					$.set(component, null);
+					componentObj = null;
+					dispatchNextTick(onConditionsFailed(), detail);
+
+					return;
+				}
+
+				if (cancelled) {
+					return;
+				}
+
+				dispatchNextTick(onRouteLoading(), { ...detail });
+
+				const obj = routesList[i].component;
+
+				if (componentObj != obj) {
+					if (obj.loading) {
+						$.set(component, obj.loading);
+						componentObj = obj;
+						$.set(componentParams, obj.loadingParams || null);
+						$.set(routeProps, {});
+
+						const comp = obj.loading;
+
+						dispatchNextTick(onRouteLoaded(), {
+							...detail,
+							component: comp,
+							name: comp.name,
+							params: obj.loadingParams || null
+						});
+					} else {
+						$.set(component, null);
+						componentObj = null;
+					}
+
+					const loaded = await obj();
+
+					if (cancelled) {
+						return;
+					}
+
+					$.set(component, loaded && typeof loaded == 'object' && 'default' in loaded ? loaded.default : loaded);
+					componentObj = obj;
+				}
+
+				$.set(componentParams, matchParams);
+				$.set(routeProps, routesList[i].props);
+
+				const comp = $.get(component);
+
+				if (comp) {
+					dispatchNextTick(onRouteLoaded(), {
+						...detail,
+						component: comp,
+						name: comp.name,
+						params: matchParams
+					});
+				}
+
+				router._params = matchParams;
+
+				if (restoreScrollState()) {
+					restoreScroll(previousScrollState);
+					previousScrollState = null;
+				}
+
+				return;
+			}
+
+			$.set(component, null);
+			componentObj = null;
+			router._params = undefined;
+
+			if (restoreScrollState()) {
+				restoreScroll(previousScrollState);
+				previousScrollState = null;
+			}
+		});
+
+		return () => {
+			cancelled = true;
+		};
+	});
+
+	function matchToParams(match) {
+		// Preserve all keys, including null values for unmatched optional params
+		return match && typeof match == 'object' && Object.keys(match).length ? match : null;
+	}
+
+	var fragment = $.comment();
+	var node_1 = $.first_child(fragment);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			const Component = $.derived(() => $.get(component));
+			var fragment_1 = $.comment();
+			var node_2 = $.first_child(fragment_1);
+
+			{
+				var consequent = ($$anchor) => {
+					var fragment_2 = $.comment();
+					var node_3 = $.first_child(fragment_2);
+
+					$.component(node_3, () => $.get(Component), ($$anchor, Component_1) => {
+						Component_1($$anchor, $.spread_props(
+							{
+								get params() {
+									return $.get(componentParams);
+								},
+
+								get onRouteEvent() {
+									return onRouteEvent();
+								}
+							},
+							() => $.get(routeProps)
+						));
+					});
+
+					$.append($$anchor, fragment_2);
+				};
+
+				var alternate = ($$anchor) => {
+					var fragment_3 = $.comment();
+					var node_4 = $.first_child(fragment_3);
+
+					$.component(node_4, () => $.get(Component), ($$anchor, Component_2) => {
+						Component_2($$anchor, $.spread_props(
+							{
+								get onRouteEvent() {
+									return onRouteEvent();
+								}
+							},
+							() => $.get(routeProps)
+						));
+					});
+
+					$.append($$anchor, fragment_3);
+				};
+
+				$.if(node_2, ($$render) => {
+					if ($.get(componentParams)) $$render(consequent); else $$render(alternate, -1);
+				});
+			}
+
+			$.append($$anchor, fragment_1);
+		};
+
+		$.if(node_1, ($$render) => {
+			if ($.get(component)) $$render(consequent_1);
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 270 test/app/src/App.svelte	css
+
+/* Style for "active" links; need to mark this :global because the router adds the class directly */
+a.active {
+    color: crimson;
+}
+/* Style for "inactive" links; need to mark this :global because the router adds the class directly */
+a.inactive {
+    color: gray;
+}
+
+=== 8293 test/app/src/App.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Router, { link, push, pop, replace, router } from 'svelte-spa-router';
+import active from 'svelte-spa-router/active';
+import routes from './routes';
+
+var root = $.from_html(`<li><a> </a> - <i role="button">delete link</i></li>`);
+var root_1 = $.from_html(`<li><a href="/foo"> </a> - <i role="button"><!></i></li>`);
+var root_2 = $.from_html(`<h1>svelte-spa-router example</h1>  <ul class="navigation-links"><li><a href="/">Home</a></li> <li><a href="/brand"><b>Brand</b></a></li> <li><a href="/hello/svelte">Say hi!</a></li> <li><a href="/does/not/exist">Not found</a></li></ul> <p class="navigation-buttons"><button>Visit /wild/something</button> <button>Go back</button> <button>Replace current page</button></p> <a href="/hello/svelte?quantity=100">Querystring args</a> <p>Current path: <code id="currentpath"> </code> <br/> Querystring: <code id="currentqs"> </code> <br/> Params: <code id="currentparams"> </code></p> <!> <h2>Dynamic links</h2> <ul class="navigation-dynamic-links"></ul> <h2>Dynamic links</h2> <ul class="navigation-disable-links"></ul> <p><a href="#/">This link</a> is active when you're matching <code>/*/hi</code></p> <pre id="logbox"> </pre>`, 1);
+
+export default function App($$anchor, $$props) {
+	$.push($$props, true);
+
+	// Import the router component, the "link" action, and methods to control history programmatically
+	// Import the "active" action
+	// Import the list of routes
+	// Contains logging information used by tests
+	let logbox = $.state('');
+
+	// Handles the "conditionsFailed" event dispatched by the router when a component can't be loaded because one of its pre-condition failed
+	function onConditionsFailed(detail) {
+		// eslint-disable-next-line no-console
+		console.error('Caught event conditionsFailed', detail);
+
+		$.set(logbox, $.get(logbox) + ('conditionsFailed - ' + JSON.stringify(detail) + '\n'));
+
+		// Replace the route
+		replace('/wild/conditions-failed');
+	}
+
+	// Handles the "routeLoaded" event dispatched by the router after a route has been successfully loaded
+	function onRouteLoaded(detail) {
+		// eslint-disable-next-line no-console
+		console.info('Caught event routeLoaded', detail);
+
+		$.set(logbox, $.get(logbox) + ('routeLoaded - ' + JSON.stringify(detail) + '\n'));
+	}
+
+	// Handles the "routeLoading" event dispatched by the router whie a route is being loaded
+	// If the route is dynamically imported, such as with the `import()` syntax, then there might be a delay before the route is loaded
+	function onRouteLoading(detail) {
+		// eslint-disable-next-line no-console
+		console.info('Caught event routeLoading', detail);
+
+		$.set(logbox, $.get(logbox) + ('routeLoading - ' + JSON.stringify(detail) + '\n'));
+	}
+
+	// Handles event bubbling up from nested routes
+	function onRouteEvent(detail) {
+		// eslint-disable-next-line no-console
+		console.info('Caught event routeEvent', detail);
+
+		$.set(logbox, $.get(logbox) + ('routeEvent - ' + JSON.stringify(detail) + '\n'));
+	}
+
+	// Enables the restoreScrollState option by checking for the "scroll=1" querystring parameter
+	// We're checking this for the tests, but in your code you will likely want to set this value manually
+	const urlParams = new URLSearchParams(window.location.search);
+
+	const restoreScrollState = !!urlParams.has('scroll');
+
+	// List of dynamic links
+	let dynamicLinks = $.state($.proxy([
+		{ id: 1, link: '/hello/dynamic-link-1' },
+		{ id: 2, link: '/hello/dynamic-link-2' },
+		{ id: 3, link: '/hello/dynamic-link-3' }
+	]));
+
+	// List of links that can be disabled
+	let disableLinks = $.proxy([
+		{
+			id: 1,
+			opts: {
+				//href: '/hello/disable-link-1',
+				disabled: false
+			}
+		},
+
+		{
+			id: 2,
+			opts: {
+				//href: '/hello/disable-link-2',
+				disabled: false
+			}
+		},
+
+		{
+			id: 3,
+			opts: { href: '/hello/disable-link-3', disabled: false }
+		}
+	]);
+
+	disableLinks.map((el) => {
+		el.toggle = () => {
+			el.opts.disabled = !el.opts.disabled;
+		};
+
+		return el;
+	});
+
+	var fragment = root_2();
+	var ul = $.sibling($.first_child(fragment), 2);
+	var li = $.child(ul);
+	var a = $.child(li);
+
+	$.action(a, ($$node) => link?.($$node));
+	$.action(a, ($$node) => active?.($$node));
+	$.reset(li);
+
+	var li_1 = $.sibling(li, 2);
+	var a_1 = $.child(li_1);
+
+	$.action(a_1, ($$node) => link?.($$node));
+	$.reset(li_1);
+
+	var li_2 = $.sibling(li_1, 2);
+	var a_2 = $.child(li_2);
+
+	$.action(a_2, ($$node) => link?.($$node));
+
+	$.action(a_2, ($$node, $$action_arg) => active?.($$node, $$action_arg), () => ({
+		path: '/hello/*',
+		className: 'active another-class',
+		inactiveClassName: 'inactive'
+	}));
+
+	$.reset(li_2);
+
+	var li_3 = $.sibling(li_2, 2);
+	var a_3 = $.child(li_3);
+
+	$.action(a_3, ($$node) => link?.($$node));
+	$.reset(li_3);
+	$.reset(ul);
+
+	var p = $.sibling(ul, 2);
+	var button = $.child(p);
+	var button_1 = $.sibling(button, 2);
+	var button_2 = $.sibling(button_1, 2);
+
+	$.reset(p);
+
+	var a_4 = $.sibling(p, 2);
+
+	$.action(a_4, ($$node) => link?.($$node));
+	$.action(a_4, ($$node, $$action_arg) => active?.($$node, $$action_arg), () => '/hello/*');
+
+	var p_1 = $.sibling(a_4, 2);
+	var code = $.sibling($.child(p_1));
+	var text = $.only_child(code, true);
+	var code_1 = $.sibling(code, 4);
+	var text_1 = $.only_child(code_1, true);
+	var code_2 = $.sibling(code_1, 4);
+	var text_2 = $.only_child(code_2, true);
+
+	$.reset(p_1);
+
+	var node = $.sibling(p_1, 2);
+
+	Router(node, {
+		get routes() {
+			return routes;
+		},
+		onConditionsFailed,
+		onRouteLoaded,
+		onRouteLoading,
+		onRouteEvent,
+		get restoreScrollState() {
+			return restoreScrollState;
+		}
+	});
+
+	var ul_1 = $.sibling(node, 4);
+
+	$.each(ul_1, 21, () => $.get(dynamicLinks), (dl) => dl.id, ($$anchor, dl) => {
+		var li_4 = root();
+		var a_5 = $.child(li_4);
+		var text_3 = $.only_child(a_5);
+
+		$.action(a_5, ($$node) => link?.($$node));
+		$.action(a_5, ($$node) => active?.($$node));
+
+		var i_1 = $.sibling(a_5, 2);
+
+		$.reset(li_4);
+
+		$.template_effect(() => {
+			$.set_attribute(a_5, 'id', `dynamic-link-${$.get(dl).id ?? ''}`);
+			$.set_attribute(a_5, 'href', $.get(dl).link);
+			$.set_text(text_3, `Dynamic Link ${$.get(dl).id ?? ''}`);
+			$.set_attribute(i_1, 'id', `delete-link-${$.get(dl).id ?? ''}`);
+		});
+
+		$.delegated('click', i_1, () => $.set(dynamicLinks, $.get(dynamicLinks).filter((e) => e.id != $.get(dl).id), true));
+		$.append($$anchor, li_4);
+	});
+
+	$.reset(ul_1);
+
+	var ul_2 = $.sibling(ul_1, 4);
+
+	$.each(ul_2, 23, () => disableLinks, (dl) => dl.id, ($$anchor, dl) => {
+		var li_5 = root_1();
+		var a_6 = $.child(li_5);
+		var text_4 = $.only_child(a_6);
+
+		$.action(a_6, ($$node, $$action_arg) => link?.($$node, $$action_arg), () => $.get(dl).opts);
+		$.action(a_6, ($$node) => active?.($$node));
+
+		var i_2 = $.sibling(a_6, 2);
+		var node_1 = $.child(i_2);
+
+		{
+			var consequent = ($$anchor) => {
+				var text_5 = $.text('enable link');
+
+				$.append($$anchor, text_5);
+			};
+
+			var alternate = ($$anchor) => {
+				var text_6 = $.text('disable link');
+
+				$.append($$anchor, text_6);
+			};
+
+			$.if(node_1, ($$render) => {
+				if ($.get(dl).opts.disabled) $$render(consequent); else $$render(alternate, -1);
+			});
+		}
+
+		$.reset(i_2);
+		$.reset(li_5);
+
+		$.template_effect(() => {
+			$.set_attribute(a_6, 'id', `disable-link-${$.get(dl).id ?? ''}`);
+			$.set_text(text_4, `Dynamic Link ${$.get(dl).id ?? ''}`);
+			$.set_attribute(i_2, 'id', `toggle-link-${$.get(dl).id ?? ''}`);
+		});
+
+		$.delegated('click', i_2, function (...$$args) {
+			$.get(dl).toggle?.apply(this, $$args);
+		});
+
+		$.append($$anchor, li_5);
+	});
+
+	$.reset(ul_2);
+
+	var p_2 = $.sibling(ul_2, 2);
+	var a_7 = $.child(p_2);
+
+	$.action(a_7, ($$node, $$action_arg) => active?.($$node, $$action_arg), () => /\/*\/hi/);
+	$.next(2);
+	$.reset(p_2);
+
+	var pre = $.sibling(p_2, 2);
+	var text_7 = $.only_child(pre, true);
+
+	$.template_effect(
+		($0) => {
+			$.set_text(text, router.location);
+			$.set_text(text_1, router.querystring);
+			$.set_text(text_2, $0);
+			$.set_text(text_7, $.get(logbox));
+		},
+		[() => JSON.stringify(router.params)]
+	);
+
+	$.delegated('click', button, () => push('/wild/something'));
+	$.delegated('click', button_1, () => pop());
+	$.delegated('click', button_2, () => replace('/wild/replaced'));
+	$.append($$anchor, fragment);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 1631 test/app/src/App.svelte	warnings.json
+[
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 58,
+			"column": 12,
+			"character": 1773
+		},
+		"end": {
+			"line": 63,
+			"column": 13,
+			"character": 1983
+		}
+	},
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<i>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 58,
+			"column": 12,
+			"character": 1773
+		},
+		"end": {
+			"line": 63,
+			"column": 13,
+			"character": 1983
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 77,
+			"column": 12,
+			"character": 2341
+		},
+		"end": {
+			"line": 83,
+			"column": 16,
+			"character": 2570
+		}
+	},
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<i>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 77,
+			"column": 12,
+			"character": 2341
+		},
+		"end": {
+			"line": 83,
+			"column": 16,
+			"character": 2570
+		}
+	}
+]
+
+=== 910 test/app/src/routes/Catalog.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { link } from 'svelte-spa-router';
+
+var root = $.from_html(`<h1 id="catalog"> </h1> <a id="previous" href="">Previous</a> <a id="next" href="">Next</a>`, 1);
+
+export default function Catalog($$anchor, $$props) {
+	$.push($$props, true);
+
+	// Import the link action
+	let id = $.derived(() => $$props.params && parseInt($$props.params.id, 10));
+
+	var fragment = root();
+	var h1 = $.first_child(fragment);
+	var text = $.only_child(h1);
+	var a = $.sibling(h1, 2);
+
+	$.action(a, ($$node, $$action_arg) => link?.($$node, $$action_arg), () => `/catalog/${$.get(id) - 1}`);
+
+	var a_1 = $.sibling(a, 2);
+
+	$.action(a_1, ($$node, $$action_arg) => link?.($$node, $$action_arg), () => `/catalog/${$.get(id) + 1}`);
+	$.template_effect(() => $.set_text(text, `Item ${$.get(id) ?? ''}`));
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 1274 test/app/src/routes/Foo.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p>We have a static prop: <b id="staticprop"> </b></p> <button type="button" id="fooeventtrigger">Trigger route event from Foo</button>`, 1);
+var root_1 = $.from_html(`<p>No static props here!</p>`);
+
+export default function Foo($$anchor, $$props) {
+	$.push($$props, true);
+
+	let staticProp = $.prop($$props, 'staticProp', 3, null),
+		onRouteEvent = $.prop($$props, 'onRouteEvent', 3, () => {});
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			var fragment_1 = root();
+			var p = $.first_child(fragment_1);
+			var b = $.sibling($.child(p));
+			var text = $.only_child(b, true);
+
+			$.reset(p);
+
+			var button = $.sibling(p, 2);
+
+			$.template_effect(() => $.set_text(text, staticProp()));
+			$.delegated('click', button, () => onRouteEvent()({ action: 'foo', staticProp: staticProp() }));
+			$.append($$anchor, fragment_1);
+		};
+
+		var alternate = ($$anchor) => {
+			var p_1 = root_1();
+
+			$.append($$anchor, p_1);
+		};
+
+		$.if(node, ($$render) => {
+			if (staticProp()) $$render(consequent); else $$render(alternate, -1);
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 751 test/app/src/routes/Home.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(
+	`<h2 class="routetitle">Home!</h2> <p>Welcome to this sample code!</p> <p>Things to try:</p> <ul><li>Navigate around with the links and buttons (notice how certain links become active depending
+        on the path</li> <li>Try pressing the browsers' back and forward buttons</li> <li>The "Replace current page" button will change the page without adding a new item in the
+        history stack (try pressing the back button!)</li> <li>Manually change the URL's fragment/hash</li> <li>Try refreshing the page</li></ul>`,
+	1
+);
+
+export default function Home($$anchor) {
+	var fragment = root();
+
+	$.next(6);
+	$.append($$anchor, fragment);
+}
+=== 809 test/app/src/routes/Loading.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p id="loadingmessage"> </p>`);
+var root_1 = $.from_html(`<h2 class="routetitle">Loading</h2> <p id="pleasewait">Please wait…</p> <!>`, 1);
+
+export default function Loading($$anchor, $$props) {
+	$.push($$props, true);
+
+	let params = $.prop($$props, 'params', 3, null);
+	var fragment = root_1();
+	var node = $.sibling($.first_child(fragment), 4);
+
+	{
+		var consequent = ($$anchor) => {
+			var p = root();
+			var text = $.only_child(p);
+
+			$.template_effect(() => $.set_text(text, `Message is ${params().message ?? ''}`));
+			$.append($$anchor, p);
+		};
+
+		$.if(node, ($$render) => {
+			if (params() && params().message) $$render(consequent);
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 428 test/app/src/routes/Lucky.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(
+	`<h1 id="lucky">You're in!</h1> <p>This route has a pre-condition that stops it from loading 50% of the time. So, you were lucky
+    you could load this route! Now, try refreshing the page.</p>`,
+	1
+);
+
+export default function Lucky($$anchor) {
+	var fragment = root();
+
+	$.next(2);
+	$.append($$anchor, fragment);
+}
+=== 1209 test/app/src/routes/Name.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h2 class="routetitle">Hi there!</h2> <p id="nameparams">Your name is: <b> </b> <b><!></b></p> <p><em>Hint:</em> Try changing the URL and add your name, e.g. <code>/hello/jane/doe</code></p>`, 1);
+
+export default function Name($$anchor, $$props) {
+	$.push($$props, true);
+
+	let params = $.prop($$props, 'params', 19, () => ({})),
+		onRouteEvent = $.prop($$props, 'onRouteEvent', 3, () => {});
+
+	var fragment = root();
+	var p = $.sibling($.first_child(fragment), 2);
+	var b = $.sibling($.child(p));
+	var text = $.only_child(b, true);
+	var b_1 = $.sibling(b, 2);
+	var node = $.child(b_1);
+
+	{
+		var consequent = ($$anchor) => {
+			var text_1 = $.text();
+
+			$.template_effect(() => $.set_text(text_1, params().last));
+			$.append($$anchor, text_1);
+		};
+
+		$.if(node, ($$render) => {
+			if (params().last) $$render(consequent);
+		});
+	}
+
+	$.reset(b_1);
+	$.reset(p);
+	$.next(2);
+	$.template_effect(() => $.set_text(text, params().first ?? 'null'));
+	$.delegated('click', p, () => onRouteEvent()({ action: 'hi', params: params() }));
+	$.append($$anchor, fragment);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 843 test/app/src/routes/Name.svelte	warnings.json
+[
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 3,
+			"column": 0,
+			"character": 39
+		},
+		"end": {
+			"line": 8,
+			"column": 4,
+			"character": 227
+		}
+	},
+	{
+		"code": "a11y_no_noninteractive_element_interactions",
+		"message": "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions",
+		"start": {
+			"line": 3,
+			"column": 0,
+			"character": 39
+		},
+		"end": {
+			"line": 8,
+			"column": 4,
+			"character": 227
+		}
+	}
+]
+
+=== 760 test/app/src/routes/Nested.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Router from 'svelte-spa-router';
+import Wild from './Wild.svelte';
+import NotFound from './NotFound.svelte';
+
+var root = $.from_html(`<h2 class="routetitle">Nested router</h2> <!>`, 1);
+
+export default function Nested($$anchor) {
+	// Import the router component
+	// Routes
+	// Nested routes, but note the prefix /nested passed to the router above
+	const routes = {
+		// Wildcard parameter
+		'/wild': Wild,
+		'/wild/*': Wild,
+		// Catch-all, must be last
+		'*': NotFound
+	};
+
+	var fragment = root();
+	var node = $.sibling($.first_child(fragment), 2);
+
+	Router(node, {
+		get routes() {
+			return routes;
+		},
+		prefix: '/nested'
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 310 test/app/src/routes/NotFound.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h2 class="routetitle">NotFound</h2> <p>Oops, this route doesn't exist!</p>`, 1);
+
+export default function NotFound($$anchor) {
+	var fragment = root();
+
+	$.next(2);
+	$.append($$anchor, fragment);
+}
+=== 591 test/app/src/routes/Regex.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h2 class="routetitle">Regex route</h2> <p>Match is: <code id="regexmatch"> </code></p>`, 1);
+
+export default function Regex($$anchor, $$props) {
+	let params = $.prop($$props, 'params', 19, () => ({}));
+	var fragment = root();
+	var p = $.sibling($.first_child(fragment), 2);
+	var code = $.sibling($.child(p));
+	var text = $.only_child(code, true);
+
+	$.reset(p);
+	$.template_effect(($0) => $.set_text(text, $0), [() => JSON.stringify(params())]);
+	$.append($$anchor, fragment);
+}
+=== 525 test/app/src/routes/Wild.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h2 class="routetitle">Wild</h2> <p> </p>`, 1);
+
+export default function Wild($$anchor, $$props) {
+	$.push($$props, true);
+
+	let params = $.prop($$props, 'params', 19, () => ({}));
+	var fragment = root();
+	var p = $.sibling($.first_child(fragment), 2);
+	var text = $.only_child(p);
+
+	$.template_effect(() => $.set_text(text, `Your message is: ${params().wild ?? ''}`));
+	$.append($$anchor, fragment);
+	$.pop();
+}

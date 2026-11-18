@@ -1,7 +1,0 @@
-{
-	"legacy::ConditionalExpression#span": "span",
-	"legacy::LogicalExpression#span": "span",
-	"loose:unclosed-attribute-quote::(accepted)#official-rejects": "accepts-what-official-rejects",
-	"modern::ConditionalExpression#span": "span",
-	"modern::LogicalExpression#span": "span"
-}

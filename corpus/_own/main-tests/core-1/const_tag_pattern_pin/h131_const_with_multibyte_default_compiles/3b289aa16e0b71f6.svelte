@@ -1,0 +1,1 @@
+{#if true}{@const x = "日本語" }{x}{/if}

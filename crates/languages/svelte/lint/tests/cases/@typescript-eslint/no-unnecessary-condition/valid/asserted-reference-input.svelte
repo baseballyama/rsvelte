@@ -1,0 +1,1 @@
+<script lang="ts">const a = true; if (a as boolean) console.log(a);</script>

@@ -1,0 +1,1 @@
+<a title={true ? 'x' : 'y'}>x</a>

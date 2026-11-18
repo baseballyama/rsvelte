@@ -1,0 +1,1 @@
+<textarea>a&notreal;b{1}</textarea>

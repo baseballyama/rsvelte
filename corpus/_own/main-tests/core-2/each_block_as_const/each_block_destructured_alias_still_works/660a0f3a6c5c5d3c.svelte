@@ -1,0 +1,1 @@
+{#each items as { name, age }}<p>{name}</p>{/each}

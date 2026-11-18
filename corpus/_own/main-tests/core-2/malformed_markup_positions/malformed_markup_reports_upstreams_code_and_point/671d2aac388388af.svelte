@@ -1,0 +1,1 @@
+{#if flag}{@const c = 1<b>x</b>{/if}

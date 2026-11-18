@@ -1,0 +1,2 @@
+<script>let x = 0;</script>
+{x}

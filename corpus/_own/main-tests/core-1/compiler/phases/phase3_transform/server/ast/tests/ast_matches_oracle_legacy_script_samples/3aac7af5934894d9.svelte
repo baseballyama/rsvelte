@@ -1,0 +1,1 @@
+<script context="module">export const FOO = 1;</script><p>x</p>

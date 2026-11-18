@@ -1,0 +1,1 @@
+<p>{@debug value}</p>

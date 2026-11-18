@@ -1,0 +1,1 @@
+<script>const x = await fetch('/');</script>{x}

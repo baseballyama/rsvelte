@@ -1,0 +1,1 @@
+<script>let foo = 1;</script><div {foo}></div>

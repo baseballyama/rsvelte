@@ -1,0 +1,4 @@
+- message: Selector should select by ID instead of class
+  line: 1
+  column: 94
+  suggestions: null

@@ -1,0 +1,1 @@
+<svelte:options namespace="svg"/><circle cx="50" cy="50" r="40"/>

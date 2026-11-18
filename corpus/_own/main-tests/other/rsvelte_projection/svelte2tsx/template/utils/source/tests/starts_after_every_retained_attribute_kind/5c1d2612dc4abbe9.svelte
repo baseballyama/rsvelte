@@ -1,0 +1,1 @@
+<div title="before {a > b} after"></div>

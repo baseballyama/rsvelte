@@ -1,0 +1,1 @@
+<script>const C = class { foo = $state(0); };</script>

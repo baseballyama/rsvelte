@@ -1,0 +1,16 @@
+- message: Move variable declaration to program root.
+  line: 3
+  column: 3
+  suggestions: null
+- message: Move variable declaration to function body root.
+  line: 7
+  column: 4
+  suggestions: null
+- message: Move variable declaration to class static block body root.
+  line: 15
+  column: 5
+  suggestions: null
+- message: Move variable declaration to program root.
+  line: 20
+  column: 9
+  suggestions: null

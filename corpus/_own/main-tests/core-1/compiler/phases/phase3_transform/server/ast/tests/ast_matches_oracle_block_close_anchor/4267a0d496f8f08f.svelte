@@ -1,0 +1,1 @@
+{#snippet foo()}<p>x</p>{/snippet}{#if true}{@render foo()}{/if}

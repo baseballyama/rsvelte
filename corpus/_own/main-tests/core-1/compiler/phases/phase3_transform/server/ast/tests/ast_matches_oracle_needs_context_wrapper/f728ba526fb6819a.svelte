@@ -1,0 +1,1 @@
+<script>import { onMount } from 'svelte'; onMount(() => {});</script><p>hi</p>

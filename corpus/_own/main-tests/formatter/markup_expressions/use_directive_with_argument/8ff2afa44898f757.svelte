@@ -1,0 +1,1 @@
+<div use:action={ {a:1} }></div>

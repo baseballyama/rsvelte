@@ -1,0 +1,1 @@
+<script>void $foo;</script><div></div>

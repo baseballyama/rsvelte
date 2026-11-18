@@ -1,0 +1,1 @@
+<script>let f = 名前 => 名前; let value = $derived(f);</script>{value}

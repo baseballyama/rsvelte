@@ -1,0 +1,1 @@
+<MyComponent  name="x"  value={ foo+1 } />

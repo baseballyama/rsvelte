@@ -1,0 +1,1 @@
+<svelte:options customElement={{ tag: 'a-b', tag: 'c-d' }} />

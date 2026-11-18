@@ -1,0 +1,71 @@
+# rsvelte pack 1
+=== 1093 src/lib/components/AppInfo.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/app' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@fortawesome/free-solid-svg-icons' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-fa' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 17
+		},
+		"end": {
+			"line": 5,
+			"character": 28
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 38
+		},
+		"end": {
+			"line": 6,
+			"character": 54
+		}
+	}
+]
+
+=== 3 src/lib/components/TitleBar.svelte	json
+[]
+
+=== 3 src/routes/+layout.svelte	json
+[]
+

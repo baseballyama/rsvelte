@@ -1,0 +1,1 @@
+<script lang="ts">let a: any;</script>{#each [<string>() => a] as z}{z}{/each}

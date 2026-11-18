@@ -1,0 +1,1 @@
+{#await p}a{:then v w}b{/await}

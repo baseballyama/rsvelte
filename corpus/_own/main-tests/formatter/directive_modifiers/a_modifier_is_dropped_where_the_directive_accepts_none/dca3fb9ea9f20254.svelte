@@ -1,0 +1,1 @@
+<div use:action|once class:on|once={flag} let:x|foo animate:flip|local style:color|important="red" on:click|once={action}>x</div>

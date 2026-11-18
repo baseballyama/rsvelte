@@ -1,0 +1,9 @@
+[props]
+start = 5
+
+[[steps]]
+click = "button.bump"
+
+[[steps]]
+click = "button.bump"
+

@@ -1,0 +1,1 @@
+<script>const y = <string>() => 1;</script><p>{y}</p>

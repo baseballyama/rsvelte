@@ -1,0 +1,1 @@
+{#snippet s(a = (b?.c), d = ((1)))}x{/snippet}

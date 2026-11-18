@@ -1,0 +1,1 @@
+<script>import Foo from './Foo.svelte'; let x = $state(1); let y = $state(2); let spread = $state({});</script>z<Foo {...spread} />

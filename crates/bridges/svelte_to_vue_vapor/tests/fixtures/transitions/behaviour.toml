@@ -1,0 +1,29 @@
+browser = true
+animated_styles = [["p", "opacity", 0, 1]]
+
+[[steps]]
+click = "button"
+
+[[steps]]
+wait = 150
+
+[[steps]]
+wait = 1000
+
+[[steps]]
+click = "button"
+
+[[steps]]
+wait = 150
+
+[[steps]]
+wait = 1000
+
+[[steps]]
+click = "button"
+
+[[steps]]
+wait = 150
+
+[[steps]]
+wait = 1000

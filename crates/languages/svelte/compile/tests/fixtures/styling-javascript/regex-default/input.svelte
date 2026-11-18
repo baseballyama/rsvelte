@@ -1,0 +1,1 @@
+<script>const f=(pattern=/[(){}]/) => pattern.test("a");</script><p class={f() ? "a" : "b"}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

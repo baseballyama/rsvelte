@@ -1,0 +1,10 @@
+include_unmount = true
+
+[[steps]]
+click = "button"
+
+[[steps]]
+click = "button:nth-of-type(2)"
+
+[[steps]]
+click = "button:nth-of-type(3)"

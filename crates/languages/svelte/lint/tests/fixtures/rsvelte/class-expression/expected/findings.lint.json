@@ -1,0 +1,32 @@
+{
+	"rules": [
+		"no-unused-vars",
+		"svelte/button-has-type"
+	],
+	"findings": [
+		{
+			"rule": "svelte/button-has-type",
+			"message": "Missing an explicit type attribute for button.",
+			"start": {
+				"line": 21,
+				"column": 1
+			},
+			"end": {
+				"line": 21,
+				"column": 44
+			}
+		},
+		{
+			"rule": "svelte/button-has-type",
+			"message": "Missing an explicit type attribute for button.",
+			"start": {
+				"line": 22,
+				"column": 1
+			},
+			"end": {
+				"line": 22,
+				"column": 71
+			}
+		}
+	]
+}

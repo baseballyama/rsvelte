@@ -1,0 +1,1 @@
+<script>import './Target.svelte';</script>

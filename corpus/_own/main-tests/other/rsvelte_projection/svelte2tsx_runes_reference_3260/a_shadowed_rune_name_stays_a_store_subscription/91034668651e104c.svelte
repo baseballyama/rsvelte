@@ -1,0 +1,1 @@
+<script>function f($state) { return $state; }</script><div></div>

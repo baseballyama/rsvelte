@@ -1,0 +1,1 @@
+export const s1 = (a, b) === c;

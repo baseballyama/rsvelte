@@ -1,0 +1,1 @@
+<svelte:boundary>{@const x = 1}<p>{x}</p></svelte:boundary><svelte:boundary>{@const x = 2}<p>{x}</p></svelte:boundary>

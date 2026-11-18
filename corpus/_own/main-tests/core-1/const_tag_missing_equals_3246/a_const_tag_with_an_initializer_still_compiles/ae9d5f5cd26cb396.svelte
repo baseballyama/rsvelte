@@ -1,0 +1,1 @@
+{#each [1] as v}{@const d = v * 2}<b>{d}</b>{/each}

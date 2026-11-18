@@ -1,0 +1,14 @@
+- message: SvelteSet is already reactive, $state wrapping is unnecessary.
+  line: 3
+  column: 19
+  suggestions:
+    - desc: Remove unnecessary $state wrapping
+      messageId: suggestRemoveStateWrap
+      output: |
+        <script>
+        	import * as reactivity from 'svelte/reactivity';
+        	const s = new reactivity.SvelteSet();
+        	const { a } = $state(new reactivity.SvelteMap());
+        	let b;
+        	b = $state(new reactivity.SvelteMap());
+        </script>

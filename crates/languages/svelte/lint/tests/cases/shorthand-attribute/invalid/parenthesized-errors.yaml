@@ -1,0 +1,4 @@
+- message: Expected shorthand attribute.
+  line: 1
+  column: 29
+  suggestions: null

@@ -1,0 +1,1 @@
+<script>let { obj } = $props();</script><p>あ</p><input bind:value={obj.foo} />

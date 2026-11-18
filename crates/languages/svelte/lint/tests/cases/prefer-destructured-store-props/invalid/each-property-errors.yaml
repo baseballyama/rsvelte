@@ -1,0 +1,6 @@
+- message: Destructure a from $s for better change tracking & fewer redraws
+  line: 8
+  column: 20
+  suggestions:
+    - desc: "Using destructuring like $: ({ a } = $s); will run faster"
+      output: "<script>\n\timport { writable } from 'svelte/store';\n\tconst s = writable({});\n\tconst items = [];\n\tconst a = 1;\n$: ({ a: a1 } = $s);\n</script>\n\n{#each items as a}{a1}{/each}\n"

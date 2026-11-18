@@ -1,0 +1,1 @@
+<script lang="ts">const identity=<T,>(value:T):T=>value;const value=identity("a");</script><p class={value}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

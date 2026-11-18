@@ -1,0 +1,129 @@
+use std::borrow::Cow;
+
+use rsvelte_lint_runner::rule::Reporter;
+use rsvelte_markup_lint::button_type::{Allowed, Problem, check_static};
+use rsvelte_svelte_syntax::syntax_tree::{
+    Attribute, AttributeKind, AttributeValue, Component, Part, TemplateNode,
+};
+use serde::Deserialize;
+
+use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+
+pub(super) static RULE: RuleDefinition = RuleDefinition {
+    name: "svelte/button-has-type",
+    files: Files::Components,
+    configure,
+};
+
+#[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Options {
+    button: Option<bool>,
+    submit: Option<bool>,
+    reset: Option<bool>,
+}
+
+fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
+    let options: Options = options.single()?;
+    Ok(Box::new(ButtonHasType(Allowed {
+        button: options.button.unwrap_or(true),
+        submit: options.submit.unwrap_or(true),
+        reset: options.reset.unwrap_or(true),
+    })))
+}
+
+#[derive(Debug)]
+struct ButtonHasType(Allowed);
+
+impl SvelteRule for ButtonHasType {
+    fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
+        let component = file.component().expect("a component rule");
+        check(component, file.source(), self.0, reporter);
+    }
+}
+
+fn check(component: &Component, source: &str, allowed: Allowed, reporter: &mut Reporter<'_>) {
+    for node in &component.nodes {
+        let TemplateNode::Element {
+            name,
+            attributes,
+            start_tag,
+            ..
+        } = node
+        else {
+            continue;
+        };
+        if name.text(source) != "button" {
+            continue;
+        }
+        let mut ordinary = None;
+        let mut bound = None;
+        let mut shorthand = false;
+        let mut spread = false;
+        for attribute in component.attributes(*attributes) {
+            if attribute.kind == AttributeKind::Spread {
+                spread = true;
+            }
+            if attribute.name.text(source) == "type" && attribute.kind == AttributeKind::Attribute {
+                if attribute.shorthand {
+                    shorthand = true;
+                } else {
+                    ordinary = Some(attribute);
+                    break;
+                }
+            } else if attribute.kind == AttributeKind::Bind
+                && attribute
+                    .directive_name(&component.modifiers)
+                    .is_some_and(|name| name.text(source) == "type")
+                && bound.is_none()
+            {
+                bound = Some(attribute);
+            }
+        }
+        let (message, span) = match ordinary {
+            Some(attribute) => (
+                static_problem(component, source, attribute, allowed),
+                attribute.span,
+            ),
+            None => match bound {
+                Some(attribute) => (
+                    matches!(attribute.value, AttributeValue::True)
+                        .then(|| Problem::Empty.message()),
+                    attribute.span,
+                ),
+                None if !shorthand && !spread => (Some(Problem::Missing.message()), *start_tag),
+                None => continue,
+            },
+        };
+        if let Some(message) = message {
+            reporter.range(message, span);
+        }
+    }
+}
+
+fn static_problem(
+    component: &Component,
+    source: &str,
+    attribute: &Attribute,
+    allowed: Allowed,
+) -> Option<String> {
+    let AttributeValue::Parts(parts) = attribute.value else {
+        return Some(Problem::Empty.message());
+    };
+    let parts = component.parts(parts);
+    let value = match parts {
+        [] => return Some(Problem::Empty.message()),
+        [Part::Text(span)] => rsvelte_markup_syntax::decode_attribute(span.text(source)),
+        _ => {
+            let mut text = String::new();
+            for part in parts {
+                let Part::Text(span) = part else {
+                    return None;
+                };
+                text.push_str(&rsvelte_markup_syntax::decode_attribute(span.text(source)));
+            }
+            Cow::Owned(text)
+        }
+    };
+    check_static(&value, allowed).map(Problem::message)
+}

@@ -1,0 +1,1 @@
+<script>let a = $state(1); let x = $derived(a); function f() { x = 99; }</script>

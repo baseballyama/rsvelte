@@ -1,0 +1,1 @@
+<script>let items = [{inner:{}}];</script>{#each items as { inner: { x = 5 } } }{x}{/each}

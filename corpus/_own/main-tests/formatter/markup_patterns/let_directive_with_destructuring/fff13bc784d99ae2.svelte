@@ -1,0 +1,1 @@
+<Component let:item={{name,age}}>x</Component>

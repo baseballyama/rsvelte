@@ -1,0 +1,116 @@
+use std::sync::Arc;
+
+use rsvelte_kernel::computation::database::DocumentContext;
+use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
+use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::output::emitter::Emitter;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_check::{
+    Check, CheckedDocument, Documents, TypeScriptDocument, TypeScriptEnv, TypeScriptView,
+};
+use rsvelte_vue_semantic::Resolved;
+use rsvelte_vue_syntax::Parsed;
+
+use crate::Configuration;
+use crate::project::Projection;
+
+pub static PLUGIN: Plugin = Plugin {
+    identifier: "vue.check",
+    version: env!("CARGO_PKG_VERSION"),
+    dependencies: &[
+        Dependency {
+            identifier: "vue.semantic",
+            requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+        },
+        Dependency {
+            identifier: "typescript.check",
+            requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+        },
+    ],
+};
+
+pub fn register(reg: &mut Registry, config: &Configuration) {
+    reg.plugin(&PLUGIN);
+    rsvelte_typescript_check::register_service(reg);
+    rsvelte_vue_semantic::register(reg);
+    reg.finish_task(Check {
+        identifier: "vue.check/default",
+        documents: Documents::Matching(rsvelte_vue_syntax::matches),
+        tsc: config.check.as_ref().map(|c| c.tsc.clone()),
+        stand_in: None,
+        imported: None,
+    });
+    let env = config
+        .check
+        .as_ref()
+        .map(|c| Arc::new(typescript_env(&c.vue)));
+    reg.provide::<TypeScriptView>("vue", rsvelte_vue_syntax::matches, move |context| {
+        typescript_view(context, env.as_ref())
+    });
+}
+
+const HELPERS: (&str, &str) = (
+    "template-helpers.d.ts",
+    include_str!("../vendor/template-helpers.d.ts"),
+);
+
+/// What vue-tsc adds to the project: @vue/language-core's template helpers and the vue package.
+fn typescript_env(vue: &std::path::Path) -> TypeScriptEnv {
+    TypeScriptEnv {
+        mapped_extension: None,
+        content_mapper: None,
+        declarations: vec![HELPERS],
+        include: Vec::new(),
+        replaced: Vec::new(),
+        script_modules: Vec::new(),
+        notes: Vec::new(),
+        paths: vec![
+            ("vue".to_owned(), vue.join("dist/vue.d.mts")),
+            (
+                "vue/jsx-runtime".to_owned(),
+                vue.join("jsx-runtime/index.d.ts"),
+            ),
+        ],
+    }
+}
+
+/// The component as vue-tsc's checker sees it ([`TypeScriptView`]): @vue/language-core's virtual
+/// code ([`crate::project`]), mapped back with Volar's rule.
+fn typescript_view(
+    context: &DocumentContext<'_>,
+    env: Option<&Arc<TypeScriptEnv>>,
+) -> Result<TypeScriptDocument, Diagnostic> {
+    let c = context.get::<Parsed>().as_ref().map_err(Clone::clone)?;
+    let res = context
+        .get::<Resolved>()
+        .as_ref()
+        .expect("a parsed component is resolved");
+    match crate::project::project(c, context.source_text(), res) {
+        Err(u) => Err(Diagnostic::error(
+            "check_unsupported",
+            format!("not supported by the type-check projection yet: {}", u.what),
+            u.span(),
+        )),
+        Ok(Projection::JavaScript) => Ok(TypeScriptDocument::Unchecked),
+        Ok(Projection::TypeScript(projection)) => {
+            let env = env.ok_or_else(|| {
+                Diagnostic::error(
+                    "check_unconfigured",
+                    "vue.check needs the vue package",
+                    Span::new(0, 0),
+                )
+            })?;
+            Ok(TypeScriptDocument::Checked(Arc::new(CheckedDocument {
+                projection: Arc::new(projection),
+                map_back: Emitter::lookup_overlap,
+                env: Arc::clone(env),
+                extension: ".ts",
+                imports: Vec::new(),
+                store_reads: Vec::new(),
+                hidden: Vec::new(),
+                drops_unmapped: false,
+            })))
+        }
+    }
+}

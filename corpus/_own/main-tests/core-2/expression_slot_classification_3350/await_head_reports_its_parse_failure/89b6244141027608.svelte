@@ -1,0 +1,1 @@
+{#await a b then v}x{/await}

@@ -1,0 +1,1 @@
+<script module>let o = {["a‮b"]: 1};</script>

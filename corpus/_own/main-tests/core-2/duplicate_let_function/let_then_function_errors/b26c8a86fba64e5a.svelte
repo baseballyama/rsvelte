@@ -1,0 +1,1 @@
+<script>let x; function x(){}</script>

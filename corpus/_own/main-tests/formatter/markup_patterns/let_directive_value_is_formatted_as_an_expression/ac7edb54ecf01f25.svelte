@@ -1,0 +1,1 @@
+<Component let:item={{ a: [b = 'x'], c: { d } = {} }}>y</Component>

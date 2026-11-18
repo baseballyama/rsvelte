@@ -1,0 +1,1 @@
+<svelte:element this={a > b ? 'section' : 'div'} foo></svelte:element>

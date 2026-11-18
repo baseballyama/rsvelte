@@ -1,0 +1,1 @@
+<script lang="ts">const a = b; const b = a; if (a) console.log(a);</script>
