@@ -16,7 +16,9 @@ const pkg = (name: string) => fs.realpathSync(path.join(import.meta.dirname, 'no
 export async function main(args: string[]): Promise<void> {
 	const { values } = parseArgs({
 		args,
-		options: { binary: { type: 'string', default: path.join(CARGO_TARGET, 'release/rsvelte') } },
+		options: {
+			binary: { type: 'string', default: path.join(CARGO_TARGET, 'release/rsvelte-dev') },
+		},
 	});
 	const families = fs
 		.readdirSync(CORPUS)

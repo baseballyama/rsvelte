@@ -111,7 +111,7 @@
 	<p>数える量は三種類です。</p>
 	<ul>
 		<li>
-			割り当て：<code>metrics</code> feature 付きの <code>rsvelte performance</code>
+			割り当て：<code>metrics</code> feature 付きの <code>rsvelte-dev performance</code>
 			が、<code>CountingAllocator</code>（<a href="/learn/kernel/measurement#alloc">12 章</a
 			>）で数えます。これは確保を数えるアロケータです。数えるのは最後のラウンドです（1
 			ラウンドは、全文書を 1
@@ -506,12 +506,12 @@ node tools/performance/performance.ts linux --update
 
 # 実行時間のベンチマーク
 cargo build --release -p rsvelte_command_line --features metrics
-./target/release/rsvelte benchmark corpus/svelte rounds=5 json=benchmark.json</code
+./target/release/rsvelte-dev benchmark corpus/svelte rounds=5 json=benchmark.json</code
 	></pre>
 
 <div class="prose-learn">
 	<p>
-		<code>rsvelte benchmark</code> のレポートの <code>build.rev</code> は、ビルドしたツリーの
+		<code>rsvelte-dev benchmark</code> のレポートの <code>build.rev</code> は、ビルドしたツリーの
 		<code>git rev-parse HEAD</code> です。差分があれば <code>-dirty</code>
 		が付きます。
 	</p>

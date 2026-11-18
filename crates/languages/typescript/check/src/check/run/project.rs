@@ -1,22 +1,15 @@
-//! The files of a project, as the checker selects them from its tsconfig: `--showConfig` expands
-//! `files`, `include` and `exclude`, and counts a mapped language's extension once its content
-//! mapper's package resolves, so rsvelte never matches the patterns itself.
+//! The files of a project, as the checker selects them from its tsconfig: opening the project
+//! expands `files`, `include` and `exclude`, and counts a mapped language's extension once its
+//! content mapper's package resolves, so rsvelte never matches the patterns itself.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
-use serde::Deserialize;
+use rsvelte_typescript_api::{Layer, Session};
 
 use super::in_temporary_directory;
 use super::mapped::{normalized, package_json};
 use crate::check::{MappedLanguage, Tsc};
-
-#[derive(Deserialize)]
-struct ShownConfig {
-    #[serde(default)]
-    files: Vec<String>,
-}
 
 impl Tsc {
     /// Every file of the tsconfig's project outside `node_modules`, with the files of each of
@@ -29,25 +22,27 @@ impl Tsc {
         &self,
         languages: &[MappedLanguage],
     ) -> Result<Vec<PathBuf>, String> {
-        let config = self
-            .tsconfig
-            .as_ref()
-            .ok_or("a project check needs the `tsconfig` option of `typescript.check`")?;
+        let config = self.tsconfig.as_ref().ok_or(
+            "a project check needs a tsconfig: `tsconfig.json` beside the options, such as in \
+                 the current directory, or `tsconfig` in the options of `typescript.check`",
+        )?;
         let config =
             std::fs::canonicalize(config).map_err(|e| format!("{}: {e}", config.display()))?;
         in_temporary_directory("rsvelte-project", |dir| {
-            shown_files(self, &config, languages, dir)
+            root_files(self, &config, languages, dir)
         })
     }
 }
 
-fn shown_files(
+fn root_files(
     tsc: &Tsc,
     config: &Path,
     languages: &[MappedLanguage],
     dir: &Path,
 ) -> Result<Vec<PathBuf>, String> {
     let io = |path: &Path, e: std::io::Error| format!("{}: {e}", path.display());
+    // The checker names the project by its real path, such as `/private/var` for `/var`.
+    let dir = &std::fs::canonicalize(dir).map_err(|e| io(dir, e))?;
     let mut overlay = StructuredDataWriter::new(false);
     overlay
         .begin_object()
@@ -75,28 +70,14 @@ fn shown_files(
     overlay.end_array().end_object();
     let overlay_path = dir.join("tsconfig.json");
     std::fs::write(&overlay_path, overlay.finish()).map_err(|e| io(&overlay_path, e))?;
-    let output = Command::new(&tsc.checker.program)
-        .args(&tsc.checker.arguments)
-        .arg("-p")
-        .arg(&overlay_path)
-        .args(["--showConfig", "--runExternalCode"])
-        .current_dir(dir)
-        .output()
-        .map_err(|e| format!("{}: {e}", tsc.checker))?;
-    if !output.status.success() {
-        return Err(format!(
-            "`{} --showConfig` failed ({}): {}{}",
-            tsc.checker,
-            output.status,
-            String::from_utf8_lossy(&output.stderr),
-            String::from_utf8_lossy(&output.stdout)
-        ));
-    }
-    let shown: ShownConfig = serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("`{} --showConfig` printed {e}", tsc.checker))?;
-    // The checker prints each file relative to the overlay.
-    Ok(shown
-        .files
+    let mut session = Session::start(&tsc.checker.program, &tsc.checker.arguments, dir)?;
+    let project = session
+        .open(&[overlay_path.as_path()], &Layer::default())?
+        .pop()
+        .ok_or("the checker opened no project")?;
+    session.release(project.snapshot)?;
+    Ok(project
+        .root_files
         .iter()
         .map(|file| normalized(&dir.join(file)))
         .filter(|file| !file.components().any(|c| c.as_os_str() == "node_modules"))

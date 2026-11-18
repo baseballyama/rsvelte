@@ -1,6 +1,7 @@
-//! `rsvelte performance <dir>... [rounds=N] [every=N] [json=<file>]`: the deterministic performance
-//! counters CI ratchets (`tools/performance`). `every=N` keeps one document in N, by a hash of its
-//! path below its root, so adding a document never changes which of the others are kept.
+//! `rsvelte-dev performance <dir>... [rounds=N] [every=N] [json=<file>]`: the deterministic
+//! performance counters CI ratchets (`tools/performance`). `every=N` keeps one document in N, by a
+//! hash of its path below its root, so adding a document never changes which of the others are
+//! kept.
 //!
 //! Wall time moves with the machine, so what gates is what does not: every document task over the
 //! population, serially, `rounds` times, and the allocations of the last round. On one thread the
@@ -89,7 +90,7 @@ pub(crate) fn performance(
         Err(error) => return crate::usage(&error),
     };
     if docs.is_empty() {
-        eprintln!("rsvelte performance: no units below the given directories");
+        eprintln!("rsvelte-dev performance: no units below the given directories");
         return ExitCode::FAILURE;
     }
     let default_tasks = reg.document_task_identifiers();
@@ -103,7 +104,7 @@ pub(crate) fn performance(
     match &options.json {
         Some(path) => {
             if let Err(e) = std::fs::write(path, &report) {
-                eprintln!("rsvelte performance: {}: {e}", path.display());
+                eprintln!("rsvelte-dev performance: {}: {e}", path.display());
                 return ExitCode::FAILURE;
             }
         }
@@ -111,7 +112,7 @@ pub(crate) fn performance(
     }
     if measurement::ENABLED && options.rounds > 0 && !m.warm {
         eprintln!(
-            "rsvelte performance: the allocations still change after {} rounds",
+            "rsvelte-dev performance: the allocations still change after {} rounds",
             m.rounds
         );
         ExitCode::FAILURE
@@ -119,7 +120,7 @@ pub(crate) fn performance(
         ExitCode::SUCCESS
     } else {
         for (path, message) in &m.panicked {
-            eprintln!("rsvelte performance: panicked: {path}: {message}");
+            eprintln!("rsvelte-dev performance: panicked: {path}: {message}");
         }
         ExitCode::FAILURE
     }
@@ -190,7 +191,7 @@ fn measure(reg: &Registry, docs: &[Document], tasks: &[&str], rounds: usize) -> 
 }
 
 /// What a round's results add up to, counted as each result arrives and then dropped, as
-/// `rsvelte corpus` writes each one out: the peak is then the working set a user's run holds.
+/// `rsvelte-dev corpus` writes each one out: the peak is then the working set a user's run holds.
 #[derive(Default)]
 struct Counted {
     output_bytes: AtomicUsize,

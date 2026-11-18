@@ -20,6 +20,10 @@ export default {
 			// Oracles run from their installed path or named in reports, not imported.
 			ignoreDependencies: ['svelte-check', 'vue-tsc'],
 		},
+		'tools/release': {
+			// The command of the npm package, which a release copies there, not an import.
+			entry: ['launcher.js'],
+		},
 		'tools/writing': {
 			// The spelling rule loads the dictionary by its language name.
 			ignoreDependencies: ['dictionary-en'],

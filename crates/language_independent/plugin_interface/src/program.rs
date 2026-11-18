@@ -32,3 +32,53 @@ pub fn program_path(value: &str, base: &Path) -> io::Result<PathBuf> {
         .find(|candidate| candidate.is_file());
     Ok(installed.unwrap_or_else(|| path.to_owned()))
 }
+
+/// The directory of package `name` as Node resolves it from `base`: `node_modules/<name>` of
+/// `base` or its nearest parent that has one, with links resolved.
+///
+/// # Errors
+///
+/// `base` cannot be made absolute, or a found package's link cannot be resolved.
+pub fn installed_package(name: &str, base: &Path) -> io::Result<Option<PathBuf>> {
+    let base = std::path::absolute(base)?;
+    base.ancestors()
+        .map(|directory| directory.join("node_modules").join(name))
+        .find(|candidate| candidate.join("package.json").is_file())
+        .map(std::fs::canonicalize)
+        .transpose()
+}
+
+/// The script that the command `bin` of package `name` runs, when `base` resolves the package.
+/// Run through `node`, it starts the same way on every platform, without the package manager's
+/// shell shims.
+///
+/// # Errors
+///
+/// As [`installed_package`], or the package's `package.json` cannot be read or decoded.
+pub fn installed_bin(name: &str, bin: &str, base: &Path) -> io::Result<Option<PathBuf>> {
+    let Some(package) = installed_package(name, base)? else {
+        return Ok(None);
+    };
+    let manifest = std::fs::read(package.join("package.json"))?;
+    let manifest: Manifest = serde_json::from_slice(&manifest).map_err(io::Error::other)?;
+    let script = match manifest.bin {
+        Some(Bin::One(script)) if manifest.name == bin => Some(script),
+        Some(Bin::Named(mut scripts)) => scripts.remove(bin),
+        _ => None,
+    };
+    Ok(script.map(|script| package.join(script)))
+}
+
+#[derive(serde::Deserialize)]
+struct Manifest {
+    #[serde(default)]
+    name: String,
+    bin: Option<Bin>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum Bin {
+    One(String),
+    Named(std::collections::HashMap<String, String>),
+}

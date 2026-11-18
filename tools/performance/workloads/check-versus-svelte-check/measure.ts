@@ -179,7 +179,7 @@ function programFiles(): string[] {
 	return [...new Set(files)].toSorted();
 }
 
-// `rsvelte check` asks the checker for the tsconfig's files, and its mapper projects any other
+// `rsvelte-dev check` asks the checker for the tsconfig's files, and its mapper projects any other
 // component the program reads, such as a package's. tsrs has no `--showConfig`, so its arms run
 // the files tsgo found.
 const rsvelteArguments = (checker: string, given?: string[]) => [
@@ -194,7 +194,7 @@ const rsvelteArguments = (checker: string, given?: string[]) => [
 	JSON.stringify({ svelte, contentMapper: mapper }),
 ];
 
-/** The files `rsvelte check` checks, from the header of each output. */
+/** The files `rsvelte-dev check` checks, from the header of each output. */
 function rsvelteFiles(): string[] {
 	const run = output(rsvelte, rsvelteArguments(ts7Native));
 	const files = [...run.stdout.matchAll(/^\/\/ (.+) ts\.check\/default \w+$/gm)].map(

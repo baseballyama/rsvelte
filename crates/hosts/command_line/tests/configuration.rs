@@ -29,7 +29,7 @@ impl Project {
     }
 
     fn run(&self, arguments: &[&str]) -> std::process::Output {
-        Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+        Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
             .current_dir(&self.0)
             .args(["run", "Input.svelte"])
             .args(arguments)
@@ -38,7 +38,7 @@ impl Project {
     }
 
     fn run_without_runtime(&self, arguments: &[&str]) -> std::process::Output {
-        Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+        Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
             .current_dir(&self.0)
             .env("PATH", "")
             .args(["run", "Input.svelte"])
@@ -398,7 +398,7 @@ fn vue_and_typescript_lint_read_rule_levels() {
     project.write("input.ts", "const unused = 1;\n");
     let lint = |config: &str, file: &str, task: &str| {
         project.write("config.json", config);
-        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
             .current_dir(&project.0)
             .args(["run", file, "--config", "config.json", "--task", task])
             .output()
@@ -446,7 +446,7 @@ fn run_fails_on_error_findings_and_fix_rewrites_the_file() {
         r#"{"plugins": {"svelte.lint": {"rules": {"svelte/no-useless-mustaches": "error"}}}}"#,
     );
     let run = |extra: &[&str]| {
-        Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+        Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
             .current_dir(&project.0)
             .args(["run", "Fix.svelte", "--config", "config.json"])
             .args(["--task", "svelte.lint/default"])

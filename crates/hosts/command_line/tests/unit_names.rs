@@ -20,7 +20,7 @@ impl Scratch {
         Self(root)
     }
 
-    /// Everything `rsvelte corpus` writes for the units, run from `directory`.
+    /// Everything `rsvelte-dev corpus` writes for the units, run from `directory`.
     fn lint_from(&self, directory: &str) -> String {
         let actual = self.0.join("corpus/src/routes/+page.svelte/actual");
         drop(std::fs::remove_dir_all(&actual));
@@ -30,7 +30,7 @@ impl Scratch {
             r#"{"rules":{"svelte/valid-compile":"error","#,
             r#""svelte/valid-prop-names-in-kit-pages":"error"}}"#
         );
-        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
             .current_dir(cwd)
             .arg("corpus")
             .arg(self.0.join("corpus"))
@@ -50,7 +50,7 @@ impl Scratch {
         );
         let mut written = String::new();
         read_all(&actual, &mut written);
-        assert!(!written.is_empty(), "rsvelte corpus wrote nothing");
+        assert!(!written.is_empty(), "rsvelte-dev corpus wrote nothing");
         written
     }
 }

@@ -1,6 +1,6 @@
 // The performance ratchet. Wall time moves with the machine, so what this gates is what does not:
 //
-// - allocations: `rsvelte performance` (built with `metrics`) runs every document task over the committed
+// - allocations: `rsvelte-dev performance` (built with `metrics`) runs every document task over the committed
 //   corpus serially and counts the last, warm round's allocations and bytes, in total and per
 //   phase (every artifact and task), plus the peak live-heap growth. On one thread these are a
 //   function of the input and the binary, so they are compared exactly.
@@ -135,8 +135,8 @@ export async function main(args: string[]): Promise<void> {
 			},
 		);
 		fs.mkdirSync(path.join(directory, flavour));
-		const copy = path.join(directory, flavour, 'rsvelte');
-		fs.copyFileSync(path.join(dir, 'release', 'rsvelte'), copy);
+		const copy = path.join(directory, flavour, 'rsvelte-dev');
+		fs.copyFileSync(path.join(dir, 'release', 'rsvelte-dev'), copy);
 		return copy;
 	}
 
@@ -145,10 +145,10 @@ export async function main(args: string[]): Promise<void> {
 		await start(rsvelte, ['performance', ...POPULATION, `json=${out}`]);
 		const r = JSON.parse(fs.readFileSync(out, 'utf8')) as Report;
 		if (!r.metrics || typeof r.allocs !== 'number')
-			throw new Error('rsvelte performance reported no allocation counts: not a metrics build');
+			throw new Error('rsvelte-dev performance reported no allocation counts: not a metrics build');
 		if (r.documents < 1000)
 			throw new Error(
-				`rsvelte performance saw ${r.documents} documents: the corpus is missing or partial`,
+				`rsvelte-dev performance saw ${r.documents} documents: the corpus is missing or partial`,
 			);
 		return r;
 	}
@@ -294,7 +294,7 @@ export async function main(args: string[]): Promise<void> {
 	}
 
 	console.log(
-		`rsvelte performance at ${report.rev}: ${fmt(report.documents)} documents, ${fmt(report.source_bytes)} bytes, ${report.tasks.length} tasks`,
+		`rsvelte-dev performance at ${report.rev}: ${fmt(report.documents)} documents, ${fmt(report.source_bytes)} bytes, ${report.tasks.length} tasks`,
 	);
 	console.log(
 		`  allocs ${fmt(report.allocs)} (${((report.allocs / report.source_bytes) * 1000).toFixed(2)} per KB), bytes ${fmt(report.alloc_bytes)}, peak live +${fmt(report.peak_live_growth_bytes)}`,

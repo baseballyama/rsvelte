@@ -2,7 +2,9 @@ use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
 use rsvelte_kernel::computation::registry::{ProjectFiles, Registry};
-use rsvelte_plugin_interface::{CallError, Extension, Settings, TaskKind, program_path};
+use rsvelte_plugin_interface::{
+    CallError, Extension, Settings, TaskKind, installed_bin, program_path,
+};
 use serde::Deserialize;
 
 use crate::{Check, Documents, MappedLanguages, Tsc, TypeChecker};
@@ -19,12 +21,20 @@ const TASK: &str = "ts.check/default";
 pub const NEEDS_TYPE_CHECKER: &str =
     "a type checker: `command` in the options of `typescript.check`";
 
+/// The checkers looked for when the options name none, by package and command, in order.
+const INSTALLED: [(&str, &str); 3] = [
+    ("tsrs", "tsrs"),
+    ("@typescript/native-preview", "tsgo"),
+    ("typescript", "tsc"),
+];
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Options {
     /// The program, then the arguments that start it, such as `["node", "tsc.js"]`. rsvelte
-    /// adds `--api`, so they are not compiler options.
-    command: Vec<String>,
+    /// adds `--api`, so they are not compiler options. By default, the first of [`INSTALLED`]
+    /// the project installs.
+    command: Option<Vec<String>>,
     /// The project's tsconfig.json; by default `tsconfig.json` next to the options, if any.
     tsconfig: Option<PathBuf>,
     /// How many checker processes share the documents; see [`Tsc::processes`].
@@ -67,11 +77,18 @@ pub fn type_checker(settings: &mut Settings, runs: bool) -> Result<Option<Tsc>, 
         return Ok(None);
     };
     let error = |e: String| CallError(format!("options of `typescript.check`: {e}"));
-    let Some((program, arguments)) = options.value.command.split_first() else {
-        return Err(error("`command` needs a program".to_owned()));
-    };
     let base = &options.base;
-    let program = program_path(program, base).map_err(|e| error(format!("{program}: {e}")))?;
+    let (program, arguments) = match &options.value.command {
+        Some(command) => {
+            let Some((program, arguments)) = command.split_first() else {
+                return Err(error("`command` needs a program".to_owned()));
+            };
+            let program =
+                program_path(program, base).map_err(|e| error(format!("{program}: {e}")))?;
+            (program, arguments.to_vec())
+        }
+        None => installed(base)?.ok_or_else(|| error(NO_CHECKER_INSTALLED.to_owned()))?,
+    };
     let tsconfig = options.value.tsconfig.map_or_else(
         || Some(base.join("tsconfig.json")).filter(|default| default.is_file()),
         |path| Some(base.join(path)),
@@ -80,10 +97,7 @@ pub fn type_checker(settings: &mut Settings, runs: bool) -> Result<Option<Tsc>, 
         .map(std::path::absolute)
         .transpose()
         .map_err(|e| error(e.to_string()))?;
-    let checker = TypeChecker {
-        program,
-        arguments: arguments.to_vec(),
-    };
+    let checker = TypeChecker { program, arguments };
     if runs {
         settings.tool(checker.to_string(), || {
             checker.identify().map_err(CallError)
@@ -94,6 +108,24 @@ pub fn type_checker(settings: &mut Settings, runs: bool) -> Result<Option<Tsc>, 
         tsconfig,
         processes: options.value.processes,
     }))
+}
+
+const NO_CHECKER_INSTALLED: &str = "no type checker installed: add `tsrs` to the project's \
+devDependencies, or name one with `command`";
+
+/// `node` and the script of the first of [`INSTALLED`] that `base` resolves.
+fn installed(base: &std::path::Path) -> Result<Option<(PathBuf, Vec<String>)>, CallError> {
+    for (package, bin) in INSTALLED {
+        let script = installed_bin(package, bin, base)
+            .map_err(|e| CallError(format!("options of `typescript.check`: {package}: {e}")))?;
+        if let Some(script) = script {
+            return Ok(Some((
+                "node".into(),
+                vec![script.to_string_lossy().into_owned()],
+            )));
+        }
+    }
+    Ok(None)
 }
 
 #[cfg(test)]

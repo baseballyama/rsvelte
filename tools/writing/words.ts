@@ -32,6 +32,9 @@ export const acronyms = [
 export const lowercaseNames = [
 	'rsvelte',
 	'pnpm',
+	'npm',
+	'npmjs',
+	'tsrs',
 	'oxc',
 	'oxfmt',
 	'oxlint',
@@ -58,6 +61,7 @@ export const words = [
 	'Cachegrind',
 	'cancelled',
 	'checkboxes',
+	'executables',
 	'Cloudflare',
 	'codegen',
 	'configs?',

@@ -98,3 +98,33 @@ fn a_command_needs_a_program_and_options_are_checked() {
         "no options"
     );
 }
+
+#[test]
+fn without_a_command_the_first_installed_checker_runs_through_node() {
+    let scratch = Scratch::new("installed");
+    let none = checker(&scratch.0, "{}").unwrap_err();
+    assert!(none.0.contains("no type checker installed"), "{}", none.0);
+    let install = |package: &str, manifest: &str| {
+        let directory = scratch.0.join("node_modules").join(package);
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(directory.join("package.json"), manifest).unwrap();
+        std::fs::canonicalize(directory).unwrap()
+    };
+    let typescript = install(
+        "typescript",
+        r#"{"name":"typescript","bin":{"tsc":"bin/tsc"}}"#,
+    );
+    let got = checker(&scratch.0, "{}").unwrap().unwrap();
+    assert_eq!(got.checker.program, Path::new("node"));
+    assert_eq!(
+        got.checker.arguments,
+        [typescript.join("bin/tsc").to_string_lossy()]
+    );
+    let tsrs = install("tsrs", r#"{"name":"tsrs","bin":{"tsrs":"./bin/tsrs"}}"#);
+    let got = checker(&scratch.0, "{}").unwrap().unwrap();
+    assert_eq!(
+        got.checker.arguments,
+        [tsrs.join("./bin/tsrs").to_string_lossy()],
+        "tsrs before TypeScript"
+    );
+}

@@ -9,7 +9,7 @@ runs it on x86_64 Linux, three jobs per project, and writes the report to the ru
 | `svelte-check-tsgo` | svelte-check `--experimental-ts7` of `sveltejs/language-tools#3193`: tsgo and its svelte2tsx content mapper |
 | `svelte-check-tsrs` | The same, with the TypeScript 7.1 API that `tsrs` ships in place of tsgo's                                  |
 | `rsvelte-tsgo`      | `rsvelte check --task ts.check/default` with the Rust content mapper, on tsgo                               |
-| `rsvelte-tsrs`      | `rsvelte run` on `tsrs`, which has no `--showConfig`, with the files `rsvelte-tsgo` checks                  |
+| `rsvelte-tsrs`      | `rsvelte-dev run` on `tsrs`, which has no `--showConfig`, with the files `rsvelte-tsgo` checks              |
 | `rsvelte-tsrs-fast` | The same with `TSRS_FAST=1`                                                                                 |
 | `main-tsgo`         | `svelte_check --tsgo` of `main`, when `--main-check` names its binary                                       |
 

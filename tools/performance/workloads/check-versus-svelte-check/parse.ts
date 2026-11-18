@@ -51,7 +51,7 @@ export function parsers(workspace: string) {
 		return { diagnostics, files: completed, problem, failures: {} };
 	}
 
-	/** `rsvelte check`'s output: each document's findings under `// <file> <task> json`. */
+	/** `rsvelte-dev check`'s output: each document's findings under `// <file> <task> json`. */
 	function parseRsvelte(stdout: string): Parsed {
 		const diagnostics: Diagnostic[] = [];
 		const failures: Record<string, number> = {};

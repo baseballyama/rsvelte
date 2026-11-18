@@ -390,6 +390,8 @@ impl FinishTask for Check {
                         &[(*span, -1, message.clone())],
                     ),
                 );
+                out.findings
+                    .push(findings::finding(*span, -1, message.clone()));
                 self.stand_in(context)
             }
             Ok(TypeScriptDocument::Checked(_)) if self.tsc.is_none() => {

@@ -1,7 +1,7 @@
 [package]
 name = "rsvelte_vue_semantic"
 description = "The Vue template as compiler-core reads it, and scope facts"
-version = "0.0.0"
+version.workspace = true
 edition.workspace = true
 publish = false
 

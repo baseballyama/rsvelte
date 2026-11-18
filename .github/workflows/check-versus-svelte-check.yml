@@ -80,12 +80,12 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/rust
-      - run: cargo build --release -p rsvelte_command_line -p rsvelte_svelte_typescript_projection --bin rsvelte --bin rsvelte-svelte-content-mapper
+      - run: cargo build --release -p rsvelte_command_line -p rsvelte_svelte_typescript_projection --bin rsvelte-dev --bin rsvelte-svelte-content-mapper
       - run: |
           mkdir -p bin
-          cp target/release/rsvelte target/release/rsvelte-svelte-content-mapper bin/
+          cp target/release/rsvelte-dev target/release/rsvelte-svelte-content-mapper bin/
           git rev-parse HEAD > bin/REVISION
-          sha256sum bin/rsvelte bin/rsvelte-svelte-content-mapper
+          sha256sum bin/rsvelte-dev bin/rsvelte-svelte-content-mapper
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rsvelte
@@ -157,7 +157,7 @@ jobs:
             --tsconfig "${{ steps.project.outputs.tsconfig }}" \
             --language-tools "$RUNNER_TEMP/lt" \
             --tools "$RUNNER_TEMP/tools" \
-            --rsvelte bin/rsvelte \
+            --rsvelte bin/rsvelte-dev \
             --mapper bin/rsvelte-svelte-content-mapper \
             --rounds "${{ needs.plan.outputs.rounds }}" \
             --warmup "$WARMUP" \

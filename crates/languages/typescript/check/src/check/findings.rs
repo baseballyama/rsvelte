@@ -1,7 +1,7 @@
 //! Each document's findings, ordered and written as svelte-check and vue-tsc report them.
 
 use rsvelte_kernel::computation::task::TaskOutput;
-use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::diagnostics::{self, Diagnostic};
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
@@ -130,6 +130,17 @@ pub(super) fn write_findings(
             });
         }
     }
+    write_outputs(docs, outs, per_doc, unmapped);
+}
+
+/// Writes each document's ordered findings: the report that matches upstream's, and the same
+/// findings for a person to read.
+fn write_outputs(
+    docs: &[Prepared],
+    outs: Vec<&mut TaskOutput>,
+    per_doc: Vec<Vec<Finding>>,
+    unmapped: Vec<Vec<String>>,
+) {
     // svelte-check and vue-tsc count positions in the text TypeScript reads: without the mark.
     for (((d, out), mut keyed), unmapped) in docs.iter().zip(outs).zip(per_doc).zip(unmapped) {
         keyed.sort_by_key(|f| (f.semantic, f.generated, f.span.start_offset));
@@ -145,8 +156,29 @@ pub(super) fn write_findings(
                 Span::new(0, 0),
             ));
         }
-        let text = &d.source_text[byte_order_mark(&d.source_text) as usize..];
+        let bom = byte_order_mark(&d.source_text);
+        let text = &d.source_text[bom as usize..];
         out.file("json", render_findings(&LineIndex::new(text), &found));
+        // A finding's span is in the document, which keeps the mark.
+        out.findings
+            .extend(found.into_iter().map(|(span, code, message)| {
+                let span = Span::new(span.start_offset + bom, span.end_offset + bom);
+                finding(span, code, message)
+            }));
+    }
+}
+
+/// A finding for a person to read, beside the report that matches upstream's. `code` -1 is a
+/// document the checker cannot take.
+pub(super) fn finding(span: Span, code: i64, message: String) -> diagnostics::Finding {
+    let code: std::borrow::Cow<'static, str> = if code < 0 {
+        "check_rejected".into()
+    } else {
+        format!("TS{code}").into()
+    };
+    diagnostics::Finding {
+        diagnostic: Diagnostic::error(code, message, span),
+        fix: Vec::new(),
     }
 }
 
