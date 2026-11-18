@@ -45,22 +45,25 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
                 },
             };
             let svelte = match options.value.svelte {
-                Some(svelte) => std::path::absolute(base.join(svelte)).map_err(error)?,
-                None => installed_package("svelte", base)
-                    .map_err(error)?
-                    .ok_or_else(|| {
-                        CallError(
-                            "options of `svelte.check`: the project does not install `svelte`; \
-                         name its directory with `svelte`"
-                                .to_owned(),
-                        )
-                    })?,
+                Some(svelte) => Some(std::path::absolute(base.join(svelte)).map_err(error)?),
+                None => installed_package("svelte", base).map_err(error)?,
             };
-            Some(TypeCheckConfiguration {
-                tsc,
-                content_mapper,
-                svelte,
-            })
+            match svelte {
+                Some(svelte) => Some(TypeCheckConfiguration {
+                    tsc,
+                    content_mapper,
+                    svelte,
+                }),
+                // A project without Svelte has no component to check.
+                None if !runs => None,
+                None => {
+                    return Err(CallError(
+                        "options of `svelte.check`: the project does not install `svelte`; name \
+                         its directory with `svelte`"
+                            .to_owned(),
+                    ));
+                }
+            }
         }
         (None, _) if runs => {
             return Err(settings.missing(TASK, rsvelte_typescript_check::NEEDS_TYPE_CHECKER));

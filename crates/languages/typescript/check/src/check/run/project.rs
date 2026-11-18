@@ -22,10 +22,10 @@ impl Tsc {
         &self,
         languages: &[MappedLanguage],
     ) -> Result<Vec<PathBuf>, String> {
-        let config = self
-            .tsconfig
-            .as_ref()
-            .ok_or("a project check needs the `tsconfig` option of `typescript.check`")?;
+        let config = self.tsconfig.as_ref().ok_or(
+            "a project check needs a tsconfig: `tsconfig.json` beside the options, such as in \
+                 the current directory, or `tsconfig` in the options of `typescript.check`",
+        )?;
         let config =
             std::fs::canonicalize(config).map_err(|e| format!("{}: {e}", config.display()))?;
         in_temporary_directory("rsvelte-project", |dir| {
