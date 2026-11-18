@@ -48,14 +48,14 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
         run: |
-          cargo build --release --locked --target "$TARGET" \
+          cargo build --profile dist --locked --target "$TARGET" \
             -p rsvelte_command_line -p rsvelte_svelte_typescript_projection \
             --bin rsvelte --bin rsvelte-svelte-content-mapper
           extension=""
           if [ "$RUNNER_OS" = Windows ]; then extension=.exe; fi
           mkdir -p "artifacts/$TARGET"
           for program in rsvelte rsvelte-svelte-content-mapper; do
-            cp "target/$TARGET/release/$program$extension" "artifacts/$TARGET/"
+            cp "target/$TARGET/dist/$program$extension" "artifacts/$TARGET/"
           done
           "artifacts/$TARGET/rsvelte$extension" --version
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
