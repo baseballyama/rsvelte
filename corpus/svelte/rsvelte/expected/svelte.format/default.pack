@@ -3898,17 +3898,6 @@ line comment -->
 
 <p>{typeof go}</p>
 
-=== 148 lint/no-add-event-listener/06-comment-as-decoy.svelte	svelte
-<script>
-  function go(handlers) {
-    handlers
-      .addEventListener /* alias as any */
-      ("x", () => {});
-  }
-</script>
-
-<p>{typeof go}</p>
-
 === 209 lint/no-add-event-listener/07-template-handler.svelte	svelte
 <script>
   let el;

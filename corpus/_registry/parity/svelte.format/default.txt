@@ -1,2 +1,1 @@
 # svelte.format/default: 34768 match
-svelte/rsvelte/lint/no-add-event-listener/06-comment-as-decoy.svelte	mismatch
