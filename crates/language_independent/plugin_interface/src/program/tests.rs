@@ -53,3 +53,28 @@ fn an_empty_name_is_refused() {
     let error = program_path("", Path::new(".")).expect_err("empty");
     assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
 }
+
+#[test]
+fn a_package_is_found_in_the_nearest_node_modules_and_its_bin_by_name() {
+    let scratch = Scratch::new("package");
+    let package = scratch.0.join("node_modules/checker");
+    std::fs::create_dir_all(&package).expect("package directory");
+    std::fs::write(
+        package.join("package.json"),
+        r#"{"name":"checker","bin":{"check":"./bin/check.js","other":"o.js"}}"#,
+    )
+    .expect("manifest");
+    let nested = scratch.0.join("app/src");
+    std::fs::create_dir_all(&nested).expect("nested directory");
+    let real = std::fs::canonicalize(&package).expect("real path");
+    assert_eq!(
+        installed_package("checker", &nested).unwrap(),
+        Some(real.clone())
+    );
+    assert_eq!(
+        installed_bin("checker", "check", &nested).unwrap(),
+        Some(real.join("./bin/check.js"))
+    );
+    assert_eq!(installed_bin("checker", "missing", &nested).unwrap(), None);
+    assert_eq!(installed_package("absent", &nested).unwrap(), None);
+}
