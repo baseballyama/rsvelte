@@ -1753,6 +1753,9 @@
 ["svelte/rsvelte-tests-core-2/dollar_props_binding_3192/snippet_parameter_read_is_renamed_and_not_read_wrapped/fe951f21ace861f4.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 renames the reads of a `$$props` an `{#each}` or a snippet declares but not the declaration, so each read throws a ReferenceError"
 
+["svelte/rsvelte/pattern/css/value-ends-outside-strings-and-urls.svelte".skip]
+"svelte.format" = "upstream bug: oxc-css-parser 0.0.21 records no parse error for a value whose `(` or `[` an unbalanced `}` ends, so oxc formats a style block its error semantics reject."
+
 ["svelte/rsvelte/pattern/issues/3192-dollar-props-binding.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 renames the reads of a `$$props` an `{#each}` or a snippet declares but not the declaration, so each read throws a ReferenceError"
 

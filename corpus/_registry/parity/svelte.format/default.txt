@@ -2,4 +2,3 @@
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_pseudo_class_argument_is_reported_at_its_closing_paren/5ca88ea343d68823.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_pseudo_class_argument_is_reported_at_its_closing_paren/8cbb31b173f99158.svelte	mismatch
 svelte/rsvelte/lint/no-add-event-listener/06-comment-as-decoy.svelte	mismatch
-svelte/rsvelte/pattern/css/value-ends-outside-strings-and-urls.svelte	mismatch
