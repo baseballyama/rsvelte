@@ -1,0 +1,6 @@
+<script lang="ts">
+	let o = $state({ a: 0, b: 0 });
+	const g = {};
+	export function go() { o.a = o.b = g; }
+</script>
+{o.a}

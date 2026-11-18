@@ -1,0 +1,1 @@
+<div {...{ 'data-x': (async () => await p)() }}></div>

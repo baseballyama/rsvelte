@@ -1,0 +1,4 @@
+warning a11y_no_static_element_interactions 1:37-1:88 `<svelte:element>` with a click handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 1:64-1:86 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated

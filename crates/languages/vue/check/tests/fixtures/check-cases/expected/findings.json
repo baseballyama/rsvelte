@@ -1,0 +1,74 @@
+[
+	{
+		"code": 2322,
+		"message": "Type 'string' is not assignable to type 'number'.",
+		"start": {
+			"line": 3,
+			"character": 6
+		},
+		"end": {
+			"line": 3,
+			"character": 7
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'toUpperCase' does not exist on type 'number'.",
+		"start": {
+			"line": 9,
+			"character": 38
+		},
+		"end": {
+			"line": 9,
+			"character": 49
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'foo' does not exist on type 'number'.",
+		"start": {
+			"line": 9,
+			"character": 58
+		},
+		"end": {
+			"line": 9,
+			"character": 61
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'__VLS_ctx.maybe' is possibly 'undefined'.",
+		"start": {
+			"line": 11,
+			"character": 15
+		},
+		"end": {
+			"line": 11,
+			"character": 20
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'bar' does not exist on type 'number'.",
+		"start": {
+			"line": 12,
+			"character": 19
+		},
+		"end": {
+			"line": 12,
+			"character": 22
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'baz' does not exist on type 'number'.",
+		"start": {
+			"line": 12,
+			"character": 36
+		},
+		"end": {
+			"line": 12,
+			"character": 39
+		}
+	}
+]

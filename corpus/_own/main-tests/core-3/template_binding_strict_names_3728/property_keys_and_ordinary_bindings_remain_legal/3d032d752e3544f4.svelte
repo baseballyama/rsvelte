@@ -1,0 +1,1 @@
+{#each [{ eval: 1 }] as { eval: value }}{value}{/each}

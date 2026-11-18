@@ -1,0 +1,1 @@
+{#if 1}{@const { a } = obj}{/if}

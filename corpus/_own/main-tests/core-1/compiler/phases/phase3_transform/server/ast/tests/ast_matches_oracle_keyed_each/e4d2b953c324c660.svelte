@@ -1,0 +1,1 @@
+<script>let items = [];</script>{#each items as item (item.id)}<li>{item.name}</li>{:else}<p>empty</p>{/each}

@@ -1,0 +1,154 @@
+use oxc_ast::ast::{Expression, ObjectPropertyKind};
+
+use super::escaped_text;
+use crate::lower::builder::Runtime;
+use crate::lower::is_custom_element_node;
+use crate::lower::server::{
+    Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind, ServerCompilationContext,
+    Template, capture_event, capture_load_events, event_attribute, is_behaviour,
+    push_captured_events,
+};
+use crate::lower::template::implicit_attributes;
+
+const ELEMENT_IS_INPUT: u32 = 1 << 2;
+
+const ELEMENT_IS_NAMESPACED: u32 = 1;
+const ELEMENT_PRESERVE_ATTRIBUTE_CASE: u32 = 1 << 1;
+
+impl<'o> ServerCompilationContext<'_, 'o> {
+    /// Upstream `build_element_attributes`' spread path: `build_element_spread_attributes` and
+    /// `prepare_element_spread`.
+    pub(super) fn spread_attributes(
+        &self,
+        identifier: CompilerNodeIdentifier,
+        tag: &str,
+        list: &'o [Attribute],
+        template: &mut Template<'_, 'o>,
+    ) {
+        let (arguments, events) = self.spread_args(identifier, tag, list, false);
+        let call = self.b.runtime_some("attributes", arguments);
+        template.expression(call);
+        push_captured_events(template, &events);
+    }
+
+    /// Upstream `prepare_element_spread`'s arguments. `all` is `prepare_element_spread_object`,
+    /// which keeps every attribute; otherwise the spread path of `build_element_attributes`
+    /// filters events (returned for capture) and the values the runtime sets elsewhere.
+    pub(in crate::lower::server) fn spread_args(
+        &self,
+        identifier: CompilerNodeIdentifier,
+        tag: &str,
+        list: &'o [Attribute],
+        all: bool,
+    ) -> (Vec<Option<Expression<'o>>>, Vec<&'o str>) {
+        let b = self.b;
+        let mut events = Vec::new();
+        let mut props: Vec<ObjectPropertyKind<'o>> = Vec::with_capacity(list.len());
+        let mut class_directives = Vec::new();
+        let mut style_directives = Vec::new();
+        for a in list {
+            let raw_name = a.name.text(self.source_text);
+            match a.value {
+                AttributeValue::Bind(e) => {
+                    // `prepare_element_spread_object` keeps every binding.
+                    let value = if all {
+                        Some((raw_name.to_lowercase(), self.bound(e)))
+                    } else {
+                        self.bound_value(tag, list, a)
+                    };
+                    if let Some((name, value)) = value {
+                        props.push(b.init(&name, value));
+                    }
+                    continue;
+                }
+                AttributeValue::Use { .. } => {
+                    capture_load_events(&mut events, tag);
+                    continue;
+                }
+                _ if is_behaviour(&a.value) => continue,
+                AttributeValue::Class(e) => {
+                    class_directives.push((raw_name, e));
+                    continue;
+                }
+                AttributeValue::Style { .. } => {
+                    style_directives.push(a);
+                    continue;
+                }
+                AttributeValue::Spread(e) => {
+                    let v = self.expression(e);
+                    props.push(b.spread_property(v));
+                    capture_load_events(&mut events, tag);
+                    continue;
+                }
+                _ if all => {}
+                _ if raw_name == "value" && matches!(tag, "select" | "textarea") => continue,
+                _ if event_attribute(self.source_text, a).is_some() => {
+                    capture_event(&mut events, tag, raw_name);
+                    continue;
+                }
+                _ if tag != "input" && matches!(raw_name, "defaultValue" | "defaultChecked") => {
+                    continue;
+                }
+                _ => {}
+            }
+            let mut name = if self.plan.named(identifier) == crate::render_plan::Namespace::Html {
+                raw_name.to_lowercase()
+            } else {
+                raw_name.to_owned()
+            };
+            if tag == "select" && name == "defaultvalue" {
+                "defaultValue".clone_into(&mut name);
+            }
+            let trim = matches!(name.as_str(), "class" | "style");
+            let value = match &a.value {
+                AttributeValue::Static(v) => b.string(&escaped_text(v, trim)),
+                // `prepare_element_spread_object` writes a class as it is, without `clsx`.
+                _ => self.attribute_value(a, trim, raw_name == "class" && !all),
+            };
+            props.push(b.init(&name, value));
+        }
+        let implicit = implicit_attributes(self.source_text, list, self.an.scoped[identifier]);
+        for (name, empty) in [("class", implicit.class), ("style", implicit.style)] {
+            if empty {
+                props.push(b.init(name, b.string("")));
+            }
+        }
+        let object = b.object(props);
+        let classes = (!class_directives.is_empty()).then(|| {
+            b.object(class_directives.iter().map(|&(name, e)| {
+                // Upstream writes `class:x={x}` as the bare name, unread.
+                let bare = matches!(self.javascript.get_expression(e).get_inner_expression(),
+                            Expression::Identifier(id) if id.name == name);
+                b.init(name, if bare { b.id(name) } else { self.expression(e) })
+            }))
+        });
+        let hash = if self.an.scoped[identifier] {
+            self.identity.stylesheet_hash.clone()
+        } else {
+            None
+        };
+        let hash = hash.map(|h| b.string(&h));
+        let flags = self.spread_flags(identifier, tag);
+        let flags = (flags != 0).then(|| b.number(f64::from(flags)));
+        let styles = self.spread_styles(&style_directives);
+        (vec![Some(object), hash, classes, styles, flags], events)
+    }
+}
+
+impl ServerCompilationContext<'_, '_> {
+    /// Upstream `prepare_element_spread`'s flags.
+    fn spread_flags(&self, identifier: CompilerNodeIdentifier, tag: &str) -> u32 {
+        let tree = self.compiler_syntax_tree;
+        let custom = matches!(&tree.node(identifier).kind,
+            NodeKind::Element(el) if is_custom_element_node(tree, self.source_text, el));
+        if self.plan.named(identifier) != crate::render_plan::Namespace::Html {
+            ELEMENT_IS_NAMESPACED | ELEMENT_PRESERVE_ATTRIBUTE_CASE
+        } else if custom {
+            ELEMENT_PRESERVE_ATTRIBUTE_CASE
+        } else if tag == "input" {
+            ELEMENT_IS_INPUT
+        } else {
+            0
+        }
+    }
+}

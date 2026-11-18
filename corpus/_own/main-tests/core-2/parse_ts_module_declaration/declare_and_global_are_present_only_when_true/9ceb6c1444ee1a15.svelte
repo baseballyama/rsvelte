@@ -1,0 +1,1 @@
+<script lang="ts">declare module "x";</script>

@@ -1,0 +1,1 @@
+{#snippet one(a, b = 1, c = (2, 3))}x{/snippet}

@@ -1,0 +1,1 @@
+{#if true}{@const c = 42 = nope}<b>{c}</b>{/if}

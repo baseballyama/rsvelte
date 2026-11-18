@@ -1,0 +1,7 @@
+<script>
+import imp from './i.js';
+let o = $state({});
+let s = {};
+function g(){ return {}; }
+let t = {};
+</script><button onclick={() => (window.location.q = s.v)}>x</button>

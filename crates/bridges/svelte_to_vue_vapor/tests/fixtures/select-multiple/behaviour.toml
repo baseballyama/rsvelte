@@ -1,0 +1,8 @@
+[[steps]]
+select = ["select", "a"]
+
+[[steps]]
+click = "button"
+
+[[steps]]
+select = ["select", "b"]

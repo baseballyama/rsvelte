@@ -1,0 +1,1 @@
+<script lang="ts">type I2 = import("x").A.B;</script>

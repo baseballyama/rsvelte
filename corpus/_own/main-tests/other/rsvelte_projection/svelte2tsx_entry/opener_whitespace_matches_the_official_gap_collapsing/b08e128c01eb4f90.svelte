@@ -1,0 +1,1 @@
+<Foo><span slot="a">y</span></Foo>

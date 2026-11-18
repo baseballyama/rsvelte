@@ -1,0 +1,1 @@
+{#await p}a{:then v}b{:catch e}c{:then w}d{/await}

@@ -1,0 +1,1 @@
+<script>function make() {}</script><svelte:window style:color={make()} />

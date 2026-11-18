@@ -1,0 +1,1043 @@
+# rsvelte pack 1
+=== 397 example/src/routes/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+  const url = 'https://orefalo.github.io/svelte-splitpanes/';
+</script>
+
+<h1>Welcome to Svelte-Splitpanes Minimal Demo!</h1>
+<p>
+  Visit <a href={url}>{url}</a>
+  to read the documentation and for more examples.
+</p>
+
+<Splitpanes style="height: 400px;">
+  <Pane>First Pane</Pane>
+  <Pane>Second Pane</Pane>
+</Splitpanes>
+
+=== 194 src/lib/internal/GatheringRound.svelte	svelte	runes	neutral
+<script lang="ts" context="module">
+  export const gatheringKey = {};
+</script>
+
+<script lang="ts">
+  import { setContext } from 'svelte';
+
+  setContext(gatheringKey, true);
+</script>
+
+<slot />
+
+=== 4883 src/routes/+layout.svelte	svelte	runes	neutral
+<script lang="ts">
+  import { page } from '$app/state';
+  import theme from 'svelte-highlight/styles/night-owl';
+  import Contents, { type Section } from '$comp/Contents.svelte';
+  import RTLToggle from '$comp/RTLToggle.svelte';
+  import { pathIsCurrent } from './pathUtils';
+  import { asset } from '$app/paths';
+
+  let isRTL = false;
+
+  const sections: Section[] = [
+    {
+      title: 'Getting started',
+      pages: [{ title: 'Introduction', path: '' }]
+    },
+    {
+      title: 'General Examples',
+      pages: [
+        { title: 'Min-Max', path: 'examples/min-max' },
+        { title: 'Default Size', path: 'examples/default-size' },
+        { title: 'Disable Double Click', path: 'examples/disable-dbl-click' },
+        { title: 'Lock Layout', path: 'examples/lock-layout' },
+        { title: 'Push Other Panes', path: 'examples/push-other-panes' },
+        { title: 'Add Remove Panes', path: 'examples/add-remove-panes' },
+        { title: 'Reordering Panes', path: 'examples/reordering-panes' },
+        { title: 'ChangeOrientation', path: 'examples/change-orientation' },
+        { title: 'Prog Resize', path: 'examples/prog-resize' },
+        { title: 'Toggle Panes', path: 'examples/toggle-panes' },
+        { title: 'Listen To Events', path: 'examples/listen-to-events' }
+      ]
+    },
+    {
+      title: 'Snap',
+      pages: [
+        { title: 'Simple Snap', path: 'examples/snap/simple' },
+        { title: 'Middle Snap', path: 'examples/snap/middle' },
+        { title: 'Min-Max Snap', path: 'examples/snap/min-max' }
+      ]
+    },
+    {
+      title: 'Styling',
+      pages: [
+        { title: 'Style Splitters', path: 'examples/styling/splitters' },
+        { title: 'App Layout', path: 'examples/styling/app-layout' }
+      ]
+    }
+  ];
+
+  const pages = sections.map(section => section.pages).flat();
+  const pageIdx = pages.findIndex(({ path }) => pathIsCurrent(path, page));
+  const curPage = pageIdx >= 0 ? pages[pageIdx] : undefined;
+  // const prevPage = pageIdx >= 1 ? pages[pageIdx - 1] : undefined;
+  // const nextPage = pageIdx >= 0 && pageIdx < pages.length - 1 ? pages[pageIdx + 1] : undefined;
+</script>
+
+<svelte:head>
+  <title>Svelte-Splitpanes{curPage ? ` - ${curPage.title}` : ''}</title>
+  <meta name="description" content="A Fantastic pane splitter for Svelte" />
+  {@html theme}
+</svelte:head>
+
+<div class="page-container">
+  <div role="presentation" class="toc-container-space"></div>
+
+  <main class:rtl-containers={isRTL}>
+    <slot />
+  </main>
+
+  <div class="toc-container">
+    <div role="presentation" class="toc-contents-wrap">
+      <h1 class="toc-head">
+        <img src={asset('/favicon.svg')} alt="Icon" width="30" height="30" />
+        Svelte-Splitpane
+      </h1>
+      <Contents contents={sections} />
+    </div>
+
+    <RTLToggle bind:isRTL />
+  </div>
+</div>
+
+<style>
+  :global(body) {
+    font-family: Helvetica, Arial, sans-serif;
+    color: rgba(116, 103, 103);
+    margin: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  }
+
+  :global(h1 h2) {
+    color: #000;
+  }
+
+  :global(p) {
+    color: #999;
+    font-size: medium;
+    padding-top: 1em;
+    padding-bottom: 1em;
+    font-style: italic;
+  }
+
+  :global(.splitpanes__pane) {
+    justify-content: center;
+    align-items: center;
+    color: rgba(106, 106, 106, 0.6);
+    display: flex;
+    position: relative;
+    font-size: 3em;
+  }
+
+  :global(em.specs) {
+    font-size: 0.2em;
+    line-height: 1;
+    position: absolute;
+    color: #bbb;
+    bottom: 0.5em;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 0.5em;
+  }
+
+  /* additional styling to the code area */
+  :global(code.hljs) {
+    tab-size: 4;
+  }
+
+  .page-container {
+    display: table;
+    font-size: 14px;
+    width: 100%;
+  }
+
+  main {
+    max-width: 1150px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 10px;
+    overflow-x: auto;
+  }
+
+  .rtl-containers :global(.splitpanes) {
+    direction: rtl;
+  }
+
+  .toc-container-space {
+    display: none;
+  }
+
+  .toc-container {
+    display: flex;
+    flex-flow: column-reverse nowrap;
+    background: rgb(247, 250, 253);
+    color: rgb(65, 65, 72);
+  }
+
+  .toc-head {
+    display: flex;
+    flex-flow: row nowrap;
+    gap: 8px;
+    padding-left: 10px;
+  }
+
+  @media (min-width: 832px) {
+    .page-container {
+      display: flex;
+      flex-flow: row nowrap;
+    }
+
+    .toc-container-space {
+      display: block;
+      min-width: 300px;
+      width: 300px;
+      height: 100vh;
+      margin: auto 0;
+    }
+
+    main {
+      flex-grow: 1;
+    }
+
+    .toc-container {
+      flex-direction: column;
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 300px;
+      height: 100vh;
+    }
+
+    .toc-contents-wrap {
+      overflow-x: hidden;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+      padding: 10px;
+    }
+  }
+</style>
+
+=== 1215 src/routes/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import { asset, resolve } from '$app/paths';
+  import { page } from '$app/state';
+  const origin = page.url.origin;
+</script>
+
+<h1>Welcome to Svelte-Splitpane demo!</h1>
+
+<a href="https://github.com/orefalo/svelte-splitpanes">
+  https://github.com/orefalo/svelte-splitpanes
+</a>
+
+<h2>Features</h2>
+
+<a href={origin + resolve('/minified-size')}>
+  <img alt="Minified Size" src={origin + asset('/minified-size-badge.svg')} />
+</a>
+
+<ul>
+  <li>Support both dynamic horizontal and vertical splits</li>
+  <li>Support defaults, min and max sizes</li>
+  <li>Support multiple splits</li>
+  <li>Support lifecyle events</li>
+  <li>Support custom divider size or overlay</li>
+  <li>Support splitter pane pushing</li>
+  <li>Support RTL rendering with auto-detection</li>
+  <li>Support first splitter on/off</li>
+  <li>Support pane toggle</li>
+  <li>Support edge snapping</li>
+  <li>Support programmatic resizing and two-way size binding</li>
+  <li>Support programmatic panes add/remove</li>
+  <li>Support programmatic panes reordering by Svelte keyed each blocks</li>
+  <li>Support for legacy browser such as IE 11</li>
+  <li>Support for touch devices</li>
+  <li>Sveltekit & Typescript friendly</li>
+</ul>
+
+=== 211 src/routes/examples/add-remove-panes/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+
+  import example from './code.svelte?example';
+</script>
+
+<h2>Adding and removing panes programmatically</h2>
+
+<ExampleArea {example} />
+
+=== 515 src/routes/examples/change-orientation/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+
+  import example from './code.svelte?example';
+</script>
+
+<h2>Change orientation & first splitter</h2>
+<p>
+  When changing direction, all the panes current width or height will flip to adapt to the new
+  layout.
+</p>
+<p>
+  Showing the first splitter is an option which allows user to double click the splitter to maximize
+  the next pane.
+  <br />
+  The first splitter does not allow to resize the next pane.
+</p>
+
+<ExampleArea {example} />
+
+=== 638 src/routes/examples/change-orientation/code.svelte	svelte	runes	neutral
+<script>
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+  import Button from '$comp/Button.svelte';
+
+  let horizontal = false;
+  let firstSplitter = false;
+</script>
+
+<Button
+  on:click={() => {
+    horizontal = !horizontal;
+  }}>
+  {horizontal ? 'Turn to Vertical' : 'Turn to Horizontal'}
+</Button>
+<Button
+  on:click={() => {
+    firstSplitter = !firstSplitter;
+  }}>
+  {firstSplitter ? 'Hide first splitter' : 'Show first Splitter'}
+</Button>
+<Splitpanes style="height: 400px" {firstSplitter} {horizontal}>
+  {#each { length: 3 } as _, i}
+    <Pane minSize={5}>
+      <span>{i + 1}</span>
+    </Pane>
+  {/each}
+</Splitpanes>
+
+=== 647 src/routes/examples/default-size/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+
+  import example from './code.svelte?example';
+</script>
+
+<h2>Default pane size</h2>
+<p>
+  Provide dimension of your panes when they first load (will be used for the width or height
+  respectively for the vertical or horizontal layout).
+  <br />
+  <b>
+    If you provide a default size, make sure you provide it for all the panes for a total equals to
+    100%. If a pane is missing a default size, then all the panes will have the same size.
+  </b>
+  <br />
+  Note that setting a default value is different than setting a min or max value.
+</p>
+
+<ExampleArea {example} />
+
+=== 373 src/routes/examples/default-size/code.svelte	svelte	runes	neutral
+<script>
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+</script>
+
+<Splitpanes horizontal style="height: 400px">
+  <Pane size={65}>
+    <span>1</span>
+    <p>Default size of 65%</p>
+  </Pane>
+  <Pane size={10}>
+    <span>2</span>
+    <p>Default size of 10%</p>
+  </Pane>
+  <Pane size={25}>
+    <span>3</span>
+    <p>Default size of 25%</p>
+  </Pane>
+</Splitpanes>
+
+=== 333 src/routes/examples/disable-dbl-click/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+  import example from './code.svelte?example';
+</script>
+
+<h2>Disable double click</h2>
+<p>
+  By default, double clicking the splitter will expand its nearest pane. In this example, we
+  demonstrate how to turn this feature OFF
+</p>
+
+<ExampleArea {example} />
+
+=== 348 src/routes/examples/disable-dbl-click/code.svelte	svelte	runes	neutral
+<script>
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+</script>
+
+<Splitpanes horizontal style="height: 400px" dblClickSplitter={false}>
+  <Pane size={33}>
+    <span>1</span>
+  </Pane>
+  <Pane size={33}>
+    <p>Note how double clicking has no resizing effects..</p>
+  </Pane>
+  <Pane size={34}>
+    <span>3</span>
+  </Pane>
+</Splitpanes>
+
+=== 1381 src/routes/examples/listen-to-events/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+
+  import example from './code.svelte?example';
+</script>
+
+<h2>Listening to emitted events</h2>
+
+<p>Here is the list of events that are emitted from splitpanes:</p>
+
+<ul>
+  <li>ready has no parameter and fires when splitpanes is ready</li>
+  <li>
+    resize fires while resizing (on mousemove/touchmove) and returns an array of all the panes
+    objects with their dimensions
+  </li>
+  <li>
+    resized fires once when the resizing stops after user drag (on mouseup/touchend). it returns an
+    array of all the panes objects with their dimensions. The event also fires after adding or
+    removing a pane.
+  </li>
+  <li>pane-click returns the clicked pane object with its dimensions.</li>
+  <li>pane-maximize returns the maximized pane object with its dimensions.</li>
+  <li>
+    pane-add returns an object containing the index of the added pane and the new array of panes
+    after resize.
+  </li>
+  <li>
+    pane-remove returns an object containing the removed pane and an array of all the remaining
+    panes objects with their dimensions after resize.
+  </li>
+  <li>
+    splitter-click returns the next pane object (with its dimensions) directly after the clicked
+    splitter. This event is only emitted if dragging did not occur between mousedown and mouseup.
+  </li>
+</ul>
+
+<ExampleArea {example} />
+
+=== 903 src/routes/examples/listen-to-events/code.svelte	svelte	runes	neutral
+<script lang="ts">
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+  import TextArea from '$comp/TextAreaAutosize.svelte';
+
+  let val = '// Event name: Event params   (Last event at the top)';
+
+  function handleMessage(event: any) {
+    if (event.detail) val = event.type + ' ' + JSON.stringify(event.detail) + '\n' + val;
+    else val = event.type + '\n' + val;
+  }
+</script>
+
+<Splitpanes
+  style="height: 400px"
+  on:ready={handleMessage}
+  on:resize={handleMessage}
+  on:resized={handleMessage}
+  on:pane-click={handleMessage}
+  on:pane-maximize={handleMessage}
+  on:pane-add={handleMessage}
+  on:pane-remove={handleMessage}
+  on:splitter-click={handleMessage}>
+  {#each { length: 3 } as _, i}
+    <Pane minSize={10}>
+      <span>{i + 1}</span>
+    </Pane>
+  {/each}
+</Splitpanes>
+
+<p>Try resizing panes and check the logs bellow.</p>
+
+<TextArea bind:value={val} minRows={4} maxRows={40} />
+
+=== 214 src/routes/examples/lock-layout/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+
+  import example from './code.svelte?example';
+</script>
+
+<h2>Locking layout by prevent pushing other panes</h2>
+
+<ExampleArea {example} />
+
+=== 634 src/routes/examples/lock-layout/code.svelte	svelte	runes	neutral
+<script>
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+</script>
+
+<Splitpanes horizontal style="height: 400px" pushOtherPanes={false}>
+  <Pane>
+    <span>1</span>
+    <p>Try grabbing to very bottom splitter, note how it stops on the bounderies of this panel</p>
+  </Pane>
+  <Pane>
+    <Splitpanes>
+      <Pane>
+        <span>2</span>
+      </Pane>
+      <Pane>
+        <span>3</span>
+      </Pane>
+      <Pane>
+        <span>4</span>
+      </Pane>
+    </Splitpanes>
+  </Pane>
+  <Pane>
+    <span>5</span>
+    <p>Try grabbing to very top splitter, note how it stops on the bounderies of this panel</p>
+  </Pane>
+</Splitpanes>
+
+=== 442 src/routes/examples/min-max/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+
+  import example from './code.svelte?example';
+</script>
+
+<h2>Horizontal layout, push other panes, min & max use, doubleclick</h2>
+<p>
+  You can double click a splitter to maximize the next pane!
+  <br />
+  If you want to disable the 'double click splitter to maximize' behavior, you can add this attribute:
+  dblClickSplitter={false}.
+</p>
+
+<ExampleArea {example} />
+
+=== 482 src/routes/examples/min-max/code.svelte	svelte	runes	neutral
+<script>
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+</script>
+
+<Splitpanes horizontal={true} style="height: 400px">
+  <Pane minSize={20} maxSize={70}>
+    <span>
+      1
+      <br />
+      <em class="specs">I have a min height of 20% &amp; max height of 70%</em>
+    </span>
+  </Pane>
+  <Pane>
+    <span>2</span>
+  </Pane>
+  <Pane maxSize={70}>
+    <span>
+      3
+      <br />
+      <em class="specs">I have a max height of 70%</em>
+    </span>
+  </Pane>
+</Splitpanes>
+
+=== 469 src/routes/examples/prog-resize/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+
+  import example from './code.svelte?example';
+</script>
+
+<h2>Programmatic resizing</h2>
+
+<p>
+  This example shows the programmatic way of resizing panes with two-way data biding. And how it
+  works both ways.
+  <br />
+  Changing programmatically the size one pane, will shrink/expand the other panes that have no specified
+  size, as you can see in the example.
+</p>
+
+<ExampleArea {example} />
+
+=== 406 src/routes/examples/prog-resize/code.svelte	svelte	runes	neutral
+<script>
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+  import RangeSlider from 'svelte-range-slider-pips';
+
+  let value = [50];
+</script>
+
+<RangeSlider float bind:values={value} min={0} step={0.01} max={100} />
+<Splitpanes style="height: 400px">
+  <Pane bind:size={value[0]}>
+    <span>{Math.round(value[0])}%</span>
+  </Pane>
+  <Pane>
+    <span>Auto-Calculated</span>
+  </Pane>
+</Splitpanes>
+
+=== 240 src/routes/examples/push-other-panes/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+
+  import example from './code.svelte?example';
+</script>
+
+<h2>Lots of splitters & push other panes - all panes have a min width of 5%</h2>
+
+<ExampleArea {example} />
+
+=== 267 src/routes/examples/push-other-panes/code.svelte	svelte	runes	neutral
+<script>
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+</script>
+
+<Splitpanes style="height: 400px">
+  {#each { length: 8 } as _, i}
+    <Pane minSize={5}>
+      <span>{i + 1}</span>
+      <p>Double click splitter -></p>
+    </Pane>
+  {/each}
+</Splitpanes>
+
+=== 185 src/routes/examples/reordering-panes/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+
+  import example from './code.svelte?example';
+</script>
+
+<h2>Reordering Panes</h2>
+
+<ExampleArea {example} />
+
+=== 488 src/routes/examples/reordering-panes/code.svelte	svelte	runes	neutral
+<script>
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+  import Button from '$comp/Button.svelte';
+
+  const ordered = [{ color: 'red' }, { color: 'blue' }];
+</script>
+
+<Button
+  on:click={() => {
+    const temp = ordered[0];
+    ordered[0] = ordered[1];
+    ordered[1] = temp;
+  }}>
+  Switch
+</Button>
+<Splitpanes style="height: 400px">
+  {#each ordered as val}
+    <Pane minSize={10}>
+      <span style:color={val.color}>{val.color}</span>
+    </Pane>
+  {/each}
+</Splitpanes>
+
+=== 180 src/routes/examples/snap/middle/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+
+  import example from './code.svelte?example';
+</script>
+
+<h2>Middle snap</h2>
+
+<ExampleArea {example} />
+
+=== 247 src/routes/examples/snap/middle/code.svelte	svelte	runes	neutral
+<script>
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+</script>
+
+<Splitpanes style="height: 400px">
+  <Pane />
+
+  <Pane snapSize={10}>
+    <p>Try shrinking my size, note how I snap below 10% size</p>
+  </Pane>
+
+  <Pane />
+</Splitpanes>
+
+=== 252 src/routes/examples/snap/min-max/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+
+  import example from './code.svelte?example';
+</script>
+
+<h2>Min & max with snap</h2>
+<p>You can also snap to the panel maximum and minimum size.</p>
+
+<ExampleArea {example} />
+
+=== 376 src/routes/examples/snap/min-max/code.svelte	svelte	runes	neutral
+<script>
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+</script>
+
+<Splitpanes style="height: 400px">
+  <Pane />
+
+  <Pane snapSize={10} minSize={10} maxSize={70}>
+    <span style="font-size: 20px;">
+      I have a snap size of 10%
+      <br />
+      I have a min size of 10%
+      <br />
+      I have a max size of 70%
+    </span>
+  </Pane>
+
+  <Pane />
+</Splitpanes>
+
+=== 265 src/routes/examples/snap/simple/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+
+  import example from './code.svelte?example';
+</script>
+
+<h2>Simple snap</h2>
+<p>Using snapSize on a pane makes it snap to his adjacent splitters and borders.</p>
+
+<ExampleArea {example} />
+
+=== 235 src/routes/examples/snap/simple/code.svelte	svelte	runes	neutral
+<script>
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+</script>
+
+<Splitpanes style="height: 400px">
+  <Pane snapSize={10}>
+    <p>Try shrinking my size, note how I snap below 10% size</p>
+  </Pane>
+
+  <Pane />
+</Splitpanes>
+
+=== 340 src/routes/examples/styling/app-layout/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+
+  import example from './code.svelte?example';
+</script>
+
+<h2>Styling Splitters - Modern</h2>
+
+<p>
+  This examples uses CSS styles to pixel size panes and lock them in place. applied to panes in
+  order to achieve the desired layout.
+</p>
+
+<ExampleArea {example} />
+
+=== 2364 src/routes/examples/styling/app-layout/code.svelte	svelte	runes	neutral
+<script>
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+</script>
+
+<Splitpanes theme="no-splitter" horizontal style="height: 400px" dblClickSplitter={false}>
+  <Pane size={6} minSize={6} maxSize={6}>
+    <p>MenuBar - This is a splitpane, note how the splitters made static using CSS</p>
+  </Pane>
+  <Pane size={6} minSize={6} maxSize={6}>
+    <p>ToolBar - This is another fixed size, locked splitpane</p>
+  </Pane>
+  <Pane>
+    <Splitpanes theme="modern-theme">
+      <Pane>
+        <p>
+          Folder
+          <br />
+          You can move those --&gt;
+        </p>
+      </Pane>
+      <Pane>
+        <p>Sample content</p>
+      </Pane>
+      <Pane>
+        <p>
+          Details
+          <br />
+          &lt;-- You can move those
+        </p>
+      </Pane>
+    </Splitpanes>
+  </Pane>
+  <Pane size={6} minSize={6} maxSize={6}>
+    <p>statusbar - and yet, another splitpane, same technique</p>
+  </Pane>
+</Splitpanes>
+
+<style global lang="scss">
+  .splitpanes.modern-theme {
+    .splitpanes__pane {
+      background-color: #f8f8f8;
+    }
+    .splitpanes__splitter {
+      background-color: #ccc;
+      position: relative;
+
+      &:before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        transition: opacity 0.4s;
+        background-color: #2db9d2;
+        opacity: 0;
+        z-index: 1;
+      }
+      &:hover:before {
+        opacity: 1;
+      }
+      &.splitpanes__splitter__active {
+        z-index: 2; /* Fix an issue of overlap fighting with a near hovered splitter */
+      }
+    }
+  }
+  .modern-theme {
+    &.splitpanes--vertical > .splitpanes__splitter:before {
+      left: -3px;
+      right: -3px;
+      height: 100%;
+      cursor: col-resize;
+    }
+    &.splitpanes--horizontal > .splitpanes__splitter:before {
+      top: -3px;
+      bottom: -3px;
+      width: 100%;
+      cursor: row-resize;
+    }
+  }
+
+  .splitpanes.no-splitter {
+    .splitpanes__pane {
+      background-color: #f8f8f8;
+    }
+    .splitpanes__splitter {
+      background-color: #ccc;
+      position: relative;
+    }
+  }
+  .no-splitter {
+    &.splitpanes--horizontal > .splitpanes__splitter:before {
+      width: 0.125rem;
+      pointer-events: none;
+      cursor: none;
+    }
+    &.splitpanes--vertical > .splitpanes__splitter:before {
+      height: 0.125rem;
+      pointer-events: none;
+      cursor: none;
+    }
+  }
+</style>
+
+=== 1182 src/routes/examples/styling/splitters/+page.svelte	svelte	runes	neutral
+<script>
+  import Highlighted from '$comp/Highlighted.svelte';
+  import ExampleArea from '$comp/ExampleArea.svelte';
+  import example from './code.svelte?example';
+  import defaultTheme from 'svelte-splitpanes/internal/default-theme.scss?example';
+</script>
+
+<h2>Styling Splitters</h2>
+
+<p>
+  Styling splitters is fully customizable using CSS (or SCSS), the `theme` property is used to
+  select the proper styling class and apply it to the Splitpanes component.
+  <br />
+  The default style is called `default-theme`, its SCSS definition can be found below (
+  <b>warning</b>
+  : This is for reference only! If you decide to copy this CSS code, you must rename the ".default-theme"
+  specifier to something else, so it wouldn't conflict the library theme CSS definition):
+</p>
+
+<Highlighted lang="scss" highlighted={defaultTheme.highlightedHTML} />
+
+<p>Alternatively, here is the default theme compiled to CSS:</p>
+
+<Highlighted lang="scss" highlighted={defaultTheme.cssHighlightedHTML} />
+
+<p>
+  By altering the above styles, it is possible to achieve neat visual adjustments. Please note how
+  each Splitpanes references our new `theme="my-theme"`
+</p>
+
+<ExampleArea {example} />
+
+=== 1526 src/routes/examples/styling/splitters/code.svelte	svelte	runes	neutral
+<script>
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+</script>
+
+<Splitpanes theme="my-theme" horizontal style="height: 400px">
+  <Pane>
+    <Splitpanes theme="my-theme">
+      <Pane>
+        <span>1</span>
+      </Pane>
+      <Pane>
+        <span>2</span>
+      </Pane>
+      <Pane>
+        <span>3</span>
+      </Pane>
+    </Splitpanes>
+  </Pane>
+  <Pane>
+    <em class="specs">
+      <p>
+        In this example the splitters are thin lines but the reactive touch zone is spread to 30
+        pixels all around!
+      </p>
+    </em>
+  </Pane>
+</Splitpanes>
+
+<style global lang="scss">
+  .splitpanes.my-theme {
+    .splitpanes__pane {
+      background-color: #f8f8f8;
+    }
+    .splitpanes__splitter {
+      background-color: #ccc;
+      position: relative;
+      &:before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        transition: opacity 0.4s;
+        background-color: rgba(255, 0, 0, 0.3);
+        opacity: 0;
+        z-index: 1;
+      }
+      &:hover:before {
+        opacity: 1;
+      }
+      &.splitpanes__splitter__active {
+        z-index: 2; /* Fix an issue of overlap fighting with a near hovered splitter */
+      }
+    }
+  }
+  .my-theme {
+    &.splitpanes--vertical > .splitpanes__splitter:before {
+      left: -30px;
+      right: -30px;
+      height: 100%;
+      cursor: col-resize;
+    }
+    &.splitpanes--horizontal > .splitpanes__splitter:before {
+      top: -30px;
+      bottom: -30px;
+      width: 100%;
+      cursor: row-resize;
+    }
+  }
+</style>
+
+=== 189 src/routes/examples/toggle-panes/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+
+  import example from './code.svelte?example';
+</script>
+
+<h2>Toggle a pane on/off</h2>
+
+<ExampleArea {example} />
+
+=== 454 src/routes/examples/toggle-panes/code.svelte	svelte	runes	neutral
+<script>
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+  import Button from '$comp/Button.svelte';
+
+  function onClick() {
+    visible = !visible;
+  }
+
+  let visible = true;
+</script>
+
+<Button on:click={onClick}>{visible ? 'Hide' : 'Show'}</Button>
+
+<Splitpanes style="height: 400px">
+  <Pane>
+    <span>1</span>
+  </Pane>
+  {#if visible}
+    <Pane>
+      <span>2</span>
+    </Pane>
+  {/if}
+  <Pane>
+    <span>3</span>
+  </Pane>
+</Splitpanes>
+
+=== 315 src/routes/minified-size/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import { asset } from '$app/paths';
+</script>
+
+<img alt="Minified Size" src={asset('/minified-size-badge.svg')} />
+
+<p>
+  The badge above shows the minimized size of the library when all features are used.
+  <br />
+  Please note, the size includes type definitions, styles and components.
+</p>
+
+=== 325 src/routes/test/+page.svelte	svelte	runes	neutral
+<script>
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
+</script>
+
+<Splitpanes id="mysplitpane" horizontal style="height: 400px">
+  <Pane size={65}>
+    <span>1</span>
+  </Pane>
+  <Pane size={10}>
+    <span>2</span>
+  </Pane>
+  <Pane>
+    <span>3</span>
+  </Pane>
+  <Pane>
+    <span>4</span>
+  </Pane>
+</Splitpanes>
+

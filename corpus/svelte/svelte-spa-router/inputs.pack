@@ -1,0 +1,1195 @@
+# rsvelte pack 1
+=== 484 examples/basic-routing/src/App.svelte	svelte	runes	neutral
+<h1>svelte-spa-router sample</h1>
+<h2>Basic routing</h2>
+
+<!-- Navigation links -->
+<ul>
+    <li><a href="#/">Home</a></li>
+    <li><a href="#/hello/svelte">Say hi!</a></li>
+    <li><a href="#/wild/card">Wildcard route</a></li>
+    <li><a href="#/does/not/exist">Not found</a></li>
+</ul>
+
+<!-- Show the router -->
+<Router {routes} />
+
+<script>
+// Import the router component
+import Router from 'svelte-spa-router'
+
+// Import the list of routes
+import routes from './routes'
+</script>
+
+=== 467 examples/basic-routing/src/routes/Home.svelte	svelte	runes	neutral
+<h2>Home component</h2>
+
+<p>
+    This sample shows how to set up the router with minimum functionality. <br/>
+    The route definition object contains a number of routes (including some with parameters and a catch-all at the end).<br/>
+    The links below allow navigating between pages.
+</p>
+
+<p>This is the Home component, which contains markup only.</p>
+
+<p><em>Hint:</em> Try navigating with the links below, then use your browser's back and forward buttons.</p>
+
+=== 414 examples/basic-routing/src/routes/Name.svelte	svelte	runes	runes
+<h2>Hi there!</h2>
+
+<p>
+    Your name is:
+    <b>{params.first}</b>
+    <b>{#if params.last}{params.last}{/if}</b>
+</p>
+<p>This comes from the URL, matching <code>/hello/:first/:last?</code>, where the last name is optional.</p>
+<p><em>Hint:</em> Try changing the URL and add your name, e.g. <code>/hello/alex</code> or <code>/hello/jane/doe</code></p>
+
+<script lang="ts">
+const {params = {}} = $props()
+</script>
+
+=== 58 examples/basic-routing/src/routes/NotFound.svelte	svelte	runes	neutral
+<h2>NotFound</h2>
+
+<p>Oops, this route doesn't exist!</p>
+
+=== 250 examples/basic-routing/src/routes/Wild.svelte	svelte	runes	runes
+<h2>Wildcard</h2>
+
+<p>Anything in the URL after <code>/wild/</code> is shown below as message. That's found in the <code>params.wild</code> prop.</p>
+
+<p>Your message is: {params.wild}</p>
+
+<script lang="ts">
+const {params = {}} = $props()
+</script>
+
+=== 580 examples/dynamic-imports/src/App.svelte	svelte	runes	neutral
+<h1>svelte-spa-router sample</h1>
+<h2>Dynamic imports</h2>
+
+<!-- Navigation links -->
+<ul>
+    <li><a href="#/">Home</a></li>
+    <li><a href="#/hello/svelte">Say hi!</a> (dynamically imported route)</li>
+    <li><a href="#/wild/card">Wildcard route </a> (dynamically imported route, with a 5 seconds artificial delay)</li>
+    <li><a href="#/does/not/exist">Not found</a></li>
+</ul>
+
+<!-- Show the router -->
+<Router {routes} />
+
+<script>
+// Import the router component
+import Router from 'svelte-spa-router'
+
+// Import the list of routes
+import routes from './routes'
+</script>
+
+=== 775 examples/dynamic-imports/src/routes/Home.svelte	svelte	runes	neutral
+<h2>Home component</h2>
+
+<p>
+    This sample shows how to dynamically import components. These are modules imported on-demand with the <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import"><code>import()</code> method</a>.<br/>
+    Bundlers like Vite, Rollup and Webpack support automatic code splitting when you use dynamic imports, so after compiling this sample, in the <code>dist/</code> folder you'll see a bunch of different JavaScript files. At runtime, the browser requests them only when you first navigate to the route (and then they're cached).
+</p>
+
+<p>This is the Home component, which contains markup only.</p>
+
+<p><em>Hint:</em> Try navigating with the links below, then use your browser's back and forward buttons.</p>
+
+=== 187 examples/dynamic-imports/src/routes/Loading.svelte	svelte	runes	runes
+<h2>Loading…</h2>
+
+<p>We're loading the route! Please wait 5 seconds.</p>
+<p>Here's your message: {params && params.message}</p>
+
+<script lang="ts">
+const {params} = $props()
+</script>
+
+=== 429 examples/dynamic-imports/src/routes/Wild.svelte	svelte	runes	runes
+<h2>Wildcard</h2>
+
+<p>Anything in the URL after <code>/wild/</code> is shown below as message. That's found in the <code>params.wild</code> prop.</p>
+
+<p>Your message is: {params.wild}</p>
+
+<p>Note that this route was artificially delayed for 5 seconds to let us see the <code>Loading</code> component even when the network is fast (such as testing on localhost).</p>
+
+<script lang="ts">
+const {params = {}} = $props()
+</script>
+
+=== 20139 src/Router.svelte	svelte	runes	runes
+<script module lang="ts">
+import {tick, untrack} from 'svelte'
+import type {Component} from 'svelte'
+import type {Location} from './types.js'
+
+import type {RouteDetail, RouteDetailLoaded, RouteDefinition, WrappedComponent} from './types.js'
+
+export type {
+    ActiveOptions,
+    AsyncSvelteComponent,
+    LinkActionOpts,
+    LinkActionUpateFunc,
+    LinkActionUpdateFunc,
+    Location,
+    RouteDefinition,
+    RouteDetail,
+    RouteDetailLoaded,
+    RoutePrecondition,
+    RouterState,
+    WrappedComponent
+} from './types.js'
+
+/** Props for the Router component */
+export interface RouterProps {
+    /**
+     * Dictionary of all routes, in the format `'/path': component`.
+     *
+     * For example:
+     * ```js
+     * import HomeRoute from './routes/HomeRoute.svelte'
+     * import BooksRoute from './routes/BooksRoute.svelte'
+     * import NotFoundRoute from './routes/NotFoundRoute.svelte'
+     * routes = {
+     *     '/': HomeRoute,
+     *     '/books': BooksRoute,
+     *     '*': NotFoundRoute
+     * }
+     * ```
+     */
+    routes: RouteDefinition
+
+    /** Optional prefix for the routes in this router. Useful for nested routers. */
+    prefix?: string | RegExp
+
+    /** If true, the router restores scroll positions on back navigation and scrolls to the top on forward navigation. */
+    restoreScrollState?: boolean
+
+    /** Callback fired when route pre-conditions fail. */
+    onConditionsFailed?: (detail: RouteDetail) => void
+
+    /** Callback fired when a route starts loading. */
+    onRouteLoading?: (detail: RouteDetail) => void
+
+    /** Callback fired when a route has loaded. */
+    onRouteLoaded?: (detail: RouteDetailLoaded) => void
+
+    /** Callback for events bubbled up from child components. */
+    onRouteEvent?: (detail: unknown) => void
+}
+
+class RouterStateImpl {
+    /** The current full location (incl. querystring) */
+    _loc: Location = $state.raw(getLocation())
+    /** The current location (excluding querystring) */
+    _location: string = $derived(this._loc.location)
+    /** The current querystring */
+    _querystring: string | undefined = $derived(this._loc.querystring)
+    _params: Record<string, string> | RegExpExecArray | null | undefined = $state.raw(undefined)
+
+    /** The current full location (incl. querystring) */
+    get loc(): Location {
+        return this._loc
+    }
+    /** The current location (excluding querystring) */
+    get location(): string {
+        return this._location
+    }
+    /** The current querystring */
+    get querystring(): string | undefined {
+        return this._querystring
+    }
+    get params(): Record<string, string> | RegExpExecArray | null | undefined {
+        return this._params
+    }
+
+    constructor() {
+        if(typeof window !== 'undefined') {
+            window.addEventListener('hashchange', () => {
+                this._loc = getLocation()
+            })
+        } else {
+            // eslint-disable-next-line no-console
+            console.warn("[svelte-spa-router] window 'window' is not defined, skipping initiation")
+        }
+    }
+}
+
+/** Router state object, containing the current location, querystring and params. */
+export const router = new RouterStateImpl()
+
+/** Returns the current location from the hash. */
+function getLocation(): Location {
+    const currentHref = typeof window !== 'undefined' ?  window.location.href : ''
+    const hashPosition = currentHref.indexOf('#/')
+    let location = hashPosition > -1 ? currentHref.substr(hashPosition + 1) : '/'
+
+    // Check if there's a querystring
+    const qsPosition = location.indexOf('?')
+    let querystring = ''
+    if (qsPosition > -1) {
+        querystring = location.substr(qsPosition + 1)
+        location = location.substr(0, qsPosition)
+    }
+
+    return {location, querystring}
+}
+
+/**
+ * Navigates to a new page programmatically.
+ *
+ * @param location - Path to navigate to (must start with `/` or `#/`)
+ * @returns Promise that resolves after the page navigation has completed
+ */
+export async function push(location: string): Promise<void> {
+    if (!location || location.length < 1 || (location.charAt(0) != '/' && location.indexOf('#/') !== 0)) {
+        throw Error('Invalid parameter location')
+    }
+
+    // Execute this code when the current call stack is complete
+    await tick()
+
+    // Note: this will include scroll state in history even when restoreScrollState is false
+    history.replaceState(
+        {
+            ...history.state,
+            __svelte_spa_router_scrollX: window.scrollX,
+            __svelte_spa_router_scrollY: window.scrollY
+        },
+        ''
+    )
+
+    window.location.hash = (location.charAt(0) == '#' ? '' : '#') + location
+}
+
+/**
+ * Navigates back in history (equivalent to pressing the browser's back button).
+ *
+ * @returns Promise that resolves after the page navigation has completed
+ */
+export async function pop(): Promise<void> {
+    // Execute this code when the current call stack is complete
+    await tick()
+
+    window.history.back()
+}
+
+/**
+ * Replaces the current page but without modifying the history stack.
+ *
+ * @param location - Path to navigate to (must start with `/` or `#/`)
+ * @returns Promise that resolves after the page navigation has completed
+ */
+export async function replace(location: string): Promise<void> {
+    if (!location || location.length < 1 || (location.charAt(0) != '/' && location.indexOf('#/') !== 0)) {
+        throw Error('Invalid parameter location')
+    }
+
+    // Execute this code when the current call stack is complete
+    await tick()
+
+    const dest = (location.charAt(0) == '#' ? '' : '#') + location
+    try {
+        const newState = {...history.state}
+        delete newState['__svelte_spa_router_scrollX']
+        delete newState['__svelte_spa_router_scrollY']
+        window.history.replaceState(newState, '', dest)
+    }
+    catch {
+        // eslint-disable-next-line no-console
+        console.warn(
+            'Caught exception while replacing the current page. If you\'re running this in the Svelte REPL, please note that the `replace` method might not work in this environment.'
+        )
+    }
+
+    // The method above doesn't trigger the hashchange event, so let's do that manually
+    window.dispatchEvent(new Event('hashchange'))
+}
+
+interface LinkActionInternalOpts {
+    href?: string
+    disabled?: boolean
+}
+
+/**
+ * Svelte Action that enables a link element (`<a>`) to use our history management.
+ *
+ * For example:
+ *
+ * ```html
+ * <a href="/books" use:link>View books</a>
+ * ```
+ */
+export function link(node: HTMLElement, opts?: LinkActionInternalOpts | string): {
+    update(updated?: LinkActionInternalOpts | string): void
+    destroy(): void
+} {
+    let currentOpts = linkOpts(opts)
+
+    // Only apply to <a> tags
+    if (!node || !node.tagName || node.tagName.toLowerCase() != 'a') {
+        throw Error('Action "link" can only be used with <a> tags')
+    }
+
+    // Set initial href
+    updateLinkHref(node, currentOpts)
+
+    // Add click handler once, using currentOpts reference
+    const clickHandler = (event: MouseEvent): void => {
+        event.preventDefault()
+        if (!currentOpts.disabled) {
+            const target = event.currentTarget as HTMLElement | null
+            const href = target ? target.getAttribute('href') : null
+            if (href) {
+                scrollstateHistoryHandler(href)
+            }
+        }
+    }
+    node.addEventListener('click', clickHandler)
+
+    return {
+        update(updated?: LinkActionInternalOpts | string): void {
+            currentOpts = linkOpts(updated)
+            updateLinkHref(node, currentOpts)
+        },
+        destroy(): void {
+            node.removeEventListener('click', clickHandler)
+        }
+    }
+}
+
+interface ScrollHistoryState {
+    __svelte_spa_router_scrollX?: number
+    __svelte_spa_router_scrollY?: number
+}
+
+/** Tries to restore the scroll state from the given history state. */
+export function restoreScroll(state: ScrollHistoryState | null): void {
+    // If this exists, then this is a back navigation: restore the scroll position
+    if (state) {
+        window.scrollTo(state.__svelte_spa_router_scrollX || 0, state.__svelte_spa_router_scrollY || 0)
+    }
+    else {
+        // Otherwise this is a forward navigation: scroll to top
+        window.scrollTo(0, 0)
+    }
+}
+
+// Internal function used by the link function to update href attribute
+function updateLinkHref(node: HTMLElement, opts: LinkActionInternalOpts): void {
+    let href = opts.href || node.getAttribute('href')
+
+    // Destination must start with '/' or '#/'
+    if (href && href.charAt(0) == '/') {
+        // Add # to the href attribute
+        href = '#' + href
+    }
+    else if (!href || href.length < 2 || href.slice(0, 2) != '#/') {
+        throw Error('Invalid value for "href" attribute: ' + href)
+    }
+
+    node.setAttribute('href', href)
+}
+
+// Internal function that ensures the argument of the link action is always an object
+function linkOpts(val: LinkActionInternalOpts | string | undefined): LinkActionInternalOpts {
+    if (typeof val == 'string') {
+        return {href: val}
+    }
+    return val || {}
+}
+
+/**
+ * The handler attached to an anchor tag responsible for updating the
+ * current history state with the current scroll state.
+ */
+function scrollstateHistoryHandler(href: string): void {
+    // Setting the url (3rd arg) to href will break clicking for reasons, so don't try to do that
+    history.replaceState(
+        {
+            ...history.state,
+            __svelte_spa_router_scrollX: window.scrollX,
+            __svelte_spa_router_scrollY: window.scrollY
+        },
+        ''
+    )
+    // This will force an update as desired, but this time our scroll state will be attached
+    window.location.hash = href
+}
+</script>
+
+<script lang="ts">
+import {parse} from 'regexparam'
+
+const {
+    routes = {},
+    prefix = '',
+    restoreScrollState = false,
+    onConditionsFailed = () => {},
+    onRouteLoaded = () => {},
+    onRouteLoading = () => {},
+    onRouteEvent = () => {}
+}: RouterProps = $props()
+
+type AsyncRouteComponent = (() => Promise<{default: Component<any, any>} | Component<any, any>>) & {
+    loading?: Component<any, any>
+    loadingParams?: Record<string, unknown>
+}
+
+interface PopStateScrollEvent extends PopStateEvent {
+    state: ScrollHistoryState | null
+}
+
+/** Container for a route: path, component */
+class RouteItem {
+    path: string | RegExp
+    component: AsyncRouteComponent
+    conditions: NonNullable<WrappedComponent['conditions']>
+    userData: WrappedComponent['userData']
+    props: NonNullable<WrappedComponent['props']>
+    _pattern: RegExp
+    _keys: string[] | false
+
+    constructor(path: string | RegExp, component: Component<any, any> | WrappedComponent) {
+        // The _sveltesparouter marker is set by `wrap()` via Object.defineProperty and is intentionally absent from the public WrappedComponent type
+        const isWrapped = (c: unknown): c is WrappedComponent =>
+            typeof c == 'object' && c !== null && (c as {_sveltesparouter?: unknown})._sveltesparouter === true
+
+        if (!component || (typeof component != 'function' && !isWrapped(component))) {
+            throw Error('Invalid component object')
+        }
+
+        // Path must be a regular expression, or a string starting with '/' or '*'
+        if (
+            !path ||
+            (typeof path == 'string' && (path.length < 1 || (path.charAt(0) != '/' && path.charAt(0) != '*'))) ||
+            (typeof path == 'object' && !(path instanceof RegExp))
+        ) {
+            throw Error('Invalid value for "path" argument - strings must start with / or *')
+        }
+
+        const parsed = typeof path == 'string' ? parse(path) : parse(path)
+        this.path = path
+
+        // Check if the component is wrapped and we have conditions
+        if (isWrapped(component)) {
+            const wrapped = component
+            this.component = wrapped.component as AsyncRouteComponent
+            this.conditions = wrapped.conditions || []
+            this.userData = wrapped.userData
+            this.props = wrapped.props || {}
+        }
+        else {
+            const sync = component as Component<any, any>
+            this.component = (() => Promise.resolve(sync)) as AsyncRouteComponent
+            this.conditions = []
+            this.props = {}
+        }
+
+        this._pattern = parsed.pattern
+        this._keys = parsed.keys
+    }
+
+    /**
+     * Checks if `path` matches the current route.
+     * Returns the list of parameters from the URL, or `null` if no match.
+     */
+    match(path: string): Record<string, string | null> | RegExpExecArray | null {
+        // If there's a prefix, check if it matches the start of the path
+        // If not, bail early, else remove it before we run the matching
+        if (prefix) {
+            if (typeof prefix == 'string') {
+                if (path.startsWith(prefix)) {
+                    path = path.substr(prefix.length) || '/'
+                }
+                else {
+                    return null
+                }
+            }
+            else if (prefix instanceof RegExp) {
+                const m = path.match(prefix)
+                if (m && m[0]) {
+                    path = path.substr(m[0].length) || '/'
+                }
+                else {
+                    return null
+                }
+            }
+        }
+
+        // Check if the pattern matches
+        const matches = this._pattern.exec(path)
+        if (matches === null) {
+            return null
+        }
+
+        // If the input was a regular expression, _keys is false; return matches as is
+        if (this._keys === false) {
+            return matches
+        }
+
+        const out: Record<string, string | null> = {}
+        let i = 0
+        while (i < this._keys.length) {
+            // URL-decode all values
+            try {
+                out[this._keys[i]] = decodeURIComponent(matches[i + 1] || '') || null
+            }
+            catch {
+                out[this._keys[i]] = null
+            }
+            i++
+        }
+        return out
+    }
+
+    /** Executes all conditions in order; returns false at the first failure. */
+    async checkConditions(detail: RouteDetail): Promise<boolean> {
+        for (let i = 0; i < this.conditions.length; i++) {
+            if (!(await this.conditions[i](detail))) {
+                return false
+            }
+        }
+        return true
+    }
+}
+
+// Set up all routes
+const routesList: RouteItem[] = []
+// svelte-ignore state_referenced_locally
+// routes are static, initial capture is intended
+if (routes instanceof Map) {
+    routes.forEach((route, path) => {
+        routesList.push(new RouteItem(path, route))
+    })
+}
+else {
+    Object.keys(routes).forEach((path) => {
+        const map = routes as Record<string, Component<any, any> | WrappedComponent>
+        routesList.push(new RouteItem(path, map[path]))
+    })
+}
+
+// State declarations for the currently-rendered route
+let component = $state.raw<Component<any, any> | null>(null)
+let componentParams = $state.raw<Record<string, string | null> | RegExpExecArray | null>(null)
+let routeProps = $state.raw<Record<string, unknown>>({})
+
+let previousScrollState: ScrollHistoryState | null = null
+let componentObj: AsyncRouteComponent | null = null
+
+// Effects
+$effect(() => {
+    history.scrollRestoration = restoreScrollState ? 'manual' : 'auto'
+})
+
+$effect(() => {
+    if (!restoreScrollState) {
+        return
+    }
+
+    const popStateChanged = (event: PopStateScrollEvent): void => {
+        if (event.state && (event.state.__svelte_spa_router_scrollY || event.state.__svelte_spa_router_scrollX)) {
+            previousScrollState = event.state
+        }
+        else {
+            previousScrollState = null
+        }
+    }
+
+    window.addEventListener('popstate', popStateChanged as (e: PopStateEvent) => void)
+    return () => window.removeEventListener('popstate', popStateChanged as (e: PopStateEvent) => void)
+})
+
+async function dispatchNextTick<T>(event: (detail: T) => void, detail: T): Promise<void> {
+    // Execute this code when the current call stack is complete
+    await tick()
+    event(detail)
+}
+
+$effect(() => {
+    // React to loc changing and untrack everything else to prevent accidental dependencies
+    // Cancel operation after async work in case a new loc change happened in the meantime
+    const newLoc = router.loc
+    let cancelled = false
+
+    untrack(async () => {
+        let i = 0
+        while (i < routesList.length) {
+            const match = routesList[i].match(newLoc.location)
+            if (!match) {
+                i++
+                continue
+            }
+
+            const matchParams = matchToParams(match)
+            const detail: RouteDetail = {
+                route: routesList[i].path,
+                location: newLoc.location,
+                querystring: newLoc.querystring || '',
+                userData: routesList[i].userData,
+                params: matchParams as Record<string, string> | null
+            }
+
+            if (!(await routesList[i].checkConditions(detail))) {
+                if (cancelled) {
+                    return
+                }
+                component = null
+                componentObj = null
+                dispatchNextTick(onConditionsFailed, detail)
+                return
+            }
+
+            if (cancelled) {
+                return
+            }
+
+            dispatchNextTick(onRouteLoading, {...detail})
+
+            const obj = routesList[i].component
+            if (componentObj != obj) {
+                if (obj.loading) {
+                    component = obj.loading
+                    componentObj = obj
+                    componentParams = (obj.loadingParams as Record<string, string | null>) || null
+                    routeProps = {}
+                    const comp = obj.loading
+                    dispatchNextTick(onRouteLoaded, {
+                        ...detail,
+                        component: comp,
+                        name: comp.name,
+                        params: (obj.loadingParams as Record<string, string>) || null
+                    })
+                }
+                else {
+                    component = null
+                    componentObj = null
+                }
+
+                const loaded = await obj()
+
+                if (cancelled) {
+                    return
+                }
+
+                component =
+                    loaded && typeof loaded == 'object' && 'default' in loaded ? loaded.default : (loaded as Component<any, any>)
+                componentObj = obj
+            }
+
+            componentParams = matchParams
+            routeProps = routesList[i].props
+
+            const comp = component
+            if (comp) {
+                dispatchNextTick(onRouteLoaded, {
+                    ...detail,
+                    component: comp,
+                    name: comp.name,
+                    params: matchParams as Record<string, string> | null
+                })
+            }
+
+            router._params = matchParams
+            if (restoreScrollState) {
+                restoreScroll(previousScrollState)
+                previousScrollState = null
+            }
+            return
+        }
+
+        component = null
+        componentObj = null
+        router._params = undefined
+        if (restoreScrollState) {
+            restoreScroll(previousScrollState)
+            previousScrollState = null
+        }
+    })
+
+    return () => {
+        cancelled = true
+    }
+})
+
+function matchToParams(
+    match: Record<string, string | null> | RegExpExecArray
+): Record<string, string> | RegExpExecArray | null {
+    // Preserve all keys, including null values for unmatched optional params
+    return match && typeof match == 'object' && Object.keys(match).length ? match as RegExpExecArray | Record<string, string> : null
+}
+</script>
+
+{#if component}
+    {@const Component = component}
+    {#if componentParams}
+        <Component
+            params={componentParams}
+            onRouteEvent={onRouteEvent}
+            {...routeProps}
+        />
+    {:else}
+        <Component
+            onRouteEvent={onRouteEvent}
+            {...routeProps}
+        />
+    {/if}
+{/if}
+
+=== 3400 src/active.svelte.ts	svelte-module-ts	runes	-
+import {parse} from 'regexparam'
+import {router} from './Router.svelte'
+import type {ActiveOptions} from './types.js'
+
+export type {ActiveOptions} from './types.js'
+
+interface ActiveNode {
+    node: HTMLElement
+    className: string
+    inactiveClassName?: string
+    pattern: RegExp
+}
+
+// List of nodes to update
+const nodes: ActiveNode[] = []
+
+// Current location
+let location = ''
+
+// Function that updates all nodes marking the active ones
+function checkActive(el: ActiveNode): void {
+    const matchesLocation = el.pattern.test(location)
+    toggleClasses(el, el.className, matchesLocation)
+    toggleClasses(el, el.inactiveClassName, !matchesLocation)
+}
+
+function toggleClasses(el: ActiveNode, className: string | undefined, shouldAdd: boolean): void {
+    ;(className || '').split(' ').forEach((cls) => {
+        if (!cls) {
+            return
+        }
+        // Remove the class first
+        el.node.classList.remove(cls)
+
+        // If the pattern matches, then set the class
+        if (shouldAdd) {
+            el.node.classList.add(cls)
+        }
+    })
+}
+
+// Listen to changes in the location
+$effect.root(() => {
+    $effect(() => {
+        const value = router.loc
+        // Update the location
+        location = value.location + (value.querystring ? '?' + value.querystring : '')
+
+        // Update all nodes
+        nodes.forEach(checkActive)
+    })
+})
+
+/**
+ * Svelte Action for automatically adding the "active" class to elements (links, or any other DOM element) when the current location matches a certain path.
+ *
+ * @param node - The target node (automatically set by Svelte)
+ * @param opts - Can be an object of type `ActiveOptions`, or a string (or regular expression) representing `ActiveOptions.path`.
+ * @returns Destroy function
+ */
+export default function active(node: HTMLElement, opts?: ActiveOptions | string | RegExp): {destroy(): void} {
+    // Normalize opts: strings and regular expressions become opts.path
+    let options: ActiveOptions
+    if (typeof opts == 'string' || opts instanceof RegExp) {
+        options = {path: opts}
+    } else {
+        options = opts ?? {}
+    }
+
+    // Path defaults to link target
+    if (!options.path && node.hasAttribute('href')) {
+        const href = node.getAttribute('href')
+        if (href) {
+            options.path = href.length > 1 && href.charAt(0) == '#' ? href.substring(1) : href
+        }
+    }
+
+    // Default class name
+    if (!options.className) {
+        options.className = 'active'
+    }
+
+    // If path is a string, it must start with '/' or '*'
+    if (
+        !options.path ||
+        (typeof options.path == 'string' &&
+            (options.path.length < 1 || (options.path.charAt(0) != '/' && options.path.charAt(0) != '*')))
+    ) {
+        throw Error('Invalid value for "path" argument')
+    }
+
+    // If path is not a regular expression already, make it
+    const pattern = typeof options.path == 'string' ? parse(options.path).pattern : options.path
+
+    // Add the node to the list
+    const el: ActiveNode = {
+        node,
+        className: options.className,
+        inactiveClassName: options.inactiveClassName,
+        pattern
+    }
+    nodes.push(el)
+
+    // Trigger the action right away
+    checkActive(el)
+
+    return {
+        // When the element is destroyed, remove it from the list
+        destroy(): void {
+            nodes.splice(nodes.indexOf(el), 1)
+        }
+    }
+}
+
+=== 6044 test/app/src/App.svelte	svelte	runes	runes
+
+<h1>svelte-spa-router example</h1>
+<!-- Navigation links, using the "link" action -->
+<!-- Also, use the "active" action to add the "active" CSS class when the URL matches -->
+<ul class="navigation-links">
+    <li><a href="/" use:link use:active>Home</a></li>
+    <li><a href="/brand" use:link><b>Brand</b></a></li>
+    <li>
+        <a
+            href="/hello/svelte"
+            use:link
+            use:active={{
+                path: '/hello/*',
+                className: 'active another-class',
+                inactiveClassName: 'inactive'
+            }}>Say hi!</a
+        >
+    </li>
+    <li><a href="/does/not/exist" use:link>Not found</a></li>
+</ul>
+
+<!-- Navigate with buttons -->
+<p class="navigation-buttons">
+    <button onclick={() => push('/wild/something')}>Visit /wild/something</button>
+    <button onclick={() => pop()}>Go back</button>
+    <button onclick={() => replace('/wild/replaced')}>Replace current page</button>
+</p>
+
+<!-- Query string -->
+<a href="/hello/svelte?quantity=100" use:link use:active={'/hello/*'}>Querystring args</a>
+
+<!-- Show the current path -->
+<p>
+    Current path: <code id="currentpath">{router.location}</code>
+    <br />
+    Querystring: <code id="currentqs">{router.querystring}</code>
+    <br />
+    Params: <code id="currentparams">{JSON.stringify(router.params)}</code>
+</p>
+
+<!-- Show the router -->
+<Router
+    {routes}
+    {onConditionsFailed}
+    {onRouteLoaded}
+    {onRouteLoading}
+    {onRouteEvent}
+    {restoreScrollState}
+/>
+
+<!-- Testing dynamic list of links -->
+<h2>Dynamic links</h2>
+<ul class="navigation-dynamic-links">
+    {#each dynamicLinks as dl (dl.id)}
+        <li>
+            <a id="dynamic-link-{dl.id}" href={dl.link} use:link use:active>Dynamic Link {dl.id}</a>
+            -
+            <i
+                role="button"
+                id="delete-link-{dl.id}"
+                onclick={() => (dynamicLinks = dynamicLinks.filter((e) => e.id != dl.id))}
+                >delete link</i
+            >
+        </li>
+    {/each}
+</ul>
+
+<!-- Testing links that can be disabled -->
+<h2>Dynamic links</h2>
+<ul class="navigation-disable-links">
+    {#each disableLinks as dl, i (dl.id)}
+        <li>
+            <a id="disable-link-{dl.id}" href="/foo" use:link={dl.opts} use:active
+                >Dynamic Link {dl.id}</a
+            >
+            -
+            <i role="button" id="toggle-link-{dl.id}" onclick={dl.toggle}>
+                {#if dl.opts.disabled}
+                    enable link
+                {:else}
+                    disable link
+                {/if}
+            </i>
+        </li>
+    {/each}
+</ul>
+
+<!-- Test use:active with a regular expression -->
+<p>
+    <a href="#/" use:active={/\/*\/hi/}>This link</a> is active when you're matching
+    <code>/*/hi</code>
+</p>
+
+<!-- Used for testing -->
+<pre id="logbox">{logbox}</pre>
+
+<style>
+/* Style for "active" links; need to mark this :global because the router adds the class directly */
+:global(a.active) {
+    color: crimson;
+}
+/* Style for "inactive" links; need to mark this :global because the router adds the class directly */
+:global(a.inactive) {
+    color: gray;
+}
+</style>
+
+<script>
+// Import the router component, the "link" action, and methods to control history programmatically
+import Router, {link, push, pop, replace, router} from 'svelte-spa-router'
+
+// Import the "active" action
+import active from 'svelte-spa-router/active'
+
+// Import the list of routes
+import routes from './routes'
+
+// Contains logging information used by tests
+let logbox = $state('')
+
+// Handles the "conditionsFailed" event dispatched by the router when a component can't be loaded because one of its pre-condition failed
+function onConditionsFailed(detail) {
+    // eslint-disable-next-line no-console
+    console.error('Caught event conditionsFailed', detail)
+    logbox += 'conditionsFailed - ' + JSON.stringify(detail) + '\n'
+
+    // Replace the route
+    replace('/wild/conditions-failed')
+}
+
+// Handles the "routeLoaded" event dispatched by the router after a route has been successfully loaded
+function onRouteLoaded(detail) {
+    // eslint-disable-next-line no-console
+    console.info('Caught event routeLoaded', detail)
+    logbox += 'routeLoaded - ' + JSON.stringify(detail) + '\n'
+}
+
+// Handles the "routeLoading" event dispatched by the router whie a route is being loaded
+// If the route is dynamically imported, such as with the `import()` syntax, then there might be a delay before the route is loaded
+function onRouteLoading(detail) {
+    // eslint-disable-next-line no-console
+    console.info('Caught event routeLoading', detail)
+    logbox += 'routeLoading - ' + JSON.stringify(detail) + '\n'
+}
+
+// Handles event bubbling up from nested routes
+function onRouteEvent(detail) {
+    // eslint-disable-next-line no-console
+    console.info('Caught event routeEvent', detail)
+    logbox += 'routeEvent - ' + JSON.stringify(detail) + '\n'
+}
+
+// Enables the restoreScrollState option by checking for the "scroll=1" querystring parameter
+// We're checking this for the tests, but in your code you will likely want to set this value manually
+const urlParams = new URLSearchParams(window.location.search)
+const restoreScrollState = !!urlParams.has('scroll')
+
+// List of dynamic links
+let dynamicLinks = $state([
+    {
+        id: 1,
+        link: '/hello/dynamic-link-1'
+    },
+    {
+        id: 2,
+        link: '/hello/dynamic-link-2'
+    },
+    {
+        id: 3,
+        link: '/hello/dynamic-link-3'
+    }
+])
+
+// List of links that can be disabled
+let disableLinks = $state([
+    {
+        id: 1,
+        opts: {
+            //href: '/hello/disable-link-1',
+            disabled: false
+        }
+    },
+    {
+        id: 2,
+        opts: {
+            //href: '/hello/disable-link-2',
+            disabled: false
+        }
+    },
+    {
+        id: 3,
+        opts: {
+            href: '/hello/disable-link-3',
+            disabled: false
+        }
+    }
+])
+disableLinks.map((el) => {
+    el.toggle = () => {
+        el.opts.disabled = !el.opts.disabled
+    }
+    return el
+})
+</script>
+
+=== 321 test/app/src/routes/Catalog.svelte	svelte	runes	runes
+<h1 id="catalog">Item {id}</h1>
+
+<a id="previous" href use:link={`/catalog/${id - 1}`}>Previous</a>
+<a id="next" href use:link={`/catalog/${id + 1}`}>Next</a>
+
+<script>
+// Import the link action
+import {link} from 'svelte-spa-router'
+let {params} = $props()
+let id = $derived(params && parseInt(params.id, 10))
+</script>
+
+=== 370 test/app/src/routes/Foo.svelte	svelte	runes	runes
+{#if staticProp}
+    <p>We have a static prop: <b id="staticprop">{staticProp}</b></p>
+    <button type="button" id="fooeventtrigger" onclick={() => onRouteEvent({action: 'foo', staticProp})}>
+        Trigger route event from Foo
+    </button>
+{:else}
+    <p>No static props here!</p>
+{/if}
+
+<script>
+let {staticProp = null, onRouteEvent = () => {}} = $props()
+</script>
+=== 568 test/app/src/routes/Home.svelte	svelte	runes	neutral
+<h2 class="routetitle">Home!</h2>
+
+<p>Welcome to this sample code!</p>
+<p>Things to try:</p>
+<ul>
+    <li>
+        Navigate around with the links and buttons (notice how certain links become active depending
+        on the path
+    </li>
+    <li>Try pressing the browsers' back and forward buttons</li>
+    <li>
+        The "Replace current page" button will change the page without adding a new item in the
+        history stack (try pressing the back button!)
+    </li>
+    <li>Manually change the URL's fragment/hash</li>
+    <li>Try refreshing the page</li>
+</ul>
+
+=== 222 test/app/src/routes/Loading.svelte	svelte	runes	runes
+<h2 class="routetitle">Loading</h2>
+
+<p id="pleasewait">Please wait…</p>
+{#if params && params.message}
+    <p id="loadingmessage">Message is {params.message}</p>
+{/if}
+
+<script>
+let {params = null} = $props()
+</script>
+
+=== 200 test/app/src/routes/Lucky.svelte	svelte	runes	neutral
+<h1 id="lucky">You're in!</h1>
+
+<p>
+    This route has a pre-condition that stops it from loading 50% of the time. So, you were lucky
+    you could load this route! Now, try refreshing the page.
+</p>
+
+=== 398 test/app/src/routes/Name.svelte	svelte	runes	runes
+<h2 class="routetitle">Hi there!</h2>
+
+<p id="nameparams" onclick={() => onRouteEvent({action: 'hi', params})}>
+    Your name is: <b>{params.first ?? 'null'}</b>
+    <b
+        >{#if params.last}{params.last}{/if}</b
+    >
+</p>
+<p><em>Hint:</em> Try changing the URL and add your name, e.g. <code>/hello/jane/doe</code></p>
+
+<script>
+let {params = {}, onRouteEvent = () => {}} = $props()
+</script>
+
+=== 528 test/app/src/routes/Nested.svelte	svelte	runes	neutral
+<h2 class="routetitle">Nested router</h2>
+
+<!-- This nested router adds a prefix /nested to all routes -->
+<Router {routes} prefix="/nested" />
+
+<script>
+// Import the router component
+import Router from 'svelte-spa-router'
+
+// Routes
+import Wild from './Wild.svelte'
+import NotFound from './NotFound.svelte'
+
+// Nested routes, but note the prefix /nested passed to the router above
+const routes = {
+    // Wildcard parameter
+    '/wild': Wild,
+    '/wild/*': Wild,
+
+    // Catch-all, must be last
+    '*': NotFound
+}
+</script>
+
+=== 77 test/app/src/routes/NotFound.svelte	svelte	runes	neutral
+<h2 class="routetitle">NotFound</h2>
+
+<p>Oops, this route doesn't exist!</p>
+
+=== 161 test/app/src/routes/Regex.svelte	svelte	runes	runes
+<h2 class="routetitle">Regex route</h2>
+
+<p>Match is: <code id="regexmatch">{JSON.stringify(params)}</code></p>
+
+<script>
+let {params = {}} = $props()
+</script>
+
+=== 121 test/app/src/routes/Wild.svelte	svelte	runes	runes
+<h2 class="routetitle">Wild</h2>
+
+<p>Your message is: {params.wild}</p>
+
+<script>
+let {params = {}} = $props()
+</script>
+

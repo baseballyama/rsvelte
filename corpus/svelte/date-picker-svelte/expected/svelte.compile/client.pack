@@ -1,0 +1,1011 @@
+# rsvelte pack 1
+=== 150 src/routes/+page.svelte	css
+
+	.theming.svelte-1uha8ag {
+		display: grid;
+		gap: 10px;
+		column-gap: 20px;
+		@media (min-width: 800px) {
+			grid-template-columns: 1fr 1fr;
+		}
+	}
+
+=== 4715 src/routes/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import DemoDatePicker from './DemoDatePicker.svelte';
+import DemoDateInput from './DemoDateInput.svelte';
+import { Color } from 'color-picker-svelte';
+import Prop from './prop.svelte';
+
+var root = $.from_html(
+	`<p>Date and time picker for Svelte</p> <p>Features:</p> <ul><li>Theming</li> <li>Custom formats</li> <li>Internationalization (i18n)</li> <li>Autopunctuation (e.g typing "20201111111111" gives you "2020-11-11 11:11:11" with the default
+		format)</li> <li>Keyboard shortcuts</li></ul> <h2 id="install">Install</h2> <pre class="language-">npm install -D date-picker-svelte</pre> <div><h2 id="dateinput">DateInput</h2> <!> <h2 id="datepicker">DatePicker</h2> <!></div> <h2>Theming</h2> <div class="theming svelte-1uha8ag"><!> <!> <!> <!> <!> <!> <!></div>`,
+	1
+);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	function readCssVar(name) {
+		const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+		return new Color(value);
+	}
+
+	function getCssVars() {
+		if (typeof document === 'undefined') {
+			return {};
+		}
+
+		return {
+			'--date-picker-foreground': readCssVar('--date-picker-foreground'),
+			'--date-picker-background': readCssVar('--date-picker-background'),
+			'--date-picker-highlight-border': readCssVar('--date-picker-highlight-border'),
+			'--date-picker-highlight-shadow': readCssVar('--date-picker-highlight-shadow'),
+			'--date-picker-today-border': readCssVar('--date-picker-today-border'),
+			'--date-picker-selected-color': readCssVar('--date-picker-selected-color'),
+			'--date-picker-selected-background': readCssVar('--date-picker-selected-background')
+		};
+	}
+
+	let cssVars = $.state($.proxy(getCssVars()));
+
+	$.user_effect(() => {
+		const observer = new MutationObserver(async () => {
+			$.set(cssVars, getCssVars(), true);
+		});
+
+		observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+		return () => observer.disconnect();
+	});
+
+	var fragment = root();
+
+	$.head('1uha8ag', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Date Picker Svelte';
+		});
+	});
+
+	var div = $.sibling($.first_child(fragment), 10);
+	var node = $.sibling($.child(div), 2);
+
+	DemoDateInput(node, {});
+
+	var node_1 = $.sibling(node, 4);
+
+	DemoDatePicker(node_1, {});
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 4);
+	var node_2 = $.child(div_1);
+
+	Prop(node_2, {
+		label: '--date-picker-foreground',
+		labelWide: true,
+		get value() {
+			return $.get(cssVars)['--date-picker-foreground'];
+		},
+
+		set value($$value) {
+			$.get(cssVars)['--date-picker-foreground'] = $$value;
+		}
+	});
+
+	var node_3 = $.sibling(node_2, 2);
+
+	Prop(node_3, {
+		label: '--date-picker-background',
+		labelWide: true,
+		get value() {
+			return $.get(cssVars)['--date-picker-background'];
+		},
+
+		set value($$value) {
+			$.get(cssVars)['--date-picker-background'] = $$value;
+		}
+	});
+
+	var node_4 = $.sibling(node_3, 2);
+
+	Prop(node_4, {
+		label: '--date-picker-highlight-border',
+		labelWide: true,
+		get value() {
+			return $.get(cssVars)['--date-picker-highlight-border'];
+		},
+
+		set value($$value) {
+			$.get(cssVars)['--date-picker-highlight-border'] = $$value;
+		}
+	});
+
+	var node_5 = $.sibling(node_4, 2);
+
+	Prop(node_5, {
+		label: '--date-picker-highlight-shadow',
+		labelWide: true,
+		get value() {
+			return $.get(cssVars)['--date-picker-highlight-shadow'];
+		},
+
+		set value($$value) {
+			$.get(cssVars)['--date-picker-highlight-shadow'] = $$value;
+		}
+	});
+
+	var node_6 = $.sibling(node_5, 2);
+
+	Prop(node_6, {
+		label: '--date-picker-today-border',
+		labelWide: true,
+		get value() {
+			return $.get(cssVars)['--date-picker-today-border'];
+		},
+
+		set value($$value) {
+			$.get(cssVars)['--date-picker-today-border'] = $$value;
+		}
+	});
+
+	var node_7 = $.sibling(node_6, 2);
+
+	Prop(node_7, {
+		label: '--date-picker-selected-color',
+		labelWide: true,
+		get value() {
+			return $.get(cssVars)['--date-picker-selected-color'];
+		},
+
+		set value($$value) {
+			$.get(cssVars)['--date-picker-selected-color'] = $$value;
+		}
+	});
+
+	var node_8 = $.sibling(node_7, 2);
+
+	Prop(node_8, {
+		label: '--date-picker-selected-background',
+		labelWide: true,
+		get value() {
+			return $.get(cssVars)['--date-picker-selected-background'];
+		},
+
+		set value($$value) {
+			$.get(cssVars)['--date-picker-selected-background'] = $$value;
+		}
+	});
+
+	$.reset(div_1);
+
+	$.template_effect(($0) => $.set_style(div, $0), [
+		() => Object.entries($.get(cssVars)).map(([key, value]) => {
+			if (value === null) {
+				return null;
+			}
+
+			return `${key}: ${value.toHex8String()};`;
+		}).join('')
+	]);
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 333 src/routes/404/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { onMount } from 'svelte';
+import { goto } from '$app/navigation';
+import { resolve } from '$app/paths';
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	onMount(() => {
+		goto(resolve('/'));
+	});
+
+	$.pop();
+}
+=== 8845 src/routes/DemoDateInput.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import DateInput from '$lib/DateInput.svelte';
+import Prop from './prop.svelte';
+import Split from './split.svelte';
+import { localeFromDateFnsLocale } from '$lib';
+import { hy, de, nb } from 'date-fns/locale';
+import { toText, toValidDate } from '$lib/date-utils';
+import { createFormat } from '$lib/parse';
+
+var root = $.from_html(`<span style="font-family:monospace">ClassValue</span>`);
+var root_1 = $.from_html(`<span style="font-family:monospace">(date: Date) =&gt; boolean</span>`);
+var root_2 = $.from_html(`<span style="font-family:monospace">(date: Date) =&gt; void</span>`);
+var root_3 = $.from_html(`<h3 class="no-top">Props</h3> <!> <!> <!> <!> <!> <!> <!> <!> <!> <!> <!> <!> <!> <!> <!> <!> <!> <!> <!> <!>`, 1);
+
+export default function DemoDateInput($$anchor, $$props) {
+	$.push($$props, true);
+
+	let locales = [
+		{ key: 'default', value: localeFromDateFnsLocale({}) },
+		{ key: 'nb (date-fns)', value: localeFromDateFnsLocale(nb) },
+		{ key: 'de (date-fns)', value: localeFromDateFnsLocale(de) },
+		{ key: 'hy (date-fns)', value: localeFromDateFnsLocale(hy) }
+	];
+
+	let localeEntry = $.state($.proxy(locales[0]));
+	let value = $.state(null);
+	const now = new Date();
+	let initialBrowseDate = $.state($.proxy(now));
+	let min = $.state($.proxy(new Date(now.getFullYear() - 20, 0, 1)));
+	let max = $.state($.proxy(new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999)));
+	let id = $.state(null);
+	let placeholder = $.state('2020-12-31 23:00:00');
+	let valid = $.state(true);
+	let disabled = $.state(false);
+	let required = $.state(false);
+	let format = $.state('yyyy-MM-dd HH:mm:ss');
+	let isDisabledDate = null;
+
+	// svelte-ignore state_referenced_locally
+	let text = $.state($.proxy(toText(
+		$.get(value)
+			? toValidDate($.get(initialBrowseDate), $.get(value), $.get(min), $.get(max), isDisabledDate)
+			: $.get(value),
+		createFormat($.get(format), $.get(localeEntry).value)
+	)));
+
+	let visible = $.state(false);
+	let closeOnSelection = $.state(false);
+	let browseWithoutSelecting = $.state(false);
+	let timePrecision = $.state(null);
+	let dynamicPositioning = $.state(true);
+
+	Split($$anchor, {
+		$$slots: {
+			left: ($$anchor, $$slotProps) => {
+				DateInput($$anchor, {
+					slot: 'left',
+					get id() {
+						return $.get(id);
+					},
+
+					get initialBrowseDate() {
+						return $.get(initialBrowseDate);
+					},
+
+					get min() {
+						return $.get(min);
+					},
+
+					get max() {
+						return $.get(max);
+					},
+
+					get placeholder() {
+						return $.get(placeholder);
+					},
+
+					get format() {
+						return $.get(format);
+					},
+
+					get disabled() {
+						return $.get(disabled);
+					},
+
+					get required() {
+						return $.get(required);
+					},
+
+					get closeOnSelection() {
+						return $.get(closeOnSelection);
+					},
+
+					get browseWithoutSelecting() {
+						return $.get(browseWithoutSelecting);
+					},
+
+					get dynamicPositioning() {
+						return $.get(dynamicPositioning);
+					},
+
+					get timePrecision() {
+						return $.get(timePrecision);
+					},
+
+					get locale() {
+						return $.get(localeEntry).value;
+					},
+
+					get value() {
+						return $.get(value);
+					},
+
+					set value($$value) {
+						$.set(value, $$value, true);
+					},
+
+					get valid() {
+						return $.get(valid);
+					},
+
+					set valid($$value) {
+						$.set(valid, $$value, true);
+					},
+
+					get visible() {
+						return $.get(visible);
+					},
+
+					set visible($$value) {
+						$.set(visible, $$value, true);
+					},
+
+					get text() {
+						return $.get(text);
+					},
+
+					set text($$value) {
+						$.set(text, $$value, true);
+					}
+				});
+			},
+
+			right: ($$anchor, $$slotProps) => {
+				var fragment_2 = root_3();
+				var node = $.sibling($.first_child(fragment_2), 2);
+
+				Prop(node, {
+					label: 'value',
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_1 = $.text();
+
+						$.template_effect(() => $.set_text(text_1, $.get(value)));
+						$.append($$anchor, text_1);
+					},
+					$$slots: { default: true }
+				});
+
+				var node_1 = $.sibling(node, 2);
+
+				Prop(node_1, {
+					label: 'initialBrowseDate',
+					get value() {
+						return $.get(initialBrowseDate);
+					},
+
+					set value($$value) {
+						$.set(initialBrowseDate, $$value, true);
+					}
+				});
+
+				var node_2 = $.sibling(node_1, 2);
+
+				Prop(node_2, {
+					label: 'min',
+					get value() {
+						return $.get(min);
+					},
+
+					set value($$value) {
+						$.set(min, $$value, true);
+					}
+				});
+
+				var node_3 = $.sibling(node_2, 2);
+
+				Prop(node_3, {
+					label: 'max',
+					get value() {
+						return $.get(max);
+					},
+
+					set value($$value) {
+						$.set(max, $$value, true);
+					}
+				});
+
+				var node_4 = $.sibling(node_3, 2);
+
+				Prop(node_4, {
+					label: 'id',
+					get value() {
+						return $.get(id);
+					},
+
+					set value($$value) {
+						$.set(id, $$value, true);
+					}
+				});
+
+				var node_5 = $.sibling(node_4, 2);
+
+				Prop(node_5, {
+					label: 'placeholder',
+					get value() {
+						return $.get(placeholder);
+					},
+
+					set value($$value) {
+						$.set(placeholder, $$value, true);
+					}
+				});
+
+				var node_6 = $.sibling(node_5, 2);
+
+				Prop(node_6, {
+					label: 'valid',
+					get value() {
+						return $.get(valid);
+					},
+
+					set value($$value) {
+						$.set(valid, $$value, true);
+					}
+				});
+
+				var node_7 = $.sibling(node_6, 2);
+
+				Prop(node_7, {
+					label: 'format',
+					get value() {
+						return $.get(format);
+					},
+
+					set value($$value) {
+						$.set(format, $$value, true);
+					}
+				});
+
+				var node_8 = $.sibling(node_7, 2);
+
+				Prop(node_8, {
+					label: 'visible',
+					get value() {
+						return $.get(visible);
+					},
+
+					set value($$value) {
+						$.set(visible, $$value, true);
+					}
+				});
+
+				var node_9 = $.sibling(node_8, 2);
+
+				Prop(node_9, {
+					label: 'disabled',
+					get value() {
+						return $.get(disabled);
+					},
+
+					set value($$value) {
+						$.set(disabled, $$value, true);
+					}
+				});
+
+				var node_10 = $.sibling(node_9, 2);
+
+				Prop(node_10, {
+					label: 'required',
+					get value() {
+						return $.get(required);
+					},
+
+					set value($$value) {
+						$.set(required, $$value, true);
+					}
+				});
+
+				var node_11 = $.sibling(node_10, 2);
+
+				Prop(node_11, {
+					label: 'closeOnSelection',
+					get value() {
+						return $.get(closeOnSelection);
+					},
+
+					set value($$value) {
+						$.set(closeOnSelection, $$value, true);
+					}
+				});
+
+				var node_12 = $.sibling(node_11, 2);
+
+				Prop(node_12, {
+					label: 'browseWithoutSelecting',
+					get value() {
+						return $.get(browseWithoutSelecting);
+					},
+
+					set value($$value) {
+						$.set(browseWithoutSelecting, $$value, true);
+					}
+				});
+
+				var node_13 = $.sibling(node_12, 2);
+
+				Prop(node_13, {
+					label: 'dynamicPositioning',
+					get value() {
+						return $.get(dynamicPositioning);
+					},
+
+					set value($$value) {
+						$.set(dynamicPositioning, $$value, true);
+					}
+				});
+
+				var node_14 = $.sibling(node_13, 2);
+
+				Prop(node_14, {
+					label: 'locale',
+					get values() {
+						return locales;
+					},
+
+					get value() {
+						return $.get(localeEntry);
+					},
+
+					set value($$value) {
+						$.set(localeEntry, $$value, true);
+					}
+				});
+
+				var node_15 = $.sibling(node_14, 2);
+
+				Prop(node_15, {
+					label: 'text',
+					get value() {
+						return $.get(text);
+					},
+
+					set value($$value) {
+						$.set(text, $$value, true);
+					}
+				});
+
+				var node_16 = $.sibling(node_15, 2);
+
+				Prop(node_16, {
+					label: 'timePrecision',
+					values: [null, 'minute', 'second', 'millisecond'],
+					get value() {
+						return $.get(timePrecision);
+					},
+
+					set value($$value) {
+						$.set(timePrecision, $$value, true);
+					},
+
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_2 = $.text();
+
+						$.template_effect(() => $.set_text(text_2, $.get(timePrecision)));
+						$.append($$anchor, text_2);
+					},
+					$$slots: { default: true }
+				});
+
+				var node_17 = $.sibling(node_16, 2);
+
+				Prop(node_17, {
+					label: 'class',
+					children: ($$anchor, $$slotProps) => {
+						var span = root();
+
+						$.append($$anchor, span);
+					},
+					$$slots: { default: true }
+				});
+
+				var node_18 = $.sibling(node_17, 2);
+
+				Prop(node_18, {
+					label: 'isDisabledDate',
+					children: ($$anchor, $$slotProps) => {
+						var span_1 = root_1();
+
+						$.append($$anchor, span_1);
+					},
+					$$slots: { default: true }
+				});
+
+				var node_19 = $.sibling(node_18, 2);
+
+				Prop(node_19, {
+					label: 'onselect',
+					children: ($$anchor, $$slotProps) => {
+						var span_2 = root_2();
+
+						$.append($$anchor, span_2);
+					},
+					$$slots: { default: true }
+				});
+
+				$.append($$anchor, fragment_2);
+			}
+		}
+	});
+
+	$.pop();
+}
+=== 4841 src/routes/DemoDatePicker.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import DatePicker from '$lib/DatePicker.svelte';
+import { localeFromDateFnsLocale } from '$lib/locale.js';
+import Prop from './prop.svelte';
+import Split from './split.svelte';
+import { hy, de, nb } from 'date-fns/locale';
+
+var root = $.from_html(`<div class="left" slot="left"><!></div>`);
+var root_1 = $.from_html(`<span style="font-family:monospace">(date: Date) =&gt; boolean</span>`);
+var root_2 = $.from_html(`<span style="font-family:monospace">(date: Date) =&gt; void</span>`);
+var root_3 = $.from_html(`<div slot="right"><h3 class="no-top">Props</h3> <!> <!> <!> <!> <!> <!> <!> <!> <!></div>`);
+
+export default function DemoDatePicker($$anchor, $$props) {
+	$.push($$props, true);
+
+	let value = $.state(null);
+	const now = new Date();
+	let initialBrowseDate = $.state($.proxy(now));
+	let min = $.state($.proxy(new Date(now.getFullYear() - 20, 0, 1)));
+	let max = $.state($.proxy(new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999)));
+
+	let locales = [
+		{ key: 'default', value: localeFromDateFnsLocale({}) },
+		{ key: 'nb (date-fns)', value: localeFromDateFnsLocale(nb) },
+		{ key: 'de (date-fns)', value: localeFromDateFnsLocale(de) },
+		{ key: 'hy (date-fns)', value: localeFromDateFnsLocale(hy) }
+	];
+
+	let locale = $.state($.proxy(locales[3]));
+	let browseWithoutSelecting = $.state(false);
+	let timePrecision = $.state('millisecond');
+
+	Split($$anchor, {
+		$$slots: {
+			left: ($$anchor, $$slotProps) => {
+				var div = root();
+				var node = $.child(div);
+
+				DatePicker(node, {
+					get initialBrowseDate() {
+						return $.get(initialBrowseDate);
+					},
+
+					get min() {
+						return $.get(min);
+					},
+
+					get max() {
+						return $.get(max);
+					},
+
+					get locale() {
+						return $.get(locale).value;
+					},
+
+					get browseWithoutSelecting() {
+						return $.get(browseWithoutSelecting);
+					},
+
+					get timePrecision() {
+						return $.get(timePrecision);
+					},
+
+					get value() {
+						return $.get(value);
+					},
+
+					set value($$value) {
+						$.set(value, $$value, true);
+					}
+				});
+
+				$.reset(div);
+				$.append($$anchor, div);
+			},
+
+			right: ($$anchor, $$slotProps) => {
+				var div_1 = root_3();
+				var node_1 = $.sibling($.child(div_1), 2);
+
+				Prop(node_1, {
+					label: 'value',
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text = $.text();
+
+						$.template_effect(() => $.set_text(text, $.get(value)));
+						$.append($$anchor, text);
+					},
+					$$slots: { default: true }
+				});
+
+				var node_2 = $.sibling(node_1, 2);
+
+				Prop(node_2, {
+					label: 'initialBrowseDate',
+					get value() {
+						return $.get(initialBrowseDate);
+					},
+
+					set value($$value) {
+						$.set(initialBrowseDate, $$value, true);
+					}
+				});
+
+				var node_3 = $.sibling(node_2, 2);
+
+				Prop(node_3, {
+					label: 'min',
+					get value() {
+						return $.get(min);
+					},
+
+					set value($$value) {
+						$.set(min, $$value, true);
+					}
+				});
+
+				var node_4 = $.sibling(node_3, 2);
+
+				Prop(node_4, {
+					label: 'max',
+					get value() {
+						return $.get(max);
+					},
+
+					set value($$value) {
+						$.set(max, $$value, true);
+					}
+				});
+
+				var node_5 = $.sibling(node_4, 2);
+
+				Prop(node_5, {
+					label: 'locale',
+					get values() {
+						return locales;
+					},
+
+					get value() {
+						return $.get(locale);
+					},
+
+					set value($$value) {
+						$.set(locale, $$value, true);
+					}
+				});
+
+				var node_6 = $.sibling(node_5, 2);
+
+				Prop(node_6, {
+					label: 'browseWithoutSelecting',
+					get value() {
+						return $.get(browseWithoutSelecting);
+					},
+
+					set value($$value) {
+						$.set(browseWithoutSelecting, $$value, true);
+					}
+				});
+
+				var node_7 = $.sibling(node_6, 2);
+
+				Prop(node_7, {
+					label: 'timePrecision',
+					values: [null, 'minute', 'second', 'millisecond'],
+					get value() {
+						return $.get(timePrecision);
+					},
+
+					set value($$value) {
+						$.set(timePrecision, $$value, true);
+					},
+
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_1 = $.text();
+
+						$.template_effect(() => $.set_text(text_1, $.get(timePrecision)));
+						$.append($$anchor, text_1);
+					},
+					$$slots: { default: true }
+				});
+
+				var node_8 = $.sibling(node_7, 2);
+
+				Prop(node_8, {
+					label: 'isDisabledDate',
+					children: ($$anchor, $$slotProps) => {
+						var span = root_1();
+
+						$.append($$anchor, span);
+					},
+					$$slots: { default: true }
+				});
+
+				var node_9 = $.sibling(node_8, 2);
+
+				Prop(node_9, {
+					label: 'onselect',
+					children: ($$anchor, $$slotProps) => {
+						var span_1 = root_2();
+
+						$.append($$anchor, span_1);
+					},
+					$$slots: { default: true }
+				});
+
+				$.reset(div_1);
+				$.append($$anchor, div_1);
+			}
+		}
+	});
+
+	$.pop();
+}
+=== 886 src/routes/bug/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import DatePicker from '$lib/DatePicker.svelte';
+
+var root = $.from_html(`<button>Set to precise value</button> <!> `, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let value = $.state(void 0);
+	var fragment = root();
+	var button = $.first_child(fragment);
+	var node = $.sibling(button, 2);
+
+	DatePicker(node, {
+		timePrecision: 'minute',
+		get value() {
+			return $.get(value);
+		},
+
+		set value($$value) {
+			$.set(value, $$value, true);
+		}
+	});
+
+	var text = $.sibling(node);
+
+	$.template_effect(($0) => $.set_text(text, ` ${$0 ?? ''}`), [() => $.get(value)?.toISOString() ?? 'null']);
+
+	$.delegated('click', button, () => {
+		$.set(value, new Date(2025, 3, 19, 11, 11, 11, 111), true);
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 1005 src/routes/bug/isdisableddate/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import DateInput from '$lib/DateInput.svelte';
+
+var root = $.from_html(`<!> <button>Set to 2024-10-15</button> `, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let min = $.proxy(new Date(2024, 1, 26, 17, 30));
+	let value = $.state(void 0);
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	DateInput(node, {
+		timePrecision: 'minute',
+		get min() {
+			return min;
+		},
+
+		isDisabledDate: (date) => {
+			return date.getDate() === 15 || date.getDate() === 16;
+		},
+
+		get value() {
+			return $.get(value);
+		},
+
+		set value($$value) {
+			$.set(value, $$value, true);
+		}
+	});
+
+	var button = $.sibling(node, 2);
+	var text = $.sibling(button);
+
+	$.template_effect(() => $.set_text(text, ` ${$.get(value) ?? ''}`));
+
+	$.delegated('click', button, () => {
+		$.set(value, new Date(2024, 10, 15), true);
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 860 src/routes/bug/timeprecision/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import DatePicker from '$lib/DatePicker.svelte';
+
+var root = $.from_html(`<button>chhh</button> <!> `, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let value = $.state(void 0);
+	var fragment = root();
+	var button = $.first_child(fragment);
+	var node = $.sibling(button, 2);
+
+	DatePicker(node, {
+		timePrecision: 'minute',
+		get value() {
+			return $.get(value);
+		},
+
+		set value($$value) {
+			$.set(value, $$value, true);
+		}
+	});
+
+	var text = $.sibling(node);
+
+	$.template_effect(($0) => $.set_text(text, ` ${$0 ?? ''}`), [() => $.get(value)?.toISOString()]);
+
+	$.delegated('click', button, () => {
+		$.set(value, new Date(2025, 3, 19, 11, 11, 11, 111), true);
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 715 src/routes/demo/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import DemoDatePicker from '../DemoDatePicker.svelte';
+import DemoDateInput from '../DemoDateInput.svelte';
+
+var root = $.from_html(`<a id="Demo"></a> <h1>Demo</h1> <a id="DateInput"></a> <h2>DateInput</h2> <!> <a id="DatePicker"></a> <h2>DatePicker</h2> <!>`, 1);
+
+export default function _page($$anchor) {
+	var fragment = root();
+
+	$.head('1du1zi4', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Demo • Date Picker Svelte';
+		});
+	});
+
+	var node = $.sibling($.first_child(fragment), 8);
+
+	DemoDateInput(node, {});
+
+	var node_1 = $.sibling(node, 6);
+
+	DemoDatePicker(node_1, {});
+	$.append($$anchor, fragment);
+}

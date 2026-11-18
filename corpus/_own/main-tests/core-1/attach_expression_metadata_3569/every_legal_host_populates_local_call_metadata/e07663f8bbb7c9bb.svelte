@@ -1,0 +1,1 @@
+<script>function make() {}</script><div {@attach make()}></div>

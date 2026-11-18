@@ -1,0 +1,128 @@
+use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
+
+use super::*;
+
+const BUTTON: &str = "<button>Hi</button><style>button { color: red; }</style>";
+
+/// The task's files for one target, run the way the command line runs them.
+fn task_files(source: &str, target: Target) -> Vec<(String, String)> {
+    let mut registry = Registry::new();
+    crate::register(&mut registry);
+    let document = registry.document("Button.svelte", source).expect("small");
+    let identifier = match target {
+        Target::Client => "svelte.compile/client",
+        Target::Server => "svelte.compile/server",
+    };
+    let result = run(
+        &registry,
+        &[document],
+        &RunOptions {
+            tasks: &[identifier],
+            sharing: Sharing::Shared,
+            threads: Some(1),
+        },
+    )
+    .expect("valid plugins")
+    .remove(0);
+    let (_, output) = result.outputs.into_iter().next().expect("one task ran");
+    output
+        .files
+        .into_iter()
+        .map(|f| (f.name.clone(), f.text))
+        .collect()
+}
+
+#[test]
+fn compile_gives_what_the_task_writes() {
+    for generate in [Target::Client, Target::Server] {
+        let options = CompileOptions {
+            filename: "Button.svelte".to_owned(),
+            generate,
+            ..CompileOptions::default()
+        };
+        let result = compile(BUTTON, &options).expect("compiles");
+        let mut files = vec![("js".to_owned(), result.js.code)];
+        files.extend(result.css.map(|stylesheet| ("css".to_owned(), stylesheet)));
+        assert_eq!(files, task_files(BUTTON, generate), "{generate:?}");
+        assert!(
+            result.js.map.starts_with("{\"version\":3"),
+            "{}",
+            result.js.map
+        );
+    }
+}
+
+#[test]
+fn the_filename_names_the_component_even_without_a_svelte_extension() {
+    let named = |filename: &str| {
+        let options = CompileOptions {
+            filename: filename.to_owned(),
+            ..CompileOptions::default()
+        };
+        compile("<p>hi</p>", &options).expect("compiles").js.code
+    };
+    assert!(named("Card.svelte").contains("function Card("));
+    assert!(named("(unknown)").contains("function _unknown_("));
+}
+
+#[test]
+fn the_version_is_the_oracle_of_the_corpus() {
+    let oracles = include_str!("../../../../../../corpus/_registry/oracles.json");
+    let compile = oracles
+        .split("\"svelte.compile\"")
+        .nth(1)
+        .expect("the corpus records svelte.compile");
+    assert!(
+        compile.contains(&format!("\"svelte\": \"{VERSION}\"")),
+        "VERSION {VERSION} is not the corpus oracle"
+    );
+}
+
+#[test]
+fn compile_module_reads_javascript_whatever_the_name_says() {
+    let compiled = |filename: &str, source: &str| {
+        let options = ModuleCompileOptions {
+            filename: filename.to_owned(),
+            generate: Target::Client,
+        };
+        compile_module(source, &options)
+    };
+    let result = compiled("a.svelte.js", "export const a = $state(1);\n").expect("compiles");
+    assert_eq!(
+        result.js.code,
+        "import * as $ from \"svelte/internal/client\";\nexport const a = 1;\n"
+    );
+    assert!(
+        result.js.map.starts_with("{\"version\":3"),
+        "{}",
+        result.js.map
+    );
+    compiled("a.svelte.ts", "let a: number = 1;\n").expect_err("a type is not JavaScript");
+}
+
+#[test]
+fn a_module_file_store_subscription_is_the_module_error() {
+    // Expected codes and offsets from svelte 5.57.3 `compileModule`.
+    for generate in [Target::Client, Target::Server] {
+        let compiled = |source: &str| {
+            let options = ModuleCompileOptions {
+                filename: "a.svelte.js".to_owned(),
+                generate,
+            };
+            compile_module(source, &options)
+        };
+        let error = compiled("import { store } from 'somewhere';\n\nconsole.log($store);")
+            .expect_err("a module has no component to subscribe in");
+        assert_eq!(error.code, "store_invalid_subscription_module");
+        assert_eq!(
+            error.message,
+            "Cannot reference store value outside a `.svelte` file\nhttps://svelte.dev/e/\
+             store_invalid_subscription_module"
+        );
+        assert_eq!((error.span.start_offset, error.span.end_offset), (48, 54));
+        // A rune is not a subscription, even when the module declares its name.
+        compiled("let state = 1;\nexport const a = $state(state);\n").expect("compiles");
+        // A `$name` the module does not declare is a global, as upstream's module loop leaves it.
+        compiled("console.log($undeclared);\n").expect("compiles");
+    }
+}

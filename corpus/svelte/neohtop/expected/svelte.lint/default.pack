@@ -1,0 +1,43 @@
+# rsvelte pack 1
+=== 2161 src/lib/components/AppInfo.svelte	lint.txt
+1:1 58:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+16:30 16:35 no-undef "'fetch' is not defined."
+24:9 24:16 no-undef "'console' is not defined."
+36:9 36:16 no-undef "'console' is not defined."
+43:7 43:14 no-undef "'console' is not defined."
+54:7 54:14 no-undef "'console' is not defined."
+62:3 67:4 svelte/button-has-type "Missing an explicit type attribute for button."
+64:5 64:33 svelte/sort-attributes "Attribute 'class:has-update' should go before 'class:info-button'."
+66:5 66:33 svelte/sort-attributes "Attribute 'aria-label' should go before 'on:click'."
+68:24 68:58 svelte/max-attributes-per-line "'class:update-available' should be on a new line."
+75:29 75:69 svelte/max-attributes-per-line "'on:mouseleave' should be on a new line."
+83:22 83:79 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
+84:17 84:38 svelte/sort-attributes "Attribute 'class' should go before 'href'."
+86:17 86:42 svelte/sort-attributes "Attribute 'rel' should go before 'target'."
+102:15 102:28 svelte/sort-attributes "Attribute 'class' should go before 'href'."
+104:15 104:40 svelte/sort-attributes "Attribute 'rel' should go before 'target'."
+121:3 121:12 svelte/consistent-selector-style "Selector should select by ID instead of class"
+149:3 149:8 svelte/consistent-selector-style "Selector should select by ID instead of class"
+156:3 156:8 svelte/consistent-selector-style "Selector should select by ID instead of class"
+160:3 160:14 svelte/consistent-selector-style "Selector should select by ID instead of class"
+174:3 174:16 svelte/consistent-selector-style "Selector should select by ID instead of class"
+179:3 179:13 svelte/consistent-selector-style "Selector should select by element type instead of class"
+189:3 189:11 svelte/consistent-selector-style "Selector should select by ID instead of class"
+230:27 230:32 svelte/consistent-selector-style "Selector should select by ID instead of class"
+234:3 234:17 svelte/consistent-selector-style "Selector should select by ID instead of class"
+247:3 247:17 svelte/consistent-selector-style "Selector should select by ID instead of class"
+
+=== 784 src/lib/components/TitleBar.svelte	lint.txt
+1:1 2:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+4:24 4:46 svelte/max-attributes-per-line "'data-tauri-drag-region' should be on a new line."
+6:27 6:40 svelte/max-attributes-per-line "'alt' should be on a new line."
+6:27 6:40 svelte/sort-attributes "Attribute 'alt' should go before 'src'."
+6:41 6:57 svelte/sort-attributes "Attribute 'class' should go before 'src'."
+12:3 12:13 svelte/consistent-selector-style "Selector should select by ID instead of class"
+25:3 25:9 svelte/consistent-selector-style "Selector should select by ID instead of class"
+32:3 32:8 svelte/consistent-selector-style "Selector should select by ID instead of class"
+39:3 39:12 svelte/consistent-selector-style "Selector should select by element type instead of class"
+
+=== 75 src/routes/+layout.svelte	lint.txt
+5:7 5:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
+

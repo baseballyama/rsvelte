@@ -1,0 +1,426 @@
+# rsvelte pack 1
+=== 1332 src/lib/components/Logo.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Logo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		// Supported props type definition
+		let {
+			color = 'currentColor',
+			size = 24,
+			strokeWidth = 2,
+			absoluteStrokeWidth = false,
+			class: className = '',
+			$$slots,
+			$$events,
+			...rest
+		} = $$props;
+
+		// Helper to merge classes just like the original Icon component
+		function mergeClasses(...classes) {
+			return classes.filter(Boolean).join(' ');
+		}
+
+		// Default SVG attributes
+		const defaultAttributes = {
+			xmlns: 'http://www.w3.org/2000/svg',
+			width: 24,
+			height: 24,
+			viewBox: '0 0 24 24',
+			fill: 'none',
+			stroke: 'currentColor',
+			'stroke-width': 2,
+			'stroke-linecap': 'round',
+			'stroke-linejoin': 'round'
+		};
+
+		$$renderer.push(`<svg${$.attributes(
+			{
+				...defaultAttributes,
+				width: size,
+				height: size,
+				stroke: color,
+				'stroke-width': absoluteStrokeWidth ? Number(strokeWidth) * 24 / Number(size) : strokeWidth,
+				class: $.clsx(mergeClasses('lucide-icon', 'lucide', 'lucide-eye', className)),
+				...rest
+			},
+			void 0,
+			void 0,
+			void 0,
+			3
+		)}><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path><circle cx="12" cy="12" r="3"></circle></svg>`);
+	});
+}
+=== 725 src/lib/components/RenderScan.svelte	css
+
+	button.svelte-4esu0v {
+		position: fixed;
+		bottom: 1rem;
+		right: 1rem;
+		height: 3rem;
+		width: 3rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 9999px;
+		box-shadow:
+			0 10px 15px -3px rgba(0, 0, 0, 0.1),
+			0 4px 6px -2px rgba(0, 0, 0, 0.05);
+		transition:
+			transform 0.2s ease,
+			background-color 0.3s ease;
+		border: none;
+		cursor: pointer;
+		z-index: 100000;
+	}
+
+	button.svelte-4esu0v:hover {
+		transform: scale(1.1);
+	}
+
+	button.svelte-4esu0v:active {
+		transform: scale(0.95);
+	}
+
+	div.svelte-4esu0v {
+		transition: transform 0.5s ease;
+	}
+
+	div.enabled.svelte-4esu0v {
+		transform: rotate(360deg);
+	}
+
+	div.svelte-4esu0v:not(.enabled) {
+		transform: rotate(0deg);
+	}
+
+=== 1765 src/lib/components/RenderScan.svelte	js
+import * as $ from 'svelte/internal/server';
+import Eye from '$lib/components/Logo.svelte';
+import RenderScanObserver from './RenderScanObserver.svelte';
+import { onMount } from 'svelte';
+
+export default function RenderScan($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		// Props with defaults
+		let {
+			initialEnabled = true,
+			offsetLeft = 0,
+			hideIcon = false,
+			callback = undefined,
+			duration = 1000
+		} = $$props;
+
+		// State management
+		let enabled = initialEnabled;
+
+		// Fixed colors for enabled/disabled states
+		const enabledColor = '#2189b5';
+
+		const disabledColor = '#9ca3af';
+
+		// Load saved state from localStorage on mount
+		onMount(() => {
+			const savedState = localStorage.getItem('svelte-render-scan-enabled');
+
+			if (savedState !== null) {
+				enabled = savedState === 'true';
+			}
+		});
+
+		// Toggle handler that also saves to localStorage
+		function toggleEnabled() {
+			enabled = !enabled;
+			localStorage.setItem('svelte-render-scan-enabled', enabled.toString());
+		}
+
+		if (enabled) {
+			$$renderer.push('<!--[0-->');
+			RenderScanObserver($$renderer, { callback, duration });
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> `);
+
+		if (!hideIcon) {
+			$$renderer.push(`<!--[0--><button${$.attr('title', enabled ? 'Disable render scanning' : 'Enable render scanning')} class="svelte-4esu0v"${$.attr_style('', {
+				'background-color': enabled ? enabledColor : disabledColor,
+				right: `calc(1rem + ${offsetLeft}px)`
+			})}><div${$.attr_class('svelte-4esu0v', void 0, { 'enabled': enabled })}>`);
+
+			Eye($$renderer, { color: 'white', size: 24 });
+			$$renderer.push(`<!----></div></button>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]-->`);
+	});
+}
+=== 371 src/lib/components/RenderScan.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `initialEnabled`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 22,
+			"column": 22,
+			"character": 516
+		},
+		"end": {
+			"line": 22,
+			"column": 36,
+			"character": 530
+		}
+	}
+]
+
+=== 5473 src/lib/components/RenderScanObserver.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+import './RenderScanObserver.css';
+
+export default function RenderScanObserver($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		class Highlight {
+			#element;
+			#title;
+			target;
+
+			constructor(target) {
+				this.target = target;
+				this.#element = document.createElement('div');
+				this.#title = document.createElement('div');
+				this.#element.classList.add('render-perf__box');
+				this.#title.classList.add('render-perf__title');
+				this.#element.appendChild(this.#title);
+			}
+
+			#reasons = new Map();
+			#totalRerenders = 0;
+
+			notify(why) {
+				this.#reasons.set(why, (this.#reasons.get(why) || 0) + 1);
+				this.#totalRerenders++;
+				this.#render();
+			}
+
+			get title() {
+				// Get entries once and use them for both the reasons string and total
+				const entries = [...this.#reasons.entries()];
+
+				const reasons = entries.map(([key, count]) => `${key} (${count})`).join(' , ');
+
+				// Calculate total using the same entries array
+				const total = entries.reduce((sum, [_, count]) => sum + count, 0);
+
+				return `x${total} | ${reasons}`;
+			}
+
+			#fadeOut = setTimeout(() => {}, 0);
+			#frame = 0;
+			#isVisible = false;
+
+			updatePosition() {
+				let rect = this.#getRect();
+
+				if (!rect) return;
+				if (rect.y > window.innerHeight) return;
+				if (rect.x > window.innerWidth) return;
+
+				Object.assign(this.#element.style, {
+					top: rect.y + 'px',
+					left: rect.x + 'px',
+					width: rect.width + 'px',
+					height: rect.height + 'px'
+				});
+			}
+
+			#render() {
+				cancelAnimationFrame(this.#frame);
+				clearTimeout(this.#fadeOut);
+
+				this.#frame = requestAnimationFrame(() => {
+					let rect = this.#getRect();
+
+					if (!rect) return;
+					if (rect.y > window.innerHeight) return;
+					if (rect.x > window.innerWidth) return;
+
+					if (!overlayEl?.contains(this.#element)) {
+						overlayEl?.appendChild(this.#element);
+						activeHighlights.add(this);
+					}
+
+					this.#title.textContent = this.title;
+					this.#isVisible = true;
+
+					Object.assign(this.#element.style, {
+						top: rect.y + 'px',
+						left: rect.x + 'px',
+						width: rect.width + 'px',
+						height: rect.height + 'px'
+					});
+
+					this.#element.style.opacity = '1';
+
+					this.#fadeOut = setTimeout(
+						() => {
+							this.#element.style.opacity = '0';
+							this.#reasons.clear();
+							this.#isVisible = false;
+
+							// Remove element from DOM after fade animation completes
+							setTimeout(
+								() => {
+									this.#element.remove();
+									activeHighlights.delete(this);
+								},
+								250
+							); // Match the CSS transition duration
+						},
+						duration
+					);
+				});
+			}
+
+			#getRect() {
+				if (this.target instanceof Element) {
+					let rect = this.target.getBoundingClientRect();
+
+					return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+				}
+
+				let range = document.createRange();
+
+				range.selectNodeContents(this.target);
+
+				let rects = range.getClientRects();
+				let rect = rects[0];
+
+				if (!rect) {
+					console.log(`Could not determine coordinates of `, this.target);
+
+					return;
+				}
+
+				return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+			}
+		}
+
+		// Props with defaults
+		let { duration = 1000, callback = undefined } = $$props;
+
+		let overlayEl = null;
+		let mutationObserver = null;
+		let cache = new WeakMap();
+		let activeHighlights = new Set();
+		let scrollFrame = 0;
+
+		function highlightNode(element, why) {
+			let existing = cache.get(element);
+
+			if (!existing) {
+				existing = new Highlight(element);
+				cache.set(element, existing);
+			}
+
+			existing.notify(why);
+		}
+
+		function handleScroll() {
+			cancelAnimationFrame(scrollFrame);
+
+			scrollFrame = requestAnimationFrame(() => {
+				activeHighlights.forEach((highlight) => {
+					highlight.updatePosition();
+				});
+			});
+		}
+
+		onMount(() => {
+			// Create overlay container
+			overlayEl = document.createElement('div');
+
+			overlayEl.classList.add('render-perf__container');
+			document.body.appendChild(overlayEl);
+
+			// Setup mutation observer
+			mutationObserver = new MutationObserver((mutationList) => {
+				for (let mutation of mutationList) {
+					if (mutation.target instanceof Element) {
+						let shouldIgnore = mutation.target.getAttribute('class')?.includes('render-perf__');
+
+						if (shouldIgnore) {
+							continue;
+						}
+					}
+
+					switch (mutation.type) {
+						case 'attributes':
+							highlightNode(mutation.target, 'attribute changed');
+							break;
+
+						case 'childList':
+							highlightNode(mutation.target, 'children changed');
+							break;
+
+						case 'characterData':
+							highlightNode(mutation.target, 'text changed');
+							break;
+
+						default:
+							console.log(`Unhandled mutation type: ${mutation.type}`);
+					}
+
+					if (callback) callback(mutation);
+				}
+			});
+
+			mutationObserver.observe(document.body, {
+				subtree: true,
+				childList: true,
+				attributes: true,
+				characterData: true
+			});
+
+			// Add scroll listener
+			window.addEventListener('scroll', handleScroll, { passive: true });
+
+			return () => {
+				mutationObserver?.disconnect();
+				overlayEl?.remove();
+
+				if (window) {
+					window.removeEventListener('scroll', handleScroll);
+				}
+
+				cancelAnimationFrame(scrollFrame);
+				mutationObserver = null;
+				overlayEl = null;
+				cache = new WeakMap();
+				activeHighlights.clear();
+			};
+		});
+	});
+}
+=== 1329 src/routes/+layout.svelte	js
+import * as $ from 'svelte/internal/server';
+import '../app.css';
+
+export default function _layout($$renderer, $$props) {
+	let { children } = $$props;
+	const SITE_URL = 'https://khromov.github.io/svelte-render-scan/';
+
+	$.head('12qhfyh', $$renderer, ($$renderer) => {
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>Svelte Render Scan</title>`);
+		});
+
+		$$renderer.push(`<meta name="title" content="Svelte Render Scan"/> <meta name="description" content="Visual debugging for Svelte apps."/> <meta property="og:type" content="website"/> <meta property="og:url"${$.attr('content', SITE_URL)}/> <meta property="og:title" content="Svelte Render Scan"/> <meta property="og:description" content="Visual debugging for Svelte apps."/> <meta property="og:image"${$.attr('content', `${SITE_URL}og-image.jpg`)}/> <meta property="og:image:width" content="1200"/> <meta property="og:image:height" content="630"/> <meta property="twitter:card" content="summary_large_image"/> <meta property="twitter:url"${$.attr('content', SITE_URL)}/> <meta property="twitter:title" content="Svelte Render Scan"/> <meta property="twitter:description" content="Visual debugging for Svelte apps."/> <meta property="twitter:image"${$.attr('content', `${SITE_URL}/og-image.png`)}/>`);
+	});
+
+	children($$renderer);
+	$$renderer.push(`<!---->`);
+}

@@ -1,0 +1,147 @@
+use std::cmp::Ordering;
+
+use num_bigint::{BigInt, Sign};
+use num_traits::FromPrimitive;
+use oxc_syntax::operator::{BinaryOperator, UnaryOperator};
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+
+use super::Value;
+
+pub(super) fn literal(raw: &str) -> Value {
+    let digits = raw[..raw.len() - 1].replace('_', "");
+    Value::BigInt(Box::new(
+        parse(&digits).expect("the lexer validates bigint digits"),
+    ))
+}
+
+fn parse(text: &str) -> Option<BigInt> {
+    let text = text.trim_matches(is_ecmascript_whitespace);
+    if text.is_empty() {
+        return Some(BigInt::from(0));
+    }
+    let (radix, digits) = match text.get(..2) {
+        Some("0x" | "0X") => (16, &text[2..]),
+        Some("0o" | "0O") => (8, &text[2..]),
+        Some("0b" | "0B") => (2, &text[2..]),
+        _ => (10, text),
+    };
+    let unsigned = if radix == 10 {
+        digits.strip_prefix(['+', '-']).unwrap_or(digits)
+    } else {
+        digits
+    };
+    if unsigned.is_empty()
+        || !unsigned
+            .bytes()
+            .all(|byte| char::from(byte).is_digit(radix))
+    {
+        return None;
+    }
+    BigInt::parse_bytes(digits.as_bytes(), radix)
+}
+
+fn compare(value: &BigInt, other: &Value) -> Option<Ordering> {
+    match other {
+        Value::BigInt(other) => Some(value.cmp(other)),
+        Value::String(other) => Some(value.cmp(&parse(other)?)),
+        other => {
+            let number = other.to_number();
+            if number.is_nan() {
+                return None;
+            }
+            if number == f64::INFINITY {
+                return Some(Ordering::Less);
+            }
+            if number == f64::NEG_INFINITY {
+                return Some(Ordering::Greater);
+            }
+            let integer = BigInt::from_f64(number)?;
+            let order = value.cmp(&integer);
+            Some(if order.is_eq() {
+                0.0f64.partial_cmp(&number.fract())?
+            } else {
+                order
+            })
+        }
+    }
+}
+
+pub(super) fn binary(op: BinaryOperator, a: &Value, b: &Value) -> Option<Value> {
+    use BinaryOperator::{
+        Addition as Add, BitwiseAnd as BitAnd, BitwiseOR as BitOr, BitwiseXOR as BitXor,
+        Division as Div, Equality as Eq, Exponential as Exp, GreaterEqualThan as GtEq,
+        GreaterThan as Gt, In, Inequality as NotEq, Instanceof as InstanceOf,
+        LessEqualThan as LtEq, LessThan as Lt, Multiplication as Mul, Remainder, ShiftLeft as Shl,
+        ShiftRight as Shr, ShiftRightZeroFill as UShr, StrictEquality as StrictEq,
+        StrictInequality as StrictNotEq, Subtraction as Sub,
+    };
+    if op == Add && (matches!(a, Value::String(_)) || matches!(b, Value::String(_))) {
+        return Some(Value::String(format!(
+            "{}{}",
+            a.to_javascript_string(),
+            b.to_javascript_string()
+        )));
+    }
+    if matches!(op, StrictEq | StrictNotEq) {
+        return Some(Value::Boolean((a == b) == (op == StrictEq)));
+    }
+    if matches!(op, Eq | NotEq | Lt | LtEq | Gt | GtEq) {
+        let order = if let Value::BigInt(value) = a {
+            compare(value, b)
+        } else if let Value::BigInt(value) = b {
+            compare(value, a).map(Ordering::reverse)
+        } else {
+            unreachable!("one operand is bigint")
+        };
+        let equals = order.is_some_and(Ordering::is_eq)
+            && !matches!(a, Value::Null | Value::Undefined)
+            && !matches!(b, Value::Null | Value::Undefined);
+        return Some(Value::Boolean(match op {
+            Eq => equals,
+            NotEq => !equals,
+            Lt => order.is_some_and(Ordering::is_lt),
+            LtEq => order.is_some_and(Ordering::is_le),
+            Gt => order.is_some_and(Ordering::is_gt),
+            _ => order.is_some_and(Ordering::is_ge),
+        }));
+    }
+    let (Value::BigInt(a), Value::BigInt(b)) = (a, b) else {
+        return None;
+    };
+    let (a, b) = (a.as_ref(), b.as_ref());
+    let result = match op {
+        Add => a + b,
+        Sub => a - b,
+        Mul => a * b,
+        Div if b.sign() != Sign::NoSign => a / b,
+        Remainder if b.sign() != Sign::NoSign => a % b,
+        Exp => a.pow(u32::try_from(b).ok()?),
+        BitAnd => a & b,
+        BitOr => a | b,
+        BitXor => a ^ b,
+        Shl | Shr => {
+            let shift = i32::try_from(b).ok()?;
+            let left = (op == Shl) == (shift >= 0);
+            let amount = shift.unsigned_abs();
+            if left { a << amount } else { a >> amount }
+        }
+        Div | Remainder | UShr | In | InstanceOf => return None,
+        _ => unreachable!("comparisons are handled before arithmetic"),
+    };
+    Some(Value::BigInt(Box::new(result)))
+}
+
+pub(super) fn unary(op: UnaryOperator, value: &BigInt) -> Value {
+    match op {
+        UnaryOperator::UnaryNegation => Value::BigInt(Box::new(-value)),
+        UnaryOperator::BitwiseNot => Value::BigInt(Box::new(!value)),
+        UnaryOperator::UnaryPlus => Value::Unknown,
+        UnaryOperator::LogicalNot => Value::Boolean(value.sign() == Sign::NoSign),
+        UnaryOperator::Typeof => Value::String("bigint".into()),
+        UnaryOperator::Void => Value::Undefined,
+        UnaryOperator::Delete => Value::Boolean(true),
+    }
+}
+
+#[cfg(test)]
+mod tests;

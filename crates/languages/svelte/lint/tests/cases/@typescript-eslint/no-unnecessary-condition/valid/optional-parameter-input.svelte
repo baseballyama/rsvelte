@@ -1,0 +1,1 @@
+<script lang="ts">function f(value?: true) { if (value) console.log(value); } function g(value?: number) { console.log(value ?? 0); }</script>

@@ -1,0 +1,1 @@
+<script>let a = [1];</script>{#each a as x}<p>{x}</p>{/each}

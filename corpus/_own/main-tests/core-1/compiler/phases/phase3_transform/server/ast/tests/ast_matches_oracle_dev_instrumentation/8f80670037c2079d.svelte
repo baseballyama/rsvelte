@@ -1,0 +1,1 @@
+<script>let count = $state(0)</script>{#snippet item()}{count}{/snippet}<button onclick={() => count += 1}>x</button>{@render item()}

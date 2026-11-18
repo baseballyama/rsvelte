@@ -1,0 +1,4 @@
+- message: Expected regular directive syntax.
+  line: 1
+  column: 37
+  suggestions: null

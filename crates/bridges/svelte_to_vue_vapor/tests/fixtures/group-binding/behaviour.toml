@@ -1,0 +1,16 @@
+include_unmount = true
+
+[[steps]]
+click = "input[value=b]"
+
+[[steps]]
+click = "input[value=a]"
+
+[[steps]]
+click = "input[value=y]"
+
+[[steps]]
+click = "button"
+
+[[steps]]
+click = "input[value=x]"

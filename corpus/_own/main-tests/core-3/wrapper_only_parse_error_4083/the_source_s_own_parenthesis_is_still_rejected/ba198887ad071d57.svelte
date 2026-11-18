@@ -1,0 +1,1 @@
+<script lang="ts">let accessor: any;</script>{#each (accessor satisfies string) as z}{z}{/each}

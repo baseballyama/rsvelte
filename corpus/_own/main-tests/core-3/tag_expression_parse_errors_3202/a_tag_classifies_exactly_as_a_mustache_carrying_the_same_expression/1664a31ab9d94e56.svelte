@@ -1,0 +1,1 @@
+{#await s(1 +)}x{/await}

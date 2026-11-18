@@ -1,0 +1,1 @@
+<script>export let a = 1; export let p = 2;</script><span>{p}</span>

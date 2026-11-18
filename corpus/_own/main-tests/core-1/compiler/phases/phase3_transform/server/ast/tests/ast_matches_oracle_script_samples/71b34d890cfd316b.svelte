@@ -1,0 +1,1 @@
+<script>let d = $derived.by(() => 1 + 1);</script><p>x</p>

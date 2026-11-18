@@ -1,0 +1,1 @@
+<Foo also="1" let:x />

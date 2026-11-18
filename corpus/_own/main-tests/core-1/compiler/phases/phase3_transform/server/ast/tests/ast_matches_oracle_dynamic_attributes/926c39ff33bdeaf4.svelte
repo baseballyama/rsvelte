@@ -1,0 +1,1 @@
+<script>let s = $state('color:red');</script><div style={s}>x</div>

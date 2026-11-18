@@ -1,0 +1,1 @@
+<script>let spread = $state({});</script><svg {...spread}></svg>

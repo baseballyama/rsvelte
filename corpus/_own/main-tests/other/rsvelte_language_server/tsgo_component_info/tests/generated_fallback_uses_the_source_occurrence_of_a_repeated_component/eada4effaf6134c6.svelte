@@ -1,0 +1,1 @@
+<script>const sample = '<Comp />';</script><!-- <Comp /> --><Comp a /><Comp b />

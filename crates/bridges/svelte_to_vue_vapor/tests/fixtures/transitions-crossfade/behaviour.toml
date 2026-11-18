@@ -1,0 +1,10 @@
+browser = true
+include_unmount = true
+[[steps]]
+click = "button"
+[[steps]]
+wait = 1500
+[[steps]]
+click = "button"
+[[steps]]
+wait = 1500

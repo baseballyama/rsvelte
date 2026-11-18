@@ -1,0 +1,1 @@
+<script>let { o } = $props();</script><audio onabort={o.events.onabort}></audio>

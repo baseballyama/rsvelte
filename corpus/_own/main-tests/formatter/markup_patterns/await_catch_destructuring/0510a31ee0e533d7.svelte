@@ -1,0 +1,1 @@
+{#await req}<p>...</p>{:then x}<p>{x}</p>{:catch {message,stack}}<p>{message}</p>{/await}

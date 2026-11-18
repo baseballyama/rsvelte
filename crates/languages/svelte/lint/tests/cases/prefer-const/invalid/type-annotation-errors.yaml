@@ -1,0 +1,8 @@
+- message: "'element' is never reassigned. Use 'const' instead."
+  line: 2
+  column: 6
+  suggestions: null
+- message: "'plain' is never reassigned. Use 'const' instead."
+  line: 3
+  column: 6
+  suggestions: null

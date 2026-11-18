@@ -1,0 +1,1 @@
+{#snippet foo()}  text  {/snippet}

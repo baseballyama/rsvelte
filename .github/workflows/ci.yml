@@ -1,1529 +1,191 @@
+# Every gate the repository has, on every push and pull request, as jobs that run at once:
+# - rust-format: rustfmt with the pinned nightly;
+# - rust-lint: the lint gate (both feature sets, rustdoc);
+# - rust-test: the test suites (each crate's fixture snapshots, and every corpus unit against the
+#   official output with the parity ledger, corpus/_registry/parity/; the type-check ones run tsc
+#   from tools/oracle/node_modules);
+# - oracle: the structure check and the oracle tools' own tests (the behaviour oracle among them);
+# - performance: the deterministic performance ratchet (tools/performance/baseline.json): allocations exactly,
+#   and cachegrind's instruction counts (a warm round, and loading) on the platform the baseline
+#   records (arm64 Linux);
+# - site: the /learn course's tests (every quoted kernel item still exists and its marked lines
+#   still occur; the performance history ends at the current baseline), svelte-check and the build;
+# - typescript: oxfmt, oxlint, knip and the type check over the pnpm workspace (the site and tools).
+# The two ratchets are two-sided: an improvement that is not recorded fails as a regression does.
 name: CI
 
 on:
   push:
-    branches: [main]
-  # Unfiltered: a PR stacked on another branch must still run these gates,
-  # otherwise it reports green having run none of them.
+    branches: [main, experimental]
   pull_request:
 
 permissions:
-  actions: read
   contents: read
-  pull-requests: write
 
 concurrency:
-  # Keyed by the head branch on a PR (a new push supersedes the old run) and by
-  # the commit otherwise, so a push to `main` shares a group with nothing and
-  # cannot be cancelled. The previous guard — `cancel-in-progress:
-  # ${{ github.ref != 'refs/heads/main' }}` — did not hold: every `main` run
-  # under it was still cancelled the instant the next merge started, so `main`
-  # never produced a verdict. The cost is one run per merge instead of one per
-  # burst; a branch with no verdict reads exactly like a green one, which is
-  # how a stale ratchet reached `main` unnoticed (#2435/#2593).
-  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
-  cancel-in-progress: true
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: -Dwarnings
-  CARGO_INCREMENTAL: "0"
-  CARGO_PROFILE_DEV_DEBUG: "0"
-  CARGO_PROFILE_TEST_DEBUG: "0"
-  # CI validates behavior, not distribution-binary throughput. Release artifacts
-  # keep the workspace's fat-LTO profiles in release.yml.
-  CARGO_PROFILE_RELEASE_LTO: "off"
-  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
-  CARGO_PROFILE_DIST_LINT_LTO: "off"
-  CARGO_PROFILE_DIST_LINT_CODEGEN_UNITS: "16"
+  RUSTFMT_TOOLCHAIN: nightly-2026-11-03
 
 jobs:
-  fmt:
-    name: Format
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+  rust-format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: ./.github/actions/setup-rust
         with:
-          components: rustfmt
+          persist-credentials: false
+      - run: rustup toolchain install "$RUSTFMT_TOOLCHAIN" --profile minimal --component rustfmt
+      - run: cargo +"$RUSTFMT_TOOLCHAIN" fmt --all --check
 
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-
-  glibc-floor:
-    name: Glibc floor
-    # The release matrix builds the Linux artifacts on ubuntu-22.04 and asserts
-    # they need no glibc newer than 2.35, but release.yml only runs on the
-    # version-packages merge — so the assertion and the image that satisfies it
-    # were never exercised until a publish. This builds one shipped binary the
-    # same way and runs the same script, including a negative control: with the
-    # floor lowered the script must fail, or a green run would prove nothing.
-    runs-on: ubuntu-22.04
+  rust-lint:
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          submodules: false
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+      - run: cargo fetch
+      # The same commands as `mise run lint`.
+      - run: cargo clippy --offline --workspace --all-targets
+      - run: cargo clippy --offline --workspace --all-targets --all-features
+      - run: cargo doc --offline --workspace --no-deps --all-features
+      - run: cargo check --locked --offline --manifest-path tools/performance/workloads/svelte-lint/Cargo.toml --all-features
 
-      - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --checkout --depth 1 submodules/svelte
-
-      - uses: ./.github/actions/setup-rust
-
-      - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          key: glibc-floor
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Build a shipped binary
-        run: cargo build -p rsvelte_fmt --bin rsvelte-fmt
-
-      - name: Check glibc floor
-        run: scripts/release/check-glibc-floor.sh target/debug/rsvelte-fmt
-
-      - name: Negative control — the check must be able to fail
-        run: |
-          if GLIBC_FLOOR=2.0 scripts/release/check-glibc-floor.sh target/debug/rsvelte-fmt; then
-            echo "::error::check-glibc-floor.sh passed a binary below the floor"
-            exit 1
-          fi
-
-  playground-lockfile:
-    name: Playground lockfile
-    # Deploy Docs only runs on pushes to main, so a stale
-    # apps/playground/pnpm-lock.yaml (its own workspace, separate from the
-    # repo-root lockfile) used to surface only after merge. Gate it here so a
-    # package.json bump without a lockfile update goes red on the PR instead.
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: ./.github/actions/setup-node-pnpm
-        with:
-          cache: 'true'
-          cache-dependency-path: apps/playground/pnpm-lock.yaml
-
-      - name: Check playground lockfile is in sync
-        working-directory: apps/playground
-        run: pnpm install --frozen-lockfile
-
-      # `GUIDES` is a `Record<ToolId, Guide>`, so a package added to the tool
-      # switcher without a docs page is a type error rather than a 404 nobody
-      # notices. Nothing else type-checks the site on a PR — the full project
-      # check needs the wasm packages built — so these two files, which import
-      # only each other, are checked standalone.
-      - name: Check the docs metadata is exhaustive
-        working-directory: apps/playground
-        run: >
-          ./node_modules/.bin/tsc --ignoreConfig --noEmit --strict
-          --target es2022 --module esnext --moduleResolution bundler --lib es2023
-          src/lib/docs.ts src/lib/tools.ts
-
-  lint-types-lock:
-    name: Lint-types lockfile
-    # `crates/rsvelte_lint_types` is its own Cargo workspace, so nothing in the
-    # root workspace re-resolves its lock and any in-repo crate version bump
-    # staleifies it silently. The only job that consumes it (type-aware-lint,
-    # `--locked`) is path-filtered to the lint crates, so the breakage lands on
-    # an unrelated later PR. Resolve-only — no compilation, no target dir.
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-
-      - name: Checkout corsa-bind submodule (shallow)
-        run: git submodule update --init --checkout --depth 1 submodules/corsa-bind
-
-      - uses: ./.github/actions/setup-rust
-
-      # Read-only reuse of the type-aware-lint workspace cache for ~/.cargo/git
-      # (the oxc patch source); a miss only costs a fetch.
-      - name: Restore cargo registry + git cache
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          workspaces: crates/rsvelte_lint_types
-          save-if: 'false'
-
-      - name: Check rsvelte_lint_types lockfile is in sync
-        run: node scripts/ci/check-lint-types-lock.mjs --require-resolve
-
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-
-      - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --checkout --depth 1 submodules/svelte
-
-      - uses: ./.github/actions/setup-rust
-        with:
-          components: clippy
-
-      - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-  embeddable-core:
-    name: Embeddable core
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: ./.github/actions/setup-rust
-
-      - name: Check compiler-only graph and package leaf
-        run: scripts/ci/check-embeddable-core.sh
-
-  test:
-    name: Test
-    # macOS is dropped from the PR matrix to keep PR feedback fast — it
-    # consistently runs ~2x slower than Linux for identical work and the
-    # platform-specific failure modes (PATH, line endings, dylib loading) are
-    # already covered by the `C ABI` and `Release` workflows. macOS still
-    # runs on every push to `main` and on demand via the `macos-ci` label, so
-    # regressions are caught before the next release.
-    #
-    # The OS list is computed inline rather than in a separate `set-test-matrix`
-    # job: that job added a full job's queue + startup (~1 min) to the serial
-    # path before any shard could begin. The expression below is evaluated at
-    # workflow-parse time, so the shards start immediately. (On a `push` event
-    # `github.event.pull_request` is null; `contains(null.*.name, …)` is a
-    # well-defined `false`, and the `push` term short-circuits anyway.)
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        os: ${{ (github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'macos-ci')) && fromJSON('["ubuntu-latest","macos-latest"]') || fromJSON('["ubuntu-latest"]') }}
-        # This job runs the *fast bulk* of the suite, split across 3 runners.
-        # The test *execution* is trivial (~8 s/shard); the wall time is almost
-        # entirely compiling+linking the ~159 integration-test binaries against
-        # the large `rsvelte_core` rlib. `cargo nextest run` builds *every*
-        # binary regardless of which tests a `-E` filter runs, so the old
-        # count-partition (split the *run*, build everything 3×) left the build
-        # floor — the real bottleneck — paid three times over.
-        #
-        # `scripts/ci/run-test-shard.sh` instead partitions the *binaries* across
-        # shards (cargo target selection from the authoritative `cargo metadata`
-        # list), so each shard compiles only its ~1/3 and the per-shard build
-        # floor drops roughly 3×. The heaviest single `#[test]` functions — each
-        # fans out over 1000+ fixtures internally (runtime legacy/runes, the
-        # compile_module thread-safety stress test, the two svelte.dev fmt corpus
-        # parity tests at ~100 s each) — still run in their own dedicated jobs
-        # (`test-runtime`, `test-thread-safety`, `test-fmt-corpus`). Coverage is
-        # unchanged: every test runs in exactly one shard or dedicated job. The
-        # `Tests` gate job joins them into one required status check.
-        shard: [1, 2, 3]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-
-      # Shallow, selective submodule init instead of `submodules: true`: the
-      # shards only need `svelte` (build.rs version string + generated fixtures),
-      # `language-tools` (svelte2tsx + svelte-check golden tests),
-      # `eslint-plugin-svelte` (the `eslint_plugin_oracle` fixtures; it soft-skips
-      # when absent, but we keep coverage), and `esrap` (the rsvelte_esrap
-      # sample-parity suite). The big unused ones — typescript-go
-      # (~534 MB), vize, corsa-bind, and svelte.dev (only the now-removed
-      # fmt-corpus step read it) — are skipped, cutting checkout from ~45 s to
-      # ~15 s on the macOS runners.
-      - name: Checkout needed submodules (shallow)
-        run: git submodule update --init --checkout --depth 1 submodules/svelte submodules/language-tools submodules/eslint-plugin-svelte submodules/esrap
-
-      - uses: ./.github/actions/setup-rust
-        with:
-          mold: 'true'
-          nextest: 'true'
-
-      - uses: ./.github/actions/setup-node-pnpm
-        with:
-          cache: 'true'
-          cache-dependency-path: |
-            submodules/svelte/pnpm-lock.yaml
-            submodules/language-tools/pnpm-lock.yaml
-
-      - name: Resolve Svelte submodule SHA
-        id: svelte-sha
-        shell: bash
-        run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
-
-      - name: Cache fixtures
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          # Fixtures are keyed on the Svelte submodule SHA; if the SHA hasn't
-          # changed we can reuse them and skip generation entirely.
-          # `hashFiles('submodules/svelte/.git/...')` doesn't work — submodule
-          # checkouts leave `submodules/svelte/.git` as a gitlink file
-          # pointing at `.git/modules/svelte/`, not a directory the action
-          # can hash.
-          path: fixtures
-          key: fixtures-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules', 'scripts/fixtures/generate-fixtures.mjs') }}
-
-      - name: Cache Svelte compiler build
-        # The Svelte compiler is built identically across CI / Compatibility
-        # Report / Coverage / Bench / Deploy Docs. Cache `node_modules` +
-        # `packages/svelte/dist` keyed on the submodule SHA + pnpm-lock so
-        # cache-hit runs skip the ~1-2 minute `pnpm install && pnpm build`.
-        # Includes `node_modules/.bin/tsc`, which is referenced via
-        # `TSGO_BIN` below.
-        id: svelte-build-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            submodules/svelte/node_modules
-            submodules/svelte/packages/svelte/node_modules
-            submodules/svelte/packages/svelte/compiler/index.js
-            submodules/svelte/packages/svelte/types
-            submodules/svelte/packages/svelte/*.d.ts
-            submodules/svelte/packages/svelte/scripts/_bundle.js
-          key: svelte-build-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
-
-      - name: Build Svelte compiler
-        if: steps.svelte-build-cache.outputs.cache-hit != 'true'
-        run: |
-          cd submodules/svelte
-          pnpm install --frozen-lockfile
-          pnpm build
-
-      - name: Install language-tools deps
-        # The svelte-check golden test (crates/rsvelte_check/tests/svelte_check_golden.rs)
-        # runs the rsvelte svelte-check against the upstream test-error
-        # fixture. tsc needs `node_modules/svelte` resolvable from the
-        # fixture (the svelte2tsx shims `/// <reference types="svelte" />`
-        # pull in the package's type definitions). pnpm install at the
-        # language-tools root sets up the workspace symlinks that make
-        # this work — see also `resolve_svelte2tsx_shims` in
-        # crates/rsvelte_check/src/svelte_check/overlay.rs.
-        run: |
-          cd submodules/language-tools
-          pnpm install --frozen-lockfile
-
-      - name: Generate fixtures
-        run: pnpm run generate-fixtures
-        timeout-minutes: 15
-
-      - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      # NOTE: the oxfmt install + svelte.dev formatter-parity corpus generation
-      # (~130 s on a cold macOS runner) used to live here, but the only tests
-      # that consume `fixtures/fmt-corpus` / `FMT_CORPUS_OXFMT` are
-      # `svelte_dev_corpus` / `svelte_dev_markdown` — both excluded from these
-      # shards and run in the dedicated `test-fmt-corpus` job, which generates
-      # the corpus itself. Generating it here was pure overhead (and a frequent
-      # cold-cache stall on the infrequently-run macOS shards), so it's removed.
-
-      - name: Run tests
-        # Default features only: `--all-features` would enable `napi`, which only
-        # links cleanly when loaded from Node.js (`cargo test` would otherwise hit
-        # `rust-lld: error: undefined symbol: napi_*` on Linux). Default features
-        # cover everything we exercise in CI (native runtime, parallelism).
-        #
-        # The script partitions the integration-test *binaries* across shards so
-        # each compiles only its ~1/3 (the build, not the run, is the cost here —
-        # see the matrix comment and the script header) and applies the
-        # dedicated-job exclusion filter. `--lib` unit tests run in the separate
-        # `test-unit` job; the heavy fan-outs in `test-runtime` /
-        # `test-thread-safety` / `test-fmt-corpus`. `generate_compatibility_report`
-        # is `#[ignore]`d (reporting-only) and covered by the
-        # `compatibility-report` job. nextest runs no doctests; this workspace has
-        # none.
-        run: bash scripts/ci/run-test-shard.sh ${{ matrix.shard }} 3
-        timeout-minutes: 30
-        env:
-          # This job checked the submodules out above and supplies node and a
-          # TS compiler, so the guarded suites must fail rather than skip when
-          # one is missing. Only a job that actually supplies them may set this:
-          # `publish-crates.yml` runs the same test binaries with no submodules
-          # and must keep skipping, which is why the guards cannot key on `CI`.
-          RSVELTE_REQUIRE_PREREQS: '1'
-          # Some fixtures (notably the compatibility_report harness) walk
-          # deeply nested ASTs and overflow the default 8 MB thread stack.
-          RUST_MIN_STACK: '33554432'
-          # Pin svelte-check golden tests to the TS 5.x bundled with the
-          # svelte submodule install above. Without this, `which("tsc")`
-          # in crates/rsvelte_check/src/svelte_check/tsgo.rs picks up whatever tsc the runner
-          # image preinstalls — on ubuntu-latest that's a TS 6 pre-release
-          # that promotes `moduleResolution: "node"` to a hard TS5107
-          # error and bails out before emitting the user-source diagnostics
-          # the golden test verifies.
-          TSGO_BIN: ${{ github.workspace }}/submodules/svelte/node_modules/.bin/tsc
-
-      - name: Collect failure artifacts
-        if: failure()
-        shell: bash
-        run: |
-          mkdir -p ci-artifacts
-          # Actual outputs written by tests on diff
-          if [ -d fixtures ]; then
-            find fixtures -type d -name "_actual" -exec cp -R --parents {} ci-artifacts/ \; 2>/dev/null || true
-          fi
-          # Compatibility report (best-effort; may not exist if tests failed early)
-          find fixtures -name "compatibility-report.json" -exec cp --parents {} ci-artifacts/ \; 2>/dev/null || true
-          # Manifest for context
-          find fixtures -name "manifest.json" -exec cp --parents {} ci-artifacts/ \; 2>/dev/null || true
-
-      - name: Upload failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: test-failures-${{ matrix.os }}-shard${{ matrix.shard }}
-          path: ci-artifacts
-          if-no-files-found: ignore
-          retention-days: 14
-
-  # The two heaviest single `#[test]` functions run here, isolated from the
-  # `test` shards. Each fans out over 1000+ fixtures internally and takes ~2.5 min
-  # to run, so behind the `test` job's full ~2 min workspace build they'd push a
-  # shard past the 5 min budget. Running them with a `--test <binary>` selection
-  # compiles only their one integration-test binary (deps restored from the
-  # shared `test` cache, so no oxc rebuild), so their ~70 s build + ~2.5 min run
-  # fits comfortably. They run on Linux only — both exercise OS-agnostic compiler
-  # logic that the `test` shards already cover on every OS. Coverage and
-  # iteration counts are identical to running them inline.
-  test-runtime:
-    name: Test runtime
-    runs-on: ubuntu-latest
+  rust-test:
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          submodules: false
-
-      - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --checkout --depth 1 submodules/svelte
-
-      - uses: ./.github/actions/setup-rust
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+      - run: cargo fetch
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          mold: 'true'
-          nextest: 'true'
+          node-version: 26.13.0
+          # setup-node 5+ caches the package manager's store on its own; CI has never cached it.
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/oracle...
+      - run: cargo test --offline --workspace
 
-      - uses: ./.github/actions/setup-node-pnpm
-        with:
-          cache: 'true'
-          cache-dependency-path: submodules/svelte/pnpm-lock.yaml
-
-      - name: Resolve Svelte submodule SHA
-        id: svelte-sha
-        shell: bash
-        run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
-
-      - name: Cache fixtures
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: fixtures
-          key: fixtures-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules', 'scripts/fixtures/generate-fixtures.mjs') }}
-
-      - name: Cache Svelte compiler build
-        id: svelte-build-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            submodules/svelte/node_modules
-            submodules/svelte/packages/svelte/node_modules
-            submodules/svelte/packages/svelte/compiler/index.js
-            submodules/svelte/packages/svelte/types
-            submodules/svelte/packages/svelte/*.d.ts
-            submodules/svelte/packages/svelte/scripts/_bundle.js
-          key: svelte-build-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
-
-      - name: Build Svelte compiler
-        if: steps.svelte-build-cache.outputs.cache-hit != 'true'
-        run: |
-          cd submodules/svelte
-          pnpm install --frozen-lockfile
-          pnpm build
-
-      - name: Generate fixtures
-        run: pnpm run generate-fixtures
-        timeout-minutes: 15
-
-      - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          # Share the `test` job's dependency cache (same lockfile, same default
-          # features) so the oxc graph is restored, not rebuilt. Read-only: this
-          # job only builds the `runtime` test binary, so it must not overwrite
-          # the full-suite cache the `test` shards populate.
-          shared-key: test
-          save-if: 'false'
-
-      - name: Run runtime suites (legacy + runes)
-        # `--test runtime` builds only crates/rsvelte_core/tests/runtime.rs, so
-        # the ~70 s build covers just rsvelte_core + this one binary instead of
-        # all ~178 integration-test binaries. The `-E` filter then runs only the
-        # two heavy fan-out tests; the binary's lighter tests (hydration, browser,
-        # fixture listings) already run in the `test` shards.
-        run: >-
-          cargo nextest run --profile ci -p rsvelte_core --test runtime
-          -E 'test(/test_runtime_legacy/) | test(/test_runtime_runes/)'
-        timeout-minutes: 20
-        env:
-          RUST_MIN_STACK: '33554432'
-
-  test-thread-safety:
-    name: Test thread-safety
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+  oracle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          submodules: false
-
-      # The thread-safety stress test compiles vendored `tests/fixtures_runed/`
-      # modules — no generated fixtures, Svelte build, or Node toolchain needed.
-      # Only the `svelte` submodule's package.json is read by rsvelte_core's
-      # build.rs for the version string, so a shallow svelte-only init suffices.
-      - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --checkout --depth 1 submodules/svelte
-
-      - uses: ./.github/actions/setup-rust
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          mold: 'true'
-          nextest: 'true'
-
-      - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          # Share (read-only) the `test` job's warm dependency cache.
-          shared-key: test
-          save-if: 'false'
-
-      - name: Run compile_module thread-safety stress test
-        # `--test compile_module_thread_safety` builds only that one binary.
-        run: cargo nextest run --profile ci -p rsvelte_core --test compile_module_thread_safety
-        timeout-minutes: 15
-        env:
-          RUST_MIN_STACK: '33554432'
-
-  # The `--lib` (`#[cfg(test)]`) unit tests run here, isolated from the `test`
-  # shards (which now build integration-test *binaries* only — see
-  # scripts/ci/run-test-shard.sh). Folding the unit tests onto one shard made it
-  # build that shard's ~52 integration binaries *plus* every crate's unit-test
-  # binary at once, and the extra concurrent links exhausted the runner's memory
-  # (linker SIGBUS). A dedicated `--lib` job keeps the three shards uniform and
-  # links far fewer binaries here. `--bins` is intentionally omitted: no `[[bin]]`
-  # target has a `#[test]`, and `cargo clippy --all-targets` already compile-checks
-  # them. The unit tests are pure logic (no generated fixtures / Node / oxfmt), so
-  # — like test-thread-safety — only a shallow `svelte` submodule (build.rs version
-  # string) is needed.
-  test-unit:
-    name: Test unit
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-
-      - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --checkout --depth 1 submodules/svelte
-
-      - uses: ./.github/actions/setup-rust
-        with:
-          mold: 'true'
-          nextest: 'true'
-
-      - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          # Share (read-only) the `test` job's warm dependency cache.
-          shared-key: test
-          save-if: 'false'
-
-      - name: Run workspace unit tests
-        run: cargo nextest run --profile ci --lib
-        timeout-minutes: 15
-        env:
-          RUST_MIN_STACK: '33554432'
-          # This job checks the svelte submodule out above, so a `--lib` suite
-          # that skips itself for a missing prerequisite is a misconfigured job.
-          RSVELTE_REQUIRE_PREREQS: '1'
-
-      # `parallel` is off by default, so the run above compiles neither
-      # `compile_batch`'s rayon path nor the tests that pin its per-item panic
-      # isolation — the shipped `.node` is the only build that enables it.
-      # `rsvelte_core --lib` alone keeps the extra feature-variant rebuild small.
-      - name: Run rsvelte_core unit tests with the parallel feature
-        run: cargo nextest run --profile ci -p rsvelte_core --lib --features parallel
-        timeout-minutes: 15
-        env:
-          RUST_MIN_STACK: '33554432'
-          RSVELTE_REQUIRE_PREREQS: '1'
-
-  oxc-formatter-probe:
-    name: OXC formatter probe
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-
-      - uses: ./.github/actions/setup-rust
-        with:
-          mold: 'true'
-          nextest: 'true'
-
-      - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          shared-key: oxc-formatter-probe
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Run OXC formatter compatibility probe
-        run: >-
-          cargo nextest run --profile ci -p rsvelte_devtools
-          --test oxc_formatter_probe --features oxc-formatter-probe
-        timeout-minutes: 30
-
-  # The two svelte.dev formatter-parity corpus tests (~100 s each: they format
-  # every .svelte file + markdown code block from svelte.dev and diff against an
-  # oxfmt oracle) are the bulk job's other long pole. Isolate them the same way:
-  # `--test` selects only their two binaries (deps from the shared `test` cache),
-  # and the setup skips the runtime-fixture / Svelte-build steps they don't need.
-  test-fmt-corpus:
-    name: Test fmt corpus
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-
-      # svelte (rsvelte_core build.rs version string) + svelte.dev (the corpus
-      # source files the parity tests read). No Svelte build / generated fixtures.
-      - name: Checkout svelte + svelte.dev submodules (shallow)
-        run: git submodule update --init --checkout --depth 1 submodules/svelte submodules/svelte.dev
-
-      - uses: ./.github/actions/setup-rust
-        with:
-          mold: 'true'
-          nextest: 'true'
-
-      - uses: ./.github/actions/setup-node-pnpm
-
-      - name: Install oxfmt for the formatter parity corpus
-        # Isolated install (avoids a full monorepo `pnpm install`) that provides
-        # the oxfmt oracle binary used to generate and check the corpus. The
-        # oxfmt / svelte versions are derived from the workspace package.json
-        # caret ranges — the same ranges pnpm resolves in the lockfile-backed
-        # `corpus-compat` Formatter-parity job — so `auto-update-oxfmt` and
-        # `auto-update-svelte` (which bump those ranges) keep this in sync
-        # automatically. Never hardcode a version here: a hardcoded pin silently
-        # drifts from package.json (it did — a stale oxfmt@0.53.0 made this job's
-        # oracle expect a layout newer oxfmt no longer emits).
-        run: |
-          set -euo pipefail
-          OXFMT_RANGE=$(node -p "require('./package.json').devDependencies.oxfmt")
-          SVELTE_RANGE=$(node -p "require('./package.json').devDependencies.svelte")
-          echo "resolving oxfmt@$OXFMT_RANGE svelte@$SVELTE_RANGE"
-          mkdir -p "$RUNNER_TEMP/fmt-oracle"
-          cd "$RUNNER_TEMP/fmt-oracle"
-          npm init -y >/dev/null
-          npm i --ignore-scripts "oxfmt@$OXFMT_RANGE" "svelte@$SVELTE_RANGE"
-          ./node_modules/.bin/oxfmt --version
-
-      - name: Install Tailwind for the sortTailwindcss JS-parity tests
-        # Provides the `tailwindcss` + `prettier-plugin-tailwindcss` a consumer
-        # project would have, so the gated `sort_tailwindcss_*_via_js` tests in
-        # `--test cli` actually run (they no-op without RSVELTE_FMT_TW_TEST_DIR).
-        # The plugin version is read from `@rsvelte/fmt`'s own dependency — the
-        # same pin the sidecar bundles — so `auto-update-oxfmt` keeps this in
-        # lockstep and any drift is caught here (that is the point of this gate).
-        run: |
-          set -euo pipefail
-          TW_PLUGIN=$(node -p "require('./apps/npm/fmt/package.json').dependencies['prettier-plugin-tailwindcss']")
-          echo "resolving tailwindcss + prettier-plugin-tailwindcss@$TW_PLUGIN"
-          mkdir -p "$RUNNER_TEMP/tw-oracle"
-          cd "$RUNNER_TEMP/tw-oracle"
-          npm init -y >/dev/null
-          npm i --ignore-scripts tailwindcss "prettier-plugin-tailwindcss@$TW_PLUGIN"
-
-      - name: Resolve svelte.dev submodule SHA
-        id: svelte-dev-sha
-        shell: bash
-        run: echo "sha=$(git submodule status submodules/svelte.dev | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
-
-      - name: Cache formatter parity corpus
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: fixtures/fmt-corpus
-          # Includes package.json + pnpm-lock.yaml so the cached oracle is busted
-          # whenever the derived oxfmt / svelte versions change (a version-less
-          # key left a stale 0.53 oracle cached after the pin drifted). The `v2`
-          # bump force-invalidates the pre-fix caches.
-          key: fmt-corpus-v2-${{ runner.os }}-${{ steps.svelte-dev-sha.outputs.sha }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json', 'package.json', 'pnpm-lock.yaml', 'compatibility/fmt-oracle-excluded.json') }}
-
-      - name: Generate formatter parity corpus
-        run: pnpm run generate-fmt-corpus
-        timeout-minutes: 15
-        env:
-          OXFMT_BIN: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
-
-      - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          # Share (read-only) the `test` job's warm dependency cache.
-          shared-key: test
-          save-if: 'false'
-
-      - name: Run svelte.dev formatter-parity corpus tests
-        run: >-
-          cargo nextest run --profile ci
-          -p rsvelte_fmt --test svelte_dev_markdown
-          -p rsvelte_formatter --test svelte_dev_corpus
-        timeout-minutes: 15
-        env:
-          RUST_MIN_STACK: '33554432'
-          FMT_CORPUS_OXFMT: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
-          # This job checked svelte.dev out and generated the corpus, so a
-          # missing prerequisite here is a misconfigured job. `FMT_CORPUS_OXFMT`
-          # alone cannot say that — it is a user-facing knob, and gating on it
-          # would make a contributor's local export fail their test run.
-          RSVELTE_REQUIRE_PREREQS: '1'
-
-      - name: Run sortTailwindcss JS-parity tests (custom config vs. oxfmt)
-        # Asserts rsvelte-fmt's JS-sorted output is byte-identical to the real
-        # oxfmt oracle for a custom Tailwind config. Guards against drift of the
-        # bundled prettier-plugin-tailwindcss version vs. what oxfmt uses.
-        run: cargo nextest run --profile ci -p rsvelte_fmt --test cli sort_tailwindcss
-        timeout-minutes: 10
-        env:
-          OXFMT_BIN: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
-          RSVELTE_FMT_TW_TEST_DIR: ${{ runner.temp }}/tw-oracle
-          # `--test cli` also carries node-gated tests; this job has node.
-          RSVELTE_REQUIRE_PREREQS: '1'
-
-  language-server:
-    name: Language server
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-
-      # The native server reads Svelte's version at build time; language-tools
-      # supplies the pinned differential oracle and its upstream fixtures.
-      - name: Checkout language-server submodules (shallow)
-        run: git submodule update --init --checkout --depth 1 submodules/svelte submodules/language-tools
-
-      - uses: ./.github/actions/setup-rust
-        with:
-          # rustfmt: the vendored-LSP-data gate below formats the generators'
-          # output before diffing it, because they emit unformatted Rust.
-          components: rustfmt
-          targets: wasm32-unknown-unknown,wasm32-wasip2
-          mold: 'true'
-          wasm-pack: 'true'
-
-      - uses: ./.github/actions/setup-node-pnpm
-        with:
-          cache: 'true'
-
-      - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          shared-key: language-server
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build official svelte-language-server oracle
-        run: |
-          cd submodules/language-tools
-          pnpm install --frozen-lockfile --ignore-scripts
-          pnpm --filter svelte-language-server... build
-          cd "$GITHUB_WORKSPACE"
-          node scripts/compat-lsp/pin-official-svelte.mjs
-
-      - name: Install Svelte compiler dependencies
-        run: pnpm --dir submodules/svelte install --frozen-lockfile
-
-      # `html_data/web.rs` and `css_data/web.rs` are vendored from
-      # `vscode-{html,css}-languageservice` and record a SHA-256 per input file
-      # — a RECORD nothing re-read. Their two tests compare the port against a
-      # JSON oracle the SAME generator run writes, so a language-tools bump
-      # nobody regenerated leaves port and oracle equally stale and both green
-      # forever (#4258). Re-running the generators is what makes the recorded
-      # hash load-bearing. It lives here because this is the only job that
-      # builds language-tools' `dist/`, which both generators require.
-      - name: Check vendored LSP data is regenerated
-        run: node scripts/ci/check-vendored-lsp-data.mjs
-
-      - name: Run vendored LSP data guard tests
-        run: node scripts/ci/test-check-vendored-lsp-data.mjs
-
-      - name: Build lint wasm (nodejs target)
-        run: pnpm run build:wasm:lint-node
-
-      - name: Build core wasm
-        run: pnpm run build:wasm:core
-
-      - name: Build playground wasm
-        run: pnpm run build:wasm:playground
-
-      - name: Finalize @rsvelte/compiler package
-        run: pnpm run finalize-pkg
-
-      - name: Run compare CLI package smoke test
-        run: pnpm run test:compare-cli:e2e
-
-      # This job is the only one that builds `pkg/`, and the gate had never been
-      # invoked by any workflow since it was written.
-      - name: Run wasm compile-options gate
-        run: pnpm run test:wasm-compile
-
-      - name: Run compiler-only wasm gate
-        run: pnpm run test:wasm-compiler-only
-
-      - name: Run packed wasm package gate
-        run: pnpm run test:wasm-package
-
-      - name: Run browser and worker wasm gate
-        run: pnpm run test:wasm-browser
-
-      - name: Run @rsvelte/svelte2tsx tests
-        run: pnpm --filter @rsvelte/svelte2tsx run test
-
-      # apps/npm/svelte-check/bin/svelte-check.cjs (the npm launcher) had zero
-      # tests (#1897 Layer 4 CI hygiene). Its smoke test drives the launcher
-      # against a locally built native binary via RSVELTE_CHECK_BIN, so build
-      # that binary first; debug is enough and this job never runs --release.
-      - name: Build rsvelte-check
-        run: cargo build -p rsvelte_check --bin svelte_check
-
-      - name: Run @rsvelte/svelte-check smoke test (npm launcher)
-        run: pnpm --filter @rsvelte/svelte-check run test
-
-      - name: Generate oxlint-plugin recommended config
-        run: pnpm run build:oxlint-plugin
-
-      - name: Check oxlint-plugin recommended config is in sync
-        run: git diff --exit-code apps/npm/oxlint-plugin/recommended.json
-
-      - name: Build rsvelte-lint NAPI addon
-        run: pnpm run build:lint-native
-
-      - name: Run oxlint-plugin E2E
-        run: pnpm run test:oxlint-plugin
-
-      - name: Build native rsvelte-fmt
-        run: cargo build -p rsvelte_fmt --bin rsvelte-fmt
-
-      - name: Build language server
-        run: pnpm --filter @rsvelte/language-server run build
-
-      - name: Run language-server tests (headless LSP smoke + unit)
-        run: pnpm --filter @rsvelte/language-server run test
-
-      - name: Run LSP differential fixture and upstream gates
-        run: |
-          pnpm run test:lsp-ratchet
-          cargo build -p rsvelte_language_server --bin rsvelte-language-server
-          cargo test -p rsvelte_language_server --test robustness --test upstream_fixture_manifest
-          node --test scripts/bench-lsp/smoke.test.mjs
-          node --test scripts/bench-lsp/real-smoke.test.mjs
-          pnpm run lsp:verify:fixtures
-
-      - name: Check Zed extension
-        run: cargo check --manifest-path apps/zed/Cargo.toml --target wasm32-wasip2
-
-      - name: Test standalone archive packaging
-        run: pnpm run test:language-server-archives
-
-      - name: Typecheck + bundle VS Code extension
-        run: |
-          pnpm --filter rsvelte run test
-          pnpm --filter rsvelte run typecheck
-          pnpm --filter rsvelte run build
-
-  # Single required status check that fans the sharded `Test` matrix and the
-  # dedicated heavy-test jobs back into one signal: branch protection can require
-  # `Tests` instead of every `Test (os, shard)` / `Test runtime` /
-  # `Test thread-safety` / `Test fmt corpus` leg, so changing the split never
-  # needs a protection-rule change. Fails if any of them failed or was cancelled.
-  tests:
-    name: Tests
-    needs: [test, test-unit, test-runtime, test-thread-safety, test-fmt-corpus, oxc-formatter-probe, language-server]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      # This job had no checkout while its verdict was inline bash; the script
-      # needs one. Sparse, because `scripts/ci` is all it reads.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-          sparse-checkout: scripts/ci
-
-      - name: Verify all test jobs passed
-        shell: bash
-        env:
-          BULK: ${{ needs.test.result }}
-          UNIT: ${{ needs.test-unit.result }}
-          RUNTIME: ${{ needs.test-runtime.result }}
-          THREAD_SAFETY: ${{ needs.test-thread-safety.result }}
-          FMT_CORPUS: ${{ needs.test-fmt-corpus.result }}
-          OXC_FORMATTER_PROBE: ${{ needs.oxc-formatter-probe.result }}
-          LANGUAGE_SERVER: ${{ needs.language-server.result }}
-        # Same exit codes as before; the script exists so the MESSAGE can say
-        # whether a leg failed or was merely cancelled, which reads identically
-        # in `gh pr checks` and is the difference between "tests are broken" and
-        # "this run produced no verdict".
-        run: node scripts/ci/tests-aggregate-verdict.mjs
-
-  compatibility-report:
-    name: Compatibility Report
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-
-      - name: Checkout fixture submodules (shallow)
-        run: git submodule update --init --checkout --depth 1 submodules/svelte submodules/language-tools
-
-      - uses: ./.github/actions/setup-rust
-
-      - uses: ./.github/actions/setup-node-pnpm
-        with:
-          cache: 'true'
-          cache-dependency-path: |
-            submodules/svelte/pnpm-lock.yaml
-            submodules/language-tools/pnpm-lock.yaml
-
-      - name: Resolve Svelte submodule SHA
-        id: svelte-sha
-        shell: bash
-        run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
-
-      - name: Cache fixtures
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: fixtures
-          key: fixtures-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules', 'scripts/fixtures/generate-fixtures.mjs') }}
-
-      - name: Cache Svelte compiler build
-        # See the matching step in the `test` job above.
-        id: svelte-build-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            submodules/svelte/node_modules
-            submodules/svelte/packages/svelte/node_modules
-            submodules/svelte/packages/svelte/compiler/index.js
-            submodules/svelte/packages/svelte/types
-            submodules/svelte/packages/svelte/*.d.ts
-            submodules/svelte/packages/svelte/scripts/_bundle.js
-          key: svelte-build-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
-
-      - name: Build Svelte compiler
-        if: steps.svelte-build-cache.outputs.cache-hit != 'true'
-        run: |
-          cd submodules/svelte
-          pnpm install --frozen-lockfile
-          pnpm build
-
-      - name: Generate fixtures
-        run: pnpm run generate-fixtures
-        timeout-minutes: 15
-
-      - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Generate compatibility report
-        run: pnpm run compatibility-report
-        timeout-minutes: 30
-        env:
-          RUST_MIN_STACK: '33554432'
-
-      - name: Validate compatibility report
-        run: node scripts/diff/compare-compatibility-reports.mjs --validate
-
-      - name: Upload compatibility report
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: compatibility-report-${{ github.sha }}
-          path: fixtures/**/compatibility-report.json
-          if-no-files-found: error
-          retention-days: 90
-
-      - name: Check README is in sync with Svelte submodule
-        run: node scripts/dev/update-docs.mjs --check
-
-      - name: Download base compatibility report (PR only)
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          base_run_id="$(gh run list --workflow ci.yml --branch "$GITHUB_BASE_REF" --commit "$BASE_SHA" --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
-          if [ -n "$base_run_id" ] && \
-            gh run download "$base_run_id" --name "compatibility-report-$BASE_SHA" --dir base-report; then
-            exit 0
-          fi
-
-          # A red merge base has no artifact, but it must not turn the first
-          # corrective PR into an unreviewable circular dependency. Rebuild the
-          # report from that exact tree; the already-installed dependencies are
-          # setup state only and the compiler source remains the merge base.
-          git fetch --no-tags --depth 1 origin "$BASE_SHA"
-          git checkout --detach "$BASE_SHA"
-          git submodule update --init --checkout --depth 1 submodules/svelte submodules/language-tools
-          pnpm install --no-frozen-lockfile
-          pnpm run generate-fixtures
-          RUST_TEST_THREADS=1 RUST_MIN_STACK=33554432 CARGO_PROFILE_RELEASE_LTO=off \
-            cargo test --release --test compatibility_report generate_compatibility_report -- --ignored --nocapture
-          mkdir -p base-report
-          base_report="$(find fixtures -type f -name compatibility-report.json -print -quit)"
-          test -n "$base_report"
-          cp "$base_report" base-report/compatibility-report.json
-
-      - name: Compare with base (PR only)
-        if: github.event_name == 'pull_request'
-        run: |
-          base_report="$(find base-report -type f -name compatibility-report.json -print -quit)"
-          test -n "$base_report"
-          node scripts/diff/compare-compatibility-reports.mjs --base-report "$base_report" --pr-summary > pr-summary.md
-
-      - name: Comment on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        continue-on-error: true
-        with:
-          script: |
-            const fs = require('fs');
-            let body = '## Compatibility Report\n\n';
-            try {
-              body += fs.readFileSync('pr-summary.md', 'utf8');
-            } catch {
-              body += '_Could not generate comparison summary._';
-            }
-            const { data: comments } = await github.rest.issues.listComments({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            });
-            const existing = comments.find((c) =>
-              c.user.type === 'Bot' && c.body && c.body.startsWith('## Compatibility Report')
-            );
-            if (existing) {
-              await github.rest.issues.updateComment({
-                comment_id: existing.id,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body,
-              });
-            }
-
-  # `Build` (`cargo build --release` for the main crate) was removed —
-  # release-mode codegen is already exercised by the `C ABI` workflow
-  # (Linux/macOS/Windows release builds with the same crate's source) and
-  # by the `Release` workflow's `build-svelte-check` / `build-vps-native`
-  # matrices, so a standalone PR-time build only repeated work. To restore
-  # a pure release-mode smoke test add a `cargo check --release` step here.
-
-  docs:
-    name: Documentation
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-
-      - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --checkout --depth 1 submodules/svelte
-
-      - uses: ./.github/actions/setup-rust
-
-      - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Build documentation
-        run: cargo doc --no-deps
-        env:
-          RUSTDOCFLAGS: -Dwarnings
-
-  # Builds the NAPI addon for the host triple and runs the vite-plugin-svelte
-  # native smoke test, which exercises the JS-function compile options
-  # (customElement/css/runes, warningFilter, cssHash) end-to-end through the shim.
-  vps-shim:
-    name: VPS native shim smoke test
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-
-      # rsvelte_core's build.rs reads the Svelte version string from the submodule.
-      - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --checkout --depth 1 submodules/svelte
-
-      - uses: ./.github/actions/setup-rust
-        with:
-          mold: 'true'
-
-      - uses: ./.github/actions/setup-node-pnpm
-        with:
-          cache: 'true'
-          cache-dependency-path: submodules/svelte/pnpm-lock.yaml
-
-      - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          shared-key: vps-shim
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Svelte compiler dependencies
-        run: pnpm --dir submodules/svelte install --frozen-lockfile
-
-      - name: Build NAPI addon (host)
-        run: pnpm run build:vps-native
-
-      - name: Run vite-plugin-svelte native shim smoke test
-        run: pnpm run test:vps-shim
-
-      # The package's own unit specs. They live here rather than in a node-only
-      # job because compile.spec.js imports the NAPI addon this job just built.
-      - name: Run vite-plugin-svelte unit specs
-        run: pnpm run test:vps-unit
-
-      # Separate process: two rsvelte addons required into one process SIGSEGVs,
-      # and this one loads the raw addon rather than the shim.
-      - name: Run NAPI option-boundary gate
-        run: pnpm run test:napi-options
-
-      # Separate process for the same reason, and the only gate that compares
-      # the Rust parse-envelope writer against the JS decoder.
-      - name: Run parse-envelope golden gate
-        run: pnpm run test:parse-envelope-golden
-
-      # The decoder's own bounds checks. Hand-crafted envelopes, no addon.
-      - name: Run parse-envelope decoder validation
-        run: pnpm run test:parse-envelope
-
-      # Same for the compile-envelope decoder. It had no CI step at all until
-      # #4695, so its assertions were a script nobody ran.
-      - name: Run compile-envelope decoder validation
-        run: pnpm run test:envelope
-
-      # Again a separate process, for the same reason: this one is the only gate
-      # that drives the `cssHash` callback across the boundary.
-      - name: Run NAPI cssHash gate
-        run: pnpm run test:napi-csshash
-
-      # Separate process for the same reason, and it must be its own step: the
-      # failure this gate exists for kills the process, so a shared one would
-      # take the option gate's result with it.
-      - name: Run NAPI preprocessor parity gate
-        run: pnpm run test:napi-preprocess-parity
-
-  vps-sourcemaps:
-    name: VPS postprocessing source-map parity
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-
-      - uses: ./.github/actions/setup-node-pnpm
-        with:
-          cache: 'true'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      # The dev-server postprocessing is a pure module fed by the official
-      # compiler, so this needs neither the NAPI binding nor a Rust build.
-      - name: Check maps survive HMR partial accept and the CSS import
-        run: pnpm run test:vps-sourcemaps
-
-  corpus-verify-flags:
-    name: Corpus verify baseline-flag contract
-    runs-on: ubuntu-latest
+          node-version: 26.13.0
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/oracle...
+      - uses: ./.github/actions/rust
+      - run: node --test tools/structure/*.test.ts
+      - run: node tools/structure/structure.ts
+      # The semantic tests build other crates with --offline, so fetch the whole lockfile first.
+      - run: cargo fetch
+      # The behaviour oracle against hand-written twins and deliberately wrong translations.
+      - run: pnpm test
+        working-directory: tools/oracle
+
+  typescript:
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          submodules: false
-
-      - uses: ./.github/actions/setup-node-pnpm
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          cache: 'true'
+          node-version: 26.13.0
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run check
 
-      # verify.mjs parses generated output with acorn, so these sandbox runs need
-      # node_modules. No Rust build; the lint-severity step below is the only one
-      # that needs a submodule.
-      - name: Install dependencies
-        id: flags-env
-        run: pnpm install --frozen-lockfile
+  site:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/site
+    steps:
+      # The measure and polish chapters read every committed tools/performance/baseline.json.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.0
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: ./.github/actions/rust
+        with:
+          targets: wasm32-unknown-unknown
+      - run: cargo install wasm-pack --version 0.15.1 --locked
+      # wasm-pack downloads wasm-bindgen and wasm-opt from GitHub releases on every run; when that
+      # fails it compiles wasm-bindgen (90 s) or stops.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/.wasm-pack
+          key: wasm-pack-${{ runner.os }}-0.15.1-${{ hashFiles('Cargo.lock') }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run generate
+      # test, check and build each start by generating; it is done, so they skip that and run at
+      # once. SvelteKit's sync writes a file only when its content changes, so they share it.
+      - run: |
+          declare -A pids
+          for script in test check build; do
+            pnpm --config.enable-pre-post-scripts=false run "$script" > "$RUNNER_TEMP/$script.log" 2>&1 &
+            pids[$script]=$!
+          done
+          failed=()
+          for script in test check build; do
+            if ! wait "${pids[$script]}"; then failed+=("$script"); fi
+            echo "::group::$script"
+            cat "$RUNNER_TEMP/$script.log"
+            echo "::endgroup::"
+          done
+          if [ "${#failed[@]}" -gt 0 ]; then
+            echo "::error::failed: ${failed[*]}"
+            exit 1
+          fi
 
-      - name: Check --update-baseline / --update-warning-baseline compose
-        run: node scripts/dev/test-corpus-verify-baseline-flags.mjs
-
-      # The output-parseability gate: that it is wired, that the OUTPUT ratchet
-      # does not suppress it, and that it cannot go green by rsvelte compiling
-      # less.
-      - name: Check the output-parseability gate
-        # A failing step skips every unguarded step after it, and a skipped
-        # check reads exactly like a passing one. Run regardless.
-        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
-        run: node scripts/dev/test-corpus-parse-gate.mjs
-
-      - name: Check mutation baseline provenance
-        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
-        run: node scripts/dev/test-mutation-baseline-provenance.mjs
-
-      # The parse-ast comparator pairs siblings by identity. Its two failure
-      # modes both read as success: index pairing sprays one dropped node
-      # across node types it never touched, and a map keyed on the bare
-      # (type, start, end) triple collapses upstream's duplicate-span comments
-      # so deleting one reports nothing.
-      - name: Check the parse-ast comparator's sibling alignment
-        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
-        run: node scripts/dev/test-parse-ast-diff-alignment.mjs
-
-      # `codeIdentity` decides the `code-mismatch` / `comment-mismatch` split
-      # that this gate and the shape matrix ratchet on, so a reduction that
-      # deletes real code makes a code regression report as comment noise.
-      - name: Check the code/comment classifier's string handling
-        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
-        run: node scripts/dev/test-code-identity-strings.mjs
-
-      # The lint gate's rewrite floor and its compared population. Both linters
-      # are stubbed, so this runs without the lint submodules, the dist-lint
-      # build or the eslint oracle that the Lint parity job needs.
-      - name: Check the lint gate's population floor
-        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
-        run: node scripts/dev/test-lint-verify-population-floor.mjs
-
-      # The deliberate-divergence claim behind lint-severity's 56 exit-code
-      # entries is "the official compiler rejects every one of them", which is a
-      # one-time measurement until it runs. It needs the real oracle, so this is
-      # the one step here that checks out a submodule.
-      - name: Checkout svelte submodule (shallow)
-        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
-        run: git submodule update --init --checkout --depth 1 submodules/svelte
-
-      - name: Install Svelte compiler dependencies
-        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
-        run: pnpm --dir submodules/svelte install --frozen-lockfile
-
-      - name: Check the lint-severity exit attribution
-        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
-        run: node scripts/dev/test-lint-severity-exit-attribution.mjs
-
-      # The ratchet-doc count parser. Lives here rather than in Corpus Compat so
-      # it runs without the corpus: it needs no submodules and no build.
-      - name: Check the known-failures doc count parser
-        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
-        run: node scripts/dev/test-known-failures-md-check.mjs
-
-      # A recorded deliberate divergence is a decision not to close, so it has to
-      # be held by a test; this reads the doc, not the corpus.
-      - name: Check every deliberate divergence is pinned
-        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
-        run: node scripts/dev/deliberate-divergences-check.mjs
-
-      # The controls for the attribution gate wired below. A gate whose only
-      # observed outcome is the one it was written to produce has not been shown
-      # to discriminate.
-      - name: Check the attribution gate's own controls
-        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
-        run: node scripts/ci/test-attribution-check.mjs
-
-      - name: Check the progress checker's own controls
-        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
-        run: node scripts/ci/test-attribution-progress-check.mjs
-
-      - name: Check the hover terminal scope check's own controls
-        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
-        run: node scripts/ci/test-lsp-hover-terminal-scope-check.mjs
-
-      # The CSS-prune sweep's comparison key. Same reason it lives here: the
-      # comparator is a pure module, so it needs neither the NAPI binding nor
-      # submodules that the sweep itself does.
-      - name: Check the CSS-prune sweep compares warnings
-        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
-        run: node scripts/dev/test-css-prune-sweep-warning-verdict.mjs
-
-  release-comment:
-    name: Release comment mapping
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+  performance:
+    # The instruction baseline is recorded on arm64 Linux (`performance.ts linux` runs the same
+    # environment locally); allocation counts are the same on every platform.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          submodules: false
-
-      # The release job that posts these comments runs once per release and
-      # only on main, so a mistake in the CHANGELOG -> pull request mapping
-      # would first surface as comments on the wrong issues. The parsers are
-      # pure and dependency-free, so pin them on every PR instead.
-      - name: Check the released-version comment mapping
-        run: node scripts/dev/test-release-comment.mjs
-
-  vps-version-check:
-    name: VPS native VERSION drift check
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          submodules: false
-
-      - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --checkout --depth 1 submodules/svelte
-
-      - name: Check vite-plugin-svelte-native VERSION matches submodules/svelte
-        run: node scripts/dev/check-vps-version.mjs
-
-  bot-branch-guard:
-    name: Auto-update branch guard
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+          node-version: 26.13.0
+          package-manager-cache: false
+      # The image's package lists usually still name valgrind; updating them took 15 seconds.
+      - run: |
+          if ! sudo apt-get install -y --no-install-recommends valgrind; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends valgrind
+          fi
+      - run: node --test tools/performance/*.test.ts
+      - uses: ./.github/actions/rust
+      - run: cargo fetch
+      - run: node tools/performance/performance.ts ratchet --instructions --json performance-report.json
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          submodules: false
-
-      # A guard that only misfires on a cron 24h later needs its own test.
-      - name: Run auto-update branch guard tests
-        run: node scripts/ci/test-bot-branch-guard.mjs
-
-  workflow-trigger-guard:
-    name: Workflow trigger guard
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-
-      - name: Check PR triggers are not base-branch filtered
-        run: node scripts/ci/workflow-trigger-guard.mjs
-
-      # The guard passing on the tree it was written against proves nothing;
-      # these are the controls that show it can still fail.
-      - name: Run workflow trigger guard tests
-        # A failing step skips every unguarded step after it, and a skipped
-        # check reads exactly like a passing one. Run regardless.
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/test-workflow-trigger-guard.mjs
-
-      # The `Tests` aggregator's verdict is a message nothing else reads, so it
-      # can only regress silently.
-      - name: Run Tests aggregator verdict tests
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/test-tests-aggregate-verdict.mjs
-
-      - name: Run release verdict waiter tests
-        if: ${{ !cancelled() }}
-        run: node scripts/release/test-wait-for-release-verdicts.mjs
-
-      # The capi auto-tag's "already released" and "version goes backwards"
-      # arms only ever run on a tree where they must not fire, so nothing else
-      # can show they are still able to.
-      - name: Run capi release decision tests
-        if: ${{ !cancelled() }}
-        run: node scripts/release/test-capi-release-decision.mjs
-
-      - name: Run differential corpus workflow tests
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/test-differential-corpus-workflow.mjs
-
-      - name: Run compatibility report comparison tests
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/test-compatibility-report-comparison.mjs
-
-      - name: Run compatibility report workflow tests
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/test-compatibility-report-workflow.mjs
-
-      # The compare command's compiler calls are injected, so its argument,
-      # discovery, verdict, and reporting contract can be pinned without a WASM
-      # build or corpus checkout.
-      - name: Run compare CLI unit tests
-        if: ${{ !cancelled() }}
-        run: node --test apps/npm/compiler/test/compare-cli.test.mjs
-
-      # The Corpus Compat job filter can skip a gate, and a skipped gate reads as
-      # a passing one — so its controls belong with the other trigger guards.
-      - name: Run corpus-compat job filter tests
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/test-corpus-compat-job-filter.mjs
-
-      # A pattern-corpus repro carries its provenance only in the README, so a
-      # file that drifts out of the table loses the record of which axis it
-      # holds — and nothing noticed in either direction until #3670.
-      - name: Check pattern-corpus is documented
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/check-pattern-corpus-docs.mjs
-
-      - name: Run pattern-corpus docs guard tests
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/test-check-pattern-corpus-docs.mjs
-
-      # `update-docs.mjs --check` only runs in the Compatibility Report job,
-      # which needs a release build and a generated report. Comparing a doc to
-      # the submodule needs neither, so the version half runs on every PR.
-      - name: Check the docs state the pinned Svelte version
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/test-svelte-target-marker.mjs
-
-      # svelte is the oracle every differential gate compares against, so a
-      # range makes the installed version a function of the install date rather
-      # than of the commit.
-      - name: Check svelte is pinned exactly
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/check-svelte-dependency-pin.mjs
-
-      - name: Run svelte pin guard tests
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/test-check-svelte-dependency-pin.mjs
-
-      # Cargo fetches a git dependency's submodules recursively, so one entry
-      # without `update = none` breaks every downstream consumer and nothing in
-      # this repository observes it (#4580). `--checkout` is the other half: it
-      # overrides the strategy, and without it an update checks nothing out and
-      # still exits 0.
-      - name: Check the submodule update strategy
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/check-submodule-update-strategy.mjs
-
-      - name: Run submodule update strategy guard tests
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/test-check-submodule-update-strategy.mjs
-
-      # An upstream report that nobody links is a report nobody can tell was
-      # ever filed — 0 of 27 recorded a filing and 26 were unindexed (#3680).
-      - name: Check upstream_issues is indexed
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/check-upstream-issues.mjs
-
-      - name: Run upstream_issues index guard tests
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/test-check-upstream-issues.mjs
-
-      # A guarded step that measures the environment rather than the code: the
-      # `!cancelled()` shape it enforces was itself the source of a red
-      # `Shape matrix parity` caused by a missing `node_modules`.
-      - name: Check no comparison can report an environment failure
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/step-environment-guard.mjs
-
-      - name: Run step environment guard tests
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/test-step-environment-guard.mjs
-
-  prereq-coverage-guard:
-    name: Prerequisite coverage guard
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-
-      # `RSVELTE_REQUIRE_PREREQS` guards are one-sided: a job that does not
-      # declare the prerequisite may skip. Nothing asserted that some job both
-      # runs the target and declares it, so dropping the variable retired the
-      # ratchet everywhere while every check stayed green. See #2431.
-      - name: Check every prerequisite-guarded target is enforced by some job
-        run: node scripts/ci/prereq-coverage-guard.mjs
-
-      - name: Run prerequisite coverage guard tests
-        # A failing step skips every unguarded step after it, and a skipped
-        # check reads exactly like a passing one. Run regardless.
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/test-prereq-coverage-guard.mjs
-
-  ratchet-doc-guard:
-    name: Ratchet doc parity
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-
-      # "Every ratchet on disk is declared" holds over the union of two branches,
-      # so no PR run can establish it: a `pull_request` merge ref is frozen when
-      # the event is created and may predate the rule it is checked against. The
-      # run that decides it is the push to `main`, and Corpus Compat cannot be
-      # that run — it is path-filtered and an hour long. This needs neither
-      # submodules nor a build, so it lives here instead.
-      - name: Verify known-failures.md matches the JSON ratchets
-        run: node scripts/compat-corpus/known-failures-md-check.mjs
-
-      # `known-failures-md-check` does not read the attribution tables at all, so
-      # a table whose `n` stopped summing to its ratchet shipped green through
-      # three of its invocations. `--gate-known` asks about the attribution that
-      # EXISTS and exempts `attribution-pending.json` from the one question it
-      # cannot answer yet — which ratchets still have no block. The default mode
-      # is the DoD and stays red until that list is empty; it is not run here.
-      - name: Verify the attribution tables that exist
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/attribution-check.mjs --gate-known
-
-      # Entry-level refinement of `attribution-pending.json`: which listed id has
-      # a located cause and an issue tracking its elimination. It reports coverage
-      # and never lowers the bar -- the step above is unchanged, and the default
-      # mode still counts every recorded id as unattributed.
-      - name: Verify the entry-level progress records
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/attribution-progress-check.mjs
-
-      # `known-failures-md-check` reads a sidecar as one slug per entry, so it
-      # does not cover `lsp-mechanisms.json`, whose value is a SET — and nothing
-      # else ran this checker either: it had a package script and no workflow.
-      - name: Verify the LSP mechanism sidecar
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/lsp-mechanisms-check.mjs
-
-      # The sidecar checker validates a terminal's SHAPE; nothing checks the SET
-      # of labels one report is made to answer. Nine point at the tsgo hover
-      # report because `TS_RENDER_RULES` implements its renderings one rewrite
-      # each, and a tenth rule added later would inherit that by name alone.
-      - name: Verify the hover report's terminal scope
-        if: ${{ !cancelled() }}
-        run: node scripts/ci/lsp-hover-terminal-scope-check.mjs
+          name: performance-report
+          path: performance-report.json
+          if-no-files-found: ignore

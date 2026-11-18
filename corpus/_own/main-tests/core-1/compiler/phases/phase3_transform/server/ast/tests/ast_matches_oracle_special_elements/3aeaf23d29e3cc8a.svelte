@@ -1,0 +1,1 @@
+<svelte:window on:keydown={f}/>

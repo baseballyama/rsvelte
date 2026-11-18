@@ -1,0 +1,1 @@
+<div onclick={(function () { other(); })}></div>

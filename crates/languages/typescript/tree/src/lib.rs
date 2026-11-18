@@ -1,0 +1,393 @@
+//! A document's JavaScript and TypeScript as oxc trees, all in one arena.
+//!
+//! Every span is an offset into the whole document: a `<script>` element and a template
+//! expression parse in place, so the trees and the embedding language share one position type.
+
+use std::num::NonZeroU32;
+use std::rc::Rc;
+
+use oxc_allocator::Allocator;
+use oxc_ast::ast::{
+    Comment, Expression, FormalParameter, FormalParameters, Program, TSTypeParameterDeclaration,
+    VariableDeclaration,
+};
+use oxc_diagnostics::OxcDiagnostic;
+use oxc_span::SourceType;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::document::Document;
+
+mod acorn_grammar;
+mod builder;
+pub use builder::{Builder, Recorded, RecordedPart, Rejected};
+mod syntax_error;
+pub use syntax_error::{
+    Acorn, Locator, Reader, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, analysis_error,
+    babel_typescript_throws, function_as_body, syntax_error, typescript_eslint_check,
+    typescript_eslint_error, typescript_estree_throws,
+};
+
+pub mod scratch;
+pub use scratch::with_scratch_arena;
+
+mod cell {
+    #![allow(
+        clippy::mem_forget,
+        reason = "self_cell's expansion forgets its guard on purpose"
+    )]
+
+    use oxc_allocator::Allocator;
+
+    use super::Trees;
+
+    self_cell::self_cell!(
+        pub(super) struct Cell {
+            owner: Allocator,
+            #[covariant]
+            dependent: Trees,
+        }
+    );
+}
+
+use cell::Cell;
+
+/// The cell, which gives its arena back to the thread once no [`Tree`] shares it.
+struct Kept(Option<Cell>);
+
+impl std::ops::Deref for Kept {
+    type Target = Cell;
+
+    fn deref(&self) -> &Cell {
+        self.0
+            .as_ref()
+            .expect("the cell is taken only when it drops")
+    }
+}
+
+impl Drop for Kept {
+    fn drop(&mut self) {
+        if let Some(cell) = self.0.take() {
+            scratch::TREES.give_back(cell.into_owner());
+        }
+    }
+}
+
+/// What few documents have.
+struct Rare {
+    acorn_rejection: Option<(u32, acorn_grammar::Rejection)>,
+    /// How many pairs of parentheses wrapped each node that had any where upstream's parser keeps
+    /// them, sorted by span.
+    parentheses: Vec<(oxc_span::Span, u8)>,
+}
+
+struct Trees<'a> {
+    source_text: &'a str,
+    programs: Vec<Program<'a>>,
+    expressions: Vec<Expression<'a>>,
+    patterns: Vec<FormalParameter<'a>>,
+    parameters: Vec<FormalParameters<'a>>,
+    declarations: Vec<VariableDeclaration<'a>>,
+    type_parameters: Vec<TSTypeParameterDeclaration<'a>>,
+    /// The comments of every part but the programs, which keep their own, in document order.
+    comments: Vec<Comment>,
+    /// Boxed, so that a document with neither costs one pointer in every tree.
+    rare: Option<Box<Rare>>,
+    /// Behind a reference, so that it and the errors below take the place of one slice.
+    unchecked: &'static &'static [&'static str],
+    /// The errors oxc reported in the parts that the host lets pass, in order; boxed, as almost no
+    /// document has one.
+    #[expect(
+        clippy::box_collection,
+        reason = "a thin pointer keeps every tree one word smaller"
+    )]
+    unchecked_errors: Option<Box<Vec<SyntaxError>>>,
+    as_acorn: bool,
+}
+
+/// The trees parsed from one document, and the arena that holds them.
+///
+/// Cloning shares them, so that a task such as scope analysis can keep them alive beside what it
+/// derives.
+#[derive(Clone)]
+pub struct Tree(Rc<Kept>);
+
+impl std::fmt::Debug for Tree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let parsed = self.0.borrow_dependent();
+        f.debug_struct("Tree")
+            .field("programs", &parsed.programs.len())
+            .field("expressions", &parsed.expressions.len())
+            .finish_non_exhaustive()
+    }
+}
+
+/// The identifier of a part in its list.
+trait Identifier {
+    /// The identifier of the part at `index` of its list.
+    fn at(index: usize) -> Self;
+}
+
+/// Adds `item` to its list and returns its identifier.
+fn push<I: Identifier, T>(list: &mut Vec<T>, item: T) -> I {
+    let identifier = I::at(list.len());
+    list.push(item);
+    identifier
+}
+
+/// Each item of a list with its identifier, in the order kept.
+fn listed<I: Identifier, T>(list: &[T]) -> impl ExactSizeIterator<Item = (I, &T)> {
+    list.iter()
+        .enumerate()
+        .map(|(index, item)| (I::at(index), item))
+}
+
+macro_rules! identifier {
+    ($(#[$doc:meta])* $name:ident) => {
+        $(#[$doc])*
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+        pub struct $name(NonZeroU32);
+
+        impl Identifier for $name {
+            fn at(index: usize) -> Self {
+                let index = u32::try_from(index).expect("a document has fewer than u32::MAX parts");
+                Self(NonZeroU32::MIN.saturating_add(index))
+            }
+        }
+
+        impl $name {
+
+            const fn index(self) -> usize {
+                (self.0.get() - 1) as usize
+            }
+
+        }
+    };
+}
+
+identifier!(
+    /// A program parsed by [`Builder::program`].
+    ProgramIdentifier
+);
+identifier!(
+    /// An expression a [`Builder`] keeps.
+    ExpressionIdentifier
+);
+identifier!(
+    /// A binding pattern with its type annotation, parsed by [`Builder::pattern`].
+    PatternIdentifier
+);
+identifier!(
+    /// A parameter list parsed by [`Builder::parameters`].
+    ParametersIdentifier
+);
+identifier!(
+    /// A variable declaration kept by [`Builder::keep_declaration`].
+    DeclarationIdentifier
+);
+identifier!(
+    /// A type parameter list parsed by [`Builder::type_parameters`].
+    TypeParametersIdentifier
+);
+
+impl Tree {
+    /// Copies `source_text` into a new arena, and lets `parse` read the parts it needs.
+    ///
+    /// # Errors
+    ///
+    /// The first error `parse` returns.
+    #[expect(
+        clippy::missing_panics_doc,
+        reason = "the arena is kept only after `parse` has returned its output"
+    )]
+    pub fn build<T>(
+        source_text: &str,
+        parse: impl for<'a> FnOnce(&mut Builder<'a>) -> Result<T, Diagnostic>,
+    ) -> Result<(Self, T), Diagnostic> {
+        let mut output = None;
+        let cell = Cell::try_new_or_recover(scratch::TREES.take(), |allocator| {
+            let mut builder = Builder::new(allocator, allocator.alloc_str(source_text));
+            output = Some(parse(&mut builder)?);
+            Ok::<_, Diagnostic>(builder.finish())
+        })
+        .map_err(|(allocator, error)| {
+            scratch::TREES.give_back(allocator);
+            error
+        })?;
+        Ok((
+            Self(Rc::new(Kept(Some(cell)))),
+            output.expect("`parse` returned"),
+        ))
+    }
+
+    /// A document that is one program, such as a `.ts` file.
+    ///
+    /// # Errors
+    ///
+    /// The first syntax error.
+    pub fn program(
+        document: &Document,
+        source_type: SourceType,
+    ) -> Result<(Self, ProgramIdentifier), Diagnostic> {
+        Self::build(&document.text, |builder| {
+            let whole =
+                rsvelte_kernel::source::positions::Span::new(0, builder.source_text().len() as u32);
+            builder
+                .program(whole, source_type)
+                .map_err(Diagnostic::from)
+        })
+    }
+
+    /// The arena the trees live in, where a task such as the formatter allocates what it builds.
+    #[must_use]
+    pub fn allocator(&self) -> &Allocator {
+        self.0.borrow_owner()
+    }
+
+    #[must_use]
+    pub fn source_text(&self) -> &str {
+        self.0.borrow_dependent().source_text
+    }
+
+    /// acorn's error at the first syntax oxc parsed and acorn does not, when the builder noted it.
+    #[must_use]
+    pub fn acorn_rejection(&self) -> Option<SyntaxError> {
+        (self.0.borrow_dependent().rare.as_ref())
+            .and_then(|rare| rare.acorn_rejection)
+            .map(acorn_grammar::rejection)
+    }
+
+    /// The syntax errors oxc reported in the parts that the host the builder read for lets pass,
+    /// which another reader of them, such as typescript-eslint or Babel, may throw on.
+    #[must_use]
+    pub fn unchecked_errors(&self) -> &[SyntaxError] {
+        self.0
+            .borrow_dependent()
+            .unchecked_errors
+            .as_deref()
+            .map_or(&[], Vec::as_slice)
+    }
+
+    /// Whether the host the builder read for reports `error`, an error of an analysis of the
+    /// trees whose nodes `visit` hands to [`Locator::enter`].
+    #[must_use]
+    pub fn reports(&self, error: &OxcDiagnostic, visit: impl FnOnce(&mut Locator)) -> bool {
+        let trees = self.0.borrow_dependent();
+        syntax_error::reported(error, trees.unchecked, trees.as_acorn, visit)
+    }
+
+    #[must_use]
+    pub fn get_program(&self, identifier: ProgramIdentifier) -> &Program<'_> {
+        &self.0.borrow_dependent().programs[identifier.index()]
+    }
+
+    #[must_use]
+    pub fn get_expression(&self, identifier: ExpressionIdentifier) -> &Expression<'_> {
+        &self.0.borrow_dependent().expressions[identifier.index()]
+    }
+
+    #[must_use]
+    pub fn get_pattern(&self, identifier: PatternIdentifier) -> &FormalParameter<'_> {
+        &self.0.borrow_dependent().patterns[identifier.index()]
+    }
+
+    #[must_use]
+    pub fn get_parameters(&self, identifier: ParametersIdentifier) -> &FormalParameters<'_> {
+        &self.0.borrow_dependent().parameters[identifier.index()]
+    }
+
+    #[must_use]
+    pub fn get_declaration(&self, identifier: DeclarationIdentifier) -> &VariableDeclaration<'_> {
+        &self.0.borrow_dependent().declarations[identifier.index()]
+    }
+
+    #[must_use]
+    pub fn get_type_parameters(
+        &self,
+        identifier: TypeParametersIdentifier,
+    ) -> &TSTypeParameterDeclaration<'_> {
+        &self.0.borrow_dependent().type_parameters[identifier.index()]
+    }
+
+    /// Every expression kept apart from a program, with its identifier, in the order kept.
+    pub fn expressions(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (ExpressionIdentifier, &Expression<'_>)> {
+        listed(&self.0.borrow_dependent().expressions)
+    }
+
+    /// Every declaration kept apart from a program, with its identifier, in the order kept.
+    pub fn declarations(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (DeclarationIdentifier, &VariableDeclaration<'_>)> {
+        listed(&self.0.borrow_dependent().declarations)
+    }
+
+    /// Every pattern kept apart from a program, with its identifier, in the order kept.
+    pub fn patterns(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (PatternIdentifier, &FormalParameter<'_>)> {
+        listed(&self.0.borrow_dependent().patterns)
+    }
+
+    /// Every parameter list kept apart from a program, with its identifier, in the order kept.
+    pub fn parameters(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (ParametersIdentifier, &FormalParameters<'_>)> {
+        listed(&self.0.borrow_dependent().parameters)
+    }
+
+    /// Every type parameter list kept apart from a program, with its identifier, in the order
+    /// kept.
+    pub fn type_parameters(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (TypeParametersIdentifier, &TSTypeParameterDeclaration<'_>)>
+    {
+        listed(&self.0.borrow_dependent().type_parameters)
+    }
+
+    /// The comments outside the programs, in document order.
+    #[must_use]
+    pub fn comments(&self) -> &[Comment] {
+        &self.0.borrow_dependent().comments
+    }
+
+    /// Whether any node upstream's parser keeps parentheses around had them.
+    #[must_use]
+    pub fn has_parentheses(&self) -> bool {
+        self.parentheses_table()
+            .is_some_and(|table| !table.is_empty())
+    }
+
+    /// How many pairs of parentheses the source wrapped around the node at `span`, in a snippet's
+    /// parameters or around a `bind:` value, the places upstream's parser keeps them.
+    #[must_use]
+    pub fn parentheses(&self, span: oxc_span::Span) -> u8 {
+        let Some(parentheses) = self.parentheses_table() else {
+            return 0;
+        };
+        parentheses
+            .binary_search_by_key(&(span.start, span.end), |&(s, _)| (s.start, s.end))
+            .map_or(0, |i| parentheses[i].1)
+    }
+
+    fn parentheses_table(&self) -> Option<&[(oxc_span::Span, u8)]> {
+        let rare = self.0.borrow_dependent().rare.as_deref()?;
+        Some(&rare.parentheses)
+    }
+}
+
+mod computation;
+pub use computation::{PLUGIN, Parsed, Script, is_jsx, is_typescript, matches, register};
+
+/// Upstream's `regex_is_valid_identifier` and `regex_valid_identifier`, both
+/// `/^[a-zA-Z_$][a-zA-Z_$0-9]*$/`: an ASCII-only name that can follow a `.`.
+#[must_use]
+pub fn is_valid_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    chars
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+}
+
+#[cfg(test)]
+mod tests;

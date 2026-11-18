@@ -1,0 +1,20 @@
+- message: Trailing spaces not allowed.
+  line: 2
+  column: 2
+  suggestions: null
+- message: Trailing spaces not allowed.
+  line: 3
+  column: 2
+  suggestions: null
+- message: Trailing spaces not allowed.
+  line: 4
+  column: 2
+  suggestions: null
+- message: Trailing spaces not allowed.
+  line: 5
+  column: 2
+  suggestions: null
+- message: Trailing spaces not allowed.
+  line: 6
+  column: 2
+  suggestions: null

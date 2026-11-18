@@ -1,0 +1,1 @@
+<script module lang="ts">export const a = 1;</script>

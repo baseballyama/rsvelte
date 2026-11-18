@@ -1,0 +1,1 @@
+<script lang="ts">const f = function<T>(x: T){}</script>

@@ -1,0 +1,1 @@
+<Foo let:x>y</Foo>

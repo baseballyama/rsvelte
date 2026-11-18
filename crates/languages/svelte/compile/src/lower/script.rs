@@ -1,0 +1,489 @@
+//! Shared rune rewriting with a target parameter.
+//!
+//! The rewrite runs over a copy of the input in the output arena: the copy keeps the analysis's
+//! reference and symbol ids, so each identifier still resolves through [`Resolution`].
+
+mod classes;
+mod declarators;
+mod exports;
+mod patterns;
+mod program;
+mod props;
+mod statements;
+mod stores;
+mod writes;
+
+pub(super) use classes::Classes;
+pub(super) use exports::{Export, default_exports};
+use oxc_allocator::{CloneIn, GetAllocator, TakeIn, Vec as ArenaVec};
+use oxc_ast::ast::{
+    Argument, ArrowFunctionExpression, BindingIdentifier, ClassBody, Expression, Function,
+    IdentifierReference, ImportDeclaration, MethodDefinition, ObjectProperty, Statement,
+    SwitchCase, VariableDeclaration, VariableDeclarator, WithClause, WithClauseKeyword,
+};
+use oxc_ast_visit::{VisitMut, walk_mut};
+use oxc_semantic::{ReferenceId, SymbolId};
+use oxc_span::Span;
+use oxc_syntax::scope::ScopeFlags;
+pub(super) use program::{ScriptContext, lower_declaration_tag, lower_script, props_id};
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
+use rustc_hash::{FxHashMap, FxHashSet};
+
+/// What upstream's transforms call a `$$props` the source declares.
+const SANITIZED_PROPS: &str = "$$sanitized_props";
+use statements::{Inspect, inspect, inspects_with, is_effect};
+pub(super) use writes::mutates_signal;
+
+use super::names::Names;
+use super::{Builder, Target};
+use crate::lower::builder::Runtime;
+
+pub(super) struct ScriptRewrite<'r, 'o> {
+    pub b: &'r Builder<'o>,
+    pub target: Target,
+    pub accessors: bool,
+    pub rest_reads: Option<&'r FxHashSet<ReferenceId>>,
+    pub res: &'r Resolution,
+    /// How the client reads the names the template declares, for those in scope (upstream's
+    /// per-block `transform`, keyed by symbol instead of by name).
+    pub template: Option<&'r FxHashMap<SymbolId, Read>>,
+    /// A snippet a component holds and the outer name it shadows, which the client reads instead.
+    pub shadows: Option<&'r FxHashMap<SymbolId, SymbolId>>,
+    /// The store subscriptions (`$name`).
+    pub stores: &'r [String],
+    /// The store subscription a client mutation reads untracked (upstream's `mutate` transform).
+    pub untracked: Option<ReferenceId>,
+    /// The `{#each}` items of a store's collection, with the subscription a mutation of each
+    /// invalidates.
+    pub invalidates: Option<&'r FxHashMap<SymbolId, &'r str>>,
+    /// The value written is an element's, which upstream never proxies.
+    pub primitive: bool,
+    pub classes: Classes,
+    /// The names a script takes for what it declares, such as a nested destructured derived's;
+    /// a template's rewrite declares none.
+    pub names: Option<&'r Names<'r>>,
+}
+
+impl<'r, 'o> ScriptRewrite<'r, 'o> {
+    /// A rewrite with no template, stores, accessors or names of its own.
+    pub(super) fn new(b: &'r Builder<'o>, target: Target, res: &'r Resolution) -> Self {
+        Self {
+            b,
+            target,
+            accessors: false,
+            rest_reads: None,
+            res,
+            template: None,
+            shadows: None,
+            stores: &[],
+            untracked: None,
+            invalidates: None,
+            primitive: false,
+            classes: Classes::default(),
+            names: None,
+        }
+    }
+}
+
+/// How a name the template declares is read on the client.
+#[derive(Clone, Debug)]
+pub(super) enum Read {
+    Plain,
+    /// `$.get(object).name`: a name a destructured `{@const}` declares in `object`.
+    Field(Box<str>),
+    /// `$.get(name)`
+    Get,
+    /// `name()`
+    Call,
+}
+
+impl Read {
+    pub(super) const fn get_if(through_get: bool) -> Self {
+        if through_get { Self::Get } else { Self::Plain }
+    }
+}
+
+impl<'o> ScriptRewrite<'_, 'o> {
+    /// `e`, copied into the output and rewritten.
+    pub(super) fn expression(&mut self, e: &Expression<'_>) -> Expression<'o> {
+        let mut e = e.clone_in_with_semantic_ids(self.b.allocator());
+        self.visit_expression(&mut e);
+        e
+    }
+
+    pub(super) fn statement(&mut self, s: &Statement<'_>) -> Statement<'o> {
+        let mut s = s.clone_in_with_semantic_ids(self.b.allocator());
+        self.visit_statement(&mut s);
+        s
+    }
+
+    pub(super) fn declarator(&mut self, d: &VariableDeclarator<'_>) -> VariableDeclarator<'o> {
+        let mut d = d.clone_in_with_semantic_ids(self.b.allocator());
+        self.visit_variable_declarator(&mut d);
+        d
+    }
+
+    /// Whether a `$$props` of `symbol` is renamed. Upstream also renames the reads of one a
+    /// template declares but not its declaration, which leaves them unbound; this keeps both.
+    fn renames_props(&self, symbol: Option<SymbolId>) -> bool {
+        symbol.is_none_or(|symbol| {
+            !matches!(
+                self.res.binding(symbol).kind,
+                BindingKind::Each
+                    | BindingKind::StaticIndex
+                    | BindingKind::KeyedIndex
+                    | BindingKind::Snippet
+                    | BindingKind::Template
+            )
+        })
+    }
+
+    /// Upstream `build_getter` / the `read` transforms, by binding kind and target.
+    fn read(&self, identifier: &IdentifierReference<'_>) -> Option<Expression<'o>> {
+        let b = self.b;
+        if self.target == Target::Client
+            && let Some(reads) = self.rest_reads
+            && identifier
+                .reference_id
+                .get()
+                .is_some_and(|r| reads.contains(&r))
+        {
+            return Some(b.id("$$props"));
+        }
+        if identifier.name == "$$props" && self.renames_props(self.res.symbol(identifier)) {
+            return Some(b.id_at(SANITIZED_PROPS, identifier.span));
+        }
+        if self.is_store(identifier) {
+            return Some(self.store_read(identifier));
+        }
+        let symbol = self.res.symbol(identifier)?;
+        let symbol = (self.shadows.and_then(|m| m.get(&symbol)))
+            .copied()
+            .unwrap_or(symbol);
+        self.read_symbol(symbol, &identifier.name, identifier.span)
+    }
+
+    pub(in crate::lower) fn read_symbol(
+        &self,
+        symbol: SymbolId,
+        name: &str,
+        span: Span,
+    ) -> Option<Expression<'o>> {
+        let b = self.b;
+        let info = self.res.binding(symbol);
+        let x = || b.id_at(name, span);
+        // Upstream reads a `var` that may be read before its declaration runs safely.
+        let var = || {
+            (self.res.scoping().symbol_flags(symbol))
+                .contains(oxc_syntax::symbol::SymbolFlags::FunctionScopedVariable)
+        };
+        let get = || b.runtime(if var() { "safe_get" } else { "get" }, [x()]);
+        match (self.target, info.kind) {
+            (Target::Client, BindingKind::State | BindingKind::RawState)
+                if self.res.is_state_source(symbol, self.accessors) =>
+            {
+                Some(get())
+            }
+            (Target::Client, BindingKind::Derived | BindingKind::DerivedBy) => Some(get()),
+            (Target::Client, BindingKind::Property | BindingKind::BindableProperty) => {
+                if writes::is_prop_source(self.res, self.accessors, symbol) {
+                    return Some(b.call(x(), []));
+                }
+                let key = info.prop_key?;
+                Some(b.member_key(b.id("$$props"), &super::javascript::prop_alias(key)))
+            }
+            (
+                Target::Client,
+                BindingKind::Each
+                | BindingKind::StaticIndex
+                | BindingKind::KeyedIndex
+                | BindingKind::Snippet
+                | BindingKind::Template,
+            ) => {
+                // Upstream reads a name it has not given a transform yet, a later `{@const}`, as it
+                // is.
+                let read = self.template.and_then(|m| m.get(&symbol))?;
+                match read {
+                    Read::Plain => None,
+                    Read::Get => Some(b.runtime("get", [x()])),
+                    Read::Call => Some(b.call(x(), [])),
+                    Read::Field(object) => Some(b.member(b.runtime("get", [b.id(object)]), name)),
+                }
+            }
+            (Target::Server, BindingKind::Derived | BindingKind::DerivedBy) if var() => {
+                let Expression::CallExpression(mut call) = b.call(x(), []) else {
+                    unreachable!("a call builds a call")
+                };
+                call.optional = true;
+                let call = oxc_ast::ast::ChainElement::CallExpression(call);
+                Some(Expression::new_chain_expression(Span::default(), call, b))
+            }
+            (Target::Server, BindingKind::Derived | BindingKind::DerivedBy) => {
+                Some(b.call(x(), []))
+            }
+            _ => None,
+        }
+    }
+
+    /// A rune call's lowering, or `None` when `it` is no rune this rewrite lowers.
+    fn rune(&mut self, it: &mut Expression<'o>) -> Option<Expression<'o>> {
+        let b = self.b;
+        let name = match (self.target, self.res.rune(it)?.0) {
+            (Target::Client, "$host") => return Some(b.member(b.id("$$props"), "$$host")),
+            (Target::Server, "$host") => return Some(b.void0()),
+            (Target::Client, "$effect.pending") => {
+                return Some(b.runtime("eager", [b.member(b.id("$"), "pending")]));
+            }
+            (Target::Server, "$effect.pending") => return Some(b.number(0.0)),
+            (Target::Client, "$effect.tracking") => return Some(b.runtime("effect_tracking", [])),
+            (Target::Server, "$effect.tracking") => return Some(b.boolean(false)),
+            // Upstream's server keeps no effect, so the root's cleanup does nothing.
+            (Target::Server, "$effect.root") => {
+                return Some(b.arrow_block(b.parameters(std::iter::empty()), [], false));
+            }
+            (Target::Client, "$effect.root") => "effect_root",
+            (target, "$state.eager") => {
+                let Expression::CallExpression(call) = it else {
+                    unreachable!("a rune is a call")
+                };
+                let mut value = call
+                    .arguments
+                    .take_in(b)
+                    .into_iter()
+                    .next()?
+                    .into_expression();
+                self.visit_expression(&mut value);
+                // The server has no reactivity to read past.
+                return Some(match target {
+                    Target::Client => b.runtime("eager", [b.thunk(value)]),
+                    Target::Server => value,
+                });
+            }
+            (_, "$state.snapshot") => "snapshot",
+            (Target::Client, "$effect") => "user_effect",
+            (Target::Client, "$effect.pre") => "user_pre_effect",
+            _ => return None,
+        };
+        let Expression::CallExpression(call) = it else {
+            unreachable!("a rune is a call")
+        };
+        let mut arguments = call.arguments.take_in(b);
+        for argument in &mut arguments {
+            self.visit_argument(argument);
+        }
+        Some(b.call(
+            b.member(b.id("$"), name),
+            arguments_to_expressions(arguments),
+        ))
+    }
+}
+
+fn arguments_to_expressions<'o>(
+    arguments: ArenaVec<'o, Argument<'o>>,
+) -> impl Iterator<Item = Expression<'o>> {
+    arguments.into_iter().map(|a| match a {
+        Argument::SpreadElement(_) => unreachable!("a rune takes no spread"),
+        a => a.into_expression(),
+    })
+}
+
+impl<'o> ScriptRewrite<'_, 'o> {
+    fn rewrite_expression(&mut self, it: &mut Expression<'o>) {
+        let rewritten = match it {
+            Expression::Identifier(identifier) => match self.read(identifier) {
+                Some(e) => e,
+                None => return,
+            },
+            Expression::PrivateFieldExpression(_) => match self.class_read(it) {
+                Some(e) => e,
+                None => return walk_mut::walk_expression(self, it),
+            },
+            Expression::AssignmentExpression(_) => {
+                match (self.class_assign(it))
+                    .or_else(|| self.store_assign(it))
+                    .or_else(|| self.assign(it))
+                    .or_else(|| self.pattern_assign(it, false))
+                {
+                    Some(e) => e,
+                    None => return walk_mut::walk_expression(self, it),
+                }
+            }
+            Expression::UpdateExpression(_) => {
+                match (self.class_update(it))
+                    .or_else(|| self.store_update(it))
+                    .or_else(|| self.update(it))
+                {
+                    Some(e) => e,
+                    None => return walk_mut::walk_expression(self, it),
+                }
+            }
+            Expression::CallExpression(_) => match self.rune(it) {
+                Some(e) => e,
+                None => return walk_mut::walk_expression(self, it),
+            },
+            _ => return walk_mut::walk_expression(self, it),
+        };
+        *it = rewritten;
+    }
+}
+
+impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
+    // Upstream renames a declared `$$props` with its reads.
+    fn visit_binding_identifier(&mut self, it: &mut BindingIdentifier<'o>) {
+        if it.name == "$$props" && self.renames_props(it.symbol_id.get()) {
+            it.name = self.b.str(SANITIZED_PROPS).into();
+        }
+    }
+
+    fn visit_expression(&mut self, it: &mut Expression<'o>) {
+        // Upstream's `mutate` transform of an `{#each}` item of a store's collection.
+        if let Some(invalidate) = self.invalidation(it) {
+            self.rewrite_expression(it);
+            *it = self.b.sequence([it.take_in(self.b), invalidate]);
+            return;
+        }
+        self.rewrite_expression(it);
+    }
+
+    fn visit_object_property(&mut self, it: &mut ObjectProperty<'o>) {
+        // `{ count }` stops being shorthand when `count` reads through a transform.
+        if it.shorthand
+            && let Expression::Identifier(identifier) = &it.value
+            && let Some(read) = self.read(identifier)
+        {
+            it.value = read;
+            it.shorthand = false;
+            return;
+        }
+        walk_mut::walk_object_property(self, it);
+    }
+
+    // esrap prints `import {} from "x"` as `import "x"`.
+    fn visit_import_declaration(&mut self, it: &mut ImportDeclaration<'o>) {
+        if it.specifiers.as_ref().is_some_and(|s| s.is_empty()) {
+            it.specifiers = None;
+        }
+        walk_mut::walk_import_declaration(self, it);
+    }
+
+    // esrap prints every import attribute list with `with`.
+    fn visit_with_clause(&mut self, it: &mut WithClause<'o>) {
+        it.keyword = WithClauseKeyword::With;
+    }
+
+    // esrap prints no empty statement in a block or program body.
+    fn visit_statements(&mut self, it: &mut ArenaVec<'o, Statement<'o>>) {
+        self.statement_list(it, true);
+    }
+
+    // A `switch` case keeps its empty statements.
+    fn visit_switch_case(&mut self, it: &mut SwitchCase<'o>) {
+        if let Some(test) = &mut it.test {
+            self.visit_expression(test);
+        }
+        self.statement_list(&mut it.consequent, false);
+    }
+
+    fn visit_statement(&mut self, it: &mut Statement<'o>) {
+        // Upstream server `ExpressionStatement`: an effect renders nothing.
+        if self.target == Target::Server && is_effect(self.res, it)
+            || inspect(self.res, it) == Some(Inspect::Trace)
+        {
+            *it = Statement::new_empty_statement(oxc_span::GetSpan::span(it), self.b);
+            return;
+        }
+        self.statement_patterns(it);
+    }
+
+    fn visit_class_body(&mut self, it: &mut ClassBody<'o>) {
+        self.class_body(it);
+    }
+
+    fn visit_method_definition(&mut self, it: &mut MethodDefinition<'o>) {
+        self.class_method(it);
+    }
+
+    fn visit_function(&mut self, it: &mut Function<'o>, flags: ScopeFlags) {
+        self.class_function(it, flags);
+    }
+
+    fn visit_arrow_function_expression(&mut self, it: &mut ArrowFunctionExpression<'o>) {
+        self.class_arrow(it);
+    }
+
+    fn visit_variable_declaration(&mut self, it: &mut VariableDeclaration<'o>) {
+        if self.target == Target::Client {
+            it.declarations.retain(|d| !inspects_with(self.res, d));
+        }
+        if !declarators::lower_destructured_declaration(self, it) {
+            walk_mut::walk_variable_declaration(self, it);
+        }
+    }
+
+    // Upstream lowers a state or derived declaration in a nested function the same way.
+    fn visit_variable_declarator(&mut self, it: &mut VariableDeclarator<'o>) {
+        if !declarators::lower_value_declarator(self, it) {
+            walk_mut::walk_variable_declarator(self, it);
+        }
+    }
+}
+
+/// Upstream `should_proxy` on a value it has already visited, where a prop's name has become a
+/// call or a member read and so proxies whatever its default.
+#[must_use]
+pub(super) fn should_proxy_read(res: &Resolution, e: &Expression<'_>) -> bool {
+    let prop = match e {
+        Expression::Identifier(identifier) => res.symbol(identifier).is_some_and(|symbol| {
+            matches!(
+                res.binding(symbol).kind,
+                BindingKind::Property | BindingKind::BindableProperty
+            )
+        }),
+        _ => false,
+    };
+    prop || res.should_proxy(e)
+}
+
+/// Makes the string statements that open the component's function, or the server's context
+/// callback in it, its prologue: upstream prints them bare, where they are directives.
+pub(super) fn with_prologue<'o>(b: &Builder<'o>, mut function: Statement<'o>) -> Statement<'o> {
+    if let Statement::FunctionDeclaration(f) = &mut function
+        && let Some(body) = &mut f.body
+    {
+        hoist_body(b, body);
+    }
+    function
+}
+
+fn hoist_body<'o>(b: &Builder<'o>, body: &mut oxc_ast::ast::FunctionBody<'o>) {
+    hoist_into(b, body);
+    if let [Statement::ExpressionStatement(statement)] = body.statements.as_mut_slice()
+        && let Expression::CallExpression(call) = &mut statement.expression
+        && let Some(Argument::ArrowFunctionExpression(callback)) = call.arguments.first_mut()
+        && let oxc_ast::ast::ArrowFunctionBody::FunctionBody(body) = &mut callback.body
+    {
+        hoist_into(b, body);
+    }
+}
+
+fn hoist_into<'o>(b: &Builder<'o>, body: &mut oxc_ast::ast::FunctionBody<'o>) {
+    let count = (body.statements.iter())
+        .take_while(|s| {
+            matches!(s, Statement::ExpressionStatement(e)
+                if matches!(e.expression, Expression::StringLiteral(_)))
+        })
+        .count();
+    for statement in body.statements.drain(..count) {
+        let Statement::ExpressionStatement(statement) = statement else {
+            unreachable!("counted as a string statement")
+        };
+        let Expression::StringLiteral(literal) = statement.unbox().expression else {
+            unreachable!("counted as a string statement")
+        };
+        let literal = literal.unbox();
+        let raw = b.str(&super::javascript::string_value(literal.value));
+        let directive =
+            oxc_ast::ast::Directive::new(literal.span, literal.clone_in(b.allocator()), raw, b);
+        body.directives.push(directive);
+    }
+}

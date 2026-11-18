@@ -1,0 +1,1 @@
+<script lang="ts">type Q2 = typeof g<number>;</script>

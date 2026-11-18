@@ -1,0 +1,53 @@
+;
+function $$render() {
+  
+  const s = ({ p = q, q }, r = q, t) => {
+    async () => {
+      p;
+      q;
+      r;
+      t;
+    };
+    return __rsvelte_snippet_return;
+  };
+
+	/** @type {typeof __rsvelte_public_props0} */ let { items } = $props();
+
+;
+
+  const __rsvelte_public_props0 = __rsvelte_props({
+    items: __rsvelte_untyped_prop(),
+  }, {}, false);
+  async () => {
+    if (items) {
+      const a = b;
+      const f = () => b;
+      const b = items.length;
+      {
+        svelteHTML.createElement("h1", {});
+        a;
+        f();
+      }
+    }
+    {
+      for (let [, { a, b = c, c, d = a, e = e }] of __rsvelte_each(items)) {
+        a;
+        b;
+        c;
+        d;
+        e;
+      }
+    }
+    {
+      for (let [, [x, y = z, z = x]] of __rsvelte_each(items)) {
+        x;
+        y;
+        z;
+      }
+    }
+    __rsvelte_ensure_snippet(s(items));
+  };
+  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+}
+const ReadsBeforeTransform__SvelteComponent_ = $$render();
+export default /** @type {__rsvelte_javascript_export<typeof ReadsBeforeTransform__SvelteComponent_>} */ (ReadsBeforeTransform__SvelteComponent_);

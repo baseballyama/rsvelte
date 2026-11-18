@@ -1,0 +1,1 @@
+<script>function f(x){}</script>

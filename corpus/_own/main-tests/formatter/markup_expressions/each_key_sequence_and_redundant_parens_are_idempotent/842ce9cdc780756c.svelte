@@ -1,0 +1,1 @@
+{#each xs as x (x.id) }<p>{x}</p>{/each}

@@ -1,0 +1,1 @@
+{#each [1] as color}<div style:color></div>{/each}

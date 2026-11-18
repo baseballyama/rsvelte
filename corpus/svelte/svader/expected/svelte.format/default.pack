@@ -1,0 +1,1093 @@
+# rsvelte pack 1
+=== 1587 packages/logo/src/routes/+page.svelte	svelte
+<svelte:options runes />
+
+<script>
+  import { WebGlShader } from "svader";
+  import shaderCode from "./shader.frag?raw";
+  import logo from "./logoDark.png";
+</script>
+
+<!-- Import 'Kanit' font from Google Fonts -->
+<svelte:head>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Kanit:ital,wght@0,100;0,400;1,800&display=swap"
+    rel="stylesheet"
+  />
+</svelte:head>
+
+<main>
+  <div class="canvas-container">
+    <WebGlShader
+      code={shaderCode}
+      parameters={[
+        {
+          name: "u_resolution",
+          value: "resolution",
+        },
+        {
+          name: "u_offset",
+          value: "offset",
+        },
+        {
+          name: "u_scale",
+          value: "scale",
+        },
+      ]}
+    ></WebGlShader>
+  </div>
+
+  <div class="text">
+    <img src={logo} alt="S" />
+    <h1>SVADER</h1>
+  </div>
+</main>
+
+<style>
+  main {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    width: 1280px;
+    height: 640px;
+  }
+
+  .canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+
+    width: 100%;
+    height: 100%;
+  }
+
+  .text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    color: white;
+    font-family: "Kanit";
+  }
+
+  img {
+    height: 200px;
+    width: 200px;
+
+    margin: -40px -50px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 80px;
+    font-style: italic;
+  }
+</style>
+
+=== 5119 packages/test-site/src/invalid.svelte	svelte
+<!-- This file exists purely to assert type errors -->
+<svelte:options runes />
+
+<script>
+  import { WebGlShader, WebGpuShader } from "svader";
+</script>
+
+<WebGlShader
+  // @ts-expect-error: forceAnimation must be a boolean
+  forceAnimation="yeah"
+  // @ts-expect-error: width must be a string
+  width={100}
+  // @ts-expect-error: height must be a string
+  height={100}
+  // @ts-expect-error: code is not a string
+  code={42}
+  parameters={[
+    // @ts-expect-error: missing name property
+    {
+      type: "float",
+      value: 42,
+    },
+    // @ts-expect-error: missing type property
+    {
+      name: "value1",
+      value: 42,
+    },
+    // @ts-expect-error: missing value property
+    {
+      name: "value2",
+      type: "float",
+    },
+    {
+      name: "value3",
+      // @ts-expect-error: type should not be present with built-in value
+      type: "float",
+      value: "resolution",
+    },
+    {
+      name: "value4",
+      // @ts-expect-error: misspelled type
+      type: "flote",
+      value: 42,
+    },
+    {
+      name: "value5",
+      // @ts-expect-error: misspelled built-in value
+      value: "resoltion",
+    },
+    {
+      // @ts-expect-error: name must be a string
+      name: 6,
+      type: "float",
+      value: 42,
+    },
+    {
+      name: "value7",
+      // @ts-expect-error: type must be a string
+      type: 7,
+      value: 42,
+    },
+    {
+      name: "value8",
+      type: "float",
+      // @ts-expect-error: float corresponds to number
+      value: [0, 0],
+    },
+    {
+      name: "value9",
+      type: "int",
+      // @ts-expect-error: int corresponds to number
+      value: [0, 0],
+    },
+    {
+      name: "value10",
+      type: "uint",
+      // @ts-expect-error: uint corresponds to number
+      value: [0, 0],
+    },
+    // @ts-expect-error: vec2 corresponds to [number, number]
+    {
+      name: "value11",
+      type: "vec2",
+      value: 0,
+    },
+    // @ts-expect-error: ivec2 corresponds to [number, number]
+    {
+      name: "value12",
+      type: "ivec2",
+      value: 0,
+    },
+    // @ts-expect-error: uvec2 corresponds to [number, number]
+    {
+      name: "value13",
+      type: "uvec2",
+      value: 0,
+    },
+    // @ts-expect-error: vec3 corresponds to [number, number, number]
+    {
+      name: "value14",
+      type: "vec3",
+      value: [0, 0],
+    },
+    // @ts-expect-error: ivec3 corresponds to [number, number, number]
+    {
+      name: "value15",
+      type: "ivec3",
+      value: [0, 0],
+    },
+    // @ts-expect-error: uvec3 corresponds to [number, number, number]
+    {
+      name: "value16",
+      type: "uvec3",
+      value: [0, 0],
+    },
+    // @ts-expect-error: vec4 corresponds to [number, number, number, number]
+    {
+      name: "value17",
+      type: "vec4",
+      value: [0, 0, 0],
+    },
+    // @ts-expect-error: ivec4 corresponds to [number, number, number, number]
+    {
+      name: "value18",
+      type: "ivec4",
+      value: [0, 0, 0],
+    },
+    // @ts-expect-error: uvec4 corresponds to [number, number, number, number]
+    {
+      name: "value19",
+      type: "uvec4",
+      value: [0, 0, 0],
+    },
+    // @ts-expect-error: mat2 corresponds to
+    // [number, number,
+    //  number, number]
+    {
+      name: "value20",
+      type: "mat2",
+      value: [0, 0, 0],
+    },
+    // @ts-expect-error: mat3 corresponds to
+    // [number, number, number,
+    //  number, number, number,
+    //  number, number, number]
+    {
+      name: "value21",
+      type: "mat3",
+      value: [0, 0, 0, 0],
+    },
+    // @ts-expect-error: mat4 corresponds to
+    // [number, number, number, number,
+    //  number, number, number, number,
+    //  number, number, number, number,
+    //  number, number, number, number]
+    {
+      name: "value22",
+      type: "mat4",
+      value: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    },
+  ]}
+></WebGlShader>
+
+<WebGpuShader
+  // @ts-expect-error: forceAnimation must be a boolean
+  forceAnimation="yeah"
+  // @ts-expect-error: width must be a string
+  width={100}
+  // @ts-expect-error: height must be a string
+  height={100}
+  // @ts-expect-error: code is not a string
+  code={42}
+  parameters={[
+    // @ts-expect-error: missing label property
+    {
+      binding: 0,
+      value: "resolution",
+    },
+    // @ts-expect-error: missing binding property
+    {
+      label: "Value1",
+      value: "resolution",
+    },
+    // @ts-expect-error: missing value property
+    {
+      label: "Value2",
+      binding: 2,
+    },
+    {
+      // @ts-expect-error: label must be a string
+      label: 3,
+      binding: 3,
+      value: "resolution",
+    },
+    {
+      label: "Value4",
+      // @ts-expect-error: binding must be a number
+      binding: "4",
+      value: "resolution",
+    },
+    {
+      label: "Value5",
+      binding: 5,
+      // @ts-expect-error: value must be a buffer
+      value: 42,
+    },
+    {
+      label: "Value6",
+      binding: 6,
+      // @ts-expect-error: misspelled built-in value
+      value: "resoltion",
+    },
+    {
+      label: "Value7",
+      binding: 7,
+      value: new Float32Array([42]),
+      // @ts-expect-error: storage must be a boolean
+      storage: "read-only",
+    },
+  ]}
+></WebGpuShader>
+
+=== 507 packages/test-site/src/routes/+page.svelte	svelte
+<script>
+  import { resolve } from "$app/paths";
+</script>
+
+<ol>
+  <li><a href={resolve("/hello-world")}>Hello world</a></li>
+  <li><a href={resolve("/remount")}>Remounting canvas</a></li>
+  <li><a href={resolve("/oversized-canvas")}>Oversized canvas</a></li>
+  <li>
+    <a href={resolve("/landing-page-bubbles")}>Landing page with bubbles</a>
+  </li>
+  <li>
+    <a href={resolve("/landing-page-halo")}>Landing page with a halo</a>
+  </li>
+  <li><a href={resolve("/slider")}>Slider component</a></li>
+</ol>
+
+=== 195 packages/test-site/src/routes/hello-world/+page.svelte	svelte
+<script>
+  import { resolve } from "$app/paths";
+</script>
+
+<ul>
+  <li><a href={resolve("/hello-world/webgl")}>WebGL</a></li>
+  <li><a href={resolve("/hello-world/webgpu")}>WebGPU</a></li>
+</ul>
+
+=== 435 packages/test-site/src/routes/hello-world/webgl/+page.svelte	svelte
+<svelte:options runes />
+
+<script>
+  import { WebGlShader } from "svader";
+  import shaderCode from "./shader.frag?raw";
+</script>
+
+<WebGlShader
+  width="500px"
+  height="500px"
+  code={shaderCode}
+  parameters={[
+    {
+      name: "u_resolution",
+      value: "resolution",
+    },
+    {
+      name: "u_offset",
+      value: "offset",
+    },
+  ]}
+>
+  <div class="fallback">WebGL not supported in this environment.</div>
+</WebGlShader>
+
+=== 473 packages/test-site/src/routes/hello-world/webgpu/+page.svelte	svelte
+<svelte:options runes />
+
+<script>
+  import { WebGpuShader } from "svader";
+  import shaderCode from "./shader.wgsl?raw";
+</script>
+
+<WebGpuShader
+  width="500px"
+  height="500px"
+  code={shaderCode}
+  parameters={[
+    {
+      label: "Resolution",
+      binding: 0,
+      value: "resolution",
+    },
+    {
+      label: "Offset",
+      binding: 1,
+      value: "offset",
+    },
+  ]}
+>
+  <div class="fallback">WebGPU not supported in this environment.</div>
+</WebGpuShader>
+
+=== 213 packages/test-site/src/routes/landing-page-bubbles/+page.svelte	svelte
+<script>
+  import { resolve } from "$app/paths";
+</script>
+
+<ul>
+  <li><a href={resolve("/landing-page-bubbles/webgl")}>WebGL</a></li>
+  <li><a href={resolve("/landing-page-bubbles/webgpu")}>WebGPU</a></li>
+</ul>
+
+=== 1857 packages/test-site/src/routes/landing-page-bubbles/webgl/+page.svelte	svelte
+<svelte:options runes />
+
+<script>
+  import { WebGlShader } from "svader";
+  import shaderCode from "./shader.frag?raw";
+
+  const color = /** @type {const} */ ([0.8, 0.3, 0.0]);
+
+  /**
+   * @param {number} r
+   * @param {number} g
+   * @param {number} b
+   */
+  function rgbString(r, g, b) {
+    return `rgb(${r * 255}, ${g * 255}, ${b * 255})`;
+  }
+</script>
+
+<!-- Import 'SUSE' font from Google Fonts -->
+<svelte:head
+  ><link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=SUSE:wght@800&display=swap"
+    rel="stylesheet"
+  />
+</svelte:head>
+
+<main>
+  <div class="canvas-container">
+    <WebGlShader
+      code={shaderCode}
+      parameters={[
+        {
+          name: "u_resolution",
+          value: "resolution",
+        },
+        {
+          name: "u_offset",
+          value: "offset",
+        },
+        {
+          name: "u_scale",
+          value: "scale",
+        },
+        {
+          name: "u_time",
+          value: "time",
+        },
+        {
+          name: "u_color",
+          type: "vec3",
+          value: color,
+        },
+      ]}
+    ></WebGlShader>
+  </div>
+
+  <h1 style:--color={rgbString(...color)}>SVADER</h1>
+</main>
+
+<style>
+  main {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+
+    /* Prevent margin collapsing */
+    overflow: hidden;
+  }
+
+  .canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+
+    width: 100%;
+    height: 100%;
+
+    background-color: black;
+  }
+
+  h1 {
+    font-family: "SUSE", sans-serif;
+    font-size: 12rem;
+
+    mix-blend-mode: difference;
+    color: var(--color);
+
+    margin: 10rem 0 0 10rem;
+  }
+
+  @media (max-width: 1000px) {
+    h1 {
+      font-size: 4rem;
+      margin: 2rem;
+    }
+  }
+</style>
+
+=== 1854 packages/test-site/src/routes/landing-page-bubbles/webgpu/+page.svelte	svelte
+<svelte:options runes />
+
+<script>
+  import { WebGpuShader } from "svader";
+  import shaderCode from "./shader.wgsl?raw";
+
+  const color = /** @type {const} */ ([0.8, 0.3, 0.0]);
+
+  /**
+   * @param {number} r
+   * @param {number} g
+   * @param {number} b
+   */
+  function rgbString(r, g, b) {
+    return `rgb(${r * 255}, ${g * 255}, ${b * 255})`;
+  }
+</script>
+
+<!-- Import 'SUSE' font from Google Fonts -->
+<svelte:head
+  ><link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=SUSE:wght@800&display=swap"
+    rel="stylesheet"
+  />
+</svelte:head>
+
+<main>
+  <div class="canvas-container">
+    <WebGpuShader
+      code={shaderCode}
+      parameters={[
+        {
+          label: "Offset",
+          binding: 0,
+          value: "offset",
+        },
+        {
+          label: "Scale",
+          binding: 1,
+          value: "scale",
+        },
+        {
+          label: "Time",
+          binding: 2,
+          value: "time",
+        },
+        {
+          label: "Color",
+          binding: 3,
+          value: new Float32Array(color),
+        },
+      ]}
+    ></WebGpuShader>
+  </div>
+
+  <h1 style:--color={rgbString(...color)}>SVADER</h1>
+</main>
+
+<style>
+  main {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+
+    /* Prevent margin collapsing */
+    overflow: hidden;
+  }
+
+  .canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+
+    width: 100%;
+    height: 100%;
+
+    background-color: black;
+  }
+
+  h1 {
+    font-family: "SUSE", sans-serif;
+    font-size: 12rem;
+
+    mix-blend-mode: difference;
+    color: var(--color);
+
+    margin: 10rem 0 0 10rem;
+  }
+
+  @media (max-width: 1000px) {
+    h1 {
+      font-size: 4rem;
+      margin: 2rem;
+    }
+  }
+</style>
+
+=== 207 packages/test-site/src/routes/landing-page-halo/+page.svelte	svelte
+<script>
+  import { resolve } from "$app/paths";
+</script>
+
+<ul>
+  <li><a href={resolve("/landing-page-halo/webgl")}>WebGL</a></li>
+  <li><a href={resolve("/landing-page-halo/webgpu")}>WebGPU</a></li>
+</ul>
+
+=== 1319 packages/test-site/src/routes/landing-page-halo/webgl/+page.svelte	svelte
+<svelte:options runes />
+
+<script>
+  import { WebGlShader } from "svader";
+  import shaderCode from "./shader.frag?raw";
+</script>
+
+<!-- Import 'Teko' font from Google Fonts -->
+<svelte:head>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Teko&display=swap"
+    rel="stylesheet"
+  />
+</svelte:head>
+
+<main>
+  <div class="canvas-container">
+    <WebGlShader
+      code={shaderCode}
+      parameters={[
+        {
+          name: "u_resolution",
+          value: "resolution",
+        },
+        {
+          name: "u_offset",
+          value: "offset",
+        },
+      ]}
+    ></WebGlShader>
+  </div>
+
+  <h1>SVADER</h1>
+</main>
+
+<style>
+  main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  .canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+
+    width: 100%;
+    height: 100%;
+
+    background-color: black;
+  }
+
+  h1 {
+    font-family: "Teko", sans-serif;
+    font-size: 8rem;
+
+    color: rgb(250, 250, 250);
+
+    margin: 0;
+  }
+
+  @media (max-width: 700px) or (max-height: 700px) {
+    h1 {
+      font-size: 3.5rem;
+    }
+  }
+</style>
+
+=== 1364 packages/test-site/src/routes/landing-page-halo/webgpu/+page.svelte	svelte
+<svelte:options runes />
+
+<script>
+  import { WebGpuShader } from "svader";
+  import shaderCode from "./shader.wgsl?raw";
+</script>
+
+<!-- Import 'Teko' font from Google Fonts -->
+<svelte:head>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Teko&display=swap"
+    rel="stylesheet"
+  />
+</svelte:head>
+
+<main>
+  <div class="canvas-container">
+    <WebGpuShader
+      code={shaderCode}
+      parameters={[
+        {
+          label: "Resolution",
+          binding: 0,
+          value: "resolution",
+        },
+        {
+          label: "Offset",
+          binding: 1,
+          value: "offset",
+        },
+      ]}
+    ></WebGpuShader>
+  </div>
+
+  <h1>SVADER</h1>
+</main>
+
+<style>
+  main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  .canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+
+    width: 100%;
+    height: 100%;
+
+    background-color: black;
+  }
+
+  h1 {
+    font-family: "Teko", sans-serif;
+    font-size: 8rem;
+
+    color: rgb(250, 250, 250);
+
+    margin: 0;
+  }
+
+  @media (max-width: 700px) or (max-height: 700px) {
+    h1 {
+      font-size: 3.5rem;
+    }
+  }
+</style>
+
+=== 205 packages/test-site/src/routes/oversized-canvas/+page.svelte	svelte
+<script>
+  import { resolve } from "$app/paths";
+</script>
+
+<ul>
+  <li><a href={resolve("/oversized-canvas/webgl")}>WebGL</a></li>
+  <li><a href={resolve("/oversized-canvas/webgpu")}>WebGPU</a></li>
+</ul>
+
+=== 439 packages/test-site/src/routes/oversized-canvas/webgl/+page.svelte	svelte
+<svelte:options runes />
+
+<script>
+  import { WebGlShader } from "svader";
+  import shaderCode from "./shader.frag?raw";
+</script>
+
+<WebGlShader
+  width="10000px"
+  height="10000px"
+  code={shaderCode}
+  parameters={[
+    {
+      name: "u_resolution",
+      value: "resolution",
+    },
+    {
+      name: "u_offset",
+      value: "offset",
+    },
+  ]}
+>
+  <div class="fallback">WebGL not supported in this environment.</div>
+</WebGlShader>
+
+=== 477 packages/test-site/src/routes/oversized-canvas/webgpu/+page.svelte	svelte
+<svelte:options runes />
+
+<script>
+  import { WebGpuShader } from "svader";
+  import shaderCode from "./shader.wgsl?raw";
+</script>
+
+<WebGpuShader
+  width="10000px"
+  height="10000px"
+  code={shaderCode}
+  parameters={[
+    {
+      label: "Resolution",
+      binding: 0,
+      value: "resolution",
+    },
+    {
+      label: "Offset",
+      binding: 1,
+      value: "offset",
+    },
+  ]}
+>
+  <div class="fallback">WebGPU not supported in this environment.</div>
+</WebGpuShader>
+
+=== 187 packages/test-site/src/routes/remount/+page.svelte	svelte
+<script>
+  import { resolve } from "$app/paths";
+</script>
+
+<ul>
+  <li><a href={resolve("/remount/webgl")}>WebGL</a></li>
+  <li><a href={resolve("/remount/webgpu")}>WebGPU</a></li>
+</ul>
+
+=== 601 packages/test-site/src/routes/remount/webgl/+page.svelte	svelte
+<svelte:options runes />
+
+<script>
+  import { WebGlShader } from "svader";
+  import shaderCode from "./shader.frag?raw";
+
+  let show = $state(true);
+</script>
+
+<label for="show">Show</label>
+<input id="show" type="checkbox" bind:checked={show} />
+{#if show}
+  <WebGlShader
+    width="500px"
+    height="500px"
+    code={shaderCode}
+    parameters={[
+      {
+        name: "u_resolution",
+        value: "resolution",
+      },
+      {
+        name: "u_offset",
+        value: "offset",
+      },
+    ]}
+  >
+    <div class="fallback">WebGL not supported in this environment.</div>
+  </WebGlShader>
+{/if}
+
+=== 643 packages/test-site/src/routes/remount/webgpu/+page.svelte	svelte
+<svelte:options runes />
+
+<script>
+  import { WebGpuShader } from "svader";
+  import shaderCode from "./shader.wgsl?raw";
+
+  let show = $state(true);
+</script>
+
+<label for="show">Show</label>
+<input id="show" type="checkbox" bind:checked={show} />
+{#if show}
+  <WebGpuShader
+    width="500px"
+    height="500px"
+    code={shaderCode}
+    parameters={[
+      {
+        label: "Resolution",
+        binding: 0,
+        value: "resolution",
+      },
+      {
+        label: "Offset",
+        binding: 1,
+        value: "offset",
+      },
+    ]}
+  >
+    <div class="fallback">WebGPU not supported in this environment.</div>
+  </WebGpuShader>
+{/if}
+
+=== 185 packages/test-site/src/routes/slider/+page.svelte	svelte
+<script>
+  import { resolve } from "$app/paths";
+</script>
+
+<ul>
+  <li><a href={resolve("/slider/webgl")}>WebGL</a></li>
+  <li><a href={resolve("/slider/webgpu")}>WebGPU</a></li>
+</ul>
+
+=== 1327 packages/test-site/src/routes/slider/webgl/+page.svelte	svelte
+<svelte:options runes />
+
+<script>
+  import { WebGlShader } from "svader";
+  import shaderCode from "./shader.frag?raw";
+
+  let val = $state(0.75);
+</script>
+
+<main>
+  <h1>SLIDE ME</h1>
+
+  <span>
+    <div class="canvas-container">
+      <WebGlShader
+        code={shaderCode}
+        parameters={[
+          {
+            name: "u_resolution",
+            value: "resolution",
+          },
+          {
+            name: "u_offset",
+            value: "offset",
+          },
+          {
+            name: "u_scale",
+            value: "scale",
+          },
+          {
+            name: "u_value",
+            type: "float",
+            value: val,
+          },
+        ]}
+      ></WebGlShader>
+    </div>
+    <input type="range" min="0" max="1" step="0.01" bind:value={val} />
+  </span>
+</main>
+
+<style>
+  main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 5rem;
+  }
+
+  h1 {
+    font-family: sans-serif;
+    font-style: italic;
+    margin-bottom: 0;
+  }
+
+  span {
+    display: inline-block;
+    position: relative;
+  }
+
+  .canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+
+    width: 100%;
+    height: 100%;
+  }
+
+  input {
+    opacity: 0;
+    margin: 0;
+    width: 200px;
+    height: 60px;
+    margin: 0 20px;
+
+    cursor: ew-resize;
+  }
+</style>
+
+=== 1415 packages/test-site/src/routes/slider/webgpu/+page.svelte	svelte
+<svelte:options runes />
+
+<script>
+  import { WebGpuShader } from "svader";
+  import shaderCode from "./shader.wgsl?raw";
+
+  let val = $state(0.75);
+</script>
+
+<main>
+  <h1>SLIDE ME</h1>
+
+  <span>
+    <div class="canvas-container">
+      <WebGpuShader
+        code={shaderCode}
+        parameters={[
+          {
+            label: "Resolution",
+            binding: 0,
+            value: "resolution",
+          },
+          {
+            label: "Offset",
+            binding: 1,
+            value: "offset",
+          },
+          {
+            label: "Scale",
+            binding: 2,
+            value: "scale",
+          },
+          {
+            label: "Value",
+            binding: 3,
+            value: new Float32Array([val]),
+          },
+        ]}
+      ></WebGpuShader>
+    </div>
+    <input type="range" min="0" max="1" step="0.01" bind:value={val} />
+  </span>
+</main>
+
+<style>
+  main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 5rem;
+  }
+
+  h1 {
+    font-family: sans-serif;
+    font-style: italic;
+    margin-bottom: 0;
+  }
+
+  span {
+    display: inline-block;
+    position: relative;
+  }
+
+  .canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+
+    width: 100%;
+    height: 100%;
+  }
+
+  input {
+    opacity: 0;
+    margin: 0;
+    width: 200px;
+    height: 60px;
+    margin: 0 20px;
+
+    cursor: ew-resize;
+  }
+</style>
+

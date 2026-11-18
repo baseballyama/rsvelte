@@ -1,0 +1,1 @@
+<div data={`value ${a > b}`}></div>

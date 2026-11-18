@@ -1,0 +1,1 @@
+<script>let y = 1;</script>{y}

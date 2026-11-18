@@ -1,0 +1,1 @@
+<script lang="ts">type P3 = (a: unknown) => asserts a;</script>

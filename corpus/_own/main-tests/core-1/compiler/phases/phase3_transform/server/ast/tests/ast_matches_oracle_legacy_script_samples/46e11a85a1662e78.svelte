@@ -1,0 +1,1 @@
+<script>export let opts = { a: 1 };</script><p>x</p>

@@ -1,0 +1,786 @@
+# rsvelte pack 1
+=== 1053 src/lib/components/CheckmarkIcon.svelte	css
+
+	div.svelte-1fonl50 {
+		width: 20px;
+		opacity: 0;
+		height: 20px;
+		border-radius: 10px;
+		background: var(--primary, #61d345);
+		position: relative;
+		transform: rotate(45deg);
+		animation: svelte-1fonl50-circleAnimation 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+		animation-delay: 100ms;
+	}
+
+	div.svelte-1fonl50::after {
+		content: '';
+		box-sizing: border-box;
+		animation: svelte-1fonl50-checkmarkAnimation 0.2s ease-out forwards;
+		opacity: 0;
+		animation-delay: 200ms;
+		position: absolute;
+		border-right: 2px solid;
+		border-bottom: 2px solid;
+		border-color: var(--secondary, #fff);
+		bottom: 6px;
+		left: 6px;
+		height: 10px;
+		width: 6px;
+	}
+
+	@keyframes svelte-1fonl50-circleAnimation {
+		from {
+			transform: scale(0) rotate(45deg);
+			opacity: 0;
+		}
+		to {
+			transform: scale(1) rotate(45deg);
+			opacity: 1;
+		}
+	}
+
+	@keyframes svelte-1fonl50-checkmarkAnimation {
+		0% {
+			height: 0;
+			width: 0;
+			opacity: 0;
+		}
+		40% {
+			height: 0;
+			width: 6px;
+			opacity: 1;
+		}
+		100% {
+			opacity: 1;
+			height: 10px;
+		}
+	}
+
+=== 296 src/lib/components/CheckmarkIcon.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function CheckmarkIcon($$renderer, $$props) {
+	let { primary = '#61d345', secondary = '#fff' } = $$props;
+
+	$$renderer.push(`<div class="svelte-1fonl50"${$.attr_style('', { '--primary': primary, '--secondary': secondary })}></div>`);
+}
+=== 1313 src/lib/components/ErrorIcon.svelte	css
+
+	div.svelte-1rqrtk7 {
+		width: 20px;
+		opacity: 0;
+		height: 20px;
+		border-radius: 10px;
+		background: var(--primary, #ff4b4b);
+		position: relative;
+		transform: rotate(45deg);
+		animation: svelte-1rqrtk7-circleAnimation 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+		animation-delay: 100ms;
+	}
+
+	div.svelte-1rqrtk7::after,
+	div.svelte-1rqrtk7::before {
+		content: '';
+		animation: svelte-1rqrtk7-firstLineAnimation 0.15s ease-out forwards;
+		animation-delay: 150ms;
+		position: absolute;
+		border-radius: 3px;
+		opacity: 0;
+		background: var(--secondary, #fff);
+		bottom: 9px;
+		left: 4px;
+		height: 2px;
+		width: 12px;
+	}
+
+	div.svelte-1rqrtk7:before {
+		animation: svelte-1rqrtk7-secondLineAnimation 0.15s ease-out forwards;
+		animation-delay: 180ms;
+		transform: rotate(90deg);
+	}
+
+	@keyframes svelte-1rqrtk7-circleAnimation {
+		from {
+			transform: scale(0) rotate(45deg);
+			opacity: 0;
+		}
+		to {
+			transform: scale(1) rotate(45deg);
+			opacity: 1;
+		}
+	}
+
+	@keyframes svelte-1rqrtk7-firstLineAnimation {
+		from {
+			transform: scale(0);
+			opacity: 0;
+		}
+		to {
+			transform: scale(1);
+			opacity: 1;
+		}
+	}
+
+	@keyframes svelte-1rqrtk7-secondLineAnimation {
+		from {
+			transform: scale(0) rotate(90deg);
+			opacity: 0;
+		}
+		to {
+			transform: scale(1) rotate(90deg);
+			opacity: 1;
+		}
+	}
+
+=== 292 src/lib/components/ErrorIcon.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function ErrorIcon($$renderer, $$props) {
+	let { primary = '#ff4b4b', secondary = '#fff' } = $$props;
+
+	$$renderer.push(`<div class="svelte-1rqrtk7"${$.attr_style('', { '--primary': primary, '--secondary': secondary })}></div>`);
+}
+=== 394 src/lib/components/LoaderIcon.svelte	css
+
+	div.svelte-1s5buy2 {
+		width: 12px;
+		height: 12px;
+		box-sizing: border-box;
+		border: 2px solid;
+		border-radius: 100%;
+		border-color: var(--secondary, #e0e0e0);
+		border-right-color: var(--primary, #616161);
+		animation: svelte-1s5buy2-rotate 1s linear infinite;
+	}
+
+	@keyframes svelte-1s5buy2-rotate {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+=== 296 src/lib/components/LoaderIcon.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function LoaderIcon($$renderer, $$props) {
+	let { primary = '#616161', secondary = '#e0e0e0' } = $$props;
+
+	$$renderer.push(`<div class="svelte-1s5buy2"${$.attr_style('', { '--primary': primary, '--secondary': secondary })}></div>`);
+}
+=== 1530 src/lib/components/ToastBar.svelte	css
+
+	@keyframes svelte-l6lvp4-enterAnimation {
+		0% {
+			transform: translate3d(0, calc(var(--factor) * -200%), 0) scale(0.6);
+			opacity: 0.5;
+		}
+		100% {
+			transform: translate3d(0, 0, 0) scale(1);
+			opacity: 1;
+		}
+	}
+
+	@keyframes svelte-l6lvp4-exitAnimation {
+		0% {
+			transform: translate3d(0, 0, -1px) scale(1);
+			opacity: 1;
+		}
+		100% {
+			transform: translate3d(0, calc(var(--factor) * -150%), -1px) scale(0.6);
+			opacity: 0;
+		}
+	}
+
+	@keyframes svelte-l6lvp4-fadeInAnimation {
+		0% {
+			opacity: 0;
+		}
+		100% {
+			opacity: 1;
+		}
+	}
+
+	@keyframes svelte-l6lvp4-fadeOutAnimation {
+		0% {
+			opacity: 1;
+		}
+		100% {
+			opacity: 0;
+		}
+	}
+
+	._sft-base.svelte-l6lvp4 {
+		display: flex;
+		align-items: center;
+		background: #fff;
+		color: #363636;
+		line-height: 1.3;
+		will-change: transform;
+		box-shadow:
+			0 3px 10px rgba(0, 0, 0, 0.1),
+			0 3px 3px rgba(0, 0, 0, 0.05);
+		max-width: 350px;
+		pointer-events: auto;
+		padding: 8px 10px;
+		border-radius: 8px;
+	}
+
+	._sft-transparent.svelte-l6lvp4 {
+		opacity: 0;
+	}
+
+	._sft-enter.svelte-l6lvp4 {
+		animation: svelte-l6lvp4-enterAnimation 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+	}
+
+	._sft-exit.svelte-l6lvp4 {
+		animation: svelte-l6lvp4-exitAnimation 0.4s cubic-bezier(0.06, 0.71, 0.55, 1) forwards;
+	}
+
+	._sft-fadeIn.svelte-l6lvp4 {
+		animation: svelte-l6lvp4-fadeInAnimation 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+	}
+
+	._sft-fadeOut.svelte-l6lvp4 {
+		animation: svelte-l6lvp4-fadeOutAnimation 0.4s cubic-bezier(0.06, 0.71, 0.55, 1) forwards;
+	}
+
+=== 1892 src/lib/components/ToastBar.svelte	js
+import * as $ from 'svelte/internal/server';
+import { prefersReducedMotion } from '../core/utils';
+import ToastIcon from './ToastIcon.svelte';
+import ToastMessage from './ToastMessage.svelte';
+
+export default function ToastBar($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let {
+			toast,
+			position = undefined,
+			style = '',
+			Component = undefined,
+			children
+		} = $$props;
+
+		let factor = $.derived(() => {
+			const top = (toast.position || position || 'top-center').includes('top');
+
+			return top ? 1 : -1;
+		});
+
+		let animation = $.derived(() => {
+			const [enter, exit] = prefersReducedMotion()
+				? ['_sft-fadeIn', '_sft-fadeOut']
+				: ['_sft-enter', '_sft-exit'];
+
+			return toast.visible ? enter : exit;
+		});
+
+		$$renderer.push(`<div${$.attr_class(`_sft-base ${$.stringify(toast.height ? animation() : '_sft-transparent')} ${$.stringify(toast.className || '')}`, 'svelte-l6lvp4')}${$.attr_style(`${$.stringify(style)}; ${$.stringify(toast.style)}`, { '--factor': factor() })}>`);
+
+		if (Component) {
+			$$renderer.push('<!--[0-->');
+
+			{
+				function icon($$renderer) {
+					ToastIcon($$renderer, { toast });
+				}
+
+				function message($$renderer) {
+					ToastMessage($$renderer, { toast });
+				}
+
+				if (Component) {
+					$$renderer.push('<!--[-->');
+					Component($$renderer, { icon, message, $$slots: { icon: true, message: true } });
+					$$renderer.push('<!--]-->');
+				} else {
+					$$renderer.push('<!--[!-->');
+					$$renderer.push('<!--]-->');
+				}
+			}
+		} else if (children) {
+			$$renderer.push('<!--[1-->');
+			children($$renderer, { ToastIcon, ToastMessage, toast });
+			$$renderer.push(`<!---->`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+			ToastIcon($$renderer, { toast });
+			$$renderer.push(`<!----> `);
+			ToastMessage($$renderer, { toast });
+			$$renderer.push(`<!---->`);
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+	});
+}
+=== 572 src/lib/components/ToastIcon.svelte	css
+
+	._sft-indicator.svelte-cjoyi {
+		position: relative;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		min-width: 20px;
+		min-height: 20px;
+	}
+
+	._sft-status.svelte-cjoyi {
+		position: absolute;
+	}
+
+	._sft-animated.svelte-cjoyi {
+		position: relative;
+		transform: scale(0.6);
+		opacity: 0.4;
+		min-width: 20px;
+		animation: svelte-cjoyi-enter 0.3s 0.12s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+	}
+
+	@keyframes svelte-cjoyi-enter {
+		from {
+			transform: scale(0.6);
+			opacity: 0.4;
+		}
+		to {
+			transform: scale(1);
+			opacity: 1;
+		}
+	}
+
+=== 1581 src/lib/components/ToastIcon.svelte	js
+import * as $ from 'svelte/internal/server';
+import CheckmarkIcon from './CheckmarkIcon.svelte';
+import ErrorIcon from './ErrorIcon.svelte';
+import LoaderIcon from './LoaderIcon.svelte';
+
+export default function ToastIcon($$renderer, $$props) {
+	let { toast } = $$props;
+
+	let type = $.derived(() => toast.type),
+		icon = $.derived(() => toast.icon),
+		iconTheme = $.derived(() => toast.iconTheme);
+
+	if (typeof icon() === 'string') {
+		$$renderer.push(`<!--[0--><div class="_sft-animated svelte-cjoyi">${$.escape(icon())}</div>`);
+	} else if (typeof icon() !== 'undefined') {
+		$$renderer.push('<!--[1-->');
+
+		const IconComponent = icon();
+
+		if (IconComponent) {
+			$$renderer.push('<!--[-->');
+			IconComponent($$renderer, {});
+			$$renderer.push('<!--]-->');
+		} else {
+			$$renderer.push('<!--[!-->');
+			$$renderer.push('<!--]-->');
+		}
+	} else if (type() !== 'blank') {
+		$$renderer.push(`<!--[2--><div class="_sft-indicator svelte-cjoyi">`);
+		LoaderIcon($$renderer, $.spread_props([iconTheme()]));
+		$$renderer.push(`<!----> `);
+
+		if (type() !== 'loading') {
+			$$renderer.push(`<!--[0--><div class="_sft-status svelte-cjoyi">`);
+
+			if (type() === 'error') {
+				$$renderer.push('<!--[0-->');
+				ErrorIcon($$renderer, $.spread_props([iconTheme()]));
+			} else {
+				$$renderer.push('<!--[-1-->');
+				CheckmarkIcon($$renderer, $.spread_props([iconTheme()]));
+			}
+
+			$$renderer.push(`<!--]--></div>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+	} else {
+		$$renderer.push('<!--[-1-->');
+	}
+
+	$$renderer.push(`<!--]-->`);
+}
+=== 161 src/lib/components/ToastMessage.svelte	css
+
+	._sft-message.svelte-1g19uu6 {
+		display: flex;
+		justify-content: center;
+		margin: 4px 10px;
+		color: inherit;
+		flex: 1 1 auto;
+		white-space: pre-line;
+	}
+
+=== 749 src/lib/components/ToastMessage.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function ToastMessage($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { toast } = $$props;
+
+		$$renderer.push(`<div${$.attributes({ class: '_sft-message', ...toast.ariaProps }, 'svelte-1g19uu6')}>`);
+
+		if (typeof toast.message === 'string') {
+			$$renderer.push(`<!--[0-->${$.escape(toast.message)}`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+
+			const Message = toast.message;
+
+			if (Message) {
+				$$renderer.push('<!--[-->');
+				Message($$renderer, $.spread_props([{ toast }, toast.props]));
+				$$renderer.push('<!--]-->');
+			} else {
+				$$renderer.push('<!--[!-->');
+				$$renderer.push('<!--]-->');
+			}
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+	});
+}
+=== 385 src/lib/components/ToastWrapper.svelte	css
+
+	._sft-wrapper.svelte-148ohzq {
+		left: 0;
+		right: 0;
+		display: flex;
+		position: absolute;
+		transform: translateY(calc(var(--offset, 16px) * var(--factor) * 1px));
+	}
+
+	._sft-transition.svelte-148ohzq {
+		transition: all 230ms cubic-bezier(0.21, 1.02, 0.73, 1);
+	}
+
+	._sft-active.svelte-148ohzq {
+		z-index: 9999;
+	}
+
+	._sft-active.svelte-148ohzq > * {
+		pointer-events: auto;
+	}
+
+=== 1605 src/lib/components/ToastWrapper.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+import { prefersReducedMotion } from '../core/utils';
+import ToastBar from './ToastBar.svelte';
+import ToastMessage from './ToastMessage.svelte';
+
+export default function ToastWrapper($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { toast, setHeight, children } = $$props;
+		let clientHeight = void 0;
+
+		onMount(() => {
+			if (clientHeight === undefined) return;
+
+			setHeight(clientHeight);
+		});
+
+		let top = $.derived(() => toast.position?.includes('top') ? 0 : null);
+		let bottom = $.derived(() => toast.position?.includes('bottom') ? 0 : null);
+		let factor = $.derived(() => toast.position?.includes('top') ? 1 : -1);
+		let justifyContent = $.derived(() => toast.position?.includes('center') && 'center' || (toast.position?.includes('right') || toast.position?.includes('end')) && 'flex-end' || null);
+
+		$$renderer.push(`<div${$.attr_class('_sft-wrapper svelte-148ohzq', void 0, {
+			'_sft-active': toast.visible,
+			'_sft-transition': !prefersReducedMotion()
+		})}${$.attr_style('', {
+			'--factor': factor(),
+			'--offset': toast.offset,
+			top,
+			bottom,
+			'justify-content': justifyContent()
+		})}>`);
+
+		if (toast.type === 'custom') {
+			$$renderer.push('<!--[0-->');
+			ToastMessage($$renderer, { toast });
+		} else if (children) {
+			$$renderer.push('<!--[1-->');
+			children($$renderer, { toast });
+			$$renderer.push(`<!---->`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+			ToastBar($$renderer, { toast, position: toast.position });
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+	});
+}
+=== 249 src/lib/components/Toaster.svelte	css
+
+	._sft-toaster.svelte-1kymlcg {
+		--default-offset: 16px;
+
+		position: fixed;
+		z-index: 9999;
+		top: var(--default-offset);
+		left: var(--default-offset);
+		right: var(--default-offset);
+		bottom: var(--default-offset);
+		pointer-events: none;
+	}
+
+=== 1385 src/lib/components/Toaster.svelte	js
+import * as $ from 'svelte/internal/server';
+import useToaster from '../core/use-toaster';
+import ToastWrapper from './ToastWrapper.svelte';
+
+export default function Toaster($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+
+		let {
+			reverseOrder = false,
+			position = 'top-center',
+			toastOptions = undefined,
+			gutter = 8,
+			containerStyle = undefined,
+			containerClassName = undefined
+		} = $$props;
+
+		const { toasts, handlers } = useToaster(toastOptions);
+
+		let _toasts = $.derived(() => $.store_get($$store_subs ??= {}, '$toasts', toasts).map((toast) => ({
+			...toast,
+			position: toast.position || position,
+			offset: handlers.calculateOffset(toast, $.store_get($$store_subs ??= {}, '$toasts', toasts), { reverseOrder, gutter, defaultPosition: position })
+		})));
+
+		$$renderer.push(`<div${$.attr_class(`_sft-toaster ${$.stringify(containerClassName || '')}`, 'svelte-1kymlcg')}${$.attr_style(containerStyle)} role="alert"><!--[-->`);
+
+		const each_array = $.ensure_array_like(_toasts());
+
+		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+			let toast = each_array[$$index];
+
+			ToastWrapper($$renderer, {
+				toast,
+				setHeight: (height) => handlers.updateHeight(toast.id, height)
+			});
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 369 src/lib/components/Toaster.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `toastOptions`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 24,
+			"column": 41,
+			"character": 643
+		},
+		"end": {
+			"line": 24,
+			"column": 53,
+			"character": 655
+		}
+	}
+]
+
+=== 1409 src/routes/+layout.svelte	js
+import * as $ from 'svelte/internal/server';
+import '../app.css';
+
+export default function _layout($$renderer, $$props) {
+	let { children } = $$props;
+
+	$.head('12qhfyh', $$renderer, ($$renderer) => {
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>Svelte French Toast</title>`);
+		});
+
+		$$renderer.push(`<meta name="title" content="Svelte French Toast"/> <meta name="description" content="Buttery smooth toast notifications for Svelte. Lightweight, customizable, and beautiful by default."/> <meta property="og:type" content="website"/> <meta property="og:url" content="https://svelte-french-toast.com/"/> <meta property="og:title" content="Svelte French Toast"/> <meta property="og:description" content="Buttery smooth toast notifications for Svelte. Lightweight, customizable, and beautiful by default."/> <meta property="og:image" content="https://svelte-french-toast.com/og-image.png"/> <meta property="twitter:card" content="summary_large_image"/> <meta property="twitter:url" content="https://svelte-french-toast.com/"/> <meta property="twitter:title" content="Svelte French Toast"/> <meta property="twitter:description" content="Buttery smooth toast notifications for Svelte. Lightweight, customizable, and beautiful by default."/> <meta property="twitter:image" content="https://svelte-french-toast.com/og-image.png"/>`);
+	});
+
+	children?.($$renderer);
+	$$renderer.push(`<!---->`);
+}
+=== 324 src/routes/+page.svelte	css
+
+	.svelte-1uha8ag:not(pre) > code:where(.svelte-1uha8ag),
+	pre.svelte-1uha8ag {
+		@apply p-5 block;
+	}
+
+	input[type='radio'].svelte-1uha8ag {
+		@apply appearance-none hidden;
+	}
+	label.svelte-1uha8ag {
+		cursor: pointer;
+		@apply px-3 py-1 rounded-full;
+	}
+	label.checked.svelte-1uha8ag {
+		@apply bg-gray-200 font-bold;
+	}
+
+=== 6626 src/routes/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import toast, { Toaster } from '../lib';
+import 'prismjs';
+import 'prism-svelte';
+import demoCode from '../www/demo-code';
+import Copy from '../www/Copy.svelte';
+import Examples from '../www/Examples.svelte';
+import pkg from '../../package.json';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		function launchToast() {
+			toast.promise(
+				new Promise((resolve, reject) => {
+					setTimeout(Math.random() < 0.8 ? resolve : reject, 1000);
+				}),
+				{
+					loading: 'Toasting bread...',
+					success: 'Here’s your toast!',
+					error: 'Your toast burned :('
+				}
+			);
+		}
+
+		const installers = [
+			{ name: 'NPM', cmd: 'npm install svelte-french-toast' },
+			{ name: 'PNPM', cmd: 'pnpm install svelte-french-toast' },
+			{ name: 'Yarn', cmd: 'yarn add svelte-french-toast' },
+			{ name: 'Bun', cmd: 'bun add svelte-french-toast' }
+		];
+
+		let installer = installers[0].name;
+
+		Toaster($$renderer, {});
+		$$renderer.push(`<!----> <div class="py-24 bg-[#faf6f4] border-b-4"><div class="container max-w-xl flex flex-col items-center mx-auto text-center"><img class="h-16 mb-10" src="favicon.png" alt=""/> <div class="flex flex-col md:flex-row items-center space-y-3 md:space-y-0 md:space-x-3 mb-10 text-white"><div class="p-4 text-xl md:text-2xl font-extrabold bg-[#322f35] uppercase tracking-widest rounded-xl -rotate-2 shadow-lg">Svelte</div> <div class="p-4 text-xl md:text-2xl font-extrabold bg-[#fd6819] uppercase tracking-widest rounded-xl rotate-3 shadow-lg">French</div> <div class="p-4 text-xl md:text-2xl font-extrabold bg-[#322f35] uppercase tracking-widest rounded-xl -rotate-2 shadow-lg">Toast</div></div> <h1 class="font-bold text-3xl md:text-5xl">Buttery smooth toast notifications.</h1> <p class="mt-10 text-lg md:text-xl max-w-prose">Lightweight, customizable, and beautiful by default.<br/>Inspired by <a href="https://react-hot-toast.com" class="font-medium underline decoration-dotted underline-offset-4">React Hot Toast</a>.</p> <div class="flex items-center mt-10 space-x-4"><button class="flex items-center space-x-2 text-lg py-2 font-bold px-5 rounded-xl bg-amber-300 border-2 border-amber-400 shadow"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clip-rule="evenodd"></path></svg> <span>Launch toast</span></button> <a href="https://github.com/kbrgl/svelte-french-toast" class="flex items-center space-x-2 text-gray-500"><svg class="h-5 w-5" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>GitHub</title><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg> <span>Source</span></a></div> <p class="mt-5 text-sm border rounded-full px-2 py-1 text-gray-500"><a href="https://npmjs.com/package/svelte-french-toast">Version ${$.escape(pkg.version)}</a></p> <div class="grid grid-cols-2 md:grid-cols-3 gap-4 self-stretch mt-10 font-medium"><!--[-->`);
+
+		const each_array = $.ensure_array_like([
+			'Emoji Support',
+			'Customizable',
+			'Promise API',
+			'Pause on hover',
+			'Accessible',
+			'Headless use'
+		]);
+
+		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+			let feature = each_array[$$index];
+
+			$$renderer.push(`<div class="flex space-x-2"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#55aa88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> <p>${$.escape(feature)}</p></div>`);
+		}
+
+		$$renderer.push(`<!--]--></div></div></div> <div class="container mx-auto max-w-2xl py-10"><section><div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4"><p class="text-xl font-bold">1. Install</p> <div class="space-x-1"><!--[-->`);
+
+		const each_array_1 = $.ensure_array_like(installers);
+
+		for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+			let i = each_array_1[$$index_1];
+
+			$$renderer.push(`<label${$.attr('for', i.name)}${$.attr_class('svelte-1uha8ag', void 0, { 'checked': i.name === installer })}><input type="radio"${$.attr('id', i.name)} name="installers"${$.attr('value', i.name)}${$.attr('checked', installer === i.name, true)} class="svelte-1uha8ag"/> ${$.escape(i.name)}</label>`);
+		}
+
+		$$renderer.push(`<!--]--></div></div> <!--[-->`);
+
+		const each_array_2 = $.ensure_array_like(installers);
+
+		for (let $$index_2 = 0, $$length = each_array_2.length; $$index_2 < $$length; $$index_2++) {
+			let i = each_array_2[$$index_2];
+
+			$$renderer.push(`<div${$.attr_class('svelte-1uha8ag', void 0, { 'hidden': installer !== i.name })}><code class="language-shell svelte-1uha8ag">${$.escape(i.cmd)}</code> `);
+			Copy($$renderer, { text: i.cmd });
+			$$renderer.push(`<!----></div>`);
+		}
+
+		$$renderer.push(`<!--]--></section> <section class="mt-10"><p class="text-xl font-bold mb-4">2. Mount and use</p> <pre class="language-html svelte-1uha8ag"><code class="svelte-1uha8ag">${$.escape(demoCode)}</code></pre> `);
+		Copy($$renderer, { text: demoCode });
+		$$renderer.push(`<!----></section> <hr class="my-10"/> <h1 class="text-4xl font-bold mb-5">Examples</h1> `);
+		Examples($$renderer, {});
+		$$renderer.push(`<!----> <p class="mt-24 mb-2 text-center"><a href="https://github.com/kbrgl/svelte-french-toast" class="underline">GitHub</a></p> <p class="text-center text-gray-500">© 2022 svelte-french-toast · Built by <a class="text-gray-800" href="https://kabirgoel.com">Kabir Goel</a></p></div>`);
+	});
+}
+=== 798 src/www/Copy.svelte	js
+import * as $ from 'svelte/internal/server';
+import toast from '../lib';
+
+export default function Copy($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		function copy(text) {
+			const promise = navigator.clipboard.writeText(text);
+
+			toast.promise(promise, {
+				loading: 'Copying...',
+				success: 'Copied!',
+				error: 'Could not copy'
+			});
+		}
+
+		let { text } = $$props;
+
+		$$renderer.push(`<button type="button" class="text-sm mt-2 text-blue-600 font-medium space-x-1 flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z"></path><path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h8a2 2 0 00-2-2H5z"></path></svg> <span>Copy</span></button>`);
+	});
+}
+=== 137 src/www/Examples.svelte	css
+
+	input[type='radio'].svelte-5alodk {
+		@apply appearance-none;
+	}
+	._sft-checked.svelte-5alodk {
+		@apply border-blue-500 font-bold;
+	}
+
+=== 1680 src/www/Examples.svelte	js
+import * as $ from 'svelte/internal/server';
+import Copy from './Copy.svelte';
+import examples from './examples';
+
+export default function Examples($$renderer) {
+	let selected = 'Success';
+
+	$$renderer.push(`<div class="grid grid-cols-2 md:grid-cols-3 gap-4 rounded-xl mb-5"><!--[-->`);
+
+	const each_array = $.ensure_array_like(examples);
+
+	for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+		let example = each_array[$$index];
+
+		$$renderer.push(`<label${$.attr('for', example.title)}${$.attr_class('cursor-pointer p-2 bg-gray-100 hover:border-blue-500 rounded-xl transition-colors border-2 border-transparent svelte-5alodk', void 0, { '_sft-checked': example.title === selected })}><input type="radio"${$.attr('id', example.title)} name="examples"${$.attr('value', example.title)}${$.attr('checked', selected === example.title, true)} class="svelte-5alodk"/> <span class="mr-1">${$.escape(example.emoji)}</span> <span class="font-medium">${$.escape(example.title)}</span></label>`);
+	}
+
+	$$renderer.push(`<!--]--></div> <!--[-->`);
+
+	const each_array_1 = $.ensure_array_like(examples);
+
+	for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+		let example = each_array_1[$$index_1];
+
+		$$renderer.push(`<div${$.attr_class('', void 0, { 'hidden': example.title !== selected })}><div class="overflow-auto"><pre${$.attr_class(`language-${example.html ? 'svelte' : 'javascript'} h-80 table w-full`)}><code class="table-cell align-middle">${$.escape(example.snippet)}</code></pre></div> `);
+		Copy($$renderer, { text: example.snippet });
+		$$renderer.push(`<!----></div>`);
+	}
+
+	$$renderer.push(`<!--]-->`);
+}
+=== 340 src/www/RichContent.svelte	js
+import * as $ from 'svelte/internal/server';
+import toast_ from '../lib';
+
+export default function RichContent($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { toast, someProp } = $$props;
+
+		$$renderer.push(`<span>Custom and <b>bold</b> with props like ${$.escape(someProp)}! <button>Dismiss</button></span>`);
+	});
+}

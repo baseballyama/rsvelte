@@ -1,0 +1,1 @@
+<div onclick={new Foo()}></div>

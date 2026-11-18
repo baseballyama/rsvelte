@@ -1,0 +1,1 @@
+<script>const value="a";function run(x){switch(x){case 1:return "a";case 2:throw new Error("b");default:return "b";}}</script><p class={run(1)}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

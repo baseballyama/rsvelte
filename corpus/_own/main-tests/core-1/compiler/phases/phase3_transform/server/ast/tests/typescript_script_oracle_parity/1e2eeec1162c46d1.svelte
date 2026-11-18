@@ -1,0 +1,1 @@
+<script lang="ts">let x: number = $state(0); function inc(){ x++; }</script><p>{x}</p><button onclick={inc}>+</button>

@@ -1,0 +1,1 @@
+{#each [1] as v (v)}<div animate:flip></div>{/each}

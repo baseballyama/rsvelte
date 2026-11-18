@@ -1,0 +1,1 @@
+{#await 42 = nope catch e}<b>{e}</b>{/await}

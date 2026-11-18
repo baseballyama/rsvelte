@@ -1,0 +1,1 @@
+<style>*.multi { color: red }</style>

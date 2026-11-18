@@ -1,0 +1,1 @@
+<script>let g = $state([]);</script><input type="checkbox" value="a" bind:group={g}>

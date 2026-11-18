@@ -1,0 +1,1 @@
+<svelte:element this={tag} {...rest}>c</svelte:element>

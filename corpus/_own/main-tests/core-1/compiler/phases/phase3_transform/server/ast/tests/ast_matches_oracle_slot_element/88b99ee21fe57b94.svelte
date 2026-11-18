@@ -1,0 +1,1 @@
+<slot name="item" label="hi">default</slot>

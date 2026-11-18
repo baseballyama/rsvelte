@@ -1,0 +1,1 @@
+{#each [1, 2] as item}<input bind:value={item}>{/each}

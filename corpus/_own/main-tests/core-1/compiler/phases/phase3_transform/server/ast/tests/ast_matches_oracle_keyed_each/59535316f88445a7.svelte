@@ -1,0 +1,1 @@
+<script>let items = [{ id: 1 }];</script>{#each items as item, i (item.id)}<li>{i}</li>{/each}

@@ -1,0 +1,1 @@
+<script>let cls = $state('a');</script><p class={cls}>x</p><style>p{color:red}</style>

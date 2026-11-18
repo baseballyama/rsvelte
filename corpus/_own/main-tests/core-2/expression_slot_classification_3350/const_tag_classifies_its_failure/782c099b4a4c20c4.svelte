@@ -1,0 +1,1 @@
+{#if q}{@const { a, b } = o}{a}{b}{/if}

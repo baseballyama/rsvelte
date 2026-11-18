@@ -1,0 +1,1 @@
+<script lang="ts">export function f(a:number,b:number,c:number){ return (a + b as number) * c; }</script>

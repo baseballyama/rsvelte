@@ -1,0 +1,1 @@
+{#snippet foo({ before, xs: [[x]], middle, ys: [y] })}<p>{before}{x}{middle}{y}</p>{/snippet}{@render foo({before:1,xs:[[2]],middle:3,ys:[4]})}

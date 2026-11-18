@@ -1,0 +1,1 @@
+<Foo><Bar><div let:x>{x}</div></Bar></Foo>

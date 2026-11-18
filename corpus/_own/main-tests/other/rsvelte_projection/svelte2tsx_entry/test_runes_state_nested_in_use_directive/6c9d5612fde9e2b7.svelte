@@ -1,0 +1,1 @@
+<div use:action={() => $state(0)}></div>

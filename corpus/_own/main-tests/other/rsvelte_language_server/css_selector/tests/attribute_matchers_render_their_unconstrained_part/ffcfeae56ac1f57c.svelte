@@ -1,0 +1,1 @@
+<style>[href] { color: red }</style>

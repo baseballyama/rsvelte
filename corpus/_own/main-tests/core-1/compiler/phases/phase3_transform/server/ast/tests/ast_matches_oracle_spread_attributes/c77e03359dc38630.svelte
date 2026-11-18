@@ -1,0 +1,1 @@
+<script>let spread = $state({}); let x = $state(1);</script><div class="a" {...spread} id={x}></div>

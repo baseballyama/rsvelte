@@ -1,0 +1,4 @@
+- message: reset is a forbidden value for button type attribute.
+  line: 8
+  column: 9
+  suggestions: null

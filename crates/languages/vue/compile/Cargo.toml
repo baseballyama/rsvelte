@@ -1,0 +1,36 @@
+[package]
+name = "rsvelte_vue_compile"
+description = "Vue compile"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+rsvelte_plugin_interface.workspace = true
+rustc-hash.workspace = true
+sha2.workspace = true
+rsvelte_typescript_compile.workspace = true
+rsvelte_typescript_tree.workspace = true
+oxc_allocator.workspace = true
+oxc_ast.workspace = true
+oxc_ast_visit.workspace = true
+oxc_semantic.workspace = true
+oxc_span.workspace = true
+rsvelte_stylesheet_syntax.workspace = true
+rsvelte_vue_syntax.workspace = true
+rsvelte_vue_semantic.workspace = true
+rsvelte_kernel.workspace = true
+
+[dev-dependencies]
+rsvelte_test_harness.workspace = true
+
+[[test]]
+name = "fixtures"
+harness = false
+
+[lints]
+workspace = true

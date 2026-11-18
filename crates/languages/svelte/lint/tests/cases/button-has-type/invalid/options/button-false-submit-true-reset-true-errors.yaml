@@ -1,0 +1,4 @@
+- message: button is a forbidden value for button type attribute.
+  line: 6
+  column: 9
+  suggestions: null

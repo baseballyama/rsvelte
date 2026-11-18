@@ -1,0 +1,1 @@
+{#await p}<b>w</b>{:then v}<b>{v}</b>{:catch e}<b>{e}</b>{/await}

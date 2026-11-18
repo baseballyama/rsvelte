@@ -1,0 +1,1 @@
+<p>{Math.random()}</p>

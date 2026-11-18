@@ -1,0 +1,25 @@
+<section>
+  <div>
+    <div>
+      <div>
+        <div>
+          <div>
+            <div>
+              <div>
+                <div>
+                  <div>
+                    <DropdownTrigger
+                      label={propOperatorOptions.find(
+                        (o) => o.value === condition.masterBinaryOperator,
+                      )?.label}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

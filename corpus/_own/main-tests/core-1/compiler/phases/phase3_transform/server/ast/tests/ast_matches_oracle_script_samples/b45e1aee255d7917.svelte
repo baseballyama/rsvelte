@@ -1,0 +1,1 @@
+<script>let props = $props();</script><p>x</p>

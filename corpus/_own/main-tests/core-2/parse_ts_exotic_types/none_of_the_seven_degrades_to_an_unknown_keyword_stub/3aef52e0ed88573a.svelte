@@ -1,0 +1,1 @@
+<script lang="ts">type T1 = `a${string}b`;</script>

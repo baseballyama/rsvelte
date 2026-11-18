@@ -1,0 +1,1 @@
+{#snippet row(c?: number = 5)}<p>{c}</p>{/snippet}

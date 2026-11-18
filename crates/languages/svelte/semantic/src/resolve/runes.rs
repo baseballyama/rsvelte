@@ -1,0 +1,261 @@
+use oxc_ast::AstKind;
+use oxc_ast::ast::{Argument, CallExpression, ChainElement, Expression, IdentifierReference};
+use oxc_semantic::{ScopeId, SymbolFlags};
+use rsvelte_typescript_semantic::semantic::Semantic;
+
+use crate::typescript::without_typescript;
+
+pub const RUNES: &[&str] = &[
+    "$state",
+    "$state.raw",
+    "$derived",
+    "$derived.by",
+    "$state.eager",
+    "$state.snapshot",
+    "$props",
+    "$props.id",
+    "$bindable",
+    "$effect",
+    "$effect.pre",
+    "$effect.tracking",
+    "$effect.root",
+    "$effect.pending",
+    "$inspect",
+    "$inspect().with",
+    "$inspect.trace",
+    "$host",
+];
+
+/// Whether `name` is one of [`RUNES`], each of which starts with `$`, so most names are rejected
+/// at their first byte.
+#[must_use]
+pub fn is_rune(name: &str) -> bool {
+    name.starts_with('$') && RUNES.contains(&name)
+}
+
+/// The identifiers a rune starts with: each name in [`RUNES`] up to its first `.` or `(`.
+pub const RUNE_ROOTS: &[&str] = &[
+    "$state",
+    "$derived",
+    "$props",
+    "$bindable",
+    "$effect",
+    "$inspect",
+    "$host",
+];
+
+/// The rune a call names by its callee's shape, and the callee's root: `$x`, `$x.y` or
+/// `$inspect(…).with`, with any optional links.
+fn named<'a>(call: &'a CallExpression<'a>) -> Option<(&'static str, &'a IdentifierReference<'a>)> {
+    match &call.callee {
+        Expression::Identifier(callee) => {
+            let name = callee.name.as_str();
+            if !name.starts_with('$') {
+                return None;
+            }
+            Some((*RUNES.iter().find(|&&rune| rune == name)?, callee))
+        }
+        Expression::StaticMemberExpression(member) => {
+            let property = member.property.name.as_str();
+            match &member.object {
+                Expression::Identifier(object) => {
+                    let root = object.name.as_str();
+                    if !root.starts_with('$') {
+                        return None;
+                    }
+                    let rune = RUNES.iter().find(|rune| {
+                        (rune.strip_prefix(root)).and_then(|rest| rest.strip_prefix('.'))
+                            == Some(property)
+                    })?;
+                    Some((*rune, object))
+                }
+                Expression::CallExpression(inspect) if property == "with" => {
+                    match &inspect.callee {
+                        Expression::Identifier(callee) if callee.name == "$inspect" => {
+                            Some(("$inspect().with", callee))
+                        }
+                        _ => None,
+                    }
+                }
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+/// The call `e` is when it lowers as a rune call: not inside an optional chain, and with a
+/// callee that is not one, which upstream wraps in a `ChainExpression` that names no rune.
+fn lowered<'a>(e: &'a Expression<'a>) -> Option<&'a CallExpression<'a>> {
+    match without_typescript(e) {
+        Expression::CallExpression(call)
+            if !matches!(call.callee, Expression::ChainExpression(_)) =>
+        {
+            Some(call)
+        }
+        _ => None,
+    }
+}
+
+/// The first argument of a rune call, which no rune spreads.
+fn first_argument<'a>(call: &'a CallExpression<'a>) -> Option<&'a Expression<'a>> {
+    call.arguments
+        .first()
+        .and_then(Argument::as_expression)
+        .map(without_typescript)
+}
+
+/// A rune call that lowers as one, with its first argument, by syntax alone. Whether a
+/// component's call is the rune depends on its scope: ask [`super::Resolution::rune`].
+#[must_use]
+pub fn rune_call<'a>(e: &'a Expression<'a>) -> Option<(&'static str, Option<&'a Expression<'a>>)> {
+    let call = lowered(e)?;
+    Some((named(call)?.0, first_argument(call)))
+}
+
+/// Whether the rune call `e` lowers as one.
+#[must_use]
+pub fn lowers<'a>(e: &'a Expression<'a>) -> bool {
+    lowered(e).is_some()
+}
+
+/// Upstream analysis's synthetic store subscriptions among the rune names, which it declares in
+/// the instance's scope: a module script's rune call stays the rune.
+#[derive(Default)]
+pub(super) struct Subscriptions {
+    names: Vec<&'static str>,
+    /// The instance script's scope when a module script is beside it: only code below it, not
+    /// the module's, sees a subscription.
+    instance: Option<ScopeId>,
+    module: bool,
+}
+
+impl Subscriptions {
+    pub(super) fn contains(&self, name: &str) -> bool {
+        self.names.contains(&name)
+    }
+
+    /// Whether the subscription `root` names hides the rune: not in the module script, whose
+    /// scope is the instance's parent.
+    fn shadows(&self, semantic: &Semantic, root: &IdentifierReference<'_>) -> bool {
+        if !self.contains(root.name.as_str()) {
+            return false;
+        }
+        if !self.module {
+            return true;
+        }
+        let (Some(instance), Some(reference)) = (self.instance, root.reference_id.get()) else {
+            return false;
+        };
+        let node = semantic.scoping().get_reference(reference).node_id();
+        let scope = semantic.nodes().get_node(node).scope_id();
+        semantic
+            .scoping()
+            .scope_ancestors(scope)
+            .any(|s| s == instance)
+    }
+}
+
+/// Upstream `get_rune`: the rune the call `call` names, when the callee's root names neither a
+/// binding nor a store subscription it reaches.
+pub(super) fn named_in_scope<'a>(
+    semantic: &Semantic,
+    subscribed: &Subscriptions,
+    call: &'a CallExpression<'a>,
+) -> Option<&'static str> {
+    let (rune, root) = named(call)?;
+    let scoping = semantic.scoping();
+    let bound = (root.reference_id.get())
+        .and_then(|reference| super::bound(scoping, scoping.get_reference(reference).symbol_id()))
+        .is_some();
+    (!bound && !subscribed.shadows(semantic, root)).then_some(rune)
+}
+
+/// [`named_in_scope`] of an expression that is a call, inside an optional chain too: the rune
+/// upstream's visitors of a call see.
+pub(super) fn named_in_scope_anywhere<'a>(
+    semantic: &Semantic,
+    subscribed: &Subscriptions,
+    e: &'a Expression<'a>,
+) -> Option<&'static str> {
+    match without_typescript(e) {
+        Expression::CallExpression(call) => named_in_scope(semantic, subscribed, call),
+        Expression::ChainExpression(chain) => match &chain.expression {
+            ChainElement::CallExpression(call) => named_in_scope(semantic, subscribed, call),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// [`named_in_scope`] of a call that lowers as a rune, with its first argument.
+pub(super) fn rune<'a>(
+    semantic: &Semantic,
+    subscribed: &Subscriptions,
+    e: &'a Expression<'a>,
+) -> Option<(&'static str, Option<&'a Expression<'a>>)> {
+    let call = lowered(e)?;
+    Some((
+        named_in_scope(semantic, subscribed, call)?,
+        first_argument(call),
+    ))
+}
+
+/// Upstream analysis's synthetic store subscriptions among the rune names: `$name` subscribes to
+/// a store when `name` is bound in the instance's scope or the module's, unless that binding is
+/// itself a rune's (a `$props()` one only for `props`) or `derived` from `svelte/store`.
+pub(super) fn subscribed(
+    semantic: &Semantic,
+    instance: ScopeId,
+    instance_program: Option<ScopeId>,
+    instance_body: &[oxc_ast::ast::Statement<'_>],
+    module: bool,
+) -> Subscriptions {
+    let scoping = semantic.scoping();
+    let names = RUNE_ROOTS
+        .iter()
+        .copied()
+        .filter(|&name| {
+            let store = &name[1..];
+            let Some(symbol) = scoping.find_binding(instance, store.into()) else {
+                // A `$:` declares what it assigns before upstream asks, without a rune initial.
+                return crate::legacy::declares_implicitly(instance_body, store, |identifier| {
+                    identifier
+                        .reference_id
+                        .get()
+                        .is_some_and(|r| scoping.get_reference(r).symbol_id().is_some())
+                });
+            };
+            let declaration = scoping.symbol_declaration(symbol);
+            // Upstream asks before it declares any subscription, so only bindings shadow a rune.
+            let initial = match semantic.nodes().kind(declaration) {
+                AstKind::VariableDeclarator(d) => d
+                    .init
+                    .as_ref()
+                    .and_then(|init| rune(semantic, &Subscriptions::default(), init))
+                    .map(|(initial, _)| initial),
+                _ => None,
+            };
+            let from_svelte_store = || {
+                scoping.symbol_flags(symbol).contains(SymbolFlags::Import)
+                    && semantic
+                        .nodes()
+                        .ancestor_kinds(declaration)
+                        .find_map(|kind| match kind {
+                            AstKind::ImportDeclaration(import) => {
+                                Some(import.source.value == "svelte/store")
+                            }
+                            _ => None,
+                        })
+                        .unwrap_or(false)
+            };
+            (initial.is_none() || (store != "props" && initial == Some("$props")))
+                && !(name == "$derived" && from_svelte_store())
+        })
+        .collect();
+    Subscriptions {
+        names,
+        instance: instance_program,
+        module,
+    }
+}

@@ -1,0 +1,1 @@
+<script>import Foo from './Foo.svelte';import Bar from './Bar.svelte';let items = [];</script>{#each items as n}<Foo/>{:else}<Bar/>{/each}

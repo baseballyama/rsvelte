@@ -1,0 +1,1 @@
+<script>let value = $derived(1, 2);</script>

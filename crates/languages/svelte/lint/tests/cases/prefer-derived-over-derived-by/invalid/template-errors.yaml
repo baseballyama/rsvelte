@@ -1,0 +1,5 @@
+- message: Unnecessary use of `$derived.by()`. Use `$derived()` directly for
+    simple expressions.
+  line: 1
+  column: 13
+  suggestions: null

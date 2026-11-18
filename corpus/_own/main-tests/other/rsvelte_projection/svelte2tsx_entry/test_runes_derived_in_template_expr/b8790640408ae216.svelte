@@ -1,0 +1,1 @@
+<p>{$derived(a + b)}</p>

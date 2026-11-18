@@ -1,0 +1,1 @@
+<button class="primary" on:click|preventDefault={handleClickWithLongName}>x</button>

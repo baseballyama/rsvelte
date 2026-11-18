@@ -1,0 +1,1 @@
+<script>let list = [{ v: 0 }];</script>{#each list as item}<button onclick={(item) => (item.v = 1)}>x</button>{/each}

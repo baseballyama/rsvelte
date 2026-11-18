@@ -1,0 +1,1 @@
+<div class:red={y}></div>

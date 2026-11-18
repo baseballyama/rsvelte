@@ -1,0 +1,26 @@
+[
+	{
+		"code": 1184,
+		"message": "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script context=\"module\">..</script>",
+		"start": {
+			"line": 1,
+			"character": 1
+		},
+		"end": {
+			"line": 1,
+			"character": 7
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 2,
+			"character": 1
+		},
+		"end": {
+			"line": 2,
+			"character": 7
+		}
+	}
+]

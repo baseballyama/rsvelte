@@ -1,0 +1,1 @@
+<script>import Button from './Button.svelte'; let count = $state(0);</script><Button on:click={() => count++}>a</Button>

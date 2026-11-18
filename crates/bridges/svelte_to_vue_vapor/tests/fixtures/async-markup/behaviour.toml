@@ -1,0 +1,8 @@
+experimental_async = true
+include_unmount = true
+[[steps]]
+click = ".child-update"
+[[steps]]
+click = "#change"
+[[steps]]
+click = "#change"

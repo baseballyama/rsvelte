@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ja">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+		<link
+			rel="stylesheet"
+			href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans+JP:wght@400;500;600&family=IBM+Plex+Sans:wdth,wght@85..100,100..700&display=swap"
+		/>
+		<script>
+			// Before first paint, so a dark-mode reader never sees a light flash.
+			try {
+				const t = localStorage.getItem('theme');
+				if (t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)) {
+					document.documentElement.classList.add('dark');
+				}
+			} catch {}
+		</script>
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover" class="min-h-dvh bg-bg text-fg antialiased">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>

@@ -1,0 +1,1 @@
+<script>let X;</script><svelte:component this={X}/>

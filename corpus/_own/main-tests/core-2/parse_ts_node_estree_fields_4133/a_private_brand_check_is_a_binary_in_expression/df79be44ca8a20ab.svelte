@@ -1,0 +1,1 @@
+<script>class P { #v; static has(o) { return #v in o; } }</script>

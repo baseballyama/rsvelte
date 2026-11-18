@@ -1,0 +1,1 @@
+<button onclick={() => ({ a } = { a: 1 })}>x</button>

@@ -1,0 +1,2 @@
+error bind_invalid_name 5:18-5:38 `bind:clientWidth` is not a valid binding. Possible bindings for <svelte:document> are activeElement, focused, fullscreenElement, pointerLockElement, this, visibilityState
+    https://svelte.dev/e/bind_invalid_name

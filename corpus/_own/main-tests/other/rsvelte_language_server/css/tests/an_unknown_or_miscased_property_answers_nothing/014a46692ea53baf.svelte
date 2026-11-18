@@ -1,0 +1,1 @@
+<style>a { --custom-thing: 2px }</style>

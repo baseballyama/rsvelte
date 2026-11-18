@@ -1,0 +1,3 @@
+<script>
+	package + ;
+</script>

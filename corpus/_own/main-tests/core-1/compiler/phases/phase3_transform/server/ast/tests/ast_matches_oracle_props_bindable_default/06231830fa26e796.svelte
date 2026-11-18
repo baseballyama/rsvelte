@@ -1,0 +1,1 @@
+<script>let { v = $bindable(5) } = $props();</script>{v}

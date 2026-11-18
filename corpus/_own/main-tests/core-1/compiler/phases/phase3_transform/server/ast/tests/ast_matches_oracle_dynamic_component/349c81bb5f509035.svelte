@@ -1,0 +1,1 @@
+<script>import Foo from './Foo.svelte'; let x = $state(1);</script>z<Foo.Bar a={x}/>

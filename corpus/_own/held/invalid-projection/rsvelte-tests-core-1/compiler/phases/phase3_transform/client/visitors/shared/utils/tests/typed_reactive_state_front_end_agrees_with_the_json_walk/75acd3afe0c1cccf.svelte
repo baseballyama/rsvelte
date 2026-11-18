@@ -1,0 +1,1 @@
+<Test a={await count} />

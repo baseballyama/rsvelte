@@ -1,0 +1,1 @@
+<script>let first; let second;</script><slot bind:this={first}/><slot bind:this={second}/>

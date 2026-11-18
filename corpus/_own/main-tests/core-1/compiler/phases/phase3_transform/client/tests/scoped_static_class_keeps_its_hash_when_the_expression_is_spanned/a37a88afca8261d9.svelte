@@ -1,0 +1,1 @@
+<section class={"draggable"}></section><style>.draggable { color: red; }</style>

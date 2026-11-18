@@ -1,0 +1,1 @@
+<script lang="ts">export const snapshot = 1</script>

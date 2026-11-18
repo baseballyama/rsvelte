@@ -1,0 +1,1 @@
+<Comp a={1} on:click={() => run()} />

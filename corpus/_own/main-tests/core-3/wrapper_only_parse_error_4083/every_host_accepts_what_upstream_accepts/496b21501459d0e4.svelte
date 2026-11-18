@@ -1,0 +1,1 @@
+<script lang="ts">let accessor: any; let declare: any;</script>{#if accessor satisfies string}y{/if}

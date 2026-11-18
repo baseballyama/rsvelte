@@ -1,0 +1,1 @@
+{#if true}{@const café='x'}{café}{/if}

@@ -1,0 +1,1 @@
+<script>let count = $state(0); let tag = $state('button');</script><svelte:element this={tag} on:click={() => count++}>{count}</svelte:element>

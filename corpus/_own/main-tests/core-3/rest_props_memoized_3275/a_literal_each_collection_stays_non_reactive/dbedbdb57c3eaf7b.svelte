@@ -1,0 +1,1 @@
+{#each [1, 2] as n}{n}{/each}

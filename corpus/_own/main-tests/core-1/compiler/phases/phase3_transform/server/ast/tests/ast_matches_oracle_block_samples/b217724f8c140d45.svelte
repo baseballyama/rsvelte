@@ -1,0 +1,1 @@
+{#each [1] as n}text<li>{n}</li>{/each}

@@ -1,0 +1,1 @@
+<style>#i.c { color: red }</style>

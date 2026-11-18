@@ -1,0 +1,1 @@
+<svelte:element this={"section"} class="dynamic-host">f</svelte:element>

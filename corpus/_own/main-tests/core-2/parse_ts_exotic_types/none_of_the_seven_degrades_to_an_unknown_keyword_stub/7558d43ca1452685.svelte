@@ -1,0 +1,1 @@
+<script lang="ts">const q = 1; type Q = typeof q;</script>

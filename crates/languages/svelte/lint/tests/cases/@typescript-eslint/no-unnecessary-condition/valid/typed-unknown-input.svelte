@@ -1,0 +1,1 @@
+<script lang="ts">function f(value: unknown) { if (value) console.log(value); }</script>

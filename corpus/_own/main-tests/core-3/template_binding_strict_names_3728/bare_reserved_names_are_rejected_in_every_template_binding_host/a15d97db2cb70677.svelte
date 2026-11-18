@@ -1,0 +1,1 @@
+{#each [1] as arguments}x{/each}

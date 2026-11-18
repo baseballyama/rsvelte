@@ -1,0 +1,1 @@
+<script>let tag = 'button';</script><svelte:element this={tag} on:click={() => {}}>b</svelte:element>

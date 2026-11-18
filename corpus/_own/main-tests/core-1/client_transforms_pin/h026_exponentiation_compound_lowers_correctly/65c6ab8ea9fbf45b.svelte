@@ -1,0 +1,1 @@
+<script>let x = $state(2); function f(){ x **= 3; }</script>{x}

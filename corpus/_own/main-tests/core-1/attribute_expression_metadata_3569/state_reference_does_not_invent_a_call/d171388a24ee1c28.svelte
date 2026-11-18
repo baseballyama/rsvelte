@@ -1,0 +1,1 @@
+<script>let title = $state();</script><div title={title}></div>

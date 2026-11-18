@@ -1,0 +1,1 @@
+{#if 1}{@const A = class { x? = 1 }}{/if}

@@ -1,0 +1,1 @@
+<div {@attac f}>x</div>

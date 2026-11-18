@@ -1,0 +1,1 @@
+<script>let state = 1;</script>{$state}

@@ -1,0 +1,1 @@
+<script lang="ts">let a = 1; const b = (a satisfies number) + a!;</script>{b}

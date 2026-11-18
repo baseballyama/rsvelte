@@ -1,0 +1,1 @@
+<script>let spread = $state({});</script><div {...spread}></div>

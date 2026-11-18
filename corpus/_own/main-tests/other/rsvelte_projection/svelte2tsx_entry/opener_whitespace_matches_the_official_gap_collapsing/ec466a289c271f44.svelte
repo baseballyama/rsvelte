@@ -1,0 +1,1 @@
+<div transition:fade={{d:1}}>y</div>

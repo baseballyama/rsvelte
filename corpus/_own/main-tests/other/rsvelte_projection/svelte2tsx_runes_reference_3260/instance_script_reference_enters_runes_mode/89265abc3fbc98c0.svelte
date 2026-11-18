@@ -1,0 +1,1 @@
+<script>let a; $: a = $derived;</script>

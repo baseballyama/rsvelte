@@ -1,0 +1,1 @@
+<Foo><Bar slot="a">y</Bar></Foo>

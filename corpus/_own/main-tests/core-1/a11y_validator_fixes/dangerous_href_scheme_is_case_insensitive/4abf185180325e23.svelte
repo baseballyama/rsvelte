@@ -1,0 +1,1 @@
+<a href="JavaScript:void(0)">x</a>

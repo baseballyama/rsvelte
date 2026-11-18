@@ -1,0 +1,457 @@
+# rsvelte pack 1
+=== 3 sandboxes/bar/App.svelte	json
+[]
+
+=== 3 sandboxes/bar/components/Chart.svelte	json
+[]
+
+=== 3 sandboxes/bubble/components/Chart.svelte	json
+[]
+
+=== 3 sandboxes/doughnut/components/Chart.svelte	json
+[]
+
+=== 3 sandboxes/events/components/Chart.svelte	json
+[]
+
+=== 3 sandboxes/line/components/Chart.svelte	json
+[]
+
+=== 3 sandboxes/pie/components/Chart.svelte	json
+[]
+
+=== 3 sandboxes/polar/components/Chart.svelte	json
+[]
+
+=== 3 sandboxes/radar/components/Chart.svelte	json
+[]
+
+=== 3 sandboxes/ref/components/Chart.svelte	json
+[]
+
+=== 3 sandboxes/scatter/components/Chart.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/components/Header.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/components/Sidebar.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/components/TableOfContents.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/components/ThemeToggle.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/demos/BarDemo.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/demos/BubbleDemo.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/demos/DoughnutDemo.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/demos/EventsDemo.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/demos/GradientDemo.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/demos/HorizontalBarDemo.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/demos/LineDemo.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/demos/MultitypeDemo.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/demos/PieDemo.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/demos/PolarDemo.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/demos/RadarDemo.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/demos/ReactiveDemo.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/demos/RefDemo.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/demos/ScatterDemo.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/demos/StackedBarDemo.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/layouts/DocPage.svelte	json
+[]
+
+=== 3 sites/docs/src/routes/+layout.svelte	json
+[]
+
+=== 635 src/Bar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 50
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 38
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	}
+]
+
+=== 635 src/Bubble.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 40
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 53
+		},
+		"end": {
+			"line": 5,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 38
+		},
+		"end": {
+			"line": 6,
+			"character": 56
+		}
+	}
+]
+
+=== 635 src/Chart.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 51
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 35
+		},
+		"end": {
+			"line": 6,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 38
+		},
+		"end": {
+			"line": 7,
+			"character": 56
+		}
+	}
+]
+
+=== 635 src/Doughnut.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 40
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 55
+		},
+		"end": {
+			"line": 5,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 38
+		},
+		"end": {
+			"line": 6,
+			"character": 56
+		}
+	}
+]
+
+=== 635 src/Line.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 51
+		},
+		"end": {
+			"line": 2,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 38
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	}
+]
+
+=== 635 src/Pie.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 50
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 38
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	}
+]
+
+=== 635 src/PolarArea.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 40
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 56
+		},
+		"end": {
+			"line": 5,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 38
+		},
+		"end": {
+			"line": 6,
+			"character": 56
+		}
+	}
+]
+
+=== 635 src/Radar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 40
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 52
+		},
+		"end": {
+			"line": 5,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 38
+		},
+		"end": {
+			"line": 6,
+			"character": 56
+		}
+	}
+]
+
+=== 635 src/Scatter.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 40
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 54
+		},
+		"end": {
+			"line": 5,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 38
+		},
+		"end": {
+			"line": 6,
+			"character": 56
+		}
+	}
+]
+

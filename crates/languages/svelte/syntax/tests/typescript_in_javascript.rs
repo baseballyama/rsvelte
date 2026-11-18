@@ -1,0 +1,81 @@
+//! TypeScript-only syntax in a JavaScript component fails where acorn stops: at the token after
+//! an assertion's operand or after a modifier, or at a word strict mode reserves.
+
+use rsvelte_svelte_syntax::parse::parse;
+
+#[test]
+fn acorn_stops_at_typescript_only_syntax() {
+    for (source, code, at) in [
+        // The template reads the operand and expects its `}` at `as`.
+        ("<p>{a as T}</p>", "expected_token", "as T"),
+        ("<p>{a satisfies T}</p>", "expected_token", "satisfies T"),
+        // Inside brackets the operand alone does not parse.
+        ("<p>{(a as T)}</p>", "js_parse_error", "as T)"),
+        (
+            "<script>let x = f(a) as T;</script>",
+            "js_parse_error",
+            "as T;",
+        ),
+        (
+            "<script>class A { private x = 1 }</script>",
+            "js_parse_error",
+            "x = 1",
+        ),
+        (
+            "<script>class A { constructor(readonly x) {} }</script>",
+            "js_parse_error",
+            "x) {}",
+        ),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert_eq!(error.code, code, "{source}");
+        let at = source.find(at).expect("the stop") as u32;
+        assert_eq!(error.span.start_offset, at, "{source}: {error:?}");
+    }
+}
+
+#[test]
+fn typescript_reserved_words_in_javascript_fail_as_acorn_reads_them() {
+    for (source, word) in [
+        ("<script>\n\tenum E { A }\n</script>", "enum"),
+        (
+            "<script>class C { constructor(private a) {} }</script>",
+            "private",
+        ),
+        (
+            "<script>class C { constructor(public a) {} }</script>",
+            "public",
+        ),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert!(
+            error
+                .message
+                .starts_with(&format!("The keyword '{word}' is reserved")),
+            "{source}: {}",
+            error.message
+        );
+        assert_eq!(
+            error.span.start_offset as usize,
+            source.find(word).expect("word")
+        );
+    }
+}
+
+#[test]
+fn an_each_block_reads_up_to_its_as() {
+    let source = "{#each true, items as item}<p>{item}</p>{/each}";
+    parse(source).expect("the expression is `true, items`");
+}
+
+#[test]
+fn a_parenthesized_operand_stops_at_its_keyword() {
+    let source = "<p>{((a, b)) as T}</p><script>let x = (a) satisfies T;</script>";
+    let error = parse(source).expect_err(source);
+    assert_eq!(error.code, "expected_token", "{error:?}");
+    assert_eq!(
+        error.span.start_offset,
+        source.find("as T").expect("as") as u32
+    );
+    parse("{#each (a, [b]) as z}{z}{/each}").expect("the expression is `(a, [b])`");
+}

@@ -1,0 +1,1 @@
+{#await p}w{:then }d{/await}

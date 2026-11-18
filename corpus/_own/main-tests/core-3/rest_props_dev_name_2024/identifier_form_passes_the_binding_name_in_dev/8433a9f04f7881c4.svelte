@@ -1,0 +1,1 @@
+<script>let Accordion = $props();</script><p>{Accordion.x}</p>

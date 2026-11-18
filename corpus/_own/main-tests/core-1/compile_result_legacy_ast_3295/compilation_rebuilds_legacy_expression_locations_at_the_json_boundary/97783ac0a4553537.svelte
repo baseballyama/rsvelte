@@ -1,0 +1,1 @@
+{#each items as item}{item}{@const local = item + 1}{local}{/each}{#await promise then value}{value}{:catch error}{error}{/await}{#snippet snip(param)}{param}{/snippet}

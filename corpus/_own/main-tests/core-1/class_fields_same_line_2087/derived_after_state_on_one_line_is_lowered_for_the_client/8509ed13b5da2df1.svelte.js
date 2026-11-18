@@ -1,0 +1,1 @@
+export class Foo { n = $state(1); d = $derived(this.n * 2); }

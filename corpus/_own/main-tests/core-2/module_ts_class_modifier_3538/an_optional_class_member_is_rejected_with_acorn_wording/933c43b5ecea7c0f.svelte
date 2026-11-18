@@ -1,0 +1,1 @@
+<script>class A { m?() {} }</script>

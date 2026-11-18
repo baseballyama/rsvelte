@@ -1,0 +1,1 @@
+<script>import Foo from './Foo.svelte';</script>{#key 1}<Foo/>{/key}

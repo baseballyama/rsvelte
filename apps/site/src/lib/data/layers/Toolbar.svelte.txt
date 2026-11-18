@@ -1,0 +1,15 @@
+<script>
+	let { label = 'Save', kind, size } = $props();
+	let count = $state(0);
+	const double = $derived(count * 2);
+</script>
+
+<svelte:head><title>{label}</title></svelte:head>
+{#if count > 10}
+	<p>many &amp; more</p>
+{:else if count > 0}
+	<Counter {count} />
+{:else}
+	<button onclick={() => count++}>{label}</button>
+{/if}
+<button type="submit" class="btn {kind}">{double}</button>

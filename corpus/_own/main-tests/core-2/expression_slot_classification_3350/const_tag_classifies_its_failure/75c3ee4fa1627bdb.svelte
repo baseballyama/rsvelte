@@ -1,0 +1,1 @@
+{#if q}{@const a = 1}{a}{/if}

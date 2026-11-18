@@ -1,0 +1,197 @@
+# rsvelte pack 1
+=== 882 attractions/autocomplete/more-horizontal.svelte	lint.txt
+4:3 4:13 svelte/sort-attributes "Attribute 'width' should go before 'xmlns'."
+5:3 5:14 svelte/sort-attributes "Attribute 'height' should go before 'xmlns'."
+6:3 6:22 svelte/sort-attributes "Attribute 'viewBox' should go before 'xmlns'."
+7:3 7:14 svelte/sort-attributes "Attribute 'fill' should go before 'xmlns'."
+8:3 8:24 svelte/sort-attributes "Attribute 'stroke' should go before 'xmlns'."
+9:3 9:19 svelte/sort-attributes "Attribute 'stroke-width' should go before 'xmlns'."
+10:3 10:25 svelte/sort-attributes "Attribute 'stroke-linecap' should go before 'xmlns'."
+11:3 11:26 svelte/sort-attributes "Attribute 'stroke-linejoin' should go before 'xmlns'."
+13:19 13:26 svelte/max-attributes-per-line "'cy' should be on a new line."
+14:19 14:26 svelte/max-attributes-per-line "'cy' should be on a new line."
+15:18 15:25 svelte/max-attributes-per-line "'cy' should be on a new line."
+
+=== 657 attractions/date-picker/chevron-left.svelte	lint.txt
+4:3 4:13 svelte/sort-attributes "Attribute 'width' should go before 'xmlns'."
+5:3 5:14 svelte/sort-attributes "Attribute 'height' should go before 'xmlns'."
+6:3 6:22 svelte/sort-attributes "Attribute 'viewBox' should go before 'xmlns'."
+7:3 7:14 svelte/sort-attributes "Attribute 'fill' should go before 'xmlns'."
+8:3 8:24 svelte/sort-attributes "Attribute 'stroke' should go before 'xmlns'."
+9:3 9:19 svelte/sort-attributes "Attribute 'stroke-width' should go before 'xmlns'."
+10:3 10:25 svelte/sort-attributes "Attribute 'stroke-linecap' should go before 'xmlns'."
+11:3 11:26 svelte/sort-attributes "Attribute 'stroke-linejoin' should go before 'xmlns'."
+
+=== 657 attractions/date-picker/chevron-right.svelte	lint.txt
+4:3 4:13 svelte/sort-attributes "Attribute 'width' should go before 'xmlns'."
+5:3 5:14 svelte/sort-attributes "Attribute 'height' should go before 'xmlns'."
+6:3 6:22 svelte/sort-attributes "Attribute 'viewBox' should go before 'xmlns'."
+7:3 7:14 svelte/sort-attributes "Attribute 'fill' should go before 'xmlns'."
+8:3 8:24 svelte/sort-attributes "Attribute 'stroke' should go before 'xmlns'."
+9:3 9:19 svelte/sort-attributes "Attribute 'stroke-width' should go before 'xmlns'."
+10:3 10:25 svelte/sort-attributes "Attribute 'stroke-linecap' should go before 'xmlns'."
+11:3 11:26 svelte/sort-attributes "Attribute 'stroke-linejoin' should go before 'xmlns'."
+
+=== 957 attractions/dialog/x.svelte	lint.txt
+4:3 4:13 svelte/sort-attributes "Attribute 'width' should go before 'xmlns'."
+5:3 5:14 svelte/sort-attributes "Attribute 'height' should go before 'xmlns'."
+6:3 6:22 svelte/sort-attributes "Attribute 'viewBox' should go before 'xmlns'."
+7:3 7:14 svelte/sort-attributes "Attribute 'fill' should go before 'xmlns'."
+8:3 8:24 svelte/sort-attributes "Attribute 'stroke' should go before 'xmlns'."
+9:3 9:19 svelte/sort-attributes "Attribute 'stroke-width' should go before 'xmlns'."
+10:3 10:25 svelte/sort-attributes "Attribute 'stroke-linecap' should go before 'xmlns'."
+11:3 11:26 svelte/sort-attributes "Attribute 'stroke-linejoin' should go before 'xmlns'."
+13:17 13:23 svelte/max-attributes-per-line "'y1' should be on a new line."
+13:24 13:30 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+14:16 14:22 svelte/max-attributes-per-line "'y1' should be on a new line."
+14:23 14:30 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+
+=== 841 attractions/file-input/paperclip.svelte	lint.txt
+12:3 12:13 svelte/sort-attributes "Attribute 'width' should go before 'xmlns'."
+13:3 13:14 svelte/sort-attributes "Attribute 'height' should go before 'xmlns'."
+14:3 14:22 svelte/sort-attributes "Attribute 'viewBox' should go before 'xmlns'."
+15:3 15:14 svelte/sort-attributes "Attribute 'fill' should go before 'xmlns'."
+16:3 16:24 svelte/sort-attributes "Attribute 'stroke' should go before 'xmlns'."
+17:3 17:19 svelte/sort-attributes "Attribute 'stroke-width' should go before 'xmlns'."
+18:3 18:25 svelte/sort-attributes "Attribute 'stroke-linecap' should go before 'xmlns'."
+19:3 19:26 svelte/sort-attributes "Attribute 'stroke-linejoin' should go before 'xmlns'."
+20:3 20:26 svelte/sort-attributes "Attribute 'class' should go before 'xmlns'."
+23:5 23:122 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+
+=== 1049 attractions/file-input/plus.svelte	lint.txt
+12:3 12:13 svelte/sort-attributes "Attribute 'width' should go before 'xmlns'."
+13:3 13:14 svelte/sort-attributes "Attribute 'height' should go before 'xmlns'."
+14:3 14:22 svelte/sort-attributes "Attribute 'viewBox' should go before 'xmlns'."
+15:3 15:14 svelte/sort-attributes "Attribute 'fill' should go before 'xmlns'."
+16:3 16:24 svelte/sort-attributes "Attribute 'stroke' should go before 'xmlns'."
+17:3 17:19 svelte/sort-attributes "Attribute 'stroke-width' should go before 'xmlns'."
+18:3 18:25 svelte/sort-attributes "Attribute 'stroke-linecap' should go before 'xmlns'."
+19:3 19:26 svelte/sort-attributes "Attribute 'stroke-linejoin' should go before 'xmlns'."
+20:3 20:26 svelte/sort-attributes "Attribute 'class' should go before 'xmlns'."
+22:17 22:23 svelte/max-attributes-per-line "'y1' should be on a new line."
+22:24 22:31 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+23:16 23:23 svelte/max-attributes-per-line "'y1' should be on a new line."
+23:24 23:31 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+
+=== 1048 attractions/file-input/trash-2.svelte	lint.txt
+4:3 4:13 svelte/sort-attributes "Attribute 'width' should go before 'xmlns'."
+5:3 5:14 svelte/sort-attributes "Attribute 'height' should go before 'xmlns'."
+6:3 6:22 svelte/sort-attributes "Attribute 'viewBox' should go before 'xmlns'."
+7:3 7:14 svelte/sort-attributes "Attribute 'fill' should go before 'xmlns'."
+8:3 8:24 svelte/sort-attributes "Attribute 'stroke' should go before 'xmlns'."
+9:3 9:19 svelte/sort-attributes "Attribute 'stroke-width' should go before 'xmlns'."
+10:3 10:25 svelte/sort-attributes "Attribute 'stroke-linecap' should go before 'xmlns'."
+11:3 11:26 svelte/sort-attributes "Attribute 'stroke-linejoin' should go before 'xmlns'."
+15:5 15:87 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+17:17 17:24 svelte/max-attributes-per-line "'y1' should be on a new line."
+17:25 17:32 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+18:17 18:24 svelte/max-attributes-per-line "'y1' should be on a new line."
+18:25 18:32 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+
+=== 1140 attractions/loading/loading.svelte	lint.txt
+11:3 11:26 svelte/no-unused-class-name "Unused class \"bounce1\"."
+11:3 11:26 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
+11:24 11:26 svelte/html-self-closing "Disallow self-closing on HTML elements."
+12:3 12:26 svelte/no-unused-class-name "Unused class \"bounce2\"."
+12:3 12:26 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
+12:24 12:26 svelte/html-self-closing "Disallow self-closing on HTML elements."
+13:3 13:26 svelte/no-unused-class-name "Unused class \"bounce3\"."
+13:3 13:26 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
+13:24 13:26 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 670 attractions/star-rating/star.svelte	lint.txt
+4:3 4:13 svelte/sort-attributes "Attribute 'width' should go before 'xmlns'."
+5:3 5:14 svelte/sort-attributes "Attribute 'height' should go before 'xmlns'."
+6:3 6:22 svelte/sort-attributes "Attribute 'viewBox' should go before 'xmlns'."
+7:3 7:24 svelte/sort-attributes "Attribute 'stroke' should go before 'xmlns'."
+8:3 8:19 svelte/sort-attributes "Attribute 'stroke-width' should go before 'xmlns'."
+9:3 9:25 svelte/sort-attributes "Attribute 'stroke-linecap' should go before 'xmlns'."
+10:3 10:26 svelte/sort-attributes "Attribute 'stroke-linejoin' should go before 'xmlns'."
+13:5 13:108 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+
+=== 732 attractions/time-picker/clock.svelte	lint.txt
+4:3 4:13 svelte/sort-attributes "Attribute 'width' should go before 'xmlns'."
+5:3 5:14 svelte/sort-attributes "Attribute 'height' should go before 'xmlns'."
+6:3 6:22 svelte/sort-attributes "Attribute 'viewBox' should go before 'xmlns'."
+7:3 7:14 svelte/sort-attributes "Attribute 'fill' should go before 'xmlns'."
+8:3 8:24 svelte/sort-attributes "Attribute 'stroke' should go before 'xmlns'."
+9:3 9:19 svelte/sort-attributes "Attribute 'stroke-width' should go before 'xmlns'."
+10:3 10:25 svelte/sort-attributes "Attribute 'stroke-linecap' should go before 'xmlns'."
+11:3 11:26 svelte/sort-attributes "Attribute 'stroke-linejoin' should go before 'xmlns'."
+13:19 13:26 svelte/max-attributes-per-line "'cy' should be on a new line."
+
+=== 222 docs/src/containers/docs/showcase.svelte	lint.txt
+6:1 6:27 svelte/no-unused-class-name "Unused class \"showcase\"."
+8:25 8:27 svelte/html-self-closing "Disallow self-closing on HTML elements."
+11:25 11:27 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 1129 docs/src/containers/home/info-tiles.svelte	lint.txt
+10:1 10:5 svelte/indent "Expected indentation of 6 spaces but found 4 spaces."
+11:1 11:5 svelte/indent "Expected indentation of 6 spaces but found 4 spaces."
+15:25 15:30 no-undef "'fetch' is not defined."
+16:64 16:71 no-undef "'process' is not defined."
+21:1 21:25 svelte/no-unused-class-name "Unused class \"info-tiles\"."
+25:5 25:33 svelte/sort-attributes "Attribute 'subtitle' should go before 'title'."
+26:5 26:36 svelte/sort-attributes "Attribute 'href' should go before 'icon'."
+31:5 31:49 svelte/sort-attributes "Attribute 'subtitle' should go before 'title'."
+32:5 32:31 svelte/sort-attributes "Attribute 'href' should go before 'icon'."
+38:7 38:32 svelte/sort-attributes "Attribute 'subtitle' should go before 'title'."
+39:7 39:59 svelte/sort-attributes "Attribute 'href' should go before 'icon'."
+45:7 45:72 svelte/sort-attributes "Attribute 'subtitle' should go before 'title'."
+46:7 46:59 svelte/sort-attributes "Attribute 'href' should go before 'icon'."
+52:7 52:67 svelte/sort-attributes "Attribute 'subtitle' should go before 'title'."
+53:7 53:59 svelte/sort-attributes "Attribute 'href' should go before 'icon'."
+
+=== 77 docs/src/mdsvex/layout-no-head.svelte	lint.txt
+29:7 29:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 76 docs/src/mdsvex/li.svelte	lint.txt
+2:9 2:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 77 docs/src/mdsvex/mark.svelte	lint.txt
+1:13 1:15 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 76 docs/src/mdsvex/p.svelte	lint.txt
+2:9 2:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 76 docs/src/mdsvex/table.svelte	lint.txt
+2:9 2:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 76 docs/src/mdsvex/td.svelte	lint.txt
+2:9 2:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 77 docs/src/mdsvex/th.svelte	lint.txt
+7:11 7:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 76 docs/src/mdsvex/tr.svelte	lint.txt
+2:9 2:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 76 docs/src/mdsvex/ul.svelte	lint.txt
+2:9 2:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 2169 docs/src/routes/index.svelte	lint.txt
+9:25 9:46 svelte/max-attributes-per-line "'content' should be on a new line."
+15:33 15:55 svelte/max-attributes-per-line "'alt' should be on a new line."
+15:33 15:55 svelte/sort-attributes "Attribute 'alt' should go before 'src'."
+17:7 17:74 svelte/no-unused-class-name "Unused class \"hide-on-tb-more\"."
+17:34 17:57 svelte/max-attributes-per-line "'class' should be on a new line."
+17:34 17:57 svelte/sort-attributes "Attribute 'class' should go before 'href'."
+17:58 17:73 svelte/valid-compile "Attributes should not contain ':' characters to prevent ambiguity with Svelte directives\nhttps://svelte.dev/e/attribute_illegal_colon(attribute_illegal_colon)"
+18:11 18:18 no-undef "'process' is not defined."
+25:5 25:26 svelte/no-unused-class-name "Unused class \"actions\"."
+26:22 26:35 svelte/max-attributes-per-line "'href' should be on a new line."
+27:33 27:43 svelte/max-attributes-per-line "'class' should be on a new line."
+27:33 27:43 svelte/sort-attributes "Attribute 'class' should go before 'size'."
+30:23 30:33 svelte/max-attributes-per-line "'class' should be on a new line."
+30:23 30:33 svelte/sort-attributes "Attribute 'class' should go before 'outline'."
+30:34 30:80 svelte/sort-attributes "Attribute 'href' should go before 'outline'."
+31:31 31:41 svelte/max-attributes-per-line "'class' should be on a new line."
+31:31 31:41 svelte/sort-attributes "Attribute 'class' should go before 'size'."
+36:3 36:24 svelte/no-unused-class-name "Unused class \"strip\"."
+36:3 36:24 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
+36:22 36:24 svelte/html-self-closing "Disallow self-closing on HTML elements."
+46:8 46:15 no-undef "'process' is not defined."
+48:34 48:49 svelte/max-attributes-per-line "'sapper:prefetch' should be on a new line."
+48:34 48:49 svelte/valid-compile "Attributes should not contain ':' characters to prevent ambiguity with Svelte directives\nhttps://svelte.dev/e/attribute_illegal_colon(attribute_illegal_colon)"
+48:52 48:59 no-undef "'process' is not defined."
+

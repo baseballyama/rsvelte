@@ -1,0 +1,1 @@
+<script>function onerror(error, reset) { console.log(error); } function failed() {}</script><svelte:boundary {onerror} {failed}><p>Hello</p></svelte:boundary>

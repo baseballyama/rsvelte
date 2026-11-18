@@ -1,0 +1,1 @@
+<script>let s = 'export let q = 1;';</script><span>{p}</span>

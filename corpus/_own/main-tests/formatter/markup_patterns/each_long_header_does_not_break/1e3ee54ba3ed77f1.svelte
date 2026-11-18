@@ -1,0 +1,1 @@
+{#each someVeryLongIterableExpressionNameThatExceedsTheConfiguredWidth as itemWithAVeryLongName}<li>{itemWithAVeryLongName}</li>{/each}

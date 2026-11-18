@@ -1,0 +1,1 @@
+{#snippet foo()}text<span>x</span>{/snippet}{@render foo()}

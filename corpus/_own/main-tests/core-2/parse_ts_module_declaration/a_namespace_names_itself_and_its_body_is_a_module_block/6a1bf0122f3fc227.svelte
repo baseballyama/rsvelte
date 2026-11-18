@@ -1,0 +1,1 @@
+<script lang="ts">namespace N { const a = 1; }</script>

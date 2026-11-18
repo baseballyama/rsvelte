@@ -1,0 +1,1 @@
+<svelte:element this={'div'} let:v>{typeof v}</svelte:element>

@@ -1,0 +1,1 @@
+<style>p:hover { color: red }</style>

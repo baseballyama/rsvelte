@@ -1,0 +1,1 @@
+{#await 42 = nope then v}<b>{v}</b>{/await}

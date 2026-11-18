@@ -1,0 +1,401 @@
+# rsvelte pack 1
+=== 2244 src/lib/CodeMirror.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './util' or its corresponding type declarations.",
+		"start": {
+			"line": 103,
+			"character": 29
+		},
+		"end": {
+			"line": 103,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/autocomplete' or its corresponding type declarations.",
+		"start": {
+			"line": 110,
+			"character": 11
+		},
+		"end": {
+			"line": 110,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/commands' or its corresponding type declarations.",
+		"start": {
+			"line": 111,
+			"character": 87
+		},
+		"end": {
+			"line": 111,
+			"character": 109
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/language' or its corresponding type declarations.",
+		"start": {
+			"line": 121,
+			"character": 11
+		},
+		"end": {
+			"line": 121,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/lint' or its corresponding type declarations.",
+		"start": {
+			"line": 122,
+			"character": 31
+		},
+		"end": {
+			"line": 122,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/search' or its corresponding type declarations.",
+		"start": {
+			"line": 123,
+			"character": 60
+		},
+		"end": {
+			"line": 123,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/state' or its corresponding type declarations.",
+		"start": {
+			"line": 124,
+			"character": 61
+		},
+		"end": {
+			"line": 124,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/view' or its corresponding type declarations.",
+		"start": {
+			"line": 138,
+			"character": 11
+		},
+		"end": {
+			"line": 138,
+			"character": 29
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'transaction' implicitly has an 'any' type.",
+		"start": {
+			"line": 207,
+			"character": 21
+		},
+		"end": {
+			"line": 207,
+			"character": 32
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'string | null' is not assignable to parameter of type 'string'.\n  Type 'null' is not assignable to type 'string'.",
+		"start": {
+			"line": 260,
+			"character": 23
+		},
+		"end": {
+			"line": 260,
+			"character": 28
+		}
+	}
+]
+
+=== 644 src/routes/+layout.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../styles.css'.",
+		"start": {
+			"line": 1,
+			"character": 11
+		},
+		"end": {
+			"line": 1,
+			"character": 26
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 40
+		}
+	}
+]
+
+=== 1313 src/routes/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 53
+		},
+		"end": {
+			"line": 1,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/lang-css' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/lang-html' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/lang-javascript' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 31
+		},
+		"end": {
+			"line": 5,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/theme-one-dark' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 28
+		},
+		"end": {
+			"line": 6,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './_util/code' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 74
+		},
+		"end": {
+			"line": 8,
+			"character": 88
+		}
+	}
+]
+
+=== 640 src/routes/css/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/lang-css' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../_util/code' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"character": 44
+		}
+	}
+]
+
+=== 641 src/routes/html/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/lang-html' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../_util/code' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	}
+]
+
+=== 647 src/routes/javascript/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/lang-javascript' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../_util/code' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 36
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	}
+]
+
+=== 647 src/routes/typescript/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/lang-javascript' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../_util/code' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 36
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	}
+]
+

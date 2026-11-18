@@ -1,0 +1,1 @@
+<button on:click={someGlobal}>go</button>

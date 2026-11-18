@@ -1,0 +1,1 @@
+<script>try {} catch ($state) { void $state; }</script><div></div>

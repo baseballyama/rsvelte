@@ -1,0 +1,9 @@
+{
+	"options": [
+		{
+			"button": false,
+			"submit": true,
+			"reset": true
+		}
+	]
+}

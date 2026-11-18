@@ -1,0 +1,1 @@
+{#if true}{@const { x = 5 } = { } }{x}{/if}

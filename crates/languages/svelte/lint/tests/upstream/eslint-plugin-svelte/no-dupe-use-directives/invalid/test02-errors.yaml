@@ -1,0 +1,60 @@
+- message: This `use:x` directive is the same and duplicate directives in L5.
+  line: 5
+  column: 6
+  suggestions: null
+- message: This `use:x` directive is the same and duplicate directives in L5.
+  line: 5
+  column: 12
+  suggestions: null
+- message: This `use:x` directive is the same and duplicate directives in L5.
+  line: 5
+  column: 18
+  suggestions: null
+- message: This `use:x` directive is the same and duplicate directives in L5.
+  line: 5
+  column: 24
+  suggestions: null
+- message: This `use:x` directive is the same and duplicate directives in L5.
+  line: 5
+  column: 30
+  suggestions: null
+- message: This `use:x` directive is the same and duplicate directives in L5.
+  line: 5
+  column: 36
+  suggestions: null
+- message: This `use:x` directive is the same and duplicate directives in L5.
+  line: 5
+  column: 42
+  suggestions: null
+- message: This `use:x` directive is the same and duplicate directives in L5.
+  line: 5
+  column: 48
+  suggestions: null
+- message: This `use:x` directive is the same and duplicate directives in L5.
+  line: 5
+  column: 54
+  suggestions: null
+- message: This `use:x` directive is the same and duplicate directives in L5.
+  line: 5
+  column: 60
+  suggestions: null
+- message: This `use:x` directive is the same and duplicate directives in L5.
+  line: 5
+  column: 66
+  suggestions: null
+- message: This `use:x` directive is the same and duplicate directives in L5.
+  line: 5
+  column: 72
+  suggestions: null
+- message: This `use:x` directive is the same and duplicate directives in L5.
+  line: 5
+  column: 78
+  suggestions: null
+- message: This `use:x` directive is the same and duplicate directives in L5.
+  line: 5
+  column: 84
+  suggestions: null
+- message: This `use:x` directive is the same and duplicate directives in L5.
+  line: 5
+  column: 90
+  suggestions: null

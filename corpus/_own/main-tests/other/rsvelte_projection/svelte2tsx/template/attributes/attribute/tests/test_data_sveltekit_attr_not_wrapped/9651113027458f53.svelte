@@ -1,0 +1,1 @@
+<a data-sveltekit-preload-data="hover">link</a>

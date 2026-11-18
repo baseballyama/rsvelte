@@ -1,0 +1,1 @@
+<svelte:component this={ Comp } prop1={ longValueName } prop2={otherValue}/>

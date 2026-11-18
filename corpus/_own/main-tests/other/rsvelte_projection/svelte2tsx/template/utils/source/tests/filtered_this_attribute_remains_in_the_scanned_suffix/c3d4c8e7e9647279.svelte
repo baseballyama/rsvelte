@@ -1,0 +1,1 @@
+<svelte:component foo this={Components[a > b ? 0 : 1]}></svelte:component>

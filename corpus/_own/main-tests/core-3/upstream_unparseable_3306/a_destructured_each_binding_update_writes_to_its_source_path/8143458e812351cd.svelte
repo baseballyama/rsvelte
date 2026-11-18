@@ -1,0 +1,1 @@
+{#each [{ value: 1 }] as { value }}<button onclick={() => value++}>b</button>{/each}

@@ -1,0 +1,1 @@
+<script>let v = 'a';</script><select bind:value={v}><div>rich</div><option value="a">A</option></select>

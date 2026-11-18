@@ -1,0 +1,55 @@
+;
+import Option from './Option.svelte';;
+
+;
+
+function $$render() {
+  
+	
+	/** @type {typeof __rsvelte_public_props0} */ let { p, c } = $props();
+
+;
+
+  const __rsvelte_public_props0 = __rsvelte_props({
+    p: __rsvelte_untyped_prop(),
+    c: __rsvelte_untyped_prop(),
+  }, {}, false);
+  async () => {
+    {
+      svelteHTML.createElement("select", {});
+      {
+        svelteHTML.createElement("svelte:boundary", {});
+        {
+          svelteHTML.createElement("option", {});
+        }
+      }
+    }
+    {
+      svelteHTML.createElement("select", {
+        ...(p),
+        "class": c,
+      });
+      {
+        __rsvelte_component(Option)(__rsvelte_internals(), {});
+      }
+    }
+    {
+      svelteHTML.createElement("select", {
+        ...(p),
+      });
+      {
+        svelteHTML.createElement("option", {
+          "class": c,
+          ...(p),
+        });
+        {
+          svelteHTML.createElement("b", {});
+          c;
+        }
+      }
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+}
+const RichSelect3__SvelteComponent_ = $$render();
+export default /** @type {__rsvelte_javascript_export<typeof RichSelect3__SvelteComponent_>} */ (RichSelect3__SvelteComponent_);

@@ -1,0 +1,1 @@
+{#each items as item (item.name + ")")}{item}{/each}

@@ -1,0 +1,1 @@
+<script>let value = "x";</script><input value={value} />

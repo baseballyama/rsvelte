@@ -1,0 +1,1 @@
+<script>let tag = $state("p");</script><svelte:element this={tag} class="example"/>

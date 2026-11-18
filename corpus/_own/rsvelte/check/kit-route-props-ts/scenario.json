@@ -1,0 +1,5 @@
+{
+	"description": "Untyped `$props()` in SvelteKit route files: svelte2tsx types `data`, `form`, `params` and a layout's `children` from `./$types`, an error page's `error` as `App.Error`, and leaves every other name out.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json"
+}

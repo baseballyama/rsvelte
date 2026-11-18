@@ -1,0 +1,1 @@
+<script>let X; let v = $state("");</script><svelte:component this={X} bind:value={v}/>

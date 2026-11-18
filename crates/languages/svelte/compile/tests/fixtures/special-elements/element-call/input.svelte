@@ -1,0 +1,1 @@
+<script>function tag() { return "p"; }</script><svelte:element this={tag()}>hello</svelte:element>

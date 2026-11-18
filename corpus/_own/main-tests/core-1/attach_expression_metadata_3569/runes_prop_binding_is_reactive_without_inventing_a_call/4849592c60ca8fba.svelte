@@ -1,0 +1,1 @@
+<script>let { attach } = $props();</script><div {@attach attach}></div>

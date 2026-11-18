@@ -1,0 +1,10 @@
+include_unmount = true
+
+[[steps]]
+input = ["input", "new"]
+
+[[steps]]
+input = ["input[type=number]", "9"]
+
+[[steps]]
+click = "input[type=checkbox]"

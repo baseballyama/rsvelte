@@ -1,0 +1,1 @@
+<script>let p = null;</script>{#await p﻿then v}<p>{v}</p>{/await}

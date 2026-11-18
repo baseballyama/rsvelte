@@ -1,0 +1,1 @@
+<script>import { writable } from 'svelte/store'; let a = $state(writable(1)); function f() { a = writable(2); $a++; ++$a; $a -= 1; $a.x--; }</script><p>{$a} {a}</p><button onclick={f}>x</button>

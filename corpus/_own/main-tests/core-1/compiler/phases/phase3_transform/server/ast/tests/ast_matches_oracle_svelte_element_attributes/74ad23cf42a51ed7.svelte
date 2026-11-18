@@ -1,0 +1,1 @@
+<svelte:element this={tag} id={x} data-k="v">c</svelte:element>

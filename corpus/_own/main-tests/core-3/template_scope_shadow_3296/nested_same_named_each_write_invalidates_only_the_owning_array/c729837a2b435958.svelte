@@ -1,0 +1,1 @@
+{#each ["A"] as v}{#each ["B"] as v}<button onclick={() => { v = "W"; }}>b</button>{/each}{/each}

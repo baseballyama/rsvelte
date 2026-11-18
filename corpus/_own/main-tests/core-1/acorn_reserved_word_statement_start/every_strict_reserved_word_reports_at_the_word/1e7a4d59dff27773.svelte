@@ -1,0 +1,3 @@
+<script>
+	yield + ;
+</script>

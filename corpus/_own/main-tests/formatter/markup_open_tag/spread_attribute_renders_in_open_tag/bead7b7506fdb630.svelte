@@ -1,0 +1,1 @@
+<div  {...rest}  class="x"></div>

@@ -1,0 +1,1 @@
+<script>const n = null;</script><p>{n}</p>

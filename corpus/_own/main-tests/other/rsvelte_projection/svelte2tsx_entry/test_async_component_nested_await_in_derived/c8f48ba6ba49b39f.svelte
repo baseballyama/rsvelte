@@ -1,0 +1,1 @@
+<script>let foo = $derived(await 1);</script>{foo}

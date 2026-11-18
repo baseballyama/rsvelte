@@ -1,0 +1,2448 @@
+# rsvelte pack 1
+=== 1190 src/examples/docs/SvelteTweakpaneEventExample.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Button, Monitor, Slider, type SliderChangeEvent } from '$lib'
+
+	let speed = 50
+
+	// Keep track of how many Slider change events originated from direct
+	// interaction with the slider (internal) vs. programmatic changes set
+	// when the button's clicked (external)
+	let internalChangeCount = 0
+	let externalChangeCount = 0
+
+	// Change event handler
+	// The SliderChangeEvent type is a convenient alias
+	// to ValueChangeEvent<number>
+	function onChange(event: SliderChangeEvent) {
+		// Identify where the event came from, 'internal' or 'external'
+		event.detail.origin === 'internal' ? internalChangeCount++ : externalChangeCount++
+	}
+
+	// A Svelte reactive statement is (usually) a much better way to respond
+	// to value changes! $: console.log(speed);
+</script>
+
+<Slider label="Set Speed Limit:" max={100} min={0} bind:value={speed} on:change={onChange} />
+<Monitor format={(v) => v.toFixed(0)} label="Internal change events:" value={internalChangeCount} />
+<Monitor format={(v) => v.toFixed(0)} label="External change events:" value={externalChangeCount} />
+<Button
+	label="Change limit externally:"
+	title="Limit: 55"
+	on:click={() => {
+		speed = 55
+	}}
+/>
+
+=== 147 src/examples/docs/SvelteTweakpaneRange.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Slider } from '$lib'
+
+	let speed = 50
+</script>
+
+<Slider max={100} min={0} bind:value={speed} />
+<pre>
+{speed}
+</pre>
+
+=== 145 src/examples/docs/SvelteTweakpaneThemeBasic.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Button, ThemeUtils } from '$lib'
+</script>
+
+<Button label="Jet Black Button" theme={ThemeUtils.presets.jetblack} />
+
+=== 1563 src/examples/docs/SvelteTweakpaneThemeCustom.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Button, type Theme } from '$lib'
+
+	const customTheme: Theme = {
+		baseBackgroundColor: 'hsl(230, 70%, 27%)',
+		baseBorderRadius: '6px',
+		baseFontFamily: 'sans-serif',
+		baseShadowColor: 'rgba(0, 0, 0, 0.2)',
+		bladeBorderRadius: '2px',
+		bladeHorizontalPadding: '4px',
+		bladeValueWidth: '180px',
+		buttonBackgroundColor: 'hsl(230, 7%, 70%)',
+		buttonBackgroundColorActive: '#d6d7db',
+		buttonBackgroundColorFocus: '#c8cad0',
+		buttonBackgroundColorHover: '#bbbcc4',
+		buttonForegroundColor: 'hsl(230, 7%, 17%)',
+		containerBackgroundColor: 'rgba(187, 188, 196, 0.1)',
+		containerBackgroundColorActive: 'rgba(187, 188, 196, 0.25)',
+		containerBackgroundColorFocus: 'rgba(187, 188, 196, 0.2)',
+		containerBackgroundColorHover: 'rgba(187, 188, 196, 0.15)',
+		containerForegroundColor: 'hsl(230, 7%, 75%)',
+		containerHorizontalPadding: '4px',
+		containerUnitSize: '20px',
+		containerUnitSpacing: '4px',
+		containerVerticalPadding: '4px',
+		grooveForegroundColor: 'rgba(187, 188, 196, 0.1)',
+		inputBackgroundColor: 'rgba(187, 188, 196, 0.1)',
+		inputBackgroundColorActive: 'rgba(187, 188, 196, 0.25)',
+		inputBackgroundColorFocus: 'rgba(187, 188, 196, 0.2)',
+		inputBackgroundColorHover: 'rgba(187, 188, 196, 0.15)',
+		inputForegroundColor: 'hsl(230, 7%, 75%)',
+		labelForegroundColor: 'rgba(187, 188, 196, 0.7)',
+		monitorBackgroundColor: 'rgba(0, 0, 0, 0.2)',
+		monitorForegroundColor: 'rgba(187, 188, 196, 0.7)',
+		pluginImageDraggingColor: 'hsla(230, 100%, 66%, 1)',
+	}
+</script>
+
+<Button label="I'm custom" theme={customTheme} />
+
+=== 318 src/examples/docs/SvelteTweakpaneThemeExtend.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Button, type Theme, ThemeUtils } from '$lib'
+
+	const customizedTheme: Theme = {
+		...ThemeUtils.presets.iceberg,
+		baseBackgroundColor: 'hsla(230, 20%, 11%, 0.5)',
+		labelForegroundColor: 'hsla(230, 12%, 88%, 1.00)',
+	}
+</script>
+
+<Button label="I'm customized" theme={customizedTheme} />
+
+=== 138 src/examples/docs/SvelteTweakpaneThemeOverride.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Button } from '$lib'
+</script>
+
+<Button label="Rounded Parent Button" theme={{ baseBorderRadius: '6px' }} />
+
+=== 317 src/examples/docs/SvelteTweakpaneThemePicker.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { List, Pane, ThemeUtils } from '$lib'
+
+	let themeKey: keyof typeof ThemeUtils.presets = 'standard'
+</script>
+
+<Pane position="inline" theme={ThemeUtils.presets[themeKey]} title="Theme Picker">
+	<List label="Theme" options={Object.keys(ThemeUtils.presets)} bind:value={themeKey} />
+</Pane>
+
+=== 583 src/examples/docs/SvelteTweakpaneWideSlideExample.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Checkbox, IntervalSlider, Ring, Separator, Slider, Stepper, Wheel } from '$lib'
+
+	const min = 0
+	const max = 100
+	let value = 50
+	let wide = true
+</script>
+
+<Checkbox label="Wide" bind:value={wide} />
+<Separator />
+<Slider label="Slider" {max} {min} {wide} bind:value />
+<Stepper label="Stepper" {max} {min} step={10} {wide} bind:value />
+<IntervalSlider
+	label="IntervalSlider"
+	{max}
+	{min}
+	value={[min, max]}
+	{wide}
+	bind:meanValue={value}
+/>
+<Wheel label="Wheel" {max} {min} {wide} bind:value />
+<Ring label="Ring" {max} {min} {wide} bind:value />
+
+=== 484 src/examples/docs/VanillaTweakpaneRange.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { onMount } from 'svelte'
+	import { Pane } from 'tweakpane'
+
+	let params = {
+		speed: 50,
+	}
+
+	let container: HTMLDivElement
+
+	onMount(() => {
+		const pane = new Pane({
+			container,
+		})
+
+		pane.addBinding(params, 'speed', {
+			min: 0,
+			max: 100,
+		})
+
+		pane.on('change', () => {
+			// Trigger Svelte reactivity
+			params = params
+		})
+
+		return () => {
+			pane.dispose()
+		}
+	})
+</script>
+
+<div bind:this={container}></div>
+<pre>
+{params.speed}
+</pre>
+
+=== 1398 src/examples/tests/TestAutoObject.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { AutoObject } from '$lib'
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+
+	let object = {
+		// Creates a <Checkbox>
+		someBoolean: true,
+		// Creates a <Color> picker
+		someColor: {
+			r: 255,
+			g: 0,
+			b: 55,
+		},
+		// Wraps children in a <Folder>
+		someFolder: {
+			a: 1,
+			b: 2,
+			c: 3,
+		},
+		// Creates a <Slider>
+		someNumber: 1,
+		// Creates a <Point>
+		somePoint: {
+			x: 1,
+			y: 2,
+		},
+		// Creates a <Text>
+		someString: 'test',
+		// TODO maybe
+		// Creates a <Button>
+		// someButton: () => {
+		// 	alert('🎛️');
+		// }
+	}
+</script>
+
+<AutoObject
+	bind:object
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<AutoObject
+	bind:object
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<hr />
+
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+<pre>Value: <span>{JSON.stringify(object)}</span></pre>
+
+=== 346 src/examples/tests/TestAutoObjectNesting.svelte	svelte	runes	neutral
+<script lang="ts">
+	// https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/10
+	import { AutoObject } from '$lib'
+
+	let object = {
+		aFolder: {
+			aSetting: 0,
+			bFolder: {
+				bSetting: 0,
+				cFolder: {
+					cSetting: 0,
+				},
+			},
+		},
+	}
+</script>
+
+<AutoObject bind:object />
+
+<pre>Value: <span>{JSON.stringify(object)}</span></pre>
+
+=== 3695 src/examples/tests/TestAutoValue.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { AutoValue } from '$lib'
+
+	let number = 0
+	let color = '#ff00ff'
+	let colorArray = { r: 0, g: 0, b: 255 }
+	let point = { x: 0, y: 0 }
+	let text = 'Cosmic manifold'
+
+	let number1InternalEventCount = 0
+	let number1ExternalEventCount = 0
+	let number2InternalEventCount = 0
+	let number2ExternalEventCount = 0
+	let color1InternalEventCount = 0
+	let color1ExternalEventCount = 0
+	let color2InternalEventCount = 0
+	let color2ExternalEventCount = 0
+	let point1InternalEventCount = 0
+	let point1ExternalEventCount = 0
+	let point2InternalEventCount = 0
+	let point2ExternalEventCount = 0
+	let text1InternalEventCount = 0
+	let text1ExternalEventCount = 0
+	let text2InternalEventCount = 0
+	let text2ExternalEventCount = 0
+</script>
+
+<AutoValue
+	label="Number 1"
+	bind:value={number}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			number1InternalEventCount++
+		} else {
+			number1ExternalEventCount++
+		}
+	}}
+/>
+<AutoValue
+	label="Number 2"
+	bind:value={number}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			number2InternalEventCount++
+		} else {
+			number2ExternalEventCount++
+		}
+	}}
+/>
+
+<AutoValue
+	label="Color 1"
+	bind:value={color}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			color1InternalEventCount++
+		} else {
+			color1ExternalEventCount++
+		}
+	}}
+/>
+<AutoValue
+	label="Color 2"
+	bind:value={color}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			color2InternalEventCount++
+		} else {
+			color2ExternalEventCount++
+		}
+	}}
+/>
+
+<AutoValue
+	label="Point 1"
+	bind:value={point}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			point1InternalEventCount++
+		} else {
+			point1ExternalEventCount++
+		}
+	}}
+/>
+<AutoValue
+	label="Point 2"
+	bind:value={point}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			point2InternalEventCount++
+		} else {
+			point2ExternalEventCount++
+		}
+	}}
+/>
+
+<AutoValue
+	label="Text 1"
+	bind:value={text}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			text1InternalEventCount++
+		} else {
+			text1ExternalEventCount++
+		}
+	}}
+/>
+<AutoValue
+	label="Text 2"
+	bind:value={text}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			text2InternalEventCount++
+		} else {
+			text2ExternalEventCount++
+		}
+	}}
+/>
+
+<hr />
+
+<AutoValue label="Color Array" bind:value={colorArray} />
+
+<pre>Number Value: <span>{number}</span></pre>
+<pre>Number 1 Internal: <span>{number1InternalEventCount}</span></pre>
+<pre>Number 1 External: <span>{number1ExternalEventCount}</span></pre>
+<pre>Number 2 Internal: <span>{number2InternalEventCount}</span></pre>
+<pre>Number 2 External: <span>{number2ExternalEventCount}</span></pre>
+<pre>Color Value: <span>{color}</span></pre>
+<pre>Color 1 Internal: <span>{color1InternalEventCount}</span></pre>
+<pre>Color 1 External: <span>{color1ExternalEventCount}</span></pre>
+<pre>Color 2 Internal: <span>{color2InternalEventCount}</span></pre>
+<pre>Color 2 External: <span>{color2ExternalEventCount}</span></pre>
+<pre>Point Value: <span>{point}</span></pre>
+<pre>Point 1 Internal: <span>{point1InternalEventCount}</span></pre>
+<pre>Point 1 External: <span>{point1ExternalEventCount}</span></pre>
+<pre>Point 2 Internal: <span>{point2InternalEventCount}</span></pre>
+<pre>Point 2 External: <span>{point2ExternalEventCount}</span></pre>
+<pre>Text Value: <span>{text}</span></pre>
+<pre>Text 1 Internal: <span>{text1InternalEventCount}</span></pre>
+<pre>Text 1 External: <span>{text1ExternalEventCount}</span></pre>
+<pre>Text 2 Internal: <span>{text2InternalEventCount}</span></pre>
+<pre>Text 2 External: <span>{text2ExternalEventCount}</span></pre>
+
+=== 1042 src/examples/tests/TestBinding.svelte	svelte	runes	neutral
+<script lang="ts">
+	import type { BindingObject } from '$lib'
+	import { Binding } from '$lib'
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+
+	let object: BindingObject = { v: 0 }
+</script>
+
+<Binding
+	key="v"
+	label="Binding 1"
+	bind:object
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<Binding
+	key="v"
+	label="Binding 2"
+	bind:object
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<hr />
+
+<pre>Value: <span>{object.v}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 1094 src/examples/tests/TestCheckbox.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Checkbox, type ValueChangeEvent } from '$lib'
+
+	let value: boolean = false
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+
+	function listener(event: ValueChangeEvent<boolean>) {
+		console.log(event)
+	}
+</script>
+
+<Checkbox
+	label="Binding 1"
+	bind:value
+	on:change={listener}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<Checkbox
+	label="Binding 2"
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<hr />
+
+<pre>Value: <span>{value}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 10993 src/examples/tests/TestCls.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { onMount } from 'svelte'
+	import {
+		AutoObject,
+		Binding,
+		type BindingObject,
+		Blade,
+		Button,
+		ButtonGrid,
+		Color,
+		CubicBezier,
+		type CubicBezierValueTuple,
+		Element,
+		Folder,
+		FpsGraph,
+		List,
+		type ListOptions,
+		Monitor,
+		Pane,
+		Point,
+		type PointOptions,
+		type PointValue2d,
+		type PointValue3d,
+		type PointValue4d,
+		Profiler,
+		type ProfilerMeasure,
+		RadioGrid,
+		Ring,
+		RotationEuler,
+		type RotationEulerValueObject,
+		RotationQuaternion,
+		type RotationQuaternionValueObject,
+		Separator,
+		Slider,
+		TabGroup,
+		TabPage,
+		Text,
+		Textarea,
+		type Theme,
+		ThemeUtils,
+		WaveformMonitor,
+		Wheel,
+	} from '$lib'
+	let text = 'Cosmic Manifold'
+	let waveData = [5, 6, 7, 8, 9, 3, 9, 8, 7, 6, 5]
+
+	setInterval(() => {
+		waveData = waveData.map((v) => Math.max(0, Math.min(10, v + (Math.random() * 2 - 1) * 0.5)))
+	}, 10)
+
+	let selection: number = 1
+	const options: ListOptions<number> = { a: 1, b: 2, c: 3 }
+
+	let booleanToMonitor = false
+	let stringToMonitor = 'Reticulating'
+	let numberToMonitor = 85
+
+	setInterval(() => {
+		numberToMonitor = Math.random() * 100
+	}, 50)
+
+	setInterval(() => {
+		booleanToMonitor = !booleanToMonitor
+		// eslint-disable-next-line ts/no-misused-spread, unicorn/no-array-reverse
+		stringToMonitor = [...stringToMonitor].reverse().join('')
+	}, 1000)
+
+	let rev: RotationEulerValueObject = { x: 0, y: 0, z: 0 }
+	let rev2: RotationQuaternionValueObject = { x: 0, y: 0, z: 0, w: 0 }
+	let text2 = ''
+	let object = {
+		someBoolean: true, // Creates a <Checkbox>
+		someColor: {
+			r: 255,
+			g: 0,
+			// Creates a <Color> picker
+			b: 55,
+		},
+		someFolder: {
+			// Wraps children in a <Folder>
+			a: 1,
+			b: 2,
+			c: 3,
+		},
+		someNumber: 1, // Creates a <Slider>
+		somePoint: {
+			// Creates a <Point>
+			x: 1,
+			y: 2,
+		},
+		someString: 'test', // Creates a <Text>
+	}
+	let startColor = '#fff000'
+	let startColorA = { r: 255, g: 0, b: 55, a: 50 }
+
+	let bindingObject: BindingObject = { r: 0 }
+
+	let expanded = false
+
+	let point2d: PointValue2d = { x: 0, y: 0 }
+
+	// Tuples are also fine
+	let point3d: PointValue3d = [0, 0, 0]
+
+	// Dimension-specific option type needs to know the type of the point value
+	const point3dxOptions: PointOptions<'3', 'x'> = { min: -100, max: 100 }
+
+	const theme: Theme = {
+		...ThemeUtils.presets.standard,
+
+		bladeHorizontalPadding: '20px',
+		containerUnitSize: '130px',
+	}
+
+	let callback: CubicBezierValueTuple = [0, 0, 0, 0]
+
+	const keyboard = [
+		...Array.from({ length: 26 }, (_, index) => String.fromCodePoint(65 + index)),
+		',',
+		'.',
+		'!',
+		'⌫',
+	]
+
+	let rv = 1
+	// Const radioValues = [ ['magenta', 'orange'], ['yellow', 'red'], ['violet', 'gold'], ['red',
+	//  'rebeccapurple']
+	// ];
+
+	// let src = 'placeholder';
+
+	let point4d: PointValue4d = { x: 0, y: 0, z: 0, w: 0 }
+
+	// This is a readonly function handle assigned by Profiler component first used in onMount since
+	// it is not bound until then
+	let measure: ProfilerMeasure
+
+	const loopExponent = 1
+
+	// Helper to test Math functions
+	function hardWork(functionToMeasure: (n: number) => number, exponent: number): void {
+		measure(functionToMeasure.name, () => {
+			for (let sum = 0; sum < Number('1e' + exponent); sum++) {
+				functionToMeasure(sum)
+			}
+		})
+	}
+
+	onMount(() => {
+		let animationFrameHandle: number
+		;(function tick() {
+			// Nesting measurements creates a hierarchy in the Profile visualization
+			measure('Tick', () => {
+				measure('Trigonometry', () => {
+					hardWork(Math.sin, loopExponent)
+					hardWork(Math.cos, loopExponent)
+					hardWork(Math.tan, loopExponent)
+					hardWork(Math.atan, loopExponent)
+					hardWork(Math.acos, loopExponent)
+					hardWork(Math.acosh, loopExponent)
+				})
+				measure('Logarithms', () => {
+					hardWork(Math.log, loopExponent)
+					hardWork(Math.log10, loopExponent)
+					hardWork(Math.log1p, loopExponent)
+					hardWork(Math.log2, loopExponent)
+				})
+				measure('Rounding', () => {
+					hardWork(Math.round, loopExponent)
+					hardWork(Math.floor, loopExponent)
+					hardWork(Math.ceil, loopExponent)
+					hardWork(Math.fround, loopExponent)
+				})
+			})
+
+			animationFrameHandle = requestAnimationFrame(tick)
+		})()
+
+		return () => {
+			cancelAnimationFrame(animationFrameHandle)
+		}
+	})
+</script>
+
+<Pane>
+	<Button />
+	<Button />
+	<Button />
+</Pane>
+
+<Pane position="fixed">
+	<Button />
+	<Button />
+	<Button />
+</Pane>
+
+<h1>Textarea</h1>
+<Textarea placeholder="The void" bind:value={text2} />
+<h1>Textarea</h1>
+<Textarea placeholder="The void" rows={8} bind:value={text2} />
+
+<h1>Rotation</h1>
+
+<RotationQuaternion expanded={true} label="CSS Rotation" picker="inline" bind:value={rev2} />
+<h1>Rotation</h1>
+
+<RotationQuaternion expanded={true} picker="inline" bind:value={rev2} />
+<h1>Rotation</h1>
+
+<RotationEuler expanded={true} label="CSS Rotation" picker="inline" bind:value={rev} />
+<h1>Rotation</h1>
+
+<RotationEuler expanded={true} picker="inline" bind:value={rev} />
+
+<h1>Profiler</h1>
+
+<Profiler label="Profiler" bind:measure />
+
+<h1>RG</h1>
+<RadioGrid prefix="Color Scheme " values={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]} bind:value={rv} />
+
+<h1>FPS</h1>
+<FpsGraph rows={1} />
+<h1>FPS</h1>
+<FpsGraph rows={5} />
+<h1>FPS</h1>
+<FpsGraph />
+
+<h1>CB</h1>
+<CubicBezier expanded={true} picker="inline" bind:value={callback} />
+
+<h1>CB</h1>
+<CubicBezier expanded={true} label="bla" picker="inline" bind:value={callback} />
+<h1>CB</h1>
+<CubicBezier expanded={true} label="bla" bind:value={callback} />
+
+<h1>CB</h1>
+<CubicBezier label="bla" bind:value={callback} />
+
+<h1>Button Grid</h1>
+<ButtonGrid buttons={keyboard} />
+
+<h1>Ring</h1>
+<Ring label="Scale" value={1} />
+<h1>Wheel</h1>
+<Wheel label="Scale" value={1} />
+
+<h1>Color</h1>
+<Color label="Start Color" bind:value={startColor} />
+<h1>Color</h1>
+<Color expanded={true} label="Start Color" picker="inline" bind:value={startColor} />
+<h1>Color</h1>
+<Color expanded={true} picker="inline" bind:value={startColor} />
+<h1>Color</h1>
+<Color expanded={true} label="Start Color" picker="inline" bind:value={startColorA} />
+<h1>Color</h1>
+<Color expanded={true} picker="inline" bind:value={startColorA} />
+
+<h1>Text</h1>
+<Text label="The Message" bind:value={text} />
+<h1>Slider</h1>
+<Slider label="Scale" value={1} />
+<h1>Separator</h1>
+<Separator />
+
+<h1>Point 2D</h1>
+<Point expanded={false} label="2D Point Picker" picker="inline" bind:value={point2d} />
+
+<h1>Point 3D</h1>
+<Point label="3D Point Picker" optionsX={point3dxOptions} bind:value={point3d} />
+<h1>Point 4D</h1>
+<Point label="4D Point Picker" max={100} min={0} bind:value={point4d} />
+<h1>Point 2D</h1>
+<Point expanded={true} label="2D Point Picker" picker="inline" bind:value={point2d} />
+
+<h1>Point 2D No Label</h1>
+<Pane position="inline" {theme} width={300}>
+	<Point expanded={true} picker="inline" bind:value={point2d} />
+</Pane>
+
+<h1>wave Monitor</h1>
+<WaveformMonitor lineStyle="bezier" max={11} min={-1} value={waveData} />
+<WaveformMonitor bufferSize={500} lineStyle="bezier" max={11} min={-1} rows={10} value={waveData} />
+
+<h1>Monitor String Rows without Multiline</h1>
+<Monitor label="String Monitor" multiline={true} value={stringToMonitor} />
+<Monitor bufferSize={2} label="String Monitor" value={stringToMonitor} />
+<Monitor label="String Monitor" value={stringToMonitor} />
+<h1>Monitor String Multiline</h1>
+<Monitor
+	bufferSize={10}
+	label="String Monitor"
+	multiline={true}
+	rows={10}
+	value={stringToMonitor}
+/>
+<h1>Monitor String Multiline With Rows</h1>
+<Monitor
+	bufferSize={50}
+	label="String Monitor"
+	multiline={true}
+	rows={10}
+	value={stringToMonitor}
+/>
+
+<h1>Monitor Boolean test</h1>
+<Monitor bufferSize={3} label="Boolean Monitor" rows={2} value={booleanToMonitor} />
+
+<h1>Monitor Boolean Basic</h1>
+<Monitor graph={true} label="Boolean Monitor" value={numberToMonitor} />
+<h1>Monitor Boolean Basic</h1>
+<Monitor graph={true} label="Boolean Monitor" rows={20} value={numberToMonitor} />
+<h1>Monitor Boolean Basic</h1>
+<Monitor label="Boolean Monitor" value={numberToMonitor} />
+<h1>Monitor Boolean Big Buffer Big Rows</h1>
+<Monitor bufferSize={20} label="Boolean Monitor" rows={10} value={numberToMonitor} />
+<h1>Monitor Boolean Small Buffer Big Rows</h1>
+<Monitor bufferSize={2} label="Boolean Monitor" rows={10} value={numberToMonitor} />
+<h1>Monitor Boolean Big Buffer Small Rows</h1>
+<Monitor bufferSize={10} label="Boolean Monitor" rows={1} value={numberToMonitor} />
+<h1>Monitor Boolean Big Buffer No Rows</h1>
+<Monitor bufferSize={2} label="Boolean Monitor" value={numberToMonitor} />
+<h1>Monitor Boolean No Buffer Big Rows</h1>
+<Monitor label="Boolean Monitor" rows={10} value={numberToMonitor} />
+<h1>Monitor Number</h1>
+<Monitor bufferSize={50} rows={10} value={numberToMonitor} />
+<h1>Monitor Number Graph</h1>
+<Monitor graph={true} rows={10} value={numberToMonitor} />
+
+<h1>List</h1>
+<List label="Alphanumerics" {options} bind:value={selection} />
+
+<h1>Element Standalone</h1>
+<Element>
+	<p>
+		<code>&lt;Pane&gt;</code><br />
+		<code>&lt;Element&gt;</code><br /> Whatever you want.
+		<code>&lt;/Element&gt;</code><br />
+		<code>&lt;/Pane&gt;</code>
+	</p>
+</Element>
+
+<h1>Binding</h1>
+<Binding key="r" label="Reticulation" bind:object={bindingObject} />
+<h1>Auto object</h1>
+<AutoObject bind:object />
+
+<h1>single tab</h1>
+<TabGroup>
+	<TabPage title="B!!!!">
+		<Button />
+	</TabPage>
+</TabGroup>
+
+<h1>Tabs Short first</h1>
+<TabGroup>
+	<TabPage title="A">
+		<Button />
+	</TabPage>
+	<TabPage title="B">
+		<Button />
+		<Button />
+		<Button />
+	</TabPage>
+</TabGroup>
+
+<h1>Tabs tall first</h1>
+<TabGroup>
+	<TabPage title="A">
+		<Button />
+		<Button />
+		<Button />
+	</TabPage>
+	<TabPage title="B">
+		<Button />
+	</TabPage>
+</TabGroup>
+
+<h1>Tab page no group</h1>
+<TabPage title="A">
+	<Button />
+	<Button />
+	<Button />
+</TabPage>
+
+<h1>Tab group no pages</h1>
+<TabGroup />
+
+<h1>Pane</h1>
+<Pane position="inline">
+	<Slider label="Scale" value={1} />
+	<Slider label="Scale" value={1} />
+	<Slider label="Scale" value={1} />
+	<Slider label="Scale" value={1} />
+	<Slider label="Scale" value={1} />
+	<Slider label="Scale" value={1} />
+	<Slider label="Scale" value={1} />
+	<Slider label="Scale" value={1} />
+	<Slider label="Scale" value={1} />
+	<Slider label="Scale" value={1} />
+	<Slider label="Scale" value={1} />
+</Pane>
+<h1>Slider</h1>
+<Slider label="Scale" value={1} />
+<h1>Pane Title</h1>
+<Pane position="inline" title="Bla">
+	<Slider label="Scale" value={1} />
+</Pane>
+<h1>Pane Folded</h1>
+<Pane position="inline" bind:expanded>
+	<Slider label="Scale" value={1} />
+</Pane>
+<h1>Pane Title Folded</h1>
+<Pane position="inline" title="Bla" bind:expanded>
+	<Slider label="Scale" value={1} />
+	<Slider label="Scale" value={1} />
+</Pane>
+
+<h1>Blade</h1>
+<Blade options={{ view: 'separator' }} />
+<h1>Button</h1>
+<Button />
+<h1>Folder expanded</h1>
+<Folder title="Reticulation Manager">
+	<Button />
+	<Button />
+</Folder>
+<h1>Folder collapsed</h1>
+<Folder title="Reticulation Manager" bind:expanded>
+	<Button />
+	<Button />
+</Folder>
+<hr />
+<!-- <Checkbox bind:value={expanded} label="Expanded" /> -->
+
+=== 1803 src/examples/tests/TestCollapseExpand.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Checkbox, Element, Pane, ThemeUtils } from '$lib'
+	let expanded = false
+
+	// Related to https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/4
+</script>
+
+{expanded}
+
+<!-- Unbound Literal -->
+
+<Pane
+	expanded={false}
+	position="draggable"
+	storePositionLocally={false}
+	title="Draggable Pane Unbound Literal"
+	x={8}
+	y={300}
+>
+	<Element><br /></Element>
+</Pane>
+
+<Pane expanded={false} position="fixed" title="Fixed Pane Unbound Literal" x={8} y={400}>
+	<Element><br /></Element>
+</Pane>
+
+<hr />
+
+<Pane expanded={false} position="inline" title="Inline Pane Unbound Literal">
+	<Element><br /></Element>
+</Pane>
+
+<!-- Unbound variable -->
+
+<Pane
+	{expanded}
+	position="draggable"
+	storePositionLocally={false}
+	title="Draggable Pane Unbound Variable"
+	x={300}
+	y={300}
+>
+	<Element><br /></Element>
+</Pane>
+
+<Pane {expanded} position="fixed" title="Fixed Pane Unbound Variable" x={300} y={400}>
+	<Element><br /></Element>
+</Pane>
+
+<hr />
+
+<Pane
+	{expanded}
+	position="inline"
+	theme={ThemeUtils.presets.light}
+	title="Inline Pane Unbound Variable"
+>
+	<Checkbox label="Expanded" bind:value={expanded} />
+</Pane>
+
+<!-- Bound Literal Not Allowed -->
+
+<!-- Bound Variable -->
+
+<Pane
+	position="draggable"
+	storePositionLocally={false}
+	theme={ThemeUtils.presets.light}
+	title="Draggable Pane Bound Variable"
+	x={600}
+	y={300}
+	bind:expanded
+>
+	<Checkbox label="Expanded" bind:value={expanded} />
+</Pane>
+
+<Pane
+	position="fixed"
+	theme={ThemeUtils.presets.light}
+	title="Fixed Pane Bound Variable"
+	x={600}
+	y={400}
+	bind:expanded
+>
+	<Checkbox label="Expanded" bind:value={expanded} />
+</Pane>
+
+<hr />
+
+<Pane
+	position="inline"
+	theme={ThemeUtils.presets.light}
+	title="Inline Pane Bound Variable"
+	bind:expanded
+>
+	<Checkbox label="Expanded" bind:value={expanded} />
+</Pane>
+
+=== 2041 src/examples/tests/TestColor.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Color, type ColorValueRgbaTuple, type ColorValueRgbObject } from '$lib'
+
+	let value: ColorValueRgbObject = { r: 0, g: 0, b: 0 }
+	let value2: ColorValueRgbaTuple = [0, 0, 0, 0]
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+	let binding3InternalEventCount = 0
+	let binding3ExternalEventCount = 0
+	let binding4InternalEventCount = 0
+	let binding4ExternalEventCount = 0
+</script>
+
+<Color
+	label="Binding 1"
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<Color
+	label="Binding 2"
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+<Color
+	label="Binding 3"
+	bind:value={value2}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding3InternalEventCount++
+		} else {
+			binding3ExternalEventCount++
+		}
+	}}
+/>
+<Color
+	label="Binding 4"
+	bind:value={value2}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding4InternalEventCount++
+		} else {
+			binding4ExternalEventCount++
+		}
+	}}
+/>
+
+<hr />
+
+<pre>Value Object: <span>{JSON.stringify(value, undefined, 2)}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+<pre>Value Tuple: <span>{JSON.stringify(value2, undefined, 2)}</span></pre>
+<pre>Binding 3 Internal: <span>{binding3InternalEventCount}</span></pre>
+<pre>Binding 3 External: <span>{binding3ExternalEventCount}</span></pre>
+<pre>Binding 4 Internal: <span>{binding4InternalEventCount}</span></pre>
+<pre>Binding 5 External: <span>{binding4ExternalEventCount}</span></pre>
+
+=== 1077 src/examples/tests/TestCubicBezier.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { CubicBezier, type CubicBezierValueObject } from '$lib'
+
+	let value: CubicBezierValueObject = { x1: 0, y1: 0, x2: 0, y2: 0 }
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+</script>
+
+<CubicBezier
+	label="Binding 1"
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<CubicBezier
+	label="Binding 2"
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<hr />
+
+<pre>Value: <span>{JSON.stringify(value, undefined, 2)}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 540 src/examples/tests/TestElementIfStatement.svelte	svelte	runes	neutral
+<script lang="ts">
+	// https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/18
+	// https://svelte.dev/repl/3cc711caf304411dbf2d6fc8d2493219?version=4.2.19
+	import { Checkbox, Element, TabGroup, TabPage, Text } from '$lib'
+	let text = '#1234'
+	let text2 = '#1235'
+	let check = false
+</script>
+
+<TabGroup>
+	<TabPage title="A">
+		<Checkbox label="Visibility" bind:value={check} />
+		{#if check}
+			<Element>🅱️</Element>
+			<Text label="C" bind:value={text} />
+		{/if}
+		<Text label="D" bind:value={text2} />
+	</TabPage>
+</TabGroup>
+
+=== 965 src/examples/tests/TestFile.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { File, type FileValue } from '$lib'
+
+	let file: FileValue
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+</script>
+
+<File
+	label="File 1"
+	bind:value={file}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<File
+	label="File 2"
+	bind:value={file}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<pre>Value: <span>{file}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 154 src/examples/tests/TestFormat.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Slider } from '$lib'
+	let value: number = 0
+</script>
+
+<Slider format={(v) => `${v}px`} label="Width" step={1} bind:value />
+
+=== 177 src/examples/tests/TestFpsEvent.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { FpsGraph } from '$lib'
+</script>
+
+<FpsGraph
+	interval={50}
+	label="FPS"
+	max={240}
+	min={0}
+	rows={5}
+	on:change={(value) => console.log(value)}
+/>
+
+=== 854 src/examples/tests/TestGridLayoutPane.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Checkbox, Pane, Slider } from '$lib'
+	let colors = 0.95
+	let darkMode = true
+	let numbers = true
+	let oneMore = true
+</script>
+
+<div class="layout-wrapper"></div>
+<Pane position="inline" theme={{ bladeValueWidth: '244px' }} width={337}>
+	<Slider label="Colors" max={1} min={0} bind:value={colors} />
+	<Checkbox label="Dark Mode" bind:value={darkMode} />
+	<Checkbox label="Numbers" bind:value={numbers} />
+	<Checkbox label="One More" bind:value={oneMore} />
+</Pane>
+
+<style>
+	div.layout-wrapper > :global(div.tp-rotv_c) {
+		display: flex;
+		flex-wrap: wrap;
+	}
+
+	div.layout-wrapper > :global(div.tp-lblv) {
+		flex-grow: 1;
+	}
+
+	div.layout-wrapper > :global(.tp-lblv:has(.tp-ckbv)) {
+		flex-direction: row-reverse;
+		flex-grow: 0;
+	}
+
+	div.layout-wrapper > :global(.tp-lblv_v:has(.tp-ckbv)) {
+		width: fit-content;
+	}
+</style>
+
+=== 742 src/examples/tests/TestGridLayoutWrapper.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Checkbox, Slider } from '$lib'
+	let colors = 0.95
+	let darkMode = true
+	let numbers = true
+</script>
+
+<div class="grid-wrapper">
+	<Slider
+		label="Colors"
+		max={1}
+		min={0}
+		theme={{ baseBorderRadius: '0', bladeValueWidth: '244px' }}
+		bind:value={colors}
+	/>
+	<Checkbox
+		label="Dark Mode"
+		theme={{ baseBorderRadius: '0', bladeValueWidth: '75.5px' }}
+		bind:value={darkMode}
+	/>
+	<Checkbox
+		label="Numbers"
+		theme={{ baseBorderRadius: '0', bladeValueWidth: '80px' }}
+		bind:value={numbers}
+	/>
+</div>
+
+<style>
+	div.grid-wrapper {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		max-width: 337px;
+	}
+
+	div.grid-wrapper > :global(div:first-child) {
+		grid-column: span 2;
+	}
+</style>
+
+=== 1283 src/examples/tests/TestImage.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Button, Image } from '$lib'
+
+	let source = 'placeholder'
+
+	async function getRandomKittenUrl() {
+		const { url } = await fetch('https://loremflickr.com/800/800/kitten', {
+			method: 'HEAD',
+		})
+		return url
+	}
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+</script>
+
+<Button
+	label="Random Placeholder"
+	title="Load Cat"
+	on:click={async () => {
+		source = await getRandomKittenUrl()
+	}}
+/>
+<Image
+	fit="contain"
+	label="Image 1"
+	bind:value={source}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<Image
+	fit="contain"
+	label="Image 2"
+	bind:value={source}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<pre>Value: <span>{source}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 998 src/examples/tests/TestIntervalSlider.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Slider } from '$lib'
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+
+	let value: number = 0
+</script>
+
+<Slider
+	label="Binding 1"
+	max={100}
+	min={0}
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<Slider
+	label="Binding 2"
+	max={100}
+	min={0}
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<hr />
+
+<pre>Value: <span>{value}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 298 src/examples/tests/TestIntervalSliderWide.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Checkbox, IntervalSlider } from '$lib'
+
+	let value: [number, number] = [25, 75]
+	let wide = false
+</script>
+
+<IntervalSlider format={(v) => `${v.toFixed(0)}%`} max={100} min={0} {wide} bind:value />
+<Checkbox label="Wide" bind:value={wide} />
+<pre>Value: {value}</pre>
+
+=== 378 src/examples/tests/TestInvisibleFolder.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Checkbox, Folder, Pane } from '$lib'
+	let expanded = true
+	let darkMode = true
+	let numbers = true
+</script>
+
+<Pane title="" userExpandable={false}>
+	<Checkbox label="Expanded" bind:value={expanded} />
+	<Folder {expanded}>
+		<Checkbox label="Dark Mode" bind:value={darkMode} />
+		<Checkbox label="Numbers" bind:value={numbers} />
+	</Folder>
+</Pane>
+
+=== 1087 src/examples/tests/TestList.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { List, type ListOptions } from '$lib'
+
+	const options: ListOptions<number> = { a: 1, b: 2, c: 3 }
+	let selection: number = 1
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+</script>
+
+<List
+	label="Alphanumerics 1"
+	{options}
+	bind:value={selection}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<List
+	label="Alphanumerics 2"
+	{options}
+	bind:value={selection}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<pre>Value: <span>{selection}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 1267 src/examples/tests/TestOrder.svelte	svelte	runes	neutral
+<script lang="ts">
+	import {
+		AutoValue,
+		type BindingObject,
+		ButtonGrid,
+		Checkbox,
+		Pane,
+		Separator,
+		Slider,
+	} from '$lib'
+	import Button from '$lib/control/Button.svelte'
+	import Folder from '$lib/core/Folder.svelte'
+
+	const testObject = {
+		someColor: {
+			r: 255,
+			g: 0,
+			b: 55,
+		},
+		someOtherColor: {
+			r: 0,
+			g: 255,
+			b: 55,
+		},
+	} as BindingObject
+
+	let showNumbers = true
+	let folderWrap = false
+	let someNumber = 1
+</script>
+
+<Pane>
+	{#if folderWrap}
+		<Folder>
+			{#each Object.keys(testObject) as key}
+				{#if typeof testObject[key] !== 'number' || showNumbers}
+					<AutoValue label={key} bind:value={testObject[key]} />
+				{/if}
+			{/each}
+		</Folder>
+		<Slider label="Some Number" bind:value={someNumber} />
+	{:else}
+		{#each Object.keys(testObject) as key}
+			{#if typeof testObject[key] !== 'number' || showNumbers}
+				<AutoValue label={key} bind:value={testObject[key]} />
+			{/if}
+		{/each}
+		<Slider label="Some Number" bind:value={someNumber} />
+	{/if}
+	<Separator />
+	<ButtonGrid buttons={['Copy', 'Reset']} />
+	<Folder expanded={false} title="Tweakpane CSS Options">
+		<Checkbox label="Show Numbers" bind:value={showNumbers} />
+		<Checkbox label="Folder Wrap" bind:value={folderWrap} />
+	</Folder>
+	<Button />
+</Pane>
+
+=== 384 src/examples/tests/TestPane.svelte	svelte	runes	neutral
+<script lang="ts">
+	import type { Pane as TpPane } from 'tweakpane'
+	import { onMount } from 'svelte'
+	import { Pane, Slider } from '$lib'
+
+	let tpPane: TpPane
+
+	onMount(() => {
+		// Have your way with the pane...
+		tpPane.on('change', (event) => {
+			console.log(event)
+		})
+	})
+
+	let speed = 50
+</script>
+
+<Pane bind:tpPane>
+	<Slider max={100} min={0} bind:value={speed} />
+</Pane>
+
+=== 1289 src/examples/tests/TestPaneAdvanced.svelte	svelte	runes	neutral
+<script lang="ts">
+	import type { Pane as TpPane } from 'tweakpane'
+	import { onMount } from 'svelte'
+	import { Pane, Slider } from '$lib'
+	import Checkbox from '$lib/control/Checkbox.svelte'
+
+	let tpPane1: TpPane
+	let tpPane2: TpPane
+	let tpPane3: TpPane
+
+	let expanded = true
+	let userExpandable = true
+
+	onMount(() => {
+		// Have your way with the pane...
+		console.log('tpPane1:', tpPane1)
+		tpPane1.on('change', (event) => {
+			console.log('tpPane1')
+			console.log(event)
+		})
+		console.log('tpPane2:', tpPane2)
+		tpPane2.on('change', (event) => {
+			console.log('tpPane2')
+			console.log(event)
+		})
+		console.log('tpPane3:', tpPane3)
+		tpPane3.on('change', (event) => {
+			console.log('tpPane3')
+			console.log(event)
+		})
+	})
+
+	let speed = 50
+</script>
+
+<Pane position="draggable" {userExpandable} bind:expanded bind:tpPane={tpPane1}>
+	<Checkbox label="expanded" bind:value={expanded} />
+	<Checkbox label="user expandable" bind:value={userExpandable} />
+	<Slider max={100} min={0} bind:value={speed} />
+</Pane>
+<Pane position="inline" {userExpandable} bind:expanded bind:tpPane={tpPane2}>
+	<Slider max={100} min={0} bind:value={speed} />
+</Pane>
+<Pane position="fixed" {userExpandable} bind:expanded bind:tpPane={tpPane3}>
+	<Slider max={100} min={0} bind:value={speed} />
+</Pane>
+
+=== 1282 src/examples/tests/TestPoint.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Point, type PointChangeEvent, type PointValue2d } from '$lib'
+
+	let point2d: PointValue2d = { x: 0, y: 0 }
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+
+	function listener(event: PointChangeEvent) {
+		console.log(event)
+	}
+</script>
+
+<Point
+	expanded={true}
+	label="2D Point Picker 1"
+	picker="inline"
+	userExpandable={false}
+	bind:value={point2d}
+	on:change={listener}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<Point
+	expanded={true}
+	label="2D Point Picker 2"
+	picker="inline"
+	userExpandable={false}
+	bind:value={point2d}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<pre>Value: <span>{JSON.stringify(point2d, null, 2)}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 1007 src/examples/tests/TestRadioGrid.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { RadioGrid } from '$lib'
+
+	let value = 1
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+</script>
+
+<RadioGrid
+	prefix="Color Scheme "
+	values={[1, 2, 3, 4]}
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<RadioGrid
+	prefix="Color Scheme "
+	values={[1, 2, 3, 4]}
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<pre>Value: <span>{value}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 1253 src/examples/tests/TestRing.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Ring, type RingUnit } from '$lib'
+
+	const unitConfig: RingUnit = {
+		value: 20,
+		pixels: 40,
+		ticks: 5,
+	}
+
+	let angle = 45
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+</script>
+
+<Ring
+	format={(v) => `${(Math.abs(v) % 360).toFixed(0)}°`}
+	label="Ring 1"
+	pointerScale={-2.5}
+	unit={unitConfig}
+	wide={true}
+	bind:value={angle}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<Ring
+	format={(v) => `${(Math.abs(v) % 360).toFixed(0)}°`}
+	label="Ring 2"
+	pointerScale={-2.5}
+	unit={unitConfig}
+	wide={true}
+	bind:value={angle}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<pre>Value: <span>{angle}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 215 src/examples/tests/TestRingWide.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Checkbox, Ring } from '$lib'
+
+	let value = 0
+	let wide = false
+</script>
+
+<Ring label="Ring 1" {wide} bind:value />
+<Checkbox label="Wide" bind:value={wide} />
+<pre>Value: {value}</pre>
+
+=== 1117 src/examples/tests/TestRotationEuler.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { RotationEuler, type RotationEulerValueObject } from '$lib'
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+
+	let value: RotationEulerValueObject = { x: 0, y: 0, z: 0 }
+</script>
+
+<RotationEuler
+	expanded={true}
+	label="CSS Rotation 1"
+	picker="inline"
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<RotationEuler
+	expanded={true}
+	label="CSS Rotation 2"
+	picker="inline"
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<pre>Value: <span>{value}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 1132 src/examples/tests/TestRotationQuaternion.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { RotationQuaternion, type RotationQuaternionValueTuple } from '$lib'
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+
+	let value: RotationQuaternionValueTuple = [0, 0, 0, 0]
+</script>
+
+<RotationQuaternion
+	expanded={true}
+	label="CSS Rotation 1"
+	picker="inline"
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<RotationQuaternion
+	expanded={true}
+	label="CSS Rotation 2"
+	picker="inline"
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<pre>Value: <span>{value}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 958 src/examples/tests/TestSlider.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Slider } from '$lib'
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+
+	let value: number = 0
+</script>
+
+<Slider
+	label="Binding 1"
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<Slider
+	label="Binding 2"
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<hr />
+
+<pre>Value: <span>{value}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 513 src/examples/tests/TestSliderWide.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Checkbox, Slider } from '$lib'
+
+	let value = 0
+	let wide = false
+</script>
+
+<Slider
+	format={(v) => v.toFixed(2)}
+	label="Let it Slide Wide"
+	max={1}
+	min={-1}
+	wide={true}
+	bind:value
+/>
+<Slider
+	format={(v) => v.toFixed(2)}
+	label="Let it Slide"
+	max={1}
+	min={-1}
+	wide={false}
+	bind:value
+/>
+<Slider
+	format={(v) => v.toFixed(2)}
+	label="Let it Slide Wide if Checked"
+	max={1}
+	min={-1}
+	{wide}
+	bind:value
+/>
+<Checkbox label="Wide" bind:value={wide} />
+<pre>Value: {value}</pre>
+
+=== 961 src/examples/tests/TestStepper.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Stepper } from '$lib'
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+
+	let value: number = 0
+</script>
+
+<Stepper
+	label="Binding 1"
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<Stepper
+	label="Binding 2"
+	bind:value
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<hr />
+
+<pre>Value: <span>{value}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 301 src/examples/tests/TestStepperValue.svelte	svelte	runes	neutral
+<script lang="ts">
+	// See https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/24
+
+	import { Stepper } from '$lib'
+
+	let linearValue = 1
+
+	function format(v: number): string {
+		return `${v} $`
+	}
+</script>
+
+<Stepper {format} label="Bla" max={10} min={0} step={0.5} bind:value={linearValue} />
+
+=== 1021 src/examples/tests/TestStoreInitialization.svelte	svelte	runes	neutral
+<script lang="ts">
+	// Via https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/15
+
+	import { onMount, tick } from 'svelte'
+	import { writable } from 'svelte/store'
+	import { Slider } from '$lib'
+
+	const bear = writable({ apples: 100, name: 'Someone' })
+	const bear2 = writable({ apples: 100, name: 'Someone' })
+
+	onMount(async () => {
+		// No tick
+		$bear2.apples = 60
+
+		// With Tick
+		await tick()
+		$bear.apples = 60
+	})
+</script>
+
+<!-- eslint-disable svelte/prefer-destructured-store-props -- Direct store-property binding is behavior under test. -->
+
+<h1>With tick, works in Svelte 4</h1>
+
+<p>Native input</p>
+<input max={100} min={0} step={1} type="range" bind:value={$bear.apples} />
+<p>Svelte Tweakpane UI</p>
+<Slider max={100} min={0} step={1} bind:value={$bear.apples} />
+
+<h1>Without tick, works in Svelte 5</h1>
+
+<p>Native input</p>
+<input max={100} min={0} step={1} type="range" bind:value={$bear2.apples} />
+<p>Svelte Tweakpane UI</p>
+<Slider max={100} min={0} step={1} bind:value={$bear2.apples} />
+
+=== 981 src/examples/tests/TestTabIndexBinding.svelte	svelte	runes	neutral
+<script lang="ts">
+	// https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/31
+	import { Button, Pane, TabGroup, TabPage } from '$lib'
+
+	let mode = 0
+	let tabIndex: number = 1
+
+	function cycleMode() {
+		mode = (mode + 1) % 3
+	}
+</script>
+
+<p>Mode: {mode}</p>
+<p>TabIndex: {tabIndex}</p>
+
+{#if mode === 0}
+	<Pane position="draggable" storePositionLocally={false} title="Controls">
+		<TabGroup bind:selectedIndex={tabIndex}>
+			<TabPage title="A">
+				<Button title="Cycle Mode" on:click={cycleMode} />
+			</TabPage>
+			<TabPage title="B">
+				<Button title="Cycle Mode" on:click={cycleMode} />
+			</TabPage>
+		</TabGroup>
+	</Pane>
+{:else if mode === 1}
+	<Pane position="inline" title="Controls">
+		<TabGroup bind:selectedIndex={tabIndex}>
+			<TabPage title="A">
+				<Button title="Cycle Mode" on:click={cycleMode} />
+			</TabPage>
+			<TabPage title="B">
+				<Button title="Cycle Mode" on:click={cycleMode} />
+			</TabPage>
+		</TabGroup>
+	</Pane>
+{:else}
+	<p>No pane</p>
+{/if}
+
+=== 649 src/examples/tests/TestTabIndexBindingAlt.svelte	svelte	runes	neutral
+<script lang="ts">
+	// https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/31
+	import { Button, Pane, TabGroup, TabPage } from '$lib'
+
+	let draggable = true
+	let tabIndex: number
+
+	function toggleDraggable() {
+		draggable = !draggable
+	}
+</script>
+
+<p>Draggable: {draggable}</p>
+<p>TabIndex: {tabIndex}</p>
+
+<Pane position={draggable ? 'draggable' : 'fixed'} title="Controls">
+	<TabGroup bind:selectedIndex={tabIndex}>
+		<TabPage title="A">
+			<Button title="Toggle Draggable" on:click={toggleDraggable} />
+		</TabPage>
+		<TabPage title="B">
+			<Button title="Toggle Draggable" on:click={toggleDraggable} />
+		</TabPage>
+	</TabGroup>
+</Pane>
+
+=== 1449 src/examples/tests/TestTabsNested.svelte	svelte	runes	neutral
+<script lang="ts">
+	// https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/31
+	import { Button, Pane, TabGroup, TabPage } from '$lib'
+
+	let mode = 0
+	let tabIndexA: number = 0
+	let tabIndexB: number = 1
+
+	function cycleMode() {
+		mode = (mode + 1) % 3
+	}
+</script>
+
+<p>Mode: {mode}</p>
+<p>TabIndexA: {tabIndexA}</p>
+<p>TabIndexB: {tabIndexB}</p>
+
+{#if mode === 0}
+	<Pane position="draggable" storePositionLocally={false} title="Controls">
+		<TabGroup bind:selectedIndex={tabIndexA}>
+			<TabPage title="A">
+				<TabGroup bind:selectedIndex={tabIndexB}>
+					<TabPage title="A">
+						<Button title="Cycle Mode" on:click={cycleMode} />
+					</TabPage>
+					<TabPage title="B">
+						<Button title="Cycle Mode" on:click={cycleMode} />
+					</TabPage>
+				</TabGroup>
+			</TabPage>
+			<TabPage title="B">
+				<Button title="Cycle Mode" on:click={cycleMode} />
+			</TabPage>
+		</TabGroup>
+	</Pane>
+{:else if mode === 1}
+	<Pane position="inline" title="Controls">
+		<TabGroup bind:selectedIndex={tabIndexA}>
+			<TabPage title="A">
+				<TabGroup bind:selectedIndex={tabIndexB}>
+					<TabPage title="A">
+						<Button title="Cycle Mode" on:click={cycleMode} />
+					</TabPage>
+					<TabPage title="B">
+						<Button title="Cycle Mode" on:click={cycleMode} />
+					</TabPage>
+				</TabGroup>
+			</TabPage>
+			<TabPage title="B">
+				<Button title="Cycle Mode" on:click={cycleMode} />
+			</TabPage>
+		</TabGroup>
+	</Pane>
+{:else}
+	<p>No pane</p>
+{/if}
+
+=== 535 src/examples/tests/TestTabsSort.svelte	svelte	runes	neutral
+<script lang="ts">
+	// https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/31
+	import { Button, Pane, TabGroup, TabPage } from '$lib'
+
+	let tabIndex: number = 0
+	let tabPages = ['A', 'B', 'C', 'D']
+
+	function sortTabs() {
+		tabPages = tabPages.toReversed()
+	}
+</script>
+
+<p>TabIndex: {tabIndex}</p>
+
+<Pane position="inline">
+	<TabGroup bind:selectedIndex={tabIndex}>
+		{#each tabPages as pageTitle}
+			<TabPage title={pageTitle}>
+				<Button title="Sort Tabs" on:click={sortTabs} />
+			</TabPage>
+		{/each}
+	</TabGroup>
+</Pane>
+
+=== 1093 src/examples/tests/TestText.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Checkbox, Text } from '$lib'
+
+	let text = 'Cosmic Manifold'
+	let live = true
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+</script>
+
+<Checkbox label="Live" bind:value={live} />
+
+<Text
+	label="The Message"
+	{live}
+	bind:value={text}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<Text
+	label="The Message"
+	{live}
+	bind:value={text}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<pre>Value: <span>{text}</span></pre>
+<pre>Live: <span>{live}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 1419 src/examples/tests/TestTextStringDetection.svelte	svelte	runes	neutral
+<script lang="ts">
+	// Svelte Tweakpane UI's Text component should NOT give color-like string
+	// special treatment, use the Color component instead.
+	//
+	// Related:
+	// https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/17
+
+	import { AutoObject, AutoValue, Color, Text } from '$lib'
+
+	let strings: Record<string, string> = {
+		sample01: 'Hi',
+		sample02: '1',
+		sample03: '0x13',
+		sample04: '0x1337',
+		sample05: '0xEE1337',
+		sample06: '0x1337AA',
+		sample07: '0x1337AA13',
+		sample08: '#13',
+		sample09: '#1337',
+		sample10: '#EE1337',
+		sample11: '#1337AA',
+		sample12: '#1337AA13',
+		sample13: '238, 19, 55',
+		sample14: '238, 19, 55, 0.5',
+		sample15: 'rgb(238, 19, 55)',
+		sample16: 'rgba(238, 19, 55, 0.5)',
+		sample17: 'hsl(238, 19, 55)',
+		sample18: 'hsla(238, 19, 55, 0.5)',
+		sample19: 'hsv(238, 19, 55)',
+		sample20: 'hsva(238, 19, 55, 0.5)',
+		sample21: 'True',
+		sample22: 'true',
+		sample23: 'False',
+		sample24: 'false',
+		sample25: 'red',
+	}
+</script>
+
+<hr />
+<h1>Text Component</h1>
+{#each Object.keys(strings) as key}
+	<Text label={key} bind:value={strings[key]} />
+{/each}
+<hr />
+<h1>Auto Value</h1>
+{#each Object.keys(strings) as key}
+	<AutoValue label={key} bind:value={strings[key]} />
+{/each}
+
+<hr />
+<h1>Auto Object</h1>
+<AutoObject bind:object={strings} />
+<hr />
+<h1>Color Component</h1>
+{#each Object.keys(strings) as key}
+	<Color label={key} bind:value={strings[key]} />
+{/each}
+
+=== 1125 src/examples/tests/TestTextarea.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Checkbox, Textarea } from '$lib'
+
+	let text = 'Cosmic Manifold'
+	let live = true
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+</script>
+
+<Checkbox label="Live" bind:value={live} />
+
+<Textarea
+	label="The Message"
+	{live}
+	rows={8}
+	bind:value={text}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<Textarea
+	label="The Message"
+	{live}
+	rows={8}
+	bind:value={text}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<pre>Value: <span>{text}</span></pre>
+<pre>Live: <span>{live}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 428 src/examples/tests/TestTitlelessDraggable.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Pane, Text } from '$lib'
+	let title = ''
+	let title2 = 'Title'
+</script>
+
+<a href="https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/1">Issue #1</a>
+
+<Pane position="draggable" {title} x={10} y={150}>
+	<Text label="Pane Title" bind:value={title} />
+</Pane>
+
+<Pane localStoreId="B" position="draggable" title={title2} x={10} y={220}>
+	<Text label="Pane Title" bind:value={title2} />
+</Pane>
+
+=== 1130 src/examples/tests/TestWheel.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Wheel } from '$lib'
+
+	let angle = 45
+
+	let binding1InternalEventCount = 0
+	let binding1ExternalEventCount = 0
+	let binding2InternalEventCount = 0
+	let binding2ExternalEventCount = 0
+</script>
+
+<Wheel
+	format={(v) => `${(Math.abs(v) % 360).toFixed(0)}°`}
+	label="Wheel 1"
+	pointerScale={-2.5}
+	wide={true}
+	bind:value={angle}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding1InternalEventCount++
+		} else {
+			binding1ExternalEventCount++
+		}
+	}}
+/>
+<Wheel
+	format={(v) => `${(Math.abs(v) % 360).toFixed(0)}°`}
+	label="Wheel 2"
+	pointerScale={-2.5}
+	wide={true}
+	bind:value={angle}
+	on:change={(event) => {
+		if (event.detail.origin === 'internal') {
+			binding2InternalEventCount++
+		} else {
+			binding2ExternalEventCount++
+		}
+	}}
+/>
+
+<pre>Value: <span>{angle}</span></pre>
+<pre>Binding 1 Internal: <span>{binding1InternalEventCount}</span></pre>
+<pre>Binding 1 External: <span>{binding1ExternalEventCount}</span></pre>
+<pre>Binding 2 Internal: <span>{binding2InternalEventCount}</span></pre>
+<pre>Binding 2 External: <span>{binding2ExternalEventCount}</span></pre>
+
+=== 218 src/examples/tests/TestWheelWide.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Checkbox, Wheel } from '$lib'
+
+	let value = 0
+	let wide = false
+</script>
+
+<Wheel label="Wheel 1" {wide} bind:value />
+<Checkbox label="Wide" bind:value={wide} />
+<pre>Value: {value}</pre>
+

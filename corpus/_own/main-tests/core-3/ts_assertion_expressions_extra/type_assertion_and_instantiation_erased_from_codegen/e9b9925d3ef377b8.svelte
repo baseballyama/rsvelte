@@ -1,0 +1,1 @@
+<script lang="ts">let d = 0; function f<T>(): number { return 0; }</script>{<number>d}{f<number>()}

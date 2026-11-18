@@ -1,0 +1,1 @@
+<script>import Foo from './Foo.svelte';</script><svelte:head><Foo/></svelte:head>

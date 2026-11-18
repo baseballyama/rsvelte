@@ -1,0 +1,2 @@
+<script>let { a } = /* c */ $props();
+console.log("KEEP");</script><i>{a}</i>

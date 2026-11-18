@@ -1,0 +1,558 @@
+# rsvelte pack 1
+=== 3 src/components/Counter.svelte	json
+[]
+
+=== 3 src/components/Features.svelte	json
+[]
+
+=== 3 src/components/Hero.svelte	json
+[]
+
+=== 3 src/components/KeyboardShortcut.svelte	json
+[]
+
+=== 434 src/components/Navbar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../utils/switchTheme' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	}
+]
+
+=== 214 src/components/Sidebar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	}
+]
+
+=== 2516 src/lib/components/CommandPalette.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../store/PaletteStore' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 30
+		},
+		"end": {
+			"line": 4,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../utils/createShortcuts' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 29
+		},
+		"end": {
+			"line": 8,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../utils' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 85
+		},
+		"end": {
+			"line": 9,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../utils/createStoreMethods' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 32
+		},
+		"end": {
+			"line": 10,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../utils/createActionMap' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 29
+		},
+		"end": {
+			"line": 11,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../constants' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 31
+		},
+		"end": {
+			"line": 12,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 73
+		},
+		"end": {
+			"line": 13,
+			"character": 85
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'csstype' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 33
+		},
+		"end": {
+			"line": 14,
+			"character": 42
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'n' implicitly has an 'any' type.",
+		"start": {
+			"line": 106,
+			"character": 23
+		},
+		"end": {
+			"line": 106,
+			"character": 24
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 166,
+			"character": 52
+		},
+		"end": {
+			"line": 166,
+			"character": 53
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 178,
+			"character": 53
+		},
+		"end": {
+			"line": 178,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'tinykeys' or its corresponding type declarations.",
+		"start": {
+			"line": 228,
+			"character": 53
+		},
+		"end": {
+			"line": 228,
+			"character": 63
+		}
+	}
+]
+
+=== 427 src/lib/components/KeyboardButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 55
+		},
+		"end": {
+			"line": 4,
+			"character": 67
+		}
+	}
+]
+
+=== 3 src/lib/components/Portal.svelte	json
+[]
+
+=== 1252 src/lib/components/Result.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../store/PaletteStore' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../utils' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../constants' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 31
+		},
+		"end": {
+			"line": 5,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 77
+		},
+		"end": {
+			"line": 6,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'tinykeys' or its corresponding type declarations.",
+		"start": {
+			"line": 56,
+			"character": 32
+		},
+		"end": {
+			"line": 56,
+			"character": 42
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'value' implicitly has an 'any' type.",
+		"start": {
+			"line": 66,
+			"character": 23
+		},
+		"end": {
+			"line": 66,
+			"character": 28
+		}
+	}
+]
+
+=== 854 src/lib/components/ResultPanel.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../store/PaletteStore' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../utils' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 48
+		},
+		"end": {
+			"line": 5,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../constants' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 31
+		},
+		"end": {
+			"line": 6,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 78
+		},
+		"end": {
+			"line": 7,
+			"character": 90
+		}
+	}
+]
+
+=== 220 src/routes/+layout.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../app.css'.",
+		"start": {
+			"line": 3,
+			"character": 8
+		},
+		"end": {
+			"line": 3,
+			"character": 20
+		}
+	}
+]
+
+=== 1238 src/routes/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 67
+		},
+		"end": {
+			"line": 5,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../store/themeStore' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../utils/switchTheme' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 47
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'value' implicitly has an 'any' type.",
+		"start": {
+			"line": 15,
+			"character": 24
+		},
+		"end": {
+			"line": 15,
+			"character": 29
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'action' implicitly has an 'any' type.",
+		"start": {
+			"line": 98,
+			"character": 18
+		},
+		"end": {
+			"line": 98,
+			"character": 24
+		}
+	}
+]
+
+=== 636 src/routes/docs/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 67
+		},
+		"end": {
+			"line": 4,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lucide-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 8
+		},
+		"end": {
+			"line": 17,
+			"character": 23
+		}
+	}
+]
+
+=== 218 src/routes/docs/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 3 src/routes/docs/command-palette-api/+page.svelte	json
+[]
+
+=== 216 src/routes/docs/custom-components/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lucide-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 68
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 3 src/routes/docs/define-actions-api/+page.svelte	json
+[]
+
+=== 3 src/routes/docs/define-actions/+page.svelte	json
+[]
+
+=== 3 src/routes/docs/installation/+page.svelte	json
+[]
+
+=== 3 src/routes/docs/palette-store/+page.svelte	json
+[]
+
+=== 3 src/routes/docs/quick-start/+page.svelte	json
+[]
+
+=== 3 src/routes/docs/shortcuts/+page.svelte	json
+[]
+
+=== 3 src/routes/docs/store-methods-api/+page.svelte	json
+[]
+
+=== 3 src/routes/docs/styling/+page.svelte	json
+[]
+
+=== 3 src/routes/docs/theming/+page.svelte	json
+[]
+

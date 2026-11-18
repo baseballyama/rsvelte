@@ -1,0 +1,270 @@
+use rsvelte_kernel::computation::database::DocumentContext;
+use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::computation::task::{Task, TaskOutput};
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::RenderPlan;
+use rsvelte_svelte_compile::lower::{self, Item, Target, Text};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerSyntaxTree, NodeKind};
+
+fn text(plan: &RenderPlan, children: Children, source: &str, tree: &CompilerSyntaxTree) -> String {
+    plan.fragment(children)
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Text { data, .. } => Some(data.get(source, tree)),
+            Item::Node(_) | Item::Expression(_) | Item::Comment => None,
+        })
+        .collect()
+}
+
+fn element(tree: &CompilerSyntaxTree, source: &str, name: &str) -> Children {
+    tree.elements()
+        .find(|(_, element)| element.name.text(source) == name)
+        .expect("test element exists")
+        .1
+        .children
+}
+
+#[test]
+fn whitespace_context_follows_regions_and_does_not_escape_pre() {
+    let source = concat!(
+        "<pre>\n  {#if show}  yes  {:else}  no  {/if}",
+        "{#each items as item}  {item}  {:else}  empty  {/each}</pre><p>  after  </p>"
+    );
+    let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
+    let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
+    let input = rsvelte_svelte_compile::CompileInput::from(rsvelte_svelte_semantic::svelte_input(
+        &component,
+        &tree,
+        source,
+        "App.svelte",
+    ));
+    let plan = RenderPlan::build(&input);
+    assert_eq!(
+        text(&plan, element(&tree, source, "p"), source, &tree),
+        "after"
+    );
+    for node in &tree.nodes {
+        match &node.kind {
+            NodeKind::If {
+                branches,
+                otherwise,
+            } => {
+                for branch in tree.branches(*branches) {
+                    assert_eq!(text(&plan, branch.body, source, &tree), "  yes  ");
+                    assert!(!plan.fragment(branch.body).text_first);
+                }
+                assert_eq!(
+                    text(&plan, otherwise.expect("has else"), source, &tree),
+                    "  no  "
+                );
+            }
+            NodeKind::Each(each) => {
+                assert_eq!(text(&plan, each.body, source, &tree), "    ");
+                assert!(plan.fragment(each.body).text_first);
+                assert_eq!(
+                    text(&plan, each.fallback.expect("has fallback"), source, &tree),
+                    "  empty  "
+                );
+            }
+            _ => {}
+        }
+    }
+}
+
+#[test]
+fn plans_keep_decoded_text_and_markup_separate_and_outlive_the_parse() {
+    let (plan, children, source, tree) = {
+        let source = String::from("<p>&amp; &#65;</p>");
+        let component = rsvelte_svelte_syntax::parse::parse(&source).expect("parses");
+        let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, &source);
+        let children = element(&tree, &source, "p");
+        let plan = RenderPlan::build(&rsvelte_svelte_compile::CompileInput::from(
+            rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "App.svelte"),
+        ));
+        (plan, children, source, tree)
+    };
+    let [Item::Text { data, raw }] = plan.fragment(children).items.as_ref() else {
+        panic!("one text item")
+    };
+    assert_eq!(data.get(&source, &tree), "& A");
+    assert_eq!(raw.get(&source, &tree), "&amp; &#65;");
+    send_sync(&plan);
+}
+
+/// Each text of `element`'s children: its data, then its raw.
+fn texts(source: &str, element_name: &str) -> Vec<(Text, Text)> {
+    let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
+    let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
+    let plan = RenderPlan::build(&rsvelte_svelte_compile::CompileInput::from(
+        rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "App.svelte"),
+    ));
+    (plan
+        .fragment(element(&tree, source, element_name))
+        .items
+        .iter())
+    .filter_map(|item| match item {
+        Item::Text { data, raw } => Some((data.clone(), raw.clone())),
+        Item::Node(_) | Item::Expression(_) | Item::Comment => None,
+    })
+    .collect()
+}
+
+#[test]
+fn plans_own_a_text_only_where_cleaning_changes_it() {
+    let at = |start, end| Text::Source(Span::new(start, end));
+    // Trimmed at both ends: a range of the source.
+    assert_eq!(texts("<p>  text  </p>", "p"), [(at(5, 9), at(5, 9))]);
+    // Collapsed to one space on each side, which the source has: still a range.
+    assert_eq!(
+        texts("<p><i></i> b <i></i></p>", "p"),
+        [(at(10, 13), at(10, 13))]
+    );
+    // The newlines become spaces, which no range of the source holds.
+    let owned = Text::Owned(" b ".into());
+    assert_eq!(
+        texts("<p><i></i>\nb\n<i></i></p>", "p"),
+        [(owned.clone(), owned)]
+    );
+    // A decoded reference is the compiler tree's string; its markup is still the source's.
+    let [
+        (
+            Text::Decoded {
+                start: 0, end: 1, ..
+            },
+            raw,
+        ),
+    ] = &*texts("<p>&amp;</p>", "p")
+    else {
+        panic!("one decoded text")
+    };
+    assert_eq!(*raw, at(3, 8));
+}
+
+#[test]
+fn whitespace_options_produce_separate_plans_without_changing_the_compiler_syntax_tree() {
+    let source = "<p>  text  </p>";
+    let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
+    let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
+    let before = format!("{tree:?}");
+    let children = element(&tree, source, "p");
+    let mut input = rsvelte_svelte_compile::CompileInput::from(
+        rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "App.svelte"),
+    );
+    let normal = RenderPlan::build(&input);
+    input.preserve_whitespace = true;
+    let preserved = RenderPlan::build(&input);
+    assert_eq!(text(&normal, children, source, &tree), "text");
+    assert_eq!(text(&preserved, children, source, &tree), "  text  ");
+    assert_eq!(format!("{tree:?}"), before);
+}
+
+#[test]
+fn empty_regions_are_valid_in_every_parent_context() {
+    for source in [
+        "",
+        "<!-- comment -->",
+        "<div/><pre/><p/>",
+        "{#if show}{:else}{/if}",
+    ] {
+        let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
+        let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
+        let plan = RenderPlan::build(&rsvelte_svelte_compile::CompileInput::from(
+            rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "App.svelte"),
+        ));
+        for (_, element) in tree.elements() {
+            assert!(plan.fragment(element.children).items.is_empty());
+            assert!(!plan.fragment(element.children).text_first);
+        }
+        assert!(!plan.fragment(tree.root).text_first);
+    }
+}
+
+#[test]
+fn both_targets_reuse_the_document_plan() {
+    let mut registry = Registry::new();
+    rsvelte_svelte_compile::register(&mut registry);
+    let document = registry
+        .document("App.svelte", include_str!("preserve_whitespace/App.svelte"))
+        .expect("valid document");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let plan = context
+        .get::<rsvelte_svelte_compile::Planned>()
+        .as_ref()
+        .expect("plan");
+    let identity = context
+        .get::<rsvelte_svelte_compile::Identified>()
+        .as_ref()
+        .expect("output identity");
+    for target in [Target::Client, Target::Server] {
+        let mut output = TaskOutput::default();
+        rsvelte_svelte_compile::Compile { target }.run(&context, &mut output);
+        assert!(
+            output.diagnostics.is_empty(),
+            "{target:?}: {:?}",
+            output.diagnostics
+        );
+        assert!(output.files.iter().any(|file| file.name == "js"));
+        assert!(std::ptr::eq(
+            identity,
+            context
+                .get::<rsvelte_svelte_compile::Identified>()
+                .as_ref()
+                .expect("cached identity")
+        ));
+        assert!(std::ptr::eq(
+            plan,
+            context
+                .get::<rsvelte_svelte_compile::Planned>()
+                .as_ref()
+                .expect("cached plan"),
+        ));
+    }
+}
+
+#[test]
+fn both_targets_keep_the_oracle_checked_whitespace_modules() {
+    let source = include_str!("preserve_whitespace/App.svelte");
+    let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
+    let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
+    let resolution = rsvelte_svelte_semantic::resolve::resolve(
+        &component.javascript,
+        component.instance.as_ref().map(|s| s.program),
+        component.module.as_ref().map(|s| s.program),
+        &tree,
+    );
+    let mut input = rsvelte_svelte_compile::CompileInput::from(
+        rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "App.svelte"),
+    );
+    input.preserve_whitespace = true;
+    let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
+    let plan = RenderPlan::build(&input);
+    for (target, expected) in [
+        (
+            Target::Client,
+            include_str!("preserve_whitespace/client.js"),
+        ),
+        (
+            Target::Server,
+            include_str!("preserve_whitespace/server.js"),
+        ),
+    ] {
+        let allocator = oxc_allocator::Allocator::default();
+        let module =
+            lower::lower_with_plan(&input, &resolution, &analysis, target, &plan, &allocator)
+                .expect("lowers");
+        let actual = rsvelte_typescript_compile::print::print(&module);
+        assert_eq!(actual, reprinted(expected), "{target:?}");
+    }
+}
+
+const fn send_sync<T: Send + Sync>(_: &T) {}
+
+/// `javascript` as the compiler prints it, so that an official module compares by its tree.
+fn reprinted(javascript: &str) -> String {
+    let allocator = oxc_allocator::Allocator::default();
+    let parsed =
+        oxc_parser::Parser::new(&allocator, javascript, oxc_span::SourceType::mjs()).parse();
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    rsvelte_typescript_compile::print::print(&parsed.program)
+}

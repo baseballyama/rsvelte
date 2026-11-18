@@ -1,0 +1,1 @@
+<Comp p={<string>y} />

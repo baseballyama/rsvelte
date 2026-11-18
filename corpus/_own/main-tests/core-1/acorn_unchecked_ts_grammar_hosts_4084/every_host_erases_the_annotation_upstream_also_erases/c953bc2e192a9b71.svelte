@@ -1,0 +1,1 @@
+<script lang="ts"></script>{#snippet s(p = <string>() => 1)}{p}{/snippet}{@render s()}

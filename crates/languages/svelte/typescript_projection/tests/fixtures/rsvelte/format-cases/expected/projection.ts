@@ -1,0 +1,42 @@
+;
+function $$render() {
+  
+/** @type {typeof __rsvelte_public_props0} */ let {items,title='List'}=$props()
+let total=$derived(items.length*2+1)
+
+;
+
+  const __rsvelte_public_props0 = __rsvelte_props({
+    items: __rsvelte_untyped_prop(),
+  }, {
+    title: 'List',
+  }, false);
+  async () => {
+    {
+      svelteHTML.createElement("section", {
+        "class": "list",
+        ...(__sveltets_2_empty({
+          "data-count": total,
+        })),
+      });
+      {
+        svelteHTML.createElement("h2", {});
+        title;
+      }
+      if (items.length>0) {
+        {
+          svelteHTML.createElement("p", {});
+          total;
+          items[0];
+        }
+      } else {
+        {
+          svelteHTML.createElement("p", {});
+        }
+      }
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+}
+const FormatCases__SvelteComponent_ = $$render();
+export default /** @type {__rsvelte_javascript_export<typeof FormatCases__SvelteComponent_>} */ (FormatCases__SvelteComponent_);

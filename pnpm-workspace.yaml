@@ -1,21 +1,8 @@
 packages:
-  - 'apps/npm/*'
-# Build scripts allowed to run on install (pnpm 11 blocks unlisted ones).
-# Pulled in transitively by the `@rsvelte/vite-plugin-svelte` devDependency
-# on vite; allowed so vite works if invoked locally. esbuild also backs the
-# corpus pipeline's .svelte.ts TS-strip (scripts/compat-corpus/compile.mjs).
+  - apps/site
+  - tools/*
 allowBuilds:
-  '@parcel/watcher': true
-  core-js-pure: false
   esbuild: true
-# `svelte`, `vite`, and `oxlint` are Renovate-bumped tooling deps that get
-# bumped the moment upstream publishes. The CI runner's global `minimumReleaseAge`
-# gate then rejects the fresh lockfile entry until it ages out (~24h), red-flagging
-# `pnpm install` on every PR (and main) in the interim — see the
-# ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION on svelte@5.56.4 / vite@8.1.0 / oxlint@1.75.0.
-# Exclude them from the release-age gate; their upgrades are reviewed via Renovate PRs.
-minimumReleaseAgeExclude:
-  - svelte
-  - vite
-  - oxlint
-  - '@oxlint/*'
+  workerd: true
+# Packages are taken as soon as they are published, as with pnpm 10 (pnpm 11 waits a day by default).
+minimumReleaseAge: 0

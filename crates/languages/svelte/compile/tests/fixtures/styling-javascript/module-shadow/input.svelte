@@ -1,0 +1,1 @@
+<script module>const value="a";export function get(){return value;}</script><script>const value="b";</script><p class={value}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

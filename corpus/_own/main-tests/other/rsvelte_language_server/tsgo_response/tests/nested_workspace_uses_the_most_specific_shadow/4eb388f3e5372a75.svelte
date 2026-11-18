@@ -1,0 +1,1 @@
+<script>let value = 1;</script>

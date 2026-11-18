@@ -1,0 +1,1 @@
+<script>const o = a?.find?.(1).value;</script>

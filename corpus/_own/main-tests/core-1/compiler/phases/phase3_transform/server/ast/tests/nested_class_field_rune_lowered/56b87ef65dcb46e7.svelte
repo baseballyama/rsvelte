@@ -1,0 +1,1 @@
+<script>class A { x = $state(1); m() { class B { y = $state(2); } return B; } }</script>

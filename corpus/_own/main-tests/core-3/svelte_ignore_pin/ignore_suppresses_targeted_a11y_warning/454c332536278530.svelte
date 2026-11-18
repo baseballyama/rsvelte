@@ -1,0 +1,1 @@
+<!-- svelte-ignore a11y_unknown_role --><div role="invalid_role">x</div>

@@ -1,0 +1,8 @@
+[[steps]]
+click = "button.change"
+
+[[steps]]
+click = "button.snapshot"
+
+[[steps]]
+click = "button.change"

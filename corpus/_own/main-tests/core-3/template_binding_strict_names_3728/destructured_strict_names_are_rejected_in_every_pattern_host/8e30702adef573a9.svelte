@@ -1,0 +1,1 @@
+{#await promise then { key: arguments }}x{/await}

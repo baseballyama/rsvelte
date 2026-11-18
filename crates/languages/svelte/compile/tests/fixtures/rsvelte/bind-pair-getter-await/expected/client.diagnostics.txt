@@ -1,0 +1,2 @@
+error experimental_async 6:32-6:39 Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`
+    https://svelte.dev/e/experimental_async

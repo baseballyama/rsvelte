@@ -1,0 +1,1 @@
+<script>function run() {} let value = 0; switch (value) { case 1: break; }</script><button onclick={run}>run</button>

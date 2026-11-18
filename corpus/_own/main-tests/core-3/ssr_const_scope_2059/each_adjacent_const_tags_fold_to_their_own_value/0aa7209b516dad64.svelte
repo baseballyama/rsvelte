@@ -1,0 +1,1 @@
+{#if a}<p>A</p>{:else}{@const x = 1}<p>{x}</p>{/if}{#each items as item}{@const x = 2}<p>{x}</p>{/each}

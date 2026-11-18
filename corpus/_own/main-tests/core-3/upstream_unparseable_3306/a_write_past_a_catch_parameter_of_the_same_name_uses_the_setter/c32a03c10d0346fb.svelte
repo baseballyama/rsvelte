@@ -1,0 +1,1 @@
+<script>let v = "OUTER";</script>{#await Promise.reject("A")}w{:catch v}{String(v)}{/await}<button onclick={() => { v = "W"; }}>b</button>

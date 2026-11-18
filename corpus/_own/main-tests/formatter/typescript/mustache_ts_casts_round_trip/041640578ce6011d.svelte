@@ -1,0 +1,1 @@
+<script lang="ts"></script><p>{arr as string[]}</p>

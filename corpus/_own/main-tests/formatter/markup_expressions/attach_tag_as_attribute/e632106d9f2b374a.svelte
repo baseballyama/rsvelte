@@ -1,0 +1,1 @@
+<div {@attach  effect (x ) }></div>

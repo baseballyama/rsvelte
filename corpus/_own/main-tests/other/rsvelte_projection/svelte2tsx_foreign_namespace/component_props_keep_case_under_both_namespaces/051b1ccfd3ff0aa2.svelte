@@ -1,0 +1,1 @@
+<Component someAttr="5" />

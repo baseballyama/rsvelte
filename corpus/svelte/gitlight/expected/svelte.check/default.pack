@@ -1,0 +1,560 @@
+# rsvelte pack 1
+=== 3 src/lib/components/common/DragRegion.svelte	json
+[]
+
+=== 1489 src/lib/components/dashboard/Banner.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/features' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 32
+		},
+		"end": {
+			"line": 6,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 48
+		},
+		"end": {
+			"line": 7,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../landing' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 32
+		},
+		"end": {
+			"line": 8,
+			"character": 44
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property '__TAURI__' does not exist on type 'Window & typeof globalThis'.",
+		"start": {
+			"line": 63,
+			"character": 17
+		},
+		"end": {
+			"line": 63,
+			"character": 26
+		}
+	}
+]
+
+=== 218 src/lib/components/dashboard/LoadingScreen.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 42
+		},
+		"end": {
+			"line": 1,
+			"character": 59
+		}
+	}
+]
+
+=== 640 src/lib/components/settings/accounts/Accounts.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 40
+		},
+		"end": {
+			"line": 2,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './Account.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	}
+]
+
+=== 859 src/lib/components/settings/gitlab-settings/GitlabSettings.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './GitlabRepos.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	}
+]
+
+=== 3 src/lib/icons/AnsweredDiscussionIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/ArrowRightIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/ArrowUpIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/CheckIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/ClosedIssueIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/ClosedPullRequestIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/CommitIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/CompletedIssueIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/CrossIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/DiscussionIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/DoubleArrowIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/DoubleCheckIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/DraftPullRequestIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/ExclamationMarkIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/ExternalLinkIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/GearIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/GithubIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/GitlabIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/HeartIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/LightningIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/LinuxIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/MacosIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/MergedPullRequestIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/MuteIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/MutedIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/OpenIssueIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/OpenPullRequestIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/PersonIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/PinIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/PlusIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/PriorityDownIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/PriorityIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/PriorityUpIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/RefreshIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/ReleaseIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/RepositoryIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/RestoreIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/SearchIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/SmallArrowIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/SparklesIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/ThreeDotsIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/TrashIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/UnpinIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/UnreadIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/WindowsIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/WorkflowFailIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/WorkflowSuccessIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/XIcon.svelte	json
+[]
+
+=== 643 src/routes/(app)/deeplink/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/features' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 32
+		},
+		"end": {
+			"line": 4,
+			"character": 46
+		}
+	}
+]
+
+=== 2314 src/routes/(tray)/tray/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/event' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 41
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 54
+		},
+		"end": {
+			"line": 4,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 33
+		},
+		"end": {
+			"line": 5,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 49
+		},
+		"end": {
+			"line": 6,
+			"character": 61
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'overlayscrollbars/overlayscrollbars.css'.",
+		"start": {
+			"line": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 8,
+			"character": 49
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property '__TAURI__' does not exist on type 'Window & typeof globalThis'.",
+		"start": {
+			"line": 23,
+			"character": 13
+		},
+		"end": {
+			"line": 23,
+			"character": 22
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 27,
+			"character": 68
+		},
+		"end": {
+			"line": 27,
+			"character": 73
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 30,
+			"character": 48
+		},
+		"end": {
+			"line": 30,
+			"character": 53
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 33,
+			"character": 50
+		},
+		"end": {
+			"line": 33,
+			"character": 55
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property '__TAURI__' does not exist on type 'Window & typeof globalThis'.",
+		"start": {
+			"line": 50,
+			"character": 24
+		},
+		"end": {
+			"line": 50,
+			"character": 33
+		}
+	}
+]
+
+=== 645 src/routes/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 40
+		},
+		"end": {
+			"line": 3,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 8
+		},
+		"end": {
+			"line": 11,
+			"character": 20
+		}
+	}
+]
+

@@ -1,0 +1,26 @@
+[package]
+name = "rsvelte_kernel"
+description = "Language-agnostic core: documents and positions, diagnostics, generated text, the derived-artifact database, task scheduling, and measurements"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[features]
+# Phase timing and allocation attribution. Off: every probe compiles to nothing.
+metrics = []
+# Artifact-order tracing for tests and diagnostics. Off: a context stores no trace.
+trace-artifacts = []
+
+[dependencies]
+rayon.workspace = true
+semver.workspace = true
+rustc-hash.workspace = true
+stacker.workspace = true
+memchr.workspace = true
+
+[lints]
+workspace = true

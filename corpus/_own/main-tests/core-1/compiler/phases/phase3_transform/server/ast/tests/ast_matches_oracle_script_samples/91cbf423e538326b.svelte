@@ -1,0 +1,1 @@
+<script>class C { d = $derived(1 + 1); }</script><p>x</p>

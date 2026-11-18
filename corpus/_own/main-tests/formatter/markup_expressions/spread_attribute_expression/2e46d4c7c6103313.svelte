@@ -1,0 +1,1 @@
+<div {...obj . props}></div>

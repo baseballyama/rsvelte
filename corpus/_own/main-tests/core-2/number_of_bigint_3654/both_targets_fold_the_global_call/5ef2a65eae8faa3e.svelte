@@ -1,0 +1,1 @@
+<p>{Number(true)}</p>

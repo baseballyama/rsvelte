@@ -1,0 +1,1 @@
+<script>let n = $state(1); let { a } = $derived.by(() => ({ a: n }));</script><p>{a}</p>

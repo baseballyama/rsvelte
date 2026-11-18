@@ -1,0 +1,1 @@
+<div transition:fade|global in:fade|local out:fade|local>x</div>

@@ -1,0 +1,1 @@
+<script>const c = 'foo';</script><a href={c}>x</a>

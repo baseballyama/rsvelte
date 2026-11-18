@@ -1,0 +1,219 @@
+# rsvelte pack 1
+=== 645 src/lib/components/Canvas.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'hit-canvas' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util/getMaxPixelRatio' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 35
+		},
+		"end": {
+			"line": 4,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 50
+		},
+		"end": {
+			"line": 5,
+			"character": 60
+		}
+	}
+]
+
+=== 432 src/lib/components/Layer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util/registerLayer' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	}
+]
+
+=== 208 src/routes/_components/Code.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'shiki' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	}
+]
+
+=== 3 src/routes/_components/Demo/Blob.svelte	json
+[]
+
+=== 3 src/routes/_components/Demo/Circle.svelte	json
+[]
+
+=== 3 src/routes/_components/Demo/Demo.svelte	json
+[]
+
+=== 3 src/routes/_components/Demo/DemoLayer.svelte	json
+[]
+
+=== 3 src/routes/_components/Demo/Rect.svelte	json
+[]
+
+=== 3 src/routes/_components/Demo/Text.svelte	json
+[]
+
+=== 3 src/routes/_components/Demo/Tooltip.svelte	json
+[]
+
+=== 3 src/routes/_components/Example.svelte	json
+[]
+
+=== 647 src/routes/_components/Layout.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of './page.css'.",
+		"start": {
+			"line": 1,
+			"character": 9
+		},
+		"end": {
+			"line": 1,
+			"character": 21
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 35
+		},
+		"end": {
+			"line": 3,
+			"character": 53
+		}
+	}
+]
+
+=== 214 src/routes/_components/NavMenu.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 23
+		},
+		"end": {
+			"line": 7,
+			"character": 36
+		}
+	}
+]
+
+=== 3 src/routes/examples/canvas-svg/App.svelte	json
+[]
+
+=== 3 src/routes/examples/canvas-svg/Bubble.svelte	json
+[]
+
+=== 3 src/routes/examples/dvd-bounce/App.svelte	json
+[]
+
+=== 3 src/routes/examples/dvd-bounce/Background.svelte	json
+[]
+
+=== 3 src/routes/examples/dvd-bounce/Logo.svelte	json
+[]
+
+=== 3 src/routes/examples/globe/App.svelte	json
+[]
+
+=== 3 src/routes/examples/hello-world/App.svelte	json
+[]
+
+=== 3 src/routes/examples/layer-events/App.svelte	json
+[]
+
+=== 3 src/routes/examples/layer-events/Ball.svelte	json
+[]
+
+=== 3 src/routes/examples/pixel-ratio/App.svelte	json
+[]
+
+=== 3 src/routes/examples/reactive-render/App.svelte	json
+[]
+
+=== 3 src/routes/examples/resize/App.svelte	json
+[]
+
+=== 3 src/routes/examples/resize/ResizableLayer.svelte	json
+[]
+
+=== 3 src/routes/examples/resize/ResizableLayerHandle.svelte	json
+[]
+
+=== 3 src/routes/examples/resize/ResizableLayerSurface.svelte	json
+[]
+
+=== 3 src/routes/examples/scatterplot/App.svelte	json
+[]
+
+=== 3 src/routes/examples/scatterplot/Axis.svelte	json
+[]
+
+=== 3 src/routes/examples/scatterplot/Point.svelte	json
+[]
+

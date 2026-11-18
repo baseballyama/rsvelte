@@ -1,0 +1,1 @@
+<!-- svelte-ignore css_unused_selector --><p>ok</p><div role="invalid_role">x</div><style>.unused{color:red}</style>

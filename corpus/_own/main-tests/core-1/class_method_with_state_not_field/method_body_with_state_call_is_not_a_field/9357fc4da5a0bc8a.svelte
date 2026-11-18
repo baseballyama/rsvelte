@@ -1,0 +1,1 @@
+<script>class C { m(){ let x = $state(0); return "}"; } }</script>

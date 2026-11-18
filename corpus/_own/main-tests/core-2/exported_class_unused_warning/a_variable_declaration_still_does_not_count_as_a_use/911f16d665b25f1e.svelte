@@ -1,0 +1,1 @@
+<script>export let value = 1;</script>

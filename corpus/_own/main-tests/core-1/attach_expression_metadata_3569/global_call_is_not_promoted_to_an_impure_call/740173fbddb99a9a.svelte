@@ -1,0 +1,1 @@
+<div {@attach globalThis.make()}></div>

@@ -1,0 +1,1 @@
+{#await p}w{:catch}bad{/await}

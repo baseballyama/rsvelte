@@ -1,0 +1,1 @@
+<A>{#snippet child({ value })}{value}{/snippet}</A>

@@ -1,0 +1,3 @@
+<Comp
+  title={hue}
+/>

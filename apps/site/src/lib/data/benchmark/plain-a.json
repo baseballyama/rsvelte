@@ -1,0 +1,143 @@
+{
+	"build": {
+		"rev": "d6f426e250d0e5a14828e6daa12baca77a8e01b1",
+		"profile": "release",
+		"metrics": false
+	},
+	"threads": 10,
+	"population": {
+		"root": "fixtures/svelte",
+		"documents": 17489,
+		"unclaimed": 580,
+		"bytes": 32259121,
+		"output_bytes": 7131622,
+		"panicked": [],
+		"tasks": {
+			"svelte.compile/client": {
+				"ran": 17489,
+				"clean": 1417,
+				"diagnostics": 16072
+			},
+			"svelte.compile/server": {
+				"ran": 17489,
+				"clean": 1420,
+				"diagnostics": 16069
+			},
+			"svelte.format/default": {
+				"ran": 17489,
+				"clean": 4400,
+				"diagnostics": 13089
+			},
+			"svelte.lint/default": {
+				"ran": 17489,
+				"clean": 5433,
+				"diagnostics": 12056
+			},
+			"vue.compile/default": {
+				"ran": 0,
+				"clean": 0,
+				"diagnostics": 0
+			},
+			"vue.format/default": {
+				"ran": 0,
+				"clean": 0,
+				"diagnostics": 0
+			},
+			"vue.lint/default": {
+				"ran": 0,
+				"clean": 0,
+				"diagnostics": 0
+			},
+			"svue.compile/client": {
+				"ran": 0,
+				"clean": 0,
+				"diagnostics": 0
+			},
+			"svue.compile/server": {
+				"ran": 0,
+				"clean": 0,
+				"diagnostics": 0
+			}
+		}
+	},
+	"rounds": 5,
+	"arms": [
+		{
+			"name": "shared",
+			"wall_ms": [
+				36.526,
+				37.913,
+				35.782,
+				32.169,
+				31.744
+			],
+			"median_ms": 35.782,
+			"allocations": "UNMEASURED",
+			"alloc_bytes": "UNMEASURED",
+			"allocations_per_source_byte": "UNMEASURED",
+			"peak_live_growth_bytes": "UNMEASURED"
+		},
+		{
+			"name": "isolated",
+			"wall_ms": [
+				75.006,
+				69.983,
+				79.233,
+				65.349,
+				67.660
+			],
+			"median_ms": 69.983,
+			"allocations": "UNMEASURED",
+			"alloc_bytes": "UNMEASURED",
+			"allocations_per_source_byte": "UNMEASURED",
+			"peak_live_growth_bytes": "UNMEASURED"
+		},
+		{
+			"name": "nopool",
+			"wall_ms": [
+				49.572,
+				50.340,
+				41.228,
+				46.384,
+				40.354
+			],
+			"median_ms": 46.384,
+			"allocations": "UNMEASURED",
+			"alloc_bytes": "UNMEASURED",
+			"allocations_per_source_byte": "UNMEASURED",
+			"peak_live_growth_bytes": "UNMEASURED"
+		},
+		{
+			"name": "serial",
+			"wall_ms": [
+				238.352,
+				236.626,
+				231.052,
+				232.914,
+				230.018
+			],
+			"median_ms": 232.914,
+			"allocations": "UNMEASURED",
+			"alloc_bytes": "UNMEASURED",
+			"allocations_per_source_byte": "UNMEASURED",
+			"peak_live_growth_bytes": "UNMEASURED"
+		},
+		{
+			"name": "streaming",
+			"wall_ms": [
+				36.991,
+				42.018,
+				34.988,
+				32.525,
+				30.278
+			],
+			"median_ms": 34.988,
+			"allocations": "UNMEASURED",
+			"alloc_bytes": "UNMEASURED",
+			"allocations_per_source_byte": "UNMEASURED",
+			"peak_live_growth_bytes": "UNMEASURED"
+		}
+	],
+	"phases": "UNMEASURED",
+	"max_rss_bytes": 112263168
+}

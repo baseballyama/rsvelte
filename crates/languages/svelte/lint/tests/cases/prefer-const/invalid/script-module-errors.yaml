@@ -1,0 +1,4 @@
+- message: "'m' is never reassigned. Use 'const' instead."
+  line: 2
+  column: 13
+  suggestions: null

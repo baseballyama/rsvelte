@@ -1,0 +1,1 @@
+{#each items.map(x=>x) as item (item.id)}<li>{ item.name }</li>{/each}

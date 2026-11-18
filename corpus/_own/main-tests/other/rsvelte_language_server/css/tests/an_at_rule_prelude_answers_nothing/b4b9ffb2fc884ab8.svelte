@@ -1,0 +1,1 @@
+<style>@media (min-width: 1px) { i { color: red } }</style>

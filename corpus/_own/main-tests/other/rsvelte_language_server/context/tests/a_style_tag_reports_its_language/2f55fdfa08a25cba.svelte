@@ -1,0 +1,1 @@
+<style data-lang="x" lang="sass"></style>

@@ -1,0 +1,260 @@
+use super::*;
+use crate::syntax_tree::{RuleKind, Simple};
+
+fn prelude(stylesheet: &str) -> &str {
+    let sheet = parse(stylesheet, Span::new(0, stylesheet.len() as u32)).expect("parses");
+    match sheet.rules[0].kind {
+        RuleKind::At { prelude, .. } => prelude.text(stylesheet),
+        RuleKind::Style { .. } | RuleKind::Keyframe { .. } => panic!("not an at-rule"),
+    }
+}
+
+#[test]
+fn an_at_rule_prelude_is_trimmed() {
+    assert_eq!(prelude("@media  screen and (x) { }"), "screen and (x)");
+}
+
+#[test]
+fn a_whitespace_only_prelude_is_empty() {
+    assert_eq!(prelude("@font-face { src: local(x); }"), "");
+    assert_eq!(prelude("@font-face   \n{ src: local(x); }"), "");
+}
+
+#[test]
+fn a_pseudo_element_argument_is_a_selector_list() {
+    use crate::syntax_tree::Simple;
+    let source = "a::slotted(.b, c) { }";
+    let sheet = parse(source, Span::new(0, source.len() as u32)).expect("parses");
+    let RuleKind::Style { selectors, .. } = &sheet.rules[0].kind else {
+        panic!("a style rule");
+    };
+    let Some(Simple::PseudoElement { selectors, .. }) =
+        selectors[0].parts[0].simple.iter().next_back()
+    else {
+        panic!("a pseudo-element");
+    };
+    assert_eq!(selectors.len(), 2);
+}
+
+#[test]
+fn an_nth_selector_list_is_read_apart_from_the_matched_selectors() {
+    use crate::syntax_tree::Simple;
+    let source = "li:nth-child(2n of .a, .b) { }";
+    let sheet = parse(source, Span::new(0, source.len() as u32)).expect("parses");
+    let RuleKind::Style { selectors, .. } = &sheet.rules[0].kind else {
+        panic!("a style rule");
+    };
+    let Some(simple @ Simple::PseudoClass { selectors, .. }) =
+        selectors[0].parts[0].simple.iter().next_back()
+    else {
+        panic!("a pseudo-class");
+    };
+    assert!(selectors.is_empty());
+    let nth = nth_of_selectors(source, simple);
+    assert_eq!(nth.len(), 2);
+    let Some(Simple::Class { name, .. }) = nth[1].parts[0].simple.iter().next() else {
+        panic!("a class");
+    };
+    assert_eq!(sheet.text(*name, source), "b");
+}
+
+#[test]
+fn a_simple_selector_stays_small() {
+    assert_eq!(size_of::<Simple>(), 48);
+}
+
+fn whole(stylesheet: &str) -> R<StyleSheet> {
+    parse(stylesheet, Span::new(0, stylesheet.len() as u32))
+}
+
+// Svelte 5 reports each one from the declaration's start to the end of its colon.
+#[test]
+fn a_declaration_without_a_value_is_empty() {
+    for (source, end) in [
+        (".a { color: }", 11),
+        (".a { color :  ;}", 12),
+        (concat!(".a {", " : }"), 6),
+    ] {
+        let error = whole(source).expect_err(source);
+        assert_eq!(error.code, "css_empty_declaration", "{source}");
+        assert_eq!(error.span, Span::new(5, end), "{source}");
+    }
+}
+
+#[test]
+fn a_declaration_svelte_reads_without_a_property_a_colon_or_a_value_parses() {
+    for source in [
+        ".a { : red }",
+        ".a { color red }",
+        ".a { --x: }",
+        ".a { --x: ; }",
+    ] {
+        whole(source).expect(source);
+    }
+}
+
+#[test]
+fn the_last_of_the_combinators_in_a_row_is_the_selector_s() {
+    use crate::syntax_tree::Combinator;
+    for (source, combinator) in [
+        ("a >> b {}", Combinator::Child),
+        ("a > + b {}", Combinator::NextSibling),
+        ("a || b {}", Combinator::Column),
+        ("a ||b {}", Combinator::Column),
+    ] {
+        let sheet = whole(source).expect(source);
+        let RuleKind::Style { selectors, .. } = &sheet.rules[0].kind else {
+            panic!("a style rule");
+        };
+        let parts = &selectors[0].parts;
+        assert_eq!(parts.len(), 2, "{source}");
+        assert_eq!(parts[1].combinator, Some(combinator), "{source}");
+    }
+}
+
+#[test]
+fn a_markup_comment_is_skipped_whole() {
+    let sheet = whole("<!-- .b { } --> .a { }").expect("parses");
+    assert_eq!(sheet.rules.len(), 1);
+    let error = whole(".a { } <!-- .b { }").expect_err("the comment is open");
+    assert_eq!(error.code, "expected_token");
+    assert_eq!(error.span, Span::new(18, 18));
+}
+
+// Svelte 5 reads these declarations, a bracket closing nothing it reads.
+#[test]
+fn a_value_ends_at_the_first_terminator_outside_a_string_and_a_url() {
+    for (source, values) in [
+        (".a { x: (; y: z }", &["(", "z"][..]),
+        (".a { b: [; }", &["["]),
+        (".a { content: \";\" }", &["\";\""]),
+        (".a { background: url(a;b) }", &["url(a;b)"]),
+        (".a { b: myurl(;) }", &["myurl(;)"]),
+    ] {
+        let sheet = whole(source).expect(source);
+        let found: Vec<&str> = sheet.rules[0]
+            .declarations
+            .iter()
+            .map(|d| d.value.text(source))
+            .collect();
+        assert_eq!(found, values, "{source}");
+    }
+    let error = whole(".a { x: f(;) }").expect_err("`)` is a declaration without a value");
+    assert_eq!(error.code, "css_empty_declaration");
+    assert_eq!(error.span, Span::new(11, 13));
+}
+
+// Svelte 5 reports each one at this offset.
+#[test]
+fn a_selector_svelte_cannot_read_is_its_error() {
+    for (source, code, at) in [
+        (". { }", "css_expected_identifier", 1),
+        ("#1a { }", "css_expected_identifier", 1),
+        ("ns| { }", "css_expected_identifier", 3),
+        ("@1a (x) { }", "css_expected_identifier", 1),
+        ("[  ] { }", "css_expected_identifier", 3),
+        (".a, { }", "css_expected_identifier", 4),
+        (".a | .b { }", "css_expected_identifier", 3),
+        ("p > /* c */ { }", "css_expected_identifier", 4),
+        (".a:nth-child(2e) { }", "css_expected_identifier", 13),
+        ("p > { }", "css_selector_invalid", 4),
+        (":is(p >, .a) { }", "css_selector_invalid", 7),
+    ] {
+        let error = whole(source).expect_err(source);
+        assert_eq!(
+            (error.code, error.span),
+            (code, Span::new(at, at)),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn a_selector_the_stylesheet_grammar_allows_parses() {
+    // Svelte 5 rejects these.
+    for source in [
+        ".a /* c */ .b { }",
+        "p > /* c */ .a { }",
+        "[*|x] { }",
+        "[|x] { }",
+        ":nth-child(-2n-1) { }",
+        ":nth-child(2N) { }",
+        ":nth-child(-1) { }",
+        ":nth-child(2n /* t */) { }",
+    ] {
+        whole(source).expect(source);
+    }
+    // Svelte 5 reads an `An+B` in any pseudo-class, and an `of` before a symbol.
+    for source in [":global(2n) { }", "li:nth-child(2n of.a) { }"] {
+        whole(source).expect(source);
+    }
+}
+
+#[test]
+fn an_scss_sheet_skips_what_svelte_rejects() {
+    let source = "$a: 1; .a { // b: c;\n  &.d {} }\n@media #{$e}, x { .f {} }\n// g\n";
+    let content = Span::new(0, source.len() as u32);
+    parse(source, content).unwrap_err();
+    let sheet = parse_for_lint(source, content, true).expect("parses");
+    assert_eq!(sheet.rules.len(), 2);
+    assert_eq!(sheet.rules[0].children.len(), 1);
+    assert_eq!(sheet.rules[1].children.len(), 1);
+}
+
+#[test]
+fn a_stylesheet_for_lint_skips_the_declarations_svelte_rejects() {
+    let source = ".a { color: ; b: calc(1;2); c: attr(x}y); { } .d {} }";
+    let content = Span::new(0, source.len() as u32);
+    parse(source, content).unwrap_err();
+    let sheet = parse_for_lint(source, content, false).expect("parses");
+    assert_eq!(sheet.rules.len(), 1);
+    assert_eq!(sheet.rules[0].children.len(), 1);
+}
+
+#[test]
+fn a_stylesheet_for_lint_keeps_a_rule_whose_selector_it_cannot_read() {
+    let source = ":1a { color: red } .x { > { } .b {} }";
+    let content = Span::new(0, source.len() as u32);
+    parse(source, content).unwrap_err();
+    let sheet = parse_for_lint(source, content, false).expect("parses");
+    assert_eq!(sheet.rules.len(), 2);
+    let RuleKind::Style { selectors, .. } = &sheet.rules[0].kind else {
+        panic!("a style rule");
+    };
+    assert!(selectors.is_empty());
+    assert_eq!(sheet.rules[1].children.len(), 2);
+}
+
+#[test]
+fn a_stylesheet_for_lint_reads_selectors_as_postcss_selector_parser_does() {
+    let source = ".a., #1a, .b:nth-child(2e), p >, , .c\u{85} | .d { } @1a (x) { }";
+    let content = Span::new(0, source.len() as u32);
+    parse(source, content).unwrap_err();
+    let sheet = parse_for_lint(source, content, false).expect("parses");
+    assert_eq!(sheet.rules.len(), 2);
+    let RuleKind::Style { selectors, .. } = &sheet.rules[0].kind else {
+        panic!("a style rule");
+    };
+    assert_eq!(selectors.len(), 5);
+    assert_eq!(selectors[0].parts[0].simple.iter().count(), 2);
+    assert_eq!(selectors[4].parts.len(), 2);
+    let Simple::Class { name, .. } = selectors[4].parts[0].simple.iter().next().unwrap() else {
+        panic!("a class");
+    };
+    assert_eq!(name.text(source), ".c\u{85}".get(1..).unwrap());
+}
+
+#[test]
+fn an_at_rule_knows_whether_it_is_keyframes_with_or_without_a_block_or_a_prefix() {
+    let keyframes = |source: &str| {
+        let sheet = parse(source, Span::new(0, source.len() as u32)).expect("parses");
+        match sheet.rules[0].kind {
+            RuleKind::At { keyframes, .. } => keyframes,
+            RuleKind::Style { .. } | RuleKind::Keyframe { .. } => panic!("not an at-rule"),
+        }
+    };
+    assert!(keyframes("@keyframes a { from { b: c } }"));
+    assert!(keyframes("@-webkit-keyframes a { }"));
+    assert!(keyframes("@keyframes a;"));
+    assert!(!keyframes("@media x { }"));
+}

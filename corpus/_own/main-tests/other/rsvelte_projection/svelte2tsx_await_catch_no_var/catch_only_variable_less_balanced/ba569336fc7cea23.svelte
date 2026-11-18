@@ -1,0 +1,2 @@
+<script lang="ts">const p = Promise.resolve(true);</script>
+{#await p catch}err{/await}

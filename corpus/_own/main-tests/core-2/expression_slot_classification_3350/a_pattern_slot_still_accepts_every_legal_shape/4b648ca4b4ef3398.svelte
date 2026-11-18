@@ -1,0 +1,1 @@
+{#each a as b, i (b.id)}{i}{/each}

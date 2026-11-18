@@ -1,0 +1,30 @@
+[[steps]]
+input = [ "input.draft", "milk" ]
+
+[[steps]]
+submit = "form.new"
+
+[[steps]]
+input = [ "input.draft", "   " ]
+
+[[steps]]
+submit = "form.new"
+
+[[steps]]
+input = [ "input.draft", "eggs" ]
+
+[[steps]]
+click = "button.add"
+
+[[steps]]
+input = [ "input.draft", "oops" ]
+
+[[steps]]
+key = [ "input.draft", "Escape" ]
+
+[[steps]]
+click = ".todos li:nth-child(2) input"
+
+[[steps]]
+click = "button.clear"
+

@@ -1,0 +1,501 @@
+use rsvelte_kernel::source::positions::LineIndex;
+
+fn lint(source_text: &str) -> String {
+    use rsvelte_kernel::computation::database::DocumentContext;
+    use rsvelte_kernel::computation::registry::Registry;
+    use rsvelte_kernel::source::document::Document;
+    let mut registry = Registry::new();
+    crate::register(&mut registry);
+    let document =
+        Document::new("test.svelte".to_owned(), source_text.to_owned()).expect("valid source");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let configuration = crate::Configuration::default();
+    let findings = crate::lint(&context, &configuration).expect("source parses");
+    let rules = configuration
+        .rules()
+        .iter()
+        .map(crate::ConfiguredRule::name);
+    let lines = LineIndex::new(source_text);
+    let lines = || &lines;
+    let positions = rsvelte_lint_runner::output::Positions::new(&lines, source_text);
+    rsvelte_lint_runner::output::render_json(positions, rules, &findings)
+}
+
+fn unused(source_text: &str) -> Vec<String> {
+    let got = lint(source_text);
+    got.lines()
+        .filter_map(|l| l.trim().strip_prefix("\"message\": \""))
+        .map(|m| m.trim_end_matches("\",").to_owned())
+        .collect()
+}
+
+// Expected values from the oracle (ESLint with svelte-eslint-parser and typescript-eslint's
+// parser, `no-unused-variables` alone) on these inputs.
+#[test]
+fn a_name_used_only_in_types_is_used() {
+    let typescript = |body: &str| format!("<script lang=\"ts\">\n{body}\n</script>\n");
+    assert_eq!(
+        unused(&typescript(
+            "import type { A } from \"./a\";\nlet x: A = 1;\nconsole.log(x);"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&typescript(
+            "import { B } from \"./b\";\
+                 \nlet y = $state<Map<string, B>>(new Map());\nconsole.log(y);"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&typescript("import { C } from \"./c\";")),
+        ["'C' is defined but never used."]
+    );
+    assert_eq!(
+        unused(&typescript(
+            "import { D } from \"./d\";\ntype P = { D: string };\
+                 \nlet p: P = { D: \"\" };\nconsole.log(p);"
+        )),
+        ["'D' is defined but never used."]
+    );
+    assert_eq!(
+        unused(&typescript(
+            "import { F } from \"./f\";\nlet v: X.F;\nconsole.log(v);"
+        )),
+        ["'F' is defined but never used."]
+    );
+}
+
+// Expected value from the oracle (tools/oracle svelte.lint on this input).
+#[test]
+fn exported_declarations_are_not_unused() {
+    let got =
+        lint("<script>\n\texport const e = 1;\n\texport function k() {}\n\tlet u = 1;\n</script>");
+    let want = "\"findings\": [\
+                    \n\t\t{\
+                    \n\t\t\t\"rule\": \"no-unused-vars\",\
+                    \n\t\t\t\"message\": \"'u' is assigned a value but never used.\",\
+                    \n\t\t\t\"start\": {\n\t\t\t\t\"line\": 4,\n\t\t\t\t\"column\": 6\n\t\t\t},\
+                    \n\t\t\t\"end\": {\n\t\t\t\t\"line\": 4,\n\t\t\t\t\"column\": 7\n\t\t\t}\
+                    \n\t\t}\
+                    \n\t]\n}\n";
+    assert!(got.ends_with(want), "{got}");
+}
+
+#[test]
+fn a_name_a_re_export_lists_is_used() {
+    assert_eq!(
+        unused("<script>\n\tlet x = 1;\n\tlet z = 1;\n\texport { x as y } from './m';\n</script>"),
+        ["'z' is assigned a value but never used."]
+    );
+}
+
+/// Each finding's message and start line.
+fn unused_at(source_text: &str) -> Vec<(String, u32)> {
+    let got = lint(source_text);
+    let mut out = Vec::new();
+    let mut lines = got.lines().map(str::trim);
+    while let Some(line) = lines.next() {
+        if let Some(message) = line.strip_prefix("\"message\": \"") {
+            let start = lines
+                .by_ref()
+                .find_map(|l| l.strip_prefix("\"line\": "))
+                .expect("a start line");
+            out.push((
+                message.trim_end_matches("\",").to_owned(),
+                start.trim_end_matches(',').parse().expect("a number"),
+            ));
+        }
+    }
+    out
+}
+
+// Expected values from ESLint with svelte-eslint-parser and typescript-eslint's parser,
+// `svelteFeatures.runes: true`, `no-unused-vars` alone.
+#[test]
+fn a_bindable_prop_is_used() {
+    let script = |body: &str| format!("<script lang=\"ts\">{body}</script>");
+    assert_eq!(
+        unused(&script("let { a = $bindable() } = $props(); a = 1;")),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&script("let { a = $bindable() } = $props();")),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&script("let { x: a = $bindable() } = $props(); a = 1;")),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&script(
+            "let { a = $bindable(1), b = 2 } = $props(); b = 3;"
+        )),
+        ["'b' is assigned a value but never used."]
+    );
+    assert_eq!(
+        unused(&script("let { a } = $props(); a = 1;")),
+        ["'a' is assigned a value but never used."]
+    );
+}
+
+#[test]
+fn a_snippet_passed_to_a_component_is_used() {
+    let component = "<script lang=\"ts\">import C from './C.svelte';</script>\n";
+    assert_eq!(
+        unused(&format!(
+            "{component}<C>{{#snippet child({{ props }})}}<p/>{{/snippet}}</C>"
+        )),
+        ["'props' is defined but never used."]
+    );
+    assert_eq!(
+        unused(&format!(
+            "{component}<C><div>{{#snippet child({{ props }})}}<p/>{{/snippet}}</div></C>"
+        )),
+        [
+            "'child' is defined but never used.",
+            "'props' is defined but never used."
+        ]
+    );
+    assert_eq!(
+        unused(&format!(
+            "{component}<C>{{#if x}}{{#snippet child()}}<p/>{{/snippet}}{{/if}}</C>"
+        )),
+        ["'child' is defined but never used."]
+    );
+    assert_eq!(
+        unused(
+            "<script>import * as M from './m';</script><M.C>{#snippet child()}<p/>{/snippet}</M.C>"
+        ),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<svelte:boundary>{#snippet failed()}<p/>{/snippet}</svelte:boundary>"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<svelte:component this={x}>{#snippet child()}<p/>{/snippet}</svelte:component>"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<div>{#snippet child()}<p/>{/snippet}</div>"),
+        ["'child' is defined but never used."]
+    );
+}
+
+#[test]
+fn the_scripts_share_their_top_level_names() {
+    let scripts = |module: &str, instance: &str| {
+        format!(
+            "<script lang=\"ts\" module>{module}</script>\n<script lang=\"ts\">{instance}</script>"
+        )
+    };
+    assert_eq!(
+        unused_at(&scripts(
+            "type Shadowed = string;",
+            "type Shadowed = boolean; let { p }: { p: Shadowed } = $props(); console.log(p);"
+        )),
+        []
+    );
+    assert_eq!(
+        unused_at(&scripts(
+            "type S = string; export const q: S = '';",
+            "type S = boolean;"
+        )),
+        []
+    );
+    assert_eq!(
+        unused_at(&scripts(
+            "namespace A { export const x = 1; }",
+            "interface A { y: number } let { p }: { p: A } = $props(); console.log(p);"
+        )),
+        []
+    );
+    assert_eq!(
+        unused_at(&scripts(
+            "type Shadowed = string;",
+            "type Shadowed = boolean;"
+        )),
+        [("'Shadowed' is defined but never used.".to_owned(), 1)]
+    );
+    assert_eq!(
+        unused_at(&scripts(
+            "namespace A { export const x = 1; }",
+            "interface A { y: number }"
+        )),
+        [("'A' is defined but never used.".to_owned(), 1)]
+    );
+    assert_eq!(
+        unused_at(&scripts("let v = 1;", "let v = 2; console.log(v);")),
+        []
+    );
+    assert_eq!(
+        unused_at(&scripts("let v = 1;", "let v = 2;")),
+        [("'v' is assigned a value but never used.".to_owned(), 2)]
+    );
+}
+
+#[test]
+fn a_store_subscription_reads_the_store() {
+    let store = "<script>import { writable } from 'svelte/store';";
+    assert_eq!(
+        unused(&format!(
+            "{store} const count = writable(0); const unused = writable(0);\
+             </script>\n<p>{{$count}}</p>"
+        )),
+        ["'unused' is assigned a value but never used."]
+    );
+    assert_eq!(
+        unused(&format!(
+            "{store} const count = writable(0); function f() {{ $count = 1; }} f();</script>"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&format!(
+            "{store} const obj = writable({{ a: 1 }}); function f() {{ $obj.a++; }} f();</script>"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&format!(
+            "{store} const action = writable(() => {{}});</script>\n<p use:$action></p>"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(
+            "<script module>import { writable } from 'svelte/store'; const count = writable(0);\
+             </script>\n<script>console.log($count);</script>"
+        ),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script>import { page } from '$app/stores';</script>\n{$page.url}"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script>let state = 1; let x = $state(0); console.log(x);</script>"),
+        ["'state' is assigned a value but never used."]
+    );
+}
+
+// A `$name` is a plain read of `name`, so ESLint's `isReadForItself` drops an update of it.
+#[test]
+fn a_store_updated_only_for_itself_is_unused() {
+    let store = "<script>import { writable } from 'svelte/store'; const count = writable(0);";
+    let assigned = ["'count' is assigned a value but never used."];
+    assert_eq!(
+        unused(&format!(
+            "{store} function f() {{ $count++; }} f();</script>"
+        )),
+        assigned
+    );
+    assert_eq!(unused(&format!("{store} $count += 1;</script>")), assigned);
+    assert_eq!(
+        unused(&format!(
+            "{store} function f() {{ $count = 1; $count++; }} f();</script>"
+        )),
+        assigned
+    );
+    assert_eq!(
+        unused(&format!(
+            "{store} const y = $count++; console.log(y);</script>"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&format!(
+            "{store} count.set(1); function f() {{ $count = 1; }} f();</script>"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(
+            "<script>import { count } from './store.js'; export function increment() { $count++; }\
+             </script>"
+        ),
+        ["'count' is defined but never used."]
+    );
+}
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0: the scripts see a top-level snippet only.
+#[test]
+fn a_script_reads_a_top_level_snippet() {
+    assert_eq!(
+        unused("<script>bar;</script>{#snippet bar()}x{/snippet}{#snippet baz()}y{/snippet}"),
+        ["'baz' is defined but never used."]
+    );
+    assert_eq!(
+        unused("<script module>bar;</script>{#snippet bar()}x{/snippet}"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script>x;</script><div>{#snippet x()}y{/snippet}</div>"),
+        ["'x' is defined but never used."]
+    );
+    assert_eq!(
+        unused(
+            "<script>function f() { return bar; } f;</script>\
+             {#if true}{#snippet bar()}x{/snippet}{/if}"
+        ),
+        ["'bar' is defined but never used."]
+    );
+}
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0: a TypeScript instance script's `generics`
+// declare names its body reads and read names the scripts declare.
+#[test]
+fn generics_declare_and_read_names() {
+    assert_eq!(
+        unused(
+            "<script lang=\"ts\" generics=\"T extends Item = Fallback, U\">\
+             import type { Item, Fallback, Unused } from './x';\
+             let { a }: { a: T } = $props();</script>{a}"
+        ),
+        [
+            "'U' is defined but never used.",
+            "'Unused' is defined but never used."
+        ]
+    );
+    assert_eq!(
+        unused(
+            "<script lang=\"ts\" module>import type { Item } from './x'; type T = unknown;</script>\
+             <script lang=\"ts\" generics=\"T extends Item\">let { a }: { a: T } = \
+                 $props();</script>{a}"
+        ),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script generics=\"T extends Item\">import { Item } from './x';</script>"),
+        ["'Item' is defined but never used."]
+    );
+    assert_eq!(
+        unused(
+            "<script lang=\"ts\" generics=\"T extends {\">import type { Item } from './x';</script>"
+        ),
+        ["'Item' is defined but never used."]
+    );
+}
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0: a snippet's own body does not use it, and two
+// snippets that render each other do.
+#[test]
+fn a_snippet_read_only_in_its_own_body_is_unused() {
+    assert_eq!(
+        unused(
+            "{#snippet c()}<span></span>{@render c()}{/snippet}\
+             {#snippet d()}{@render e()}{/snippet}{#snippet e()}{@render d()}{/snippet}\
+             <script>function f() { f(); }</script>"
+        ),
+        [
+            "'c' is defined but never used.",
+            "'f' is defined but never used."
+        ]
+    );
+}
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0 and typescript-eslint's parser.
+#[test]
+fn a_snippet_declares_its_type_parameters_in_its_own_scope() {
+    let typescript = |template: &str| format!("<script lang=\"ts\"></script>{template}");
+    assert_eq!(
+        unused_at(&typescript(
+            "{#snippet s<T,U>(a: T)}{a}{/snippet}{@render s(1)}"
+        )),
+        [("'U' is defined but never used.".to_owned(), 1)]
+    );
+    assert_eq!(
+        unused(&typescript(
+            "{#snippet s<T>()}x{/snippet}{#snippet r<T>()}y{/snippet}{@render s()}{@render r()}"
+        )),
+        [
+            "'T' is defined but never used.",
+            "'T' is defined but never used."
+        ]
+    );
+    assert_eq!(
+        unused(
+            "<script lang=\"ts\">type T = 1;</script>\
+             {#snippet s<T>(a: T)}{a}{/snippet}{@render s(1)}"
+        ),
+        ["'T' is defined but never used."]
+    );
+}
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0: its scopes merge what Svelte's keep apart.
+#[test]
+fn a_name_declared_twice_in_one_upstream_scope_is_one_variable() {
+    assert_eq!(
+        unused_at("<script>let row = 1;</script>\n{#snippet row()}<b>x</b>{/snippet}"),
+        [("'row' is assigned a value but never used.".to_owned(), 1)]
+    );
+    assert_eq!(
+        unused("{#snippet row(item)}{@const item = 1}{item}{/snippet}{@render row(1)}"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("{#each [1] as it}{@const it = 1}x{/each}"),
+        ["'it' is assigned a value but never used."]
+    );
+    assert_eq!(
+        unused("<script>let n = 0;</script>{#snippet count()}<b>{n}</b>{/snippet}<p>{$count}</p>"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script module>export const nm = 1;</script>{@const nm = 1}"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("{#await p then v}{@const v = 1}x{:catch e}{@const e = 2}{e}{/await}"),
+        ["'v' is assigned a value but never used."]
+    );
+}
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0.
+#[test]
+fn a_reactive_assignment_declares_an_undeclared_name() {
+    assert_eq!(
+        unused("<script>$: x = f();</script>"),
+        ["'x' is defined but never used."]
+    );
+    assert_eq!(
+        unused("<script>$: x = f();</script>{x}"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script>$: x = 1; x;</script>"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script>$: x = 1; function g() { return x; } g;</script>"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused_at("<script>$: x = 1;\n$: x = 2;</script>"),
+        [("'x' is assigned a value but never used.".to_owned(), 2)]
+    );
+    assert_eq!(
+        unused("<script>$: x = 1; $: x = x + 1;</script>"),
+        ["'x' is assigned a value but never used."]
+    );
+    assert_eq!(
+        unused("<script>$: [a, b] = f(); $: c += 1; a;</script>"),
+        [
+            "'b' is defined but never used.",
+            "'c' is defined but never used."
+        ]
+    );
+}
+
+/// svelte-eslint-parser reads a `let:` value as a parameter pattern, whose defaults assign.
+#[test]
+fn a_let_name_under_a_default_is_assigned_a_value() {
+    assert_eq!(
+        unused("<Component let:item={{ a: [b = 'x'], c: { d } = {} }}>y</Component>\n"),
+        [
+            "'b' is assigned a value but never used.",
+            "'d' is assigned a value but never used.",
+        ]
+    );
+}

@@ -1,0 +1,161 @@
+use rsvelte_svelte_compile::Target;
+
+use super::{compile, compile_at, squashed};
+
+#[test]
+fn a_rune_read_without_a_call_raises_upstreams_error_on_both_targets() {
+    // From svelte 5.57.3, compiled with `runes: true`.
+    for (source, expected) in [
+        (
+            "<script>const a = $state;</script>",
+            Some(("rune_missing_parentheses", (18, 24))),
+        ),
+        (
+            "<script module>void $state;</script>",
+            Some(("rune_missing_parentheses", (20, 26))),
+        ),
+        (
+            "<script>function f() { return $effect; }</script>",
+            Some(("rune_missing_parentheses", (30, 37))),
+        ),
+        (
+            "<script>let x = $state.frozen(1);</script>",
+            Some(("rune_renamed", (16, 32))),
+        ),
+        (
+            "<script>let x = $state.foo;</script>",
+            Some(("rune_invalid_name", (12, 26))),
+        ),
+        (
+            "<script>let x = $state[\"raw\"](1);</script>",
+            Some(("rune_invalid_computed_property", (16, 29))),
+        ),
+        (
+            "<script>$effect.active();</script>",
+            Some(("rune_renamed", (8, 24))),
+        ),
+        (
+            "<script>let x = $state.is(1, 2);</script>",
+            Some(("rune_removed", (16, 31))),
+        ),
+        (
+            "<p>{$derived}</p>",
+            Some(("rune_missing_parentheses", (4, 12))),
+        ),
+        ("{$state.x}", Some(("rune_invalid_name", (0, 10)))),
+        (
+            "<script>let x = $state(1);</script>{$state.snapshot}",
+            Some(("rune_missing_parentheses", (36, 51))),
+        ),
+        (
+            "<script>let x = $props.id;</script>",
+            Some(("rune_missing_parentheses", (16, 25))),
+        ),
+        ("<script>let x = ($state)(1);</script>{x}", None),
+        (
+            "<script>import { writable } from \"svelte/store\"; const state = writable(1);\
+             </script>{$state}",
+            None,
+        ),
+    ] {
+        for target in [Target::Client, Target::Server] {
+            let outcome = compile_at(source, target).err();
+            let expected = expected.map(|(code, at)| (code.to_owned(), at));
+            assert_eq!(outcome, expected, "{source} on {target:?}");
+        }
+    }
+}
+
+#[test]
+fn a_scripts_error_comes_before_a_refusal_on_both_targets() {
+    // From svelte 5.57.3, compiled with `runes: true`; the `let:` alone is refused.
+    for (source, expected) in [
+        (
+            "<script>export let a = 1;</script><slot let:a />",
+            ("legacy_export_invalid", (8, 25)),
+        ),
+        (
+            "<script>const x = $state;</script><slot let:a />",
+            ("rune_missing_parentheses", (18, 24)),
+        ),
+        ("<slot let:a />", ("unsupported", (0, 14))),
+    ] {
+        for target in [Target::Client, Target::Server] {
+            let expected = Some((expected.0.to_owned(), expected.1));
+            assert_eq!(
+                compile_at(source, target).err(),
+                expected,
+                "{source} on {target:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn svelte_4_syntax_in_runes_mode_raises_upstreams_first_error_on_both_targets() {
+    // From svelte 5.57.3, compiled with `runes: true`.
+    for (source, expected) in [
+        (
+            "<script>export let p = 1; function f() { const $state = 1; return $state; }</script>",
+            ("legacy_export_invalid", (8, 25)),
+        ),
+        (
+            "<script>function f() { const $state = 1; return $state; } export let p = 1;</script>",
+            ("dollar_prefix_invalid", (29, 35)),
+        ),
+        (
+            "<script>const $x = 1; export let p = 1;</script>",
+            ("dollar_prefix_invalid", (14, 16)),
+        ),
+        (
+            "<b>{$$restProps}</b><script>let x = $$props;</script>",
+            ("legacy_props_invalid", (36, 43)),
+        ),
+        (
+            "<div {...$$restProps}>{$$props.a}</div>",
+            ("legacy_props_invalid", (23, 30)),
+        ),
+        (
+            "<script>let a = $$restProps;</script><p>{$$props}</p>",
+            ("legacy_props_invalid", (41, 48)),
+        ),
+    ] {
+        for target in [Target::Client, Target::Server] {
+            let expected = Some((expected.0.to_owned(), expected.1));
+            assert_eq!(
+                compile_at(source, target).err(),
+                expected,
+                "{source} on {target:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn an_inspect_with_initializer_is_the_inspector_on_the_server_and_nothing_on_the_client() {
+    // From svelte 5.57.3, outside development.
+    let source = "<script>let a = $state(1); const t = $inspect(a).with(console.log);</script>\
+                  <b>{t}</b>";
+    assert!(squashed(source, Target::Server).contains("constt=console.log;"));
+    assert!(!squashed(source, Target::Client).contains("constt"));
+    // A plain `$inspect(…)` initializer prints broken code upstream, so it stays refused.
+    let plain = "<script>let a = $state(1); let v = $inspect(a);</script><b>{v}</b>";
+    assert_eq!(
+        compile(plain, Target::Server).err().as_deref(),
+        Some("unsupported")
+    );
+}
+
+#[test]
+fn an_inspect_in_an_event_handler_is_dropped_with_the_handler_on_the_server() {
+    // From svelte 5.57.3, whose client prints `() => ;` for the first handler.
+    let source = "<script>let v = $state(1);</script>\
+                  <button onclick={() => $inspect(v)}>a</button><p>{v}</p>";
+    let server = squashed(source, Target::Server);
+    assert!(server.contains("<button>a</button>"), "{server}");
+    assert!(!server.contains("inspect"), "{server}");
+    assert_eq!(
+        compile(source, Target::Client).err().as_deref(),
+        Some("unsupported")
+    );
+}

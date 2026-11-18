@@ -1,0 +1,1 @@
+{await (await (value.nested)).one}

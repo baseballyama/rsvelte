@@ -1,0 +1,1 @@
+<script>let v = "OUTER";</script>{#if true}{@const v = 1}{String(v)}{/if}<button onclick={() => { v = "W"; }}>b</button>

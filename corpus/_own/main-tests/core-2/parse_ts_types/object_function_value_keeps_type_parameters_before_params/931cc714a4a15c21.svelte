@@ -1,0 +1,1 @@
+<script lang="ts">const o = { m: function<T>(x: T){ return x } }</script>

@@ -1,0 +1,1 @@
+<svelte:element this={'div'} class:on={await p}></svelte:element>

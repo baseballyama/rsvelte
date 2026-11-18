@@ -1,0 +1,43 @@
+[package]
+name = "rsvelte_svelte_compile"
+description = "Svelte compile"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+rustc-hash.workspace = true
+rsvelte_plugin_interface.workspace = true
+serde.workspace = true
+rsvelte_typescript_compile.workspace = true
+rsvelte_markup_syntax.workspace = true
+rsvelte_stylesheet_compile.workspace = true
+rsvelte_svelte_syntax.workspace = true
+rsvelte_svelte_semantic.workspace = true
+rsvelte_kernel.workspace = true
+rsvelte_typescript_semantic.workspace = true
+rsvelte_typescript_tree.workspace = true
+oxc_allocator.workspace = true
+oxc_ast.workspace = true
+oxc_ast_visit.workspace = true
+oxc_semantic.workspace = true
+oxc_span.workspace = true
+oxc_str.workspace = true
+oxc_syntax.workspace = true
+oxc_transformer.workspace = true
+
+[dev-dependencies]
+libc.workspace = true
+oxc_parser.workspace = true
+rsvelte_test_harness.workspace = true
+
+[[test]]
+name = "fixtures"
+harness = false
+
+[lints]
+workspace = true

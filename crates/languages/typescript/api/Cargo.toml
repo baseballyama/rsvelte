@@ -1,0 +1,21 @@
+[package]
+name = "rsvelte_typescript_api"
+description = "A client for the API of native TypeScript 7.1"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+rsvelte_kernel.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+rsvelte_test_harness.workspace = true

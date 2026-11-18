@@ -1,0 +1,1 @@
+<style>a { -webkit-box-align: end }</style>

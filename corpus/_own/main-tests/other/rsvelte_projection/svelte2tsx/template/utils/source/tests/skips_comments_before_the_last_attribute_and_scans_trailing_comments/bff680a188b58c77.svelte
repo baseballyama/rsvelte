@@ -1,0 +1,1 @@
+<div first /* > " ' { } */ second></div>

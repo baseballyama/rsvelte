@@ -1,0 +1,1 @@
+<div class:x={a b c}>y</div>

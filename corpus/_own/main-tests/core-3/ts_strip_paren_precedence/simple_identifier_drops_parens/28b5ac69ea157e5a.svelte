@@ -1,0 +1,1 @@
+<script lang="ts">export function f(x:number){ return (x as number); }</script>

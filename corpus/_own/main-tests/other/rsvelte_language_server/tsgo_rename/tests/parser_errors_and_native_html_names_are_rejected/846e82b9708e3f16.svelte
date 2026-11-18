@@ -1,0 +1,1 @@
+<div class={value}></div><Component prop={value} />

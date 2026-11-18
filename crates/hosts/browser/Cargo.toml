@@ -1,0 +1,32 @@
+[package]
+name = "rsvelte_kernel_browser"
+description = "Browser bindings for the rsvelte experimental kernel"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rsvelte_plugin_interface.workspace = true
+rsvelte_typescript_compile.workspace = true
+rsvelte_typescript_format.workspace = true
+rsvelte_typescript_lint.workspace = true
+rsvelte_vue_lint.workspace = true
+rsvelte_vue_format.workspace = true
+rsvelte_vue_compile.workspace = true
+rsvelte_vue_check.workspace = true
+rsvelte_svelte_lint.workspace = true
+rsvelte_svelte_format.workspace = true
+rsvelte_svelte_compile.workspace = true
+rsvelte_svelte_check.workspace = true
+rsvelte_kernel = { workspace = true, features = ["trace-artifacts"] }
+rsvelte_vue_to_svelte.workspace = true
+rsvelte_svelte_to_vue_vapor.workspace = true
+wasm-bindgen = "=0.2.126"
+
+[lints]
+workspace = true

@@ -1,0 +1,5 @@
+<script>
+import Child from "./C.svelte";
+let v = $state("");
+let rest = $state({});
+</script><Child bind:value={v} {...rest} />

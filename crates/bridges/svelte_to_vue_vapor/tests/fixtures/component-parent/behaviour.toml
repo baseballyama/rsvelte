@@ -1,0 +1,16 @@
+include_unmount = true
+
+[[steps]]
+click = "button.child-update"
+
+[[steps]]
+click = "button.increment"
+
+[[steps]]
+click = "button.child-update"
+
+[[steps]]
+click = "button.toggle"
+
+[[steps]]
+click = "button.toggle"

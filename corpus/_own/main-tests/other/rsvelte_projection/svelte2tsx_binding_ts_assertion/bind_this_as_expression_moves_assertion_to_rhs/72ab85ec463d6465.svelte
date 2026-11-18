@@ -1,0 +1,1 @@
+<script lang="ts">let el;</script><div bind:this={el as HTMLDivElement}></div>

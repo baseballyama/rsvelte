@@ -1,0 +1,9 @@
+[[steps]]
+input = [ "input.name", "Ada" ]
+
+[[steps]]
+input = [ "input.name", "" ]
+
+[[steps]]
+input = [ "input.name", "  two  words " ]
+

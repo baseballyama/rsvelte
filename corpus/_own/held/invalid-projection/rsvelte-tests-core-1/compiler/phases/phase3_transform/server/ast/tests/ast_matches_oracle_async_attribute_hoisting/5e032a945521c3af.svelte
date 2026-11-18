@@ -1,0 +1,1 @@
+<Component {...{ x: (await p) + state }} />

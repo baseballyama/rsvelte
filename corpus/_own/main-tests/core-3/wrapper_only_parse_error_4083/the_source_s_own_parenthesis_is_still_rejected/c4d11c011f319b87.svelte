@@ -1,0 +1,1 @@
+<script lang="ts">let foo: any; const q = (foo satisfies string);</script><p>{q}</p>

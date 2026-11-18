@@ -1,0 +1,9762 @@
+# rsvelte pack 1
+=== 187 apps/docs/src/lib/components/Device.svelte	json
+[
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 38,
+			"character": 20
+		},
+		"end": {
+			"line": 38,
+			"character": 21
+		}
+	}
+]
+
+=== 220 apps/docs/src/lib/components/Global.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 52
+		}
+	}
+]
+
+=== 430 apps/docs/src/lib/components/Logo.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 34
+		}
+	}
+]
+
+=== 3 apps/docs/src/lib/components/homepage/AllComponents.svelte	json
+[]
+
+=== 3 apps/docs/src/lib/components/homepage/Features.svelte	json
+[]
+
+=== 3 apps/docs/src/lib/components/mainpages/NextSteps.svelte	json
+[]
+
+=== 3 apps/docs/src/lib/theme/components/Example.svelte	json
+[]
+
+=== 3 apps/docs/src/routes/+error.svelte	json
+[]
+
+=== 3 apps/docs/src/routes/+page.svelte	json
+[]
+
+=== 1067 configuration/storybook/ThemeDecorator.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/preview-api' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'storybook-dark-mode' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 38
+		},
+		"end": {
+			"line": 3,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 34
+		},
+		"end": {
+			"line": 4,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 34
+		},
+		"end": {
+			"line": 5,
+			"character": 53
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'isDark' implicitly has an 'any' type.",
+		"start": {
+			"line": 15,
+			"character": 19
+		},
+		"end": {
+			"line": 15,
+			"character": 25
+		}
+	}
+]
+
+=== 654 packages/svelteui-composables/src/actions/use-click-outside/use-click-outside.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	}
+]
+
+=== 663 packages/svelteui-composables/src/actions/use-focus-trap/use-focus-trap.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 62
+		},
+		"end": {
+			"line": 2,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './use-focus-trap' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	}
+]
+
+=== 437 packages/svelteui-composables/src/actions/use-move/use-move.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 31
+		}
+	}
+]
+
+=== 654 packages/svelteui-composables/src/utilities/use-debounce/use-debounce.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 37
+		},
+		"end": {
+			"line": 2,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"character": 38
+		}
+	}
+]
+
+=== 236 packages/svelteui-composables/test/actions/components/use-focus.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$clib/actions/use-focus/use-focus' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	}
+]
+
+=== 437 packages/svelteui-core/src/components/Accordion/Accordion.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 36
+		}
+	}
+]
+
+=== 856 packages/svelteui-core/src/components/ActionIcon/ActionIcon.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/styles' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Group' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 37
+		}
+	}
+]
+
+=== 437 packages/svelteui-core/src/components/Alert/Alert.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 32
+		}
+	}
+]
+
+=== 1269 packages/svelteui-core/src/components/AppShell/AppShell.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Anchor' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Stack' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Text' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Title' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 23
+		},
+		"end": {
+			"line": 5,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 56
+		},
+		"end": {
+			"line": 6,
+			"character": 65
+		}
+	}
+]
+
+=== 645 packages/svelteui-core/src/components/AspectRatio/AspectRatio.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Image' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 33
+		}
+	}
+]
+
+=== 645 packages/svelteui-core/src/components/Badge/Badge.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Group' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 32
+		}
+	}
+]
+
+=== 870 packages/svelteui-core/src/components/Blockquote/Blockquote.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Center/index' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 32
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	}
+]
+
+=== 890 packages/svelteui-core/src/components/Breadcrumbs/Breadcrumbs.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../IconRenderer/IconRenderer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 30
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	}
+]
+
+=== 646 packages/svelteui-core/src/components/Burger/Burger.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Button' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	}
+]
+
+=== 1074 packages/svelteui-core/src/components/Button/Button.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/styles' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 34
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Group' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 23
+		},
+		"end": {
+			"line": 4,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 24
+		},
+		"end": {
+			"line": 5,
+			"character": 33
+		}
+	}
+]
+
+=== 1694 packages/svelteui-core/src/components/Card/Card.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Button' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Group' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Image' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 23
+		},
+		"end": {
+			"line": 4,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Text' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 22
+		},
+		"end": {
+			"line": 5,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Menu' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 22
+		},
+		"end": {
+			"line": 6,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 22
+		},
+		"end": {
+			"line": 7,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 73
+		},
+		"end": {
+			"line": 8,
+			"character": 93
+		}
+	}
+]
+
+=== 648 packages/svelteui-core/src/components/Checkbox/Checkbox.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/styles' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	}
+]
+
+=== 1064 packages/svelteui-core/src/components/Chip/Chip.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/styles' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Group' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Stack' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 23
+		},
+		"end": {
+			"line": 4,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 22
+		},
+		"end": {
+			"line": 5,
+			"character": 31
+		}
+	}
+]
+
+=== 2225 packages/svelteui-core/src/components/Chip/ChipGroup/ChipGroup.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/styles' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 41
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 39
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../index' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 37
+		}
+	},
+	{
+		"code": 7034,
+		"message": "Variable 'bindValue' implicitly has type 'any' in some locations where its type cannot be determined.",
+		"start": {
+			"line": 8,
+			"character": 5
+		},
+		"end": {
+			"line": 8,
+			"character": 14
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'bindValue' implicitly has an 'any' type.",
+		"start": {
+			"line": 30,
+			"character": 14
+		},
+		"end": {
+			"line": 30,
+			"character": 23
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'bindValue' implicitly has an 'any' type.",
+		"start": {
+			"line": 38,
+			"character": 51
+		},
+		"end": {
+			"line": 38,
+			"character": 60
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'bindValue' implicitly has an 'any' type.",
+		"start": {
+			"line": 43,
+			"character": 14
+		},
+		"end": {
+			"line": 43,
+			"character": 23
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'bindValue' implicitly has an 'any' type.",
+		"start": {
+			"line": 50,
+			"character": 51
+		},
+		"end": {
+			"line": 50,
+			"character": 60
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'bindValue' implicitly has an 'any' type.",
+		"start": {
+			"line": 57,
+			"character": 15
+		},
+		"end": {
+			"line": 57,
+			"character": 24
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'bindValue' implicitly has an 'any' type.",
+		"start": {
+			"line": 72,
+			"character": 15
+		},
+		"end": {
+			"line": 72,
+			"character": 24
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'bindValue' implicitly has an 'any' type.",
+		"start": {
+			"line": 85,
+			"character": 14
+		},
+		"end": {
+			"line": 85,
+			"character": 23
+		}
+	}
+]
+
+=== 854 packages/svelteui-core/src/components/Collapse/Collapse.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Button' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Paper' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	}
+]
+
+=== 643 packages/svelteui-core/src/components/Divider/Divider.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Box' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 34
+		}
+	}
+]
+
+=== 2690 packages/svelteui-core/src/components/FileUpload/FileUpload.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 54
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Button/Button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 20
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../IconRenderer/IconRenderer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Text' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 22
+		},
+		"end": {
+			"line": 5,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 28
+		},
+		"end": {
+			"line": 6,
+			"character": 37
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'files' implicitly has an 'any' type.",
+		"start": {
+			"line": 8,
+			"character": 25
+		},
+		"end": {
+			"line": 8,
+			"character": 30
+		}
+	},
+	{
+		"code": 7034,
+		"message": "Variable 'files' implicitly has type 'any[]' in some locations where its type cannot be determined.",
+		"start": {
+			"line": 12,
+			"character": 5
+		},
+		"end": {
+			"line": 12,
+			"character": 10
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'file' implicitly has an 'any' type.",
+		"start": {
+			"line": 14,
+			"character": 18
+		},
+		"end": {
+			"line": 14,
+			"character": 22
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 18,
+			"character": 17
+		},
+		"end": {
+			"line": 18,
+			"character": 22
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'files' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 19,
+			"character": 10
+		},
+		"end": {
+			"line": 19,
+			"character": 15
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'files' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 115,
+			"character": 8
+		},
+		"end": {
+			"line": 115,
+			"character": 13
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'files' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 125,
+			"character": 10
+		},
+		"end": {
+			"line": 125,
+			"character": 15
+		}
+	}
+]
+
+=== 646 packages/svelteui-core/src/components/Flex/Flex.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Button' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	}
+]
+
+=== 669 packages/svelteui-core/src/components/IconRenderer/IconRenderer.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './IconRenderer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	}
+]
+
+=== 2465 packages/svelteui-core/src/components/IconRenderer/IconRendererUsage.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Alert/Alert.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Button/Button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 20
+		},
+		"end": {
+			"line": 4,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Input/Input.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 19
+		},
+		"end": {
+			"line": 5,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Menu/Menu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 18
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Menu/MenuItem/MenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 22
+		},
+		"end": {
+			"line": 7,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Notification/Notification.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Tabs/Tab/Tab.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 17
+		},
+		"end": {
+			"line": 9,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Tabs/Tabs.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 18
+		},
+		"end": {
+			"line": 10,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './IconRenderer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 26
+		},
+		"end": {
+			"line": 11,
+			"character": 49
+		}
+	}
+]
+
+=== 864 packages/svelteui-core/src/components/Input/Input.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 32
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Button' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	}
+]
+
+=== 437 packages/svelteui-core/src/components/JsonInput/JsonInput.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 36
+		}
+	}
+]
+
+=== 437 packages/svelteui-core/src/components/Loader/Loader.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 33
+		}
+	}
+]
+
+=== 656 packages/svelteui-core/src/components/Mark/Mark.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Text/Text.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	}
+]
+
+=== 2939 packages/svelteui-core/src/components/Menu/Menu.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 42
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Button' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Kbd' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 21
+		},
+		"end": {
+			"line": 4,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Divider' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Center' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../SimpleGrid' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 28
+		},
+		"end": {
+			"line": 7,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../TextInput' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 27
+		},
+		"end": {
+			"line": 8,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 73
+		},
+		"end": {
+			"line": 9,
+			"character": 93
+		}
+	},
+	{
+		"code": 7034,
+		"message": "Variable 'menuEvents' implicitly has type 'any[]' in some locations where its type cannot be determined.",
+		"start": {
+			"line": 11,
+			"character": 5
+		},
+		"end": {
+			"line": 11,
+			"character": 15
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'menuEvents' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 98,
+			"character": 43
+		},
+		"end": {
+			"line": 98,
+			"character": 53
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'menuEvents' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 100,
+			"character": 35
+		},
+		"end": {
+			"line": 100,
+			"character": 45
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'menuEvents' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 101,
+			"character": 36
+		},
+		"end": {
+			"line": 101,
+			"character": 46
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'menuEvents' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 107,
+			"character": 9
+		},
+		"end": {
+			"line": 107,
+			"character": 19
+		}
+	}
+]
+
+=== 863 packages/svelteui-core/src/components/Modal/Modal.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 48
+		},
+		"end": {
+			"line": 2,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 32
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Button' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	}
+]
+
+=== 437 packages/svelteui-core/src/components/NativeSelect/NativeSelect.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 39
+		}
+	}
+]
+
+=== 655 packages/svelteui-core/src/components/NumberInput/NumberInput.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"character": 38
+		}
+	}
+]
+
+=== 437 packages/svelteui-core/src/components/Paper/Paper.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 32
+		}
+	}
+]
+
+=== 437 packages/svelteui-core/src/components/PasswordInput/PasswordInput.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 40
+		}
+	}
+]
+
+=== 437 packages/svelteui-core/src/components/Progress/Progress.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 878 packages/svelteui-core/src/components/Radio/Radio.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/styles' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 41
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './RadioGroup/RadioGroup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 23
+		},
+		"end": {
+			"line": 4,
+			"character": 32
+		}
+	}
+]
+
+=== 3 packages/svelteui-core/src/components/SegmentedControl/SegmentedControl.svelte	json
+[]
+
+=== 646 packages/svelteui-core/src/components/Stack/Stack.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Button' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 32
+		}
+	}
+]
+
+=== 437 packages/svelteui-core/src/components/Switch/Switch.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 33
+		}
+	}
+]
+
+=== 1699 packages/svelteui-core/src/components/Tabs/Tabs.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 46
+		},
+		"end": {
+			"line": 2,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Badge' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Image' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 23
+		},
+		"end": {
+			"line": 4,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../SimpleGrid' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 28
+		},
+		"end": {
+			"line": 5,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Text' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 22
+		},
+		"end": {
+			"line": 6,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../Title' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 23
+		},
+		"end": {
+			"line": 7,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 22
+		},
+		"end": {
+			"line": 8,
+			"character": 31
+		}
+	}
+]
+
+=== 437 packages/svelteui-core/src/components/Text/Text.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 31
+		}
+	}
+]
+
+=== 655 packages/svelteui-core/src/components/TextInput/TextInput.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 36
+		}
+	}
+]
+
+=== 437 packages/svelteui-core/src/components/Textarea/Textarea.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 437 packages/svelteui-core/src/components/Title/Title.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 32
+		}
+	}
+]
+
+=== 437 packages/svelteui-dates/src/components/Month/Month.stories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@storybook/addon-svelte-csf' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 32
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/actions/use-click-outside/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 64
+		},
+		"end": {
+			"line": 28,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 30
+		},
+		"end": {
+			"line": 29,
+			"character": 56
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/actions/use-clipboard/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 34,
+			"character": 32
+		},
+		"end": {
+			"line": 34,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 27
+		},
+		"end": {
+			"line": 35,
+			"character": 53
+		}
+	}
+]
+
+=== 1079 packages/svelteui-demos/src/demos/composables/actions/use-download/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 32
+		},
+		"end": {
+			"line": 32,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 33,
+			"character": 26
+		},
+		"end": {
+			"line": 33,
+			"character": 52
+		}
+	},
+	{
+		"code": 7034,
+		"message": "Variable 'file' implicitly has type 'any' in some locations where its type cannot be determined.",
+		"start": {
+			"line": 35,
+			"character": 5
+		},
+		"end": {
+			"line": 35,
+			"character": 9
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'file' implicitly has an 'any' type.",
+		"start": {
+			"line": 44,
+			"character": 27
+		},
+		"end": {
+			"line": 44,
+			"character": 31
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/actions/use-focus/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 31,
+			"character": 52
+		},
+		"end": {
+			"line": 31,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 23
+		},
+		"end": {
+			"line": 32,
+			"character": 49
+		}
+	}
+]
+
+=== 844 packages/svelteui-demos/src/demos/composables/actions/use-hot-key/target.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 31,
+			"character": 27
+		},
+		"end": {
+			"line": 31,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 34
+		},
+		"end": {
+			"line": 32,
+			"character": 60
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'val' implicitly has an 'any' type.",
+		"start": {
+			"line": 36,
+			"character": 19
+		},
+		"end": {
+			"line": 36,
+			"character": 22
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/actions/use-hot-key/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 30
+		},
+		"end": {
+			"line": 23,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 24
+		},
+		"end": {
+			"line": 24,
+			"character": 50
+		}
+	}
+]
+
+=== 1469 packages/svelteui-demos/src/demos/composables/actions/use-io/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 34,
+			"character": 29
+		},
+		"end": {
+			"line": 34,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 20
+		},
+		"end": {
+			"line": 35,
+			"character": 46
+		}
+	},
+	{
+		"code": 7034,
+		"message": "Variable 'visible' implicitly has type 'any' in some locations where its type cannot be determined.",
+		"start": {
+			"line": 37,
+			"character": 5
+		},
+		"end": {
+			"line": 37,
+			"character": 12
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'detail' implicitly has an 'any' type.",
+		"start": {
+			"line": 38,
+			"character": 25
+		},
+		"end": {
+			"line": 38,
+			"character": 31
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'visible' implicitly has an 'any' type.",
+		"start": {
+			"line": 44,
+			"character": 26
+		},
+		"end": {
+			"line": 44,
+			"character": 33
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'visible' implicitly has an 'any' type.",
+		"start": {
+			"line": 46,
+			"character": 6
+		},
+		"end": {
+			"line": 46,
+			"character": 13
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/actions/use-lazy/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 23
+		},
+		"end": {
+			"line": 23,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 22
+		},
+		"end": {
+			"line": 24,
+			"character": 48
+		}
+	}
+]
+
+=== 878 packages/svelteui-demos/src/demos/composables/actions/use-lock-scroll/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 28
+		},
+		"end": {
+			"line": 28,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 31
+		},
+		"end": {
+			"line": 29,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 39
+		},
+		"end": {
+			"line": 30,
+			"character": 59
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/actions/use-long-press/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 37,
+			"character": 31
+		},
+		"end": {
+			"line": 37,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 38,
+			"character": 27
+		},
+		"end": {
+			"line": 38,
+			"character": 53
+		}
+	}
+]
+
+=== 439 packages/svelteui-demos/src/demos/composables/actions/use-move/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 22
+		},
+		"end": {
+			"line": 27,
+			"character": 48
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/actions/use-persistent-tab/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 23
+		},
+		"end": {
+			"line": 26,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 31
+		},
+		"end": {
+			"line": 27,
+			"character": 57
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/actions/use-portal/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 34,
+			"character": 36
+		},
+		"end": {
+			"line": 34,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 24
+		},
+		"end": {
+			"line": 35,
+			"character": 50
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/utilities/use-debounce/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 37
+		},
+		"end": {
+			"line": 36,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 37,
+			"character": 29
+		},
+		"end": {
+			"line": 37,
+			"character": 55
+		}
+	}
+]
+
+=== 878 packages/svelteui-demos/src/demos/composables/utilities/use-eye-dropper/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 34,
+			"character": 45
+		},
+		"end": {
+			"line": 34,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 31
+		},
+		"end": {
+			"line": 35,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 25
+		},
+		"end": {
+			"line": 36,
+			"character": 45
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/utilities/use-focus-within/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 39,
+			"character": 59
+		},
+		"end": {
+			"line": 39,
+			"character": 78
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 40,
+			"character": 44
+		},
+		"end": {
+			"line": 40,
+			"character": 70
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/utilities/use-hash/persist.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 31
+		},
+		"end": {
+			"line": 21,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 25
+		},
+		"end": {
+			"line": 22,
+			"character": 51
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/utilities/use-hash/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 23
+		},
+		"end": {
+			"line": 21,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 25
+		},
+		"end": {
+			"line": 22,
+			"character": 51
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/utilities/use-id/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 23
+		},
+		"end": {
+			"line": 21,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 23
+		},
+		"end": {
+			"line": 22,
+			"character": 49
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/utilities/use-os/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 21
+		},
+		"end": {
+			"line": 20,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 23
+		},
+		"end": {
+			"line": 21,
+			"character": 49
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/utilities/use-raf-fn/options.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 31
+		},
+		"end": {
+			"line": 25,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 26
+		},
+		"end": {
+			"line": 26,
+			"character": 52
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/utilities/use-raf-fn/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 31
+		},
+		"end": {
+			"line": 25,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 26
+		},
+		"end": {
+			"line": 26,
+			"character": 52
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/composables/utilities/use-throttle/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 38,
+			"character": 37
+		},
+		"end": {
+			"line": 38,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 39,
+			"character": 29
+		},
+		"end": {
+			"line": 39,
+			"character": 55
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.chevron.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 27
+		},
+		"end": {
+			"line": 35,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 22
+		},
+		"end": {
+			"line": 36,
+			"character": 42
+		}
+	}
+]
+
+=== 616 packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.controlled.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 27
+		},
+		"end": {
+			"line": 32,
+			"character": 46
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 37,
+			"character": 31
+		},
+		"end": {
+			"line": 37,
+			"character": 32
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.custom.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 60,
+			"character": 61
+		},
+		"end": {
+			"line": 60,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 61,
+			"character": 40
+		},
+		"end": {
+			"line": 61,
+			"character": 60
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.data.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 39,
+			"character": 27
+		},
+		"end": {
+			"line": 39,
+			"character": 46
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.default.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 27
+		},
+		"end": {
+			"line": 30,
+			"character": 46
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.defaultMultiple.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 27
+		},
+		"end": {
+			"line": 30,
+			"character": 46
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.disabled.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 34,
+			"character": 27
+		},
+		"end": {
+			"line": 34,
+			"character": 46
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.noTransition.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 27
+		},
+		"end": {
+			"line": 30,
+			"character": 46
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Accordion/Accordion.demo.transitionDuration.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 27
+		},
+		"end": {
+			"line": 30,
+			"character": 46
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/ActionIcon/ActionIcon.demo.close.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 36
+		},
+		"end": {
+			"line": 19,
+			"character": 55
+		}
+	}
+]
+
+=== 871 packages/svelteui-demos/src/demos/core/ActionIcon/ActionIcon.demo.colors.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 38
+		},
+		"end": {
+			"line": 10,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 35
+		},
+		"end": {
+			"line": 11,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 24
+		},
+		"end": {
+			"line": 12,
+			"character": 44
+		}
+	}
+]
+
+=== 871 packages/svelteui-demos/src/demos/core/ActionIcon/ActionIcon.demo.variants.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 38
+		},
+		"end": {
+			"line": 24,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 35
+		},
+		"end": {
+			"line": 25,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 28
+		},
+		"end": {
+			"line": 26,
+			"character": 48
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Affix/Affix.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 37,
+			"character": 37
+		},
+		"end": {
+			"line": 37,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 38,
+			"character": 25
+		},
+		"end": {
+			"line": 38,
+			"character": 45
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Anchor/Anchor.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 24
+		},
+		"end": {
+			"line": 19,
+			"character": 43
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/AppShell/AppShell.demo.responsive.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 45,
+			"character": 22
+		},
+		"end": {
+			"line": 45,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 46,
+			"character": 28
+		},
+		"end": {
+			"line": 46,
+			"character": 48
+		}
+	}
+]
+
+=== 654 packages/svelteui-demos/src/demos/core/AppShell/AppShell.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 58
+		},
+		"end": {
+			"line": 2,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 42,
+			"character": 61
+		},
+		"end": {
+			"line": 42,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './_NavContent.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 45,
+			"character": 24
+		},
+		"end": {
+			"line": 45,
+			"character": 46
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/AspectRatio/AspectRatio.demo.image.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 36
+		},
+		"end": {
+			"line": 22,
+			"character": 55
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/AspectRatio/AspectRatio.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 29
+		},
+		"end": {
+			"line": 19,
+			"character": 48
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Badge/Badge.demo.sections.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 43
+		},
+		"end": {
+			"line": 30,
+			"character": 62
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Badge/Badge.demo.width.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 35
+		},
+		"end": {
+			"line": 28,
+			"character": 54
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Blockquote/Blockquote.demo.icon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 36
+		},
+		"end": {
+			"line": 25,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 32
+		},
+		"end": {
+			"line": 26,
+			"character": 52
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Blockquote/Blockquote.demo.noicon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 36
+		},
+		"end": {
+			"line": 24,
+			"character": 55
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Blockquote/Blockquote.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 36
+		},
+		"end": {
+			"line": 27,
+			"character": 55
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Box/Box.demo.custom.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 34
+		},
+		"end": {
+			"line": 19,
+			"character": 53
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Box/Box.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 21
+		},
+		"end": {
+			"line": 32,
+			"character": 40
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Breadcrumbs/Breadcrumbs.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 34,
+			"character": 50
+		},
+		"end": {
+			"line": 34,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 30
+		},
+		"end": {
+			"line": 35,
+			"character": 50
+		}
+	}
+]
+
+=== 1812 packages/svelteui-demos/src/demos/core/Burger/Burger.demo.color.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 44
+		},
+		"end": {
+			"line": 20,
+			"character": 63
+		}
+	},
+	{
+		"code": 7034,
+		"message": "Variable 'opened' implicitly has type 'any[]' in some locations where its type cannot be determined.",
+		"start": {
+			"line": 22,
+			"character": 5
+		},
+		"end": {
+			"line": 22,
+			"character": 11
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 27,
+			"character": 18
+		},
+		"end": {
+			"line": 27,
+			"character": 24
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 27,
+			"character": 59
+		},
+		"end": {
+			"line": 27,
+			"character": 65
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 28,
+			"character": 34
+		},
+		"end": {
+			"line": 28,
+			"character": 40
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 28,
+			"character": 75
+		},
+		"end": {
+			"line": 28,
+			"character": 81
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 29,
+			"character": 34
+		},
+		"end": {
+			"line": 29,
+			"character": 40
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 29,
+			"character": 75
+		},
+		"end": {
+			"line": 29,
+			"character": 81
+		}
+	}
+]
+
+=== 2572 packages/svelteui-demos/src/demos/core/Burger/Burger.demo.size.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 44
+		},
+		"end": {
+			"line": 22,
+			"character": 63
+		}
+	},
+	{
+		"code": 7034,
+		"message": "Variable 'opened' implicitly has type 'any[]' in some locations where its type cannot be determined.",
+		"start": {
+			"line": 24,
+			"character": 5
+		},
+		"end": {
+			"line": 24,
+			"character": 11
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 29,
+			"character": 28
+		},
+		"end": {
+			"line": 29,
+			"character": 34
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 29,
+			"character": 69
+		},
+		"end": {
+			"line": 29,
+			"character": 75
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 30,
+			"character": 28
+		},
+		"end": {
+			"line": 30,
+			"character": 34
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 30,
+			"character": 69
+		},
+		"end": {
+			"line": 30,
+			"character": 75
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 31,
+			"character": 28
+		},
+		"end": {
+			"line": 31,
+			"character": 34
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 31,
+			"character": 69
+		},
+		"end": {
+			"line": 31,
+			"character": 75
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 32,
+			"character": 28
+		},
+		"end": {
+			"line": 32,
+			"character": 34
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 32,
+			"character": 69
+		},
+		"end": {
+			"line": 32,
+			"character": 75
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 33,
+			"character": 28
+		},
+		"end": {
+			"line": 33,
+			"character": 34
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 33,
+			"character": 69
+		},
+		"end": {
+			"line": 33,
+			"character": 75
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Burger/Burger.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 32
+		},
+		"end": {
+			"line": 23,
+			"character": 51
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Button/Button.demo.compact.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 31
+		},
+		"end": {
+			"line": 21,
+			"character": 50
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Button/Button.demo.customize.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 31
+		},
+		"end": {
+			"line": 32,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 33,
+			"character": 28
+		},
+		"end": {
+			"line": 33,
+			"character": 48
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Button/Button.demo.gradient.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 31
+		},
+		"end": {
+			"line": 32,
+			"character": 50
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Button/Button.demo.icons.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 31
+		},
+		"end": {
+			"line": 27,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 28
+		},
+		"end": {
+			"line": 28,
+			"character": 48
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Button/Button.demo.overflow.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 31
+		},
+		"end": {
+			"line": 19,
+			"character": 50
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Button/Button.demo.ripple.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 31
+		},
+		"end": {
+			"line": 23,
+			"character": 50
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Button/Button.demo.root.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 31
+		},
+		"end": {
+			"line": 19,
+			"character": 50
+		}
+	}
+]
+
+=== 649 packages/svelteui-demos/src/demos/core/Button/Button.demo.variants.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 31
+		},
+		"end": {
+			"line": 27,
+			"character": 50
+		}
+	}
+]
+
+=== 431 packages/svelteui-demos/src/demos/core/Card/Card.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 51,
+			"character": 8
+		},
+		"end": {
+			"line": 51,
+			"character": 27
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Center/Center.demo.inline.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 29
+		},
+		"end": {
+			"line": 24,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 27
+		},
+		"end": {
+			"line": 25,
+			"character": 47
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Center/Center.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 29
+		},
+		"end": {
+			"line": 21,
+			"character": 48
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Checkbox/Checkbox.demo.icon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 33
+		},
+		"end": {
+			"line": 29,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 44
+		},
+		"end": {
+			"line": 30,
+			"character": 64
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Checkbox/Checkbox.demo.sizes.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 33
+		},
+		"end": {
+			"line": 21,
+			"character": 52
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Checkbox/Checkbox.demo.states.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 33
+		},
+		"end": {
+			"line": 22,
+			"character": 52
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Chip/Chip.demo.states.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 36
+		},
+		"end": {
+			"line": 22,
+			"character": 55
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Code/Code.demo.block.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 22
+		},
+		"end": {
+			"line": 20,
+			"character": 41
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Code/Code.demo.color.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 29
+		},
+		"end": {
+			"line": 20,
+			"character": 48
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Code/Code.demo.prism.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 21
+		},
+		"end": {
+			"line": 18,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/prism' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 23
+		},
+		"end": {
+			"line": 19,
+			"character": 43
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Code/Code.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 30
+		},
+		"end": {
+			"line": 18,
+			"character": 49
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Collapse/Collapse.demo.nested.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 40,
+			"character": 48
+		},
+		"end": {
+			"line": 40,
+			"character": 67
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Collapse/Collapse.demo.transition.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 41
+		},
+		"end": {
+			"line": 23,
+			"character": 60
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Collapse/Collapse.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 41
+		},
+		"end": {
+			"line": 23,
+			"character": 60
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Container/Container.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 34
+		},
+		"end": {
+			"line": 30,
+			"character": 53
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Divider/Divider.demo.label.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 25
+		},
+		"end": {
+			"line": 35,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 33
+		},
+		"end": {
+			"line": 36,
+			"character": 53
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Divider/Divider.demo.size.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 25
+		},
+		"end": {
+			"line": 24,
+			"character": 44
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Divider/Divider.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 25
+		},
+		"end": {
+			"line": 21,
+			"character": 44
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Divider/Divider.demo.vertical.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 30
+		},
+		"end": {
+			"line": 21,
+			"character": 49
+		}
+	}
+]
+
+=== 220 packages/svelteui-demos/src/demos/core/Grid/ColWrapper.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Grid/Grid.demo.columns.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 22
+		},
+		"end": {
+			"line": 22,
+			"character": 41
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Grid/Grid.demo.offset.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 22
+		},
+		"end": {
+			"line": 22,
+			"character": 41
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Grid/Grid.demo.responsive.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 22
+		},
+		"end": {
+			"line": 23,
+			"character": 41
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Grid/Grid.demo.rows.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 22
+		},
+		"end": {
+			"line": 23,
+			"character": 41
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Grid/Grid.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 22
+		},
+		"end": {
+			"line": 22,
+			"character": 41
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Image/Image.demo.background.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 46
+		},
+		"end": {
+			"line": 22,
+			"character": 65
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Image/Image.demo.caption.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 30
+		},
+		"end": {
+			"line": 17,
+			"character": 49
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Image/Image.demo.placeholder.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 36
+		},
+		"end": {
+			"line": 23,
+			"character": 55
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Image/Image.demo.radius.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 35
+		},
+		"end": {
+			"line": 19,
+			"character": 54
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Image/Image.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 30
+		},
+		"end": {
+			"line": 17,
+			"character": 49
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Image/Image.demo.width.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 30
+		},
+		"end": {
+			"line": 19,
+			"character": 49
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Input/Input.demo.custom.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 23
+		},
+		"end": {
+			"line": 21,
+			"character": 42
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Input/Input.demo.headless.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 23
+		},
+		"end": {
+			"line": 24,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 33
+		},
+		"end": {
+			"line": 25,
+			"character": 53
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Input/Input.demo.sections.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 30
+		},
+		"end": {
+			"line": 27,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 33
+		},
+		"end": {
+			"line": 28,
+			"character": 53
+		}
+	}
+]
+
+=== 430 packages/svelteui-demos/src/demos/core/Input/Input.demo.sizes.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 23
+		},
+		"end": {
+			"line": 8,
+			"character": 42
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Input/Input.demo.variants.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 23
+		},
+		"end": {
+			"line": 19,
+			"character": 42
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/JsonInput/JsonInput.demo.disabled.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 35
+		},
+		"end": {
+			"line": 23,
+			"character": 54
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/JsonInput/JsonInput.demo.format.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 35
+		},
+		"end": {
+			"line": 21,
+			"character": 54
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/JsonInput/JsonInput.demo.icon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 35
+		},
+		"end": {
+			"line": 22,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 22
+		},
+		"end": {
+			"line": 23,
+			"character": 42
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/JsonInput/JsonInput.demo.validation.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 35
+		},
+		"end": {
+			"line": 21,
+			"character": 54
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Kbd/Kbd.demo.example.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 37
+		},
+		"end": {
+			"line": 29,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 33
+		},
+		"end": {
+			"line": 30,
+			"character": 53
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Kbd/Kbd.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 29
+		},
+		"end": {
+			"line": 19,
+			"character": 48
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Loader/Loader.demo.colors.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 31
+		},
+		"end": {
+			"line": 22,
+			"character": 50
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Loader/Loader.demo.size.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 31
+		},
+		"end": {
+			"line": 18,
+			"character": 50
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Loader/Loader.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 32
+		},
+		"end": {
+			"line": 17,
+			"character": 51
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Loader/Loader.demo.variants.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 31
+		},
+		"end": {
+			"line": 19,
+			"character": 50
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Mark/Mark.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 28
+		},
+		"end": {
+			"line": 19,
+			"character": 47
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/MediaQuery/MediaQuery.demo.query.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 45,
+			"character": 58
+		},
+		"end": {
+			"line": 45,
+			"character": 77
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/MediaQuery/MediaQuery.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 34
+		},
+		"end": {
+			"line": 24,
+			"character": 53
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Menu/Menu.demo.control.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 38
+		},
+		"end": {
+			"line": 24,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 42
+		},
+		"end": {
+			"line": 25,
+			"character": 62
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Menu/Menu.demo.custom.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 30
+		},
+		"end": {
+			"line": 29,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 30
+		},
+		"end": {
+			"line": 30,
+			"character": 50
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Menu/Menu.demo.disabled.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 45
+		},
+		"end": {
+			"line": 36,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 37,
+			"character": 73
+		},
+		"end": {
+			"line": 37,
+			"character": 93
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Menu/Menu.demo.hover.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 45
+		},
+		"end": {
+			"line": 36,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 37,
+			"character": 73
+		},
+		"end": {
+			"line": 37,
+			"character": 93
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Menu/Menu.demo.outside.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 58
+		},
+		"end": {
+			"line": 28,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 42
+		},
+		"end": {
+			"line": 29,
+			"character": 62
+		}
+	}
+]
+
+=== 840 packages/svelteui-demos/src/demos/core/Menu/Menu.demo.styles.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 46,
+			"character": 59
+		},
+		"end": {
+			"line": 46,
+			"character": 78
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 47,
+			"character": 73
+		},
+		"end": {
+			"line": 47,
+			"character": 93
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'theme' implicitly has an 'any' type.",
+		"start": {
+			"line": 49,
+			"character": 33
+		},
+		"end": {
+			"line": 49,
+			"character": 38
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Menu/Menu.demo.transition.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 45
+		},
+		"end": {
+			"line": 36,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 37,
+			"character": 73
+		},
+		"end": {
+			"line": 37,
+			"character": 93
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Menu/Menu.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 45
+		},
+		"end": {
+			"line": 36,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 37,
+			"character": 73
+		},
+		"end": {
+			"line": 37,
+			"character": 93
+		}
+	}
+]
+
+=== 433 packages/svelteui-demos/src/demos/core/Modal/Modal.demo.centered.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ModalForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 23
+		},
+		"end": {
+			"line": 20,
+			"character": 43
+		}
+	}
+]
+
+=== 857 packages/svelteui-demos/src/demos/core/Modal/Modal.demo.header.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 38
+		},
+		"end": {
+			"line": 20,
+			"character": 57
+		}
+	},
+	{
+		"code": 7034,
+		"message": "Variable 'opened' implicitly has type 'any' in some locations where its type cannot be determined.",
+		"start": {
+			"line": 22,
+			"character": 5
+		},
+		"end": {
+			"line": 22,
+			"character": 11
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'opened' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 8
+		},
+		"end": {
+			"line": 25,
+			"character": 14
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Modal/Modal.demo.overflow.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 38
+		},
+		"end": {
+			"line": 22,
+			"character": 57
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Modal/Modal.demo.overlay.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 34
+		},
+		"end": {
+			"line": 26,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ModalForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 23
+		},
+		"end": {
+			"line": 27,
+			"character": 43
+		}
+	}
+]
+
+=== 433 packages/svelteui-demos/src/demos/core/Modal/Modal.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ModalForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 23
+		},
+		"end": {
+			"line": 28,
+			"character": 43
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/NativeSelect/NativeSelect.demo.binding.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 36
+		},
+		"end": {
+			"line": 24,
+			"character": 55
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/NativeSelect/NativeSelect.demo.disabled.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 30
+		},
+		"end": {
+			"line": 17,
+			"character": 49
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/NativeSelect/NativeSelect.demo.error.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 30
+		},
+		"end": {
+			"line": 28,
+			"character": 49
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/NativeSelect/NativeSelect.demo.icon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 30
+		},
+		"end": {
+			"line": 22,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 28
+		},
+		"end": {
+			"line": 23,
+			"character": 48
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/NativeSelect/NativeSelect.demo.objects.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 30
+		},
+		"end": {
+			"line": 27,
+			"character": 49
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/NativeSelect/NativeSelect.demo.section.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 30
+		},
+		"end": {
+			"line": 24,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 29
+		},
+		"end": {
+			"line": 25,
+			"character": 49
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Notification/Notification.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 33,
+			"character": 45
+		},
+		"end": {
+			"line": 33,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 34,
+			"character": 31
+		},
+		"end": {
+			"line": 34,
+			"character": 51
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/NumberInput/NumberInput.demo.controls.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 31,
+			"character": 44
+		},
+		"end": {
+			"line": 31,
+			"character": 63
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/NumberInput/NumberInput.demo.decimal.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 36
+		},
+		"end": {
+			"line": 26,
+			"character": 55
+		}
+	}
+]
+
+=== 1043 packages/svelteui-demos/src/demos/core/NumberInput/NumberInput.demo.externalcontrols.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 40,
+			"character": 56
+		},
+		"end": {
+			"line": 40,
+			"character": 75
+		}
+	},
+	{
+		"code": 7034,
+		"message": "Variable 'input' implicitly has type 'any' in some locations where its type cannot be determined.",
+		"start": {
+			"line": 42,
+			"character": 5
+		},
+		"end": {
+			"line": 42,
+			"character": 10
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'input' implicitly has an 'any' type.",
+		"start": {
+			"line": 46,
+			"character": 47
+		},
+		"end": {
+			"line": 46,
+			"character": 52
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'input' implicitly has an 'any' type.",
+		"start": {
+			"line": 50,
+			"character": 47
+		},
+		"end": {
+			"line": 50,
+			"character": 52
+		}
+	}
+]
+
+=== 616 packages/svelteui-demos/src/demos/core/NumberInput/NumberInput.demo.hold.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 31,
+			"character": 44
+		},
+		"end": {
+			"line": 31,
+			"character": 63
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 't' implicitly has an 'any' type.",
+		"start": {
+			"line": 48,
+			"character": 22
+		},
+		"end": {
+			"line": 48,
+			"character": 23
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/NumberInput/NumberInput.demo.icon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 36
+		},
+		"end": {
+			"line": 27,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 22
+		},
+		"end": {
+			"line": 28,
+			"character": 42
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/NumberInput/NumberInput.demo.invalid.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 44
+		},
+		"end": {
+			"line": 20,
+			"character": 63
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/NumberInput/NumberInput.demo.minmax.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 44
+		},
+		"end": {
+			"line": 32,
+			"character": 63
+		}
+	}
+]
+
+=== 808 packages/svelteui-demos/src/demos/core/NumberInput/NumberInput.demo.parser.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 36
+		},
+		"end": {
+			"line": 28,
+			"character": 55
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'value' implicitly has an 'any' type.",
+		"start": {
+			"line": 35,
+			"character": 11
+		},
+		"end": {
+			"line": 35,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'value' implicitly has an 'any' type.",
+		"start": {
+			"line": 36,
+			"character": 14
+		},
+		"end": {
+			"line": 36,
+			"character": 19
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/NumberInput/NumberInput.demo.separator.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 36
+		},
+		"end": {
+			"line": 25,
+			"character": 55
+		}
+	}
+]
+
+=== 213 packages/svelteui-demos/src/demos/core/ObserverRender/ObserverRender.demo.options.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/ObserverRender/ObserverRender.demo.slots.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 39
+		},
+		"end": {
+			"line": 27,
+			"character": 58
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/ObserverRender/ObserverRender.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 33,
+			"character": 45
+		},
+		"end": {
+			"line": 33,
+			"character": 64
+		}
+	}
+]
+
+=== 641 packages/svelteui-demos/src/demos/core/Overlay/Overlay.demo.blur.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 51
+		},
+		"end": {
+			"line": 28,
+			"character": 70
+		}
+	},
+	{
+		"code": 1117,
+		"message": "An object literal cannot have multiple properties with the same name.",
+		"start": {
+			"line": 40,
+			"character": 7
+		},
+		"end": {
+			"line": 40,
+			"character": 15
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Overlay/Overlay.demo.content.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 31
+		},
+		"end": {
+			"line": 20,
+			"character": 50
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Overlay/Overlay.demo.gradient.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 38
+		},
+		"end": {
+			"line": 20,
+			"character": 57
+		}
+	}
+]
+
+=== 641 packages/svelteui-demos/src/demos/core/Overlay/Overlay.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 51
+		},
+		"end": {
+			"line": 32,
+			"character": 70
+		}
+	},
+	{
+		"code": 1117,
+		"message": "An object literal cannot have multiple properties with the same name.",
+		"start": {
+			"line": 54,
+			"character": 7
+		},
+		"end": {
+			"line": 54,
+			"character": 15
+		}
+	}
+]
+
+=== 622 packages/svelteui-demos/src/demos/core/PasswordInput/PasswordInput.demo.controlledvisibility.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 39
+		},
+		"end": {
+			"line": 26,
+			"character": 58
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'visible' implicitly has an 'any' type.",
+		"start": {
+			"line": 30,
+			"character": 29
+		},
+		"end": {
+			"line": 30,
+			"character": 36
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/PasswordInput/PasswordInput.demo.disabled.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 46
+		},
+		"end": {
+			"line": 20,
+			"character": 65
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/PasswordInput/PasswordInput.demo.icon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 39
+		},
+		"end": {
+			"line": 24,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 28
+		},
+		"end": {
+			"line": 25,
+			"character": 48
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/PasswordInput/PasswordInput.demo.invalid.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 46
+		},
+		"end": {
+			"line": 20,
+			"character": 65
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/PasswordInput/PasswordInput.demo.visibilityfocus.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 46
+		},
+		"end": {
+			"line": 20,
+			"character": 65
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/PasswordInput/PasswordInput.demo.visibilityicon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 39
+		},
+		"end": {
+			"line": 28,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 46
+		},
+		"end": {
+			"line": 29,
+			"character": 66
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Progress/Progress.demo.colors.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 26
+		},
+		"end": {
+			"line": 24,
+			"character": 45
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Progress/Progress.demo.label.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 33
+		},
+		"end": {
+			"line": 28,
+			"character": 52
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Progress/Progress.demo.sections.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 26
+		},
+		"end": {
+			"line": 25,
+			"character": 45
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Progress/Progress.demo.tween.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 48
+		},
+		"end": {
+			"line": 14,
+			"character": 67
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Seo/Seo.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 27
+		},
+		"end": {
+			"line": 22,
+			"character": 46
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/SimpleGrid/SimpleGrid.demo.breakpoints.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 31,
+			"character": 36
+		},
+		"end": {
+			"line": 31,
+			"character": 55
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Skeleton/Skeleton.demo.content.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 41
+		},
+		"end": {
+			"line": 26,
+			"character": 60
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Switch/Switch.demo.inner.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 31
+		},
+		"end": {
+			"line": 21,
+			"character": 50
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Tabs/Tabs.demo.colors.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 22
+		},
+		"end": {
+			"line": 21,
+			"character": 41
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Tabs/Tabs.demo.component.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 22
+		},
+		"end": {
+			"line": 27,
+			"character": 41
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Tabs/Tabs.demo.icons.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 22
+		},
+		"end": {
+			"line": 22,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 46
+		},
+		"end": {
+			"line": 23,
+			"character": 66
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Text/Text.demo.custom.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 28
+		},
+		"end": {
+			"line": 19,
+			"character": 47
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Text/Text.demo.dimmed.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 30
+		},
+		"end": {
+			"line": 17,
+			"character": 49
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Text/Text.demo.inherit.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 37
+		},
+		"end": {
+			"line": 23,
+			"character": 56
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Text/Text.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 22
+		},
+		"end": {
+			"line": 32,
+			"character": 41
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/TextInput/TextInput.demo.disabled.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 42
+		},
+		"end": {
+			"line": 20,
+			"character": 61
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/TextInput/TextInput.demo.icon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 35
+		},
+		"end": {
+			"line": 24,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 32
+		},
+		"end": {
+			"line": 25,
+			"character": 52
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/TextInput/TextInput.demo.invalid.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 42
+		},
+		"end": {
+			"line": 20,
+			"character": 61
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/TextInput/TextInput.demo.rightsection.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 43
+		},
+		"end": {
+			"line": 26,
+			"character": 62
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Textarea/Textarea.demo.disabled.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 41
+		},
+		"end": {
+			"line": 20,
+			"character": 60
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Textarea/Textarea.demo.icon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 34
+		},
+		"end": {
+			"line": 20,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 32
+		},
+		"end": {
+			"line": 21,
+			"character": 52
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Textarea/Textarea.demo.invalid.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 41
+		},
+		"end": {
+			"line": 24,
+			"character": 60
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Textarea/Textarea.demo.rightsection.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 42
+		},
+		"end": {
+			"line": 23,
+			"character": 61
+		}
+	}
+]
+
+=== 871 packages/svelteui-demos/src/demos/core/ThemeIcon/ThemeIcon.demo.colors.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 37
+		},
+		"end": {
+			"line": 10,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 34
+		},
+		"end": {
+			"line": 11,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 24
+		},
+		"end": {
+			"line": 12,
+			"character": 44
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Timeline/Timeline.demo.component.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 45,
+			"character": 58
+		},
+		"end": {
+			"line": 45,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 46,
+			"character": 36
+		},
+		"end": {
+			"line": 46,
+			"character": 56
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/core/Timeline/Timeline.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 53,
+			"character": 40
+		},
+		"end": {
+			"line": 53,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 54,
+			"character": 60
+		},
+		"end": {
+			"line": 54,
+			"character": 80
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Title/Title.demo.shared.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 23
+		},
+		"end": {
+			"line": 19,
+			"character": 42
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Title/Title.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 23
+		},
+		"end": {
+			"line": 22,
+			"character": 42
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Tooltip/Tooltip.demo.arrow.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 53
+		},
+		"end": {
+			"line": 23,
+			"character": 72
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Tooltip/Tooltip.demo.controlled.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 41
+		},
+		"end": {
+			"line": 22,
+			"character": 60
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Tooltip/Tooltip.demo.delay.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 41
+		},
+		"end": {
+			"line": 24,
+			"character": 60
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Tooltip/Tooltip.demo.multiline.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 41
+		},
+		"end": {
+			"line": 26,
+			"character": 60
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/core/Tooltip/Tooltip.demo.pointer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 46,
+			"character": 59
+		},
+		"end": {
+			"line": 46,
+			"character": 78
+		}
+	}
+]
+
+=== 430 packages/svelteui-demos/src/demos/core/Tooltip/Tooltip.demo.positions.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 52
+		},
+		"end": {
+			"line": 8,
+			"character": 71
+		}
+	}
+]
+
+=== 430 packages/svelteui-demos/src/demos/core/TypographyProvider/TypographyProvider.demo.all.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 36
+		},
+		"end": {
+			"line": 9,
+			"character": 55
+		}
+	}
+]
+
+=== 213 packages/svelteui-demos/src/demos/core/TypographyProvider/TypographyProvider.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	}
+]
+
+=== 658 packages/svelteui-demos/src/demos/core/UnstyledButton/UnstyledButton.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 61
+		},
+		"end": {
+			"line": 28,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 23
+		},
+		"end": {
+			"line": 29,
+			"character": 49
+		}
+	}
+]
+
+=== 1045 packages/svelteui-demos/src/demos/dates/Month/Month.demo.boundaries.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 23
+		},
+		"end": {
+			"line": 28,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/dates' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 23
+		},
+		"end": {
+			"line": 29,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'dayjs' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 19
+		},
+		"end": {
+			"line": 30,
+			"character": 26
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'val' implicitly has an 'any' type.",
+		"start": {
+			"line": 40,
+			"character": 13
+		},
+		"end": {
+			"line": 40,
+			"character": 16
+		}
+	}
+]
+
+=== 1025 packages/svelteui-demos/src/demos/dates/Month/Month.demo.exclude.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 23
+		},
+		"end": {
+			"line": 25,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/dates' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 23
+		},
+		"end": {
+			"line": 26,
+			"character": 43
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'val' implicitly has an 'any' type.",
+		"start": {
+			"line": 35,
+			"character": 13
+		},
+		"end": {
+			"line": 35,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'date' implicitly has an 'any' type.",
+		"start": {
+			"line": 36,
+			"character": 16
+		},
+		"end": {
+			"line": 36,
+			"character": 20
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/dates/Month/Month.demo.firstDaySunday.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 23
+		},
+		"end": {
+			"line": 18,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/dates' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 23
+		},
+		"end": {
+			"line": 19,
+			"character": 43
+		}
+	}
+]
+
+=== 1062 packages/svelteui-demos/src/demos/dates/Month/Month.demo.localization.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 23
+		},
+		"end": {
+			"line": 21,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/dates' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 23
+		},
+		"end": {
+			"line": 22,
+			"character": 43
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'dayjs/locale/ru'.",
+		"start": {
+			"line": 23,
+			"character": 8
+		},
+		"end": {
+			"line": 23,
+			"character": 25
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'val' implicitly has an 'any' type.",
+		"start": {
+			"line": 29,
+			"character": 41
+		},
+		"end": {
+			"line": 29,
+			"character": 44
+		}
+	}
+]
+
+=== 859 packages/svelteui-demos/src/demos/dates/Month/Month.demo.range.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 23
+		},
+		"end": {
+			"line": 25,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/dates' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 23
+		},
+		"end": {
+			"line": 26,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'dayjs' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 19
+		},
+		"end": {
+			"line": 27,
+			"character": 26
+		}
+	}
+]
+
+=== 838 packages/svelteui-demos/src/demos/dates/Month/Month.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 44
+		},
+		"end": {
+			"line": 21,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/dates' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 23
+		},
+		"end": {
+			"line": 22,
+			"character": 43
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'val' implicitly has an 'any' type.",
+		"start": {
+			"line": 31,
+			"character": 46
+		},
+		"end": {
+			"line": 31,
+			"character": 49
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/dates/Month/Month.demo.weekdays.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 23
+		},
+		"end": {
+			"line": 18,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/dates' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 23
+		},
+		"end": {
+			"line": 19,
+			"character": 43
+		}
+	}
+]
+
+=== 838 packages/svelteui-demos/src/demos/dates/Month/Month.demo.weekendDays.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 23
+		},
+		"end": {
+			"line": 25,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/dates' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 23
+		},
+		"end": {
+			"line": 26,
+			"character": 43
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'val' implicitly has an 'any' type.",
+		"start": {
+			"line": 32,
+			"character": 41
+		},
+		"end": {
+			"line": 32,
+			"character": 44
+		}
+	}
+]
+
+=== 651 packages/svelteui-demos/src/demos/misc/contributing/tree.demo.example.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 29
+		},
+		"end": {
+			"line": 13,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 26
+		},
+		"end": {
+			"line": 14,
+			"character": 45
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/prism/Prism.demo.copy.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 21
+		},
+		"end": {
+			"line": 35,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/prism' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 23
+		},
+		"end": {
+			"line": 36,
+			"character": 43
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/prism/Prism.demo.lineHighlight.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 21
+		},
+		"end": {
+			"line": 35,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/prism' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 23
+		},
+		"end": {
+			"line": 36,
+			"character": 43
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/prism/Prism.demo.lineNumbers.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 21
+		},
+		"end": {
+			"line": 35,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/prism' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 23
+		},
+		"end": {
+			"line": 36,
+			"character": 43
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/prism/Prism.demo.usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 21
+		},
+		"end": {
+			"line": 35,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/prism' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 23
+		},
+		"end": {
+			"line": 36,
+			"character": 43
+		}
+	}
+]
+
+=== 616 packages/svelteui-demos/src/demos/theme/DarkTheme.demo.basic.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 50
+		},
+		"end": {
+			"line": 28,
+			"character": 69
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 31,
+			"character": 22
+		},
+		"end": {
+			"line": 31,
+			"character": 23
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/theme/DefaultTheme.demo.basic.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 36
+		},
+		"end": {
+			"line": 23,
+			"character": 55
+		}
+	}
+]
+
+=== 652 packages/svelteui-demos/src/demos/theme/Override.demo.basic.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 31,
+			"character": 32
+		},
+		"end": {
+			"line": 31,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'radix-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 28
+		},
+		"end": {
+			"line": 32,
+			"character": 48
+		}
+	}
+]
+
+=== 432 packages/svelteui-demos/src/demos/theme/ThemeUtilities.demo.basic.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 58
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelteuidev/core' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 29
+		},
+		"end": {
+			"line": 25,
+			"character": 48
+		}
+	}
+]
+

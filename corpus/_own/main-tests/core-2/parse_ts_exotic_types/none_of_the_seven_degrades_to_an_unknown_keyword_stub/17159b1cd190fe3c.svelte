@@ -1,0 +1,1 @@
+<script lang="ts">type P = (a: string) => a is string;</script>

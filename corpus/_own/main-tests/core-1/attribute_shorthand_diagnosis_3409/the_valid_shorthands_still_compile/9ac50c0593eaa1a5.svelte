@@ -1,0 +1,1 @@
+<div {@attach f}>x</div>

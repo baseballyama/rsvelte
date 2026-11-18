@@ -1,0 +1,1 @@
+<Component prop={a > b ? a : b} />
