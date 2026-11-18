@@ -1,5 +1,5 @@
-//! `rsvelte benchmark <dir>`: the pipeline's performance and memory, measured on a population of
-//! units.
+//! `rsvelte-dev benchmark <dir>`: the pipeline's performance and memory, measured on a population
+//! of units.
 //!
 //! Every arm runs the same documents and tasks; they differ in one mechanism each, so a difference
 //! between two arms is what that mechanism buys:
@@ -166,7 +166,7 @@ pub(crate) fn benchmark(
         Err(error) => return crate::usage(&error),
     };
     if docs.is_empty() {
-        eprintln!("rsvelte benchmark: no units below {}", root.display());
+        eprintln!("rsvelte-dev benchmark: no units below {}", root.display());
         return ExitCode::FAILURE;
     }
     let default_tasks = reg.document_task_identifiers();
@@ -401,7 +401,7 @@ pub(crate) fn benchmark(
     match &options.json {
         Some(path) => {
             if let Err(e) = std::fs::write(path, &report) {
-                eprintln!("rsvelte benchmark: {}: {e}", path.display());
+                eprintln!("rsvelte-dev benchmark: {}: {e}", path.display());
                 return ExitCode::FAILURE;
             }
         }

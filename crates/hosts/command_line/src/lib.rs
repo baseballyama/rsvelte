@@ -1,17 +1,21 @@
-//! `rsvelte corpus <dir>... [--task <identifier>]...` runs tasks over every corpus unit below
+//! The command line, as two programs that share it: `rsvelte`, which people install, runs
+//! `lint`, `format` and `typecheck` (see `release.rs`); `rsvelte-dev` runs every task and the
+//! commands that measure and test rsvelte:
+//!
+//! `rsvelte-dev corpus <dir>... [--task <identifier>]...` runs tasks over every corpus unit below
 //! the given directories, in one run, and writes `actual/<task>.<ext>` next to `expected/`.
-//! `rsvelte run <file> --task <identifier>` prints one task's outputs for one file.
-//! `rsvelte run <file>... --task <identifier>` runs the tasks over every file in one run, as a
+//! `rsvelte-dev run <file> --task <identifier>` prints one task's outputs for one file.
+//! `rsvelte-dev run <file>... --task <identifier>` runs the tasks over every file in one run, as a
 //! project, and labels each output with its file.
-//! `rsvelte lint [<path>...] [--task <identifier>]...` lints the files below the paths, by default
-//! the current directory, and prints the problems as `ESLint` does.
-//! `rsvelte format [<path>...] [--check]` formats the files below the paths, by default the
+//! `rsvelte-dev lint [<path>...] [--task <identifier>]...` lints the files below the paths, by
+//! default the current directory, and prints the problems as `ESLint` does.
+//! `rsvelte-dev format [<path>...] [--check]` formats the files below the paths, by default the
 //! current directory, and writes the ones that change; `--check` only lists them.
-//! `rsvelte check [--task <identifier>]...` runs the tasks, by default `ts.check/default`, over
+//! `rsvelte-dev check [--task <identifier>]...` runs the tasks, by default `ts.check/default`, over
 //! the files of the project they check, as its checker selects them from the tsconfig.
-//! `rsvelte benchmark <dir> [--task <identifier>]... [rounds=N] [json=<file>]` measures the
+//! `rsvelte-dev benchmark <dir> [--task <identifier>]... [rounds=N] [json=<file>]` measures the
 //! pipeline (see `commands/benchmark.rs`).
-//! `rsvelte performance <dir>... [--task <identifier>]... [rounds=N] [json=<file>]` prints the
+//! `rsvelte-dev performance <dir>... [--task <identifier>]... [rounds=N] [json=<file>]` prints the
 //! deterministic counters CI ratchets (see `commands/performance.rs`).
 //!
 //! Each plugin reads its own options: the configuration file's `plugins.<plugin>`, replaced by
@@ -29,13 +33,16 @@ mod commands;
 mod configuration;
 mod input;
 mod output;
+mod release;
 use std::path::Path;
 use std::process::ExitCode;
 
 use commands::corpus::corpus;
 use commands::run::{run_file, run_files, run_project};
 use commands::{benchmark, format, lint, performance};
+pub use release::release;
 use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_plugin_interface::Extension;
 
 // The allocation counters need the counting allocator, so mimalloc only serves the plain build.
 #[cfg(not(feature = "metrics"))]
@@ -50,8 +57,8 @@ static ALLOC: rsvelte_kernel::performance::measurement::CountingAllocator =
 /// What `check` runs without `--task`.
 const PROJECT_CHECK: &str = "ts.check/default";
 
-/// Every plugin the command installs, in installation order.
-static EXTENSIONS: &[&rsvelte_plugin_interface::Extension] = &[
+/// Every plugin `rsvelte-dev` installs, in installation order.
+static EXTENSIONS: &[&Extension] = &[
     &rsvelte_typescript_compile::EXTENSION,
     &rsvelte_typescript_format::EXTENSION,
     &rsvelte_typescript_lint::EXTENSION,
@@ -69,7 +76,9 @@ static EXTENSIONS: &[&rsvelte_plugin_interface::Extension] = &[
     &rsvelte_svelte_to_vue_vapor::EXTENSION,
 ];
 
-fn main() -> ExitCode {
+/// `rsvelte-dev`.
+#[must_use]
+pub fn development() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     let mut tasks = Vec::new();
     let mut config = configuration::Options::default();
@@ -128,7 +137,12 @@ fn main() -> ExitCode {
     } else {
         rsvelte_plugin_interface::Selection::DocumentTasks
     };
-    let (reg, tools) = match configured_registry(&config, &overrides, selection) {
+    let installation = Installation {
+        extensions: EXTENSIONS,
+        selection,
+        defaults: &[],
+    };
+    let (reg, tools) = match configured_registry(&config, &overrides, installation) {
         Ok(configured) => configured,
         Err(error) => return usage(&error),
     };
@@ -144,33 +158,54 @@ fn main() -> ExitCode {
     dispatch(&reg, &positional, &tasks, tools, (fix, check))
 }
 
-/// Installs every plugin with its options, and returns the programs its tasks will run. Every
+/// What a program installs: its plugins, the tasks that will run, and the plugins that get empty
+/// options, so that they use their defaults, when neither the configuration nor `--options`
+/// gives any.
+struct Installation {
+    extensions: &'static [&'static Extension],
+    selection: rsvelte_plugin_interface::Selection,
+    defaults: &'static [&'static str],
+}
+
+/// Installs the plugins with their options, and returns the programs their tasks will run. Every
 /// mistake is reported here, once, not on each file.
 fn configured_registry(
     config: &configuration::Options,
     overrides: &[(&str, &str)],
-    selection: rsvelte_plugin_interface::Selection,
+    installation: Installation,
 ) -> Result<(Registry, Vec<rsvelte_plugin_interface::Tool>), String> {
     let loaded = config.load().map_err(|error| error.to_string())?;
     let functions: std::sync::Arc<dyn rsvelte_plugin_interface::FunctionResolver> = match &loaded {
         Some((_, loaded)) => std::sync::Arc::clone(&loaded.functions),
         None => std::sync::Arc::new(rsvelte_plugin_interface::NoFunctions),
     };
-    let mut settings = rsvelte_plugin_interface::Settings::new(selection, functions);
+    let mut settings = rsvelte_plugin_interface::Settings::new(installation.selection, functions);
+    let mut given: Vec<String> = overrides
+        .iter()
+        .map(|&(plugin, _)| plugin.to_owned())
+        .collect();
     if let Some((path, loaded)) = loaded {
         let base = path.parent().unwrap_or_else(|| Path::new(".")).to_owned();
         for (plugin, options) in loaded.configuration.plugins {
+            given.push(plugin.clone());
             settings.set(plugin, options, base.clone());
         }
     }
     let here = std::env::current_dir().map_err(|e| format!("current directory: {e}"))?;
+    for &plugin in installation.defaults {
+        if !given.iter().any(|g| g == plugin) {
+            let empty = serde_json::value::RawValue::from_string("{}".to_owned())
+                .map_err(|e| e.to_string())?;
+            settings.set(plugin.to_owned(), empty, here.clone());
+        }
+    }
     for &(plugin, options) in overrides {
         let options =
             serde_json::from_str(options).map_err(|e| format!("--options {plugin}: {e}"))?;
         settings.set(plugin.to_owned(), options, here.clone());
     }
     let mut registry = Registry::new();
-    rsvelte_plugin_interface::install(&mut registry, EXTENSIONS, &mut settings)
+    rsvelte_plugin_interface::install(&mut registry, installation.extensions, &mut settings)
         .map_err(|error| error.to_string())?;
     registry
         .validate_plugins()

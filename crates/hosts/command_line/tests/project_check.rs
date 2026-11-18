@@ -1,4 +1,4 @@
-//! `rsvelte check` on a project on disk, whose own tsconfig sets the options under test.
+//! `rsvelte-dev check` on a project on disk, whose own tsconfig sets the options under test.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -42,7 +42,7 @@ impl Project {
             "svelte": packages.package("svelte"),
             "contentMapper": rsvelte_test_harness::content_mapper(),
         });
-        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
             .current_dir(&self.0)
             .arg("check")
             .args(["--options", "typescript.check", &tsc.to_string()])

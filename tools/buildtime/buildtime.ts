@@ -49,7 +49,7 @@ const SCENARIOS: Scenario[] = [
 	},
 	{
 		name: 'release.clean',
-		description: 'the shipped `rsvelte` binary (release: thin LTO, one codegen unit)',
+		description: 'the `rsvelte` and `rsvelte-dev` binaries (release: thin LTO, one codegen unit)',
 		cargo: ['build', '--release', '-p', 'rsvelte_command_line'],
 	},
 	...(

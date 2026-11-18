@@ -123,11 +123,11 @@ timed('build', () => {
 		'-p',
 		'rsvelte_svelte_typescript_projection',
 		'--bin',
-		'rsvelte',
+		'rsvelte-dev',
 		'--bin',
 		'rsvelte-svelte-content-mapper',
 	]);
-	for (const name of ['rsvelte', 'rsvelte-svelte-content-mapper'])
+	for (const name of ['rsvelte-dev', 'rsvelte-svelte-content-mapper'])
 		fs.copyFileSync(path.join(experimentalTarget, 'release', name), path.join(bin, name));
 	const mainTarget = at('target-main-workspace');
 	run(
@@ -309,7 +309,7 @@ timed('check', () => {
 			'--tools',
 			tools,
 			'--rsvelte',
-			path.join(bin, 'rsvelte'),
+			path.join(bin, 'rsvelte-dev'),
 			'--mapper',
 			path.join(bin, 'rsvelte-svelte-content-mapper'),
 			'--main-check',

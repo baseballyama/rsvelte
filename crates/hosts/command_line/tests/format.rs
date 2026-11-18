@@ -28,7 +28,7 @@ impl Project {
     }
 
     fn format(&self, arguments: &[&str]) -> std::process::Output {
-        Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+        Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
             .current_dir(&self.0)
             .arg("format")
             .args(arguments)

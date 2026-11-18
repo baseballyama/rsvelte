@@ -12,9 +12,9 @@ recommend it for executable settings.
 ## CLI
 
 ```sh
-rsvelte run App.svelte --config rsvelte.config.json --task svelte.lint/default
-rsvelte run App.svelte --config rsvelte.config.mts --task svelte.compile/client
-rsvelte run App.svelte --config project.custom --config-loader /path/to/loader
+rsvelte-dev run App.svelte --config rsvelte.config.json --task svelte.lint/default
+rsvelte-dev run App.svelte --config rsvelte.config.mts --task svelte.compile/client
+rsvelte-dev run App.svelte --config project.custom --config-loader /path/to/loader
 ```
 
 Without `--config`, the CLI searches the current directory and its parents for

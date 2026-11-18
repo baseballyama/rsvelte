@@ -13,7 +13,7 @@ const CARGO = `#!/bin/sh
 if [ "$1" = --version ]; then echo 'cargo 0.0.0 (fake)'; exit 0; fi
 printf '%s' "$CARGO_BUILD_JOBS" > "$FAKE_DIR/jobs-$FAKE_ROLE"
 mkdir -p "$CARGO_TARGET_DIR/release"
-cat > "$CARGO_TARGET_DIR/release/rsvelte.$$" <<'RSVELTE'
+cat > "$CARGO_TARGET_DIR/release/rsvelte-dev.$$" <<'RSVELTE'
 #!/bin/sh
 for argument in "$@"; do case "$argument" in json=*) out="\${argument#json=}";; esac; done
 printf '{"rev":"%s","metrics":true,"documents":%s,"source_bytes":1,"output_bytes":1,"tasks":[],"allocs":1,"alloc_bytes":1,"peak_live_growth_bytes":1,"phases":{}}' "$0" "$FAKE_DOCUMENTS" > "$out"
@@ -23,9 +23,9 @@ if [ "$FAKE_ROLE" = first ]; then
   while [ ! -e "$FAKE_DIR/wrote-second" ] && [ $tries -lt 400 ]; do sleep 0.05; tries=$((tries + 1)); done
 fi
 RSVELTE
-chmod +x "$CARGO_TARGET_DIR/release/rsvelte.$$"
+chmod +x "$CARGO_TARGET_DIR/release/rsvelte-dev.$$"
 # A rename keeps the running script of the other run intact.
-mv "$CARGO_TARGET_DIR/release/rsvelte.$$" "$CARGO_TARGET_DIR/release/rsvelte"
+mv "$CARGO_TARGET_DIR/release/rsvelte-dev.$$" "$CARGO_TARGET_DIR/release/rsvelte-dev"
 `;
 
 /** Resolves when `file` exists; fails when `exit` settles first or after WAIT_MS. */
@@ -89,7 +89,7 @@ test(
 			await firstExit;
 			assert.match(second.stdout, /: 2,222 documents/);
 			assert.match(firstOut, /: 1,111 documents/, "the first run read the second run's report");
-			const measured = /rsvelte performance at (\S+):/.exec(firstOut)?.[1];
+			const measured = /rsvelte-dev performance at (\S+):/.exec(firstOut)?.[1];
 			assert.ok(measured, firstOut);
 			// The ratchet sees its root through realpath (/var is /private/var on macOS); compare in both spellings.
 			for (const shared of new Set([
@@ -101,7 +101,7 @@ test(
 					`the first run measured the shared build output ${measured}`,
 				);
 			}
-			assert.ok(path.isAbsolute(measured) && path.basename(measured) === 'rsvelte', measured);
+			assert.ok(path.isAbsolute(measured) && path.basename(measured) === 'rsvelte-dev', measured);
 			assert.equal(fs.readFileSync(path.join(directory, 'jobs-first'), 'utf8'), '1');
 		} finally {
 			// The test owns this child; a failed assertion must not leave it waiting on the barrier.

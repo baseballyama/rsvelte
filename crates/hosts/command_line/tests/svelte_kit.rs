@@ -34,7 +34,7 @@ impl Project {
                 .collect::<Vec<_>>()
                 .join(",")
         );
-        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
             .current_dir(self.0.join(directory))
             .args(["run", file, "--task", "svelte.lint/default"])
             .args(["--options", "svelte.lint", &options])
@@ -65,7 +65,7 @@ impl Project {
     /// The rules that report on each of `files`, linted together in one run with `rule` on.
     fn rules_of_files(&self, files: &[&str], rule: &str) -> Vec<Vec<String>> {
         let options = format!(r#"{{"rules":{{"svelte/{rule}":"error"}}}}"#);
-        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
             .current_dir(&self.0)
             .arg("run")
             .args(files)

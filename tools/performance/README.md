@@ -37,7 +37,7 @@ The config has these fields:
 | `baseline`              | Optional previous complete report to compare                              |
 | `tolerance`             | Optional relative tolerance for the two-sided gate; default 0.02          |
 
-The command must run the declared number of rounds. For `rsvelte performance`, check
+The command must run the declared number of rounds. For `rsvelte-dev performance`, check
 `documents`, `skipped`, `metrics` and `rounds`. Also check the smallest allowed output size. Outside the
 corpus, a unit directory name must end in the language extension, such as
 `case.svelte/input.svelte`. A file count alone does not prove that the tasks ran.

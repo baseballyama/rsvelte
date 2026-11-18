@@ -7,6 +7,7 @@ pub(crate) mod format;
 pub(crate) mod lint;
 pub(crate) mod performance;
 pub(crate) mod run;
+pub(crate) mod typecheck;
 
 /// `tools`: the external programs the run's plugins run, each `{ command, version }`.
 fn write_tools(
