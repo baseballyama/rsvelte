@@ -24077,24 +24077,6 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 59 css_trailing_combinator_parse/a_pseudo_class_argument_is_reported_at_its_closing_paren/5ca88ea343d68823.svelte	svelte
-<p></p>
-
-<style>
-  :is(p >) {
-    color: red;
-  }
-</style>
-
-=== 63 css_trailing_combinator_parse/a_pseudo_class_argument_is_reported_at_its_closing_paren/8cbb31b173f99158.svelte	svelte
-<p></p>
-
-<style>
-  :is(p >, .a) {
-    color: red;
-  }
-</style>
-
 === 54 css_trailing_combinator_parse/the_brace_may_be_on_the_next_line/03016bfdbe3af624.svelte	svelte
 <p></p>
 

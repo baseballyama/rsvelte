@@ -2644,6 +2644,12 @@
 "svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
 "svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
 
+["svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_pseudo_class_argument_is_reported_at_its_closing_paren/5ca88ea343d68823.svelte".skip]
+"svelte.format" = "upstream bug: oxc-css-parser 0.0.21 rejects the whole rule for an invalid selector inside `:is()`, a forgiving selector list."
+
+["svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_pseudo_class_argument_is_reported_at_its_closing_paren/8cbb31b173f99158.svelte".skip]
+"svelte.format" = "upstream bug: oxc-css-parser 0.0.21 rejects the whole rule for an invalid selector inside `:is()`, a forgiving selector list."
+
 ["svelte/rsvelte-tests-core-1/css_value_scan_4046/a_brace_inside_any_bracket_but_url_still_ends_the_value/68ad7174e520e1fd.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter_css/DIVERGENCES.md#grammar-owner-rejected"
 
