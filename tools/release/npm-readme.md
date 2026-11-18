@@ -1,7 +1,7 @@
 # rsvelte
 
-rsvelte lints, formats and type checks Svelte 5 and TypeScript files. It is written in Rust.
-It is experimental.
+rsvelte lints, formats and type checks Svelte 5 and TypeScript files with native programs
+built from Rust. This release is experimental.
 
 ## Install
 

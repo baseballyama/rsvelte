@@ -7,10 +7,10 @@ implementations live in `../languages/`; shared data and task scheduling live in
 [configuration](configuration_loading/README.md): JSON, JS/TS or custom settings, and the
 runtime functions they name. Node is optional.
 
-| Host            | Who uses it                                                         | Interface                          |
-| --------------- | ------------------------------------------------------------------- | ---------------------------------- |
-| `command_line/` | People running rsvelte in a terminal, and toolchain developers      | The native `rsvelte` executable    |
-| `browser/`      | Developers embedding rsvelte in a web page; for now, the Learn site | JavaScript bindings to WebAssembly |
+| Host            | Who uses it                                                         | Interface                                          |
+| --------------- | ------------------------------------------------------------------- | -------------------------------------------------- |
+| `command_line/` | People running rsvelte in a terminal, and toolchain developers      | The native `rsvelte` and `rsvelte-dev` executables |
+| `browser/`      | Developers embedding rsvelte in a web page; for now, the Learn site | JavaScript bindings to WebAssembly                 |
 
 A host knows no language. It installs the plugins' extensions and runs their tasks; a page
 installs them without a file system, and shows each artifact a task computed through the
@@ -18,13 +18,16 @@ artifact's `Debug`.
 
 ## Command line
 
-The CLI processes files and runs development commands. Run these examples from the repository
-root with the pinned Rust toolchain:
+The command line is two programs. `rsvelte`, which a [release](../../tools/release/README.md)
+publishes to npm, runs `lint`, `format` and `typecheck` over Svelte and TypeScript files; its
+[README](../../tools/release/npm-readme.md) is the user guide. `rsvelte-dev` runs every task of
+every language, and the development commands below. Run these examples from the repository root
+with the pinned Rust toolchain:
 
 ```sh
-cargo run -p rsvelte_command_line -- run App.svelte --task svelte.compile/client
-cargo run -p rsvelte_command_line -- run App.svelte --task svelte.format/default
-cargo run -p rsvelte_command_line -- run App.svelte --task svelte.lint/default
+cargo run -p rsvelte_command_line --bin rsvelte-dev -- run App.svelte --task svelte.compile/client
+cargo run -p rsvelte_command_line --bin rsvelte-dev -- run App.svelte --task svelte.format/default
+cargo run -p rsvelte_command_line --bin rsvelte-dev -- run App.svelte --task svelte.lint/default
 ```
 
 Repeat `--task` to request more than one task. `run` prints generated files and diagnostics to
@@ -50,7 +53,7 @@ change; with `--check`, it writes nothing, lists them, and exits with 1.
 | `benchmark <dir> --task <identifier>`      | Measure pipeline time                                           |
 | `performance <dir>... --task <identifier>` | Measure performance counters                                    |
 
-The CLI knows no language. It installs every plugin's `EXTENSION`, and each plugin reads its own
+The CLI knows no language. `rsvelte-dev` installs every plugin's `EXTENSION`, and each plugin reads its own
 options from `plugins.<plugin>` in [the configuration file](configuration_loading/README.md).
 `--options <plugin> <json>` replaces them; paths in it start from the current directory. Two
 mistakes stop the run with exit code 2 before it reads a file: an option no installed plugin
@@ -60,20 +63,25 @@ every task, the checks included.
 The check tasks share the type checker that `typescript.check` names: TypeScript 7.1's `tsc` or
 any product with its API, such as `tsrs`. rsvelte starts it with
 `--api --cwd <dir> --runExternalCode` and asks it for diagnostics. The CLI looks for a bare name
-such as `tsrs` in the project's `node_modules/.bin`, then in `PATH`. Before it reads any file,
+such as `tsrs` in the project's `node_modules/.bin`, then in `PATH`. Without `command`, it runs
+the first of `tsrs`, `@typescript/native-preview` and `typescript` that the project installs,
+through `node`. Before it reads any file,
 the CLI runs `<checker> --version`; `benchmark` and `performance` record each program and its
-version in `tools`. `svelte.check` also needs the svelte package and the content mapper, and
-`vue.check` needs the vue package.
+version in `tools`. `svelte.check` also needs the svelte package, by default the project's, and the content mapper,
+by default `rsvelte-svelte-content-mapper` beside the running program. `vue.check` needs the
+vue package. `rsvelte typecheck` gives both check plugins empty options when nothing configures
+them, so a project needs no configuration.
 
 ```sh
 cargo install --path crates/languages/typescript/content_mapper
-cargo run -p rsvelte_command_line -- run App.svelte --task svelte.check/default \
+cargo run -p rsvelte_command_line --bin rsvelte-dev -- run App.svelte --task svelte.check/default \
   --options typescript.check '{"command": ["tsrs"], "tsconfig": "tsconfig.json"}' \
   --options svelte.check '{"svelte": "node_modules/svelte"}'
 ```
 
-[`command_line/src/main.rs`](command_line/src/main.rs) handles the arguments and registers the
-tools. See [the corpus guide](../../corpus/README.md) for oracle comparisons.
+[`command_line/src/lib.rs`](command_line/src/lib.rs) handles the arguments of `rsvelte-dev`
+and [`command_line/src/release.rs`](command_line/src/release.rs) those of `rsvelte`; each
+registers its tools. See [the corpus guide](../../corpus/README.md) for oracle comparisons.
 
 ## Browser / WebAssembly
 

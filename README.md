@@ -7,6 +7,15 @@ only a diff oracle and a performance baseline.
 
 ![ESLint, then `rsvelte lint` with the same rules, on a large open-source Svelte project](.github/assets/lint.gif)
 
+## Use
+
+```sh
+npm install --save-dev rsvelte
+npx rsvelte lint && npx rsvelte format --check && npx rsvelte typecheck
+```
+
+[The package's README](tools/release/npm-readme.md) is the user guide.
+
 ## Layout
 
 | Directory                           | What it holds                                                                 |
@@ -28,8 +37,8 @@ only a diff oracle and a performance baseline.
 - Each **tool** (compile, lint, format, check) is its own crate. It registers one task, which
   reads the artifacts it needs. Syntax and semantic never depend on a tool, so tools share one
   parse.
-- A **host** (the `rsvelte` command line, the browser build) chooses which tools to register
-  and runs them.
+- A **host** (the `rsvelte` and `rsvelte-dev` command lines, the browser build) chooses which
+  tools to register and runs them.
 
 ## Correctness and speed
 
@@ -47,7 +56,7 @@ pnpm install && pnpm run check                    # TypeScript side: oxfmt, oxli
 node tools/oracle/oracle.ts run-all               # rsvelte's output for every corpus unit
 cargo test -p rsvelte_command_line --test corpus  # compare it with the official tools' output
 node tools/performance/performance.ts ratchet     # the performance gate
-cargo run -p rsvelte_command_line -- run App.svelte --task svelte.compile/client
+cargo run -p rsvelte_command_line --bin rsvelte-dev -- run App.svelte --task svelte.compile/client
 ```
 
 `rust-toolchain.toml` and `mise.toml` pin the versions. Contributor rules are in

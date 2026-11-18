@@ -11,9 +11,9 @@ git tag v0.1.0 && git push origin v0.1.0
 Each platform builds `rsvelte` and `rsvelte-svelte-content-mapper`. Then
 `node tools/release/release.ts stage` writes the packages:
 
-- `@rsvelte/cli-<platform>` for each platform in `stage.ts`, with its two programs
-- `rsvelte`, which depends on every platform package (npm installs only the one for the
-  machine) and has the `rsvelte` command, `launcher.js`, which starts that platform's program
+- `@rsvelte/cli-<platform>` for each platform in `stage.ts`, with its two programs.
+- `rsvelte`, which depends on every platform package. npm installs only the one for the
+  machine. The package's `rsvelte` command is `launcher.js`, which starts that program.
 
 The workflow publishes the platform packages first, and `rsvelte` last. It skips a package
 whose version is already published, so running it again finishes a partial release. Run it by

@@ -74,7 +74,7 @@
 	const totalMinutes = chapters.reduce((n, c) => n + c.minutes, 0);
 
 	const command =
-		'cargo run --release -p rsvelte_command_line -- run Counter.svelte --task svelte.compile/client';
+		'cargo run --release -p rsvelte_command_line --bin rsvelte-dev -- run Counter.svelte --task svelte.compile/client';
 	let copied = $state(false);
 	async function copy() {
 		await navigator.clipboard.writeText(command);
