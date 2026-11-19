@@ -24,6 +24,9 @@ export const TSRS = '>=7.1.0-beta.tsrs2 <7.2.0';
 const REPOSITORY = { type: 'git', url: 'git+https://github.com/baseballyama/rsvelte.git' };
 const DESCRIPTION = 'Lint, format and type check Svelte and TypeScript, fast';
 
+/** The package people install; npm refuses `rsvelte` as too close to `svelte`. */
+export const COMMAND_PACKAGE = '@rsvelte/cli';
+
 export const packageName = (platform: (typeof PLATFORMS)[number]) =>
 	`@rsvelte/cli-${platform.suffix}`;
 
@@ -37,7 +40,7 @@ export function cargoVersion(manifest: string): string {
 
 /**
  * Writes every package below `out`, and returns their directories in the order to publish them:
- * the platforms first, so `rsvelte` never names a package that is not there yet.
+ * the platforms first, so the command package never names a package that is not there yet.
  */
 export function stage(artifacts: string, out: string, version: string): string[] {
 	fs.mkdirSync(out, { recursive: true });
@@ -75,9 +78,9 @@ export function stage(artifacts: string, out: string, version: string): string[]
 		}
 		order.push(directory);
 	}
-	const command = path.join(out, 'rsvelte');
+	const command = path.join(out, 'cli');
 	write(command, {
-		name: 'rsvelte',
+		name: COMMAND_PACKAGE,
 		version,
 		description: DESCRIPTION,
 		keywords: ['svelte', 'lint', 'format', 'typecheck', 'typescript'],

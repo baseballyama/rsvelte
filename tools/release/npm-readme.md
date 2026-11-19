@@ -6,15 +6,28 @@ built from Rust. This release is experimental.
 ## Install
 
 ```sh
-npm install --save-dev rsvelte
+npm install --save-dev @rsvelte/cli
 ```
 
 ## Use
 
 ```sh
-npx rsvelte lint [<path>...]
-npx rsvelte format [<path>...] [--check]
-npx rsvelte typecheck
+npx @rsvelte/cli lint [<path>...]
+npx @rsvelte/cli format [<path>...] [--check]
+npx @rsvelte/cli typecheck
+```
+
+`npx` runs the project's copy, or downloads one when the project has none. In `package.json`
+scripts, the command is `rsvelte`:
+
+```json
+{
+  "scripts": {
+    "lint": "rsvelte lint",
+    "format": "rsvelte format",
+    "typecheck": "rsvelte typecheck"
+  }
+}
 ```
 
 Without a path, `lint` and `format` read every file below the current directory, except

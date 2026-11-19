@@ -18,7 +18,7 @@ try {
 	program = require.resolve(`${name}/rsvelte${process.platform === 'win32' ? '.exe' : ''}`);
 } catch {
 	console.error(
-		`rsvelte: ${name} is not installed; install rsvelte again, with optional dependencies`,
+		`rsvelte: ${name} is not installed; install @rsvelte/cli again, with optional dependencies`,
 	);
 	process.exit(1);
 }

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { cargoVersion, packageName, PLATFORMS, PROGRAMS, stage } from './stage.ts';
+import { cargoVersion, COMMAND_PACKAGE, packageName, PLATFORMS, PROGRAMS, stage } from './stage.ts';
 
 test('the version is the workspace package version, not a dependency version', () => {
 	const manifest = [
@@ -40,7 +40,7 @@ test(
 				}
 			const order = stage(artifacts, path.join(root, 'out'), '1.2.3');
 			assert.equal(order.length, PLATFORMS.length + 1);
-			assert.equal(path.basename(order.at(-1)!), 'rsvelte', 'rsvelte is published last');
+			assert.equal(path.basename(order.at(-1)!), 'cli', 'the command package is published last');
 			const manifest = JSON.parse(
 				fs.readFileSync(path.join(order.at(-1)!, 'package.json'), 'utf8'),
 			);
@@ -55,7 +55,7 @@ test(
 			assert.ok(here, `no platform package for ${process.platform}-${process.arch}`);
 			const modules = path.join(root, 'project/node_modules');
 			fs.mkdirSync(path.join(modules, '@rsvelte'), { recursive: true });
-			fs.cpSync(order.at(-1)!, path.join(modules, 'rsvelte'), { recursive: true });
+			fs.cpSync(order.at(-1)!, path.join(modules, COMMAND_PACKAGE), { recursive: true });
 			fs.cpSync(
 				path.join(root, 'out', `cli-${here.suffix}`),
 				path.join(modules, packageName(here)),
@@ -65,7 +65,7 @@ test(
 			);
 			const run = spawnSync(
 				process.execPath,
-				[path.join(modules, 'rsvelte/bin/rsvelte.js'), 'lint', 'a b'],
+				[path.join(modules, COMMAND_PACKAGE, 'bin/rsvelte.js'), 'lint', 'a b'],
 				{ encoding: 'utf8' },
 			);
 			assert.equal(run.status, 3, run.stderr);
@@ -74,9 +74,13 @@ test(
 				`${fs.realpathSync(path.join(modules, packageName(here), 'rsvelte'))} lint a b`,
 			);
 			fs.rmSync(path.join(modules, packageName(here)), { recursive: true });
-			const missing = spawnSync(process.execPath, [path.join(modules, 'rsvelte/bin/rsvelte.js')], {
-				encoding: 'utf8',
-			});
+			const missing = spawnSync(
+				process.execPath,
+				[path.join(modules, COMMAND_PACKAGE, 'bin/rsvelte.js')],
+				{
+					encoding: 'utf8',
+				},
+			);
 			assert.equal(missing.status, 1);
 			assert.match(missing.stderr, /is not installed/);
 		} finally {
