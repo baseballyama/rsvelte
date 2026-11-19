@@ -5,9 +5,9 @@ use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 
-use super::{NoInnerDeclarationsOptions, PreferConstOptions, ProgramStatements};
+use super::{Dialect, NoInnerDeclarationsOptions, PreferConstOptions, ProgramStatements};
 
-struct NoUnusedVariables;
+struct NoUnusedVariables(Dialect);
 
 /// A rule from a function over the analysis and the program, for the cases.
 struct Check(fn(&Semantic, ProgramIdentifier, &mut Reporter<'_>));
@@ -28,18 +28,26 @@ impl Rule<Semantic> for NoUnusedVariables {
     }
 
     fn check(&self, context: &Semantic, reporter: &mut Reporter<'_>) {
-        super::no_unused_variables(context, |_| true, |_| &[], |_| None, |_| false, reporter);
+        super::no_unused_variables(
+            context,
+            self.0,
+            |_| true,
+            |_| &[],
+            |_| None,
+            |_| false,
+            reporter,
+        );
     }
 }
 
 /// Each finding as `message@start-end`, the form the expectations take.
-fn unused(source: &str) -> Vec<String> {
-    let document =
-        Document::new("input.ts".to_owned(), source.to_owned()).expect("a small document");
-    let (tree, program) = Tree::program(&document, SourceType::ts()).expect("the case parses");
+fn unused(path: &str, source: &str, dialect: Dialect) -> Vec<String> {
+    let document = Document::new(path.to_owned(), source.to_owned()).expect("a small document");
+    let source_type = SourceType::from_path(path).expect("a TypeScript path");
+    let (tree, program) = Tree::program(&document, source_type).expect("the case parses");
     let semantic = Semantic::program(tree, program);
     let mut findings = Findings::new();
-    findings.run([&NoUnusedVariables], &semantic);
+    findings.run([&NoUnusedVariables(dialect)], &semantic);
     findings
         .finish()
         .expect("the rule does not fail")
@@ -53,6 +61,8 @@ fn unused(source: &str) -> Vec<String> {
         })
         .collect()
 }
+
+mod typescript_eslint;
 
 // The expectations are ESLint 10.14.0's rules with @typescript-eslint/parser 8.72.1.
 const UNUSED: &[(&str, &[&str])] = &[
@@ -283,7 +293,7 @@ fn reports_what_eslint_reports() {
     let mismatches: Vec<String> = cases
         .iter()
         .filter_map(|&(source, expected)| {
-            let actual = unused(source);
+            let actual = unused("input.ts", source, Dialect::Core);
             (actual != expected)
                 .then(|| format!("{source}\n  expected {expected:?}\n  actual   {actual:?}"))
         })

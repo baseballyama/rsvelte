@@ -10,7 +10,7 @@ mod no_inner_declarations;
 mod no_unused_variables;
 mod prefer_const;
 pub use no_inner_declarations::{NoInnerDeclarationsOptions, no_inner_declarations};
-pub use no_unused_variables::no_unused_variables;
+pub use no_unused_variables::{Dialect, no_unused_variables};
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
     Expression, FormalParameter, FormalParameters, Program, TSTypeName, TSTypePredicateName,
@@ -79,6 +79,8 @@ struct Use {
     span: oxc_span::Span,
     read: bool,
     write: bool,
+    /// A reference from a type, `typeof x` included.
+    typed: bool,
     scope: ScopeId,
 }
 
@@ -202,11 +204,13 @@ impl<'s> Facts<'s> {
                 .map(|&id| {
                     let reference = self.scoping.get_reference(id);
                     let node = reference.node_id();
+                    let flags = reference.flags();
                     Use {
                         node,
                         span: self.span(node),
                         read: reference.is_read(),
                         write: reference.is_write(),
+                        typed: flags.is_type() || flags.is_value_as_type(),
                         scope: reference.scope_id(),
                     }
                 }),
@@ -220,6 +224,7 @@ impl<'s> Facts<'s> {
                 span: it.parameter_name.span(),
                 read: true,
                 write: false,
+                typed: true,
                 scope: self.nodes.get_node(predicate).scope_id(),
             });
         }
@@ -231,6 +236,7 @@ impl<'s> Facts<'s> {
                     span: self.span(identifier),
                     read: false,
                     write: true,
+                    typed: false,
                     scope: self.nodes.get_node(identifier).scope_id(),
                 });
             }
