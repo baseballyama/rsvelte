@@ -3,6 +3,12 @@
 rsvelte lints, formats and type checks Svelte 5 and TypeScript files with native programs
 built from Rust. This release is experimental.
 
+## Try it
+
+```sh
+npx @rsvelte/cli lint
+```
+
 ## Install
 
 ```sh

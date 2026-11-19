@@ -10,6 +10,7 @@ only a diff oracle and a performance baseline.
 ## Use
 
 ```sh
+npx @rsvelte/cli lint                  # without installing
 npm install --save-dev @rsvelte/cli
 npx rsvelte lint && npx rsvelte format --check && npx rsvelte typecheck
 ```
