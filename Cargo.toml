@@ -207,6 +207,12 @@ debug = "line-tables-only"
 lto = "thin"
 codegen-units = 1
 
+# The programs npm ships: without debug info, which is most of a Linux binary.
+[profile.dist]
+inherits = "release"
+debug = false
+strip = true
+
 # The profile benchmarks and performance gates measure: release plus symbols for profilers.
 [profile.benchmark]
 inherits = "release"

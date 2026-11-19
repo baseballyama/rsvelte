@@ -411,6 +411,7 @@ pub(crate) fn benchmark(
 }
 
 /// The process high-water mark, which includes every arm run so far (it cannot be reset).
+#[cfg(unix)]
 #[expect(
     unsafe_code,
     reason = "getrusage is the only source of the peak resident set size"
@@ -428,4 +429,10 @@ fn max_rss_bytes() -> Option<u64> {
     } else {
         v * 1024
     })
+}
+
+// Windows has no getrusage, so the report leaves the peak out.
+#[cfg(not(unix))]
+fn max_rss_bytes() -> Option<u64> {
+    None
 }
