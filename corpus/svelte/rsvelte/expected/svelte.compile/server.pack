@@ -70210,6 +70210,28 @@ export default function Store_member_write_invalidates_inner_signals($$renderer,
 		$.bind_props($$props, { shape });
 	});
 }
+=== 705 pattern/style-directive-text-with-entities.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Style_directive_text_with_entities($$renderer, $$props) {
+	let { rest, x } = $$props;
+
+	$$renderer.push(`<div${$.attr_style('', {
+		'--label': 'Tom &amp; Jerry',
+		'font-family': 'a &quot;b&quot; &lt;c>',
+		color: 'red &lt; blue',
+		'--mixed': `a & ${$.stringify(x)} < b`
+	})}></div> <div${$.attributes({ ...rest }, void 0, void 0, {
+		'--label': 'Tom &amp; Jerry',
+		'font-family': 'a &quot;b&quot; &lt;c>'
+	})}></div> `);
+
+	$.element($$renderer, 'p', () => {
+		$$renderer.push(`${$.attr_style('', { '--label': 'Tom &amp; Jerry' })}`);
+	});
+
+	$$renderer.push(` <div${$.attr_style('', [{}, { '--imp': 'Tom &amp; Jerry' }])}></div>`);
+}
 === 248 pattern/ts-class-generator-method-overload.svelte	error.json
 {
 	"code": "duplicate_class_field",

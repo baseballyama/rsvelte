@@ -46464,6 +46464,25 @@ https://svelte.dev/e/expected_token
   {/each}
 </select>
 
+=== 418 pattern/style-directive-text-with-entities.svelte	svelte
+<script>
+  let { rest, x } = $props();
+</script>
+
+<div
+  style:--label="Tom &amp; Jerry"
+  style:font-family="a "b" <c>"
+  style:color=" red &lt; blue "
+  style:--mixed="a &amp; {x} &lt; b"
+></div>
+<div
+  {...rest}
+  style:--label="Tom &amp; Jerry"
+  style:font-family="a "b" <c>"
+></div>
+<svelte:element this={"p"} style:--label="Tom &amp; Jerry"></svelte:element>
+<div style:--imp|important="Tom &amp; Jerry"></div>
+
 === 130 pattern/ts-class-generator-method-overload.svelte	svelte
 <script lang="ts">
   class C {

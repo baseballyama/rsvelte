@@ -29087,6 +29087,23 @@
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 1156 pattern/style-directive-text-with-entities.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:2 6:33 svelte/no-inline-styles "Found disallowed style directive."
+7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:2 7:31 svelte/no-inline-styles "Found disallowed style directive."
+8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:2 8:35 svelte/no-inline-styles "Found disallowed style directive."
+9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:2 9:36 svelte/no-inline-styles "Found disallowed style directive."
+11:16 11:47 svelte/no-inline-styles "Found disallowed style directive."
+11:16 11:47 svelte/max-attributes-per-line "'style:--label' should be on a new line."
+11:48 11:77 svelte/no-inline-styles "Found disallowed style directive."
+12:28 12:59 svelte/max-attributes-per-line "'style:--label' should be on a new line."
+12:59 12:77 svelte/html-self-closing "Require self-closing on Svelte special elements."
+13:6 13:45 svelte/no-inline-styles "Found disallowed style directive."
+
 === 705 pattern/ts-class-generator-method-overload.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

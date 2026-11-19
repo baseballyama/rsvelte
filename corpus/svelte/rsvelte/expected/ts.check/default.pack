@@ -11705,6 +11705,9 @@ ENOSPC: no space left on device, mkdtemp '/var/folders/1t/sbjc_qrd47nfm6ggb_qz32
 === 3 pattern/store-member-write-invalidates-inner-signals.svelte	json
 []
 
+=== 3 pattern/style-directive-text-with-entities.svelte	json
+[]
+
 === 196 pattern/ts-class-generator-method-overload.svelte	json
 [
 	{

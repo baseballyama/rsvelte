@@ -1,7 +1,7 @@
 use oxc_ast::ast::Expression;
 use rsvelte_svelte_semantic::compiler_syntax_tree::StyleValue;
 
-use super::attribute_text;
+use super::escaped_text;
 use crate::lower::Target;
 use crate::lower::builder::Runtime;
 use crate::lower::server::{Attribute, AttributeValue, ServerCompilationContext};
@@ -39,7 +39,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         })
     }
 
-    /// A directive's value, its text trimmed; `style:color` reads `color` as written.
+    /// A directive's value, its text trimmed and escaped for a quoted attribute as upstream's
+    /// `build_attribute_value` escapes one text chunk; `style:color` reads `color` as written.
     fn style_value(&self, d: &Attribute) -> Expression<'o> {
         let b = self.b;
         let AttributeValue::Style { value, .. } = &d.value else {
@@ -47,7 +48,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         };
         match value.as_ref() {
             StyleValue::Shorthand(_) => b.id(d.name.text(self.source_text)),
-            StyleValue::Static(v) => b.string(&attribute_text(v, true)),
+            StyleValue::Static(v) => b.string(&escaped_text(v, true)),
             &StyleValue::Expression { expression, .. } => self.expression(expression),
             StyleValue::Interpolated(parts) => self.interpolated(parts, true),
             StyleValue::Empty => {

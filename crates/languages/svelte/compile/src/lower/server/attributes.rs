@@ -1,5 +1,7 @@
 mod class;
 mod style;
+#[cfg(test)]
+mod tests;
 mod with_spread;
 mod without_spread;
 
