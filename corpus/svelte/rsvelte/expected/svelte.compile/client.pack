@@ -102525,6 +102525,22 @@ export default function Reactive_new_callee($$anchor, $$props) {
 	}
 }
 
+=== 296 pattern/select-dynamic-multiple-size-binding.svelte	error.json
+{
+	"code": "attribute_invalid_multiple",
+	"message": "'multiple' attribute must be static if select uses two-way binding\nhttps://svelte.dev/e/attribute_invalid_multiple",
+	"start": {
+		"line": 6,
+		"column": 8,
+		"character": 79
+	},
+	"end": {
+		"line": 6,
+		"column": 23,
+		"character": 94
+	}
+}
+
 === 291 pattern/self-closing-block-in-a-string.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';

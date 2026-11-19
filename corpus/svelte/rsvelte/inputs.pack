@@ -48829,6 +48829,16 @@ export function pin(then) {
 
 <p>{x}</p>
 
+=== 153 pattern/select-dynamic-multiple-size-binding.svelte	svelte	runes	rejected
+<script>
+	let width = $state(0);
+	let many = $state(false);
+</script>
+
+<select multiple={many} bind:clientWidth={width}>
+	<option>one</option>
+</select>
+
 === 60 pattern/self-closing-block-in-a-string.svelte	svelte	runes	neutral
 <script>
   const tag = "<style />";
