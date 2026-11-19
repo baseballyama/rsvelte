@@ -258,6 +258,7 @@ pub(super) enum GlobalBinding {
     Scroll(&'static str),
     Online,
     ActiveElement,
+    Focused,
     Property(&'static str),
     /// A binding `<svelte:body>` shares with an element.
     Element,
@@ -274,6 +275,7 @@ pub(super) fn global_binding(tag: MetadataTag, property: &str) -> Option<GlobalB
         (MetadataTag::Window, "online") => Some(GlobalBinding::Online),
         (MetadataTag::Window, "devicePixelRatio") => Some(GlobalBinding::Property("resize")),
         (MetadataTag::Document, "activeElement") => Some(GlobalBinding::ActiveElement),
+        (MetadataTag::Window | MetadataTag::Document, "focused") => Some(GlobalBinding::Focused),
         (
             MetadataTag::Body,
             "focused"

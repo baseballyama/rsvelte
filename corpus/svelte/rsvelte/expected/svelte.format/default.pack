@@ -33836,6 +33836,15 @@ https://svelte.dev/e/expected_token
   }
 </style>
 
+=== 138 pattern/global-focused-bindings.svelte	svelte
+<script>
+  let focused = $state(false);
+</script>
+
+<input bind:focused />
+<svelte:window bind:focused />
+<svelte:document bind:focused />
+
 === 147 pattern/input-default-value-style-directive.svelte	svelte
 <script>
   let { b } = $props();

@@ -50035,6 +50035,14 @@ export default function Event_directive_named_class($$renderer, $$props) {
 	}
 ]
 
+=== 162 pattern/global-focused-bindings.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Global_focused_bindings($$renderer) {
+	let focused = false;
+
+	$$renderer.push(`<input/>`);
+}
 === 374 pattern/input-default-value-style-directive.svelte	js
 import * as $ from 'svelte/internal/server';
 

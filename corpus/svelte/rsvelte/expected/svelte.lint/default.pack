@@ -21520,6 +21520,12 @@
 7:17 7:32 svelte/max-attributes-per-line "'style:color' should be on a new line."
 7:17 7:32 svelte/sort-attributes "Attribute 'style:color' should go before 'on:style'."
 
+=== 287 pattern/global-focused-bindings.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:8 5:30 svelte/shorthand-directive "Expected shorthand directive."
+6:16 6:38 svelte/shorthand-directive "Expected shorthand directive."
+7:18 7:40 svelte/shorthand-directive "Expected shorthand directive."
+
 === 719 pattern/input-default-value-style-directive.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:25 5:40 svelte/no-inline-styles "Found disallowed style directive."
