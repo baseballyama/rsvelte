@@ -22,15 +22,20 @@ impl Parser<'_, '_> {
         loop {
             let rest = self.rest();
             if rest.is_empty() {
-                // Upstream reports the innermost open node's first character.
+                // Upstream reports the innermost open node's first character, as an element only
+                // for a `RegularElement`.
                 return match end {
                     End::Eof => Ok(self.finish_children(children_start)),
-                    End::Tag { name, start, .. } => Self::err_at(
+                    End::Tag {
+                        name,
+                        regular: true,
+                        start,
+                    } => Self::err_at(
                         Span::new(start, start + 1),
                         "element_unclosed",
                         format_args!("`<{name}>` was left open"),
                     ),
-                    End::Block { start } => Self::err_at(
+                    End::Tag { start, .. } | End::Block { start } => Self::err_at(
                         Span::new(start, start + 1),
                         "block_unclosed",
                         "Block was left open",
@@ -84,8 +89,9 @@ impl Parser<'_, '_> {
         }
     }
 
-    /// Upstream's error for `</name>` with no element of its own open.
-    fn stray_closing_tag<T>(&mut self) -> ParseResult<T> {
+    /// Upstream's error for `</name>` with no element of its own open, or one that would pop an
+    /// element upstream does not close implicitly.
+    pub(super) fn stray_closing_tag<T>(&mut self) -> ParseResult<T> {
         let start = self.position as u32;
         // Upstream's `read_until` stops at the trimmed end before it reads the name.
         if self.position + 2 >= self.source_text.len() {

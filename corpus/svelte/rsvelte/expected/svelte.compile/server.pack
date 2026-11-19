@@ -70212,6 +70212,22 @@ export default function Self_closing_block_in_a_string($$renderer) {
 	}
 }
 
+=== 287 pattern/slot-closed-by-parent-end-tag.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 14
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 14
+	}
+}
+
 === 616 pattern/state-wrapped-store-reference.svelte	js
 import * as $ from 'svelte/internal/server';
 import { writable } from 'svelte/store';
@@ -70269,6 +70285,22 @@ export default function Store_member_write_invalidates_inner_signals($$renderer,
 		$.bind_props($$props, { shape });
 	});
 }
+=== 222 pattern/svelte-options-left-open.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
 === 248 pattern/ts-class-generator-method-overload.svelte	error.json
 {
 	"code": "duplicate_class_field",
