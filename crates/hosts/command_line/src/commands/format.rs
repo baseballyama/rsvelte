@@ -21,7 +21,7 @@ pub(crate) const TASKS: &[&str] = &[
 /// Exit code 1 means `--check` found a file to format; 2, a file that could not be formatted or
 /// written, or a usage error.
 pub(crate) fn format(reg: &Registry, paths: &[&str], tasks: &[&str], check: bool) -> ExitCode {
-    let documents = match files::load(reg, paths, tasks) {
+    let documents = match files::load(reg, paths, tasks, &[".prettierignore"]) {
         Ok(documents) => documents,
         Err(e) => return usage(&e),
     };
