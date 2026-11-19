@@ -48849,6 +48849,11 @@ export function pin(then) {
 <p class="a">x</p>
 <style lang="scss" />
 
+=== 21 pattern/slot-closed-by-parent-end-tag.svelte	svelte	runes	rejected
+<div>
+	<slot>
+</div>
+
 === 354 pattern/snippet-parameter-defaults-on-the-server.svelte	svelte	runes	runes
 <script>
 	import { writable } from 'svelte/store';
@@ -48898,6 +48903,11 @@ export function pin(then) {
 		<option value={o}>{o}</option>
 	{/each}
 </select>
+
+=== 37 pattern/svelte-options-left-open.svelte	svelte	runes	rejected
+<svelte:options runes>
+
+<p>after</p>
 
 === 118 pattern/ts-class-generator-method-overload.svelte	svelte	runes	rejected
 <script lang="ts">

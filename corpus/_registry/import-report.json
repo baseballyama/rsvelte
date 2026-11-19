@@ -230,8 +230,8 @@
 		"not-runes-compatible:legacy_export_invalid": 1
 	},
 	"rsvelte": {
-		"admitted": 2962,
-		"claimed": 3001,
+		"admitted": 2964,
+		"claimed": 3003,
 		"duplicate": 39,
 		"rejected:module-rejected:derived_invalid_export": 1,
 		"rejected:module-rejected:dollar_prefix_invalid": 1,
@@ -244,7 +244,7 @@
 		"rejected:not-runes-compatible:bind_invalid_value": 2,
 		"rejected:not-runes-compatible:bindable_invalid_location": 1,
 		"rejected:not-runes-compatible:block_invalid_continuation_placement": 1,
-		"rejected:not-runes-compatible:block_unclosed": 4,
+		"rejected:not-runes-compatible:block_unclosed": 5,
 		"rejected:not-runes-compatible:block_unexpected_character": 3,
 		"rejected:not-runes-compatible:block_unexpected_close": 1,
 		"rejected:not-runes-compatible:component_invalid_directive": 1,
@@ -261,6 +261,7 @@
 		"rejected:not-runes-compatible:dollar_prefix_invalid": 11,
 		"rejected:not-runes-compatible:duplicate_class_field": 1,
 		"rejected:not-runes-compatible:each_item_invalid_assignment": 3,
+		"rejected:not-runes-compatible:element_invalid_closing_tag": 1,
 		"rejected:not-runes-compatible:element_unclosed": 1,
 		"rejected:not-runes-compatible:expected_token": 16,
 		"rejected:not-runes-compatible:experimental_async": 2,

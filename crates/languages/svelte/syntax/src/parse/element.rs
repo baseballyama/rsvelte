@@ -123,7 +123,13 @@ impl Parser<'_, '_> {
             self.component_this(start_offset, attributes)?;
         }
         let start_tag = Span::new(start_offset as u32, self.position as u32);
-        let regular = !name_text.starts_with("svelte:") && !component_name;
+        // Upstream's `RegularElement`: its `TitleElement` and `SlotElement` are not.
+        let regular = match name_text {
+            _ if component_name || name_text.starts_with("svelte:") => false,
+            "title" => !self.ancestry.head,
+            "slot" => self.ancestry.shadow_root,
+            _ => true,
+        };
         let (children, closed) = if self_closing || is_void(name_text) {
             (self.empty_range(), Closed::Outside)
         } else if name_text == "textarea" {
@@ -131,12 +137,7 @@ impl Parser<'_, '_> {
         } else if matches!(name_text, "script" | "style") {
             self.raw_children(name_text)?
         } else {
-            let children = self.fragment(End::Tag {
-                name: name_text,
-                regular,
-                start: start_offset as u32,
-            })?;
-            (children, self.end_tag(name_text, regular)?)
+            self.element_children(name_text, regular, component_name, attributes, start_offset)?
         };
         let span = Span::new(start_offset as u32, self.position as u32);
         let element = self.push_node(TemplateNode::Element {
@@ -153,6 +154,41 @@ impl Parser<'_, '_> {
             element,
             closed_by_start_tag: matches!(closed, Closed::StartTag),
         }))
+    }
+
+    /// The children of an element with an end tag, read with what upstream knows of its
+    /// ancestors, and how it closed.
+    fn element_children(
+        &mut self,
+        name: &str,
+        regular: bool,
+        component: bool,
+        attributes: Range,
+        start_offset: usize,
+    ) -> ParseResult<(Range, Closed)> {
+        let ancestry = self.ancestry;
+        if name == "svelte:head" {
+            self.ancestry.head = true;
+        } else if regular || component {
+            self.ancestry.head = false;
+        }
+        if regular && self.has_attribute(attributes, "shadowrootmode") {
+            self.ancestry.shadow_root = true;
+        }
+        let children = self.fragment(End::Tag {
+            name,
+            regular,
+            start: start_offset as u32,
+        });
+        self.ancestry = ancestry;
+        Ok((children?, self.end_tag(name, regular)?))
+    }
+
+    fn has_attribute(&self, attributes: Range, name: &str) -> bool {
+        attributes
+            .get(&self.component.attributes)
+            .iter()
+            .any(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source_text) == name)
     }
 
     /// Upstream requires `this={…}` on `<svelte:component>` while it parses.
@@ -216,10 +252,7 @@ impl Parser<'_, '_> {
             if regular {
                 return Ok(Closed::Outside);
             }
-            return self.err(
-                "element_invalid_closing_tag",
-                format_args!("`</{closing}>` attempted to close an element that was not open"),
-            );
+            return self.stray_closing_tag();
         }
         self.eat_token(TokenType::EndTagOpen, 2);
         self.eat_token(TokenType::TagName, closing.len());
