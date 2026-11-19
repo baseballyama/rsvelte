@@ -52,6 +52,7 @@ fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     let defaulted_lets = std::cell::OnceCell::new();
     rsvelte_typescript_lint::no_unused_variables(
         file.semantic(),
+        rsvelte_typescript_lint::Dialect::Core,
         |symbol| !skipped.contains(&symbol),
         |symbol| reads.get(&symbol).map_or(&[], Vec::as_slice),
         |symbol| bodies.get(&symbol).copied(),
