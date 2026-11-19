@@ -21503,6 +21503,12 @@
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 80 pattern/each-comment-without-as.svelte	lint.txt
+5:13 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
+
+=== 80 pattern/each-parenthesized-without-as.svelte	lint.txt
+5:13 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
+
 === 1178 pattern/event-directive-named-class.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:32 svelte/no-unused-class-name "Unused class \"a\"."

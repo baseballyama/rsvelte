@@ -35910,6 +35910,24 @@ export interface Config {
 
 {JSON.stringify($value)}
 
+=== 91 pattern/each-comment-without-as.svelte	svelte	runes	rejected
+<script>
+	let items = $state([1, 2]);
+</script>
+
+{#each items /* as item */}
+	text
+{/each}
+
+=== 79 pattern/each-parenthesized-without-as.svelte	svelte	runes	rejected
+<script>
+	let items = $state([1, 2]);
+</script>
+
+{#each (items)}
+	text
+{/each}
+
 === 186 pattern/event-directive-named-class.svelte	svelte	runes	runes
 <script>
 	let { b, f } = $props();
