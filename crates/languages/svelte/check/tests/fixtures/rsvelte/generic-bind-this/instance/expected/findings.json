@@ -1,0 +1,14 @@
+[
+	{
+		"code": 2345,
+		"message": "Argument of type '\"y\"' is not assignable to parameter of type '\"x\"'.",
+		"start": {
+			"line": 4,
+			"character": 13
+		},
+		"end": {
+			"line": 4,
+			"character": 16
+		}
+	}
+]

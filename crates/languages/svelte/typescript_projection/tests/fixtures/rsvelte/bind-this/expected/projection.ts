@@ -50,18 +50,18 @@ function $$render() {
       ((v) => (el = v))(__rsvelte_element0);
     }
     {
-      a = __rsvelte_component(Foo)(__rsvelte_internals(), {
+      a = __rsvelte_bind_this(__rsvelte_component(Foo))(__rsvelte_internals(), {
         "x": 1,
       });
     }
     {
-      a = __rsvelte_component(C)(__rsvelte_internals(), {});
+      a = __rsvelte_bind_this(__rsvelte_component(C))(__rsvelte_internals(), {});
     }
     {
       for (let [i, n] of __rsvelte_each([1, 2])) {
         (n);
         {
-          refs[i] = __rsvelte_component(Foo)(__rsvelte_internals(), {});
+          refs[i] = __rsvelte_bind_this(__rsvelte_component(Foo))(__rsvelte_internals(), {});
         }
       }
     }

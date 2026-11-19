@@ -30,10 +30,15 @@ impl Printer<'_> {
             // `Awaited` reads an async render function's component.
             "> { props(): Parameters<Awaited<ReturnType<typeof $$render<",
             arguments,
-            ">>>>[1] { return null as any; } exports(): ReturnType<Awaited<ReturnType<typeof \
+            ">>>>[1] { return null as any; } exports(): NonNullable<Awaited<ReturnType<typeof \
                 $$render<",
             arguments,
-            ">>>> { return null as any; } }\n// @ts-ignore\n",
+            ">>>['__rsvelte_exports']> { return null as any; } instance(): \
+                import('svelte').SvelteComponent<ReturnType<__rsvelte_Render<",
+            arguments,
+            ">['props']>, {}, {}> & ReturnType<__rsvelte_Render<",
+            arguments,
+            ">['exports']> { return null as any; } }\n// @ts-ignore\n",
             "interface __rsvelte_generic_component { <",
             plain,
             ">(internals: Parameters<import('svelte').Component>[0], props: \
@@ -41,7 +46,15 @@ impl Printer<'_> {
             arguments,
             ">['props']>): ReturnType<__rsvelte_Render<",
             arguments,
-            ">['exports']>; element?: typeof HTMLElement; z_$$bindings?: \
+            // svelte2tsx's construct signature, whose instance `bind:this` assigns.
+            ">['exports']>; __rsvelte_instance: <",
+            plain,
+            ">(internals: Parameters<import('svelte').Component>[0], props: \
+                ReturnType<__rsvelte_Render<",
+            arguments,
+            ">['props']>) => ReturnType<__rsvelte_Render<",
+            arguments,
+            ">['instance']>; element?: typeof HTMLElement; z_$$bindings?: \
                 NonNullable<Awaited<ReturnType<typeof $$render<",
         ] {
             self.output.push(part);
@@ -58,10 +71,10 @@ impl Printer<'_> {
         for part in [
             "<",
             plain,
-            // svelte2tsx's instance type of the isomorphic component, which names its props.
-            "> = import('svelte').SvelteComponent<ReturnType<__rsvelte_Render<",
+            // svelte2tsx's instance type of the isomorphic component.
+            "> = ReturnType<__rsvelte_Render<",
             arguments,
-            ">['props']>, {}, {}>;\nexport default ",
+            ">['instance']>;\nexport default ",
         ] {
             self.output.push(part);
         }
