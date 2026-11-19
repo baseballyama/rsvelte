@@ -48806,6 +48806,20 @@ export function pin(then) {
 <p class="a">x</p>
 <style lang="scss" />
 
+=== 354 pattern/snippet-parameter-defaults-on-the-server.svelte	svelte	runes	runes
+<script>
+	import { writable } from 'svelte/store';
+	const fallback = writable('fallback');
+	let count = $state(0);
+	let double = $derived(count * 2);
+	let { name, ...rest } = $props();
+</script>
+
+{#snippet row(value = $fallback, d = double, n = name, r = rest.x, { a = $fallback } = {})}
+	<p>{value}{d}{n}{r}{a}{$fallback}</p>
+{/snippet}
+{@render row()}
+
 === 245 pattern/state-wrapped-store-reference.svelte	svelte	runes	runes
 <script>
 	import { writable } from 'svelte/store';
