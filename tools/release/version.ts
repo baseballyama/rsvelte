@@ -1,10 +1,23 @@
-// Copies the version Changesets wrote for @rsvelte/cli into Cargo.toml and Cargo.lock, so
-// `rsvelte --version` reports the version npm publishes.
+// Copies the version Changesets wrote for @rsvelte/cli into Cargo.toml and every Cargo.lock that
+// lists the workspace crates, so `rsvelte --version` reports the version npm publishes and
+// `cargo --locked` still accepts each lockfile.
 import fs from 'node:fs';
 import path from 'node:path';
 import { cargoVersion } from './stage.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
+
+const WORKLOADS = path.join(ROOT, 'tools/performance/workloads');
+
+/** The root lockfile and each workload's, which path-depend on the workspace crates. */
+export function lockPaths(): string[] {
+	const workloads = fs
+		.readdirSync(WORKLOADS, { withFileTypes: true })
+		.filter((entry) => entry.isDirectory())
+		.map((entry) => path.join(WORKLOADS, entry.name, 'Cargo.lock'))
+		.filter((lock) => fs.existsSync(lock));
+	return [path.join(ROOT, 'Cargo.lock'), ...workloads];
+}
 
 /** The manifest Changesets versions; it is never published itself. */
 export const VERSIONED = path.join(ROOT, 'apps/cli/package.json');
@@ -35,10 +48,14 @@ export function withLockVersion(lock: string, from: string, to: string): string 
 export async function main(): Promise<void> {
 	const version: string = JSON.parse(fs.readFileSync(VERSIONED, 'utf8')).version;
 	const manifestPath = path.join(ROOT, 'Cargo.toml');
-	const lockPath = path.join(ROOT, 'Cargo.lock');
 	const manifest = fs.readFileSync(manifestPath, 'utf8');
 	const current = cargoVersion(manifest);
 	if (current === version) return;
 	fs.writeFileSync(manifestPath, withCargoVersion(manifest, version));
-	fs.writeFileSync(lockPath, withLockVersion(fs.readFileSync(lockPath, 'utf8'), current, version));
+	for (const lockPath of lockPaths()) {
+		fs.writeFileSync(
+			lockPath,
+			withLockVersion(fs.readFileSync(lockPath, 'utf8'), current, version),
+		);
+	}
 }

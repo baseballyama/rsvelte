@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import { test } from 'node:test';
 import { cargoVersion } from './stage.ts';
-import { withCargoVersion, withLockVersion } from './version.ts';
+import { lockPaths, withCargoVersion, withLockVersion } from './version.ts';
 
 test('only the workspace package version moves, not a dependency at the same version', () => {
 	const manifest = [
@@ -51,4 +52,12 @@ test('only local lock entries move, not a registry crate at the same version', (
 			'name = "rsvelte_command_line"\nversion = "0.2.0"',
 		),
 	);
+});
+
+test('the workload lockfiles move with the root one', () => {
+	const locks = new Set(
+		lockPaths().map((lock) => path.relative(path.resolve(import.meta.dirname, '../..'), lock)),
+	);
+	assert.ok(locks.has('Cargo.lock'));
+	assert.ok(locks.has(path.join('tools/performance/workloads/svelte-lint/Cargo.lock')));
 });
