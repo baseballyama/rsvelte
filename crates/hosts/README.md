@@ -65,8 +65,9 @@ any product with its API, such as `tsrs`. rsvelte starts it with
 `--api --cwd <dir> --runExternalCode` and asks it for diagnostics. The CLI looks for a bare name
 such as `tsrs` in the project's `node_modules/.bin`, then in `PATH`. Without `command`, it runs
 the first of `tsrs`, `@typescript/native-preview` and `typescript` that the project installs,
-through `node`, passing over a TypeScript older than 7.1; when none is left, the error names what
-it passed over and the command that installs `tsrs` with the project's package manager. Before it reads any file,
+through `node`. It passes over a TypeScript older than 7.1. If it finds no checker, the error
+names the ones it passed over and the command that installs `tsrs` with the project's package
+manager. Before it reads any file,
 the CLI runs `<checker> --version`; `benchmark` and `performance` record each program and its
 version in `tools`. `svelte.check` also needs the svelte package, by default the project's, and the content mapper,
 by default `rsvelte-svelte-content-mapper` beside the running program. `vue.check` needs the
