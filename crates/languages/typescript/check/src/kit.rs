@@ -24,7 +24,7 @@ pub(crate) struct Insertion {
 const SERVER_HOOKS: &str = "src/hooks.server";
 const CLIENT_HOOKS: &str = "src/hooks.client";
 const UNIVERSAL_HOOKS: &str = "src/hooks";
-const PARAMS: &str = "src/params";
+const PARAMETERS: &str = "src/params";
 
 const ROUTE_FILES: [&str; 5] = [
     "+page",
@@ -65,7 +65,7 @@ pub(crate) fn insertions(
     } else if is_hooks_file(&file, basename, UNIVERSAL_HOOKS) {
         let kind = format!("import('{}').Reroute", hooks_module());
         add_type_to_function(&exports(), source, &mut out, "reroute", &kind, None);
-    } else if is_params_file(&file, basename, PARAMS) {
+    } else if is_parameters_file(&file, basename, PARAMETERS) {
         let returns = Some(("boolean", "boolean"));
         add_type_to_function(&exports(), source, &mut out, "match", "string", returns);
     }
@@ -89,9 +89,9 @@ fn is_hooks_file(file: &str, basename: &str, hooks: &str) -> bool {
 }
 
 /// svelte2tsx's `isParamsFile`.
-fn is_params_file(file: &str, basename: &str, params: &str) -> bool {
+fn is_parameters_file(file: &str, basename: &str, parameters: &str) -> bool {
     let directory = &file[..file.len() - basename.len()].trim_end_matches('/');
-    directory.ends_with(params) && !basename.contains(".test") && !basename.contains(".spec")
+    directory.ends_with(parameters) && !basename.contains(".test") && !basename.contains(".spec")
 }
 
 /// `file` without `path.extname(basename)`.

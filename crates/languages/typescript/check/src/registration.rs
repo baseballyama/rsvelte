@@ -8,8 +8,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_plugin_interface::installed_package;
 use rsvelte_typescript_tree::{Parsed, is_typescript, matches};
 
-use crate::kit;
-use crate::{CheckedDocument, TypeScriptDocument, TypeScriptEnv, TypeScriptView};
+use crate::{CheckedDocument, TypeScriptDocument, TypeScriptEnv, TypeScriptView, kit};
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "typescript.check",
