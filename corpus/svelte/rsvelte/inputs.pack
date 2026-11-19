@@ -35943,6 +35943,15 @@ export interface Config {
 	}
 </style>
 
+=== 167 pattern/global-focused-bindings.svelte	svelte	runes	runes
+<script>
+	let focused = $state(false);
+</script>
+
+<input bind:focused={focused} />
+<svelte:window bind:focused={focused} />
+<svelte:document bind:focused={focused} />
+
 === 146 pattern/input-default-value-style-directive.svelte	svelte	runes	runes
 <script>
 	let { b } = $props();
