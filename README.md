@@ -19,8 +19,8 @@ npx @rsvelte/cli typecheck
 
 rsvelte supports Svelte 5 components in runes mode only. It does not support Svelte 4 projects
 or components in legacy mode, such as those that use `export let` or `$:`. On them, `typecheck`
-gives wrong results. The compiler treats every component as the official compiler does with
-`runes: true`, so it rejects legacy syntax. The user guide lists what each command does with
+gives wrong results. The compiler rejects legacy syntax, as the official compiler does with
+`runes: true`, and refuses `<svelte:options runes={false} />` as unsupported. The user guide lists what each command does with
 legacy components. For Svelte 4, use the official tools.
 
 ## Layout

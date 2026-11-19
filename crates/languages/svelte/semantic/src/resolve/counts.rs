@@ -22,7 +22,7 @@ pub struct Counts {
 
 impl Counts {
     /// Upstream `binding.reassigned` once runes-mode analysis is done: written, or exported by
-    /// the instance's `export { … }`. Legacy components compile with the official compiler.
+    /// the instance's `export { … }`. Legacy mode is not supported.
     #[must_use]
     pub fn reassigned(&self, symbol: SymbolId) -> bool {
         self.writes[symbol.index()] > 0 || self.exported.contains_key(&symbol)
