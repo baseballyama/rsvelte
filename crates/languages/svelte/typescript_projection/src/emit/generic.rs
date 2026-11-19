@@ -33,8 +33,8 @@ impl Printer<'_> {
             ">>>>[1] { return null as any; } exports(): NonNullable<Awaited<ReturnType<typeof \
                 $$render<",
             arguments,
-            ">>>['__rsvelte_exports']> { return null as any; } instance(): import('svelte').SvelteComponent<ReturnType<\
-                __rsvelte_Render<",
+            ">>>['__rsvelte_exports']> { return null as any; } instance(): \
+                import('svelte').SvelteComponent<ReturnType<__rsvelte_Render<",
             arguments,
             ">['props']>, {}, {}> & ReturnType<__rsvelte_Render<",
             arguments,
