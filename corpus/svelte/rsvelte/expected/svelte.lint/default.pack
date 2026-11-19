@@ -1704,12 +1704,11 @@
 5:27 5:52 svelte/sort-attributes "Attribute 'this' should go before 'class'."
 7:41 7:43 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
 
-=== 386 lint/html-closing-bracket-spacing/04-script-style-tags.svelte	lint.txt
+=== 345 lint/html-closing-bracket-spacing/04-script-style-tags.svelte	lint.txt
 1:8 1:10 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:9 3:11 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
 9:8 9:10 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
-11:7 11:8 no-undef "'x' is not defined."
 
 === 831 lint/html-closing-bracket-spacing/05-options-always.svelte	lint.txt
 1:8 1:9 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."

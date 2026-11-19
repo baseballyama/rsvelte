@@ -65,6 +65,7 @@ mod no_svelte_internal;
 mod no_target_blank;
 mod no_top_level_browser_globals;
 mod no_trailing_spaces;
+mod no_undef;
 mod no_unknown_style_directive_property;
 mod no_unnecessary_condition;
 mod no_unnecessary_state_wrap;
@@ -96,6 +97,7 @@ mod spaced_markup_comment;
 mod string_escape;
 pub(crate) mod style_attribute;
 pub(crate) mod style_sheet;
+mod svelte_names;
 mod svelte_store;
 pub(crate) mod system;
 mod valid_compile;
@@ -106,6 +108,7 @@ mod valid_style_parse;
 /// Every built-in rule.
 pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_unused_variables::RULE,
+    &no_undef::RULE,
     &no_unnecessary_condition::RULE,
     &button_has_type::RULE,
     &no_conflicting_module_names::RULE,

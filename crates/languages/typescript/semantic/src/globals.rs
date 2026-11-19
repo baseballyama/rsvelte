@@ -16,6 +16,9 @@ pub enum Global {
 
 static GLOBALS: &[(&str, Global)] = &include!("vendor/globals.rs");
 
+/// The TypeScript library's names, each with whether it is a value as well as a type.
+static LIBRARY: &[(&str, bool)] = &include!("vendor/typescript_library.rs");
+
 /// The global variable called `name`, if `ESLint` declares one for `ecmaVersion: "latest"` with
 /// `globals.browser`.
 #[must_use]
@@ -24,6 +27,17 @@ pub fn global(name: &str) -> Option<Global> {
         .binary_search_by(|(row, _)| row.cmp(&name))
         .ok()
         .map(|at| GLOBALS[at].1)
+}
+
+/// Whether typescript-eslint declares `name` from the TypeScript library a parse without a
+/// program reads (`lib: ['esnext']`): `Some(true)` for a value and a type, `Some(false)` for a
+/// type only.
+#[must_use]
+pub fn library(name: &str) -> Option<bool> {
+    LIBRARY
+        .binary_search_by(|(row, _)| row.cmp(&name))
+        .ok()
+        .map(|at| LIBRARY[at].1)
 }
 
 /// The global variables a configuration declares: the builtins, which `ecmaVersion: "latest"`

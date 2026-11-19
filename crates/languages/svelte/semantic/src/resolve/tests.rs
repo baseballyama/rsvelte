@@ -448,3 +448,19 @@ fn an_each_key_does_not_see_a_const_of_the_body() {
     let names: Vec<&str> = res.unresolved_names().collect();
     assert_eq!(names, ["key"]);
 }
+
+#[test]
+fn a_quoted_this_on_svelte_element_reads_only_its_first_chunk() {
+    let unresolved = |source: &str| {
+        let res = analyze(source);
+        let mut names: Vec<String> = res.unresolved_names().map(str::to_owned).collect();
+        names.sort();
+        names
+    };
+    assert_eq!(
+        unresolved(r#"<svelte:element this="h{n}" />"#),
+        Vec::<String>::new()
+    );
+    assert_eq!(unresolved(r#"<svelte:element this="{tag}{n}" />"#), ["tag"]);
+    assert_eq!(unresolved("<svelte:element this={tag} />"), ["tag"]);
+}

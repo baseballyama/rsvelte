@@ -4763,11 +4763,11 @@ export default function _3_svelte_element_this_gt($$anchor) {
 		color: red;
 	}
 
-=== 378 lint/html-closing-bracket-spacing/04-script-style-tags.svelte	js
+=== 355 lint/html-closing-bracket-spacing/04-script-style-tags.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
-var root = $.from_html(`<div class="svelte-dqmvib"></div>`);
+var root = $.from_html(`<div class="svelte-dqmvib">x</div>`);
 
 export default function _4_script_style_tags($$anchor, $$props) {
 	$.push($$props, true);
@@ -4776,7 +4776,6 @@ export default function _4_script_style_tags($$anchor, $$props) {
 	var $$exports = { x };
 	var div = root();
 
-	div.textContent = '1';
 	$.append($$anchor, div);
 
 	return $.pop($$exports);

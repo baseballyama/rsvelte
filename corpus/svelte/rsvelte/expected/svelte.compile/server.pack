@@ -3365,7 +3365,7 @@ import * as $ from 'svelte/internal/server';
 export default function _4_script_style_tags($$renderer, $$props) {
 	const x = 1;
 
-	$$renderer.push(`<div class="svelte-dqmvib">1</div>`);
+	$$renderer.push(`<div class="svelte-dqmvib">x</div>`);
 	$.bind_props($$props, { x });
 }
 === 367 lint/html-closing-bracket-spacing/05-options-always.svelte	js
