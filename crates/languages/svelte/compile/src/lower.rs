@@ -29,6 +29,8 @@ mod snippets;
 mod special;
 mod stores;
 mod template;
+#[cfg(test)]
+mod tests;
 
 pub(crate) use builder::Builder;
 pub(crate) use module::lower_module;
@@ -118,11 +120,20 @@ pub(crate) fn lower_with_facts<'o>(
         Target::Server => server::lower_prepared(facts, prepared, &b),
     }?;
     let component = &facts.input.component;
+    // The printer writes each comment before the node that keeps the span it precedes, and wants
+    // them in document order, where either script may come first.
+    let mut scripts = [component.module, component.instance]
+        .map(|p| p.map(|p| component.javascript.get_program(p)));
+    scripts.sort_unstable_by_key(|p| p.map(|p| p.span.start));
+    let comments = scripts
+        .iter()
+        .flatten()
+        .flat_map(|p| p.comments.iter().cloned());
     let mut program = Program::new(
         SPAN,
         SourceType::mjs(),
         component.source_text,
-        [],
+        b.vec(comments),
         None,
         [],
         b.vec(body),
