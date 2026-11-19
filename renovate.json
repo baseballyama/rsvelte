@@ -1,6 +1,139 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ]
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+	"timezone": "Asia/Tokyo",
+	"schedule": ["before 9am on monday"],
+	"minimumReleaseAge": "3 days",
+	"internalChecksFilter": "strict",
+	"platformAutomerge": false,
+	"ignorePaths": [
+		"**/node_modules/**",
+		"corpus/**",
+		"crates/**/tests/**",
+		"tools/oracle/behaviour/tests/**"
+	],
+	"lockFileMaintenance": {
+		"enabled": true,
+		"automerge": true,
+		"schedule": ["before 9am on monday"]
+	},
+	"customManagers": [
+		{
+			"description": "The Rust toolchain: rust-toolchain.toml and the performance image install the same version.",
+			"customType": "regex",
+			"managerFilePatterns": ["/^rust-toolchain\\.toml$/"],
+			"matchStrings": ["channel = \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
+			"depNameTemplate": "rust",
+			"packageNameTemplate": "rust-lang/rust",
+			"datasourceTemplate": "github-releases"
+		},
+		{
+			"customType": "regex",
+			"managerFilePatterns": ["/^tools/performance/linux\\.Dockerfile$/"],
+			"matchStrings": ["ARG RUST=(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+			"depNameTemplate": "rust",
+			"packageNameTemplate": "rust-lang/rust",
+			"datasourceTemplate": "github-releases"
+		},
+		{
+			"customType": "regex",
+			"managerFilePatterns": ["/^tools/performance/linux\\.Dockerfile$/"],
+			"matchStrings": ["ARG NODE=(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+			"depNameTemplate": "node",
+			"datasourceTemplate": "node-version"
+		},
+		{
+			"description": "wasm-pack is installed by version in CI, and that version keys its download cache.",
+			"customType": "regex",
+			"managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
+			"matchStrings": [
+				"cargo install wasm-pack --version (?<currentValue>\\d+\\.\\d+\\.\\d+)",
+				"wasm-pack-\\$\\{\\{ runner\\.os \\}\\}-(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+			],
+			"depNameTemplate": "wasm-pack",
+			"datasourceTemplate": "crate"
+		}
+	],
+	"packageRules": [
+		{
+			"description": "Low-risk updates merge themselves once every check is green.",
+			"matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
+			"automerge": true
+		},
+		{
+			"description": "Rust crates from crates.io, one PR per week.",
+			"matchManagers": ["cargo"],
+			"matchUpdateTypes": ["minor", "patch"],
+			"groupName": "Rust crates"
+		},
+		{
+			"description": "Every oxc crate sits on one revision of the baseballyama/oxc fork; it moves by hand.",
+			"matchManagers": ["cargo"],
+			"matchPackageNames": ["https://github.com/baseballyama/oxc", "oxc_*"],
+			"enabled": false
+		},
+		{
+			"description": "npm packages outside the oracle, one PR per week.",
+			"matchManagers": ["npm"],
+			"matchUpdateTypes": ["minor", "patch"],
+			"groupName": "npm packages"
+		},
+		{
+			"matchManagers": ["github-actions"],
+			"groupName": "GitHub Actions"
+		},
+		{
+			"description": "Runner images move deliberately: release.yml builds Linux binaries on ubuntu-22.04 for the glibc floor.",
+			"matchManagers": ["github-actions"],
+			"matchDepNames": ["ubuntu", "macos", "windows"],
+			"enabled": false
+		},
+		{
+			"description": "Node.js is pinned in mise.toml, in every setup-node step and in the performance image; move them together.",
+			"matchDepNames": ["node"],
+			"groupName": "Node.js",
+			"automerge": false
+		},
+		{
+			"matchDepNames": ["pnpm", "npm:pnpm"],
+			"groupName": "pnpm",
+			"automerge": false
+		},
+		{
+			"description": "A new toolchain brings new clippy lints and moves the performance ratchet's counts.",
+			"matchDepNames": ["rust"],
+			"groupName": "Rust toolchain",
+			"automerge": false
+		},
+		{
+			"description": "The typecheck uses a dated TypeScript 7 dev build, published daily; take one a month.",
+			"matchDepNames": ["typescript-7"],
+			"groupName": "TypeScript 7 dev",
+			"schedule": ["before 9am on the first day of the month"],
+			"automerge": false
+		},
+		{
+			"description": "The oracles define expected output, so a bump also regenerates the corpus. svelte is included everywhere so the site and the workspace stay on the oracle's version.",
+			"matchFileNames": ["tools/oracle/package.json"],
+			"matchDepTypes": ["dependencies"],
+			"groupName": "oracles",
+			"automerge": false,
+			"prBodyNotes": [
+				"Oracle versions changed: run `mise exec -- node tools/oracle/oracle.ts upgrade` and commit the regenerated expected output before merging."
+			]
+		},
+		{
+			"matchManagers": ["npm"],
+			"matchDepNames": ["svelte"],
+			"groupName": "oracles",
+			"automerge": false
+		},
+		{
+			"description": "svelte-check declares typescript ^5 || ^6 as a peer, so the oracle's TypeScript cannot move to 7.",
+			"matchFileNames": ["tools/oracle/package.json"],
+			"matchDepNames": ["typescript"],
+			"matchUpdateTypes": ["major"],
+			"enabled": false
+		}
+	]
 }
