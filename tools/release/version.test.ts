@@ -55,9 +55,9 @@ test('only local lock entries move, not a registry crate at the same version', (
 });
 
 test('the workload lockfiles move with the root one', () => {
-	const locks = lockPaths().map((lock) =>
-		path.relative(path.resolve(import.meta.dirname, '../..'), lock),
+	const locks = new Set(
+		lockPaths().map((lock) => path.relative(path.resolve(import.meta.dirname, '../..'), lock)),
 	);
-	assert.ok(locks.includes('Cargo.lock'));
-	assert.ok(locks.includes(path.join('tools/performance/workloads/svelte-lint/Cargo.lock')));
+	assert.ok(locks.has('Cargo.lock'));
+	assert.ok(locks.has(path.join('tools/performance/workloads/svelte-lint/Cargo.lock')));
 });
