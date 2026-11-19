@@ -27,6 +27,9 @@ Base: the user's choice, else the branch the work started from; ask if unsure.
 Title: `<feat|fix|performance|refactor|test|docs|ci|build|deps|chore|revert>(<scope>): <change>`.
 Body: `## Why`, `## What` and `## How it was verified` (commands, `git rev-parse HEAD`, counts).
 Add `Closes #N` only if the PR fixes the issue fully. Create it with `gh pr create --draft`.
+A change that users of `rsvelte` notice needs a changeset, or no release ships it. Add
+`.changeset/<name>.md` with the front matter `'@rsvelte/cli': patch`, or `minor` for a new
+feature or a changed behavior. Below it, write one or two sentences for the changelog.
 
 ## Finish
 
