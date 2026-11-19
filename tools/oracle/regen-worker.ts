@@ -4,6 +4,7 @@ import { taskById } from './tasks.ts';
 import { allUnits, applies, unitKey, writes } from './manifest.ts';
 import type { Entry } from './pack.ts';
 import { parseJs } from './canonical.ts';
+import { isInfrastructureError } from './infrastructure.ts';
 import type { Artifact } from './types.ts';
 
 export interface Job {
@@ -59,7 +60,13 @@ async function run(job: Job): Promise<JobResult> {
 	for (const unit of units) {
 		const artifacts = results.get(unit.path);
 		if (!artifacts) throw new Error(`${job.task}: no result for ${unitKey(unit)}`);
-		if (artifacts.error) errors++;
+		if (artifacts.error) {
+			if (isInfrastructureError(artifacts.error.text))
+				throw new Error(
+					`${job.task}/${job.variant} ${unitKey(unit)}: the oracle's machine failed, not the oracle; nothing is written: ${artifacts.error.text}`,
+				);
+			errors++;
+		}
 		// A unit kept only for a reader is never compared as code, so its code may not parse.
 		const compared = applies(task, variant.id, unit);
 		for (const art of Object.values(artifacts)) {
