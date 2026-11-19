@@ -6,7 +6,7 @@ built from Rust. This release is experimental.
 ## Install
 
 ```sh
-npm install --save-dev rsvelte
+npm install --save-dev @rsvelte/cli
 ```
 
 ## Use
