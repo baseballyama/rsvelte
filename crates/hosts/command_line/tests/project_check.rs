@@ -284,3 +284,43 @@ fn checker_processes_that_share_the_documents_report_each_finding_once() {
     assert_eq!(project.check_in(Some(3)), one);
     assert_eq!(project.check_in(Some(9)), one);
 }
+
+const OUT_DIR: &str = r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler",
+"strict":true,"skipLibCheck":true,"types":[],"outDir":"./dist"ROOT_DIR},"include":["src"]}"#;
+
+fn out_dir_project(name: &str, root_dir: &str) -> Project {
+    Project::new(
+        name,
+        &[
+            ("tsconfig.json", &OUT_DIR.replace("ROOT_DIR", root_dir)),
+            ("shared.ts", "export const shared = 1;\n"),
+            ("src/lib/util.ts", "export const n: number = '';\n"),
+            (
+                "src/App.svelte",
+                concat!(
+                    "<script lang=\"ts\">\n",
+                    "  import { n } from './lib/util';\n",
+                    "  import { shared } from '../shared';\n",
+                    "</script>\n",
+                    "{n}{shared}\n",
+                ),
+            ),
+        ],
+    )
+}
+
+#[test]
+fn an_out_dir_without_a_root_dir_keeps_the_root_dir_of_the_project() {
+    // TS6059 would name the overlay's directory as the rootDir.
+    let project = out_dir_project("out-dir", "");
+    assert_eq!(project.check(), ["src/lib/util.ts TS2322"]);
+}
+
+#[test]
+fn a_root_dir_the_project_sets_still_holds_its_files() {
+    let project = out_dir_project("root-dir", r#","rootDir":"./src""#);
+    assert_eq!(
+        project.check(),
+        ["src/App.svelte TS6059", "src/lib/util.ts TS2322"]
+    );
+}

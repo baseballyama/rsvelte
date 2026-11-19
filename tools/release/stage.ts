@@ -88,7 +88,7 @@ export function stage(artifacts: string, out: string, version: string): string[]
 		repository: REPOSITORY,
 		type: 'module',
 		bin: { rsvelte: 'bin/rsvelte.js' },
-		files: ['bin', 'platforms.json'],
+		files: ['bin', 'platforms.json', 'CHANGELOG.md'],
 		engines: { node: '>=18' },
 		optionalDependencies: Object.fromEntries(PLATFORMS.map((p) => [packageName(p), version])),
 		peerDependencies: { tsrs: TSRS },
@@ -101,6 +101,7 @@ export function stage(artifacts: string, out: string, version: string): string[]
 	);
 	fs.chmodSync(path.join(command, 'bin/rsvelte.js'), 0o755);
 	fs.copyFileSync(path.join(import.meta.dirname, 'npm-readme.md'), path.join(command, 'README.md'));
+	fs.copyFileSync(path.join(ROOT, 'apps/cli/CHANGELOG.md'), path.join(command, 'CHANGELOG.md'));
 	const platforms = Object.fromEntries(PLATFORMS.map((p) => [`${p.os}-${p.cpu}`, packageName(p)]));
 	fs.writeFileSync(
 		path.join(command, 'platforms.json'),
@@ -116,12 +117,14 @@ export async function main(args: string[]): Promise<void> {
 		options: {
 			artifacts: { type: 'string' },
 			out: { type: 'string' },
-			tag: { type: 'string' },
 		},
 	});
 	if (!values.artifacts || !values.out) throw new Error('stage needs --artifacts and --out');
 	const version = cargoVersion(fs.readFileSync(path.join(ROOT, 'Cargo.toml'), 'utf8'));
-	if (values.tag !== undefined && values.tag !== `v${version}`)
-		throw new Error(`tag ${values.tag} is not v${version}, the version in Cargo.toml`);
+	const versioned = JSON.parse(fs.readFileSync(path.join(ROOT, 'apps/cli/package.json'), 'utf8'));
+	if (versioned.version !== version)
+		throw new Error(
+			`apps/cli/package.json is ${versioned.version} but Cargo.toml is ${version}; run node tools/release/release.ts version`,
+		);
 	for (const directory of stage(values.artifacts, values.out, version)) console.log(directory);
 }
