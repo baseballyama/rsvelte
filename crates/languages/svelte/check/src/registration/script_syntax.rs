@@ -9,12 +9,12 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_typescript_projection::{Refusal, checked_as_typescript, unparsed_script};
 use rsvelte_typescript_check::{CheckedDocument, TypeScriptDocument, TypeScriptEnv};
 
-/// The document to check, or `None` when the markup does not parse either. `projects` is
-/// whether svelte2tsx still projects a component, which it does when TypeScript reads every
-/// script.
+/// The document to check, or `None` when the markup does not parse either. With
+/// `default_export`, set when TypeScript reads every script, the view exports a component of any
+/// props.
 pub(super) fn view<'e>(
     source_text: &str,
-    projects: bool,
+    default_export: bool,
     env: impl FnOnce() -> Result<&'e Arc<TypeScriptEnv>, Diagnostic>,
 ) -> Option<Result<TypeScriptDocument, Diagnostic>> {
     let component = rsvelte_svelte_syntax::parse::parse_without_scripts(source_text).ok()?;
@@ -69,7 +69,7 @@ pub(super) fn view<'e>(
         projection.atom("async () => {", Span::new(end, end + 1));
         projection.push("\n};\n}\n");
     }
-    if projects {
+    if default_export {
         // An import then reads a component of any props instead of a module without a default
         // export; `JSON.parse` returns `any` read as JavaScript or as TypeScript.
         projection.push("export default JSON.parse(\"null\");\n");

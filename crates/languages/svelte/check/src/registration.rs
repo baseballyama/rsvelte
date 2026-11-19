@@ -167,12 +167,12 @@ fn typescript_view(
     let component = match context.get::<Parsed>() {
         Ok(component) => component,
         Err(error) => {
-            let projects = context
+            let default_export = context
                 .get::<ParsedAsTypeScript>()
                 .as_ref()
                 .is_ok_and(|component| component.script_typescript_errors.is_empty());
             if let Some(document) =
-                script_syntax::view(&context.document.text, projects, || env_of(env))
+                script_syntax::view(&context.document.text, default_export, || env_of(env))
             {
                 return document;
             }
