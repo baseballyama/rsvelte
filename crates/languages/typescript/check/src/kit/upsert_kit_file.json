@@ -1,0 +1,67 @@
+[
+	{
+		"file": "/p/src/routes/+layout.ts",
+		"source": "export const load = async ({ parent }) => {\n  return parent();\n};\n",
+		"expected": "export const load = async ({ parent }: import('./$types.js').LayoutLoadEvent) => {\n  return parent();\n};\n"
+	},
+	{
+		"file": "/p/src/routes/+page.ts",
+		"source": "export async function load(event) {\n  return {};\n}\nexport const prerender = true;\nexport const ssr = false, csr = true;\nexport function entries() {\n  return [];\n}\n",
+		"expected": "export async function load(event: import('./$types.js').PageLoadEvent) {\n  return {};\n}\nexport const prerender : boolean | 'auto' = true;\nexport const ssr = false, csr = true;\nexport function entries() : ReturnType<import('./$types.js').EntryGenerator> {\n  return [];\n}\n"
+	},
+	{
+		"file": "/p/src/routes/a/+page.server.ts",
+		"source": "export const load = (async (e) => ({})) satisfies X;\nexport const actions = {\n  default: async () => {}\n};\nexport const trailingSlash = 'always';\n",
+		"expected": "export const load = (async (e) => ({})) satisfies X;\nexport const actions = {\n  default: async () => {}\n} satisfies import('./$types.js').Actions;\nexport const trailingSlash : 'never' | 'always' | 'ignore' = 'always';\n"
+	},
+	{
+		"file": "/p/src/routes/api/+server.ts",
+		"source": "export async function GET(event) {\n  return new Response();\n}\nexport const POST = (event) => new Response();\nexport const PUT = async (event) /* => */ => new Response();\nexport function DELETE(event: any) {}\n",
+		"expected": "export async function GET(event: import('./$types.js').RequestEvent) : Promise<Response> {\n  return new Response();\n}\nexport const POST = (event: import('./$types.js').RequestEvent) : Response | Promise<Response> => new Response();\nexport const PUT = async (event: import('./$types.js').RequestEvent) /* => */ : Promise<Response> => new Response();\nexport function DELETE(event: any) {}\n"
+	},
+	{
+		"file": "/p/src/routes/b/+layout.server.ts",
+		"source": "export const load = function (e) { return {}; };\nexport const entries = () => [];\n",
+		"expected": "export const load = function (e: import('./$types.js').LayoutServerLoadEvent) { return {}; };\nexport const entries = () => [];\n"
+	},
+	{
+		"file": "/p/src/routes/c/+page@foo.ts",
+		"source": "export function load(event) {}\n",
+		"expected": "export function load(event: import('./$types.js').PageLoadEvent) {}\n"
+	},
+	{
+		"file": "/p/src/hooks.server.ts",
+		"source": "export async function handle({ event, resolve }) {\n  return resolve(event);\n}\nexport const handleError = ({ error }) => {};\n",
+		"expected": "export async function handle({ event, resolve }: Parameters<import('@sveltejs/kit').Handle>[0]) : ReturnType<import('@sveltejs/kit').Handle> {\n  return resolve(event);\n}\nexport const handleError = ({ error }: Parameters<import('@sveltejs/kit').HandleServerError>[0]) : ReturnType<import('@sveltejs/kit').HandleServerError> => {};\n"
+	},
+	{
+		"file": "/p/src/hooks.client.ts",
+		"source": "export const handleError = ({ error }) => {};\n",
+		"expected": "export const handleError = ({ error }: Parameters<import('@sveltejs/kit').HandleClientError>[0]) : ReturnType<import('@sveltejs/kit').HandleClientError> => {};\n"
+	},
+	{
+		"file": "/p/src/hooks.ts",
+		"source": "export const reroute = ({ url }) => url.pathname;\n",
+		"expected": "export const reroute = ({ url }: Parameters<import('@sveltejs/kit').Reroute>[0]) : ReturnType<import('@sveltejs/kit').Reroute> => url.pathname;\n"
+	},
+	{
+		"file": "/p/src/params/id.ts",
+		"source": "export function match(param) {\n  return /^\\d+$/.test(param);\n}\n",
+		"expected": "export function match(param: string) : boolean {\n  return /^\\d+$/.test(param);\n}\n"
+	},
+	{
+		"file": "/p/src/params/id.test.ts",
+		"source": "export function match(param) {}\n",
+		"expected": "export function match(param) {}\n"
+	},
+	{
+		"file": "/p/src/lib/x.ts",
+		"source": "export const load = async (e) => e;\n",
+		"expected": "export const load = async (e) => e;\n"
+	},
+	{
+		"file": "/p/src/routes/d/+page.ts",
+		"source": "export const load = async (e: any) => e;\nexport let load2 = 1;\nexport const prerender: boolean = true;\n",
+		"expected": "export const load = async (e: any) => e;\nexport let load2 = 1;\nexport const prerender: boolean = true;\n"
+	}
+]
