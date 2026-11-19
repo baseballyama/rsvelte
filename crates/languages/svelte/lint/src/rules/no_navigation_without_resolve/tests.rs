@@ -102,3 +102,41 @@ fn hrefs_without_resolve_are_reported() {
     );
     assert_eq!(reported_lines(declarations, template), [6, 7, 9]);
 }
+
+/// Upstream accepts an absolute, fragment or empty literal only as the URL itself or a constant's
+/// initializer; reached through an item or a member it is reported, typed or not.
+#[test]
+fn a_literal_url_reached_through_an_item_or_a_member_is_reported() {
+    let declarations = concat!(
+        "\tconst links = [{ href: 'https://example.com' }];\n",
+        "\tconst mixed = [{ href: resolve('/') }, { href: 'https://example.com' }];\n",
+        "\tconst frag = [{ href: resolve('/') }, { href: '#top' }];\n",
+        "\tconst nav = { home: 'https://example.com', top: '#top' };",
+    );
+    let template = concat!(
+        "{#each links as link}<a href={link.href}>x</a>{/each}\n",
+        "{#each mixed as link}<a href={link.href}>x</a>{/each}\n",
+        "{#each frag as { href }}<a {href}>x</a>{/each}\n",
+        "<a href={nav.home}>x</a>\n<a href={nav.top}>x</a>",
+    );
+    assert_eq!(reported_lines(declarations, template), [8, 9, 10, 11, 12]);
+}
+
+/// `pushState('')` is allowed as written or through a constant, not through a member.
+#[test]
+fn an_empty_url_reached_through_a_member_is_reported() {
+    let declarations = concat!(
+        "\timport { pushState } from '$app/navigation';\n",
+        "\tconst nav = { p: '' };\n\tconst p = nav.p;\n\tpushState(p, {});\n",
+        "\tconst e = '';\n\tpushState(e, {});",
+    );
+    assert_eq!(reported_lines(declarations, ""), [6]);
+}
+
+/// typescript-eslint types these `href`s `ResolvedPathname | null`, which upstream accepts.
+#[test]
+fn a_nullish_item_beside_resolve_is_accepted() {
+    let declarations = "\tconst links = [{ href: resolve('/') }, { href: null }];";
+    let template = "{#each links as link}<a href={link.href}>x</a>{/each}";
+    assert_eq!(reported_lines(declarations, template), NONE);
+}

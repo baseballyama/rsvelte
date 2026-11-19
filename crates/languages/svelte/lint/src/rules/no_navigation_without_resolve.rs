@@ -422,17 +422,13 @@ impl<'a> Check<'_, 'a> {
                 {
                     return allowed;
                 }
-                if let Some(values) = self.values(node, visited) {
-                    return values
-                        .into_iter()
-                        .all(|value| self.allowed(Url::Expression(value), allow, visited));
+                if let Some(allowed) = self.all_values_allowed(node, allow, visited) {
+                    return allowed;
                 }
             }
             Expression::StaticMemberExpression(_) => {
-                if let Some(values) = self.values(node, visited) {
-                    return values
-                        .into_iter()
-                        .all(|value| self.allowed(Url::Expression(value), allow, visited));
+                if let Some(allowed) = self.all_values_allowed(node, allow, visited) {
+                    return allowed;
                 }
             }
             Expression::ConditionalExpression(conditional) => {
@@ -446,6 +442,28 @@ impl<'a> Check<'_, 'a> {
             || (allow.fragment && self.starts_with(node, "#", visited))
             || (allow.nullish && is_nullish(node))
             || self.is_resolve_call(node, visited)
+    }
+
+    /// Whether every value [`Check::values`] finds for `node` comes from `resolve()`. Upstream
+    /// accepts a literal URL only as the expression itself or a constant's initializer; an item
+    /// or a member it accepts through its type alone, which a literal never has, so only nullish
+    /// values keep their allowance.
+    fn all_values_allowed(
+        &self,
+        node: &'a Expression<'a>,
+        allow: Allow,
+        visited: &mut Vec<SymbolId>,
+    ) -> Option<bool> {
+        let values = self.values(node, visited)?;
+        let allow = Allow {
+            nullish: allow.nullish,
+            ..Allow::default()
+        };
+        Some(
+            values
+                .into_iter()
+                .all(|value| self.allowed(Url::Expression(value), allow, visited)),
+        )
     }
 
     fn starts_with(
