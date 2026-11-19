@@ -1,6 +1,7 @@
 //! Svelte format.
 
 pub(crate) mod format;
+pub use format::unported;
 
 pub mod options;
 pub use options::Options;
@@ -20,7 +21,7 @@ pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_inter
         if settings.runs(
             Format::IDENTIFIER,
             rsvelte_plugin_interface::TaskKind::Document,
-        ) && let Some(name) = format::unported(&options)
+        ) && let Some(name) = unported(&options)
         {
             return Err(rsvelte_plugin_interface::CallError(format!(
                 "{}: the formatter does not print this `{name}` value yet",

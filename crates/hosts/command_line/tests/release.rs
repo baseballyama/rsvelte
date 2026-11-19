@@ -162,3 +162,78 @@ fn typecheck_without_a_checker_says_what_to_install() {
     let stderr = text(&output.stderr);
     assert!(stderr.contains("add `tsrs`"), "{stderr}");
 }
+
+#[test]
+fn format_follows_the_projects_formatter_configuration() {
+    let project = Project::new(
+        "format-configuration",
+        &[
+            (".prettierrc.json", r#"{"tabWidth":4,"printWidth":100}"#),
+            ("a.ts", "if (x) {\n  y(\"z\");\n}\n"),
+            ("App.svelte", "<script>\n  let a = 1;\n</script>\n"),
+        ],
+    );
+    let output = project.rsvelte(&["format"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(read("a.ts"), "if (x) {\n    y(\"z\");\n}\n");
+    assert_eq!(read("App.svelte"), "<script>\n    let a = 1;\n</script>\n");
+}
+
+#[test]
+fn format_leaves_svelte_files_whose_options_it_cannot_print_and_says_so() {
+    let project = Project::new(
+        "format-refused",
+        &[
+            (
+                ".oxfmtrc.jsonc",
+                r#"{
+  // the house style
+  "singleQuote": true,
+  "ignorePatterns": ["generated/"],
+}
+"#,
+            ),
+            ("a.ts", "y(\"z\");\n"),
+            ("generated/b.ts", "y(\"z\");\n"),
+            ("App.svelte", "<script>\nlet   a = \"1\"\n</script>\n"),
+        ],
+    );
+    let output = project.rsvelte(&["format"]);
+    let stderr = text(&output.stderr);
+    assert_eq!(output.status.code(), Some(2), "{stderr}");
+    assert!(
+        stderr.contains("1 Svelte files were not formatted"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("`singleQuote`"), "{stderr}");
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(read("a.ts"), "y('z');\n");
+    assert_eq!(read("generated/b.ts"), "y(\"z\");\n");
+    assert_eq!(read("App.svelte"), "<script>\nlet   a = \"1\"\n</script>\n");
+}
+
+#[test]
+fn format_refuses_a_configuration_it_cannot_honor_and_writes_nothing() {
+    let project = Project::new(
+        "format-overrides",
+        &[
+            (
+                ".prettierrc",
+                r#"{"overrides":[{"files":"*.ts","options":{"semi":false}}]}"#,
+            ),
+            ("a.ts", "y(\"z\")\n"),
+        ],
+    );
+    let output = project.rsvelte(&["format"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        text(&output.stderr).contains("`overrides`"),
+        "{}",
+        text(&output.stderr)
+    );
+    assert_eq!(
+        std::fs::read_to_string(project.0.join("a.ts")).expect("file"),
+        "y(\"z\")\n"
+    );
+}

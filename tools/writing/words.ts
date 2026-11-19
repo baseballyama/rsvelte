@@ -24,8 +24,10 @@ export const acronyms = [
 	'SIMD',
 	'SSR',
 	'SVG',
+	'TOML',
 	'TSX',
 	'UTF',
+	'YAML',
 ];
 
 /** Names whose own spelling starts with a lower-case letter. */
@@ -48,6 +50,7 @@ export const lowercaseNames = [
 
 /** Technical words and names the English dictionary does not know. */
 export const words = [
+	'formatter',
 	...acronyms,
 	...lowercaseNames,
 	'APIs',

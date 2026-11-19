@@ -5,7 +5,8 @@ use std::process::ExitCode;
 
 use rsvelte_plugin_interface::{Extension, Selection};
 
-use crate::commands::{format, lint, typecheck};
+use crate::commands::{files, format, lint, typecheck};
+use crate::formatting::{self, Formatting};
 use crate::{Installation, configuration, configured_registry, usage};
 
 /// The plugins `rsvelte` installs, in installation order.
@@ -76,10 +77,10 @@ pub fn release() -> ExitCode {
         eprint!("{HELP}");
         return ExitCode::from(2);
     };
-    let (tasks, defaults) = match command {
-        "lint" => (LINT, &[][..]),
-        "format" => (FORMAT, &[][..]),
-        "typecheck" => (TYPECHECK, TYPECHECK_DEFAULTS),
+    let tasks = match command {
+        "lint" => LINT,
+        "format" => FORMAT,
+        "typecheck" => TYPECHECK,
         other => return usage(&format!("unknown command `{other}`; see `rsvelte --help`")),
     };
     if check && command != "format" {
@@ -88,6 +89,17 @@ pub fn release() -> ExitCode {
     if command == "typecheck" && !paths.is_empty() {
         return usage("typecheck takes no paths: it checks the files its tsconfig.json selects");
     }
+    let paths = if paths.is_empty() { &["."][..] } else { paths };
+    if command == "format" {
+        return format_project(&config, paths, check);
+    }
+    let defaults = if command == "typecheck" {
+        (TYPECHECK_DEFAULTS.iter())
+            .map(|&plugin| (plugin, "{}".to_owned()))
+            .collect()
+    } else {
+        Vec::new()
+    };
     let installation = Installation {
         extensions: EXTENSIONS,
         selection: Selection::Named(tasks.iter().map(|&task| task.to_owned()).collect()),
@@ -97,12 +109,104 @@ pub fn release() -> ExitCode {
         Ok(configured) => configured,
         Err(error) => return usage(&error),
     };
-    let paths = if paths.is_empty() { &["."][..] } else { paths };
-    match command {
-        "lint" => lint::lint(&reg, paths, tasks),
-        "format" => format::format(&reg, paths, tasks, check),
-        _ => typecheck::typecheck(&reg, tasks),
+    if command == "lint" {
+        lint::lint(&reg, paths, tasks)
+    } else {
+        typecheck::typecheck(&reg, tasks)
     }
+}
+
+/// `rsvelte format`, with the options of the project's formatter configuration when it has one.
+fn format_project(config: &configuration::Options, paths: &[&str], check: bool) -> ExitCode {
+    let formatting = match std::env::current_dir()
+        .map_err(|e| format!("current directory: {e}"))
+        .and_then(|here| formatting::find(&here))
+    {
+        Ok(formatting) => formatting,
+        Err(error) => return usage(&error),
+    };
+    // The TypeScript files are still formatted when the Svelte formatter cannot honor the options.
+    let svelte_refused = formatting.as_ref().and_then(|f| {
+        let options = serde_json::from_str(&f.svelte).ok()?;
+        rsvelte_svelte_format::unported(&options).map(|name| (name, f.source.clone()))
+    });
+    let tasks = if svelte_refused.is_some() {
+        &FORMAT[1..]
+    } else {
+        FORMAT
+    };
+    let defaults = formatting.as_ref().map_or_else(Vec::new, |f| {
+        vec![
+            ("svelte.format", f.svelte.clone()),
+            ("typescript.format", f.typescript.clone()),
+        ]
+    });
+    let installation = Installation {
+        extensions: EXTENSIONS,
+        selection: Selection::Named(tasks.iter().map(|&task| task.to_owned()).collect()),
+        defaults,
+    };
+    let (reg, _) = match configured_registry(config, &[], installation) {
+        Ok(configured) => configured,
+        Err(error) => {
+            return usage(&match &formatting {
+                Some(f) => format!("{error} (from {})", f.source.display()),
+                None => error,
+            });
+        }
+    };
+    let patterns = match formatting.as_ref().map(ignore_patterns).transpose() {
+        Ok(patterns) => patterns,
+        Err(error) => return usage(&error),
+    };
+    let skip = files::Skip {
+        patterns: patterns.as_ref(),
+        ..format::SKIP
+    };
+    let code = format::format(&reg, paths, tasks, check, skip);
+    match svelte_refused {
+        Some((name, source)) => refused_svelte(paths, skip, name, &source).unwrap_or(code),
+        None => code,
+    }
+}
+
+/// Says that the Svelte files below `paths` were left as they are, and fails, if there are any.
+fn refused_svelte(
+    paths: &[&str],
+    skip: files::Skip<'_>,
+    name: &str,
+    source: &std::path::Path,
+) -> Option<ExitCode> {
+    let svelte = |path: &std::path::Path| path.extension().is_some_and(|e| e == "svelte");
+    let count = match files::find(paths, skip, &svelte) {
+        Ok(found) => found.len(),
+        Err(error) => return Some(usage(&error)),
+    };
+    (count > 0).then(|| {
+        eprintln!(
+            "rsvelte: {count} Svelte files were not formatted: the Svelte formatter does not print \
+             this `{name}` value of {} yet",
+            source.display()
+        );
+        ExitCode::from(2)
+    })
+}
+
+/// The configuration's `ignorePatterns`, rooted at its directory.
+fn ignore_patterns(formatting: &Formatting) -> Result<ignore::gitignore::Gitignore, String> {
+    let root = formatting
+        .source
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."));
+    let mut builder = ignore::gitignore::GitignoreBuilder::new(root);
+    for pattern in &formatting.ignore_patterns {
+        builder
+            .add_line(None, pattern)
+            .map_err(|e| format!("{}: {e}", formatting.source.display()))?;
+    }
+    builder
+        .build()
+        .map_err(|e| format!("{}: {e}", formatting.source.display()))
 }
 
 #[cfg(test)]

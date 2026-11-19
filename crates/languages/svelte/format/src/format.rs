@@ -300,7 +300,7 @@ fn refuse_lost_comments(
     clippy::unneeded_field_pattern,
     reason = "`..` would let a new option through unchecked"
 )]
-pub(crate) fn unported(o: &Options) -> Option<&'static str> {
+pub fn unported(o: &Options) -> Option<&'static str> {
     let Options {
         print_width: _,
         tab_width: _,
