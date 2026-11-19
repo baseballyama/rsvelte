@@ -1,12 +1,13 @@
 use std::num::NonZeroUsize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use rsvelte_kernel::computation::registry::{ProjectFiles, Registry};
 use rsvelte_plugin_interface::{
-    CallError, Extension, Settings, TaskKind, installed_bin, program_path,
+    CallError, Extension, Settings, TaskKind, installed_bin, installed_package, program_path,
 };
 use serde::Deserialize;
 
+use crate::check::version_before_7_1;
 use crate::{Check, Documents, MappedLanguages, Tsc, TypeChecker};
 
 pub static EXTENSION: Extension = Extension {
@@ -87,7 +88,7 @@ pub fn type_checker(settings: &mut Settings, runs: bool) -> Result<Option<Tsc>, 
                 program_path(program, base).map_err(|e| error(format!("{program}: {e}")))?;
             (program, arguments.to_vec())
         }
-        None => installed(base)?.ok_or_else(|| error(NO_CHECKER_INSTALLED.to_owned()))?,
+        None => installed(base)?.map_err(|older| CallError(no_checker_installed(base, &older)))?,
     };
     let tsconfig = options.value.tsconfig.map_or_else(
         || Some(base.join("tsconfig.json")).filter(|default| default.is_file()),
@@ -110,22 +111,78 @@ pub fn type_checker(settings: &mut Settings, runs: bool) -> Result<Option<Tsc>, 
     }))
 }
 
-const NO_CHECKER_INSTALLED: &str = "no type checker installed: add `tsrs` to the project's \
-devDependencies, or name one with `command`";
+/// The error when no installed checker has the API: what it found, and the command that installs
+/// one with the package manager the project uses, so it can be pasted.
+fn no_checker_installed(base: &Path, older: &[String]) -> String {
+    let found = if older.is_empty() {
+        String::new()
+    } else {
+        format!(" (found {}, which are older)", older.join(", "))
+    };
+    format!(
+        "no type checker with the API of TypeScript 7.1 or later is installed{found}. \
+         Install tsrs in the project:\n\n    {}\n\nor name a type checker with `command` in \
+         the options of `typescript.check`",
+        install_command(base)
+    )
+}
 
-/// `node` and the script of the first of [`INSTALLED`] that `base` resolves.
-fn installed(base: &std::path::Path) -> Result<Option<(PathBuf, Vec<String>)>, CallError> {
+/// `<manager> add -D tsrs` for the package manager whose lockfile is nearest to `base`.
+fn install_command(base: &Path) -> &'static str {
+    const LOCKFILES: [(&str, &str); 5] = [
+        ("pnpm-lock.yaml", "pnpm add -D tsrs"),
+        ("yarn.lock", "yarn add -D tsrs"),
+        ("bun.lock", "bun add -d tsrs"),
+        ("bun.lockb", "bun add -d tsrs"),
+        ("package-lock.json", "npm install -D tsrs"),
+    ];
+    let base = std::path::absolute(base).unwrap_or_else(|_| base.to_owned());
+    base.ancestors()
+        .find_map(|directory| {
+            LOCKFILES
+                .iter()
+                .find(|(lockfile, _)| directory.join(lockfile).is_file())
+        })
+        .map_or("npm install -D tsrs", |(_, command)| command)
+}
+
+/// A program and the arguments that start it.
+type Command = (PathBuf, Vec<String>);
+
+/// `node` and the script of the first of [`INSTALLED`] that `base` resolves and that has the API;
+/// otherwise the TypeScript packages it resolves that are older than 7.1, as `<name> <version>`.
+fn installed(base: &Path) -> Result<Result<Command, Vec<String>>, CallError> {
+    let mut older = Vec::new();
     for (package, bin) in INSTALLED {
-        let script = installed_bin(package, bin, base)
-            .map_err(|e| CallError(format!("options of `typescript.check`: {package}: {e}")))?;
-        if let Some(script) = script {
-            return Ok(Some((
-                "node".into(),
-                vec![script.to_string_lossy().into_owned()],
-            )));
+        let failed =
+            |e: std::io::Error| CallError(format!("options of `typescript.check`: {package}: {e}"));
+        let Some(script) = installed_bin(package, bin, base).map_err(failed)? else {
+            continue;
+        };
+        if package != "tsrs"
+            && let Some(version) = package_version(package, base).map_err(failed)?
+            && version_before_7_1(&version)
+        {
+            older.push(format!("{package} {version}"));
+            continue;
         }
+        return Ok(Ok((
+            "node".into(),
+            vec![script.to_string_lossy().into_owned()],
+        )));
     }
-    Ok(None)
+    Ok(Err(older))
+}
+
+/// The `version` in the `package.json` of package `name` as `base` resolves it.
+fn package_version(name: &str, base: &Path) -> std::io::Result<Option<String>> {
+    let Some(package) = installed_package(name, base)? else {
+        return Ok(None);
+    };
+    let manifest = std::fs::read(package.join("package.json"))?;
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&manifest).map_err(std::io::Error::other)?;
+    Ok(manifest["version"].as_str().map(str::to_owned))
 }
 
 #[cfg(test)]

@@ -75,6 +75,7 @@ oxc_syntax = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3de
 oxc_transformer = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
 self_cell = "1.2.0"
 rayon = "1.12.0"
+ignore = "0.4.25"
 stacker = "0.1.25"
 memchr = "2.8.3"
 mimalloc = { version = "0.1.52", default-features = false }

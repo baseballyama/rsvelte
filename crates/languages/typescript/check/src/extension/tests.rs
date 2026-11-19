@@ -103,7 +103,7 @@ fn a_command_needs_a_program_and_options_are_checked() {
 fn without_a_command_the_first_installed_checker_runs_through_node() {
     let scratch = Scratch::new("installed");
     let none = checker(&scratch.0, "{}").unwrap_err();
-    assert!(none.0.contains("no type checker installed"), "{}", none.0);
+    assert!(none.0.contains("is installed. Install tsrs"), "{}", none.0);
     let install = |package: &str, manifest: &str| {
         let directory = scratch.0.join("node_modules").join(package);
         std::fs::create_dir_all(&directory).unwrap();
@@ -127,4 +127,62 @@ fn without_a_command_the_first_installed_checker_runs_through_node() {
         [tsrs.join("./bin/tsrs").to_string_lossy()],
         "tsrs before TypeScript"
     );
+}
+
+#[test]
+fn a_typescript_older_than_7_1_is_passed_over_and_named_with_the_install_command() {
+    let scratch = Scratch::new("older");
+    let install = |package: &str, manifest: &str| {
+        let directory = scratch.0.join("node_modules").join(package);
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(directory.join("package.json"), manifest).unwrap();
+        std::fs::canonicalize(directory).unwrap()
+    };
+    install(
+        "@typescript/native-preview",
+        concat!(
+            r#"{"name":"@typescript/native-preview","version":"7.0.0-dev.20260707.2","#,
+            r#""bin":{"tsgo":"bin/tsgo"}}"#,
+        ),
+    );
+    let typescript = install(
+        "typescript",
+        r#"{"name":"typescript","version":"7.1.0","bin":{"tsc":"bin/tsc"}}"#,
+    );
+    let got = checker(&scratch.0, "{}").unwrap().unwrap();
+    assert_eq!(
+        got.checker.arguments,
+        [typescript.join("bin/tsc").to_string_lossy()],
+        "the 7.0 preview is passed over"
+    );
+
+    install(
+        "typescript",
+        r#"{"name":"typescript","version":"5.9.3","bin":{"tsc":"bin/tsc"}}"#,
+    );
+    std::fs::write(scratch.0.join("pnpm-lock.yaml"), "").unwrap();
+    let none = checker(&scratch.0, "{}").unwrap_err();
+    assert_eq!(
+        none.0,
+        "no type checker with the API of TypeScript 7.1 or later is installed (found \
+         @typescript/native-preview 7.0.0-dev.20260707.2, typescript 5.9.3, which are older). \
+         Install tsrs in the project:\n\n    pnpm add -D tsrs\n\nor name a type checker with \
+         `command` in the options of `typescript.check`"
+    );
+}
+
+#[test]
+fn the_install_command_follows_the_nearest_lockfile() {
+    let scratch = Scratch::new("lockfile");
+    let app = scratch.0.join("apps/web");
+    std::fs::create_dir_all(&app).unwrap();
+    assert_eq!(install_command(&app), "npm install -D tsrs", "no lockfile");
+    std::fs::write(scratch.0.join("pnpm-lock.yaml"), "").unwrap();
+    assert_eq!(
+        install_command(&app),
+        "pnpm add -D tsrs",
+        "a workspace's root"
+    );
+    std::fs::write(app.join("yarn.lock"), "").unwrap();
+    assert_eq!(install_command(&app), "yarn add -D tsrs", "the nearest");
 }

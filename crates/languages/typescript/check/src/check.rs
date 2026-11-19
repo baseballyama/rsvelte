@@ -90,10 +90,16 @@ impl TypeChecker {
 /// `major.minor` of a `tsc` that prints `Version <major>.<minor>...` and is older than 7.1.
 fn typescript_before_7_1(version: &str) -> Option<&str> {
     let number = version.strip_prefix("Version ")?;
-    let mut parts = number.split(['.', '-']);
-    let major: u32 = parts.next()?.parse().ok()?;
-    let minor: u32 = parts.next()?.parse().ok()?;
-    ((major, minor) < (7, 1)).then_some(number)
+    version_before_7_1(number).then_some(number)
+}
+
+/// A TypeScript version number, such as `7.0.0-dev.20260707.2`, older than 7.1.
+pub(crate) fn version_before_7_1(number: &str) -> bool {
+    let mut parts = number.split(['.', '-']).map(str::parse::<u32>);
+    match (parts.next(), parts.next()) {
+        (Some(Ok(major)), Some(Ok(minor))) => (major, minor) < (7, 1),
+        _ => false,
+    }
 }
 
 impl std::fmt::Display for TypeChecker {

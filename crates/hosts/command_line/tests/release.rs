@@ -160,5 +160,5 @@ fn typecheck_without_a_checker_says_what_to_install() {
     let output = project.rsvelte(&["typecheck"]);
     assert_eq!(output.status.code(), Some(2));
     let stderr = text(&output.stderr);
-    assert!(stderr.contains("add `tsrs`"), "{stderr}");
+    assert!(stderr.contains("\n    npm install -D tsrs\n"), "{stderr}");
 }
