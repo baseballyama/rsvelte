@@ -1,5 +1,4 @@
 use oxc_formatter::JsFormatOptions;
-use oxc_formatter_core::LineWidth;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
@@ -8,6 +7,8 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::Parsed;
+
+use crate::Options;
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "typescript.format",
@@ -18,14 +19,29 @@ pub static PLUGIN: Plugin = Plugin {
     }],
 };
 
+/// Registers the format with Prettier's defaults.
 pub fn register(registry: &mut Registry) {
+    register_with_options(registry, &Options::default());
+}
+
+/// Registers the format with `options`.
+///
+/// # Panics
+///
+/// When [`Options::formatter`] refuses them; the caller checks that first.
+pub fn register_with_options(registry: &mut Registry, options: &Options) {
     registry.plugin(&PLUGIN);
     rsvelte_typescript_tree::register(registry);
-    registry.task(Format);
+    let formatter = options
+        .formatter()
+        .unwrap_or_else(|name| panic!("the `{name}` value was not checked"));
+    registry.task(Format { formatter });
 }
 
 #[derive(Debug)]
-pub struct Format;
+pub struct Format {
+    formatter: JsFormatOptions,
+}
 
 impl Task for Format {
     fn identifier(&self) -> &'static str {
@@ -45,8 +61,12 @@ impl Task for Format {
             }
         };
         let program = script.tree.get_program(script.root);
-        match oxc_formatter::format_program(script.tree.allocator(), program, prettier_defaults())
-            .print()
+        match oxc_formatter::format_program(
+            script.tree.allocator(),
+            program,
+            self.formatter.clone(),
+        )
+        .print()
         {
             Ok(printed) => out.file(
                 if rsvelte_typescript_tree::is_typescript(context.document) {
@@ -62,13 +82,5 @@ impl Task for Format {
                 Span::new(0, 0),
             )),
         }
-    }
-}
-
-/// Prettier's defaults; oxc's differ only in the line width.
-fn prettier_defaults() -> JsFormatOptions {
-    JsFormatOptions {
-        line_width: LineWidth::try_from(80).expect("80 is a valid line width"),
-        ..JsFormatOptions::default()
     }
 }
