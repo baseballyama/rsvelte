@@ -1,5 +1,6 @@
 use oxc_allocator::{CloneIn, GetAllocator};
-use oxc_ast::ast::{Expression, Statement};
+use oxc_ast::ast::{ArrowFunctionBody, Directive, Expression, FunctionBody, Statement};
+use oxc_span::SPAN;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
@@ -212,20 +213,18 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let value = (tag != "svelte:element")
             .then(|| attribute_value(self.source_text, attributes, "value"))
             .flatten();
-        let get = match value {
+        // Upstream reads the value unmemoized, every chunk of it.
+        let read = match value {
             Some(
                 &(AttributeValue::Expression { expression, .. }
                 | AttributeValue::Shorthand(expression)),
-            ) => {
-                let AttributeValue::Bind(target) = attribute.value else {
-                    unreachable!("a binding")
-                };
-                let read = b.statement(self.expression(expression));
-                let current = b.return_(Some(self.expression(target)));
-                b.arrow_block(b.parameters([]), [read, current], false)
+            ) => Some(self.expression(expression)),
+            Some(AttributeValue::Interpolated(parts)) => {
+                Some(self.chunk(&self.chunk_items(parts), None, false).0)
             }
-            _ => get,
+            _ => None,
         };
+        let get = read.map_or(get, |read| self.reading_getter(attribute, read));
         b.runtime(
             "bind_group",
             [
@@ -238,9 +237,52 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         )
     }
 
+    /// A group's getter that reads `read` before it returns the bound value.
+    fn reading_getter(&self, attribute: &Attribute, read: Expression<'o>) -> Expression<'o> {
+        let b = self.b;
+        let AttributeValue::Bind(target) = attribute.value else {
+            unreachable!("a binding")
+        };
+        let current = b.return_(Some(self.expression(target)));
+        // Upstream prints a string read bare, so its output opens the body with a directive.
+        let (directives, read) = match read {
+            Expression::StringLiteral(s) if let Some(value) = s.value.as_str() => {
+                let raw = b.str(&quoted_raw(value));
+                (vec![Directive::new(SPAN, s.unbox(), raw, b)], None)
+            }
+            read => (Vec::new(), Some(b.statement(read))),
+        };
+        let statements = b.vec(read.into_iter().chain([current]));
+        let body = FunctionBody::boxed(SPAN, b.vec(directives), statements, b);
+        Expression::new_arrow_function_expression(
+            SPAN,
+            false,
+            None,
+            b.parameters([]),
+            None,
+            ArrowFunctionBody::FunctionBody(body),
+            b,
+        )
+    }
+
     /// Upstream `AttachTag` (client).
     pub(super) fn attach(&self, e: ExpressionIdentifier, node: &str) -> Expression<'o> {
         let b = self.b;
         b.runtime("attach", [b.id(node), b.thunk(self.expression(e))])
     }
+}
+
+/// A directive's text between single quotes, escaped as upstream's printer (esrap) quotes it.
+fn quoted_raw(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for c in value.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '\'' => out.push_str("\\'"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            c => out.push(c),
+        }
+    }
+    out
 }

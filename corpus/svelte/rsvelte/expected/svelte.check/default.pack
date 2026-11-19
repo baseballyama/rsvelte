@@ -9718,6 +9718,9 @@
 === 3 pattern/issues/4280-trailing-comment-hosts.svelte	json
 []
 
+=== 3 pattern/issues/431-bind-group-interpolated-value.svelte	json
+[]
+
 === 3 pattern/issues/4335-parse-ts-type-fields.svelte	json
 []
 

@@ -10201,6 +10201,9 @@ ENOSPC: no space left on device, mkdtemp '/var/folders/1t/sbjc_qrd47nfm6ggb_qz32
 === 3 pattern/issues/4280-trailing-comment-hosts.svelte	json
 []
 
+=== 3 pattern/issues/431-bind-group-interpolated-value.svelte	json
+[]
+
 === 3 pattern/issues/4335-parse-ts-type-fields.svelte	json
 []
 
