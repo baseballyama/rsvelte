@@ -152,6 +152,103 @@ fn typecheck_prints_each_error_as_tsc_does_and_fails() {
 }
 
 #[test]
+fn typecheck_reports_the_errors_of_the_tsconfig_instead_of_the_files() {
+    let packages = NodePackages::locate();
+    let (program, arguments) = packages.type_checker();
+    let command: Vec<String> = std::iter::once(program.to_string_lossy().into_owned())
+        .chain(arguments)
+        .collect();
+    let config = serde_json::json!({ "plugins": {
+        "typescript.check": { "command": command },
+        "svelte.check": {
+            "svelte": packages.package("svelte"),
+            "contentMapper": rsvelte_test_harness::content_mapper(),
+        },
+    }});
+    let project = Project::new(
+        "typecheck-tsconfig",
+        &[
+            ("rsvelte.config.json", &config.to_string()),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions":{"strict":true,"types":[],"foo":1},"include":["src"]}"#,
+            ),
+            (
+                "src/App.svelte",
+                "<script lang=\"ts\">\n\tconst n: number = 'x';\n</script>\n{n}\n",
+            ),
+        ],
+    );
+    let typecheck = || {
+        let output = project.rsvelte(&["typecheck"]);
+        let mut report = text(&output.stdout);
+        report.push_str(&text(&output.stderr));
+        (output.status.code(), report)
+    };
+    assert_eq!(
+        typecheck(),
+        (
+            Some(1),
+            "tsconfig.json(1,46): error TS5023: Unknown compiler option 'foo'.\n\
+             \nFound 1 error in 1 file.\n"
+                .to_owned()
+        ),
+        "an unknown option, and the component is not checked"
+    );
+    let tsconfig = project.0.join("tsconfig.json");
+    std::fs::write(
+        &tsconfig,
+        r#"{"compilerOptions":{"strict":true,"types":[]},"include":["missing/**/*.ts"]}"#,
+    )
+    .expect("tsconfig");
+    assert_eq!(
+        typecheck(),
+        (
+            Some(1),
+            format!(
+                "tsconfig.json(1,1): error TS18003: No inputs were found in config file '{}'. \
+                 Specified 'include' paths were '[\"missing/**/*.ts\"]' and 'exclude' paths were \
+                 '[]'.\n\nFound 1 error in 1 file.\n",
+                tsconfig.display()
+            )
+        ),
+        "no inputs"
+    );
+    std::fs::write(
+        &tsconfig,
+        r#"{"compilerOptions":{"strict":true,"types":[]},"include":["src/**/*.svelte"]}"#,
+    )
+    .expect("tsconfig");
+    assert_eq!(
+        typecheck(),
+        (
+            Some(1),
+            "src/App.svelte(2,8): error TS2322: Type 'string' is not assignable to type \
+             'number'.\n\nFound 1 error in 1 file.\n"
+                .to_owned()
+        ),
+        "components alone are inputs"
+    );
+    std::fs::write(
+        &tsconfig,
+        r#"{"compilerOptions":{"strict":true,"types":[]},"files":[]}"#,
+    )
+    .expect("tsconfig");
+    assert_eq!(
+        typecheck(),
+        (
+            Some(1),
+            format!(
+                "tsconfig.json(1,55): error TS18002: The 'files' list in config file '{}' is \
+                 empty.\n\nFound 1 error in 1 file.\n",
+                tsconfig.display()
+            )
+        ),
+        "an empty `files`, which only the tsconfig without `extends` reports"
+    );
+}
+
+#[test]
 fn typecheck_without_a_checker_says_what_to_install() {
     let project = Project::new(
         "no-checker",
