@@ -33799,6 +33799,28 @@ https://svelte.dev/e/expected_token
 
 {JSON.stringify($value)}
 
+=== 188 pattern/each-comment-without-as.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  1 | <script>
+  2 | 	let items = $state([1, 2]);
+> 3 | </script>
+    |          ^
+  4 |
+  5 | {#each items /* as item */}
+  6 | 	text
+
+=== 176 pattern/each-parenthesized-without-as.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  1 | <script>
+  2 | 	let items = $state([1, 2]);
+> 3 | </script>
+    |          ^
+  4 |
+  5 | {#each (items)}
+  6 | 	text
+
 === 191 pattern/event-directive-named-class.svelte	svelte
 <script>
   let { b, f } = $props();

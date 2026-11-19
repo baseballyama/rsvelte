@@ -7846,6 +7846,38 @@ ENOSPC: no space left on device, mkdtemp '/var/folders/1t/sbjc_qrd47nfm6ggb_qz32
 === 3 pattern/destructure-iife-comment-cursor.svelte	json
 []
 
+=== 193 pattern/each-comment-without-as.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 4,
+			"character": 13
+		},
+		"end": {
+			"line": 4,
+			"character": 13
+		}
+	}
+]
+
+=== 193 pattern/each-parenthesized-without-as.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 4,
+			"character": 13
+		},
+		"end": {
+			"line": 4,
+			"character": 13
+		}
+	}
+]
+
 === 3 pattern/event-directive-named-class.svelte	json
 []
 

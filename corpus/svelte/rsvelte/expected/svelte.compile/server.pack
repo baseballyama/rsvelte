@@ -49943,6 +49943,38 @@ export default function Destructure_iife_comment_cursor($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
+=== 223 pattern/each-comment-without-as.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 5,
+		"column": 13,
+		"character": 62
+	},
+	"end": {
+		"line": 5,
+		"column": 13,
+		"character": 62
+	}
+}
+
+=== 223 pattern/each-parenthesized-without-as.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 5,
+		"column": 13,
+		"character": 62
+	},
+	"end": {
+		"line": 5,
+		"column": 13,
+		"character": 62
+	}
+}
+
 === 39 pattern/event-directive-named-class.svelte	css
 
 	em.svelte-1t7657s {
