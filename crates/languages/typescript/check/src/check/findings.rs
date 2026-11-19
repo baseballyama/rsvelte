@@ -15,6 +15,9 @@ const EXPECTED_ARGUMENTS: u32 = 2554;
 const NOT_ASSIGNABLE: u32 = 2322;
 const MULTIPLE_DEFAULT_EXPORTS: u32 = 2528;
 const REDECLARED_BLOCK_SCOPED: u32 = 2451;
+const CANNOT_FIND_MODULE: u32 = 2307;
+const NAMESPACE_HAS_NO_MEMBER: u32 = 2694;
+const MUST_RETURN_A_VALUE: u32 = 2355;
 
 /// A finding located in its document, with what orders it.
 struct Finding {
@@ -35,7 +38,7 @@ pub(super) fn write_findings(
 ) {
     let mut per_doc: Vec<Vec<Finding>> = (0..docs.len()).map(|_| Vec::new()).collect();
     let mut unmapped: Vec<Vec<String>> = vec![Vec::new(); docs.len()];
-    for f in found {
+    for mut f in found {
         let (source_text, d) = (&docs[f.file].source_text, &*docs[f.file].document);
         let Some(span) = f.span else {
             // The projection's own default export repeats a script's, and its subscription `$x`
@@ -50,6 +53,12 @@ pub(super) fn write_findings(
             }
             continue;
         };
+        let inserted = d.inserted.iter().find(|(generated, _)| {
+            (generated.start_offset..generated.end_offset).contains(&span.start_offset)
+        });
+        if inserted.is_some() && !kept_in_kit_insertion(f.code, &mut f.message) {
+            continue;
+        }
         let bom = byte_order_mark(source_text);
         let content_mapped = d.env.mapped_extension.is_some();
         let generated = if content_mapped {
@@ -57,7 +66,9 @@ pub(super) fn write_findings(
         } else {
             span.start_offset
         };
-        let mapped = if content_mapped {
+        let mapped = if let Some(&(_, original)) = inserted {
+            Some(original)
+        } else if content_mapped {
             Some(span)
         } else {
             (d.map_back)(&d.projection, span).and_then(|span| {
@@ -131,6 +142,24 @@ pub(super) fn write_findings(
         }
     }
     write_outputs(docs, outs, per_doc, unmapped);
+}
+
+/// svelte-check's filter of a finding in the types `upsertKitFile` inserts: it keeps three codes,
+/// two with a hint at what `SvelteKit` did not generate.
+fn kept_in_kit_insertion(code: u32, message: &mut String) -> bool {
+    match code {
+        CANNOT_FIND_MODULE if message.contains("./$types") => message.push_str(
+            " (this likely means that SvelteKit's type generation didn't run yet - try running it \
+             by executing 'npm run dev' or 'npm run build')",
+        ),
+        NAMESPACE_HAS_NO_MEMBER if message.contains("/$types") => message.push_str(
+            " (this likely means that SvelteKit's generated types are out of date - try rerunning \
+             it by executing 'npm run dev' or 'npm run build')",
+        ),
+        CANNOT_FIND_MODULE | NAMESPACE_HAS_NO_MEMBER | MUST_RETURN_A_VALUE => {}
+        _ => return false,
+    }
+    true
 }
 
 /// Writes each document's ordered findings: the report that matches upstream's, and the same

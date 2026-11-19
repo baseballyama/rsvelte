@@ -1646,6 +1646,10 @@ dependencies = [
 name = "rsvelte_typescript_check"
 version = "0.1.0"
 dependencies = [
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_parser",
+ "oxc_span",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
  "rsvelte_typescript_api",

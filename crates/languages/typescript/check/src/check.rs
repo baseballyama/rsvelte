@@ -162,6 +162,9 @@ pub struct CheckedDocument {
     /// Whether a finding with no source range is dropped, as svelte-check drops it, instead of
     /// refusing the document: only where the projection writes svelte2tsx's own code.
     pub drops_unmapped: bool,
+    /// The types svelte2tsx's `upsertKitFile` inserts into a `SvelteKit` file: each one's range in
+    /// the projection, then the source range svelte-check reports a finding in it at.
+    pub inserted: Vec<(Span, Span)>,
 }
 
 /// A relative module specifier a document imports, by its string literal's range, with the
