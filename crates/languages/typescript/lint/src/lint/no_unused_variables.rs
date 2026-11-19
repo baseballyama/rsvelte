@@ -106,9 +106,8 @@ pub fn no_unused_variables<'r>(
             uses.retain(|u| !f.scoping.scope_ancestors(u.scope).any(|s| s == body));
         }
         let kept = if typescript {
-            let declarations = declarations(&f, symbol);
-            is_used_as_typescript_eslint(&f, symbol, &declarations, &uses)
-                || declarations.iter().any(|&d| is_exported(&f, d))
+            is_used_as_typescript_eslint(&f, symbol, &declarations(&f, symbol), &uses)
+                || declarations(&f, symbol).any(|d| is_exported(&f, d))
         } else {
             is_used(&f, symbol, declaration, &uses) || is_exported(&f, declaration)
         };
@@ -164,11 +163,6 @@ fn report(
     } else {
         "defined"
     };
-    let usage = if only_as_type {
-        "only used as a type"
-    } else {
-        "never used"
-    };
     let name = f.scoping.symbol_name(symbol);
     let range = if typescript {
         // typescript-eslint's location spans the name alone.
@@ -176,7 +170,12 @@ fn report(
     } else {
         identifier_range(f, symbol, at)
     };
-    reporter.range(format!("'{name}' is {action} but {usage}."), range);
+    let message = if only_as_type {
+        format!("'{name}' is {action} but only used as a type.")
+    } else {
+        format!("'{name}' is {action} but never used.")
+    };
+    reporter.range(message, range);
 }
 
 /// Whether a name a parameter list declares has a reference.

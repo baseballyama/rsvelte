@@ -156,10 +156,12 @@ fn mark_ambient<'a>(body: &[Statement<'a>], mark: &mut impl FnMut(&BindingIdenti
 
 /// Every node that declares `symbol`, its redeclarations included, as typescript-eslint's
 /// `variable.defs`.
-pub(super) fn declarations(f: &Facts<'_>, symbol: SymbolId) -> Vec<NodeId> {
+pub(super) fn declarations<'f>(
+    f: &'f Facts<'_>,
+    symbol: SymbolId,
+) -> impl Iterator<Item = NodeId> + Clone + 'f {
     let later = f.redeclared.get(&symbol).map_or(&[][..], Vec::as_slice);
-    let mut nodes = vec![f.declaration(symbol)];
-    nodes.extend(later.iter().filter_map(|&identifier| {
+    std::iter::once(f.declaration(symbol)).chain(later.iter().filter_map(|&identifier| {
         let mut at = f.parent(identifier)?;
         while matches!(
             f.kind(at),
@@ -172,8 +174,7 @@ pub(super) fn declarations(f: &Facts<'_>, symbol: SymbolId) -> Vec<NodeId> {
             at = f.parent(at)?;
         }
         Some(at)
-    }));
-    nodes
+    }))
 }
 
 pub(super) const fn is_import(kind: AstKind<'_>) -> bool {
@@ -231,35 +232,30 @@ pub(super) fn is_type_query_or_predicate(f: &Facts<'_>, reference: NodeId) -> bo
 pub(super) fn is_used_as_typescript_eslint(
     f: &Facts<'_>,
     symbol: SymbolId,
-    declarations: &[NodeId],
+    declarations: &(impl Iterator<Item = NodeId> + Clone),
     uses: &[Use],
 ) -> bool {
     if f.qualified.contains(&symbol) {
         return true;
     }
-    let declaration = declarations[0];
+    let declaration = f.declaration(symbol);
     let own_class = matches!(f.kind(declaration), AstKind::Class(_)).then_some(declaration);
     let inside_class = |node: NodeId| {
         own_class.is_some_and(|class| f.nodes.ancestor_ids(node).any(|a| a == class))
     };
-    let type_import = declarations.iter().all(|&d| is_type_import(f, d));
-    let functions: Vec<NodeId> = declarations
-        .iter()
-        .filter_map(|&d| function_definition(f, d))
-        .collect();
-    let containers: Vec<NodeId> = declarations
-        .iter()
-        .copied()
-        .filter(|&d| {
-            matches!(
-                f.kind(d),
-                AstKind::TSInterfaceDeclaration(_)
-                    | AstKind::TSTypeAliasDeclaration(_)
-                    | AstKind::TSNamespaceDeclaration(_)
-                    | AstKind::TSEnumDeclaration(_)
-            )
+    let type_import = declarations.clone().all(|d| is_type_import(f, d));
+    let self_reference = |u: &Use| {
+        declarations.clone().any(|d| {
+            function_definition(f, d).is_some_and(|function| is_self_reference(f, u, function))
+                || (matches!(
+                    f.kind(d),
+                    AstKind::TSInterfaceDeclaration(_)
+                        | AstKind::TSTypeAliasDeclaration(_)
+                        | AstKind::TSNamespaceDeclaration(_)
+                        | AstKind::TSEnumDeclaration(_)
+                ) && f.inside(u.span, d))
         })
-        .collect();
+    };
     let declaration_scope = f.scoping.symbol_scope_id(symbol);
     let mut rhs = None;
     uses.iter().filter(|u| !inside_class(u.node)).any(|u| {
@@ -269,7 +265,6 @@ pub(super) fn is_used_as_typescript_eslint(
             || ((u.read || u.typed)
                 && !for_itself
                 && (type_import || !is_type_query_or_predicate(f, u.node))
-                && !functions.iter().any(|&func| is_self_reference(f, u, func))
-                && !containers.iter().any(|&c| f.inside(u.span, c)))
+                && !self_reference(u))
     })
 }
