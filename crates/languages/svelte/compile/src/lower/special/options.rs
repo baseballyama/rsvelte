@@ -13,7 +13,7 @@ pub(super) fn read(
     let mut options = SvelteOptions::default();
     for attribute in attributes {
         match attribute.name.text(source) {
-            // Legacy mode falls back to the official compiler.
+            // Only runes mode is supported.
             "runes" if is_false(input, &attribute.value) => {
                 return unsupported("this compiler option", attribute.span);
             }

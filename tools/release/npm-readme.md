@@ -47,14 +47,15 @@ Each command exits with 1 when it finds an error, and with 2 when it cannot run.
 
 rsvelte supports Svelte 5 components in runes mode. It does not support Svelte 4 projects or
 components in legacy mode. A component is in legacy mode when it uses `export let`, `$:`,
-`$$props` or `$$restProps`, or sets `<svelte:options runes={false} />`. Legacy features such as
-`on:click`, `<slot>` and `createEventDispatcher` are not supported either.
+`$$props` or `$$restProps`, or sets `<svelte:options runes={false} />`. Svelte 5 deprecates
+`on:click`, `<slot>` and `createEventDispatcher`. In a runes component, rsvelte treats them as
+the official compiler does in runes mode.
 
 On a legacy component:
 
 - `typecheck` gives wrong results. It reports `check_unsupported` for `export let` in a
-  TypeScript component and checks nothing else in that file. It reports names that `$:` declares
-  as unknown. For a JavaScript component, it can report no error at all, even when svelte-check
+  TypeScript component and checks nothing else in that file. It reports `$$props`,
+  `$$restProps` and the names that `$:` declares as unknown. For a JavaScript component, it can report no error at all, even when svelte-check
   finds one.
 - `lint` and `format` accept the legacy syntax. Their results can still differ from the
   official tools, because legacy mode is not supported.
