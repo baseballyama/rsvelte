@@ -262,9 +262,7 @@ fn check_element_binding(
             && match o.name.text(source_text) {
                 // A `<textarea>`'s moved content, which a binding renders after.
                 "value" if tag == "textarea" && matches!(o.name, Name::Spelled { .. }) => false,
-                "value" if !super::is_directive(&o.value) => {
-                    !keeps_value || matches!(o.value, AttributeValue::Interpolated(_))
-                }
+                "value" if !super::is_directive(&o.value) => !keeps_value,
                 "checked" => {
                     !matches!(property, "group" | "value") && !super::is_directive(&o.value)
                 }
