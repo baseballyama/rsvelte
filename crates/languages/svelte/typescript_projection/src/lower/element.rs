@@ -97,6 +97,9 @@ impl Builder<'_> {
                     || !directives.bindable.is_empty()
                     || !directives.lets.is_empty()
                     || self.fills_slot_with_lets(children),
+                bindings
+                    .iter()
+                    .any(|b| matches!(b, binding::Binding::This { .. })),
             )
         } else if slot {
             (

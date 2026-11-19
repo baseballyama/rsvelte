@@ -215,6 +215,7 @@ fn typescript_view(
             .unwrap_or_default(),
         hidden: hidden(component, &context.document.text),
         drops_unmapped: false,
+        inserted: Vec::new(),
     })))
 }
 

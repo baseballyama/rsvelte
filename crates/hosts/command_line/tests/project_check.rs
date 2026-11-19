@@ -26,6 +26,17 @@ impl Project {
 
     /// [`Self::check`] with `processes` checker processes, or as many as rsvelte chooses.
     fn check_in(&self, processes: Option<usize>) -> Vec<String> {
+        let mut found: Vec<String> = self
+            .findings(processes)
+            .into_iter()
+            .map(|(file, code, _)| format!("{file} TS{code}"))
+            .collect();
+        found.sort();
+        found
+    }
+
+    /// Each finding of the check: its file, code and message.
+    fn findings(&self, processes: Option<usize>) -> Vec<(String, serde_json::Value, String)> {
         let packages = NodePackages::locate();
         let (program, arguments) = packages.type_checker();
         let command: Vec<String> = std::iter::once(program.to_string_lossy().into_owned())
@@ -64,10 +75,10 @@ impl Project {
                 .expect("a file of the project");
             let findings: serde_json::Value = serde_json::from_str(body).expect("findings");
             for finding in findings.as_array().expect("a list") {
-                found.push(format!("{} TS{}", file.display(), finding["code"]));
+                let message = finding["message"].as_str().unwrap_or_default().to_owned();
+                found.push((file.display().to_string(), finding["code"].clone(), message));
             }
         }
-        found.sort();
         found
     }
 }
@@ -283,6 +294,50 @@ fn checker_processes_that_share_the_documents_report_each_finding_once() {
     assert_eq!(one.len(), 6, "{one:?}");
     assert_eq!(project.check_in(Some(3)), one);
     assert_eq!(project.check_in(Some(9)), one);
+}
+
+#[test]
+fn a_sveltekit_route_file_is_typed_as_svelte_check_types_it() {
+    let project = Project::new(
+        "kit-route",
+        &[
+            (
+                "tsconfig.json",
+                r#"{ "compilerOptions": { "strict": true, "noEmit": true, "module": "esnext",
+                "moduleResolution": "bundler", "types": [],
+                "rootDirs": [".", ".svelte-kit/types"] },
+                "include": ["src/**/*.ts", ".svelte-kit/types/**/$types.d.ts"] }"#,
+            ),
+            (
+                "src/routes/+page.ts",
+                "export const load = async ({ params }) => ({ id: params.id });\n",
+            ),
+            (
+                "src/routes/missing/+page.ts",
+                "export function load(event) {\n  return { id: event.params.id };\n}\n",
+            ),
+            (
+                ".svelte-kit/types/src/routes/$types.d.ts",
+                "export type PageLoadEvent = { params: { id: string } };\n\
+                 export type PageLoad = (event: PageLoadEvent) => unknown;\n",
+            ),
+        ],
+    );
+    // svelte-check 4.7.6 reports only the route without generated types, at the type it inserts.
+    let found = project.findings(None);
+    assert_eq!(found.len(), 1, "{found:?}");
+    let (file, code, message) = &found[0];
+    assert_eq!(
+        (file.as_str(), code.as_u64()),
+        ("src/routes/missing/+page.ts", Some(2307))
+    );
+    assert!(
+        message.ends_with(
+            "(this likely means that SvelteKit's type generation didn't run yet - \
+             try running it by executing 'npm run dev' or 'npm run build')"
+        ),
+        "{message}"
+    );
 }
 
 const OUT_DIR: &str = r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler",
