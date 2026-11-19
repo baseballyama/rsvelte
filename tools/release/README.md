@@ -13,6 +13,10 @@ line:
 `rsvelte format` keeps a blank line after a comment.
 ```
 
+[The changeset check](../../.github/workflows/changeset.yml) fails a pull request that changes
+the sources of a release, such as `crates/**/src`, but adds no changeset. For a change that users
+cannot notice, add an empty one with `pnpm changeset --empty`, or the label `skip-changeset`.
+
 On each push to `main`, [the release workflow](../../.github/workflows/release.yml) opens or
 updates the pull request "Release `@rsvelte/cli`". It runs `pnpm run release:version`: Changesets
 writes the version and the changelog into [`apps/cli`](../../apps/cli), and
