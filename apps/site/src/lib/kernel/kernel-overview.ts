@@ -85,7 +85,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/pipeline#registry',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/registry.rs',
-			line: 15,
+			line: 16,
 			text: 'pub struct Registry {',
 		},
 		box: { x: left, y: 60, w: width, h: height },
@@ -99,7 +99,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel#modules',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/registry.rs',
-			line: 70,
+			line: 79,
 			text: 'pub fn validate_plugins(&self) -> Result<(), PluginError> {',
 		},
 		box: { x: right, y: 60, w: width, h: height },
