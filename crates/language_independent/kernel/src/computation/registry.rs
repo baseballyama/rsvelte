@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use crate::computation::database::{Artifact, ArtifactRegistry, DocumentContext, Facet};
 use crate::computation::plugins::{Plugin, PluginError, Plugins};
 use crate::computation::task::{FinishTask, Task};
+use crate::diagnostics::Diagnostic;
 use crate::source::document::{Document, DocumentError};
 
 #[derive(Default)]
@@ -32,8 +33,16 @@ pub trait Contribution: 'static {
 pub struct ProjectFiles;
 
 /// Names the files of a project from the installed plugins.
-pub type ProjectFilesFn =
-    Box<dyn Fn(&Registry) -> Result<Vec<std::path::PathBuf>, String> + Send + Sync>;
+pub type ProjectFilesFn = Box<dyn Fn(&Registry) -> Result<Project, String> + Send + Sync>;
+
+/// The files of a project, and what is wrong with the configuration that selects them.
+#[derive(Debug, Default)]
+pub struct Project {
+    pub files: Vec<std::path::PathBuf>,
+    /// Errors in the configuration, each in the file that has it, such as a `tsconfig.json`. The
+    /// project's own tool reports only these when there are any, instead of checking the files.
+    pub problems: Vec<(std::path::PathBuf, Diagnostic)>,
+}
 
 impl Contribution for ProjectFiles {
     type Item = (&'static str, ProjectFilesFn);
@@ -101,14 +110,14 @@ impl Registry {
     }
 
     /// The files of the project that the tasks among `tasks` check, each once, in the order the
-    /// tasks name them.
+    /// tasks name them, with the problems of each task's configuration.
     ///
     /// # Errors
     ///
     /// No task among `tasks` names a project's files, or one fails to.
-    pub fn project_files(&self, tasks: &[&str]) -> Result<Vec<std::path::PathBuf>, String> {
+    pub fn project_files(&self, tasks: &[&str]) -> Result<Project, String> {
         let mut named = false;
-        let mut files = Vec::new();
+        let mut project = Project::default();
         let mut seen = std::collections::HashSet::new();
         for (task, project_files) in self
             .contributions::<ProjectFiles>()
@@ -116,16 +125,18 @@ impl Registry {
             .filter(|(task, _)| tasks.contains(task))
         {
             named = true;
-            for file in project_files(self).map_err(|e| format!("{task}: {e}"))? {
+            let own = project_files(self).map_err(|e| format!("{task}: {e}"))?;
+            for file in own.files {
                 if seen.insert(file.clone()) {
-                    files.push(file);
+                    project.files.push(file);
                 }
             }
+            project.problems.extend(own.problems);
         }
         if !named {
             return Err(format!("no task among {tasks:?} names a project's files"));
         }
-        Ok(files)
+        Ok(project)
     }
 
     /// Registers artifact `A`; its `Debug` is how a host shows it.

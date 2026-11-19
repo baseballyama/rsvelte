@@ -32,6 +32,8 @@ pub struct Project {
     /// Whether TypeScript checks that every source file is below `rootDir` while the tsconfig
     /// leaves `rootDir` to its default, the tsconfig's own directory.
     pub default_root_dir: bool,
+    /// What is wrong with the tsconfig, such as an unknown option or no input files.
+    pub errors: Vec<Diagnostic>,
 }
 
 /// How requests name a project: TypeScript 7.1 beta and tsrs by its `id`, later 7.1 builds by a
@@ -51,7 +53,7 @@ pub struct Layer {
     pub links: Vec<(PathBuf, PathBuf)>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct Diagnostic {
     #[serde(rename = "fileName")]
     pub file_name: Option<PathBuf>,
@@ -115,6 +117,8 @@ struct ParsedCommandLine {
     file_names: Vec<PathBuf>,
     #[serde(default)]
     options: CompilerOptions,
+    #[serde(default)]
+    errors: Vec<Diagnostic>,
 }
 
 #[derive(Deserialize, Default)]
@@ -295,9 +299,9 @@ impl Session {
                                 ));
                             }
                         };
-                        let (root_files, paths, node_resolution, default_root_dir) =
+                        let (root_files, paths, node_resolution, default_root_dir, errors) =
                             p.parsed.as_ref().map_or_else(
-                                || (Vec::new(), Vec::new(), false, false),
+                                || (Vec::new(), Vec::new(), false, false, Vec::new()),
                                 |c| {
                                     let options = &c.options;
                                     (
@@ -305,6 +309,7 @@ impl Session {
                                         options.absolute_paths(),
                                         options.node_resolution(),
                                         options.default_root_dir(),
+                                        c.errors.clone(),
                                     )
                                 },
                             );
@@ -315,6 +320,7 @@ impl Session {
                             paths,
                             node_resolution,
                             default_root_dir,
+                            errors,
                         })
                     })
             })
