@@ -29045,6 +29045,14 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:2 3:2 svelte/valid-compile "'return' outside of function\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 
+=== 586 pattern/select-dynamic-multiple-size-binding.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:10 svelte/prefer-const "'many' is never reassigned. Use 'const' instead."
+6:9 6:24 svelte/valid-compile "'multiple' attribute must be static if select uses two-way binding\nhttps://svelte.dev/e/attribute_invalid_multiple(attribute_invalid_multiple)"
+6:25 6:49 svelte/max-attributes-per-line "'bind:clientWidth' should be on a new line."
+7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
 === 0 pattern/self-closing-block-in-a-string.svelte	lint.txt
 
 === 180 pattern/self-closing-script-lang-ts.svelte	lint.txt

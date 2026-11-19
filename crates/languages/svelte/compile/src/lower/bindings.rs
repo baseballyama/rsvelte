@@ -142,8 +142,9 @@ const INHERITED: &[&str] = &[
 ///
 /// # Errors
 ///
-/// `bind_invalid_name` for a name no binding has or one `host` does not take, and
-/// `bind_invalid_target` for an element the binding does not fit.
+/// `bind_invalid_name` for a name no binding has or one `host` does not take,
+/// `bind_invalid_target` for an element the binding does not fit, and
+/// `attribute_invalid_multiple` for a `<select>` whose `multiple` is not static.
 pub(super) fn check_binding(
     source_text: &str,
     host: &str,
@@ -189,6 +190,23 @@ pub(super) fn check_binding(
         ));
     }
     check_input(source_text, host, attributes, a, name)?;
+    // Upstream checks every binding but `this`, not only the ones `multiple` changes.
+    if host == "select"
+        && name != "this"
+        && let Some(multiple) = attributes
+            .iter()
+            .find(|o| !super::is_directive(&o.value) && o.name.text(source_text) == "multiple")
+        && !matches!(
+            multiple.value,
+            AttributeValue::Boolean | AttributeValue::Static(_)
+        )
+    {
+        return invalid(
+            "attribute_invalid_multiple",
+            "'multiple' attribute must be static if select uses two-way binding",
+            multiple.span,
+        );
+    }
     if name == "offsetWidth" && rsvelte_svelte_syntax::names::is_svg(host) {
         return invalid_target(
             name,

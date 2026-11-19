@@ -46396,6 +46396,16 @@ b`;
 
 <p>{x}</p>
 
+=== 156 pattern/select-dynamic-multiple-size-binding.svelte	svelte
+<script>
+  let width = $state(0);
+  let many = $state(false);
+</script>
+
+<select multiple={many} bind:clientWidth={width}>
+  <option>one</option>
+</select>
+
 === 60 pattern/self-closing-block-in-a-string.svelte	svelte
 <script>
   const tag = "<style />";

@@ -316,12 +316,6 @@ fn supported_binding(
     {
         return false;
     }
-    if tag == "select"
-        && attribute_value(source_text, attributes, "multiple")
-            .is_some_and(|m| !matches!(m, AttributeValue::Boolean | AttributeValue::Static(_)))
-    {
-        return false;
-    }
     if p.lowering == Lowering::ContentEditable {
         let editable = attribute_value(source_text, attributes, "contenteditable");
         if !matches!(
