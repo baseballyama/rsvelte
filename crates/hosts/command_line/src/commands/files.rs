@@ -10,16 +10,17 @@ use rsvelte_kernel::source::document::Document;
 
 use crate::usage;
 
-/// The documents of every file below `paths` that a task of `tasks` reads, in the order of their
-/// path strings, as `ESLint` lists them: `a-b/x` before `a/x`.
+/// The documents of every file below `paths` that a task of `tasks` reads and no ignore file
+/// skips, in the order of their path strings, as `ESLint` lists them: `a-b/x` before `a/x`.
 pub(crate) fn load(
     reg: &Registry,
     paths: &[&str],
     tasks: &[&str],
+    ignore_files: &[&str],
 ) -> Result<Vec<Document>, String> {
     let mut files = Vec::new();
     for path in paths {
-        collect(reg, tasks, Path::new(path), &mut files)?;
+        collect(reg, tasks, ignore_files, Path::new(path), &mut files)?;
     }
     files.sort_unstable_by(|a, b| a.as_os_str().cmp(b.as_os_str()));
     files.dedup();
@@ -55,11 +56,13 @@ pub(crate) fn run(
     pipeline::run(reg, documents, &options).map_err(|e| usage(&e.to_string()))
 }
 
-/// The files below `path` that a task of `tasks` reads, skipping what `ESLint` skips by default:
-/// `node_modules` and `.git`. A named file is taken as it is.
+/// The files below `path` that a task of `tasks` reads, skipping `node_modules`, `.git` and
+/// what the ignore files say: `.gitignore` (with `.git/info/exclude` and the global one), `.ignore`
+/// and each of `ignore_files`. A named file is taken as it is.
 fn collect(
     reg: &Registry,
     tasks: &[&str],
+    ignore_files: &[&str],
     path: &Path,
     files: &mut Vec<PathBuf>,
 ) -> Result<(), String> {
@@ -68,25 +71,23 @@ fn collect(
         files.push(path.to_owned());
         return Ok(());
     }
-    let mut stack = vec![path.to_owned()];
-    while let Some(dir) = stack.pop() {
-        let read = std::fs::read_dir(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        for entry in read.flatten() {
-            if matches!(entry.file_name().to_str(), Some("node_modules" | ".git")) {
-                continue;
-            }
-            let path = entry.path();
-            // A link to a directory is not followed, so a cycle cannot loop.
-            match entry.file_type() {
-                Ok(kind) if kind.is_dir() => stack.push(path),
-                Ok(_) if path.is_file() => {
-                    let probe = reg.document(path.to_string_lossy().into_owned(), String::new());
-                    if probe.is_ok_and(|document| reg.applies(tasks, &document)) {
-                        files.push(path);
-                    }
-                }
-                _ => {}
-            }
+    let mut walk = ignore::WalkBuilder::new(path);
+    // Dotfiles are source too; a project without git still means its `.gitignore`.
+    walk.hidden(false).require_git(false);
+    for name in ignore_files {
+        walk.add_custom_ignore_filename(name);
+    }
+    walk.filter_entry(|entry| !matches!(entry.file_name().to_str(), Some("node_modules" | ".git")));
+    for entry in walk.build() {
+        let entry = entry.map_err(|e| e.to_string())?;
+        // A link to a directory is not followed, so a cycle cannot loop.
+        if entry.file_type().is_some_and(|kind| kind.is_dir()) || !entry.path().is_file() {
+            continue;
+        }
+        let path = entry.into_path();
+        let probe = reg.document(path.to_string_lossy().into_owned(), String::new());
+        if probe.is_ok_and(|document| reg.applies(tasks, &document)) {
+            files.push(path);
         }
     }
     Ok(())

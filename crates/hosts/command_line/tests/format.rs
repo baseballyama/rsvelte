@@ -19,6 +19,10 @@ impl Project {
             ("src/A.svelte", UNFORMATTED),
             ("src/Clean.svelte", FORMATTED),
             ("node_modules/x/X.svelte", UNFORMATTED),
+            (".gitignore", "/build/\n"),
+            ("build/B.svelte", UNFORMATTED),
+            (".prettierignore", "src/generated.svelte\n"),
+            ("src/generated.svelte", UNFORMATTED),
         ] {
             let file = path.join(name);
             std::fs::create_dir_all(file.parent().expect("a parent")).expect("directory");
