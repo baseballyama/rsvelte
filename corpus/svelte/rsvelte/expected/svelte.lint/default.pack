@@ -29060,6 +29060,15 @@
 2:20 2:22 svelte/html-self-closing "Disallow self-closing on HTML elements."
 2:20 2:20 svelte/valid-compile "Expected token >\nhttps://svelte.dev/e/expected_token(expected_token)"
 
+=== 569 pattern/snippet-parameter-defaults-on-the-server.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:11 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
 === 674 pattern/state-wrapped-store-reference.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

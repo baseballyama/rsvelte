@@ -46446,6 +46446,26 @@ https://svelte.dev/e/expected_token
     |                   ^
   3 |
 
+=== 373 pattern/snippet-parameter-defaults-on-the-server.svelte	svelte
+<script>
+  import { writable } from "svelte/store";
+  const fallback = writable("fallback");
+  let count = $state(0);
+  let double = $derived(count * 2);
+  let { name, ...rest } = $props();
+</script>
+
+{#snippet row(
+  value = $fallback,
+  d = double,
+  n = name,
+  r = rest.x,
+  { a = $fallback } = {},
+)}
+  <p>{value}{d}{n}{r}{a}{$fallback}</p>
+{/snippet}
+{@render row()}
+
 === 251 pattern/state-wrapped-store-reference.svelte	svelte
 <script>
   import { writable } from "svelte/store";

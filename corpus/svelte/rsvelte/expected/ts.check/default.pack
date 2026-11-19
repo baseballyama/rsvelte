@@ -11702,6 +11702,9 @@ ENOSPC: no space left on device, mkdtemp '/var/folders/1t/sbjc_qrd47nfm6ggb_qz32
 	}
 ]
 
+=== 3 pattern/snippet-parameter-defaults-on-the-server.svelte	json
+[]
+
 === 3 pattern/state-wrapped-store-reference.svelte	json
 []
 

@@ -102355,6 +102355,42 @@ export default function Self_closing_block_in_a_string($$anchor) {
 	}
 }
 
+=== 1393 pattern/snippet-parameter-defaults-on-the-server.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { writable } from 'svelte/store';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'name']);
+var root = $.from_html(`<p> </p>`);
+
+export default function Snippet_parameter_defaults_on_the_server($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $fallback = () => $.store_get(fallback, '$fallback', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+
+	const row = ($$anchor, $$arg0, $$arg1, $$arg2, $$arg3, $$arg4) => {
+		let value = $.derived_safe_equal(() => $.fallback($$arg0?.(), $fallback()));
+		let d = $.derived_safe_equal(() => $.fallback($$arg1?.(), $.get(double)));
+		let n = $.derived_safe_equal(() => $.fallback($$arg2?.(), $$props.name));
+		let r = $.derived_safe_equal(() => $.fallback($$arg3?.(), () => $$props.x, true));
+		let a = $.derived_safe_equal(() => $.fallback($.fallback($$arg4?.(), () => ({}), true).a, $fallback()));
+		var p = root();
+		var text = $.only_child(p);
+
+		$.template_effect(() => $.set_text(text, `${$.get(value) ?? ''}${$.get(d) ?? ''}${$.get(n) ?? ''}${$.get(r) ?? ''}${$.get(a) ?? ''}${$fallback() ?? ''}`));
+		$.append($$anchor, p);
+	};
+
+	const fallback = writable('fallback');
+	let count = 0;
+	let double = $.derived(() => count * 2);
+	let rest = $.rest_props($$props, rest_excludes);
+
+	row($$anchor);
+	$.pop();
+	$$cleanup();
+}
 === 894 pattern/state-wrapped-store-reference.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
