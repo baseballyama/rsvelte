@@ -29,6 +29,9 @@ pub struct Project {
     /// Whether modules resolve as `node16` or `nodenext` do, where an ESM import gets no
     /// extension appended.
     pub node_resolution: bool,
+    /// Whether TypeScript checks that every source file is below `rootDir` while the tsconfig
+    /// leaves `rootDir` to its default, the tsconfig's own directory.
+    pub default_root_dir: bool,
 }
 
 /// How requests name a project: TypeScript 7.1 beta and tsrs by its `id`, later 7.1 builds by a
@@ -126,6 +129,18 @@ struct CompilerOptions {
     /// `ModuleResolutionKind`, by its number.
     #[serde(rename = "moduleResolution")]
     module_resolution: Option<u32>,
+    #[serde(rename = "rootDir")]
+    root_dir: Option<String>,
+    #[serde(rename = "outDir")]
+    out_dir: Option<String>,
+    #[serde(rename = "sourceRoot")]
+    source_root: Option<String>,
+    #[serde(rename = "mapRoot")]
+    map_root: Option<String>,
+    #[serde(rename = "declarationDir")]
+    declaration_dir: Option<String>,
+    declaration: Option<bool>,
+    composite: Option<bool>,
 }
 
 impl CompilerOptions {
@@ -138,6 +153,17 @@ impl CompilerOptions {
             },
             |resolution| matches!(resolution, 3 | 99),
         )
+    }
+
+    /// As TypeScript's `verifyCompilerOptions` decides to compute the common source directory.
+    fn default_root_dir(&self) -> bool {
+        let set = |o: &Option<String>| o.as_deref().is_some_and(|o| !o.is_empty());
+        let emits_declarations = self.declaration == Some(true) || self.composite == Some(true);
+        !set(&self.root_dir)
+            && (set(&self.out_dir)
+                || set(&self.source_root)
+                || set(&self.map_root)
+                || (emits_declarations && set(&self.declaration_dir)))
     }
 
     fn absolute_paths(&self) -> Vec<(String, Vec<PathBuf>)> {
@@ -269,23 +295,26 @@ impl Session {
                                 ));
                             }
                         };
-                        let (root_files, paths, node_resolution) = p.parsed.as_ref().map_or_else(
-                            || (Vec::new(), Vec::new(), false),
-                            |c| {
-                                let options = &c.options;
-                                (
-                                    c.file_names.clone(),
-                                    options.absolute_paths(),
-                                    options.node_resolution(),
-                                )
-                            },
-                        );
+                        let (root_files, paths, node_resolution, default_root_dir) =
+                            p.parsed.as_ref().map_or_else(
+                                || (Vec::new(), Vec::new(), false, false),
+                                |c| {
+                                    let options = &c.options;
+                                    (
+                                        c.file_names.clone(),
+                                        options.absolute_paths(),
+                                        options.node_resolution(),
+                                        options.default_root_dir(),
+                                    )
+                                },
+                            );
                         Ok(Project {
                             snapshot: snapshot.snapshot,
                             id,
                             root_files,
                             paths,
                             node_resolution,
+                            default_root_dir,
                         })
                     })
             })
