@@ -87,20 +87,24 @@ pub(crate) fn problems(
     problems: &[(PathBuf, Diagnostic)],
     here: Option<&Path>,
 ) -> Result<(String, usize), String> {
+    let mut files: Vec<(&Path, Vec<&Diagnostic>)> = Vec::new();
+    let mut index = std::collections::HashMap::new();
+    for (path, diagnostic) in problems {
+        let at = *index.entry(path).or_insert_with(|| {
+            files.push((path, Vec::new()));
+            files.len() - 1
+        });
+        files[at].1.push(diagnostic);
+    }
     let mut report = Report::new(here);
-    let mut done = std::collections::HashSet::new();
-    for (path, _) in problems {
-        if !done.insert(path) {
-            continue;
-        }
-        let found = (problems.iter()).filter(|(other, _)| other == path);
+    for (path, found) in files {
         // A problem placed at the start of its file reads none of it.
-        let text = if found.clone().all(|(_, d)| d.span.end_offset == 0) {
+        let text = if found.iter().all(|d| d.span.end_offset == 0) {
             String::new()
         } else {
             std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?
         };
-        report.file(path, &text, None, found.map(|(_, d)| d));
+        report.file(path, &text, None, found.into_iter());
     }
     Ok(report.finish())
 }

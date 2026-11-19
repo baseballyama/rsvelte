@@ -71,35 +71,25 @@ fn root_files(
     let overlay_path = dir.join("tsconfig.json");
     std::fs::write(&overlay_path, overlay.finish()).map_err(|e| io(&overlay_path, e))?;
     let mut session = Session::start(&tsc.checker.program, &tsc.checker.arguments, dir)?;
-    let project = session
-        .open(&[overlay_path.as_path()], &Layer::default())?
-        .pop()
-        .ok_or("the checker opened no project")?;
+    // The tsconfig's own errors name it, and its paths, as svelte-check prints them; the overlay
+    // rebases them, and `extends` hides some, such as an empty `files`. Without the mapped
+    // languages it may have no inputs where the overlay has. One snapshot holds both projects.
+    let mut projects = session
+        .open(&[overlay_path.as_path(), config], &Layer::default())?
+        .into_iter();
+    let (Some(project), Some(own)) = (projects.next(), projects.next()) else {
+        return Err("the checker opened no project".to_owned());
+    };
     session.release(project.snapshot)?;
     let files = (project.root_files.iter())
         .map(|file| normalized(&dir.join(file)))
         .filter(|file| !file.components().any(|c| c.as_os_str() == "node_modules"))
         .collect();
-    let failed = |code: Option<u32>| {
-        (project.errors.iter())
-            .any(|error| error.category == ERROR && code.is_none_or(|code| error.code == code))
-    };
-    if !failed(None) {
-        return Ok(Project {
-            files,
-            problems: Vec::new(),
-        });
-    }
-    // The tsconfig's own errors name it, and its paths, as svelte-check prints them; the overlay
-    // rebases them. Without the mapped languages it may have no inputs where the overlay has.
-    let own = session
-        .open(&[config], &Layer::default())?
-        .pop()
-        .ok_or("the checker opened no project")?;
-    session.release(own.snapshot)?;
+    let overlay_has_no_inputs =
+        (project.errors.iter()).any(|error| error.category == ERROR && error.code == NO_INPUTS);
     let problems = (own.errors.iter())
         .filter(|error| error.category == ERROR)
-        .filter(|error| error.code != NO_INPUTS || failed(Some(NO_INPUTS)))
+        .filter(|error| error.code != NO_INPUTS || overlay_has_no_inputs)
         .map(|error| problem(error, config))
         .collect::<Result<_, _>>()?;
     Ok(Project { files, problems })

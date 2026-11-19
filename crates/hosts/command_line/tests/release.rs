@@ -229,6 +229,23 @@ fn typecheck_reports_the_errors_of_the_tsconfig_instead_of_the_files() {
         ),
         "components alone are inputs"
     );
+    std::fs::write(
+        &tsconfig,
+        r#"{"compilerOptions":{"strict":true,"types":[]},"files":[]}"#,
+    )
+    .expect("tsconfig");
+    assert_eq!(
+        typecheck(),
+        (
+            Some(1),
+            format!(
+                "tsconfig.json(1,55): error TS18002: The 'files' list in config file '{}' is \
+                 empty.\n\nFound 1 error in 1 file.\n",
+                tsconfig.display()
+            )
+        ),
+        "an empty `files`, which only the tsconfig without `extends` reports"
+    );
 }
 
 #[test]
