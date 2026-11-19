@@ -27,7 +27,7 @@ into cells of the oxc trees, so analyze each tree once.
 Non-goals:
 
 - Bundling and minifying
-- Svelte 4 legacy mode (it falls back to the official compiler)
+- Svelte 4 and legacy mode (runes mode only; the compiler rejects `runes={false}` as unsupported)
 - Svelte 4 → 5 migration
 - Text-level svelte2tsx compatibility
 - A broad set of general JavaScript lint checks
