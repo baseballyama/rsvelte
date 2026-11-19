@@ -30,9 +30,20 @@ scripts, the command is `rsvelte`:
 }
 ```
 
-Without a path, `lint` and `format` read every file below the current directory, except
-`node_modules`. `format` writes the files it changes. With `--check`, it lists them and
-writes nothing.
+Without a path, `lint` and `format` read every file below the current directory. They skip
+`node_modules` and what `.gitignore` skips; `format` also skips what `.prettierignore` skips.
+`format` writes the files it changes. With `--check`, it lists them and writes nothing.
+
+`format` uses the project's formatter options: the nearest `.oxfmtrc.json`, `.oxfmtrc.jsonc`,
+`.prettierrc`, `.prettierrc.json` or `prettier` field of `package.json`. When it cannot print
+as those options say, it writes nothing and says why:
+
+- It reads only JSON, so a YAML, TOML or JavaScript configuration stops it.
+- It does not apply `overrides`, `sortImports`, Tailwind CSS sorting or Prettier plugins other
+  than `prettier-plugin-svelte`.
+- The Svelte formatter prints only the defaults of `semi`, `singleQuote`, `trailingComma`,
+  `arrowParens`, `bracketSpacing`, `quoteProps` and `objectWrap`. With another value, `format`
+  formats the TypeScript files, leaves the Svelte files as they are, and exits with 2.
 
 `typecheck` checks the project of `tsconfig.json` in the current directory and reports the
 type errors that svelte-check reports. It runs a TypeScript 7 type checker from the project's

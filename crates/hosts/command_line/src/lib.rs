@@ -31,6 +31,7 @@
 
 mod commands;
 mod configuration;
+mod formatting;
 mod input;
 mod output;
 mod release;
@@ -140,7 +141,7 @@ pub fn development() -> ExitCode {
     let installation = Installation {
         extensions: EXTENSIONS,
         selection,
-        defaults: &[],
+        defaults: Vec::new(),
     };
     let (reg, tools) = match configured_registry(&config, &overrides, installation) {
         Ok(configured) => configured,
@@ -158,13 +159,12 @@ pub fn development() -> ExitCode {
     dispatch(&reg, &positional, &tasks, tools, (fix, check))
 }
 
-/// What a program installs: its plugins, the tasks that will run, and the plugins that get empty
-/// options, so that they use their defaults, when neither the configuration nor `--options`
-/// gives any.
+/// What a program installs: its plugins, the tasks that will run, and the options, as JSON, of
+/// the plugins that neither the configuration nor `--options` gives any.
 struct Installation {
     extensions: &'static [&'static Extension],
     selection: rsvelte_plugin_interface::Selection,
-    defaults: &'static [&'static str],
+    defaults: Vec<(&'static str, String)>,
 }
 
 /// Installs the plugins with their options, and returns the programs their tasks will run. Every
@@ -192,11 +192,11 @@ fn configured_registry(
         }
     }
     let here = std::env::current_dir().map_err(|e| format!("current directory: {e}"))?;
-    for &plugin in installation.defaults {
+    for (plugin, options) in installation.defaults {
         if !given.iter().any(|g| g == plugin) {
-            let empty = serde_json::value::RawValue::from_string("{}".to_owned())
-                .map_err(|e| e.to_string())?;
-            settings.set(plugin.to_owned(), empty, here.clone());
+            let options =
+                serde_json::value::RawValue::from_string(options).map_err(|e| e.to_string())?;
+            settings.set(plugin.to_owned(), options, here.clone());
         }
     }
     for &(plugin, options) in overrides {
@@ -242,6 +242,7 @@ fn dispatch(
                 tasks
             },
             check,
+            format::SKIP,
         ),
         ["check"] if !fix => run_project(
             reg,
