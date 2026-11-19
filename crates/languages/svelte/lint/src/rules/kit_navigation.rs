@@ -136,7 +136,7 @@ impl<'a> Script<'a> {
         import_references(self.semantic, &self.programs, specifier, exports)
     }
 
-    fn symbol(&self, identifier: &IdentifierReference<'_>) -> Option<SymbolId> {
+    pub(super) fn symbol(&self, identifier: &IdentifierReference<'_>) -> Option<SymbolId> {
         let reference = identifier.reference_id.get()?;
         self.semantic.scoping().get_reference(reference).symbol_id()
     }

@@ -1,8 +1,18 @@
-use oxc_ast::ast::{Expression, IdentifierReference};
+use oxc_ast::AstKind;
+use oxc_ast::ast::{
+    ArrayExpressionElement, BindingPattern, Expression, IdentifierReference, ObjectExpression,
+    ObjectPropertyKind, PropertyKey, VariableDeclarationKind,
+};
 use oxc_semantic::{NodeId, SymbolId};
 use oxc_syntax::operator::BinaryOperator;
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_svelte_syntax::syntax_tree::{Attribute, Component, Part, decode_attribute};
+use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_svelte_semantic::typescript::without_typescript;
+use rsvelte_svelte_syntax::syntax_tree::{
+    Attribute, Component, Part, TemplateNode, decode_attribute,
+};
+use rsvelte_typescript_tree::Tree;
+use rustc_hash::FxHashMap;
 
 use super::kit_navigation::{
     Navigation, Options, Script, first_argument, first_part, has_scheme, links, string, template,
@@ -10,6 +20,9 @@ use super::kit_navigation::{
 use super::kit_route::runs_for;
 use super::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+
+#[cfg(test)]
+mod tests;
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-navigation-without-resolve",
@@ -25,7 +38,8 @@ fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
 struct NoNavigationWithoutResolve(Options);
 
 /// What a place accepts besides `resolve()`; a type fact (`ResolvedPathname`) needs a type
-/// provider this crate does not have yet, so it never allows.
+/// provider this crate does not have yet, so it never allows. Where upstream would read that type
+/// off a value the file writes, [`Check::values`] reads the value instead.
 #[derive(Clone, Copy, Default)]
 #[expect(clippy::struct_excessive_bools, reason = "one flag per kind of URL")]
 struct Allow {
@@ -52,6 +66,11 @@ impl SvelteRule for NoNavigationWithoutResolve {
         let check = Check {
             script: &script,
             resolve: &resolve,
+            resolution: file.resolution(),
+            items: file
+                .component()
+                .map(|component| each_items(component, script.tree))
+                .unwrap_or_default(),
         };
         for (navigation, call) in script.navigation_calls() {
             let (ignored, message, empty) = match navigation {
@@ -119,6 +138,90 @@ struct Check<'s, 'a> {
     script: &'s Script<'a>,
     /// What reads `resolve` or `asset`, sorted.
     resolve: &'s [NodeId],
+    /// What counts writes; a module has none, so its values are never known.
+    resolution: Option<&'a Resolution>,
+    /// The names `{#each}` contexts declare.
+    items: FxHashMap<SymbolId, Item<'a>>,
+}
+
+/// A name an `{#each}` context declares: the collection, and the properties that lead from an
+/// item to the name (`[]` for `as link`, `["href"]` for `as { href }`).
+struct Item<'a> {
+    collection: &'a Expression<'a>,
+    path: Vec<&'a str>,
+}
+
+/// Every name the `{#each}` contexts of `component` declare through plain names and object
+/// patterns; a default value or a rest element makes the name's value unknown.
+fn each_items<'a>(component: &'a Component, tree: &'a Tree) -> FxHashMap<SymbolId, Item<'a>> {
+    fn names<'a>(
+        pattern: &'a BindingPattern<'a>,
+        collection: &'a Expression<'a>,
+        path: &mut Vec<&'a str>,
+        items: &mut FxHashMap<SymbolId, Item<'a>>,
+    ) {
+        match pattern {
+            BindingPattern::BindingIdentifier(identifier) => {
+                if let Some(symbol) = identifier.symbol_id.get() {
+                    let path = path.clone();
+                    items.insert(symbol, Item { collection, path });
+                }
+            }
+            BindingPattern::ObjectPattern(object) => {
+                for property in &object.properties {
+                    if let Some(key) = static_key(&property.key, property.computed) {
+                        path.push(key);
+                        names(&property.value, collection, path, items);
+                        path.pop();
+                    }
+                }
+            }
+            BindingPattern::ArrayPattern(_) | BindingPattern::AssignmentPattern(_) => {}
+        }
+    }
+    let mut items = FxHashMap::default();
+    for node in &component.nodes {
+        if let &TemplateNode::Each {
+            expression,
+            context: Some(context),
+            ..
+        } = node
+        {
+            let collection = tree.get_expression(expression);
+            names(
+                &tree.get_pattern(context).pattern,
+                collection,
+                &mut Vec::new(),
+                &mut items,
+            );
+        }
+    }
+    items
+}
+
+/// A property name written without code: `href` or `'href'`.
+fn static_key<'a>(key: &'a PropertyKey<'a>, computed: bool) -> Option<&'a str> {
+    match key {
+        PropertyKey::StaticIdentifier(key) if !computed => Some(key.name.as_str()),
+        PropertyKey::StringLiteral(key) => key.value.as_str(),
+        _ => None,
+    }
+}
+
+/// The value of property `key` of an object literal: the last one wins, and a spread or a
+/// computed key before it makes it unknown.
+fn property<'a>(object: &'a ObjectExpression<'a>, key: &str) -> Option<&'a Expression<'a>> {
+    for property in object.properties.iter().rev() {
+        let ObjectPropertyKind::ObjectProperty(property) = property else {
+            return None;
+        };
+        match static_key(&property.key, property.computed) {
+            Some(name) if name == key => return Some(&property.value),
+            Some(_) => {}
+            None => return None,
+        }
+    }
+    None
 }
 
 impl<'a> Check<'_, 'a> {
@@ -140,6 +243,168 @@ impl<'a> Check<'_, 'a> {
         Some(out)
     }
 
+    /// A constant `const` variable's `f` of its initializer: one nothing writes to, through itself
+    /// or through a member, and no call is given, so the literal it holds is what it is.
+    fn constant<T>(
+        &self,
+        identifier: &IdentifierReference<'_>,
+        visited: &mut Vec<SymbolId>,
+        f: impl FnOnce(&Self, &'a Expression<'a>, &mut Vec<SymbolId>) -> Option<T>,
+    ) -> Option<T> {
+        let (symbol, initializer) = self.script.initializer(identifier)?;
+        let resolution = self.resolution?;
+        if resolution.variable_kind(symbol) != Some(VariableDeclarationKind::Const)
+            || !self.sealed(symbol)
+            || visited.contains(&symbol)
+        {
+            return None;
+        }
+        visited.push(symbol);
+        let out = f(self, initializer, visited);
+        visited.pop();
+        out
+    }
+
+    /// Nothing changes what `symbol` holds: it is never written, written through a member, or
+    /// reached by a call, as a callee's object (`links.push()`) or as an argument.
+    fn sealed(&self, symbol: SymbolId) -> bool {
+        let Some(resolution) = self.resolution else {
+            return false;
+        };
+        if resolution.reassigned(symbol) || resolution.mutations(symbol) > 0 {
+            return false;
+        }
+        let nodes = resolution.semantic().nodes();
+        resolution
+            .scoping()
+            .get_resolved_references(symbol)
+            .all(|reference| {
+                let outermost = nodes.ancestor_ids(reference.node_id()).find(|&id| {
+                    !matches!(
+                        nodes.kind(id),
+                        AstKind::StaticMemberExpression(_) | AstKind::ComputedMemberExpression(_)
+                    )
+                });
+                !outermost.is_some_and(|id| {
+                    matches!(
+                        nodes.kind(id),
+                        AstKind::CallExpression(_) | AstKind::NewExpression(_)
+                    )
+                })
+            })
+    }
+
+    /// Every value `node` can be, when the file writes them all: an `{#each}` item read from a
+    /// constant array, or a property of constant object literals.
+    fn values(
+        &self,
+        node: &'a Expression<'a>,
+        visited: &mut Vec<SymbolId>,
+    ) -> Option<Vec<&'a Expression<'a>>> {
+        match without_typescript(node) {
+            Expression::Identifier(identifier) => {
+                let symbol = self.script.symbol(identifier)?;
+                let item = self.items.get(&symbol)?;
+                if visited.contains(&symbol) || !self.sealed(symbol) {
+                    return None;
+                }
+                visited.push(symbol);
+                let out = self
+                    .elements(item.collection, visited)
+                    .and_then(|elements| {
+                        let mut out = Vec::new();
+                        for element in elements {
+                            out.extend(self.project(element, &item.path, visited)?);
+                        }
+                        Some(out)
+                    });
+                visited.pop();
+                out
+            }
+            Expression::StaticMemberExpression(member) => {
+                let mut out = Vec::new();
+                for object in self.objects(&member.object, visited)? {
+                    out.push(property(object, member.property.name.as_str())?);
+                }
+                Some(out)
+            }
+            _ => None,
+        }
+    }
+
+    /// The values at the end of `path` from `value`.
+    fn project(
+        &self,
+        value: &'a Expression<'a>,
+        path: &[&str],
+        visited: &mut Vec<SymbolId>,
+    ) -> Option<Vec<&'a Expression<'a>>> {
+        let Some((key, rest)) = path.split_first() else {
+            return Some(vec![value]);
+        };
+        let mut out = Vec::new();
+        for object in self.objects(value, visited)? {
+            out.extend(self.project(property(object, key)?, rest, visited)?);
+        }
+        Some(out)
+    }
+
+    /// The object literals `node` can be.
+    fn objects(
+        &self,
+        node: &'a Expression<'a>,
+        visited: &mut Vec<SymbolId>,
+    ) -> Option<Vec<&'a ObjectExpression<'a>>> {
+        match without_typescript(node) {
+            Expression::ObjectExpression(object) => Some(vec![object]),
+            Expression::Identifier(identifier) if !self.is_item(identifier) => {
+                self.constant(identifier, visited, |check, initializer, visited| {
+                    check.objects(initializer, visited)
+                })
+            }
+            node => {
+                let mut out = Vec::new();
+                for value in self.values(node, visited)? {
+                    out.extend(self.objects(value, visited)?);
+                }
+                Some(out)
+            }
+        }
+    }
+
+    /// The elements of the arrays `node` can be; a spread or a hole makes them unknown.
+    fn elements(
+        &self,
+        node: &'a Expression<'a>,
+        visited: &mut Vec<SymbolId>,
+    ) -> Option<Vec<&'a Expression<'a>>> {
+        match without_typescript(node) {
+            Expression::ArrayExpression(array) => array
+                .elements
+                .iter()
+                .map(ArrayExpressionElement::as_expression)
+                .collect(),
+            Expression::Identifier(identifier) if !self.is_item(identifier) => {
+                self.constant(identifier, visited, |check, initializer, visited| {
+                    check.elements(initializer, visited)
+                })
+            }
+            node => {
+                let mut out = Vec::new();
+                for value in self.values(node, visited)? {
+                    out.extend(self.elements(value, visited)?);
+                }
+                Some(out)
+            }
+        }
+    }
+
+    fn is_item(&self, identifier: &IdentifierReference<'_>) -> bool {
+        self.script
+            .symbol(identifier)
+            .is_some_and(|symbol| self.items.contains_key(&symbol))
+    }
+
     fn allowed(&self, url: Url<'a>, allow: Allow, visited: &mut Vec<SymbolId>) -> bool {
         let node = match url {
             Url::Expression(node) => node,
@@ -157,6 +422,14 @@ impl<'a> Check<'_, 'a> {
                 {
                     return allowed;
                 }
+                if let Some(allowed) = self.all_values_allowed(node, allow, visited) {
+                    return allowed;
+                }
+            }
+            Expression::StaticMemberExpression(_) => {
+                if let Some(allowed) = self.all_values_allowed(node, allow, visited) {
+                    return allowed;
+                }
             }
             Expression::ConditionalExpression(conditional) => {
                 return self.allowed(Url::Expression(&conditional.consequent), allow, visited)
@@ -169,6 +442,28 @@ impl<'a> Check<'_, 'a> {
             || (allow.fragment && self.starts_with(node, "#", visited))
             || (allow.nullish && is_nullish(node))
             || self.is_resolve_call(node, visited)
+    }
+
+    /// Whether every value [`Check::values`] finds for `node` comes from `resolve()`. Upstream
+    /// accepts a literal URL only as the expression itself or a constant's initializer; an item
+    /// or a member it accepts through its type alone, which a literal never has, so only nullish
+    /// values keep their allowance.
+    fn all_values_allowed(
+        &self,
+        node: &'a Expression<'a>,
+        allow: Allow,
+        visited: &mut Vec<SymbolId>,
+    ) -> Option<bool> {
+        let values = self.values(node, visited)?;
+        let allow = Allow {
+            nullish: allow.nullish,
+            ..Allow::default()
+        };
+        Some(
+            values
+                .into_iter()
+                .all(|value| self.allowed(Url::Expression(value), allow, visited)),
+        )
     }
 
     fn starts_with(
