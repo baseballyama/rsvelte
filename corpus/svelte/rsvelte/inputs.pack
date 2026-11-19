@@ -3029,7 +3029,7 @@ b" class="c">first attr beside but tag is multiline: expect linebreak</div>
 
 <svelte:element this={n > 2 ? 'b' : 's'} >real space before bracket</svelte:element>
 
-=== 101 lint/html-closing-bracket-spacing/04-script-style-tags.svelte	svelte	runes	neutral
+=== 99 lint/html-closing-bracket-spacing/04-script-style-tags.svelte	svelte	runes	neutral
 <script >
 	export const x = 1;
 </script >
@@ -3040,7 +3040,7 @@ b" class="c">first attr beside but tag is multiline: expect linebreak</div>
 	}
 </style >
 
-<div>{x}</div>
+<div>x</div>
 
 === 254 lint/html-closing-bracket-spacing/05-options-always.svelte	svelte	runes	neutral
 <script>

@@ -4560,10 +4560,6 @@
 === 90 rsvelte_lint/experimental_and_dispatcher/svelte_3_4_rules_do_not_run_on_svelte_5/9450cd0aed9d83fc.svelte	lint.txt
 1:1 1:100 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 109 rsvelte_lint/json_api/tests/a_directive_shields_the_rule_whose_table_agrees_with_it/077e72562cbce2f1.svelte	lint.txt
-1:4 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-3:13 3:14 no-undef "'x' is not defined."
-
 === 69 rsvelte_lint/json_api/tests/a_directive_shields_the_rule_whose_table_agrees_with_it/89631fb68704931a.svelte	lint.txt
 1:53 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
 
@@ -7651,14 +7647,6 @@
 1:27 1:28 no-undef "'a' is not defined."
 1:31 1:32 no-undef "'b' is not defined."
 
-=== 263 rsvelte_projection/svelte2tsx/template/utils/source/tests/starts_after_every_retained_attribute_kind/a9cc1da5bd537799.svelte	lint.txt
-1:10 1:16 no-undef "'action' is not defined."
-1:18 1:19 no-undef "'a' is not defined."
-1:22 1:23 no-undef "'b' is not defined."
-1:26 1:30 no-undef "'left' is not defined."
-1:33 1:38 no-undef "'right' is not defined."
-1:61 1:67 no-undef "'action' is not defined."
-
 === 0 rsvelte_projection/svelte2tsx/template/utils/source/tests/starts_after_every_retained_attribute_kind/c4a338da96f02302.svelte	lint.txt
 
 === 603 rsvelte_projection/svelte2tsx/template/utils/source/tests/starts_after_every_retained_attribute_kind/d0bf0ca127175ff6.svelte	lint.txt
@@ -9467,12 +9455,6 @@
 
 === 0 rsvelte_projection/svelte2tsx_entry/opener_whitespace_matches_the_official_gap_collapsing/ed4ee2729a5f9d7d.svelte	lint.txt
 
-=== 218 rsvelte_projection/svelte2tsx_entry/opener_whitespace_matches_the_official_gap_collapsing/f087f7c0a6b341e3.svelte	lint.txt
-1:30 1:48 svelte/max-attributes-per-line "'use:action' should be on a new line."
-1:34 1:40 no-undef "'action' is not defined."
-1:42 1:47 no-undef "'value' is not defined."
-1:70 1:76 no-undef "'action' is not defined."
-
 === 82 rsvelte_projection/svelte2tsx_entry/opener_whitespace_matches_the_official_gap_collapsing/fe44ab63b4ed5dbd.svelte	lint.txt
 1:2 1:5 no-undef "'Foo' is not defined."
 1:16 1:17 no-undef "'h' is not defined."
@@ -9542,11 +9524,6 @@
 1:18 1:79 svelte/max-attributes-per-line "'aria-current' should be on a new line."
 1:18 1:79 svelte/sort-attributes "Attribute 'aria-current' should go before 'href'."
 1:45 1:53 no-undef "'pathname' is not defined."
-
-=== 371 rsvelte_projection/svelte2tsx_entry/test_runes_state_nested_in_use_directive/6c9d5612fde9e2b7.svelte	lint.txt
-1:10 1:16 no-undef "'action' is not defined."
-1:24 1:33 svelte/valid-compile "`$state(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement(state_invalid_placement)"
-1:56 1:62 no-undef "'action' is not defined."
 
 === 78 rsvelte_projection/svelte2tsx_entry/test_runes_state_var_decl/4c7c496e1814d0d7.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
@@ -13245,13 +13222,6 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:10 6:23 svelte/prefer-destructured-store-props "Destructure action from $store for better change tracking & fewer redraws"
 
-=== 369 rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_outside_a_directive_name_still_subscribes/4d9c9ccc041ec9ff.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:10 6:11 no-undef "'x' is not defined."
-6:13 6:26 svelte/prefer-destructured-store-props "Destructure action from $store for better change tracking & fewer redraws"
-6:49 6:50 no-undef "'x' is not defined."
-
 === 281 rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_outside_a_directive_name_still_subscribes/e13912313864106a.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -13889,15 +13859,6 @@
 2:7 2:16 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
 2:13 2:14 no-undef "'f' is not defined."
 
-=== 639 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/10142769056c4df0.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:21 2:22 no-undef "'Q' is not defined."
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-3:7 3:8 no-unused-vars "'r' is assigned a value but never used."
-3:11 3:30 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
-3:18 3:23 no-undef "'fetch' is not defined."
-
 === 401 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/1109071c0910fff2.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -14066,27 +14027,6 @@
 2:19 2:20 no-undef "'f' is not defined."
 2:27 2:30 no-undef "'obj' is not defined."
 
-=== 580 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/4b174e67f9d17d72.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:8 2:9 no-unused-vars "'x' is defined but never used."
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-3:7 3:8 no-unused-vars "'A' is defined but never used."
-3:24 3:29 no-undef "'await' is not defined."
-3:24 3:24 svelte/valid-compile "Cannot use keyword 'await' outside an async function\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
-3:31 3:32 no-undef "'f' is not defined."
-
-=== 1051 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/4e022f3e38607168.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:8 2:9 no-unused-vars "'x' is defined but never used."
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-3:1 3:27 svelte/valid-compile "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-3:6 3:7 no-unused-vars "'E' is defined but never used."
-3:10 3:11 no-unused-vars "'A' is defined but never used."
-3:14 3:19 no-undef "'await' is not defined."
-3:21 3:22 no-undef "'f' is not defined."
-
 === 585 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/529a428b2b17b12e.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -14096,16 +14036,6 @@
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:7 3:8 no-unused-vars "'r' is assigned a value but never used."
 3:18 3:19 no-undef "'g' is not defined."
-
-=== 580 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/5495e6a2828f6fa9.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:8 2:9 no-unused-vars "'x' is defined but never used."
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-3:7 3:8 no-unused-vars "'A' is defined but never used."
-3:28 3:33 no-undef "'await' is not defined."
-3:28 3:28 svelte/valid-compile "Cannot use keyword 'await' outside an async function\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
-3:35 3:36 no-undef "'f' is not defined."
 
 === 457 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/56133462a29e565e.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -14153,15 +14083,6 @@
 2:18 2:19 no-unused-vars "'x' is assigned a value but never used."
 2:23 2:24 no-undef "'y' is not defined."
 2:26 2:28 no-empty "Empty block statement."
-
-=== 918 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/617dffd9150d4302.svelte	lint.txt
-1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:1 2:27 svelte/valid-compile "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-2:6 2:7 no-unused-vars "'E' is defined but never used."
-2:10 2:11 no-unused-vars "'A' is defined but never used."
-2:14 2:19 no-undef "'await' is not defined."
-2:21 2:22 no-undef "'f' is not defined."
 
 === 700 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/61b6af671786d9b6.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -14324,24 +14245,6 @@
 3:11 3:30 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
 3:18 3:23 no-undef "'fetch' is not defined."
 
-=== 589 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/8e4db505fa21e7ac.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:8 2:9 no-unused-vars "'x' is defined but never used."
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-3:7 3:8 no-unused-vars "'C' is assigned a value but never used."
-3:23 3:28 no-undef "'await' is not defined."
-3:23 3:23 svelte/valid-compile "Cannot use keyword 'await' outside an async function\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
-3:30 3:31 no-undef "'f' is not defined."
-
-=== 562 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/9075d4944bb14429.svelte	lint.txt
-1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:7 2:8 no-unused-vars "'r' is assigned a value but never used."
-2:20 2:25 no-undef "'await' is not defined."
-2:20 2:29 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
-2:27 2:28 no-undef "'q' is not defined."
-
 === 675 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/93866a3a07c53def.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -14365,14 +14268,6 @@
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:1 3:28 svelte/valid-compile "A component cannot have a default export\nhttps://svelte.dev/e/module_illegal_default_export(module_illegal_default_export)"
 3:23 3:24 no-undef "'f' is not defined."
-
-=== 447 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/9815b681d70b485d.svelte	lint.txt
-1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:7 2:8 no-unused-vars "'A' is defined but never used."
-2:15 2:20 no-undef "'await' is not defined."
-2:15 2:15 svelte/valid-compile "Cannot use keyword 'await' outside an async function\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
-2:22 2:23 no-undef "'f' is not defined."
 
 === 594 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/9e90e1ae4d3e910e.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -14461,16 +14356,6 @@
 2:9 2:16 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
 2:15 2:16 no-undef "'a' is not defined."
 
-=== 580 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/bc6c87f6bd097f6b.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:8 2:9 no-unused-vars "'x' is defined but never used."
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-3:7 3:8 no-unused-vars "'A' is defined but never used."
-3:20 3:25 no-undef "'await' is not defined."
-3:20 3:20 svelte/valid-compile "Cannot use keyword 'await' outside an async function\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
-3:27 3:28 no-undef "'f' is not defined."
-
 === 563 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/bd5bd6ceb2a10d94.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -14485,17 +14370,6 @@
 2:7 2:8 no-unused-vars "'r' is assigned a value but never used."
 2:11 2:23 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
 2:18 2:19 no-undef "'p' is not defined."
-
-=== 736 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/c1530ef3f8c4da44.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:8 2:9 no-unused-vars "'x' is defined but never used."
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-3:7 3:8 no-unused-vars "'r' is assigned a value but never used."
-3:21 3:26 no-undef "'await' is not defined."
-3:21 3:30 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
-3:28 3:29 no-undef "'p' is not defined."
-3:42 3:43 no-undef "'T' is not defined."
 
 === 674 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/c2d8ed67fff164c2.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -14644,16 +14518,6 @@
 2:12 2:19 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
 2:18 2:19 no-undef "'k' is not defined."
 
-=== 580 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/e2f4f0b57b3dd8f1.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:8 2:9 no-unused-vars "'x' is defined but never used."
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-3:7 3:8 no-unused-vars "'A' is defined but never used."
-3:15 3:20 no-undef "'await' is not defined."
-3:15 3:15 svelte/valid-compile "Cannot use keyword 'await' outside an async function\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
-3:22 3:23 no-undef "'f' is not defined."
-
 === 641 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/e46e2b988b4a4c9e.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -14728,25 +14592,6 @@
 2:7 2:8 no-unused-vars "'A' is defined but never used."
 2:18 2:25 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
 2:24 2:25 no-undef "'B' is not defined."
-
-=== 580 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/fe4798f5a87b6972.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:8 2:9 no-unused-vars "'x' is defined but never used."
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-3:7 3:8 no-unused-vars "'A' is defined but never used."
-3:22 3:27 no-undef "'await' is not defined."
-3:22 3:22 svelte/valid-compile "Cannot use keyword 'await' outside an async function\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
-3:29 3:30 no-undef "'f' is not defined."
-
-=== 635 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ff097426cad6ba2f.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:21 2:22 no-undef "'Q' is not defined."
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-3:7 3:8 no-unused-vars "'r' is assigned a value but never used."
-3:11 3:20 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
-3:17 3:18 no-undef "'f' is not defined."
 
 === 517 rsvelte_projection/svelte2tsx_top_level_await/svelte_4_never_makes_render_async/4ce7f087c4573534.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

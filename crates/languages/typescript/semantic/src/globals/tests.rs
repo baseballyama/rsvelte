@@ -1,8 +1,19 @@
-use super::{GLOBALS, Global, global};
+use super::{GLOBALS, Global, LIBRARY, global, library};
 
 #[test]
 fn rows_are_sorted_and_unique_for_binary_search() {
     assert!(GLOBALS.windows(2).all(|pair| pair[0].0 < pair[1].0));
+    assert!(LIBRARY.windows(2).all(|pair| pair[0].0 < pair[1].0));
+}
+
+#[test]
+fn library_names_are_types_and_some_are_values() {
+    assert_eq!(library("Record"), Some(false));
+    assert_eq!(library("PropertyKey"), Some(false));
+    assert_eq!(library("Map"), Some(true));
+    // es5 declares `Symbol` as a type before es2015 declares its value, and the first one wins.
+    assert_eq!(library("Symbol"), Some(false));
+    assert_eq!(library("HTMLElement"), None);
 }
 
 #[test]
@@ -46,4 +57,19 @@ fn the_table_comes_from_the_versions_the_oracle_installs() {
                 globals`"
         );
     }
+    let header = include_str!("../vendor/typescript_library.rs")
+        .lines()
+        .next()
+        .expect("a header");
+    let pinned = package
+        .split("\"@typescript-eslint/parser\": \"")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+        .expect("the oracle pins the parser");
+    // typescript-eslint releases its packages together.
+    assert!(
+        header.ends_with(&format!("scope-manager {pinned}")),
+        "{header}: the oracle installs @typescript-eslint/parser {pinned}; run `node \
+            tools/oracle/oracle.ts globals`"
+    );
 }

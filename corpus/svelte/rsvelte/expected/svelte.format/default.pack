@@ -2437,12 +2437,12 @@ b"
   >real space before bracket</svelte:element
 >
 
-=== 103 lint/html-closing-bracket-spacing/04-script-style-tags.svelte	svelte
+=== 101 lint/html-closing-bracket-spacing/04-script-style-tags.svelte	svelte
 <script>
   export const x = 1;
 </script>
 
-<div>{x}</div>
+<div>x</div>
 
 <style>
   div {

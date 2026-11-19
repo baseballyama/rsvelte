@@ -8,4 +8,4 @@
 	}
 </style >
 
-<div>{x}</div>
+<div>x</div>
