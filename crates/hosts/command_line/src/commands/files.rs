@@ -72,8 +72,9 @@ fn collect(
         return Ok(());
     }
     let mut walk = ignore::WalkBuilder::new(path);
-    // Dotfiles are source too; a project without git still means its `.gitignore`.
-    walk.hidden(false).require_git(false);
+    // Dotfiles are source too. A `.gitignore` counts only inside a git repository, as git reads
+    // it: outside one, the walk would also read those of an enclosing repository.
+    walk.hidden(false);
     for name in ignore_files {
         walk.add_custom_ignore_filename(name);
     }

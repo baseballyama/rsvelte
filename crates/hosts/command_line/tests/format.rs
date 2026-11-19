@@ -19,6 +19,7 @@ impl Project {
             ("src/A.svelte", UNFORMATTED),
             ("src/Clean.svelte", FORMATTED),
             ("node_modules/x/X.svelte", UNFORMATTED),
+            (".git/HEAD", "ref: refs/heads/main\n"),
             (".gitignore", "/build/\n"),
             ("build/B.svelte", UNFORMATTED),
             (".prettierignore", "src/generated.svelte\n"),
@@ -74,4 +75,25 @@ fn format_writes_the_files_that_change_and_skips_node_modules() {
     assert_eq!(project.read("node_modules/x/X.svelte"), UNFORMATTED);
     let again = project.format(&["--check"]);
     assert_eq!(again.status.code(), Some(0));
+}
+
+#[test]
+fn an_enclosing_repositorys_excludes_do_not_reach_a_nested_repository() {
+    let project = Project::new();
+    for (name, text) in [
+        (".git/info/exclude", "fixtures\n"),
+        ("nested/.git/HEAD", "ref: refs/heads/main\n"),
+        ("nested/tests/fixtures/F.svelte", UNFORMATTED),
+    ] {
+        let file = project.0.join(name);
+        std::fs::create_dir_all(file.parent().expect("a parent")).expect("directory");
+        std::fs::write(file, text).expect("file");
+    }
+    let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
+        .current_dir(project.0.join("nested"))
+        .args(["format", "--check"])
+        .output()
+        .expect("run CLI");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("tests/fixtures/F.svelte"), "{stdout}");
 }
