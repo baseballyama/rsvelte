@@ -12,10 +12,10 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::Resolved;
-use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, TemplateNode,
 };
+use rsvelte_svelte_syntax::{Parsed, ParsedAsTypeScript};
 use rsvelte_svelte_typescript_projection::{Printed, THROWN, checked_as_typescript, store_reads};
 use rsvelte_typescript_check::{
     Check, CheckedDocument, Documents, Hidden, Import, MappedLanguage, MappedLanguages,
@@ -167,7 +167,13 @@ fn typescript_view(
     let component = match context.get::<Parsed>() {
         Ok(component) => component,
         Err(error) => {
-            if let Some(document) = script_syntax::view(&context.document.text, || env_of(env)) {
+            let projects = context
+                .get::<ParsedAsTypeScript>()
+                .as_ref()
+                .is_ok_and(|component| component.script_typescript_errors.is_empty());
+            if let Some(document) =
+                script_syntax::view(&context.document.text, projects, || env_of(env))
+            {
                 return document;
             }
             // svelte2tsx throws Svelte's parse error, which svelte-check reports as it is.

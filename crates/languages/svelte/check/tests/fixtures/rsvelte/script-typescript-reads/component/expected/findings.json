@@ -1,0 +1,14 @@
+[
+	{
+		"code": 8009,
+		"message": "The '?' modifier can only be used in TypeScript files.",
+		"start": {
+			"line": 2,
+			"character": 12
+		},
+		"end": {
+			"line": 2,
+			"character": 13
+		}
+	}
+]
