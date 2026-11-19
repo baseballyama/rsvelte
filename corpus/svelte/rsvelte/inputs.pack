@@ -35792,6 +35792,24 @@ export const pair = $state({ a: 1, b: "two" });
 
 <div class:a.b>x</div>
 
+=== 225 pattern/css/attribute-selector-value-escapes.svelte	svelte	runes	neutral
+<div data-x="a b" data-y="ab" data-w="a\20 b"></div>
+
+<style>
+	[data-x='a\20 b'] {
+		color: green;
+	}
+	[data-y=a\62] {
+		color: green;
+	}
+	[data-w='a\20 b'] {
+		color: red;
+	}
+	[data\2d x='a b'] {
+		color: green;
+	}
+</style>
+
 === 312 pattern/css/consecutive-and-column-combinators.svelte	svelte	runes	neutral
 <table>
 	<colgroup><col class="c" /></colgroup>

@@ -33717,6 +33717,24 @@ plain text with no script, no markup elements and no expressions
 
 <div class:a.b>x</div>
 
+=== 243 pattern/css/attribute-selector-value-escapes.svelte	svelte
+<div data-x="a b" data-y="ab" data-w="a\20 b"></div>
+
+<style>
+  [data-x="a\20 b"] {
+    color: green;
+  }
+  [data-y="a\62"] {
+    color: green;
+  }
+  [data-w="a\20 b"] {
+    color: red;
+  }
+  [data\2d x="a b"] {
+    color: green;
+  }
+</style>
+
 === 78 pattern/css/declaration-without-property-or-colon.svelte	svelte
 <p class="a">x</p>
 
