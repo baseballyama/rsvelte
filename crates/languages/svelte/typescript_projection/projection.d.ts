@@ -20,7 +20,10 @@ declare function __rsvelte_export_component<Props extends Record<string, any>, E
 declare function __rsvelte_export_typed<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string, Events, Slots>(): import('svelte').Component<Props, Exports, Bindings> & { __rsvelte_events: Events; __rsvelte_slot_def: Slots };
 // A component that types its slots by its `<slot>` elements, with svelte2tsx's events of any name.
 declare function __rsvelte_with_slots<C, Slots>(component: C, slots: Slots): C & { __rsvelte_events: { [event: string]: CustomEvent<any> }; __rsvelte_slot_def: Slots };
-declare function __rsvelte_export_generic<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings>(): import('svelte').Component<Props, Exports, any> & { __rsvelte_bindings?: Bindings };
+// What `bind:this` assigns: a generic component's instance, or else what its call returns.
+declare function __rsvelte_bind_this<C>(component: C): C extends { __rsvelte_instance: infer Instance } ? Instance : C;
+// `__rsvelte_exports`: the exports without the `$on` and `$set` a call adds, as svelte2tsx's `exports()`.
+declare function __rsvelte_export_generic<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings>(): import('svelte').Component<Props, Exports, any> & { __rsvelte_bindings?: Bindings; __rsvelte_exports?: Exports };
 declare function __rsvelte_props<Required extends Record<string, unknown>, Optional extends Record<string, unknown>, Rest extends boolean>(required: Required, optional: Optional, rest: Rest): Required & Partial<Optional> & (Rest extends true ? Record<string, any> : {});
 declare function __rsvelte_untyped_prop(): any;
 declare function __rsvelte_array_prop(): any[];
