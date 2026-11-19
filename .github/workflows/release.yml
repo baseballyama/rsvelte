@@ -1,15 +1,18 @@
-# Publishes rsvelte to npm when a tag `v<version>` is pushed, where <version> is the version in
-# Cargo.toml: each platform builds `rsvelte` and its content mapper, then one job writes the
-# packages (tools/release) and publishes them, the platform packages first.
+# On every push to main, Changesets opens or updates the pull request "Release @rsvelte/cli",
+# which takes the version from the pending changesets into apps/cli/package.json, Cargo.toml and
+# the changelog. Merging it leaves no changeset, so the version has no tag yet and is released:
+# each platform builds `rsvelte` and its content mapper, one job writes the npm packages
+# (tools/release) and publishes them, the platform packages first, and then the GitHub release
+# `v<version>` with the programs, which also makes the tag.
 name: Release
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish to npm (otherwise build and stage only)
+        description: Publish to npm and GitHub (otherwise build and stage only)
         type: boolean
         default: false
 
@@ -17,14 +20,54 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release: ${{ steps.plan.outputs.release }}
+      version: ${{ steps.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.0
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/workspace
+      - id: changesets
+        if: github.event_name == 'push'
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          version-script: pnpm run release:version
+          commit-message: Release @rsvelte/cli
+          pr-title: Release @rsvelte/cli
+      - id: plan
+        env:
+          PENDING: ${{ steps.changesets.outputs.has-changesets }}
+        run: |
+          version=$(node -p "require('./apps/cli/package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # A version is released once its tag exists; pending changesets belong to the next one.
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$PENDING" != true ] &&
+            ! git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: plan
+    if: needs.plan.outputs.release == 'true' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: true
       matrix:
@@ -66,13 +109,17 @@ jobs:
           retention-days: 7
 
   publish:
-    needs: build
+    needs: [plan, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
-      contents: read
+      # The GitHub release and its tag.
+      contents: write
       # npm trusted publishing and provenance.
       id-token: write
+    env:
+      PUBLISH: ${{ needs.plan.outputs.release == 'true' || inputs.publish }}
+      VERSION: ${{ needs.plan.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -88,14 +135,24 @@ jobs:
           path: artifacts/
           merge-multiple: true
       - name: Stage the packages
-        env:
-          TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
-          node tools/release/release.ts stage --artifacts artifacts --out staged \
-            ${TAG:+--tag "$TAG"} > order.txt
+          node tools/release/release.ts stage --artifacts artifacts --out staged > order.txt
           cat order.txt
-      - name: Publish
-        if: github.ref_type == 'tag' || inputs.publish
+      - name: Pack the programs
+        run: |
+          # An artifact loses the executable bit.
+          mkdir archives
+          for directory in artifacts/*/; do
+            target=$(basename "$directory")
+            chmod +x "$directory"*
+            case "$target" in
+              *windows*) (cd "$directory" && zip -q "$GITHUB_WORKSPACE/archives/rsvelte-$target.zip" ./*) ;;
+              *) tar -czf "archives/rsvelte-$target.tar.gz" -C "$directory" . ;;
+            esac
+          done
+          ls -l archives
+      - name: Publish to npm
+        if: env.PUBLISH == 'true'
         run: |
           # A package whose version is already published was published by an earlier attempt.
           while IFS= read -r directory; do
@@ -107,3 +164,15 @@ jobs:
             fi
             npm publish "./$directory" --access public --provenance
           done < order.txt
+      - name: Publish the GitHub release
+        if: env.PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            echo "v$VERSION is already released"
+            exit 0
+          fi
+          node tools/release/release.ts notes > notes.md
+          gh release create "v$VERSION" archives/* --target "$GITHUB_SHA" --title "v$VERSION" \
+            --notes-file notes.md

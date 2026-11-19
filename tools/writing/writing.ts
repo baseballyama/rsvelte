@@ -8,8 +8,15 @@ import { rules } from './rules.ts';
 
 export const root = path.resolve(import.meta.dirname, '../..');
 
-/** Text written by others: test inputs, copied upstream files, and licenses. */
-const thirdParty = [/^corpus\//, /^submodules\//, /\/fixtures\//, /\/vendor\//, /(^|\/)LICENSE/];
+/** Text written by others: test inputs, copied upstream files, licenses, and changelogs that Changesets assembles from the changesets this check reads. */
+const thirdParty = [
+	/(^|\/)CHANGELOG\.md$/,
+	/^corpus\//,
+	/^submodules\//,
+	/\/fixtures\//,
+	/\/vendor\//,
+	/(^|\/)LICENSE/,
+];
 
 export function markdownFiles(): string[] {
 	const tracked = execFileSync('git', ['-C', root, 'ls-files', '-z', '--', '*.md'], {
