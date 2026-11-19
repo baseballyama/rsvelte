@@ -124,6 +124,45 @@ fn language_options_declare_the_globals_that_rules_track() {
 }
 
 #[test]
+fn svelte_config_experimental_async_lets_lint_analyze_top_level_await() {
+    let project = Project::new();
+    project.write(
+        "Input.svelte",
+        concat!(
+            "<script>\n  const data = await Promise.resolve(1);\n</script>\n\n",
+            "<p>{data}</p>\n<img src=\"a.png\">\n"
+        ),
+    );
+    project.write(
+        "rsvelte.config.json",
+        r#"{"plugins": {"svelte.lint": {"rules": {"svelte/valid-compile": "error"}}}}"#,
+    );
+    let lint = || {
+        let output = project.run_without_runtime(&["--task", "svelte.lint/default"]);
+        assert!(
+            completed(&output),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).expect("UTF-8")
+    };
+    let without = lint();
+    assert!(
+        without.contains("experimental_async") && !without.contains("a11y_missing_attribute"),
+        "{without}"
+    );
+    project.write(
+        "svelte.config.js",
+        "export default { compilerOptions: { experimental: { async: true } } };",
+    );
+    let with = lint();
+    assert!(
+        !with.contains("experimental_async") && with.contains("a11y_missing_attribute"),
+        "{with}"
+    );
+}
+
+#[test]
 fn node_config_callbacks_reach_client_server_and_stylesheet_output() {
     let project = Project::new();
     project.write(

@@ -83,3 +83,31 @@ fn compiler_options_runes_is_read_when_static() {
     assert_eq!(runes("export default { compilerOptions: options };"), None);
     assert_eq!(runes("export default {};"), None);
 }
+
+fn experimental_async(source: &str) -> bool {
+    parse(source)
+        .expect("the configuration parses")
+        .experimental_async
+}
+
+#[test]
+fn compiler_options_experimental_async_is_read_when_static() {
+    assert!(experimental_async(
+        "export default { compilerOptions: { experimental: { async: true } } };"
+    ));
+    assert!(experimental_async(
+        "const config = { compilerOptions: { experimental: { async: 1 } } }; export default config;"
+    ));
+    assert!(!experimental_async(
+        "export default { compilerOptions: { experimental: { async: false } } };"
+    ));
+    assert!(!experimental_async(
+        "export default { compilerOptions: { experimental: { async: process.env.ASYNC } } };"
+    ));
+    assert!(!experimental_async(
+        "export default { compilerOptions: { experimental: makeExperimental() } };"
+    ));
+    assert!(!experimental_async(
+        "export default { compilerOptions: { runes: true } };"
+    ));
+}
