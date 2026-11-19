@@ -5,9 +5,12 @@
 	"type": "module",
 	"scripts": {
 		"format": "oxfmt",
-		"check": "oxfmt --check && oxlint && knip && pnpm --recursive --if-present run typecheck && pnpm --filter @rsvelte-experimental/writing run test && pnpm --filter @rsvelte-experimental/writing run lint"
+		"check": "oxfmt --check && oxlint && knip && pnpm --recursive --if-present run typecheck && pnpm --filter @rsvelte-experimental/writing run test && pnpm --filter @rsvelte-experimental/writing run lint",
+		"changeset": "changeset",
+		"release:version": "changeset version && node tools/release/release.ts version"
 	},
 	"devDependencies": {
+		"@changesets/cli": "3.0.3",
 		"@types/node": "26.6.6",
 		"knip": "6.44.1",
 		"oxfmt": "0.75.0",

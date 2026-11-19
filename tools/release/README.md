@@ -1,12 +1,28 @@
 # Release
 
-A release publishes the `rsvelte` command to npm. Pushing the tag `v<version>` starts
-[the release workflow](../../.github/workflows/release.yml), where `<version>` is
-`[workspace.package] version` in `Cargo.toml`:
+A release publishes the `rsvelte` command to npm and its programs to a GitHub release.
+[Changesets](https://github.com/changesets/changesets) decides the version: a pull request that
+changes what a user sees adds `.changeset/<name>.md`, which names the bump and the changelog
+line:
 
-```sh
-git tag v0.1.0 && git push origin v0.1.0
+```md
+---
+'@rsvelte/cli': patch
+---
+
+`rsvelte format` keeps a blank line after a comment.
 ```
+
+[The changeset check](../../.github/workflows/changeset.yml) fails a pull request that changes
+the sources of a release, such as `crates/**/src`, but adds no changeset. For a change that users
+cannot notice, add an empty one with `pnpm changeset --empty`, or the label `skip-changeset`.
+
+On each push to `main`, [the release workflow](../../.github/workflows/release.yml) opens or
+updates the pull request "Release `@rsvelte/cli`". It runs `pnpm run release:version`: Changesets
+writes the version and the changelog into [`apps/cli`](../../apps/cli), and
+`node tools/release/release.ts version` copies the version into `Cargo.toml` and `Cargo.lock`.
+Merging that pull request releases the version, because its tag `v<version>` does not exist
+yet.
 
 Each platform builds `rsvelte` and `rsvelte-svelte-content-mapper`. Then
 `node tools/release/release.ts stage` writes the packages:
@@ -15,9 +31,10 @@ Each platform builds `rsvelte` and `rsvelte-svelte-content-mapper`. Then
 - `@rsvelte/cli`, which depends on every platform package. npm installs only the one for the
   machine. The package's `rsvelte` command is `launcher.js`, which starts that program.
 
-The workflow publishes the platform packages first, and `@rsvelte/cli` last. It skips a package
-whose version is already published, so running it again finishes a partial release. Run it by
-hand (`workflow_dispatch`) to build and stage without publishing.
+The workflow publishes the platform packages first, then `@rsvelte/cli`, and last the GitHub
+release with each platform's programs, which makes the tag. It skips what an earlier attempt
+already published, so the next push to `main` finishes a partial release. Run it by hand
+(`workflow_dispatch`) to build and stage without publishing.
 
 npm refuses the name `rsvelte` as too close to `svelte`, so the command package has a scope.
 

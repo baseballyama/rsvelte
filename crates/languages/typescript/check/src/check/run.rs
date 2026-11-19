@@ -340,6 +340,10 @@ fn tsconfig_json(
         .write_boolean(true)
         .key("skipLibCheck")
         .write_boolean(true);
+    if let Some(root_dir) = own.default_root_dir.as_deref() {
+        // The default would otherwise be the overlay's directory.
+        w.key("rootDir").write_string(&root_dir.to_string_lossy());
+    }
     if own.script_modules {
         // A script module's declaration has the name of a document, such as `x.d.svelte.ts`.
         w.key("allowArbitraryExtensions").write_boolean(true);
@@ -388,6 +392,9 @@ struct BaseProject {
     node_resolution: bool,
     /// Whether the file layer holds a declaration of a script module, such as `x.d.svelte.ts`.
     script_modules: bool,
+    /// The directory of the project's tsconfig, when TypeScript checks files against `rootDir`
+    /// and the tsconfig leaves it to that default.
+    default_root_dir: Option<PathBuf>,
 }
 
 fn base_project(
@@ -418,6 +425,9 @@ fn base_project(
         untyped,
         node_resolution: project.node_resolution,
         script_modules: false,
+        default_root_dir: (project.default_root_dir)
+            .then(|| base.parent().map(Path::to_path_buf))
+            .flatten(),
     })
 }
 
