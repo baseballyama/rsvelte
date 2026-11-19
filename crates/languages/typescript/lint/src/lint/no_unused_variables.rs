@@ -7,20 +7,36 @@ use oxc_semantic::{NodeId, ReferenceId, ScopeId, SymbolId};
 use oxc_span::GetSpan;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_typescript_semantic::semantic::Semantic;
+use rustc_hash::FxHashSet;
 
 use super::{Facts, Use, identifier_range, span};
 
-/// `ESLint`'s `no-unused-vars` with its default options (`vars: all`, `args: after-used`,
+mod typescript_eslint;
+use typescript_eslint::{
+    declarations, is_import, is_type_query_or_predicate, is_used_as_typescript_eslint, marked_used,
+};
+
+/// Which upstream rule [`no_unused_variables`] follows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Dialect {
+    /// `ESLint`'s core rule over typescript-eslint's scope analysis, which reports types, enum
+    /// members and the parameters of a signature like any variable.
+    Core,
+    /// `@typescript-eslint/no-unused-vars`, which treats what TypeScript requires to be declared
+    /// as used and does not count a `typeof` or a type predicate as a use.
+    TypeScriptEslint,
+}
+
+/// `no-unused-vars` with its default options (`vars: all`, `args: after-used`,
 /// `caughtErrors: all`, no ignore patterns, `ignoreRestSiblings: false`).
 ///
-/// It looks at every name typescript-eslint's scope analysis declares: types, enum members and
-/// the parameters of a signature too, which the core rule reports like any variable.
 /// `reads` are references a host resolves to a symbol as plain reads, such as Svelte's `$store`.
 /// `body` is the scope of a function a host declares outside JavaScript, such as a Svelte
 /// snippet, inside which a reference to it is a self-reference. `assigned` names the symbols a
 /// host assigns where it declares them, such as a Svelte `let:` name under a default value.
 pub fn no_unused_variables<'r>(
     semantic: &Semantic,
+    dialect: Dialect,
     considered: impl Fn(SymbolId) -> bool,
     reads: impl Fn(SymbolId) -> &'r [ReferenceId],
     body: impl Fn(SymbolId) -> Option<ScopeId>,
@@ -28,6 +44,12 @@ pub fn no_unused_variables<'r>(
     reporter: &mut Reporter<'_>,
 ) {
     let f = Facts::new(semantic);
+    let typescript = dialect == Dialect::TypeScriptEslint;
+    let marked = if typescript {
+        marked_used(&f)
+    } else {
+        FxHashSet::default()
+    };
     let mut uses = Vec::new();
     for symbol in f.scoping.symbol_ids() {
         if !considered(symbol) {
@@ -53,11 +75,14 @@ pub fn no_unused_variables<'r>(
             AstKind::FormalParameter(_) | AstKind::FormalParameterRest(_)
                 if is_setter_parameter(&f, declaration)
                     || (is_plain_parameter(&f, symbol, declaration)
-                        && !is_after_last_used_parameter(&f, declaration)) =>
+                        && !is_after_last_used_parameter(&f, declaration, &marked)) =>
             {
                 continue;
             }
             _ => {}
+        }
+        if marked.contains(&symbol) {
+            continue;
         }
         f.uses(symbol, &mut uses);
         let extra = reads(symbol);
@@ -70,6 +95,7 @@ pub fn no_unused_variables<'r>(
                     span: f.span(node),
                     read: true,
                     write: false,
+                    typed: false,
                     scope: reference.scope_id(),
                 }
             }));
@@ -79,26 +105,20 @@ pub fn no_unused_variables<'r>(
             // `isSelfReference` over the host's function.
             uses.retain(|u| !f.scoping.scope_ancestors(u.scope).any(|s| s == body));
         }
-        if is_used(&f, symbol, declaration, &uses) || is_exported(&f, declaration) {
-            continue;
-        }
-        let variable_scope = f.variable_scope(f.scoping.symbol_scope_id(symbol));
-        let at = uses
-            .iter()
-            .rfind(|u| u.write && f.variable_scope(u.scope) == variable_scope)
-            .map_or_else(|| f.scoping.symbol_span(symbol), |u| u.span);
-        let action = if assigned(symbol) || uses.iter().any(|u| u.write) {
-            "assigned a value"
+        let kept = if typescript {
+            let declarations = declarations(&f, symbol);
+            is_used_as_typescript_eslint(&f, symbol, &declarations, &uses)
+                || declarations.iter().any(|&d| is_exported(&f, d))
         } else {
-            "defined"
+            is_used(&f, symbol, declaration, &uses) || is_exported(&f, declaration)
         };
-        reporter.range(
-            format!(
-                "'{}' is {action} but never used.",
-                f.scoping.symbol_name(symbol)
-            ),
-            identifier_range(&f, symbol, at),
-        );
+        if !kept {
+            report(&f, symbol, &uses, typescript, assigned(symbol), reporter);
+        }
+    }
+    if typescript {
+        // typescript-eslint treats a `this` parameter as used.
+        return;
     }
     // A `this` parameter is a variable to typescript-eslint and never has a reference.
     for node in f.nodes.iter() {
@@ -119,6 +139,44 @@ pub fn no_unused_variables<'r>(
             reporter.range("'this' is defined but never used.", span(this.span));
         }
     }
+}
+
+/// Reports `symbol` as unused, where typescript-eslint skips an import only `typeof` reads.
+fn report(
+    f: &Facts<'_>,
+    symbol: SymbolId,
+    uses: &[Use],
+    typescript: bool,
+    assigned: bool,
+    reporter: &mut Reporter<'_>,
+) {
+    let only_as_type = typescript && uses.iter().any(|u| is_type_query_or_predicate(f, u.node));
+    if only_as_type && is_import(f.kind(f.declaration(symbol))) {
+        return;
+    }
+    let variable_scope = f.variable_scope(f.scoping.symbol_scope_id(symbol));
+    let at = uses
+        .iter()
+        .rfind(|u| u.write && f.variable_scope(u.scope) == variable_scope)
+        .map_or_else(|| f.scoping.symbol_span(symbol), |u| u.span);
+    let action = if assigned || uses.iter().any(|u| u.write) {
+        "assigned a value"
+    } else {
+        "defined"
+    };
+    let usage = if only_as_type {
+        "only used as a type"
+    } else {
+        "never used"
+    };
+    let name = f.scoping.symbol_name(symbol);
+    let range = if typescript {
+        // typescript-eslint's location spans the name alone.
+        span(oxc_span::Span::sized(at.start, name.len() as u32))
+    } else {
+        identifier_range(f, symbol, at)
+    };
+    reporter.range(format!("'{name}' is {action} but {usage}."), range);
 }
 
 /// Whether a name a parameter list declares has a reference.
@@ -177,9 +235,13 @@ fn is_plain_parameter(f: &Facts<'_>, symbol: SymbolId, parameter: NodeId) -> boo
     }
 }
 
-/// `isAfterLastUsedArg`: no later parameter of the same function has a reference, where a
-/// default value is a write reference to each name its pattern declares.
-fn is_after_last_used_parameter(f: &Facts<'_>, parameter: NodeId) -> bool {
+/// `isAfterLastUsedArg`: no later parameter of the same function has a reference or is marked
+/// used, where a default value is a write reference to each name its pattern declares.
+fn is_after_last_used_parameter(
+    f: &Facts<'_>,
+    parameter: NodeId,
+    marked: &FxHashSet<SymbolId>,
+) -> bool {
     let Some(AstKind::FormalParameters(list)) = f.parent(parameter).map(|list| f.kind(list)) else {
         return true;
     };
@@ -193,6 +255,7 @@ fn is_after_last_used_parameter(f: &Facts<'_>, parameter: NodeId) -> bool {
     let mut unused = |identifier: &BindingIdentifier<'_>| {
         identifier.symbol_id.get().is_none_or(|symbol| {
             f.scoping.get_resolved_reference_ids(symbol).is_empty()
+                && !marked.contains(&symbol)
                 && !f.identifiers[symbol.index()]
                     .iter()
                     .any(|&identifier| f.written_where_declared(identifier))
