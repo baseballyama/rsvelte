@@ -168,6 +168,9 @@ pub struct CheckedDocument {
     /// Whether a finding with no source range is dropped, as svelte-check drops it, instead of
     /// refusing the document: only where the projection writes svelte2tsx's own code.
     pub drops_unmapped: bool,
+    /// Set when each of the projection's atoms is an inserted annotation (see [`Annotations`]),
+    /// which maps to the character it goes before.
+    pub inserted_finding: Option<InsertedFinding>,
 }
 
 /// A relative module specifier a document imports, by its string literal's range, with the
@@ -336,6 +339,30 @@ impl Facet for TypeScriptStandIn {
 
     const NAME: &'static str = "ts.stand_in";
 }
+
+/// Type annotations a framework's own checker inserts into a TypeScript module before it checks
+/// it, such as svelte-check's types of a `SvelteKit` route's `load`. No provider: the module as
+/// it is.
+#[derive(Debug)]
+pub struct TypeScriptAnnotations;
+
+impl Facet for TypeScriptAnnotations {
+    type Output = Annotations;
+
+    const NAME: &'static str = "ts.annotations";
+}
+
+#[derive(Debug)]
+pub struct Annotations {
+    /// Each text and the source offset it goes before, in source order; texts at one offset in
+    /// the order given.
+    pub inserted: Vec<(u32, String)>,
+    pub inserted_finding: InsertedFinding,
+}
+
+/// What a finding that starts in inserted text reports, by its code and message: a message at
+/// the character the text goes before, or `None` to drop the finding.
+pub type InsertedFinding = fn(u32, String) -> Option<String>;
 
 /// Which documents a [`Check`] checks.
 #[derive(Debug, Clone, Copy)]

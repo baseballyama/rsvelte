@@ -43,6 +43,7 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
     reg.plugin(&PLUGIN);
     rsvelte_typescript_check::register_service(reg);
     rsvelte_svelte_typescript_projection::register_artifacts(reg);
+    crate::kit_files::register(reg);
     reg.finish_task(Check {
         identifier: "svelte.check/default",
         documents: Documents::Matching(rsvelte_svelte_syntax::matches),
@@ -215,6 +216,7 @@ fn typescript_view(
             .unwrap_or_default(),
         hidden: hidden(component, &context.document.text),
         drops_unmapped: false,
+        inserted_finding: None,
     })))
 }
 

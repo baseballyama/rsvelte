@@ -151,6 +151,92 @@ fn typecheck_prints_each_error_as_tsc_does_and_fails() {
     assert_eq!(text(&output.stdout), "");
 }
 
+/// Expected values are svelte-check 4.7.8's, except `+page.ts`: it reports a finding after an
+/// annotation in the annotated text's columns (1:136), where the file's own column is 1:65.
+#[test]
+fn typecheck_types_sveltekit_files_as_svelte_check_does() {
+    let packages = NodePackages::locate();
+    let (program, arguments) = packages.type_checker();
+    let command: Vec<String> = std::iter::once(program.to_string_lossy().into_owned())
+        .chain(arguments)
+        .collect();
+    let config = serde_json::json!({ "plugins": {
+        "typescript.check": { "command": command },
+        "svelte.check": {
+            "svelte": packages.package("svelte"),
+            "contentMapper": rsvelte_test_harness::content_mapper(),
+        },
+    }});
+    let project = Project::new(
+        "kit-files",
+        &[
+            ("rsvelte.config.json", &config.to_string()),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler",
+"strict":true,"skipLibCheck":true,"noEmit":true,"types":[]},"include":["src"]}"#,
+            ),
+            (
+                "node_modules/@sveltejs/kit/package.json",
+                r#"{"name":"@sveltejs/kit","version":"3.0.0",
+"exports":{"./hooks":{"types":"./hooks.d.ts"}}}"#,
+            ),
+            (
+                "node_modules/@sveltejs/kit/hooks.d.ts",
+                "export interface RequestEvent { url: URL }\n\
+                 export type Handle = (input: { event: RequestEvent; resolve: (event: \
+                 RequestEvent) => Promise<Response> }) => Promise<Response>;\n\
+                 export type HandleFetch = (input: { event: RequestEvent; request: Request; \
+                 fetch: typeof fetch }) => Promise<Response>;\n\
+                 export type HandleServerError = (input: { error: unknown; event: \
+                 RequestEvent; message: string }) => void;\n",
+            ),
+            (
+                "src/hooks.server.ts",
+                "export const handleFetch = async ({ request, fetch, event }) => {\n\
+                 \treturn fetch(request);\n};\n\
+                 export function handle({ event, resolve }) {\n\tconsole.log(event.url);\n}\n\
+                 export const handleError = function ({ error, status }) {\n\
+                 \tconsole.log(error, status);\n};\n",
+            ),
+            (
+                "src/routes/$types.d.ts",
+                "export type PageLoadEvent = { params: { id: string } };\n",
+            ),
+            (
+                "src/routes/+page.ts",
+                "export const load = ({ params }) => ({ id: params.id, n: params.nope });\n",
+            ),
+            (
+                "src/routes/x/+page.server.ts",
+                "export const load = (event) => ({});\n",
+            ),
+        ],
+    );
+    let output = project.rsvelte(&["typecheck"]);
+    let report = text(&output.stdout);
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "{report}{}",
+        text(&output.stderr)
+    );
+    assert_eq!(
+        report,
+        "src/hooks.server.ts(4,44): error TS2355: A function whose declared type is neither \
+         'undefined', 'void', nor 'any' must return a value.\n\
+         src/hooks.server.ts(7,47): error TS2339: Property 'status' does not exist on type '{ \
+         error: unknown; event: RequestEvent; message: string; }'.\n\
+         src/routes/+page.ts(1,65): error TS2339: Property 'nope' does not exist on type '{ id: \
+         string; }'.\n\
+         src/routes/x/+page.server.ts(1,27): error TS2307: Cannot find module './$types.js' or \
+         its corresponding type declarations. (this likely means that SvelteKit's type \
+         generation didn't run yet - try running it by executing 'npm run dev' or 'npm run \
+         build')\n\
+         \nFound 4 errors in 3 files.\n"
+    );
+}
+
 #[test]
 fn typecheck_without_a_checker_says_what_to_install() {
     let project = Project::new(

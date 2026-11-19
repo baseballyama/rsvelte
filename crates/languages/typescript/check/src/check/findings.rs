@@ -51,6 +51,20 @@ pub(super) fn write_findings(
             continue;
         };
         let bom = byte_order_mark(source_text);
+        if let Some(report) = d.inserted_finding
+            && let Some(at) = inserted_at(&d.projection, span.start_offset)
+        {
+            if let Some(message) = report(f.code, f.message) {
+                per_doc[f.file].push(Finding {
+                    semantic: !f.syntactic,
+                    generated: span.start_offset,
+                    span: Span::new(at.start_offset - bom, at.end_offset - bom),
+                    code: f.code,
+                    message,
+                });
+            }
+            continue;
+        }
         let content_mapped = d.env.mapped_extension.is_some();
         let generated = if content_mapped {
             generated_offset(&d.projection, span.start_offset + bom)
@@ -190,6 +204,13 @@ pub(super) fn byte_order_mark(source: &str) -> u32 {
     } else {
         0
     }
+}
+
+/// The original range of the inserted atom that holds the generated `offset`.
+fn inserted_at(projection: &Emitter, offset: u32) -> Option<Span> {
+    let after = (projection.atoms).partition_point(|a| a.generated.start_offset <= offset);
+    let atom = projection.atoms.get(after.checked_sub(1)?)?;
+    (offset < atom.generated.end_offset).then_some(atom.original)
 }
 
 /// The first generated offset copied from the original `offset`, or the end of the copy before

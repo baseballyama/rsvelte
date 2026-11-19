@@ -1433,7 +1433,9 @@ dependencies = [
  "rsvelte_svelte_typescript_projection",
  "rsvelte_test_harness",
  "rsvelte_typescript_check",
+ "rsvelte_typescript_tree",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

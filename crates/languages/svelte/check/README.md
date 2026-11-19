@@ -44,6 +44,16 @@ of one, and the component's default export reads as `any`. Under `node16` and `n
 import of `./x.svelte` from an ES module reads the rune module `x.svelte.ts`, as in svelte-check,
 through a declaration `x.d.svelte.ts` in the file layer. That declaration exports the module's
 `default` too, so a default import of a module without one is not reported.
+
+The project check (`ts.check/default`) types the SvelteKit files written in TypeScript as
+svelte-check does. Route files, hooks and `src/params` files get inserted types, such as
+`import('./$types.js').PageLoadEvent` for the parameter of `load`. The hook types come from the
+installed `@sveltejs/kit`. Like svelte-check, the plugin reads the default paths, such as
+`src/hooks.server`, and ignores `svelte.config.js`. It drops a finding inside an inserted type,
+except a missing module, a missing `$types` member, or a function that returns nothing.
+After an inserted type on the same line, svelte-check counts columns in the text with the types,
+and rsvelte counts them in the file.
+
 Empty findings do not prove that the checker checked its props or its instance. A
 component that does not parse is not checked: as in svelte-check, its one finding is the
 parser's error, with the code `-1`.

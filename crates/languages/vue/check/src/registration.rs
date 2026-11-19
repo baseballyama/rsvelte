@@ -110,6 +110,7 @@ fn typescript_view(
                 store_reads: Vec::new(),
                 hidden: Vec::new(),
                 drops_unmapped: false,
+                inserted_finding: None,
             })))
         }
     }

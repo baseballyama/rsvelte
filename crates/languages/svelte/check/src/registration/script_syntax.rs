@@ -77,5 +77,6 @@ pub(super) fn view<'e>(
         hidden: Vec::new(),
         // svelte2tsx's code after the scripts has no source, so svelte-check drops its findings.
         drops_unmapped: true,
+        inserted_finding: None,
     }))))
 }
