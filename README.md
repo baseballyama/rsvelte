@@ -10,9 +10,9 @@ only a diff oracle and a performance baseline.
 ## Use
 
 ```sh
-npx @rsvelte/cli lint                  # without installing
-npm install --save-dev @rsvelte/cli
-npx rsvelte lint && npx rsvelte format --check && npx rsvelte typecheck
+npx @rsvelte/cli lint
+npx @rsvelte/cli format --check
+npx @rsvelte/cli typecheck
 ```
 
 [The package's README](tools/release/npm-readme.md) is the user guide.
