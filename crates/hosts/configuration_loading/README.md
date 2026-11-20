@@ -121,7 +121,7 @@ integration and request batching do not exist yet.
 
 ```sh
 mise exec -- cargo test -p rsvelte_configuration_loading
-mise exec -- cargo test -p rsvelte_command_line --test configuration
+mise exec -- cargo test -p rsvelte_command_line --test cli configuration::
 cargo test -p rsvelte_svelte_compile --test compile configuration::
 ```
 

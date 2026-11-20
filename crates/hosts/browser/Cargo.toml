@@ -1,6 +1,6 @@
 [package]
-name = "rsvelte_kernel_browser"
-description = "Browser bindings for the rsvelte experimental kernel"
+name = "rsvelte_browser"
+description = "Browser bindings for language tasks"
 edition.workspace = true
 version.workspace = true
 license.workspace = true

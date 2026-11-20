@@ -1,19 +1,10 @@
-use std::path::PathBuf;
-use std::process::Command;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use crate::Scratch;
 
-struct Project(PathBuf);
+struct Project(Scratch);
 
 impl Project {
     fn new() -> Self {
-        static NEXT: AtomicUsize = AtomicUsize::new(0);
-        let path = std::env::temp_dir().join(format!(
-            "rsvelte-cli-lint-globals-{}-{}",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed)
-        ));
-        std::fs::create_dir_all(&path).expect("test directory");
-        Self(path)
+        Self(Scratch::new(&[]))
     }
 
     /// The `rule`'s findings on `source` under `languageOptions.globals`, as `"rule" line:column`.
@@ -27,8 +18,7 @@ impl Project {
         std::fs::write(self.0.join("rsvelte.config.json"), configuration).expect("configuration");
         let component = format!("<script>\n{source}\n</script>\n");
         std::fs::write(self.0.join("Input.svelte"), component).expect("component");
-        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-            .current_dir(&self.0)
+        let output = crate::rsvelte_dev(&self.0)
             .env("PATH", "")
             .args(["run", "Input.svelte", "--task", "svelte.lint/default"])
             .output()
@@ -47,12 +37,6 @@ impl Project {
                 format!("{} {}:{}", finding["rule"], start["line"], start["column"])
             })
             .collect()
-    }
-}
-
-impl Drop for Project {
-    fn drop(&mut self) {
-        std::fs::remove_dir_all(&self.0).expect("remove project");
     }
 }
 

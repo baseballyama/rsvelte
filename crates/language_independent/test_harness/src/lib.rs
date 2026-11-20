@@ -15,7 +15,6 @@
 mod arguments;
 mod cases;
 mod node;
-mod parallel;
 mod snapshots;
 
 use std::path::{Path, PathBuf};
@@ -27,6 +26,7 @@ use cases::Case;
 pub use node::NodePackages;
 use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run_each};
 use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::performance::parallel;
 use rsvelte_kernel::source::document::Document;
 use snapshots::{Outcome, Snapshot};
 

@@ -1,27 +1,16 @@
-use std::path::PathBuf;
-use std::process::Command;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use crate::Scratch;
 
-struct Project(PathBuf);
+struct Project(Scratch);
 
 impl Project {
     fn new() -> Self {
-        static NEXT: AtomicUsize = AtomicUsize::new(0);
-        let path = std::env::temp_dir().join(format!(
-            "rsvelte-cli-config-{}-{}",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed)
-        ));
-        std::fs::create_dir_all(&path).expect("test directory");
-        std::fs::write(
-            path.join("Input.svelte"),
+        Self(Scratch::new(&[(
+            "Input.svelte",
             concat!(
                 "<script>let unused = 1;</script>",
                 "<button>Hi</button><style>button { color: red; }</style>"
             ),
-        )
-        .expect("component");
-        Self(path)
+        )]))
     }
 
     fn write(&self, name: &str, text: &str) {
@@ -29,8 +18,7 @@ impl Project {
     }
 
     fn run(&self, arguments: &[&str]) -> std::process::Output {
-        Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-            .current_dir(&self.0)
+        crate::rsvelte_dev(&self.0)
             .args(["run", "Input.svelte"])
             .args(arguments)
             .output()
@@ -38,8 +26,7 @@ impl Project {
     }
 
     fn run_without_runtime(&self, arguments: &[&str]) -> std::process::Output {
-        Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-            .current_dir(&self.0)
+        crate::rsvelte_dev(&self.0)
             .env("PATH", "")
             .args(["run", "Input.svelte"])
             .args(arguments)
@@ -51,12 +38,6 @@ impl Project {
 /// The run finished: exit code 0, or 1 for error diagnostics or findings, not 2 for a usage error.
 fn completed(output: &std::process::Output) -> bool {
     matches!(output.status.code(), Some(0 | 1))
-}
-
-impl Drop for Project {
-    fn drop(&mut self) {
-        std::fs::remove_dir_all(&self.0).expect("remove project");
-    }
 }
 
 #[test]
@@ -458,8 +439,7 @@ fn vue_and_typescript_lint_read_rule_levels() {
     project.write("input.ts", "const unused = 1;\n");
     let lint = |config: &str, file: &str, task: &str| {
         project.write("config.json", config);
-        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-            .current_dir(&project.0)
+        let output = crate::rsvelte_dev(&project.0)
             .args(["run", file, "--config", "config.json", "--task", task])
             .output()
             .expect("run CLI");
@@ -506,8 +486,7 @@ fn run_fails_on_error_findings_and_fix_rewrites_the_file() {
         r#"{"plugins": {"svelte.lint": {"rules": {"svelte/no-useless-mustaches": "error"}}}}"#,
     );
     let run = |extra: &[&str]| {
-        Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-            .current_dir(&project.0)
+        crate::rsvelte_dev(&project.0)
             .args(["run", "Fix.svelte", "--config", "config.json"])
             .args(["--task", "svelte.lint/default"])
             .args(extra)

@@ -11,6 +11,7 @@ use std::time::Instant;
 
 use rsvelte_kernel::computation::pipeline::{DocumentResult, RunOptions, Sharing, run_each};
 use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::performance::parallel;
 use rsvelte_kernel::source::document::Document;
 
 use crate::compare::{self, Ours, Verdict};
@@ -46,7 +47,6 @@ pub struct Conformance {
 #[derive(Debug)]
 struct Compared {
     task: &'static str,
-    implemented: bool,
     /// A task in `readers.toml`: it compares one file of another task's official output.
     reader: bool,
 }
@@ -73,7 +73,6 @@ impl Conformance {
     pub fn compare(mut self, task: &'static str) -> Self {
         self.compared.push(Compared {
             task,
-            implemented: true,
             reader: false,
         });
         self
@@ -85,22 +84,7 @@ impl Conformance {
     /// judge; one without the file expects none.
     #[must_use]
     pub fn compare_file(mut self, task: &'static str) -> Self {
-        self.compared.push(Compared {
-            task,
-            implemented: true,
-            reader: true,
-        });
-        self
-    }
-
-    /// An official task rsvelte does not have yet: its units are `missing`.
-    #[must_use]
-    pub fn not_implemented(mut self, task: &'static str) -> Self {
-        self.compared.push(Compared {
-            task,
-            implemented: false,
-            reader: false,
-        });
+        self.compared.push(Compared { task, reader: true });
         self
     }
 
@@ -162,7 +146,7 @@ impl Conformance {
         let size = |s: &Source| std::fs::metadata(s.dir.join("inputs.pack")).map_or(0, |m| m.len());
         sources.sort_by_cached_key(|s| std::cmp::Reverse(size(s)));
         let selected = |key: &str| filter.as_deref().is_none_or(|f| key.contains(f));
-        let ran = parallel_map(&sources, |source| {
+        let ran = parallel::map(&sources, |source| {
             self.source(source, &registry, &selected, flag(ACTUAL))
         });
         let mut verdicts: Vec<BTreeMap<String, Verdict>> =
@@ -264,7 +248,6 @@ impl Conformance {
         let tasks: Vec<&str> = self
             .compared
             .iter()
-            .filter(|c| c.implemented)
             .map(|c| c.task)
             .chain(self.also_run.iter().copied())
             .chain(self.out_of_scope)
@@ -385,7 +368,7 @@ impl Conformance {
             }
             let verdict = if result.panic.is_some() {
                 // A unit the task has no official output for is not the task's to judge.
-                (!official.is_empty() && c.implemented).then_some(Verdict::Panicked)
+                (!official.is_empty()).then_some(Verdict::Panicked)
             } else {
                 let ours = ours.map(|(_, out)| Ours {
                     output: out,
@@ -463,34 +446,6 @@ fn summarize(task: &str, now: &BTreeMap<String, Verdict>) {
         now.len(),
         parts.join(", ")
     );
-}
-
-/// `f` over each item on every core; each thread takes the next item when it is free.
-fn parallel_map<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Vec<R> {
-    let threads = std::thread::available_parallelism()
-        .map_or(1, std::num::NonZero::get)
-        .min(items.len());
-    let next = AtomicUsize::new(0);
-    let done = Mutex::new(Vec::with_capacity(items.len()));
-    std::thread::scope(|scope| {
-        for _ in 0..threads {
-            scope.spawn(|| {
-                loop {
-                    let i = next.fetch_add(1, Ordering::Relaxed);
-                    let Some(item) = items.get(i) else { break };
-                    let r = f(item);
-                    done.lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .push((i, r));
-                }
-            });
-        }
-    });
-    let mut done = done
-        .into_inner()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    done.sort_unstable_by_key(|(i, _)| *i);
-    done.into_iter().map(|(_, r)| r).collect()
 }
 
 #[cfg(test)]

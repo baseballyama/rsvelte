@@ -1,15 +1,17 @@
 //! `rsvelte`, the command people install: `lint`, `format` and `typecheck` over the Svelte and
 //! TypeScript files of a project.
 
+mod formatting;
+
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Arc;
 
+use formatting::{Refusal, Resolution, Resolved, Resolver};
 use rsvelte_plugin_interface::{Extension, Selection};
 
 use crate::commands::{files, format, lint, typecheck};
-use crate::formatting::{Refusal, Resolution, Resolved, Resolver};
 use crate::{Installation, configuration, configured_registry, install, usage};
 
 /// The plugins `rsvelte` installs, in installation order.
@@ -225,9 +227,7 @@ fn format_resolved(
     }
     let mut batches = Vec::new();
     for (reg, tasks, formatted) in &installed {
-        let documents = (formatted.iter())
-            .map(|file| files::read(reg, file.clone()))
-            .collect::<Result<_, _>>()?;
+        let documents = files::read_all(reg, formatted.iter().cloned())?;
         batches.push(format::Batch {
             reg,
             tasks,

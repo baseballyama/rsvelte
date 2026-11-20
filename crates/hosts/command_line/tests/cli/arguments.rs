@@ -1,7 +1,8 @@
 //! Input the command refuses instead of reporting an empty or partial run as a success.
 
-use std::path::PathBuf;
 use std::process::{Command, Output};
+
+use crate::Scratch;
 
 fn rsvelte(arguments: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
@@ -14,31 +15,13 @@ fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
 }
 
-/// A directory of its own below the temporary directory, removed when dropped.
-struct Scratch(PathBuf);
-
-impl Scratch {
-    fn new(name: &str) -> Self {
-        let path = std::env::temp_dir().join(format!("rsvelte-cli-{name}-{}", std::process::id()));
-        drop(std::fs::remove_dir_all(&path));
-        std::fs::create_dir_all(&path).expect("test directory");
-        Self(path)
-    }
-
-    fn path(&self) -> &str {
-        self.0.to_str().expect("a UTF-8 temporary directory")
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        std::fs::remove_dir_all(&self.0).expect("remove test directory");
-    }
+fn path(scratch: &Scratch) -> &str {
+    scratch.to_str().expect("a UTF-8 temporary directory")
 }
 
 #[test]
 fn a_directory_that_does_not_exist_is_not_an_empty_corpus() {
-    let scratch = Scratch::new("missing");
+    let scratch = Scratch::new(&[]);
     let missing = scratch.0.join("missing");
     let missing = missing.to_str().expect("UTF-8");
     for arguments in [
@@ -58,8 +41,8 @@ fn a_directory_that_does_not_exist_is_not_an_empty_corpus() {
 
 #[test]
 fn a_mistyped_option_is_not_a_directory() {
-    let scratch = Scratch::new("option");
-    let output = rsvelte(&["corpus", scratch.path(), "--tasks", "svelte.compile/client"]);
+    let scratch = Scratch::new(&[]);
+    let output = rsvelte(&["corpus", path(&scratch), "--tasks", "svelte.compile/client"]);
     assert_eq!(output.status.code(), Some(2));
     assert!(
         stderr(&output).contains("unknown option --tasks"),
@@ -70,8 +53,8 @@ fn a_mistyped_option_is_not_a_directory() {
 
 #[test]
 fn performance_rounds_are_a_whole_number() {
-    let scratch = Scratch::new("rounds");
-    let output = rsvelte(&["performance", scratch.path(), "rounds=two"]);
+    let scratch = Scratch::new(&[]);
+    let output = rsvelte(&["performance", path(&scratch), "rounds=two"]);
     assert_eq!(output.status.code(), Some(2));
     assert!(
         stderr(&output).contains("expected a whole number"),
@@ -82,13 +65,13 @@ fn performance_rounds_are_a_whole_number() {
 
 #[test]
 fn outputs_that_cannot_be_written_fail_the_run() {
-    let scratch = Scratch::new("unwritable");
+    let scratch = Scratch::new(&[]);
     let unit = scratch.0.join("App.svelte");
     std::fs::create_dir_all(&unit).expect("unit directory");
     std::fs::write(unit.join("input.svelte"), "<p>Hello</p>").expect("input");
     // A file where `actual/` has to be a directory.
     std::fs::write(unit.join("actual"), "").expect("blocking file");
-    let output = rsvelte(&["corpus", scratch.path(), "--task", "svelte.compile/client"]);
+    let output = rsvelte(&["corpus", path(&scratch), "--task", "svelte.compile/client"]);
     assert_eq!(output.status.code(), Some(1), "{}", stderr(&output));
     let stderr = stderr(&output);
     assert!(stderr.contains("cannot write: "), "{stderr}");
@@ -97,24 +80,19 @@ fn outputs_that_cannot_be_written_fail_the_run() {
 
 /// `rsvelte <arguments>` in `directory`, which holds `App.svelte/input.svelte`.
 fn rsvelte_in(directory: &Scratch, arguments: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-        .current_dir(&directory.0)
+    crate::rsvelte_dev(&directory.0)
         .args(arguments)
         .output()
         .expect("run CLI")
 }
 
-fn component(name: &str) -> Scratch {
-    let scratch = Scratch::new(name);
-    let unit = scratch.0.join("App.svelte");
-    std::fs::create_dir_all(&unit).expect("unit directory");
-    std::fs::write(unit.join("input.svelte"), "<p>Hello</p>").expect("input");
-    scratch
+fn component() -> Scratch {
+    Scratch::new(&[("App.svelte/input.svelte", "<p>Hello</p>")])
 }
 
 #[test]
 fn every_task_includes_the_checks_so_they_must_be_configured() {
-    let scratch = component("every-task");
+    let scratch = component();
     for arguments in [&["run", "App.svelte/input.svelte"][..], &["corpus", "."]] {
         let output = rsvelte_in(&scratch, arguments);
         assert_eq!(output.status.code(), Some(2), "{arguments:?}");
@@ -139,7 +117,7 @@ fn every_task_includes_the_checks_so_they_must_be_configured() {
 #[test]
 fn a_check_names_the_option_it_lacks() {
     use std::os::unix::fs::PermissionsExt;
-    let scratch = component("check-option");
+    let scratch = component();
     let checker = scratch.0.join("tsc");
     std::fs::write(&checker, "#!/bin/sh\necho 'Version 7.1.0'\n").expect("checker");
     std::fs::set_permissions(&checker, std::fs::Permissions::from_mode(0o755)).expect("mode");
@@ -171,7 +149,7 @@ fn a_check_names_the_option_it_lacks() {
 
 #[test]
 fn options_for_no_installed_plugin_are_refused() {
-    let scratch = component("unknown-plugin");
+    let scratch = component();
     let output = rsvelte_in(
         &scratch,
         &[
@@ -194,7 +172,7 @@ fn options_for_no_installed_plugin_are_refused() {
 
 #[test]
 fn named_tasks_and_document_task_commands_need_no_type_checker() {
-    let scratch = component("named-tasks");
+    let scratch = component();
     for arguments in [
         &[
             "run",
@@ -218,7 +196,7 @@ fn named_tasks_and_document_task_commands_need_no_type_checker() {
 
 #[test]
 fn several_files_run_together_and_each_output_names_its_file() {
-    let scratch = component("several-files");
+    let scratch = component();
     std::fs::write(scratch.0.join("Other.svelte"), "<p>{</p>").expect("input");
     let output = rsvelte_in(
         &scratch,
@@ -244,7 +222,7 @@ fn several_files_run_together_and_each_output_names_its_file() {
 
 #[test]
 fn check_runs_the_project_check_and_so_needs_a_type_checker() {
-    let scratch = component("project-check");
+    let scratch = component();
     let output = rsvelte_in(&scratch, &["check"]);
     let stderr = stderr(&output);
     assert_eq!(output.status.code(), Some(2), "{stderr}");

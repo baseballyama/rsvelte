@@ -290,6 +290,12 @@ export const sharedParts: SharedPart[] = [
 		module: 'kernel/performance/buffer_pool',
 		href: '/learn/kernel/buffer-pool',
 	},
+	{
+		id: 'parallel',
+		label: '並列処理',
+		module: 'kernel/performance/parallel',
+		href: '/learn/kernel#modules',
+	},
 ];
 
 const pipeline = 'crates/language_independent/kernel/src/computation/pipeline.rs';

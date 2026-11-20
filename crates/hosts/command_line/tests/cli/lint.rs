@@ -1,18 +1,10 @@
-use std::path::PathBuf;
-use std::process::Command;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use crate::Scratch;
 
-struct Project(PathBuf);
+struct Project(Scratch);
 
 impl Project {
     fn new() -> Self {
-        static NEXT: AtomicUsize = AtomicUsize::new(0);
-        let path = std::env::temp_dir().join(format!(
-            "rsvelte-cli-lint-{}-{}",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed)
-        ));
-        for (name, text) in [
+        Self(Scratch::new(&[
             ("src/App.svelte", "<script>\n  let unused = 1;\n</script>\n"),
             ("src/Clean.svelte", "<p>Hi</p>\n"),
             (
@@ -20,27 +12,15 @@ impl Project {
                 "<script>let ignored = 1;</script>\n",
             ),
             ("notes.txt", "not a component\n"),
-        ] {
-            let file = path.join(name);
-            std::fs::create_dir_all(file.parent().expect("a parent")).expect("directory");
-            std::fs::write(file, text).expect("file");
-        }
-        Self(path)
+        ]))
     }
 
     fn lint(&self, arguments: &[&str]) -> std::process::Output {
-        Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-            .current_dir(&self.0)
+        crate::rsvelte_dev(&self.0)
             .arg("lint")
             .args(arguments)
             .output()
             .expect("run CLI")
-    }
-}
-
-impl Drop for Project {
-    fn drop(&mut self) {
-        std::fs::remove_dir_all(&self.0).expect("remove project");
     }
 }
 
@@ -116,4 +96,60 @@ fn lint_prints_an_unused_directive_without_a_rule_and_counts_it_fixable() {
         )),
         "{stdout}"
     );
+}
+
+#[test]
+fn lint_counts_lines_and_columns_as_eslint_does() {
+    let project = Project::new();
+    // Each expected row is what `eslint --format stylish` prints for the same file.
+    for (name, text, rows) in [
+        (
+            "Bom.svelte",
+            "\u{feff}<script>let unused = 1;</script>\n",
+            &["1:13  error"][..],
+        ),
+        (
+            "Cr.svelte",
+            "<script>\r  let unused = 1;\r</script>\r",
+            &["2:7  error"][..],
+        ),
+        (
+            "Separator.svelte",
+            "<script>\n  const s = '\u{2028}';\n  let unused = 1;\n</script>\n",
+            &["2:9  error", "4:7  error"][..],
+        ),
+    ] {
+        std::fs::write(project.0.join("src").join(name), text).expect("file");
+        let output = project.lint(&[&format!("src/{name}")]);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for row in rows {
+            assert!(stdout.contains(&format!("\n  {row}  ")), "{name}: {stdout}");
+        }
+    }
+}
+
+#[test]
+fn lint_prints_a_parse_error_as_eslint_does() {
+    let project = Project::new();
+    // Each expected row is what `eslint --format stylish` prints with svelte-eslint-parser.
+    for (name, text, row) in [
+        (
+            "Block.svelte",
+            "<script>\n  let unused = 1;\n</script>\n\n<div>\n  {#if x}\n</div>\n",
+            concat!(
+                "  7:0  error  Parsing error: `</div>` attempted to close an element that was not ",
+                "open\nhttps://svelte.dev/e/element_invalid_closing_tag\n",
+            ),
+        ),
+        (
+            "Bom.svelte",
+            "\u{feff}<p>{</p>\n",
+            "  1:4  error  Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error\n",
+        ),
+    ] {
+        std::fs::write(project.0.join("src").join(name), text).expect("file");
+        let output = project.lint(&[&format!("src/{name}")]);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains(&format!("\n{row}")), "{name}: {stdout}");
+    }
 }

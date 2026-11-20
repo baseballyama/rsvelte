@@ -1,27 +1,13 @@
 //! The `SvelteKit` rules on a project on disk: what they read from the files around a document, as
 //! `eslint-plugin-svelte` does.
 
-use std::path::PathBuf;
-use std::process::Command;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use crate::Scratch;
 
-struct Project(PathBuf);
+struct Project(Scratch);
 
 impl Project {
     fn new(files: &[(&str, &str)]) -> Self {
-        static NEXT: AtomicUsize = AtomicUsize::new(0);
-        let root = std::env::temp_dir().join(format!(
-            "rsvelte-cli-kit-{}-{}",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed)
-        ));
-        for (name, text) in files {
-            let path = root.join(name);
-            std::fs::create_dir_all(path.parent().expect("a file has a directory"))
-                .expect("test directory");
-            std::fs::write(path, text).expect("test file");
-        }
-        Self(root)
+        Self(Scratch::new(files))
     }
 
     /// The rules that report on `file`, linted from `directory` with `rules` on.
@@ -34,8 +20,7 @@ impl Project {
                 .collect::<Vec<_>>()
                 .join(",")
         );
-        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-            .current_dir(self.0.join(directory))
+        let output = crate::rsvelte_dev(self.0.join(directory))
             .args(["run", file, "--task", "svelte.lint/default"])
             .args(["--options", "svelte.lint", &options])
             .output()
@@ -65,8 +50,7 @@ impl Project {
     /// The rules that report on each of `files`, linted together in one run with `rule` on.
     fn rules_of_files(&self, files: &[&str], rule: &str) -> Vec<Vec<String>> {
         let options = format!(r#"{{"rules":{{"svelte/{rule}":"error"}}}}"#);
-        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-            .current_dir(&self.0)
+        let output = crate::rsvelte_dev(&self.0)
             .arg("run")
             .args(files)
             .args(["--task", "svelte.lint/default"])
@@ -94,12 +78,6 @@ impl Project {
                     .collect()
             })
             .collect()
-    }
-}
-
-impl Drop for Project {
-    fn drop(&mut self) {
-        std::fs::remove_dir_all(&self.0).expect("remove project");
     }
 }
 

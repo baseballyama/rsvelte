@@ -1,21 +1,13 @@
-use std::path::PathBuf;
-use std::process::Command;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use crate::Scratch;
 
 const UNFORMATTED: &str = "<script>\nlet   a=1\n</script>\n<p   class=\"x\">{a}</p>\n";
 const FORMATTED: &str = "<script>\n  let a = 1;\n</script>\n\n<p class=\"x\">{a}</p>\n";
 
-struct Project(PathBuf);
+struct Project(Scratch);
 
 impl Project {
     fn new() -> Self {
-        static NEXT: AtomicUsize = AtomicUsize::new(0);
-        let path = std::env::temp_dir().join(format!(
-            "rsvelte-cli-format-{}-{}",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed)
-        ));
-        for (name, text) in [
+        Self(Scratch::new(&[
             ("src/A.svelte", UNFORMATTED),
             ("src/Clean.svelte", FORMATTED),
             ("node_modules/x/X.svelte", UNFORMATTED),
@@ -23,17 +15,11 @@ impl Project {
             ("build/B.svelte", UNFORMATTED),
             (".prettierignore", "src/generated.svelte\n"),
             ("src/generated.svelte", UNFORMATTED),
-        ] {
-            let file = path.join(name);
-            std::fs::create_dir_all(file.parent().expect("a parent")).expect("directory");
-            std::fs::write(file, text).expect("file");
-        }
-        Self(path)
+        ]))
     }
 
     fn format(&self, arguments: &[&str]) -> std::process::Output {
-        Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-            .current_dir(&self.0)
+        crate::rsvelte_dev(&self.0)
             .arg("format")
             .args(arguments)
             .output()
@@ -42,12 +28,6 @@ impl Project {
 
     fn read(&self, name: &str) -> String {
         std::fs::read_to_string(self.0.join(name)).expect("file")
-    }
-}
-
-impl Drop for Project {
-    fn drop(&mut self) {
-        std::fs::remove_dir_all(&self.0).expect("remove project");
     }
 }
 
@@ -88,8 +68,7 @@ fn an_enclosing_repositorys_excludes_do_not_reach_a_nested_repository() {
         std::fs::create_dir_all(file.parent().expect("a parent")).expect("directory");
         std::fs::write(file, text).expect("file");
     }
-    let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-        .current_dir(project.0.join("nested"))
+    let output = crate::rsvelte_dev(project.0.join("nested"))
         .args(["format", "--check"])
         .output()
         .expect("run CLI");
@@ -109,8 +88,7 @@ fn without_git_a_gitignore_still_counts_and_so_do_those_of_its_ancestors() {
         std::fs::create_dir_all(file.parent().expect("a parent")).expect("directory");
         std::fs::write(file, text).expect("file");
     }
-    let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-        .current_dir(project.0.join("nested"))
+    let output = crate::rsvelte_dev(project.0.join("nested"))
         .args(["format", "--check"])
         .output()
         .expect("run CLI");
@@ -133,8 +111,7 @@ fn a_path_out_of_a_repository_is_read_as_outside_it() {
         std::fs::create_dir_all(file.parent().expect("a parent")).expect("directory");
         std::fs::write(file, text).expect("file");
     }
-    let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-        .current_dir(project.0.join("a"))
+    let output = crate::rsvelte_dev(project.0.join("a"))
         .args(["format", "--check", "../b"])
         .output()
         .expect("run CLI");
