@@ -4,7 +4,7 @@ import { taskById } from './tasks.ts';
 import { allUnits, applies, unitKey, writes } from './manifest.ts';
 import type { Entry } from './pack.ts';
 import { parseJs } from './canonical.ts';
-import { isInfrastructureError } from './infrastructure.ts';
+import { machineFailure } from './infrastructure.ts';
 import type { Artifact } from './types.ts';
 
 export interface Job {
@@ -61,9 +61,10 @@ async function run(job: Job): Promise<JobResult> {
 		const artifacts = results.get(unit.path);
 		if (!artifacts) throw new Error(`${job.task}: no result for ${unitKey(unit)}`);
 		if (artifacts.error) {
-			if (isInfrastructureError(artifacts.error.text))
+			const cause = machineFailure(artifacts.error.text);
+			if (cause)
 				throw new Error(
-					`${job.task}/${job.variant} ${unitKey(unit)}: the oracle's machine failed, not the oracle; nothing is written: ${artifacts.error.text}`,
+					`${job.task}/${job.variant} ${unitKey(unit)}: ${cause} on the oracle's machine; nothing is written: ${artifacts.error.text}`,
 				);
 			errors++;
 		}
