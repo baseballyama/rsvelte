@@ -185,7 +185,14 @@ fn takes_props(an: &Analysis, res: &Resolution, exports: bool, tree: &CompilerSy
         || res.uses_props()
         || exports
         || slot_element::has_slot_element(tree)
-        || validation::uses_slots(res)
+        || uses_slots(res)
+}
+
+/// Upstream `analysis.uses_slots`: the component reads `$$slots`, which it declares from
+/// `$.sanitize_slots`.
+fn uses_slots(res: &Resolution) -> bool {
+    res.unbound(|name| name == "$$slots")
+        .any(|(_, references)| !references.is_empty())
 }
 
 /// The code of what this port refuses, which upstream compiles.

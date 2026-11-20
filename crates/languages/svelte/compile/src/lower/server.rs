@@ -36,8 +36,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::builder::{Runtime, export_default, import};
 use super::names::Names;
-use super::validation::uses_slots;
-use super::{Builder, Prepared, takes_props};
+use super::{Builder, Prepared, takes_props, uses_slots};
 use crate::input::{CompileInput, Target};
 use crate::render_plan::RenderPlan;
 

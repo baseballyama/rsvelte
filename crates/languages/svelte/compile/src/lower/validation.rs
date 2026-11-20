@@ -9,10 +9,10 @@ use rustc_hash::FxHashSet;
 mod awaits;
 mod const_cycles;
 mod declarations;
-mod exports;
+mod default_exports;
 pub(super) mod markup;
 mod runes;
-mod snippets;
+mod snippet_errors;
 mod special_elements;
 
 pub(super) use awaits::check as check_awaits;
@@ -23,6 +23,7 @@ use rsvelte_svelte_semantic::resolve::Resolution;
 use runes::script_and_template_errors;
 pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, script_error};
 
+use super::snippets::hoistable;
 use super::{custom_element, stores, unsupported_syntax};
 use crate::input::{CompileInput, Target};
 
@@ -123,13 +124,13 @@ pub(crate) fn validate_unit(
         check_typescript(input)?;
     }
     let names = stores::StoreSubscriptions::new(input, res);
-    let mut errors = snippets::errors(input, res);
+    let mut errors = snippet_errors::errors(input, res);
     if unit == Unit::Component {
-        errors.extend(exports::default_exports(input));
+        errors.extend(default_exports::errors(input));
     }
     check_analysis(input, res, &names, unit, errors, custom_element.is_some())?;
-    let hoistable = super::snippets::hoistable(input, res, &names);
-    snippets::check_exports(input, res, &hoistable)?;
+    let hoistable = hoistable(input, res, &names);
+    snippet_errors::check_exports(input, res, &hoistable)?;
     const_cycles::check(input, res)?;
     // A refusal waits for the scripts' errors, which the rune checks raise only later.
     let refused = (if typescript {
@@ -335,25 +336,6 @@ fn check_legacy_props(input: &CompileInput<'_>, res: &Resolution) -> Result<(), 
         }
     }
     Ok(())
-}
-
-/// The first value reference, in document order, to a name no binding declares that `wanted`
-/// takes.
-fn first_unresolved(res: &Resolution, wanted: impl Fn(&str) -> bool) -> Option<(&str, Span)> {
-    res.unbound(wanted)
-        .flat_map(|(name, references)| {
-            references
-                .into_iter()
-                .map(move |r| (name, res.reference_span(r)))
-        })
-        .min_by_key(|(_, span)| span.start)
-        .map(|(name, span)| (name, document_span(span)))
-}
-
-/// Upstream `analysis.uses_slots`: the component reads `$$slots`, which it declares from
-/// `$.sanitize_slots`.
-pub(super) fn uses_slots(res: &Resolution) -> bool {
-    first_unresolved(res, |name| name == "$$slots").is_some()
 }
 
 /// Upstream `state_invalid_placement`, which the rune walk and the markup walk both raise.

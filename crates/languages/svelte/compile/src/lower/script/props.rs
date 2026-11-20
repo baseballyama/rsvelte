@@ -12,7 +12,7 @@ use super::{ScriptRewrite, should_proxy_read};
 use crate::lower::builder::Runtime;
 use crate::lower::javascript::{is_simple_expression, prop_alias};
 use crate::lower::names::Names;
-use crate::lower::validation::uses_slots;
+use crate::lower::uses_slots;
 
 /// Upstream server `$props` declaration: `$$slots` and `$$events` go beside the rest, and
 /// `x = $bindable(d)` becomes `x = d`.

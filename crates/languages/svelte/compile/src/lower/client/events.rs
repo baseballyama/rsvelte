@@ -201,7 +201,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             return self.event_handler(handler, lists);
         }
         let b = self.b;
-        self.needs_props = true;
+        self.host_or_bubbled_event = true;
         let call = b.member(b.member(b.id("$"), "bubble_event"), "call");
         let call = b.call(call, [b.this(), b.id("$$props"), b.id("$$arg")]);
         b.function_expression(None, b.parameters(["$$arg"]), [b.statement(call)], false)

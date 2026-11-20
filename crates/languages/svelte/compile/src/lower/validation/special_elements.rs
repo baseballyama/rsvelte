@@ -6,7 +6,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 
 use crate::input::CompileInput;
-use crate::lower::attributes::{event_attribute, single_expression};
+use crate::lower::attributes::{event_attribute, is_directive, single_expression};
 use crate::lower::global_binding_table::GlobalBinding;
 use crate::lower::{invalid, unsupported};
 
@@ -123,7 +123,7 @@ pub(super) fn special_element_error(input: &CompileInput<'_>) -> Result<(), Diag
                     if !matches!(
                         attribute.name.text(source),
                         "onerror" | "failed" | "pending"
-                    ) || crate::lower::attributes::is_directive(&attribute.value)
+                    ) || is_directive(&attribute.value)
                     {
                         return invalid(
                             "svelte_boundary_invalid_attribute",

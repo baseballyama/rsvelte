@@ -7,8 +7,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_svelte_syntax::parse::is_void;
 
-use crate::lower::attributes::lowercase;
-use crate::lower::is_customizable_select;
+use crate::lower::attributes::{is_customizable_select, lowercase};
 use crate::lower::server::template::Template;
 use crate::lower::server::{R, ServerCompilationContext};
 

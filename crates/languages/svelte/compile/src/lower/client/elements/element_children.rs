@@ -1,9 +1,9 @@
 use oxc_ast::ast::{Argument, Expression, Statement};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 
+use crate::lower::attributes::{is_customizable_select, lowercase};
 use crate::lower::builder::Runtime;
 use crate::lower::client::{ClientCompilationContext, Frag, Lists, Prev, R};
-use crate::lower::is_customizable_select;
 use crate::render_plan::Item;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -42,7 +42,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     .push(b.statement(b.assign_member(target, value)));
             }
         } else if is_customizable_select(compiler_syntax_tree, self.source_text, el) {
-            let tag = crate::lower::attributes::lowercase(el.name.text(self.source_text));
+            let tag = lowercase(el.name.text(self.source_text));
             let namespace = self.plan.namespace(identifier);
             let content = self.customizable_select(items, node, &tag, namespace, frag)?;
             child.initializer.push(content);

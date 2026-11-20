@@ -5,7 +5,7 @@ use unicode_id_start as unicode_identifier_start;
 #[cfg(test)]
 mod tests;
 
-/// Upstream `is_reserved` (`utils.js`): the words `read_identifier` refuses as a name.
+/// Upstream `is_reserved` (`utils.js`): the words that cannot name a binding.
 #[must_use]
 pub fn is_reserved(word: &str) -> bool {
     matches!(

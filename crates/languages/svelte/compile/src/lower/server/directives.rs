@@ -6,10 +6,9 @@ use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::ServerCompilationContext;
-use crate::lower::attributes::is_directive;
+use crate::lower::attributes::{is_boolean_attribute, is_directive};
 use crate::lower::bindings::{BindStrategy, attribute_value, property_of};
 use crate::lower::builder::Runtime;
-use crate::lower::is_boolean_attribute;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_element_attributes` (server): the attribute a binding renders, by name

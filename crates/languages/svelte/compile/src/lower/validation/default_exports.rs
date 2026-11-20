@@ -1,5 +1,3 @@
-//! Upstream `module_illegal_default_export`.
-
 use oxc_ast::ast::{ExportDefaultDeclarationKind, Statement};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::warnings::{Raised, Section};
@@ -11,9 +9,7 @@ use crate::lower::error;
 
 /// Upstream `module_illegal_default_export`, which its walk of either script raises at an
 /// `export default` or an `export { … as default }`.
-pub(super) fn default_exports(
-    input: &CompileInput<'_>,
-) -> impl Iterator<Item = (Raised, Diagnostic)> {
+pub(super) fn errors(input: &CompileInput<'_>) -> impl Iterator<Item = (Raised, Diagnostic)> {
     let component = input.component;
     [
         (Section::Module, component.module),

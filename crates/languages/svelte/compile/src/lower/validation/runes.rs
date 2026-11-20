@@ -18,6 +18,7 @@ use rsvelte_typescript_tree::{ExpressionIdentifier, document_span, node_span};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::input::{CompileInput, Target};
+use crate::lower::attributes::event_attribute;
 
 mod assignments;
 mod calls;
@@ -215,7 +216,7 @@ fn walk_template<'a>(input: &CompileInput<'a>, mut walk: RuneWalk<'a>) -> Result
                 )
         })
         .flat_map(|(_, el)| tree.attributes(el.attributes))
-        .filter_map(|a| crate::lower::attributes::event_attribute(input.component.source_text, a))
+        .filter_map(|a| event_attribute(input.component.source_text, a))
         .collect();
     let tags: FxHashMap<ExpressionIdentifier, Span> = (tree.nodes.iter())
         .filter_map(|n| match n.kind {

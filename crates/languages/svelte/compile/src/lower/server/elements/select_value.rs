@@ -1,7 +1,6 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, Element};
 
-use crate::lower::attributes::synthetic_value;
-use crate::lower::is_customizable_select;
+use crate::lower::attributes::{is_customizable_select, synthetic_value};
 use crate::lower::server::template::Template;
 use crate::lower::server::{R, ServerCompilationContext};
 

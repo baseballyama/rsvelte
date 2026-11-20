@@ -7,10 +7,10 @@ use rsvelte_svelte_syntax::syntax_tree::escape_markup;
 use super::escaped_text;
 use crate::input::Target;
 use crate::lower::attributes::{
-    can_use_literal, event_attribute, implicit_attributes, is_behaviour, is_directive, scoped_class,
+    can_use_literal, event_attribute, implicit_attributes, is_behaviour, is_boolean_attribute,
+    is_directive, scoped_class,
 };
 use crate::lower::builder::Runtime;
-use crate::lower::is_boolean_attribute;
 use crate::lower::javascript::string_value;
 use crate::lower::server::ServerCompilationContext;
 use crate::lower::server::events::{capture_event, capture_load_events, push_captured_events};

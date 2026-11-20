@@ -4,7 +4,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 
 use super::{ClientCompilationContext, Frag, Lists, R};
-use crate::lower::attributes::{DynamicTag, is_behaviour};
+use crate::lower::attributes::{DynamicTag, dynamic_tag, is_behaviour, single_expression};
 use crate::lower::builder::Runtime;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -22,7 +22,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         let attributes = tree.attributes(element.attributes);
         let tag = &tree.attributes[element.this.expect("dynamic tag is validated")];
-        let tag = match crate::lower::attributes::dynamic_tag(&tag.value) {
+        let tag = match dynamic_tag(&tag.value) {
             DynamicTag::Text(tag) => b.string(&tag),
             DynamicTag::Expression(e) => self.expression(e),
         };
@@ -110,10 +110,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 && !matches!(a.value, AttributeValue::Static(_))
         });
         namespace.map(|a| {
-            let value = self.expression(
-                crate::lower::attributes::single_expression(&a.value)
-                    .expect("a namespace expression"),
-            );
+            let value =
+                self.expression(single_expression(&a.value).expect("a namespace expression"));
             self.b.arrow(self.b.parameters([]), value)
         })
     }

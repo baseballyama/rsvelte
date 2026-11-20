@@ -3,7 +3,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, CompilerNodeIdentifier, ElementKind, NodeKind,
 };
 
-use crate::lower::attributes::{is_directive, is_load_error_element};
+use crate::lower::attributes::{is_directive, is_load_error_element, lowercase};
 use crate::lower::builder::Runtime;
 use crate::lower::client::{ClientCompilationContext, Frag, Lists, Memo, R};
 
@@ -29,7 +29,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let is_markup = self.is_markup(identifier);
         let name = el.name.text(self.source_text);
         let tag = if is_markup {
-            crate::lower::attributes::lowercase(name)
+            lowercase(name)
         } else {
             name.into()
         };

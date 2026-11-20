@@ -2,7 +2,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, Node
 
 use super::template::Template;
 use super::{R, ServerCompilationContext};
-use crate::lower::attributes::DynamicTag;
+use crate::lower::attributes::{DynamicTag, dynamic_tag};
 use crate::lower::builder::Runtime;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -18,7 +18,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         };
         let attributes = tree.attributes(element.attributes);
         let tag = &tree.attributes[element.this.expect("dynamic tag is validated")];
-        let tag = match crate::lower::attributes::dynamic_tag(&tag.value) {
+        let tag = match dynamic_tag(&tag.value) {
             DynamicTag::Text(tag) => b.string(&tag),
             DynamicTag::Expression(e) => self.expression(e),
         };

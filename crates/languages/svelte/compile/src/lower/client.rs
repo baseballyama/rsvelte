@@ -42,8 +42,7 @@ use super::attributes::lowercase;
 use super::builder::{Runtime, export_default, import};
 use super::names::Names;
 use super::script::Read;
-use super::validation::uses_slots;
-use super::{Builder, Prepared, takes_props};
+use super::{Builder, Prepared, takes_props, uses_slots};
 use crate::input::Target;
 use crate::render_plan::RenderPlan;
 
@@ -156,7 +155,9 @@ struct ClientCompilationContext<'c, 'o> {
     identity: &'c crate::OutputIdentity,
     component_name: String,
     custom_element: Option<&'c super::custom_element::CustomElement>,
-    needs_props: bool,
+    /// The client's own reasons for the `$$props` parameter, which [`takes_props`] leaves out:
+    /// a `$host` read or a bubbled `on:` event.
+    host_or_bubbled_event: bool,
     /// The snippets the block being lowered declares (upstream `state.snippets`).
     snippets: Vec<Statement<'o>>,
     /// Top-level snippets that read only module-level names, declared after the imports.
@@ -218,7 +219,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         identity,
         component_name,
         custom_element,
-        needs_props: res.unresolved_names().any(|name| name == "$host"),
+        host_or_bubbled_event: res.unresolved_names().any(|name| name == "$host"),
         snippets: Vec::new(),
         module_snippets: Vec::new(),
         instance_snippets: Vec::new(),
@@ -334,7 +335,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         let mut parameters = vec!["$$anchor"];
         if takes_props(self.an, self.res, has_exports, self.compiler_syntax_tree)
-            || self.needs_props
+            || self.host_or_bubbled_event
         {
             parameters.push("$$props");
         }
