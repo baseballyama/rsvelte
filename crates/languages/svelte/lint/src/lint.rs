@@ -74,6 +74,7 @@ pub(crate) fn check(
 
 mod configuration_comments;
 pub(crate) mod directive_comments;
+pub(crate) mod global_comments;
 pub(crate) use configuration_comments::FileRules;
 use directive_comments::{javascript, processor};
 

@@ -123,7 +123,8 @@ impl<'a> File<'a> {
     pub fn globals(&self) -> &Declared {
         self.globals
             .get_or_init(|| {
-                let settings = crate::global_comments::settings(self.comments(), self.source());
+                let settings =
+                    crate::lint::global_comments::settings(self.comments(), self.source());
                 (!settings.is_empty()).then(|| self.configured_globals.overridden(settings))
             })
             .as_ref()

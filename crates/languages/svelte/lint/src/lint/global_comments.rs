@@ -5,7 +5,7 @@ use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_semantic::globals::Setting;
 
-use crate::lint::directive_comments::justification_start;
+use super::directive_comments::justification_start;
 use crate::words::words;
 
 /// The globals the block comments among `comments` set, in order, so that a later one wins.
