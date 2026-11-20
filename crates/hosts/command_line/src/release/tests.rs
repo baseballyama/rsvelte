@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rsvelte_kernel::computation::registry::Registry;
 
 use super::*;
@@ -11,7 +13,7 @@ fn the_installed_plugins_run_every_command_and_no_other_language() {
     let mut reg = Registry::new();
     rsvelte_plugin_interface::install(&mut reg, EXTENSIONS, &mut settings).unwrap();
     assert_eq!(reg.validate_plugins(), Ok(()));
-    for tasks in [LINT, FORMAT, TYPECHECK] {
+    for tasks in [LINT, TYPECHECK] {
         assert_eq!(reg.check_task_identifiers(tasks), Ok(()), "{tasks:?}");
     }
     let plugins: Vec<_> = reg.plugins().map(|plugin| plugin.identifier).collect();

@@ -30,31 +30,24 @@ scripts, the command is `rsvelte`:
 }
 ```
 
-Without a path, `lint` and `format` read every file below the current directory. They skip
-`node_modules` and what `.gitignore` skips; `format` also skips what `.prettierignore` skips.
-`format` writes the files it changes. With `--check`, it lists them and writes nothing.
+Without a path, `lint` reads every file below the current directory. It skips `node_modules`
+and what `.gitignore` skips.
 
-`format` formats each file with the options its formatter would use. It reads the nearest
-formatter configuration from the file's directory upward. In each directory it looks for
-`.oxfmtrc.json` or `.oxfmtrc.jsonc` first, then `.prettierrc` or `.prettierrc.json`, then the
-`prettier` field of `package.json`. Where that configuration says nothing, `.editorconfig` sets
-the indentation, the line width, the quotes and the line endings. Prettier reads every `.editorconfig` up to the project root, and oxfmt reads
-the nearest one from the current directory. When `rsvelte.config` gives `svelte.format` or
-`typescript.format` options, that plugin uses only those.
+`format` is [oxfmt](https://oxc.rs/docs/guide/usage/formatter) with a built-in Svelte
+formatter. It takes oxfmt's options (`rsvelte format --help`) and reads oxfmt's configuration:
+`.oxfmtrc.json`, `.editorconfig` and `.prettierignore`. It formats each file that oxfmt formats
+in Rust, such as TypeScript, JSON, CSS and Markdown files. It formats a `.svelte` file with the
+options that oxfmt would give prettier-plugin-svelte. `format` never runs Prettier, so it skips
+the files that oxfmt hands to Prettier. `"svelte": false` in the configuration turns Svelte
+formatting off.
 
-`format` ignores an option the formatter does not know and prints a warning, as Prettier does.
-It reads nothing else for a file that the `ignorePatterns` of its nearest oxfmt configuration
-leave, and it skips a `package.json` that does not parse, as Prettier does.
-When `format` cannot print as the options say, it writes nothing and says why:
+The Svelte formatter prints only the default value of these options:
 
-- It reads only JSON, so a YAML, TOML or JavaScript configuration stops it.
-- It does not apply `overrides`, `sortImports`, Tailwind CSS sorting or Prettier plugins other
-  than `prettier-plugin-svelte`.
-- It does not print without a line limit, as Prettier prints with `max_line_length = off`.
-  Under an oxfmt configuration, it drops that setting, as oxfmt does.
-- The Svelte formatter prints only the defaults of `semi`, `singleQuote`, `trailingComma`,
-  `arrowParens`, `bracketSpacing`, `quoteProps` and `objectWrap`. With another value, `format`
-  formats the other files, leaves those Svelte files as they are, and exits with 2.
+- `semi`, `singleQuote` and `trailingComma`
+- `arrowParens`, `bracketSpacing` and `quoteProps`
+- `objectWrap`
+
+With another value, `format` reports an error for each Svelte file and formats the other files.
 
 `typecheck` checks the project of `tsconfig.json` in the current directory and reports the
 type errors that svelte-check reports. It runs a TypeScript 7 type checker from the project's
@@ -63,7 +56,10 @@ type errors that svelte-check reports. It runs a TypeScript 7 type checker from 
 - [tsrs](https://www.npmjs.com/package/tsrs) (recommended): `npm install --save-dev tsrs`
 - TypeScript 7.1 or newer (`typescript`, or `@typescript/native-preview`)
 
-Each command exits with 1 when it finds an error, and with 2 when it cannot run.
+`lint` and `typecheck` exit with 1 when they find an error, and with 2 when they cannot run.
+`format` exits with the codes of oxfmt. It exits with 1 when `--check` finds a file to format
+or when the configuration is invalid. It exits with 2 when a file does not format or when no
+path matches a file.
 
 ## Svelte 5 runes mode only
 
