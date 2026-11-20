@@ -1,15 +1,16 @@
 # Lint versus main
 
-Compares the lint crate of the old port (`rsvelte_lint`) with this branch's
-(`rsvelte_svelte_lint`) on every Svelte component of the corpus. The old port is `202af6f2aa`,
-the last revision before this rewrite replaced `main`; the arms keep the name `main`. `.github/workflows/lint-versus-main.yml` runs it on x86_64
-Linux, arm64 Linux and macOS, and writes the report to the run's summary.
+Compares the lint crate of the old port (`rsvelte_lint`, see [AGENTS.md](../../../../AGENTS.md))
+with this branch's (`rsvelte_svelte_lint`) on every Svelte component of the corpus. The arms keep
+the name `main`. `.github/workflows/lint-versus-main.yml` runs it on x86_64 Linux, arm64 Linux
+and macOS, and writes the report to the run's summary.
 
 The two arms share everything but the library they call:
 
 - `arms.ts` writes one package for each arm outside every workspace. Each has the same release
   profile, the same versions of `libc` and `mimalloc`, and the harness in `harness.rs`. Each
-  takes the `Cargo.lock` of its tree, and the `main` arm takes the `[patch.crates-io]` of `main`.
+  takes the `Cargo.lock` of its tree, and the `main` arm takes the `[patch.crates-io]` of the old
+  port.
 - `harness.rs` reads every file before it starts timing, and counts each thread's allocations.
   `LINT_ALLOCATOR=mimalloc` picks `mimalloc`; otherwise the arm uses the system's `malloc`.
 - Both arms run the rules both crates have, each with its default options. `universe.json` lists

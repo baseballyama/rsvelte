@@ -42,7 +42,7 @@ Non-goals:
   change, run with `UPDATE_EXPECT=1`.
   See [corpus/README.md](corpus/README.md) and
   [crates/language_independent/corpus/README.md](crates/language_independent/corpus/README.md).
-- Speed: compare the official tools, `main` and this rewrite. See
+- Speed: compare the official tools, the old port and this rewrite. See
   [tools/performance/README.md](tools/performance/README.md).
 
 ```sh

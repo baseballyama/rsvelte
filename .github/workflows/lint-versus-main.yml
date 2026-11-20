@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       main:
-        description: The old port's revision to compare with (the last one before the rewrite replaced main)
+        description: The old port's revision to compare with
         default: 202af6f2aad5042961fdc94b1ec92708243145e8
 
 permissions:

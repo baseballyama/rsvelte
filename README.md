@@ -2,9 +2,8 @@
 
 A native toolchain for Svelte 5 (and Vue), written in Rust: compile, lint, format
 and type check. It reads each file once and keeps immutable trees and a database of facts derived
-from them. A task computes only what it needs, one file per thread. The old port (revision
-`202af6f2aa`, the last before this rewrite replaced `main`) is only a diff oracle and a
-performance baseline.
+from them. A task computes only what it needs, one file per thread. The old port it replaced is
+only a diff oracle and a performance baseline.
 
 ![ESLint, then `rsvelte lint` with the same rules, on a large open-source Svelte project](.github/assets/lint.gif)
 
