@@ -4,13 +4,13 @@ use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::{PartError, Token};
 use oxc_span::SourceType;
 
-use super::{Builder, Part};
+use super::{Part, TreeBuilder};
 use crate::acorn_grammar::{Unsupported, rejection, whitespace};
 use crate::syntax_error::{
     Locator, SyntaxError, acorn, reported, syntax_error, typescript_eslint_at,
 };
 
-impl<'a> Builder<'a> {
+impl<'a> TreeBuilder<'a> {
     /// The first error of a part oxc read the host reports, if any; `text`, `tokens` and `part`
     /// are the part's, for what acorn reports.
     pub(super) fn check(

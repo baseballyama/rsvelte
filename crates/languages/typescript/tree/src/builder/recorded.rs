@@ -2,7 +2,7 @@ use oxc_ast::ast::Comment;
 use oxc_parser::{Kind, Token};
 use rsvelte_kernel::source::positions::Span;
 
-/// A token or a comment of the part a [`super::Builder`] read last.
+/// A token or a comment of the part a [`super::TreeBuilder`] read last.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Recorded {
     /// The token's kind; `None` for a comment.
@@ -10,7 +10,7 @@ pub struct Recorded {
     pub span: Span,
 }
 
-/// The tokens and comments of the part a [`super::Builder`] read last, where oxc left them in
+/// The tokens and comments of the part a [`super::TreeBuilder`] read last, where oxc left them in
 /// the arena, `shift` bytes before the document's.
 #[derive(Clone, Copy, Debug)]
 pub struct Part<'a> {

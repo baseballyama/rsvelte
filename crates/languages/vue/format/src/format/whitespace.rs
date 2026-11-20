@@ -1,4 +1,4 @@
-use super::{Attributes, Cow, Kind2, ROOT, Span, Tree, only_ws};
+use super::{Attributes, Cow, NodeIdentifier, NodeKind, Span, Tree, only_ws};
 
 /// prettier's `CSS_DISPLAY_TAGS` (from `html-ua-styles`, with its special cases), for the tags
 /// whose display is not `inline`.
@@ -92,26 +92,26 @@ impl Tree<'_> {
     /// `extractWhitespaces`: trims the text of every container that is not whitespace-sensitive
     /// (every one but `<script>` and `<style>`), recording where whitespace was.
     pub(super) fn extract_whitespace(&mut self) {
-        for i in 0..self.n.len() {
-            if self.is_script_like(i) || matches!(self.n[i].kind, Kind2::Root) {
+        for i in self.identifiers() {
+            if self.is_script_like(i) || matches!(self.n[i].kind, NodeKind::Root) {
                 continue;
             }
             let children = std::mem::take(&mut self.n[i].children);
             if children.len() == 1
-                && let Kind2::Text(t) = &self.n[children[0]].kind
+                && let NodeKind::Text(t) = &self.n[children[0]].kind
                 && only_ws(t)
             {
                 self.n[i].has.dangling = true;
                 continue;
             }
-            let mut out: Vec<usize> = Vec::with_capacity(children.len());
+            let mut out: Vec<NodeIdentifier> = Vec::with_capacity(children.len());
             let mut pending_leading = false;
             for (j, &k) in children.iter().enumerate() {
                 if pending_leading {
                     self.n[k].has.leading = true;
                     pending_leading = false;
                 }
-                let Kind2::Text(text) = &self.n[k].kind else {
+                let NodeKind::Text(text) = &self.n[k].kind else {
                     out.push(k);
                     continue;
                 };
@@ -134,7 +134,7 @@ impl Tree<'_> {
                     span.start_offset + u32::try_from(lead).expect("fits"),
                     span.end_offset - u32::try_from(trail).expect("fits"),
                 );
-                self.n[k].kind = Kind2::Text(value);
+                self.n[k].kind = NodeKind::Text(value);
                 if lead > 0 {
                     if let Some(&p) = out.last() {
                         self.n[p].has.trailing = true;
@@ -153,10 +153,10 @@ impl Tree<'_> {
 
     /// `addStylesheetDisplay` and `addIsSelfClosing`.
     pub(super) fn display_and_closing(&mut self) {
-        for i in 1..self.n.len() {
+        for i in self.identifiers().skip(1) {
             let display = match self.n[i].kind {
-                Kind2::Element { .. } if self.n[i].parent == ROOT => "block",
-                Kind2::Element { name, .. } => STYLESHEET_DISPLAY
+                NodeKind::Element { .. } if self.is_top_level(i) => "block",
+                NodeKind::Element { name, .. } => STYLESHEET_DISPLAY
                     .iter()
                     .find(|(t, _)| *t == name)
                     .map_or("inline", |(_, d)| d),
@@ -173,19 +173,25 @@ impl Tree<'_> {
         display == "block" || display == "list-item" || display.starts_with("table")
     }
 
-    pub(super) fn is_leading_sensitive(&self, i: usize) -> bool {
+    pub(super) fn is_leading_sensitive(&self, i: NodeIdentifier) -> bool {
         let n = &self.n[i];
-        let texty = |j: usize| matches!(self.n[j].kind, Kind2::Text(_) | Kind2::Interpolation(_));
+        let texty = |j: NodeIdentifier| {
+            matches!(
+                self.n[j].kind,
+                NodeKind::Text(_) | NodeKind::Interpolation(_)
+            )
+        };
         if texty(i) && n.prev.is_some_and(texty) {
             return true;
         }
-        let parent = &self.n[n.parent];
+        let parent_identifier = self.parent(i);
+        let parent = &self.n[parent_identifier];
         if parent.display == "none" {
             return false;
         }
         if n.prev.is_none()
-            && (n.parent == ROOT
-                || self.is_script_like(n.parent)
+            && (self.is_top_level(i)
+                || self.is_script_like(parent_identifier)
                 || Self::is_block_like(parent.display)
                 || parent.display == "inline-block")
         {
@@ -199,19 +205,25 @@ impl Tree<'_> {
         true
     }
 
-    pub(super) fn is_trailing_sensitive(&self, i: usize) -> bool {
+    pub(super) fn is_trailing_sensitive(&self, i: NodeIdentifier) -> bool {
         let n = &self.n[i];
-        let texty = |j: usize| matches!(self.n[j].kind, Kind2::Text(_) | Kind2::Interpolation(_));
+        let texty = |j: NodeIdentifier| {
+            matches!(
+                self.n[j].kind,
+                NodeKind::Text(_) | NodeKind::Interpolation(_)
+            )
+        };
         if texty(i) && n.next.is_some_and(texty) {
             return true;
         }
-        let parent = &self.n[n.parent];
+        let parent_identifier = self.parent(i);
+        let parent = &self.n[parent_identifier];
         if parent.display == "none" {
             return false;
         }
         if n.next.is_none()
-            && (n.parent == ROOT
-                || self.is_script_like(n.parent)
+            && (self.is_top_level(i)
+                || self.is_script_like(parent_identifier)
                 || Self::is_block_like(parent.display)
                 || parent.display == "inline-block")
         {
@@ -227,7 +239,7 @@ impl Tree<'_> {
 
     /// `addIsSpaceSensitive`.
     pub(super) fn space_sensitivity(&mut self) {
-        for i in 0..self.n.len() {
+        for i in self.identifiers() {
             let children = self.n[i].children.clone();
             if children.is_empty() {
                 let d = self.n[i].display;
@@ -254,7 +266,7 @@ impl Tree<'_> {
 
     /// `mergeSimpleElementIntoText`: `a<b>x</b>c` becomes one text.
     pub(super) fn merge_simple_elements(&mut self) {
-        for i in 0..self.n.len() {
+        for i in self.identifiers() {
             let mut j = 0;
             while j < self.n[i].children.len() {
                 let children = &self.n[i].children;
@@ -267,18 +279,18 @@ impl Tree<'_> {
                 let (prev, next) = (children[j - 1], children[j + 1]);
                 let name = self.name(k).expect("an element");
                 let inner = match &self.n[self.n[k].children[0]].kind {
-                    Kind2::Text(t) => t.to_string(),
+                    NodeKind::Text(t) => t.to_string(),
                     _ => unreachable!("a simple element holds text"),
                 };
                 let next_text = match &self.n[next].kind {
-                    Kind2::Text(t) => t.to_string(),
+                    NodeKind::Text(t) => t.to_string(),
                     _ => unreachable!("followed by text"),
                 };
-                let Kind2::Text(prev_text) = &self.n[prev].kind else {
+                let NodeKind::Text(prev_text) = &self.n[prev].kind else {
                     unreachable!("preceded by text")
                 };
                 let merged = format!("{prev_text}<{name}>{inner}</{name}>{next_text}");
-                self.n[prev].kind = Kind2::Text(Cow::Owned(merged));
+                self.n[prev].kind = NodeKind::Text(Cow::Owned(merged));
                 self.n[prev].span =
                     Span::new(self.n[prev].span.start_offset, self.n[next].span.end_offset);
                 self.n[prev].sensitive.trailing = self.n[next].sensitive.trailing;
@@ -288,9 +300,14 @@ impl Tree<'_> {
         }
     }
 
-    pub(super) fn is_simple_element(&self, k: usize, j: usize, children: &[usize]) -> bool {
+    pub(super) fn is_simple_element(
+        &self,
+        k: NodeIdentifier,
+        j: usize,
+        children: &[NodeIdentifier],
+    ) -> bool {
         let n = &self.n[k];
-        let Kind2::Element {
+        let NodeKind::Element {
             attributes: Attributes::Template(attributes),
             ..
         } = n.kind
@@ -300,7 +317,7 @@ impl Tree<'_> {
         let [child] = n.children[..] else {
             return false;
         };
-        let Kind2::Text(t) = &self.n[child].kind else {
+        let NodeKind::Text(t) = &self.n[child].kind else {
             return false;
         };
         attributes.is_empty()

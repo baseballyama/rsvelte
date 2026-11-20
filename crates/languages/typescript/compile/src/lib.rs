@@ -1,7 +1,7 @@
 //! TypeScript compilation: erase the types of an oxc tree and print it as JavaScript.
 
 mod task;
-pub use task::*;
+pub use task::register;
 
 pub mod build;
 pub mod features;

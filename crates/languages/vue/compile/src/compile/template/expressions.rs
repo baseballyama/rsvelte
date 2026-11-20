@@ -1,19 +1,19 @@
+//! `transformExpression` and `processExpression`.
+
 use oxc_ast::ast::IdentifierReference;
 use rsvelte_vue_semantic::expressions::is_global;
 
 use super::{
     BindingType, CAN_CACHE, CAN_SKIP_PATCH, CAN_STRINGIFY, DirectiveName, Exp, Expression,
-    ExpressionIdentifier, Helper, NOT_CONSTANT, Nid, Node, Parent, Property, R, RefInfo,
-    ReferenceId, Transform, Unsupported, can_prefix, collect_identifiers, ref_info,
+    ExpressionIdentifier, Helper, NOT_CONSTANT, Node, Parent, Property, R, RefInfo, ReferenceId,
+    Transform, TransformNodeIdentifier, Unsupported, can_prefix, collect_identifiers, ref_info,
 };
 use crate::compile::document_span;
 
 impl Transform<'_> {
-    // ---- expressions ---------------------------------------------------------------------
-
     /// `transformExpression` on an element: every directive's expression but `v-on`'s, which
     /// `transformOn` processes with `$event` in scope.
-    pub(super) fn expression_props(&mut self, n: Nid) -> R<()> {
+    pub(super) fn expression_props(&mut self, n: TransformNodeIdentifier) -> R<()> {
         let Node::Element { props, .. } = &self.tree[n] else {
             return Ok(());
         };

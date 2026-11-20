@@ -29,7 +29,7 @@ use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
-use rsvelte_typescript_tree::{Builder, SyntaxError, Tree};
+use rsvelte_typescript_tree::{SyntaxError, Tree, TreeBuilder};
 use rustc_hash::FxHashSet;
 
 use crate::syntax_tree::{
@@ -341,7 +341,7 @@ struct Parser<'a, 'b> {
     /// The component's text, in the arena.
     source_text: &'a str,
     position: usize,
-    builder: &'b mut Builder<'a>,
+    builder: &'b mut TreeBuilder<'a>,
     component: Template,
     /// Whether expressions parse as TypeScript, before a script element says.
     typescript: bool,

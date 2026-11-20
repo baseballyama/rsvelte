@@ -76,7 +76,7 @@ const PASSIVE_EVENTS: &[&str] = &["touchstart", "touchmove"];
 pub(crate) fn build<'t>(
     i: Input<'_>,
     stylesheet_hash: Option<&str>,
-    tree: &mut rsvelte_typescript_tree::Builder<'t>,
+    tree: &mut rsvelte_typescript_tree::TreeBuilder<'t>,
     b: &Builder<'t>,
 ) -> R<(Built, Vec<Statement<'t>>)> {
     let compiler_syntax_tree = i.compiler_syntax_tree;
@@ -162,7 +162,7 @@ struct Steps<'t> {
 struct Template<'i, 'r, 't> {
     i: Input<'i>,
     stylesheet_hash: Option<&'i str>,
-    tree: &'r mut rsvelte_typescript_tree::Builder<'t>,
+    tree: &'r mut rsvelte_typescript_tree::TreeBuilder<'t>,
     b: &'r Builder<'t>,
     vb: CompilerSyntaxTreeBuilder,
     helpers: FxHashSet<Helper>,

@@ -120,7 +120,7 @@ pub(crate) fn translate<'a>(
     compiler_syntax_tree: Option<&CompilerSyntaxTree>,
     roots: &[CompilerNodeIdentifier],
     attributes: Option<&str>,
-    tree: &mut rsvelte_typescript_tree::Builder<'a>,
+    tree: &mut rsvelte_typescript_tree::TreeBuilder<'a>,
     b: &Builder<'a>,
     names: &mut Names<'_>,
 ) -> R<Template<'a>> {
@@ -164,7 +164,7 @@ struct T<'t, 'v, 'n, 'a> {
     info: &'t Info<'v>,
     vue_tree: &'t CompilerSyntaxTree,
     source_text: &'v str,
-    tree: &'t mut rsvelte_typescript_tree::Builder<'a>,
+    tree: &'t mut rsvelte_typescript_tree::TreeBuilder<'a>,
     b: &'t Builder<'a>,
     names: &'t mut Names<'n>,
     builder: CompilerSyntaxTreeBuilder<'v>,

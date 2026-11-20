@@ -1,7 +1,10 @@
 //! TypeScript lint.
 
 pub(crate) mod lint;
-pub use lint::*;
+pub use lint::{
+    Dialect, NoInnerDeclarationsOptions, PreferConstOptions, ProgramStatements,
+    no_inner_declarations, no_unused_variables, prefer_const,
+};
 
 mod task;
 use rsvelte_lint_runner::configuration::RuleLevels;

@@ -55,10 +55,10 @@ impl Task for Lint {
             .as_ref()
             .expect("a parsed component is resolved");
         let rule_context = crate::lint::RuleContext {
-            c,
+            component: c,
             source_text: context.source_text(),
             path: &context.document.path,
-            res,
+            resolution: res,
         };
         rsvelte_lint_runner::output::run(out, context, &self.rules, &rule_context);
     }

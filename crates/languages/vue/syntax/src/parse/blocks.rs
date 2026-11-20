@@ -3,8 +3,6 @@ use rsvelte_markup_syntax::script_language::is_typescript;
 use super::{Diagnostic, P, R, Script, Span, Style, TagAttributes, Template, TokenType};
 
 impl P<'_, '_> {
-    // ---- the top level ---------------------------------------------------------------------
-
     pub(super) fn blocks(&mut self) -> R<()> {
         loop {
             let rest = self.rest();
