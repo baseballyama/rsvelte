@@ -30,7 +30,7 @@ mod title;
 
 use oxc_allocator::ArenaBox;
 use oxc_ast::ast::{Expression, FormalParameters, Statement};
-use oxc_semantic::{ReferenceId, ScopeId, SymbolId};
+use oxc_semantic::{ScopeId, SymbolId};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_markup_syntax::decode_attribute;
 use rsvelte_svelte_semantic::analyze::Analysis;
@@ -163,7 +163,6 @@ struct ClientCompilationContext<'c, 'o> {
     identity: &'c crate::OutputIdentity,
     component_name: String,
     custom_element: Option<&'c super::custom_element::CustomElement>,
-    rest_reads: &'c FxHashSet<ReferenceId>,
     needs_props: bool,
     /// The snippets the block being lowered declares (upstream `state.snippets`).
     snippets: Vec<Statement<'o>>,
@@ -226,7 +225,6 @@ pub(super) fn lower_prepared<'c, 'o>(
         identity,
         component_name,
         custom_element,
-        rest_reads: &facts.validated.rest_reads,
         needs_props: res.unresolved_names().any(|name| name == "$host")
             || has_slot_element(input.component.compiler_syntax_tree)
             || uses_slots(res),
