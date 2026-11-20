@@ -149,7 +149,7 @@ pub(super) fn class_fields(
         if field.is_private() {
             continue;
         }
-        let mut key = identifier_safe(&field.name);
+        let mut key = crate::identity::sanitize_identifier(&field.name).into_owned();
         while private_ids.iter().any(|id| *id == key) {
             key.insert(0, '_');
         }
@@ -285,19 +285,4 @@ fn expression_name<'k>(e: &'k Expression<'_>) -> Option<Cow<'k, str>> {
         Expression::NullLiteral(_) => Some("null".into()),
         _ => None,
     }
-}
-
-/// Upstream `regex_invalid_identifier_chars`: each UTF-16 unit that cannot stand there is `_`.
-fn identifier_safe(name: &str) -> String {
-    let mut out = String::with_capacity(name.len());
-    for (i, c) in name.chars().enumerate() {
-        let valid =
-            c == '_' || c == '$' || c.is_ascii_alphabetic() || (i > 0 && c.is_ascii_digit());
-        if valid {
-            out.push(c);
-        } else {
-            out.extend(std::iter::repeat_n('_', c.len_utf16()));
-        }
-    }
-    out
 }

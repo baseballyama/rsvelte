@@ -13,3 +13,20 @@ fn component_names_keep_filename_rules() {
         assert_eq!(super::component_name(filename), expected);
     }
 }
+
+#[test]
+fn sanitize_identifier_replaces_what_upstream_s_invalid_identifier_regex_does() {
+    // Node: `name.replace(/(^[^a-zA-Z_$]|[^a-zA-Z0-9_$])/g, "_")`.
+    for (name, expected) in [
+        ("count", "count"),
+        ("1st", "_st"),
+        ("a-b", "a_b"),
+        ("é1", "_1"),
+        ("😀x", "__x"),
+        ("9😀", "___"),
+        ("$_a1", "$_a1"),
+        ("", ""),
+    ] {
+        assert_eq!(super::sanitize_identifier(name), expected, "{name}");
+    }
+}
