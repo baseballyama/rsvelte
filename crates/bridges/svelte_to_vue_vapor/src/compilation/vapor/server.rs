@@ -22,7 +22,7 @@ impl<'o> Emitter<'_, 'o> {
             && self.t.template.custom_element.is_none()
             && self.t.stylesheet.is_some()
         {
-            self.helpers.insert("useSSRContext");
+            self.vue_imports.insert("useSSRContext");
             let [hash, stylesheet] = self.stylesheet_values();
             let style = b.call(
                 b.id("$$render_css"),
@@ -30,7 +30,7 @@ impl<'o> Emitter<'_, 'o> {
             );
             content = self.join(vec![style, content]);
         }
-        if self.helpers.contains("useSSRContext") {
+        if self.vue_imports.contains("useSSRContext") {
             let renderer = self.call("useSSRContext", []);
             body.insert(b.const_("$$ssr_context", renderer));
         }
@@ -263,7 +263,7 @@ impl<'o> Emitter<'_, 'o> {
             "$$Boundary" => self.server_boundary(identifier),
             markers::COMPONENT => self.server_component(identifier),
             "$$Title" => {
-                self.helpers.insert("useSSRContext");
+                self.vue_imports.insert("useSSRContext");
                 let asynchronous = children.iter().any(|&child| {
                     matches!(tree.node(child).kind, NodeKind::Interpolation { expression }
                         if is_expression_async(self.source(expression)))
@@ -275,7 +275,7 @@ impl<'o> Emitter<'_, 'o> {
             "$$Render" | "$$RawMarkup" => self.server_value(identifier),
             "svelte:window" | "svelte:document" | "svelte:body" => b.string(""),
             "svelte:head" => {
-                self.helpers.insert("useSSRContext");
+                self.vue_imports.insert("useSSRContext");
                 let content = self.server_list(children);
                 b.call(b.id("$$render_head"), [b.id("$$ssr_context"), content])
             }

@@ -158,7 +158,7 @@ impl<'o> Emitter<'_, 'o> {
         }
         // Svelte refuses `$` declarations, so a `$$` name is a compiler constant, never a ref.
         if kind == Some(BindingType::SetupMaybeRef) && !id.name.starts_with("$$") {
-            self.helpers.insert("unref");
+            self.vue_imports.insert("unref");
             return Some(b.call(b.id("$$v_unref"), [b.id_at(&id.name, id.span)]));
         }
         None

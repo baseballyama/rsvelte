@@ -50,7 +50,7 @@ fn compile_in(t: &Translation, res: &Resolution, allocator: &Allocator) -> Strin
     e.slot_context(&mut body);
     let tree = &t.template.compiler_syntax_tree;
     if t.server {
-        e.helpers.insert("normalizeStyle");
+        e.vue_imports.insert("normalizeStyle");
         if tree
             .nodes
             .iter()
@@ -138,7 +138,7 @@ struct Emitter<'a, 'o> {
     source_text: &'a str,
     b: &'a Builder<'o>,
     preamble: Vec<Statement<'o>>,
-    helpers: BTreeSet<&'static str>,
+    vue_imports: BTreeSet<&'static str>,
     next_name: usize,
     exposed: bool,
     /// The names of the `computed` cells memoized reads are, which a merged effect reads first.
@@ -160,7 +160,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
             source_text: t.javascript.source_text(),
             b,
             preamble: Vec::new(),
-            helpers: BTreeSet::new(),
+            vue_imports: BTreeSet::new(),
             next_name: 0,
             exposed: false,
             memoized: FxHashSet::default(),
@@ -173,7 +173,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
 
     fn async_helpers(&mut self) {
         if self.t.template.helpers.contains(&helpers::Helper::Async) {
-            self.helpers.extend([
+            self.vue_imports.extend([
                 "ReactiveEffect",
                 "shallowRef",
                 "onScopeDispose",
@@ -183,7 +183,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
             ]);
         }
         if self.t.template.helpers.contains(&helpers::Helper::Pending) {
-            self.helpers.insert("inject");
+            self.vue_imports.insert("inject");
         }
     }
 
@@ -212,13 +212,13 @@ impl<'a, 'o> Emitter<'a, 'o> {
         name: &'static str,
         arguments: impl IntoIterator<Item = Expression<'o>>,
     ) -> Expression<'o> {
-        self.helpers.insert(name);
+        self.vue_imports.insert(name);
         self.b.call(self.b.id(&format!("$$v_{name}")), arguments)
     }
 
     fn import(&self) -> Statement<'o> {
         let locals: Vec<(&str, String)> = self
-            .helpers
+            .vue_imports
             .iter()
             .map(|&name| (name, format!("$$v_{name}")))
             .collect();
@@ -258,7 +258,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
             .helpers
             .contains(&helpers::Helper::Transition)
         {
-            self.helpers.insert("createKeyedFragment");
+            self.vue_imports.insert("createKeyedFragment");
             self.b.call(self.b.id("$$transition_keyed"), [key, render])
         } else {
             self.call("createKeyedFragment", [key, render])
@@ -302,7 +302,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
         let order = self
             .attribute_effect_order
             .unwrap_or_else(|| self.reserve_effect_order());
-        self.helpers.insert("renderEffect");
+        self.vue_imports.insert("renderEffect");
         if dom {
             let reads = effects::reads(&update, &self.memoized, &self.dom_callbacks);
             body.effect(order, update, reads);

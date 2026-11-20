@@ -16,7 +16,7 @@ impl<'o> Emitter<'_, 'o> {
             let nodes = self.list(root, body);
             return b.array(nodes);
         }
-        self.helpers
+        self.vue_imports
             .extend(["VaporFragment", "remove", "queuePostFlushCb"]);
         let mut template = Body::default();
         let nodes = self.list(root, &mut template);
@@ -129,7 +129,7 @@ impl<'o> Emitter<'_, 'o> {
         let mut arguments = vec![source, render];
         arguments.extend(key);
         let call = if self.t.template.animation_loops.contains(&identifier) {
-            self.helpers.insert("createFor");
+            self.vue_imports.insert("createFor");
             b.call(b.id("$$animated_for"), arguments)
         } else {
             self.call("createFor", arguments)

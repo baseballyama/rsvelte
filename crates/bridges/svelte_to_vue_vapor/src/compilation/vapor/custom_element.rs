@@ -33,7 +33,7 @@ impl<'o> Emitter<'_, 'o> {
                 fields.push(b.init(name, value));
             }
         }
-        self.helpers.extend([
+        self.vue_imports.extend([
             "inject",
             "useHost",
             "renderEffect",

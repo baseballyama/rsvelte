@@ -25,7 +25,7 @@ impl<'o> Emitter<'_, 'o> {
             "slot" if self.t.template.custom_element.is_some() => return self.slot(element, body),
             "$$Text" | "$$TextareaText" | "$$PreText" => return self.static_text(element, body),
             "$$Boundary" => {
-                self.helpers.extend([
+                self.vue_imports.extend([
                     "defineVaporComponent",
                     "shallowRef",
                     "onScopeDispose",

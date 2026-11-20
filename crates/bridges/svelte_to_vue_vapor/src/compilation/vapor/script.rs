@@ -42,7 +42,7 @@ impl<'o> Emitter<'_, 'o> {
                 && prelude.iter().all(module_level)
             {
                 for s in prelude {
-                    self.note_helpers(s);
+                    self.note_vue_imports(s);
                 }
                 module.push(prelude::remark(b, marked).expect("a prelude's marker"));
                 continue;
@@ -55,7 +55,7 @@ impl<'o> Emitter<'_, 'o> {
                 {
                     continue;
                 }
-                self.note_helpers(s);
+                self.note_vue_imports(s);
                 if module_level(s) {
                     module.push(s.clone_in(b.allocator()));
                     continue;
@@ -115,13 +115,13 @@ impl<'o> Emitter<'_, 'o> {
         (module, fields)
     }
 
-    /// The runtime helpers a declaration of the script needs.
-    fn note_helpers(&mut self, s: &Statement<'_>) {
+    /// The Vue exports a declaration of the script needs.
+    fn note_vue_imports(&mut self, s: &Statement<'_>) {
         if !self.t.server && declares(s, |name| name == markers::ON_MOUNT) {
-            self.helpers.insert("currentInstance");
+            self.vue_imports.insert("currentInstance");
         }
         if !self.t.server && declares(s, |name| name == "$$effect_watch") {
-            self.helpers.extend(EFFECT_WATCH);
+            self.vue_imports.extend(EFFECT_WATCH);
         }
     }
 
@@ -137,7 +137,7 @@ impl<'o> Emitter<'_, 'o> {
         let mut body = body;
         if asynchronous {
             if self.t.server {
-                self.helpers.insert("withAsyncContext");
+                self.vue_imports.insert("withAsyncContext");
                 module.push(prelude::marker(b, include_str!("async_server.js")));
                 let context = b.call(b.id("$$server_async_context"), []);
                 body.insert(0, b.const_("$$async_context", context));
@@ -164,7 +164,7 @@ impl<'o> Emitter<'_, 'o> {
         module: &mut Vec<Statement<'o>>,
     ) -> Vec<Statement<'o>> {
         let b = self.b;
-        self.helpers.extend([
+        self.vue_imports.extend([
             "VaporFragment",
             "currentInstance",
             "effectScope",
