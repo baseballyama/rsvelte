@@ -148,7 +148,7 @@ struct ClientCompilationContext<'c, 'o> {
     an: &'c Analysis,
     names: Names<'c>,
     hoisted: Vec<Statement<'o>>,
-    templates: FxHashMap<(&'static str, u32, String), String>,
+    templates: FxHashMap<(crate::render_plan::Namespace, u32, String), String>,
     events: Vec<String>,
     /// How the template's names in scope are read.
     reads: FxHashMap<SymbolId, Read>,

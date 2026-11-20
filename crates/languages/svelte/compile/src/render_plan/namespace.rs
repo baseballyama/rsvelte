@@ -7,7 +7,7 @@ use rsvelte_svelte_syntax::names::{is_mathml, is_svg};
 
 use crate::input::CompileInput;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Namespace {
     #[default]
     Html,
