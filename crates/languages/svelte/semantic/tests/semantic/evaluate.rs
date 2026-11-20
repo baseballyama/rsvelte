@@ -60,6 +60,23 @@ fn global_folding_preserves_known_and_unknown_results() {
 }
 
 #[test]
+fn number_conversions_follow_javascript() {
+    // Expected values are Node's.
+    for (source, expected) in [
+        ("'0x10000000000000000' * 1;", 18_446_744_073_709_552_000.0),
+        ("1e20 | 0;", 1_661_992_960.0),
+    ] {
+        assert_eq!(evaluate(source).value, Value::Number(expected), "{source}");
+    }
+    for source in ["'0x+1' * 1;", "'0o+7' * 1;", "'0b+1' * 1;"] {
+        assert!(
+            matches!(evaluate(source).value, Value::Number(n) if n.is_nan()),
+            "{source}"
+        );
+    }
+}
+
+#[test]
 fn binding_cycles_terminate_and_do_not_leak_between_expressions() {
     // Upstream's evaluation of an initializer already in progress adds no value.
     for source in ["const a = a; a;", "const a = b; const b = a; a;"] {

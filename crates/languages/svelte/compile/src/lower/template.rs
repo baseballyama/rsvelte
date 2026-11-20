@@ -109,6 +109,20 @@ pub(super) fn event_attribute(source_text: &str, a: &Attribute) -> Option<Expres
         .then_some(expression)
 }
 
+/// Upstream `needs_clsx`.
+#[must_use]
+pub(super) const fn needs_clsx(e: &Expression<'_>) -> bool {
+    !matches!(
+        e,
+        Expression::StringLiteral(_)
+            | Expression::NumericLiteral(_)
+            | Expression::BooleanLiteral(_)
+            | Expression::NullLiteral(_)
+            | Expression::TemplateLiteral(_)
+            | Expression::BinaryExpression(_)
+    )
+}
+
 /// A directive, a spread or an `{@attach}`: not an attribute with a name of its own.
 #[must_use]
 pub(super) const fn is_directive(v: &AttributeValue) -> bool {

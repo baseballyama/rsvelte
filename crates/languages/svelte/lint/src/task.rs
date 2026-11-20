@@ -9,11 +9,11 @@ use rsvelte_kernel::source::positions::LineBreaks;
 
 use crate::Configuration;
 use crate::computation::{
-    ConditionTypes, LegacyReactivity, LintConfiguration, LoweredAsSvelteEslintParser,
-    ModuleAsTypeScript, ModuleSemantic, NativeConditionTypes, ParsedAsSvelteEslintParser,
-    ResolvedAsSvelteEslintParser,
+    ConditionTypes, LintConfiguration, LoweredAsSvelteEslintParser, ModuleAsTypeScript,
+    ModuleSemantic, NativeConditionTypes, ParsedAsSvelteEslintParser, ResolvedAsSvelteEslintParser,
 };
 use crate::project::{PostcssConfigurationOnDisk, SameNamedFileOnDisk};
+use crate::rules::shared::legacy_reactivity::LegacyReactivity;
 use crate::rules::shared::style_attribute::InlineStyles;
 use crate::rules::shared::style_sheet::{LintStyleSheet, StyleSheetVerdict};
 use crate::types::TypeFacts;
