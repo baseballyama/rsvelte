@@ -63,7 +63,7 @@ impl<'o> Emitter<'_, 'o> {
         let nodes = self.list(self.tree.children(element.children), &mut content);
         let fallback = self.render_block(content, b.array(nodes), b.parameters([]));
         let fragment = self.call("createIf", [self.arrow(test), present, fallback]);
-        b.id(&self.declare(fragment, body))
+        b.id(self.declare(fragment, body))
     }
 
     fn native_slot(
@@ -75,7 +75,7 @@ impl<'o> Emitter<'_, 'o> {
         let b = self.b;
         let node = self.template("<slot>", Namespace::Html, body);
         if name != "default" {
-            let set = self.call("setAttr", [b.id(&node), b.string("name"), b.string(name)]);
+            let set = self.call("setAttr", [b.id(node), b.string("name"), b.string(name)]);
             body.push(b.statement(set));
         }
         let shadow = self
@@ -87,10 +87,10 @@ impl<'o> Emitter<'_, 'o> {
         if shadow {
             let children = self.list(self.tree.children(element.children), body);
             if !children.is_empty() {
-                let insert = self.call("insert", [b.array(children), b.id(&node)]);
+                let insert = self.call("insert", [b.array(children), b.id(node)]);
                 body.push(b.statement(insert));
             }
         }
-        b.id(&node)
+        b.id(node)
     }
 }

@@ -2,8 +2,9 @@
 //! module (`defineComponent` with `ssrRender`), built in an arena of its own.
 
 use std::collections::BTreeSet;
+use std::fmt::Write;
 
-use oxc_allocator::Allocator;
+use oxc_allocator::{Allocator, GetAllocator, StringBuilder};
 use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKind, Statement};
 use oxc_semantic::SymbolId;
 use oxc_span::SPAN;
@@ -143,9 +144,9 @@ struct Emitter<'a, 'o> {
     next_name: usize,
     exposed: bool,
     /// The names of the `computed` cells memoized reads are, which a merged effect reads first.
-    memoized: FxHashSet<String>,
+    memoized: FxHashSet<&'o str>,
     /// The memoized cells each element callback that only updates the DOM reads.
-    dom_callbacks: FxHashMap<String, Vec<String>>,
+    dom_callbacks: FxHashMap<&'o str, Vec<&'o str>>,
     next_effect_order: usize,
     attribute_effect_order: Option<usize>,
     /// The template's names that are cells here: the aliases and declarations in scope.
@@ -214,7 +215,8 @@ impl<'a, 'o> Emitter<'a, 'o> {
         arguments: impl IntoIterator<Item = Expression<'o>>,
     ) -> Expression<'o> {
         self.vue_imports.insert(name);
-        self.b.call(self.b.id(&format!("$$v_{name}")), arguments)
+        let local = self.b.allocator().alloc_concat_strs_array(["$$v_", name]);
+        self.b.call(self.b.id(local), arguments)
     }
 
     fn import(&self) -> Statement<'o> {
@@ -266,16 +268,17 @@ impl<'a, 'o> Emitter<'a, 'o> {
         }
     }
 
-    fn name(&mut self) -> String {
-        let name = format!("$$v_n{}", self.next_name);
+    fn name(&mut self) -> &'o str {
+        let mut name = StringBuilder::new_in(self.b.allocator());
+        write!(name, "$$v_n{}", self.next_name).expect("an arena string takes any write");
         self.next_name += 1;
-        name
+        name.into_str()
     }
 
     /// `const $$v_nN = value`, and its name.
-    fn declare(&mut self, value: Expression<'o>, body: &mut Body<'o>) -> String {
+    fn declare(&mut self, value: Expression<'o>, body: &mut Body<'o>) -> &'o str {
         let name = self.name();
-        body.push(self.b.const_(&name, value));
+        body.push(self.b.const_(name, value));
         name
     }
 
@@ -314,7 +317,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
     }
 
     /// `const $$v_nN = template(markup)()` in the body, its factory in the module.
-    fn template(&mut self, markup: &str, namespace: Namespace, body: &mut Body<'o>) -> String {
+    fn template(&mut self, markup: &str, namespace: Namespace, body: &mut Body<'o>) -> &'o str {
         const DEFAULT_TEMPLATE_FLAGS: f64 = 0.0;
         const SVG_NAMESPACE: f64 = 1.0;
         const MATHML_NAMESPACE: f64 = 2.0;
@@ -330,8 +333,8 @@ impl<'a, 'o> Emitter<'a, 'o> {
         }
         let factory = self.call("template", arguments);
         let name = self.name();
-        self.preamble.push(b.const_(&name, factory));
-        self.declare(b.call(b.id(&name), []), body)
+        self.preamble.push(b.const_(name, factory));
+        self.declare(b.call(b.id(name), []), body)
     }
 
     /// The node `identifier` makes, as an expression of the block.
@@ -341,14 +344,14 @@ impl<'a, 'o> Emitter<'a, 'o> {
             NodeKind::Element(_) => self.element(identifier, body),
             NodeKind::Text(text) => {
                 let node = self.call("createTextNode", [b.string(text.text(self.source_text))]);
-                b.id(&self.declare(node, body))
+                b.id(self.declare(node, body))
             }
             &NodeKind::Interpolation { expression } => {
                 let node = self.template(" ", Namespace::Html, body);
                 let value = self.render_expression(self.source(expression), body);
-                let call = self.call("setText", [b.id(&node), value]);
+                let call = self.call("setText", [b.id(node), value]);
                 self.effect(call, true, body);
-                b.id(&node)
+                b.id(node)
             }
             NodeKind::Comment { .. } => unreachable!("Svelte translation removes comments"),
         }

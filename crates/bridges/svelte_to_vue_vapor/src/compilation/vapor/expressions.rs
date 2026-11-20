@@ -125,7 +125,7 @@ impl<'o> Emitter<'_, 'o> {
         let value = self.tracked(value);
         let computed = self.call("computed", [self.arrow(value)]);
         let name = self.declare(computed, body);
-        let read = self.b.member(self.b.id(&name), "value");
+        let read = self.b.member(self.b.id(name), "value");
         self.memoized.insert(name);
         read
     }
@@ -178,19 +178,22 @@ impl<'o> Emitter<'_, 'o> {
     }
 }
 
-/// The name of a rune call, `$state` or `$derived.by`, by syntax: the script refused every other
-/// call to a `$` name.
-pub(super) fn rune_name<'a>(callee: &'a Expression<'a>) -> Option<String> {
-    match callee {
-        Expression::Identifier(id) if id.name.starts_with('$') => Some(id.name.to_string()),
+/// The value rune `callee` calls, `$state` or `$derived.by`, by syntax: the script refused every
+/// other call to a `$` name.
+fn value_rune(callee: &Expression<'_>) -> Option<&'static str> {
+    let (object, property) = match callee {
+        Expression::Identifier(id) => (id.name.as_str(), None),
         Expression::StaticMemberExpression(m) => match &m.object {
-            Expression::Identifier(id) if id.name.starts_with('$') => {
-                Some(format!("{}.{}", id.name, m.property.name))
-            }
-            _ => None,
+            Expression::Identifier(id) => (id.name.as_str(), Some(m.property.name.as_str())),
+            _ => return None,
         },
-        _ => None,
-    }
+        _ => return None,
+    };
+    runes::VALUE.into_iter().find(|rune| {
+        rune.split_once('.')
+            .map_or((*rune, None), |(object, property)| (object, Some(property)))
+            == (object, property)
+    })
 }
 
 struct Rewrite<'r, 'a, 'o> {
@@ -220,15 +223,12 @@ impl<'o> Rewrite<'_, '_, 'o> {
             };
             return Some(self.e.b.id(&id.name));
         }
-        let name = rune_name(&call.callee)?;
-        if !runes::value(&name) {
-            return None;
-        }
+        let name = value_rune(&call.callee)?;
         let mut argument = call.arguments.pop().map(Argument::into_expression);
         if let Some(argument) = &mut argument {
             self.visit_expression(argument);
         }
-        rune_value(self.e.b, &name, argument, self.e.t.tracking)
+        rune_value(self.e.b, name, argument, self.e.t.tracking)
     }
 }
 

@@ -71,7 +71,7 @@ impl<'o> Emitter<'_, 'o> {
         let getter = async_getter(b, value);
         let cell = b.call(b.id("$$async_cell"), [getter]);
         let cell = self.declare(cell, body);
-        b.member(b.id(&cell), "value")
+        b.member(b.id(cell), "value")
     }
 }
 

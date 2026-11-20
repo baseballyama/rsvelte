@@ -203,6 +203,9 @@ pub(super) fn inspect(name: &str) -> bool {
 
 pub(super) const SOURCE: &str = include_str!("runes.js");
 
+/// The runes whose value the translation stores in a cell.
+pub(crate) const VALUE: [&str; 4] = ["$state", "$state.raw", "$derived", "$derived.by"];
+
 pub(crate) fn value(name: &str) -> bool {
-    matches!(name, "$state" | "$state.raw" | "$derived" | "$derived.by")
+    VALUE.contains(&name)
 }
