@@ -93,8 +93,10 @@ impl Tsc {
         let overlay = root.join(OVERLAY);
         let mut layer = Layer::default();
         for (i, path) in paths.iter().enumerate() {
-            layer.files.push((path.clone(), req.text(i).to_owned()));
+            layer.files.insert(path.clone(), req.text(i).to_owned());
         }
+        // A file the language replaces, such as svelte's types, is read replaced also when it is
+        // a document of the run, as a declaration is without `skipLibCheck`.
         layer.files.extend(req.env.replaced.iter().cloned());
         layer.files.extend(
             req.stand_ins(&root)
@@ -113,7 +115,7 @@ impl Tsc {
             .iter()
             .map(|(name, text)| {
                 let path = overlay.join(name);
-                layer.files.push((path.clone(), (*text).to_owned()));
+                layer.files.insert(path.clone(), (*text).to_owned());
                 path
             })
             .collect();
@@ -131,7 +133,7 @@ impl Tsc {
         if own.untyped {
             let declaration = untyped::options_declaration(&overlay);
             roots.push(declaration.0.clone());
-            layer.files.push(declaration);
+            layer.files.insert(declaration.0, declaration.1);
         }
         roots.extend(paths.iter().cloned());
         // Upstream's project holds every component, so one that is not checked still declares
@@ -143,10 +145,10 @@ impl Tsc {
         roots.extend(declarations);
         roots.extend(req.env.include.iter().cloned());
         let config = overlay.join("tsconfig.json");
-        layer.files.push((
+        layer.files.insert(
             config.clone(),
             tsconfig_json(base.as_deref(), req, &own, &roots, &store),
-        ));
+        );
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
         let [program, syntactic, semantic] =
             check_shares(&mut session, helpers, &config, &layer, &files).map_err(failed)?;

@@ -350,6 +350,47 @@ fn typecheck_reports_every_file_of_the_program_that_svelte_check_reports() {
     );
 }
 
+/// Without `skipLibCheck` svelte's types are a file the check reports and a file the check
+/// replaces; svelte-check 4.7.8 finds no error.
+#[cfg(unix)]
+#[test]
+fn typecheck_reads_a_replaced_package_file_once_when_it_reports_it() {
+    let packages = NodePackages::locate();
+    let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
+    let project = Project::new(
+        "typecheck-replaced",
+        &[
+            ("rsvelte.config.json", &config),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
+"target":"esnext","types":[],"skipLibCheck":false},"include":["src"]}"#,
+            ),
+            (
+                "src/App.svelte",
+                "<script lang=\"ts\">\n\timport type { Snippet } from \"svelte\";\n\
+                 \tlet { children }: { children?: Snippet } = $props();\n</script>\n\
+                 {@render children?.()}\n",
+            ),
+        ],
+    );
+    std::fs::create_dir_all(project.0.join("node_modules")).expect("node_modules");
+    std::os::unix::fs::symlink(
+        packages.package("svelte"),
+        project.0.join("node_modules/svelte"),
+    )
+    .expect("link");
+    let output = project.rsvelte(&["typecheck"]);
+    assert_eq!(
+        (
+            output.status.code(),
+            text(&output.stdout),
+            text(&output.stderr)
+        ),
+        (Some(0), String::new(), String::new())
+    );
+}
+
 #[test]
 fn typecheck_without_a_checker_says_what_to_install() {
     let project = Project::new(

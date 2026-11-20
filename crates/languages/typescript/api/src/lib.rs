@@ -50,7 +50,8 @@ pub enum ProjectId {
 /// the disk.
 #[derive(Debug, Default)]
 pub struct Layer {
-    pub files: Vec<(PathBuf, String)>,
+    /// One text per path: a file added again replaces the text it had.
+    pub files: std::collections::BTreeMap<PathBuf, String>,
     /// A link path, then the disk directory it reaches.
     pub links: Vec<(PathBuf, PathBuf)>,
 }

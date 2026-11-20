@@ -31,11 +31,7 @@ pub(super) fn add(
     let found = declarations(
         roots.iter().chain(paths),
         &req.env.script_modules,
-        &|path| {
-            path.exists()
-                || paths.iter().any(|p| p == path)
-                || layer.files.iter().any(|(p, _)| p == path)
-        },
+        &|path| path.exists() || paths.iter().any(|p| p == path) || layer.files.contains_key(path),
     );
     let any = !found.is_empty();
     layer.files.extend(found);
