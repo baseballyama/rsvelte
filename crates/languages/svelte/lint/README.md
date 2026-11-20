@@ -3,28 +3,11 @@
 This crate has every rule of the Svelte lint. TypeScript core supplies JS/TS parsing and scopes; the
 crate does not depend on `rsvelte_typescript_check` and does not start tsgo.
 
-| Rule                                                 | Facts requested           |
-| ---------------------------------------------------- | ------------------------- |
-| `svelte/@typescript-eslint/no-unnecessary-condition` | Condition types           |
-| `svelte/button-has-type`                             | Surface tree              |
-| `svelte/first-attribute-linebreak`                   | Surface tree              |
-| `svelte/html-closing-bracket-new-line`               | Surface tree              |
-| `svelte/html-closing-bracket-spacing`                | Surface tree              |
-| `svelte/html-quotes`                                 | Surface tree              |
-| `svelte/html-self-closing`                           | Surface tree              |
-| `svelte/max-attributes-per-line`                     | Surface tree              |
-| `svelte/mustache-spacing`                            | Surface tree              |
-| `svelte/no-spaces-around-equal-signs-in-attribute`   | Surface tree              |
-| `svelte/no-trailing-spaces`                          | Surface tree              |
-| `svelte/sort-attributes`                             | Surface tree              |
-| `svelte/spaced-html-comment`                         | Surface tree              |
-| `svelte/valid-each-key`                              | HIR and resolution        |
-| `no-unused-vars`                                     | Resolution and JS parents |
-
 Rules live in `src/rules/<rule>.rs`; helpers that several rules share live in
 `src/rules/shared/`. `lint.rs` is the library entry point. `configuration.rs`
 selects rules, severity and options, and `task.rs` adapts the library to the registry and JSON
-output. The crate caches facts once per document.
+output. The crate caches facts once per document, and a rule computes only the facts it asks
+for; `tests/architecture.rs` checks which facts each kind of rule computes.
 
 `Configuration::new` rejects duplicate rules, and a rule it does not list is off. The default
 turns on `no-unused-vars` and `svelte/button-has-type`. Findings keep source order, and
@@ -38,16 +21,15 @@ shared facts without turning on its task.
 
 Known gap: `svelte/no-unused-class-name` and `svelte/consistent-selector-style` read selectors from
 rsvelte's CSS parser, so they say nothing on a sheet that `PostCSS` accepts and that parser
-rejects. No corpus component has such a sheet: 0 of the 2,190 whose `<style>` has the language
-`css` or `scss`, and none the other way. The same count reports a hand-made sheet with `.a-#{$b}`.
+rejects. No corpus component whose `<style>` has the language `css` or `scss` has such a sheet,
+and none has a sheet the other way round.
 
 Not supported: `<style>` that needs a CSS language other than plain CSS. For `scss`, `sass`,
 `less` or `stylus`, `svelte/valid-compile` and `svelte/no-unused-svelte-ignore` compile the
 component without that `<style>`. The upstream plugin does the same when the package is
 missing. The two rules miss compiler warnings inside such a sheet. Upstream loads the
 package from the user's project, and rsvelte never starts Node. The upstream cases that need it
-wait in `tests/upstream_preprocessor.json` with their reasons. In the corpus, 213 of the 2,232
-components with a `<style>` use `scss`, `sass` or `less`.
+wait in `tests/upstream_preprocessor.json` with their reasons.
 
 A later version could take a configured function, as `cssHash` does. It would read the language,
 filename and content and return the code with its source map. `svelte.compile` would use it too.
@@ -89,7 +71,8 @@ mise exec -- node tools/oracle/oracle.ts upstream eslint-plugin-svelte <checkout
 mise exec -- node tools/oracle/oracle.ts lint-cases   # write errors.yaml and output for a new case
 ```
 
-To add a rule, add it to `IMPLEMENTED` in `tests/upstream.rs`. ESLint writes `errors.yaml` and
+To add a rule, add its `RULE` to `BUILT_IN` in `src/rules.rs`; `tests/upstream.rs` runs every
+case of a rule that `definition` finds. ESLint writes `errors.yaml` and
 the output; never write them by hand. The one exception is a case where ESLint's answer is an
 upstream bug. List it with the reason in `tests/cases_deviations.json`, write this crate's answer
 in its files, and add the bug to `tests/upstream_issues.md`. `lint-cases` never writes a listed
