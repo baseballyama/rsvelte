@@ -1,5 +1,6 @@
 // A task is one measured behaviour: an oracle run over a unit, producing named artifacts, each with a
-// comparator. Linting, formatting, type checking, parsing, Vue or Tailwind land as new tasks here.
+// comparator. svue and vuelte also run over crate fixtures (behaviour/behaviour.test.ts); vue.* has
+// no corpus source yet.
 import { svueCompile, vuelteCompile } from './tasks/behaviour.ts';
 import svelteCheck from './tasks/svelte-check.ts';
 import svelteCompile from './tasks/svelte-compile.ts';
