@@ -1,0 +1,2 @@
+error attribute_invalid_multiple 6:9-6:21 'multiple' attribute must be static if select uses two-way binding
+    https://svelte.dev/e/attribute_invalid_multiple

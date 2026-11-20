@@ -138,6 +138,15 @@ const INHERITED: &[&str] = &[
     "__lookupSetter__",
 ];
 
+/// Where the binding `name` is valid, or `None` when upstream's `name in binding_properties`
+/// fails. That test also finds what every object inherits, a property with no element rules.
+fn hosts_of(name: &str) -> Option<Hosts> {
+    match BINDINGS.iter().find(|&&(n, _)| n == name) {
+        Some(&(_, hosts)) => Some(hosts),
+        None => INHERITED.contains(&name).then_some(Hosts::Any),
+    }
+}
+
 /// Upstream `BindDirective`'s checks of the binding `a` against `host`, the tag as written.
 ///
 /// # Errors
@@ -156,10 +165,7 @@ pub(super) fn check_binding(
         let message = format!("`bind:{name}` is not a valid binding{explanation}");
         invalid("bind_invalid_name", &message, a.span)
     };
-    let Some(&(_, hosts)) = BINDINGS.iter().find(|&&(n, _)| n == name) else {
-        if INHERITED.contains(&name) {
-            return Ok(());
-        }
+    let Some(hosts) = hosts_of(name) else {
         let names: Vec<&str> = BINDINGS.iter().map(|&(n, _)| n).collect();
         if let Some(near) = rsvelte_svelte_semantic::fuzzymatch::fuzzymatch(name, &names)
             && BINDINGS.iter().any(|&(n, h)| {
