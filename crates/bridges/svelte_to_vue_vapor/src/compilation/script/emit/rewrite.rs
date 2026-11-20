@@ -44,7 +44,7 @@ impl<'r, 't> ScriptRewrite<'r, 't> {
             constructors: &plan.constructors,
             constructor_storage: FxHashMap::default(),
             server,
-            tracking: plan.auxiliary.contains_key("$effect.tracking") && !server,
+            tracking: plan.tracking(server),
             private_fields: Vec::new(),
         }
     }

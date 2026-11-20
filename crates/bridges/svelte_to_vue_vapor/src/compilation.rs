@@ -173,7 +173,7 @@ pub(crate) fn translate(input: Input<'_>) -> R<Translation> {
         stylesheet_hash: identity.stylesheet_hash,
         css_mode: plan.stylesheet_mode,
         destroy: plan.lifecycle.iter().any(|(name, _)| *name == "onDestroy"),
-        tracking: plan.auxiliary.contains_key("$effect.tracking") && !input.server,
+        tracking: plan.tracking(input.server),
         template,
     })
 }

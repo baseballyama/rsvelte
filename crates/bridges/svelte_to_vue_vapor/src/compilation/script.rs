@@ -42,6 +42,13 @@ pub struct Plan {
     pub(super) auxiliary: FxHashMap<&'static str, Span>,
 }
 
+impl Plan {
+    /// Whether the client component reads `$effect.tracking()`.
+    pub(crate) fn tracking(&self, server: bool) -> bool {
+        !server && self.auxiliary.contains_key("$effect.tracking")
+    }
+}
+
 /// The names Vue's compiler treats as macros wherever they are called.
 const VUE_MACROS: &[&str] = &[
     "defineProps",
