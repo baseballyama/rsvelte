@@ -1,5 +1,7 @@
+use oxc_semantic::{ReferenceId, SymbolId};
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
 use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature_where};
+use rustc_hash::FxHashSet;
 
 mod awaits;
 mod declarations;
@@ -11,7 +13,186 @@ pub(in crate::lower) use markup::each_key;
 use runes::script_and_template_errors;
 pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, script_error};
 
-use super::{CompileInput, Diagnostic, Resolution, Span};
+use super::{
+    CompileInput, Diagnostic, Resolution, Span, Target, const_cycles, coverage, custom_element,
+    rest_reads, script, snippets, special, stores,
+};
+
+#[derive(Debug)]
+pub(crate) struct ValidatedOptions {
+    pub(in crate::lower) custom_element: Option<custom_element::CustomElement>,
+    pub(in crate::lower) stylesheet_injected: bool,
+    /// The references to a rest prop that read `$$props` instead (upstream's `rest_prop` read).
+    pub(in crate::lower) rest_reads: FxHashSet<ReferenceId>,
+    /// The top-level snippets declared beside the component.
+    pub(in crate::lower) hoistable: FxHashSet<SymbolId>,
+    /// The store subscriptions (`$name`), in the order upstream declares them.
+    pub(in crate::lower) stores: Vec<String>,
+}
+
+impl ValidatedOptions {
+    /// Upstream `inject_styles`: no stylesheet file, and the minified stylesheet in the module.
+    pub(crate) const fn injects_stylesheet(&self) -> bool {
+        self.stylesheet_injected || self.custom_element.is_some()
+    }
+
+    /// Whether `target`'s module adds the stylesheet; the server never adds a custom element's.
+    pub(crate) const fn embeds_stylesheet(&self, target: Target) -> bool {
+        match target {
+            Target::Client => self.injects_stylesheet(),
+            Target::Server => self.stylesheet_injected && self.custom_element.is_none(),
+        }
+    }
+}
+
+pub(crate) fn validate(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+) -> Result<ValidatedOptions, Diagnostic> {
+    validate_unit(input, res, Unit::Component)
+}
+
+/// What upstream compiles, which decides the checks only a component gets.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Unit {
+    /// Upstream erases its types itself, rejecting a TypeScript feature with a runtime meaning.
+    Component,
+    /// A `.svelte.js` or `.svelte.ts` module, whose types TypeScript's emit erases first.
+    Module,
+}
+
+pub(crate) fn validate_unit(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    unit: Unit,
+) -> Result<ValidatedOptions, Diagnostic> {
+    // Acorn rejects at parse time what oxc's semantic checker finds after the parser.
+    if let Some(error) =
+        rsvelte_svelte_semantic::javascript_error::parse_error(&input.component, res)
+    {
+        return Err(error);
+    }
+    if res.awaits() {
+        check_awaits(input)?;
+    }
+    let special::SvelteOptions {
+        custom_element,
+        stylesheet_injected,
+    } = special::validate(input)?;
+    let typescript = unit == Unit::Component && has_typescript_feature(input);
+    // Upstream erases the types right after it parses, before it analyzes.
+    if typescript {
+        check_typescript(input)?;
+    }
+    let names = stores::Names::new(input, res);
+    let mut errors = snippets::errors(input, res);
+    if unit == Unit::Component {
+        errors.extend(script::default_exports(input));
+    }
+    check_analysis(input, res, &names, unit, errors, custom_element.is_some())?;
+    let hoistable = snippets::hoistable(input, res, &names);
+    snippets::check_exports(input, res, &hoistable)?;
+    const_cycles::check(input, res)?;
+    // A refusal waits for the scripts' errors, which the rune checks raise only later.
+    let refused = (if typescript {
+        refuse_typescript(input)
+    } else {
+        Ok(())
+    })
+    .and_then(|()| coverage::check(input, res));
+    if let Err(refusal) = refused {
+        let script = script_error(input, res, custom_element.is_some());
+        return Err(script.map_or(refusal, |(_, error)| error));
+    }
+    let rest_reads = rest_reads::build(res, custom_element.is_some());
+    Ok(ValidatedOptions {
+        custom_element,
+        stylesheet_injected,
+        rest_reads,
+        hoistable,
+        stores: names.subscriptions(res),
+    })
+}
+
+/// The first error of the rune checks, which upstream raises in runes mode as it walks the scripts
+/// and the template's expressions, after what [`validate`] checks; without the `experimental_async`
+/// of the scripts and the template, which the analysis's warnings raise where `experimental.async`
+/// decides it.
+pub(crate) fn rune_error(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    options: &ValidatedOptions,
+) -> Option<(Raised, Diagnostic)> {
+    let custom_element = options.custom_element.is_some();
+    let error =
+        check_runes_with(input, res, Target::Client, custom_element, Awaits::Analysis).err()?;
+    let at = error.span.start_offset;
+    let inside = |program: Option<_>| {
+        program.is_some_and(|program| {
+            let span = input.component.javascript.get_program(program).span;
+            (span.start..span.end).contains(&at)
+        })
+    };
+    let section = if inside(input.component.module) {
+        Section::Module
+    } else if inside(input.component.instance) {
+        Section::Instance
+    } else {
+        Section::Template
+    };
+    let raised = Raised {
+        phase: Phase::Walk,
+        section,
+        at,
+    };
+    Some((raised, error))
+}
+
+/// The errors of [`validate`] that upstream raises in legacy mode too, with when it raises each:
+/// the scripts' syntax and `<svelte:options>` as it parses, then the first of the template walk.
+/// Apart, a TypeScript feature with a runtime meaning, which it refuses after the analysis.
+pub(crate) fn mode_independent_errors(input: &CompileInput<'_>, res: &Resolution) -> CompileErrors {
+    let parse = |error| {
+        let raised = Raised {
+            phase: Phase::Parse,
+            section: Section::Template,
+            at: 0,
+        };
+        (raised, error)
+    };
+    let mut raised = Vec::new();
+    if let Some(error) =
+        rsvelte_svelte_semantic::javascript_error::parse_error(&input.component, res)
+    {
+        raised.push(parse(error));
+    } else {
+        raised.extend(check_awaits(input).err().map(parse));
+    }
+    raised.extend(special::validate(input).err().map(parse));
+    raised.extend(template_error(input).map(|(at, error)| {
+        let raised = Raised {
+            phase: Phase::Walk,
+            section: Section::Template,
+            at,
+        };
+        (raised, error)
+    }));
+    CompileErrors {
+        raised,
+        after_analysis: (check_typescript(input))
+            .and_then(|()| refuse_typescript(input))
+            .err(),
+    }
+}
+
+/// What [`crate::compile_errors`] finds.
+#[derive(Debug, Default)]
+pub struct CompileErrors {
+    /// The errors upstream raises before or during its analysis, in no order.
+    pub raised: Vec<(Raised, Diagnostic)>,
+    /// The error it raises once the analysis passes.
+    pub after_analysis: Option<Diagnostic>,
+}
 
 /// Upstream's analysis errors in its order: the first it raises as it builds the scopes, then
 /// `$$props` and `$$restProps`, then the first its walk meets. `template` holds those of the
@@ -23,8 +204,8 @@ use super::{CompileInput, Diagnostic, Resolution, Span};
 pub(super) fn check_analysis(
     input: &CompileInput<'_>,
     res: &Resolution,
-    names: &super::stores::Names<'_>,
-    unit: super::Unit,
+    names: &stores::Names<'_>,
+    unit: Unit,
     mut errors: Vec<(Raised, Diagnostic)>,
     custom_element: bool,
 ) -> Result<(), Diagnostic> {
@@ -111,7 +292,7 @@ pub(super) fn check_analysis(
 /// with where the walk raises it.
 pub(super) fn template_error(input: &CompileInput<'_>) -> Option<(u32, Diagnostic)> {
     [
-        super::special::analysis(input).map_err(|e| (e.span.start_offset, e)),
+        special::analysis(input).map_err(|e| (e.span.start_offset, e)),
         markup::check(input),
     ]
     .into_iter()
@@ -149,7 +330,7 @@ fn check_legacy_props(input: &CompileInput<'_>, res: &Resolution) -> Result<(), 
             .flat_map(|(_, references)| references.into_iter().map(|r| res.reference_span(r)))
             .min_by_key(|span| (!scripted(span.start), span.start));
         if let Some(span) = first {
-            return super::special::invalid(code, message, Span::new(span.start, span.end));
+            return special::invalid(code, message, Span::new(span.start, span.end));
         }
     }
     Ok(())
@@ -176,7 +357,7 @@ pub(super) fn uses_slots(res: &Resolution) -> bool {
 
 /// Upstream `state_invalid_placement`, which the rune walk and the markup walk both raise.
 fn state_invalid_placement<T>(rune: &str, span: Span) -> Result<T, Diagnostic> {
-    super::special::invalid(
+    special::invalid(
         "state_invalid_placement",
         &format!(
             "`{rune}(...)` can only be used as a variable declaration initializer, a class field \
