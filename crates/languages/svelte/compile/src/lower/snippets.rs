@@ -72,7 +72,7 @@ const fn after(span: Span) -> u32 {
 fn duplicate(name: &str, span: Span) -> Diagnostic {
     error(
         "declaration_duplicate",
-        &format!("`{name}` has already been declared"),
+        format!("`{name}` has already been declared"),
         span,
     )
 }

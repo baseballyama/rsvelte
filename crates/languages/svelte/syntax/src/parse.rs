@@ -238,16 +238,14 @@ fn acorn_position(mut e: Diagnostic) -> Diagnostic {
     e
 }
 
-/// Upstream's error `code`, whose message ends with the link to its docs; an error of this
-/// parser's own, `parse_error`, has no docs page.
+/// Upstream's error `code`; an error of this parser's own, `parse_error`, has no docs page.
 #[cold]
 fn svelte_error(code: &'static str, message: impl std::fmt::Display, span: Span) -> Diagnostic {
-    let message = if code == "parse_error" {
-        message.to_string()
+    if code == "parse_error" {
+        Diagnostic::error(code, message.to_string(), span)
     } else {
-        format!("{message}\nhttps://svelte.dev/e/{code}")
-    };
-    Diagnostic::error(code, message, span)
+        crate::svelte_diagnostics::error(code, message, span)
+    }
 }
 
 /// The component without its JavaScript, while the parser fills the arena.

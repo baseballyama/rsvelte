@@ -215,13 +215,9 @@ pub(crate) fn compile<'a>(
 
 /// Svelte's `options_invalid_value` for a boolean option, which it reports at the start.
 fn invalid_option(name: &str) -> Diagnostic {
-    let code = "options_invalid_value";
-    Diagnostic::error(
-        code,
-        format!(
-            "Invalid compiler option: {name} should be true or false, if \
-             specified\nhttps://svelte.dev/e/{code}"
-        ),
+    rsvelte_svelte_syntax::svelte_diagnostics::error(
+        "options_invalid_value",
+        format_args!("Invalid compiler option: {name} should be true or false, if specified"),
         Span::new(0, 0),
     )
 }

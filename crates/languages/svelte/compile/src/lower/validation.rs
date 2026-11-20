@@ -420,16 +420,15 @@ fn typescript_invalid_feature(feature: Feature, span: Span) -> Diagnostic {
             );
         }
     };
-    Diagnostic::error(
+    crate::lower::error(
         "typescript_invalid_feature",
-        format!(
+        format_args!(
             "TypeScript language features like {feature} are not natively supported, and their \
              use is generally discouraged. Outside of `<script>` tags, these features are not \
              supported. For use within `<script>` tags, you will need to use a preprocessor to \
              convert it to JavaScript before it gets passed to the Svelte compiler. If you are \
              using `vitePreprocess`, make sure to specifically enable preprocessing script tags \
-             (`vitePreprocess({{ script: true }})`)\n\
-             https://svelte.dev/e/typescript_invalid_feature"
+             (`vitePreprocess({{ script: true }})`)"
         ),
         span,
     )

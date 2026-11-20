@@ -46,6 +46,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
     ElementKind, NodeKind,
 };
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
+pub(crate) use rsvelte_svelte_syntax::svelte_diagnostics::error;
 use rustc_hash::{FxHashMap, FxHashSet};
 pub use script::is_expression_async;
 pub use template::{DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select};
@@ -215,12 +216,4 @@ fn unsupported<T>(what: &str, span: Span) -> Result<T, Diagnostic> {
 /// An upstream error, whose message ends with the link to its documentation.
 pub(crate) fn invalid<T>(code: &'static str, message: &str, span: Span) -> Result<T, Diagnostic> {
     Err(error(code, message, span))
-}
-
-pub(crate) fn error(code: &'static str, message: &str, span: Span) -> Diagnostic {
-    Diagnostic::error(
-        code,
-        format!("{message}\nhttps://svelte.dev/e/{code}"),
-        span,
-    )
 }
