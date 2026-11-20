@@ -10,6 +10,7 @@ mod configuration;
 mod documents;
 mod format;
 mod lint;
+mod lint_globals;
 mod project_check;
 mod release;
 mod svelte_kit;
