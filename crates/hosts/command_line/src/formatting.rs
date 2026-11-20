@@ -1,173 +1,308 @@
-//! A project's formatter configuration, `.oxfmtrc.json(c)` or Prettier's, read as the options of
-//! `svelte.format` and `typescript.format`, so that `rsvelte format` prints what the project's
-//! formatter prints or refuses to run.
+//! The formatting options of each file, resolved as the project's formatter resolves them.
+//!
+//! A file is first left or kept by the `ignorePatterns` of its nearest oxfmt configuration;
+//! nothing else is read for a file that is left. A kept file's options are then the
+//! formatter's defaults, the `.editorconfig` sections that match it, and its nearest oxfmt or
+//! Prettier configuration, in that order. Every option keeps where it came from, and what rsvelte
+//! cannot read or print is a [`Refusal`] carried in the result, so it counts only where the
+//! options are used.
 
+mod configuration;
+mod editorconfig;
+
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::fmt;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, PoisonError};
 
-use serde_json::{Map, Value};
+use configuration::{Configuration, Formatter};
+use editorconfig::{EditorConfig, Given};
+use serde_json::Value;
 
-/// Each directory is searched in this order, and the first directory with one of these wins.
-const OXFMT: &[&str] = &[".oxfmtrc.json", ".oxfmtrc.jsonc"];
-const PRETTIER: &[&str] = &[".prettierrc", ".prettierrc.json"];
-/// Configurations that would need YAML, TOML, JSON5 or JavaScript: refused, not skipped, since
-/// the project's formatter reads them.
-const UNREAD: &[&str] = &[
-    "oxfmt.config.ts",
-    ".prettierrc.json5",
-    ".prettierrc.yaml",
-    ".prettierrc.yml",
-    ".prettierrc.toml",
-    ".prettierrc.js",
-    ".prettierrc.cjs",
-    ".prettierrc.mjs",
-    ".prettierrc.ts",
-    ".prettierrc.cts",
-    ".prettierrc.mts",
-    "prettier.config.js",
-    "prettier.config.cjs",
-    "prettier.config.mjs",
-    "prettier.config.ts",
-    "prettier.config.cts",
-    "prettier.config.mts",
-];
-
-/// Options that change no Svelte or TypeScript output.
-const OTHER_LANGUAGES: &[&str] = &[
-    "$schema",
-    "sortPackageJson",
-    "experimentalSortPackageJson",
-    "vueIndentScriptAndStyle",
-    "astro",
-];
-
-#[derive(Debug, PartialEq)]
-pub(crate) struct Formatting {
-    pub(crate) source: PathBuf,
-    /// The options of `svelte.format` and of `typescript.format`, as JSON.
-    pub(crate) svelte: String,
-    pub(crate) typescript: String,
-    /// `ignorePatterns`, in `.gitignore` syntax, relative to the directory of `source`.
-    pub(crate) ignore_patterns: Vec<String>,
+/// Where an option's value came from.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum Origin {
+    Default(Formatter),
+    File(Arc<Path>),
 }
 
-#[derive(Clone, Copy)]
-enum Kind {
-    Oxfmt,
-    Prettier,
+impl fmt::Display for Origin {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Default(Formatter::Oxfmt) => f.write_str("oxfmt's defaults"),
+            Self::Default(Formatter::Prettier) => f.write_str("Prettier's defaults"),
+            Self::File(path) => write!(f, "{}", path.display()),
+        }
+    }
 }
 
-/// The configuration of the nearest directory from `start` upward that has one.
-pub(crate) fn find(start: &Path) -> Result<Option<Formatting>, String> {
-    for directory in start.ancestors() {
-        let found = |name: &&&str| directory.join(name).is_file();
-        if let Some(name) = OXFMT.iter().find(found) {
-            return read(&directory.join(name), Kind::Oxfmt).map(Some);
+/// Why rsvelte cannot format as a source says, and the source.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct Refusal {
+    pub(crate) reason: String,
+    pub(crate) origin: Origin,
+}
+
+impl fmt::Display for Refusal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: {}", self.origin, self.reason)
+    }
+}
+
+/// The options one file is formatted with, under Prettier's names: each value as JSON, with its
+/// origin, and the first refusal of its sources. Files with equal options are formatted
+/// together.
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct Resolved {
+    options: BTreeMap<String, (String, Origin)>,
+    refused: Option<Refusal>,
+}
+
+impl Resolved {
+    fn set(&mut self, name: &str, value: &Value, origin: Origin) {
+        self.options
+            .insert(name.to_owned(), (value.to_string(), origin));
+    }
+
+    fn refuse(&mut self, reason: String, origin: Origin) {
+        self.refused.get_or_insert(Refusal { reason, origin });
+    }
+
+    /// The options of `svelte.format`, as JSON.
+    pub(crate) fn svelte(&self) -> String {
+        self.json(|_| true)
+    }
+
+    /// The options of `typescript.format`, as JSON: those that change TypeScript output.
+    pub(crate) fn typescript(&self) -> String {
+        self.json(|name| rsvelte_typescript_format::options::NAMES.contains(&name))
+    }
+
+    fn json(&self, keep: impl Fn(&str) -> bool) -> String {
+        let pairs: Vec<String> = (self.options.iter())
+            .filter(|(name, _)| keep(name))
+            .map(|(name, (value, _))| format!("{}:{value}", Value::from(name.as_str())))
+            .collect();
+        format!("{{{}}}", pairs.join(","))
+    }
+
+    /// Every source an option came from.
+    pub(crate) fn sources(&self) -> BTreeSet<&Origin> {
+        self.options.values().map(|(_, origin)| origin).collect()
+    }
+
+    /// Why the formatters cannot take these options, whatever they print.
+    pub(crate) const fn refused(&self) -> Option<&Refusal> {
+        self.refused.as_ref()
+    }
+
+    /// Where the option `name` came from.
+    pub(crate) fn origin(&self, name: &str) -> Option<&Origin> {
+        self.options.get(name).map(|(_, origin)| origin)
+    }
+
+    /// The refusal of option `name`, which a formatter cannot print, named by its origin.
+    pub(crate) fn refusal(&self, name: &str, formatter: &str) -> Refusal {
+        let origin = (self.origin(name).cloned()).unwrap_or(Origin::Default(Formatter::Prettier));
+        Refusal {
+            reason: format!("the {formatter} formatter does not print this `{name}` value yet"),
+            origin,
         }
-        if let Some(name) = PRETTIER.iter().find(found) {
-            return read(&directory.join(name), Kind::Prettier).map(Some);
+    }
+}
+
+/// What a file's resolution decides.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Resolution {
+    /// Its nearest oxfmt configuration's `ignorePatterns` leave it.
+    Ignored,
+    Formatted(Resolved),
+}
+
+/// Resolves files and prunes directories; what it reads is read once per directory. It is
+/// shared with the walk, which asks it which directories to leave.
+pub(crate) struct Resolver {
+    cwd: PathBuf,
+    /// Whether any plugin takes the resolved options: not when `rsvelte.config` names them all,
+    /// and then only `ignorePatterns` are read.
+    options: bool,
+    read: Mutex<Read>,
+}
+
+/// Each directory's own files, as they are read.
+#[derive(Default)]
+struct Read {
+    configurations: HashMap<(PathBuf, Formatter), Option<Arc<Configuration>>>,
+    editorconfigs: HashMap<PathBuf, Option<Arc<EditorConfig>>>,
+    oxfmt_below: HashMap<PathBuf, bool>,
+    warnings: BTreeSet<String>,
+}
+
+impl Resolver {
+    pub(crate) fn new(cwd: PathBuf, options: bool) -> Self {
+        Self {
+            cwd,
+            options,
+            read: Mutex::new(Read::default()),
         }
-        if let Some(name) = UNREAD.iter().find(found) {
-            return Err(format!(
-                "{}: rsvelte reads only JSON formatter configurations so far",
-                directory.join(name).display()
-            ));
+    }
+
+    fn read(&self) -> std::sync::MutexGuard<'_, Read> {
+        self.read.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn absolute(&self, path: &Path) -> PathBuf {
+        // `components` drops the `./` a walk of `.` puts in front of every path.
+        self.cwd.join(path).components().collect()
+    }
+
+    pub(crate) fn resolve(&self, file: &Path) -> Resolution {
+        let file = self.absolute(file);
+        let directory = file.parent().unwrap_or(&file);
+        let mut read = self.read();
+        if let Some(oxfmt) = read.nearest(directory, &[Formatter::Oxfmt])
+            && oxfmt.ignores(&file, false)
+        {
+            return Resolution::Ignored;
         }
-        let manifest = directory.join("package.json");
-        if manifest.is_file() {
-            let text = std::fs::read_to_string(&manifest)
-                .map_err(|e| format!("{}: {e}", manifest.display()))?;
-            let mut package: Map<String, Value> =
-                serde_json::from_str(&text).map_err(|e| format!("{}: {e}", manifest.display()))?;
-            match package.remove("prettier") {
-                Some(Value::Object(options)) => {
-                    return translate(&manifest, Kind::Prettier, options).map(Some);
-                }
-                Some(_) => {
-                    return Err(format!(
-                        "{}: rsvelte does not read a shared Prettier configuration yet",
-                        manifest.display()
-                    ));
-                }
-                None => {}
+        let mut resolved = Resolved::default();
+        if !self.options {
+            return Resolution::Formatted(resolved);
+        }
+        let configuration = read.nearest(directory, &[Formatter::Oxfmt, Formatter::Prettier]);
+        let formatter = configuration
+            .as_ref()
+            .map_or(Formatter::Prettier, |c| c.formatter);
+        for &(name, value) in formatter.defaults() {
+            resolved.set(name, &Value::from(value), Origin::Default(formatter));
+        }
+        let editorconfigs = match formatter {
+            Formatter::Prettier => read.prettier_editorconfigs(directory),
+            Formatter::Oxfmt => read.oxfmt_editorconfig(&self.cwd).into_iter().collect(),
+        };
+        let outermost_first = editorconfigs.iter().rev().map(AsRef::as_ref);
+        for (name, given, at) in editorconfig::options(outermost_first, &file) {
+            match (given, formatter) {
+                (Given::Value(value), _) => resolved.set(name, &value, Origin::File(at)),
+                // oxfmt drops what it cannot print as a number; Prettier prints no line limit.
+                (Given::Unlimited, Formatter::Oxfmt) => {}
+                (Given::Unlimited, Formatter::Prettier) => resolved.refuse(
+                    "rsvelte does not format with this `max_line_length = off` yet".to_owned(),
+                    Origin::File(at),
+                ),
             }
         }
-    }
-    Ok(None)
-}
-
-fn read(path: &Path, kind: Kind) -> Result<Formatting, String> {
-    let mut text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    if matches!(kind, Kind::Oxfmt) {
-        json_strip_comments::strip(&mut text).map_err(|e| format!("{}: {e}", path.display()))?;
-    }
-    let options: Map<String, Value> = serde_json::from_str(&text).map_err(|e| {
-        format!(
-            "{}: {e} (rsvelte reads only JSON formatter configurations so far)",
-            path.display()
-        )
-    })?;
-    translate(path, kind, options)
-}
-
-fn translate(source: &Path, kind: Kind, options: Map<String, Value>) -> Result<Formatting, String> {
-    let refuse = |name: &str| {
-        Err(format!(
-            "{}: rsvelte does not format with this `{name}` yet",
-            source.display()
-        ))
-    };
-    let mut svelte = Map::new();
-    let mut ignore_patterns = Vec::new();
-    if matches!(kind, Kind::Oxfmt) {
-        // oxfmt's default; Prettier's is 80.
-        svelte.insert("printWidth".to_owned(), Value::from(100));
-    }
-    for (name, value) in options {
-        match (kind, name.as_str()) {
-            (_, name) if OTHER_LANGUAGES.contains(&name) => {}
-            (Kind::Oxfmt, "ignorePatterns") => {
-                ignore_patterns = serde_json::from_value(value)
-                    .map_err(|e| format!("{}: ignorePatterns: {e}", source.display()))?;
+        if let Some(configuration) = configuration {
+            let source = || Origin::File(Arc::clone(&configuration.source));
+            let options = &configuration.options;
+            for (name, value) in &options.printed {
+                resolved.set(name, value, source());
             }
-            (Kind::Oxfmt, "svelte") => match value {
-                Value::Bool(true) => {}
-                Value::Object(plugin) => svelte.extend(plugin),
-                _ => return refuse("svelte"),
-            },
-            (Kind::Oxfmt, "insertFinalNewline") if value == Value::Bool(true) => {}
-            (Kind::Prettier, "plugins")
-                if value.as_array().is_some_and(|plugins| {
-                    plugins.iter().all(|p| p == "prettier-plugin-svelte")
-                }) => {}
-            (_, "overrides") if value.as_array().is_some_and(Vec::is_empty) => {}
-            (
-                _,
-                "plugins"
-                | "overrides"
-                | "insertFinalNewline"
-                | "sortImports"
-                | "experimentalSortImports"
-                | "sortTailwindcss"
-                | "experimentalTailwindcss"
-                | "jsdoc"
-                | "associations"
-                | "svelte",
-            ) => return refuse(&name),
-            _ => {
-                svelte.insert(name, value);
+            if let Some(reason) = &options.refused {
+                resolved.refuse(reason.clone(), source());
+            }
+            for name in &options.unknown {
+                read.warnings.insert(format!(
+                    "{}: ignored unknown option `{name}`",
+                    configuration.source.display()
+                ));
             }
         }
+        drop(read);
+        Resolution::Formatted(resolved)
     }
-    let typescript: Map<String, Value> = (svelte.iter())
-        .filter(|(name, _)| rsvelte_typescript_format::options::NAMES.contains(&name.as_str()))
-        .map(|(name, value)| (name.clone(), value.clone()))
-        .collect();
-    Ok(Formatting {
-        source: source.to_owned(),
-        svelte: Value::Object(svelte).to_string(),
-        typescript: Value::Object(typescript).to_string(),
-        ignore_patterns,
-    })
+
+    /// What the formatter ignores of the configurations read so far.
+    pub(crate) fn warnings(&self) -> Vec<String> {
+        self.read().warnings.iter().cloned().collect()
+    }
+}
+
+impl Read {
+    /// The nearest configuration of `formatters` in `directory` and its ancestors; in one
+    /// directory, the first of `formatters` that has one.
+    fn nearest(
+        &mut self,
+        directory: &Path,
+        formatters: &[Formatter],
+    ) -> Option<Arc<Configuration>> {
+        directory.ancestors().find_map(|directory| {
+            (formatters.iter()).find_map(|&formatter| self.configuration(directory, formatter))
+        })
+    }
+
+    fn configuration(
+        &mut self,
+        directory: &Path,
+        formatter: Formatter,
+    ) -> Option<Arc<Configuration>> {
+        (self.configurations)
+            .entry((directory.to_owned(), formatter))
+            .or_insert_with(|| Configuration::find(directory, formatter).map(Arc::new))
+            .clone()
+    }
+
+    fn editorconfig(&mut self, directory: &Path) -> Option<Arc<EditorConfig>> {
+        (self.editorconfigs)
+            .entry(directory.to_owned())
+            .or_insert_with(|| EditorConfig::read(directory.join(".editorconfig")).map(Arc::new))
+            .clone()
+    }
+
+    /// Prettier's `.editorconfig` files for a file in `directory`, nearest first: up to the
+    /// project root, the nearest directory with `.git` or `.hg`, or to one that says `root`.
+    fn prettier_editorconfigs(&mut self, directory: &Path) -> Vec<Arc<EditorConfig>> {
+        let mut found = Vec::new();
+        for directory in directory.ancestors() {
+            let own = self.editorconfig(directory);
+            let root = own.as_ref().is_some_and(|own| own.root);
+            found.extend(own);
+            if root || directory.join(".git").exists() || directory.join(".hg").is_dir() {
+                break;
+            }
+        }
+        found
+    }
+
+    /// oxfmt's `.editorconfig`: the nearest one of the current directory and its ancestors.
+    fn oxfmt_editorconfig(&mut self, cwd: &Path) -> Option<Arc<EditorConfig>> {
+        cwd.ancestors()
+            .find_map(|directory| self.editorconfig(directory))
+    }
+
+    /// Whether an oxfmt configuration is in a directory below `directory`.
+    fn oxfmt_below(&mut self, directory: &Path) -> bool {
+        if let Some(&below) = self.oxfmt_below.get(directory) {
+            return below;
+        }
+        let names: Vec<&str> = configuration::oxfmt_file_names().collect();
+        let mut walk = ignore::WalkBuilder::new(directory);
+        walk.standard_filters(false).filter_entry(|entry| {
+            !matches!(entry.file_name().to_str(), Some("node_modules" | ".git"))
+        });
+        // A directory that cannot be read is not left: the walk reports it.
+        let below = walk.build().any(|entry| {
+            entry.map_or(true, |entry| {
+                entry.depth() > 1
+                    && (entry.file_name().to_str()).is_some_and(|n| names.contains(&n))
+            })
+        });
+        self.oxfmt_below.insert(directory.to_owned(), below);
+        below
+    }
+}
+
+impl crate::commands::files::Prune for Resolver {
+    /// Whether a walk can leave `directory` without reading it: its nearest oxfmt
+    /// configuration's `ignorePatterns` leave it, and no oxfmt configuration below it takes
+    /// its files back.
+    fn prunes(&self, directory: &Path) -> bool {
+        let directory = self.absolute(directory);
+        let mut read = self.read();
+        read.nearest(&directory, &[Formatter::Oxfmt])
+            .is_some_and(|oxfmt| oxfmt.ignores(&directory, true))
+            && !read.oxfmt_below(&directory)
+    }
 }
 
 #[cfg(test)]

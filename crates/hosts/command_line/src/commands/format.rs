@@ -7,9 +7,9 @@ use std::process::ExitCode;
 
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Severity;
+use rsvelte_kernel::source::document::Document;
 
 use super::files;
-use crate::usage;
 
 /// What `format` runs without `--task`: the format of every language.
 pub(crate) const TASKS: &[&str] = &[
@@ -18,34 +18,32 @@ pub(crate) const TASKS: &[&str] = &[
     "vue.format/default",
 ];
 
-/// What `format` skips without a formatter configuration: what Prettier skips.
-pub(crate) const SKIP: files::Skip<'static> = files::Skip {
-    files: &[".prettierignore"],
-    patterns: None,
-};
+/// What `format` skips besides what `.gitignore` skips: what Prettier skips.
+pub(crate) const IGNORE_FILES: &[&str] = &[".prettierignore"];
+
+/// Documents formatted by the tasks of one registry, with its options.
+pub(crate) struct Batch<'a> {
+    pub(crate) reg: &'a Registry,
+    pub(crate) tasks: &'a [&'a str],
+    pub(crate) documents: Vec<Document>,
+}
 
 /// Exit code 1 means `--check` found a file to format; 2, a file that could not be formatted or
-/// written, or a usage error.
-pub(crate) fn format(
-    reg: &Registry,
-    paths: &[&str],
-    tasks: &[&str],
-    check: bool,
-    skip: files::Skip<'_>,
-) -> ExitCode {
-    let documents = match files::load(reg, paths, tasks, skip) {
-        Ok(documents) => documents,
-        Err(e) => return usage(&e),
-    };
-    let results = match files::run(reg, &documents, tasks) {
-        Ok(results) => results,
-        Err(code) => return code,
-    };
+/// written, or a usage error. Every batch runs before any file is written.
+pub(crate) fn format(batches: &[Batch<'_>], check: bool) -> ExitCode {
+    let mut formatted = Vec::new();
+    for batch in batches {
+        match files::run(batch.reg, &batch.documents, batch.tasks) {
+            Ok(results) => formatted.extend(batch.documents.iter().zip(results)),
+            Err(code) => return code,
+        }
+    }
+    formatted.sort_unstable_by(|(a, _), (b, _)| a.path.cmp(&b.path));
     let mut failed = 0;
     let mut changed = 0;
     // A closed pipe, as `| head` closes it, only cuts the list short.
     let mut out = std::io::BufWriter::new(std::io::stdout().lock());
-    for (document, result) in documents.iter().zip(&results) {
+    for (document, result) in &formatted {
         // Prettier names a file below the current directory without `./`.
         let shown = (document.path.strip_prefix("./")).unwrap_or(&document.path);
         if let Some(panic) = &result.panic {
@@ -88,13 +86,13 @@ pub(crate) fn format(
             drop(writeln!(
                 out,
                 "All {} files are formatted.",
-                documents.len()
+                formatted.len()
             ));
         } else {
             drop(writeln!(
                 out,
                 "[warn] {changed} of {} files need formatting.",
-                documents.len()
+                formatted.len()
             ));
         }
     }
