@@ -2,14 +2,15 @@ use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::Document;
 
+use super::register;
+
 const CLIENT: &str = "svue.compile/client";
 const SERVER: &str = "svue.compile/server";
 
 /// The module, if any, and the diagnostics' `code: message`s, for one task.
 fn compile(source_text: &str, task: &str) -> (Option<String>, Vec<String>) {
     let mut reg = Registry::new();
-    rsvelte_vue_semantic::register(&mut reg);
-    rsvelte_vue_to_svelte::register(&mut reg);
+    register(&mut reg);
     let documents =
         [Document::new("Component.vue".into(), source_text.into()).expect("a document")];
     let options = RunOptions {

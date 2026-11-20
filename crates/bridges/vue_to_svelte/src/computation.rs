@@ -174,3 +174,6 @@ impl<S: Side> Task for Compile<S> {
 }
 
 use crate::compilation::{Translation, translate};
+
+#[cfg(test)]
+mod tests;
