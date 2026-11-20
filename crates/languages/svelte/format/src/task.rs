@@ -68,7 +68,7 @@ impl Task for Format {
             // A component only the TypeScript read gives has no resolution of its own. Its first
             // error refuses even where Babel recovers, which is conservative: a later one Babel
             // throws on is not known.
-            own = crate::format::rejected(c, context.source_text());
+            own = crate::format::first_module_syntax_error(c, context.source_text());
             own.as_ref()
         };
         match formatted(c, context.source_text(), &self.options, rejected) {
@@ -85,7 +85,7 @@ impl Task for Format {
 /// The parse error, or the first construct the formatter does not handle yet.
 pub fn format(source_text: &str, options: &Options) -> Result<String, Diagnostic> {
     let component = crate::format::parsed(source_text)?;
-    let rejected = crate::format::rejected(&component, source_text);
+    let rejected = crate::format::first_module_syntax_error(&component, source_text);
     formatted(&component, source_text, options, rejected.as_ref())
 }
 

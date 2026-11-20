@@ -74,7 +74,7 @@ pub(crate) fn format(
                 Span::new(at, at + 1),
             )
         })?;
-        let rejected = self::rejected(&reparsed, &normalized.text);
+        let rejected = first_module_syntax_error(&reparsed, &normalized.text);
         let options = Options {
             end_of_line: match options.end_of_line {
                 EndOfLine::Auto => guess_end_of_line(text),
@@ -463,14 +463,9 @@ mod unparsed;
 mod tests;
 
 /// The first error a module rejects in `c`, outside the artifact database.
-pub(crate) fn rejected(c: &Component, source_text: &str) -> Option<SyntaxError> {
+pub(crate) fn first_module_syntax_error(c: &Component, source_text: &str) -> Option<SyntaxError> {
     let lowered = rsvelte_svelte_semantic::compiler_syntax_tree::lower(c, source_text);
-    rsvelte_svelte_semantic::resolve::resolve(
-        &c.javascript,
-        c.instance.as_ref().map(|s| s.program),
-        c.module.as_ref().map(|s| s.program),
-        &lowered,
-    )
-    .javascript_syntax_error()
-    .cloned()
+    rsvelte_svelte_semantic::resolve_component(c, &lowered)
+        .javascript_syntax_error()
+        .cloned()
 }

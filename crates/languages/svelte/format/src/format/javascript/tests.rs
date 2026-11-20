@@ -1,4 +1,4 @@
-use crate::format::{format, rejected};
+use crate::format::{first_module_syntax_error, format};
 use crate::options::Options;
 
 fn formatted(source_text: &str) -> String {
@@ -7,7 +7,7 @@ fn formatted(source_text: &str) -> String {
         &c,
         source_text,
         &Options::default(),
-        rejected(&c, source_text).as_ref(),
+        first_module_syntax_error(&c, source_text).as_ref(),
     )
     .expect("prints")
 }

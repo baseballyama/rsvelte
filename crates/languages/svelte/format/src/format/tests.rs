@@ -10,8 +10,13 @@ fn refusal_with<'s>(source_text: &'s str, options: &Options) -> (&'static str, O
         Ok(c) => c,
         Err(d) => return ("a syntax error", Some(d.span.text(source_text))),
     };
-    let u =
-        format(&c, source_text, options, rejected(&c, source_text).as_ref()).expect_err("refused");
+    let u = format(
+        &c,
+        source_text,
+        options,
+        first_module_syntax_error(&c, source_text).as_ref(),
+    )
+    .expect_err("refused");
     (
         u.what,
         u.source_location.span().map(|s| s.text(source_text)),
@@ -101,7 +106,13 @@ fn formatted(source_text: &str) -> String {
 
 fn formatted_with(source_text: &str, options: &Options) -> String {
     let c = rsvelte_svelte_syntax::parse::parse(source_text).expect("parses");
-    format(&c, source_text, options, rejected(&c, source_text).as_ref()).expect("prints")
+    format(
+        &c,
+        source_text,
+        options,
+        first_module_syntax_error(&c, source_text).as_ref(),
+    )
+    .expect("prints")
 }
 
 #[test]
