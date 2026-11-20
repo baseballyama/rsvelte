@@ -19,6 +19,10 @@ pub(super) enum Verdict<'a> {
     Parses,
 }
 
+/// svelte-eslint-parser throws Svelte's parse error, which `ESLint` reports as the one finding: the
+/// markup's, or a JavaScript one in the template's expressions, which Svelte's parser reads too. It
+/// parses a script itself, with typescript-eslint whatever the script's language, and throws what
+/// that rejects; the rules read a script it parses.
 pub(super) fn parse_verdict<'a>(context: &'a DocumentContext<'_>) -> Verdict<'a> {
     if !rsvelte_svelte_syntax::matches(context.document) {
         return module_rejection(context).map_or(Verdict::Parses, |(message, at)| {
