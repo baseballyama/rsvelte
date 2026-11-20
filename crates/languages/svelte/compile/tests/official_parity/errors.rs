@@ -409,7 +409,7 @@ fn a_binding_upstream_rejects_on_its_element_is_refused_on_both_targets() {
 #[test]
 fn an_each_key_is_refused_without_a_context_unless_it_is_the_index() {
     // Svelte 5.57.3's `each_key_without_as` spans; the index as its own key keys nothing.
-    let ts = "<script lang=\"ts\"></script>";
+    let typescript = "<script lang=\"ts\"></script>";
     for (template, key) in [
         ("{#each a, b (k)}x{/each}", Some((13, 14))),
         ("{#each a, b (b.x)}x{/each}", Some((13, 16))),
@@ -440,7 +440,7 @@ fn an_each_key_is_refused_without_a_context_unless_it_is_the_index() {
         ("{#each a, b (b!)}x{/each}", None),
         ("{#each a, b (b satisfies number)}x{/each}", None),
     ] {
-        let source = format!("{ts}{template}");
+        let source = format!("{typescript}{template}");
         for target in [Target::Client, Target::Server] {
             let error = compile_at(&source, target).err();
             let expected = key.map(|span| ("each_key_without_as".to_owned(), span));
