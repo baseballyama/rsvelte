@@ -5,7 +5,7 @@ use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
 use rsvelte_svelte_semantic::resolve::Resolution;
 
-use super::nodes;
+use super::shared::nodes;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -25,7 +25,7 @@ impl SvelteRule for ValidEachKey {
 
 fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     let component = file.component().expect("a component rule");
-    let tree = file.normalized().expect("a component rule");
+    let tree = file.lowered().expect("a component rule");
     let resolution = file.resolution().expect("a component rule");
     let javascript = &component.javascript;
     for node in &tree.nodes {
@@ -68,7 +68,7 @@ impl<'a> Visit<'a> for UsesIterationVariable<'_> {
         let Some(symbol) = self.resolution.symbol(it) else {
             return;
         };
-        let declared = super::node_span(self.resolution.scoping().symbol_span(symbol));
+        let declared = nodes::from_oxc(self.resolution.scoping().symbol_span(symbol));
         let contains = |outer: Span| {
             outer.start_offset <= declared.start_offset && declared.end_offset <= outer.end_offset
         };

@@ -1,7 +1,7 @@
 use oxc_ast::ast::Expression;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::markup::{Holder, for_each_mustache, parts};
+use super::shared::markup::{Holder, for_each_mustache, parts};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

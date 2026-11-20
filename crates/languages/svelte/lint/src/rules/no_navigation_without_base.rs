@@ -3,12 +3,12 @@ use oxc_semantic::{NodeId, SymbolId};
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_syntax::syntax_tree::{Part, decode_attribute};
 
-use super::kit_navigation::{
+use super::shared::kit_navigation::{
     Navigation, Options, Script, first_argument, first_part, has_scheme, leading_expression, links,
     string, template,
 };
-use super::kit_route::{BASE_VERSIONS, runs_for};
-use super::nodes::span;
+use super::shared::kit_route::{BASE_VERSIONS, runs_for};
+use super::shared::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

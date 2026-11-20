@@ -15,7 +15,7 @@ use crate::rule::File;
 
 /// The calls of `names` (some of `writable`, `readable` and `derived`) imported from
 /// `svelte/store`, in source order, with the name each calls.
-pub(super) fn store_calls<'a>(
+pub(crate) fn store_calls<'a>(
     file: &File<'a>,
     names: &[&'static str],
 ) -> Vec<(&'a CallExpression<'a>, &'static str)> {
@@ -34,17 +34,17 @@ pub(super) fn store_calls<'a>(
 }
 
 /// A reference to a value, not one in type syntax (`x: T`, `typeof x` in a type).
-pub(super) fn is_value(reference: &Reference) -> bool {
+pub(crate) fn is_value(reference: &Reference) -> bool {
     (reference.is_read() || reference.is_write()) && !reference.flags().is_value_as_type()
 }
 
 /// The names each scope refers to, for `findVariableForReplacement`.
-pub(super) struct Scopes<'a> {
+pub(crate) struct Scopes<'a> {
     referred: FxHashSet<(ScopeId, &'a str)>,
 }
 
 impl<'a> Scopes<'a> {
-    pub(super) fn new(file: &File<'a>) -> Self {
+    pub(crate) fn new(file: &File<'a>) -> Self {
         let semantic = file.semantic();
         let scoping = semantic.scoping();
         let nodes = semantic.nodes();
@@ -63,7 +63,7 @@ impl<'a> Scopes<'a> {
 
     /// `findVariableForReplacement`: the symbol named `name` in the scope of the function
     /// `function`, unless that scope already declares or refers to `replacement` (`Err`).
-    pub(super) fn replaceable(
+    pub(crate) fn replaceable(
         &self,
         file: &File<'_>,
         function: Function<'_>,
@@ -89,7 +89,7 @@ impl<'a> Scopes<'a> {
 
 /// A function or arrow passed to a store: its scope, and the name a function expression has.
 #[derive(Clone, Copy)]
-pub(super) struct Function<'a> {
+pub(crate) struct Function<'a> {
     pub scope: Option<ScopeId>,
     pub name: Option<SymbolId>,
     pub parameters: &'a oxc_ast::ast::FormalParameters<'a>,
@@ -103,7 +103,7 @@ pub(super) struct Function<'a> {
 
 impl<'a> Function<'a> {
     /// `expression` as a function or arrow.
-    pub(super) fn of(expression: &'a Expression<'a>) -> Option<Self> {
+    pub(crate) fn of(expression: &'a Expression<'a>) -> Option<Self> {
         match expression {
             Expression::FunctionExpression(function) => Some(Self {
                 scope: function.scope_id.get(),
@@ -130,7 +130,7 @@ impl<'a> Function<'a> {
 
 /// Renames the parameter declared at `declaration` and every reference to `symbol` to
 /// `replacement`.
-pub(super) fn rename(
+pub(crate) fn rename(
     file: &File<'_>,
     declaration: Span,
     symbol: Option<SymbolId>,

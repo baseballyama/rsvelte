@@ -26,12 +26,12 @@ const RUNE_GLOBALS: [&str; 7] = [
 
 /// Whether `svelte-eslint-parser` declares `name` as a global; `runes` unless the component is
 /// known to be in legacy mode.
-pub(super) fn is_svelte_global(name: &str, runes: bool) -> bool {
+pub(crate) fn is_svelte_global(name: &str, runes: bool) -> bool {
     SVELTE_GLOBALS.contains(&name) || (runes && RUNE_GLOBALS.contains(&name))
 }
 
 /// A component's top-level names, which `svelte-eslint-parser` keeps in one module scope.
-pub(super) struct TopLevelNames<'a> {
+pub(crate) struct TopLevelNames<'a> {
     resolution: &'a Resolution,
     /// The instance's scope, the module's and the root fragment's.
     scopes: [Option<ScopeId>; 3],
@@ -40,10 +40,10 @@ pub(super) struct TopLevelNames<'a> {
 
 impl<'a> TopLevelNames<'a> {
     /// `None` for a module.
-    pub(super) fn new(file: &File<'a>) -> Option<Self> {
+    pub(crate) fn new(file: &File<'a>) -> Option<Self> {
         let resolution = file.resolution()?;
         let scoping = resolution.scoping();
-        let tree = file.normalized();
+        let tree = file.lowered();
         // The root fragment's names are top-level names to `svelte-eslint-parser`.
         let root =
             tree.and_then(|tree| resolution.template_scope(TemplateScope::Fragment(tree.root)));
@@ -67,12 +67,12 @@ impl<'a> TopLevelNames<'a> {
         })
     }
 
-    pub(super) fn scoping(&self) -> &'a oxc_semantic::Scoping {
+    pub(crate) fn scoping(&self) -> &'a oxc_semantic::Scoping {
         self.resolution.scoping()
     }
 
     /// The top-level names the unresolved `name` subscribes to as a store (`analyzeStoreScope`).
-    pub(super) fn stores<'s>(
+    pub(crate) fn stores<'s>(
         &'s self,
         name: &'s str,
         runes: bool,
@@ -87,29 +87,29 @@ impl<'a> TopLevelNames<'a> {
 
     /// The top-level name an unresolved `name` refers to: one the other script or the root
     /// fragment declares.
-    pub(super) fn binding(&self, name: &str) -> Option<SymbolId> {
+    pub(crate) fn binding(&self, name: &str) -> Option<SymbolId> {
         let scoping = self.resolution.scoping();
         (self.scopes.iter().flatten()).find_map(|&scope| scoping.get_binding(scope, name.into()))
     }
 
     /// The top-level snippet the scripts' unresolved `name` refers to.
-    pub(super) fn snippet(&self, name: &str) -> Option<SymbolId> {
+    pub(crate) fn snippet(&self, name: &str) -> Option<SymbolId> {
         self.snippets.get(name).copied()
     }
 
     /// Whether the template has top-level snippets.
-    pub(super) fn has_snippets(&self) -> bool {
+    pub(crate) fn has_snippets(&self) -> bool {
         !self.snippets.is_empty()
     }
 }
 
 /// Whether a script has a top-level `$:` statement; most components have none, and then need no
 /// legacy facts.
-pub(super) fn has_reactive_statement(file: &File<'_>) -> bool {
+pub(crate) fn has_reactive_statement(file: &File<'_>) -> bool {
     let (Some(component), tree) = (file.component(), file.javascript()) else {
         return false;
     };
-    (component.module.iter().chain(&component.instance)).any(|script| {
+    component.scripts().any(|script| {
         tree.get_program(script.program).body.iter().any(|statement| {
             matches!(statement, Statement::LabeledStatement(labeled) if labeled.label.name == "$")
         })
@@ -117,7 +117,7 @@ pub(super) fn has_reactive_statement(file: &File<'_>) -> bool {
 }
 
 /// The names a top-level `$: name = …` declares (`analyzeReactiveScope`).
-pub(super) fn reactive_names<'a>(file: &File<'a>) -> impl Iterator<Item = &'a str> {
+pub(crate) fn reactive_names<'a>(file: &File<'a>) -> impl Iterator<Item = &'a str> {
     let implicit = if has_reactive_statement(file) {
         legacy(file).implicit.as_slice()
     } else {

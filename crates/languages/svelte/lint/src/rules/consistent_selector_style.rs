@@ -54,7 +54,7 @@ struct ConsistentSelectorStyle {
 impl SvelteRule for ConsistentSelectorStyle {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        let Some(sheet) = super::style_sheet::sheet(file) else {
+        let Some(sheet) = super::shared::style_sheet::sheet(file) else {
             return;
         };
         let mut template = Template {

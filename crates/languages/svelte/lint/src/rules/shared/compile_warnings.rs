@@ -4,32 +4,34 @@
 
 use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::warnings::{CompileWarnings, code_for_v5};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
 use rsvelte_typescript_tree::ProgramIdentifier;
 
-use crate::computation::{PostcssConfiguration, PostcssConfigurationOnDisk};
+use crate::computation::PostcssConfiguration;
+use crate::project::PostcssConfigurationOnDisk;
 use crate::rule::File;
-use crate::words::{is_javascript_space, words};
+use crate::words::words;
 use crate::{LintSettings, settings};
 
 /// One code of a `svelte-ignore` comment.
 #[derive(Debug)]
-pub(super) struct IgnoreItem {
+pub(crate) struct IgnoreItem {
     /// As written.
-    pub(super) code: Span,
+    pub(crate) code: Span,
     /// The code Svelte 5 knows it by: upstream's `codeForV5`.
-    pub(super) code_for_v5: String,
+    pub(crate) code_for_v5: String,
     /// The whole comment.
-    pub(super) comment: Span,
+    pub(crate) comment: Span,
 }
 
 /// The `svelte-ignore` comments: their codes, and the comments that name none.
 #[derive(Debug, Default)]
-pub(super) struct Ignores {
-    pub(super) items: Vec<IgnoreItem>,
-    pub(super) missing_code: Vec<Span>,
+pub(crate) struct Ignores {
+    pub(crate) items: Vec<IgnoreItem>,
+    pub(crate) missing_code: Vec<Span>,
 }
 
 const STYLESHEET_CODES: &[&str] = &[
@@ -40,11 +42,11 @@ const STYLESHEET_CODES: &[&str] = &[
 ];
 
 /// `getSvelteIgnoreItems`: JavaScript comments, then template comments.
-pub(super) fn ignores(component: &Component, source: &str) -> Ignores {
+pub(crate) fn ignores(component: &Component, source: &str) -> Ignores {
     let mut out = Ignores::default();
     let tree = &component.javascript;
-    let scripts = component.module.iter().chain(&component.instance);
-    let comments = scripts
+    let comments = component
+        .scripts()
         .flat_map(|script| &tree.get_program(script.program).comments)
         .chain(tree.comments());
     for comment in comments {
@@ -75,11 +77,11 @@ fn block_end(comment: Span, source: &str) -> u32 {
 /// parenthesized note is not a code.
 fn read(value: Span, comment: Span, source: &str, out: &mut Ignores) {
     let text = value.text(source);
-    let trimmed = text.trim_start_matches(is_javascript_space);
+    let trimmed = text.trim_start_matches(is_ecmascript_whitespace);
     let Some(rest) = trimmed.strip_prefix("svelte-ignore") else {
         return;
     };
-    let codes = rest.trim_start_matches(is_javascript_space);
+    let codes = rest.trim_start_matches(is_ecmascript_whitespace);
     if codes.len() == rest.len() {
         return;
     }
@@ -147,23 +149,23 @@ impl IgnoreItem {
 }
 
 /// The compiler's result once `svelte-ignore` comments are applied.
-pub(super) struct Applied<'a> {
-    pub(super) warnings: Vec<&'a Diagnostic>,
+pub(crate) struct Applied<'a> {
+    pub(crate) warnings: Vec<&'a Diagnostic>,
     /// The first analysis error; then there are no warnings.
-    pub(super) error: Option<Diagnostic>,
+    pub(crate) error: Option<Diagnostic>,
     /// Per [`Ignores::items`], whether it ignored a warning.
-    pub(super) used: Vec<bool>,
+    pub(crate) used: Vec<bool>,
 }
 
 /// Whether upstream transforms a style in `postcss`: `settings.svelte.compileOptions.postcss` is
 /// not `false`, and a `PostCSS` configuration is found.
 #[derive(Clone, Copy, Debug)]
-pub(super) struct Postcss {
+pub(crate) struct Postcss {
     allowed: bool,
 }
 
 impl Postcss {
-    pub(super) fn new(settings: &LintSettings) -> Self {
+    pub(crate) fn new(settings: &LintSettings) -> Self {
         let disabled = matches!(
             settings
                 .compile_options
@@ -185,7 +187,7 @@ impl Postcss {
 }
 
 /// Upstream's `processIgnore`, over the warnings of a style in CSS only.
-pub(super) fn apply<'a>(
+pub(crate) fn apply<'a>(
     file: &File<'a>,
     compile: &'a CompileWarnings,
     ignores: &Ignores,
@@ -310,12 +312,7 @@ impl Targets<'_> {
         {
             return vec![self.leading(component.root, style.span.start_offset)];
         }
-        if let Some(script) = component
-            .module
-            .iter()
-            .chain(&component.instance)
-            .find(|s| contains(s.span, at))
-        {
+        if let Some(script) = component.scripts().find(|s| contains(s.span, at)) {
             return self.statement(script.program, script.content.start_offset, at);
         }
         // Upstream retries at the warning's middle, then its end, when nothing is at its start.
@@ -421,13 +418,7 @@ impl Targets<'_> {
             .style
             .iter()
             .map(|s| s.span)
-            .chain(
-                component
-                    .module
-                    .iter()
-                    .chain(&component.instance)
-                    .map(|s| s.span),
-            )
+            .chain(component.scripts().map(|s| s.span))
             .filter(|s| s.end_offset <= start)
             .map(|s| s.end_offset)
             .max();
@@ -480,7 +471,7 @@ impl Targets<'_> {
 
 /// Whether a warning code is one the compiler warnings check, so an ignore of it that ignored
 /// nothing is unused; a Svelte code they do not check cannot be told apart.
-pub(super) fn decidable(item: &IgnoreItem, source: &str) -> bool {
+pub(crate) fn decidable(item: &IgnoreItem, source: &str) -> bool {
     let named = |codes: &[&str]| {
         codes.contains(&item.code.text(source)) || codes.contains(&item.code_for_v5.as_str())
     };

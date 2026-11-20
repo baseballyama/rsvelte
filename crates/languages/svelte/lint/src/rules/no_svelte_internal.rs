@@ -3,7 +3,7 @@ use oxc_ast::ast::Expression;
 use oxc_span::GetSpan;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::node_span;
+use super::shared::nodes::from_oxc;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -34,7 +34,7 @@ impl SvelteRule for NoSvelteInternal {
             if value == "svelte/internal" || value.starts_with("svelte/internal/") {
                 reporter.report(Report::range(
                     "Using svelte/internal is prohibited. This will be removed in Svelte 6.",
-                    node_span(node.kind().span()),
+                    from_oxc(node.kind().span()),
                 ));
             }
         }

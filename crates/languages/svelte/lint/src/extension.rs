@@ -8,7 +8,7 @@ use rsvelte_typescript_semantic::globals::Declared;
 use serde::Deserialize;
 use serde_json::value::RawValue;
 
-use crate::external::{CONTRACT, ExternalRule};
+use crate::host_rule::{CONTRACT, HostRule};
 use crate::rule::{Files, LintPlugins};
 use crate::{Configuration, LintSettings};
 
@@ -102,7 +102,7 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
     let plugins = registry.contributions::<LintPlugins>().to_vec();
     crate::configuration::check_plugins(&plugins)
         .map_err(|e| CallError(format!("svelte.lint: {e}")))?;
-    let mut external = BTreeMap::new();
+    let mut host_rules = BTreeMap::new();
     for (prefix, rules) in functions {
         if !rsvelte_lint_runner::catalog::is_prefix(&prefix)
             || prefix == "svelte"
@@ -114,14 +114,14 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
             )));
         }
         for (rule, reference) in rules {
-            external.insert(format!("{prefix}/{rule}"), reference);
+            host_rules.insert(format!("{prefix}/{rule}"), reference);
         }
     }
     for (name, raw) in rules.0 {
         let error = |e: String| CallError(format!("svelte.lint rule `{name}`: {e}"));
         let entry: RuleEntryList<Box<RawValue>> =
             serde_json::from_str(raw.get()).map_err(|e| error(e.to_string()))?;
-        let reference = external.remove(&name);
+        let reference = host_rules.remove(&name);
         // As `ESLint`, an off rule is not validated, so it may name a rule that does not exist.
         let Some(severity) = entry.level.severity() else {
             continue;
@@ -142,7 +142,7 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
                     static_name(&name),
                     Files::All,
                     severity,
-                    Box::new(ExternalRule { function, options }),
+                    Box::new(HostRule { function, options }),
                 )
                 .map_err(error)?;
             continue;

@@ -38,7 +38,7 @@ impl Facet for LintConfiguration {
 pub(crate) struct Linted<'a> {
     context: &'a DocumentContext<'a>,
     pub(crate) component: &'a Component,
-    as_typescript: bool,
+    compiler_rejected: bool,
 }
 
 impl<'a> Linted<'a> {
@@ -46,21 +46,21 @@ impl<'a> Linted<'a> {
     ///
     /// The component does not parse as TypeScript either.
     pub(crate) fn of(context: &'a DocumentContext<'a>) -> Result<Self, &'a Diagnostic> {
-        let (component, as_typescript) = match context.get::<Parsed>() {
+        let (component, compiler_rejected) = match context.get::<Parsed>() {
             Ok(component) => (component, false),
             Err(_) => (read_as_svelte_eslint_parser(context)?, true),
         };
         Ok(Self {
             context,
             component,
-            as_typescript,
+            compiler_rejected,
         })
     }
 
     /// The template as the compiler reads it, computed on first request.
     pub(crate) fn lowered(self) -> &'a CompilerSyntaxTree {
-        let lowered = if self.as_typescript {
-            self.context.get::<LoweredAsTypeScript>()
+        let lowered = if self.compiler_rejected {
+            self.context.get::<LoweredAsSvelteEslintParser>()
         } else {
             self.context.get::<Lowered>()
         };
@@ -69,8 +69,8 @@ impl<'a> Linted<'a> {
 
     /// The scopes with the template's bindings, computed on first request.
     pub(crate) fn resolution(self) -> &'a Resolution {
-        let resolution = if self.as_typescript {
-            self.context.get::<ResolvedAsTypeScript>()
+        let resolution = if self.compiler_rejected {
+            self.context.get::<ResolvedAsSvelteEslintParser>()
         } else {
             self.context.get::<Resolved>()
         };
@@ -113,12 +113,12 @@ pub(crate) fn read_as_svelte_eslint_parser<'a>(
     }
 }
 
-/// [`Lowered`] of [`ParsedAsSvelteEslintParser`], which only lint reads.
+/// [`Lowered`] of the component [`read_as_svelte_eslint_parser`] reads, which only lint reads.
 #[derive(Debug)]
-pub(crate) struct LoweredAsTypeScript;
+pub(crate) struct LoweredAsSvelteEslintParser;
 
-impl Artifact for LoweredAsTypeScript {
-    /// `None` when the component does not parse as TypeScript.
+impl Artifact for LoweredAsSvelteEslintParser {
+    /// `None` when svelte-eslint-parser's reading does not parse either.
     type Output = Option<CompilerSyntaxTree>;
 
     const NAME: &'static str = "svelte.lint.compiler_syntax_tree_as_typescript";
@@ -132,19 +132,19 @@ impl Artifact for LoweredAsTypeScript {
     }
 }
 
-/// [`Resolved`] of [`ParsedAsSvelteEslintParser`], which only lint reads.
+/// [`Resolved`] of the component [`read_as_svelte_eslint_parser`] reads, which only lint reads.
 #[derive(Debug)]
-pub(crate) struct ResolvedAsTypeScript;
+pub(crate) struct ResolvedAsSvelteEslintParser;
 
-impl Artifact for ResolvedAsTypeScript {
-    /// `None` when the component does not parse as TypeScript.
+impl Artifact for ResolvedAsSvelteEslintParser {
+    /// `None` when svelte-eslint-parser's reading does not parse either.
     type Output = Option<Resolution>;
 
     const NAME: &'static str = "svelte.lint.resolve_as_typescript";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let component = read_as_svelte_eslint_parser(context).ok()?;
-        let lowered = context.get::<LoweredAsTypeScript>().as_ref()?;
+        let lowered = context.get::<LoweredAsSvelteEslintParser>().as_ref()?;
         Some(rsvelte_svelte_semantic::resolve_component(
             component, lowered,
         ))
@@ -191,12 +191,8 @@ impl Artifact for LegacyReactivity {
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let linted = Linted::of(context).expect("lint requests legacy reactivity after parsing");
         let component = linted.component;
-        let programs: Vec<ProgramIdentifier> = component
-            .module
-            .iter()
-            .chain(&component.instance)
-            .map(|script| script.program)
-            .collect();
+        let programs: Vec<ProgramIdentifier> =
+            component.scripts().map(|script| script.program).collect();
         Legacy::new(linted.resolution(), &programs)
     }
 }
@@ -292,39 +288,6 @@ impl Facet for SameNamedFile {
     const NAME: &'static str = "svelte.lint.same_named_file";
 }
 
-/// [`SameNamedFile`] from the process's file system.
-#[derive(Debug)]
-pub(crate) struct SameNamedFileOnDisk;
-
-impl Artifact for SameNamedFileOnDisk {
-    type Output = Option<String>;
-
-    const NAME: &'static str = "svelte.lint.same_named_file_on_disk";
-
-    fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        same_named_file(context)
-    }
-}
-
-/// The extensions TypeScript's resolution appends to a `.svelte` specifier; `.d.ts` declares a
-/// component instead of shadowing it.
-const MODULE_EXTENSIONS: [&str; 8] = [".ts", ".tsx", ".js", ".jsx", ".mts", ".cts", ".mjs", ".cjs"];
-
-/// A document with a name only has none.
-fn same_named_file(context: &DocumentContext<'_>) -> Option<String> {
-    let path = context.document.file.as_deref()?.to_str()?;
-    if rsvelte_svelte_syntax::matches(context.document) {
-        return MODULE_EXTENSIONS
-            .iter()
-            .map(|extension| format!("{path}{extension}"))
-            .find(|module| is_file(module))
-            .map(|module| real_name(&module));
-    }
-    let extension = MODULE_EXTENSIONS.iter().find(|e| path.ends_with(*e))?;
-    let component = &path[..path.len() - extension.len()];
-    (component.ends_with(".svelte") && is_file(component)).then(|| real_name(component))
-}
-
 /// Whether upstream finds a `PostCSS` configuration to transform a style in `postcss` with.
 ///
 /// Without one it compiles the component without that style. A host that knows its working
@@ -337,89 +300,4 @@ impl Facet for PostcssConfiguration {
     type Output = bool;
 
     const NAME: &'static str = "svelte.lint.postcss_configuration";
-}
-
-/// [`PostcssConfiguration`] from the process's file system, searched once.
-#[derive(Debug)]
-pub(crate) struct PostcssConfigurationOnDisk;
-
-impl Artifact for PostcssConfigurationOnDisk {
-    type Output = bool;
-
-    const NAME: &'static str = "svelte.lint.postcss_configuration_on_disk";
-
-    fn compute(_: &DocumentContext<'_>) -> Self::Output {
-        static FOUND: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        *FOUND.get_or_init(postcss_configuration_found)
-    }
-}
-
-/// `postcss-load-config` 3's search: from the working directory up to the home directory, a
-/// file in one of its places that is not empty, or a `package.json` with a `postcss` key.
-fn postcss_configuration_found() -> bool {
-    const PLACES: [&str; 10] = [
-        ".postcssrc",
-        ".postcssrc.json",
-        ".postcssrc.yaml",
-        ".postcssrc.yml",
-        ".postcssrc.ts",
-        ".postcssrc.js",
-        ".postcssrc.cjs",
-        "postcss.config.ts",
-        "postcss.config.js",
-        "postcss.config.cjs",
-    ];
-    #[derive(serde::Deserialize)]
-    struct Package {
-        postcss: Option<serde::de::IgnoredAny>,
-    }
-    let Ok(start) = std::env::current_dir() else {
-        return false;
-    };
-    let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
-    for directory in start.ancestors() {
-        let package = std::fs::read_to_string(directory.join("package.json"))
-            .ok()
-            .and_then(|text| serde_json::from_str::<Package>(&text).ok())
-            .is_some_and(|package| package.postcss.is_some());
-        let place = PLACES.iter().any(|place| {
-            std::fs::read_to_string(directory.join(place)).is_ok_and(|text| !text.trim().is_empty())
-        });
-        if package || place {
-            return true;
-        }
-        if home.as_deref() == Some(directory) {
-            break;
-        }
-    }
-    false
-}
-
-fn is_file(path: &str) -> bool {
-    std::fs::metadata(path).is_ok_and(|metadata| metadata.is_file())
-}
-
-/// The file name as its directory spells it: a case-insensitive file system finds `foo.svelte.ts`
-/// when asked for `Foo.svelte.ts`.
-fn real_name(path: &str) -> String {
-    let path = Path::new(path);
-    let wanted = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .expect("a path built from a file name");
-    let directory = match path.parent() {
-        Some(directory) if !directory.as_os_str().is_empty() => directory,
-        _ => Path::new("."),
-    };
-    let names: Vec<String> = std::fs::read_dir(directory)
-        .into_iter()
-        .flatten()
-        .filter_map(|entry| entry.ok()?.file_name().into_string().ok())
-        .collect();
-    let lower = wanted.to_lowercase();
-    names
-        .iter()
-        .find(|name| *name == wanted)
-        .or_else(|| names.iter().find(|name| name.to_lowercase() == lower))
-        .map_or_else(|| wanted.to_owned(), Clone::clone)
 }

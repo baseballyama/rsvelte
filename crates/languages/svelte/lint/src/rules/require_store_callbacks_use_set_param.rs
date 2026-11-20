@@ -2,8 +2,8 @@ use oxc_ast::ast::BindingPattern;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::nodes::span;
-use super::svelte_store::{Function, Scopes, rename, store_calls};
+use super::shared::nodes::span;
+use super::shared::svelte_store::{Function, Scopes, rename, store_calls};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 #[cfg(test)]

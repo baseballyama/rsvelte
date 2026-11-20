@@ -2,7 +2,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use serde::Deserialize;
 
-use super::compile_warnings::{Postcss, apply, ignores};
+use super::shared::compile_warnings::{Postcss, apply, ignores};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 use crate::settings::Warning;
 

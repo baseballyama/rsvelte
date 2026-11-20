@@ -2,7 +2,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_stylesheet_syntax::postcss::InlineNode;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue};
 
-use super::style_attribute::{inline_style, is_style};
+use super::shared::style_attribute::{inline_style, is_style};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

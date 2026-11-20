@@ -9,7 +9,7 @@ use rsvelte_typescript_semantic::semantic::Semantic;
 
 /// Follows an identifier through `const name = initializer` declarations to the first expression
 /// that is not such an identifier (`findRootExpression` upstream). A cycle stops where it closes.
-pub(super) fn root<'s>(
+pub(crate) fn root<'s>(
     semantic: &'s Semantic,
     mut expression: &'s Expression<'s>,
 ) -> &'s Expression<'s> {
@@ -55,7 +55,7 @@ pub(super) fn root<'s>(
 
 /// A string literal, a template whose expressions are such strings, or their `+`
 /// (`getStringIfConstant` upstream).
-pub(super) fn string_if_constant(expression: &Expression<'_>) -> Option<String> {
+pub(crate) fn string_if_constant(expression: &Expression<'_>) -> Option<String> {
     match expression {
         Expression::StringLiteral(string) => Some(string.value.display().to_string()),
         Expression::TemplateLiteral(template) => {

@@ -1,8 +1,8 @@
 use oxc_ast::AstKind;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::node_span;
-use super::runes::runes;
+use super::shared::nodes::from_oxc;
+use super::shared::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -39,10 +39,7 @@ impl SvelteRule for NoInspect {
                 continue;
             }
             last = Some(at);
-            reporter.report(Report::range(
-                "Do not use $inspect directive",
-                node_span(at),
-            ));
+            reporter.report(Report::range("Do not use $inspect directive", from_oxc(at)));
         }
     }
 }

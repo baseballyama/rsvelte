@@ -4,7 +4,7 @@
 use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    Attribute, Each, ElementKind, MetadataTag, Modifiers,
+    Attribute, Each, EachKey, ElementKind, MetadataTag, Modifiers,
 };
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 use rustc_hash::FxHashSet;
@@ -18,6 +18,7 @@ mod transitions;
 
 pub(in crate::lower) use handlers::mixed_syntaxes;
 use placement::Ancestors;
+use rsvelte_svelte_semantic::typescript::without_typescript;
 use rsvelte_svelte_semantic::warnings::slot_name_error;
 pub(in crate::lower) use slot_snippets::slot_snippet_conflict;
 
@@ -98,6 +99,9 @@ fn walk<'a>(
             NodeKind::Each(each) if let Some(rune) = each_rune(input, each) => {
                 return super::state_invalid_placement(rune, node.span).map_err(here);
             }
+            NodeKind::Each(each) if let Err(e) = each_key(input.component.javascript, each) => {
+                return Err(here(e));
+            }
             NodeKind::If { .. } | NodeKind::Each(_) | NodeKind::Await(_) | NodeKind::Key { .. } => {
                 (
                     owner,
@@ -156,6 +160,23 @@ pub(in crate::lower) fn unparenthesized_sequence(
             Some((tree.node(identifier).span.start_offset, error))
         })
         .min_by_key(|&(at, _)| at)
+}
+
+/// How the block tells its items apart.
+///
+/// # Errors
+///
+/// Upstream's `each_key_without_as`.
+pub(in crate::lower) fn each_key(javascript: &Tree, each: &Each) -> Result<EachKey, Diagnostic> {
+    each.key(javascript).map_err(|key| {
+        let key = without_typescript(javascript.get_expression(key));
+        let key = oxc_span::GetSpan::span(key);
+        super::super::special::error(
+            "each_key_without_as",
+            "An `{#each ...}` block without an `as` clause cannot have a key",
+            Span::new(key.start, key.end),
+        )
+    })
 }
 
 /// Upstream's `EachBlock` refuses a context named `$state` or `$derived`.

@@ -6,7 +6,7 @@ use rsvelte_kernel::source::tokens::TokenKind;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 
 /// Whether the component's tokens in `a` and in `b` are the same, kind and text.
-pub(super) fn equal_tokens(component: &Component, source: &str, a: Span, b: Span) -> bool {
+pub(crate) fn equal_tokens(component: &Component, source: &str, a: Span, b: Span) -> bool {
     let tokens = |span| {
         component
             .tokens

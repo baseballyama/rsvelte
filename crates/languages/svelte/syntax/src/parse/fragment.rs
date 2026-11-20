@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::positions::Span;
 
 use super::element_rules::closing_tag_omitted;
-use super::{End, ParseResult, Parser, element, is_void};
+use super::{AutoClosed, End, ParseResult, Parser, element, is_void};
 use crate::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
 
 impl Parser<'_, '_> {
@@ -109,6 +109,16 @@ impl Parser<'_, '_> {
                 at,
                 "void_element_invalid_content",
                 "Void elements cannot have children or closing tags",
+            );
+        }
+        if let Some(AutoClosed { by, .. }) = self.auto_closed.filter(|a| a.name == name) {
+            return Self::err_at(
+                at,
+                "element_invalid_closing_tag_autoclosed",
+                format_args!(
+                    "`</{name}>` attempted to close element that was already automatically closed \
+                     by `<{by}>` (cannot nest `<{by}>` inside `<{name}>`)"
+                ),
             );
         }
         Self::err_at(

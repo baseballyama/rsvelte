@@ -8,6 +8,7 @@ use oxc_span::{GetSpan, Span as OxcSpan};
 use super::{Script, parameter_spans};
 use crate::rules::indent::layout::Item;
 use crate::rules::indent::tokens::Token;
+use crate::rules::shared::nodes::from_oxc;
 
 impl<'a> Script<'_, 'a> {
     #[expect(clippy::too_many_lines, reason = "one arm per statement")]
@@ -37,7 +38,7 @@ impl<'a> Script<'_, 'a> {
             }
             AstKind::ImportSpecifier(_) | AstKind::ExportSpecifier(_) => self.specifier(node),
             AstKind::ImportNamespaceSpecifier(_) => {
-                let tokens: Vec<Token> = self.tokens().within(super::span(node)).skip(1).collect();
+                let tokens: Vec<Token> = self.tokens().within(from_oxc(node)).skip(1).collect();
                 self.layout.offset_all(tokens, 1, first);
             }
             AstKind::ImportAttribute(n) => {
@@ -338,7 +339,7 @@ impl<'a> Script<'_, 'a> {
     fn attributes(&mut self, node: OxcSpan, source: OxcSpan, first: Option<Token>) {
         let tokens = self.tokens();
         let (Some(last), Some(source_last)) = (
-            tokens.last_matching(super::span(node), |t| !tokens.is(t, Kind::Semicolon)),
+            tokens.last_matching(from_oxc(node), |t| !tokens.is(t, Kind::Semicolon)),
             self.last(source),
         ) else {
             return;
@@ -360,7 +361,7 @@ impl<'a> Script<'_, 'a> {
 
     /// `ImportSpecifier` and `ExportSpecifier`.
     fn specifier(&mut self, node: OxcSpan) {
-        let mut tokens: Vec<Token> = self.tokens().within(super::span(node)).collect();
+        let mut tokens: Vec<Token> = self.tokens().within(from_oxc(node)).collect();
         if tokens.is_empty() {
             return;
         }
@@ -391,7 +392,7 @@ impl<'a> Script<'_, 'a> {
         );
         let is_close = |t: Token| tokens.is(t, Kind::RCurly);
         let right_brace = source.map_or_else(
-            || tokens.last_matching(super::span(node), is_close),
+            || tokens.last_matching(from_oxc(node), is_close),
             |source| self.before_node_matching(source, is_close),
         );
         let base = left_braces.last().copied();

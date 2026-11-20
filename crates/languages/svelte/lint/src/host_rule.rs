@@ -25,7 +25,7 @@ pub static CONTRACT: TextContract = TextContract {
 };
 
 #[derive(Debug)]
-pub(crate) struct ExternalRule {
+pub(crate) struct HostRule {
     pub(crate) function: TextFunction,
     /// The options as the function receives them.
     pub(crate) options: String,
@@ -33,32 +33,32 @@ pub(crate) struct ExternalRule {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct ExternalReport {
+struct HostReport {
     message: String,
     range: [u32; 2],
     // A host may send it; no output carries it.
     #[serde(rename = "messageId")]
     _message_id: Option<String>,
-    fix: Option<ExternalFix>,
+    fix: Option<HostFix>,
     #[serde(default)]
-    suggestions: Vec<ExternalSuggestion>,
+    suggestions: Vec<HostSuggestion>,
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ExternalFix {
+struct HostFix {
     range: [u32; 2],
     text: String,
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ExternalSuggestion {
+struct HostSuggestion {
     message: String,
-    fix: ExternalFix,
+    fix: HostFix,
 }
 
-impl SvelteRule for ExternalRule {
+impl SvelteRule for HostRule {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         match self.reports(file) {
             Ok(reports) => {
@@ -71,7 +71,7 @@ impl SvelteRule for ExternalRule {
     }
 }
 
-impl ExternalRule {
+impl HostRule {
     fn reports(&self, file: &File<'_>) -> Result<Vec<Report>, String> {
         let path = std::path::absolute(file.path()).map_err(|e| e.to_string())?;
         let path = path.to_str().ok_or("the document's path is not UTF-8")?;
@@ -79,10 +79,10 @@ impl ExternalRule {
             .function
             .call(&[path, file.source(), &self.options])
             .map_err(|e| e.to_string())?;
-        let reports: Vec<ExternalReport> =
+        let reports: Vec<HostReport> =
             serde_json::from_str(&output).map_err(|e| format!("it returned {e}"))?;
         let lines = file.context.lines(LineBreaks::Newline);
-        let fix = |fix: ExternalFix| {
+        let fix = |fix: HostFix| {
             span(lines, fix.range)
                 .map(|at| Fix::replace(at, fix.text))
                 .ok_or_else(|| format!("it returned an invalid fix range {:?}", fix.range))
@@ -93,8 +93,8 @@ impl ExternalRule {
                 let at = span(lines, report.range)
                     .ok_or_else(|| format!("it reported an invalid range {:?}", report.range))?;
                 let mut out = Report::range(report.message, at);
-                if let Some(external) = report.fix {
-                    out = out.fix(fix(external)?);
+                if let Some(reported) = report.fix {
+                    out = out.fix(fix(reported)?);
                 }
                 for suggestion in report.suggestions {
                     out = out.suggest(Suggestion {

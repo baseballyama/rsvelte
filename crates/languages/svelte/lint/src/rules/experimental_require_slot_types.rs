@@ -2,7 +2,7 @@ use oxc_ast::AstKind;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode};
 
-use super::runes::runes;
+use super::shared::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -47,9 +47,7 @@ impl SvelteRule for ExperimentalRequireSlotTypes {
 /// The `lang` of the last `<script>`, which upstream's listener leaves set.
 fn is_typescript(component: &Component, source: &str) -> bool {
     let last = component
-        .module
-        .iter()
-        .chain(&component.instance)
+        .scripts()
         .max_by_key(|script| script.span.start_offset);
     last.is_some_and(|script| {
         let lang = script
