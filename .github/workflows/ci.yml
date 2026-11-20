@@ -29,7 +29,6 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFMT_TOOLCHAIN: nightly-2026-11-03
 
 jobs:
   rust-format:
@@ -39,8 +38,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: rustup toolchain install "$RUSTFMT_TOOLCHAIN" --profile minimal --component rustfmt
-      - run: cargo +"$RUSTFMT_TOOLCHAIN" fmt --all --check
+      - run: |
+          toolchain=$(sed -n 's/^rustfmt = "\(.*\)"$/\1/p' mise.toml)
+          if [ -z "$toolchain" ]; then
+            echo "::error::mise.toml names no rustfmt toolchain"
+            exit 1
+          fi
+          rustup toolchain install "$toolchain" --profile minimal --component rustfmt
+          cargo +"$toolchain" fmt --all --check
 
   rust-lint:
     runs-on: ubuntu-24.04
