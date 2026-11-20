@@ -6,6 +6,9 @@ inputs:
   targets:
     description: Extra compilation targets, separated by spaces.
     default: ''
+  key:
+    description: Separates the build caches of a matrix job's entries.
+    default: ''
   save:
     description: >-
       Whether the job saves its caches: true, false, or auto (only on main). Pull requests restore
@@ -54,4 +57,5 @@ runs:
     - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       with:
         prefix-key: v2-rust
+        key: ${{ inputs.key }}
         save-if: ${{ steps.channel.outputs.save }}
