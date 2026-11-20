@@ -6,17 +6,17 @@ fn same(expected: &str, actual: &str) -> bool {
 }
 
 #[test]
-fn a_comment_is_keyed_by_its_text_its_neighbours_and_for_a_line_comment_its_line() {
+fn a_comment_is_keyed_by_its_text_its_neighbours_its_occurrence_and_its_line() {
     assert_eq!(
         places("let a = 1;\n// note\nf(\n\t/* x */ 'y'\n);").as_deref(),
         Ok(&[
-            "// note | a ; ^ f f | own line".to_owned(),
-            "/* x */ | f ( ^ y EOF".to_owned()
+            "// note | a ; ^ f f #0 | leading".to_owned(),
+            "/* x */ | f ( ^ y EOF #0 | leading".to_owned()
         ][..])
     );
     assert_eq!(
         places("// only").as_deref(),
-        Ok(&["// only | EOF EOF ^ EOF EOF | own line".to_owned()][..])
+        Ok(&["// only | EOF EOF ^ EOF EOF #0 | leading".to_owned()][..])
     );
 }
 
@@ -25,6 +25,14 @@ fn layout_and_quotes_do_not_count() {
     assert!(same("f('a', // c\n\tb);", "f(\n\t\"a\", // c\n\tb\n);\n"));
     assert!(same("/**\n * doc\n */\nf();", "/** * doc */ f();"));
     assert!(same("f(a, /* c */ b);", "f(\n\ta,\n\t/* c */ b\n);"));
+    assert!(same(
+        "$.next(); /* c */ $.next();",
+        "$.next();\n/* c */ $.next();"
+    ));
+    assert!(same(
+        "$.set(a, 1);\n// c\n$.set(a, 1);\n$.set(a, 1);",
+        "$.set(a, 1);\n\n\t// c\n$.set(a, 1); $.set(a, 1);"
+    ));
 }
 
 #[test]
@@ -50,6 +58,27 @@ fn a_move_between_like_tokens_counts() {
     ));
     // A line comment that ends a statement's line, or that starts the next line.
     assert!(!same("a(); // c\nb();", "a();\n// c\nb();"));
+    // A block comment the same way.
+    assert!(!same("a();\n/* c */ b();", "a(); /* c */\nb();"));
+}
+
+#[test]
+fn a_move_between_identical_places_counts() {
+    assert!(!same(
+        "$.next(); /* c */ $.next(); $.next();",
+        "$.next(); $.next(); /* c */ $.next();"
+    ));
+    assert!(!same(
+        "$.set(a, 1);\n// c\n$.set(a, 1);\n$.set(a, 1);",
+        "$.set(a, 1);\n$.set(a, 1);\n// c\n$.set(a, 1);"
+    ));
+    let effect = "$.template_effect(() => { $.set_text(t, x); });\n";
+    let commented = "$.template_effect(() => { /* c */ $.set_text(t, x); });\n";
+    assert!(!same(
+        &format!("{commented}{effect}"),
+        &format!("{effect}{commented}")
+    ));
+    assert!(!same("f(a, /* c */ a, a);", "f(a, a, /* c */ a);"));
 }
 
 #[test]

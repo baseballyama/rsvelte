@@ -1,7 +1,9 @@
 //! Where JavaScript's comments are, which the syntax-tree comparison does not see: each comment
-//! is keyed by its text, the tokens on either side of it, the nearest word on either side, and for
-//! a line comment whether it ends the line of the token before it. The two outputs agree when they
-//! hold the same keys. Other layout does not count.
+//! is keyed by its text, the tokens on either side of it, the nearest word on either side, which
+//! of the places with those neighbours it is, and whether it ends the line of the token before it.
+//! The two outputs agree when they hold the same keys. Other layout does not count.
+
+use std::collections::HashMap;
 
 use oxc_allocator::Allocator;
 use oxc_ast::Comment;
@@ -50,9 +52,10 @@ pub(crate) fn difference(expected: &str, actual: &str) -> Result<Difference, Unp
     }
 }
 
-/// One key per comment: `<comment> | <word> <token> ^ <token> <word>`, where the tokens are the
-/// ones next to it and the words the nearest identifiers or keywords, then `| trailing` or
-/// `| own line` for a line comment.
+/// One key per comment: `<comment> | <word> <token> ^ <token> <word> #<k> | <side>`, where the
+/// tokens are the ones next to it, the words the nearest identifiers or keywords, `k` counts the
+/// places between tokens before it with the same tokens and words around them, and the side is
+/// `trailing` for a comment that ends the line of the token before it and `leading` otherwise.
 pub(crate) fn places(text: &str) -> Result<Vec<String>, String> {
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, text, SourceType::mjs())
@@ -68,41 +71,78 @@ pub(crate) fn places(text: &str) -> Result<Vec<String>, String> {
         .copied()
         .filter(|t| t.kind() != Kind::Eof)
         .collect();
-    let token = |t: Option<&Token>| t.map_or("EOF", |t| spelling(text, t));
-    let is_word = |t: &&Token| t.kind().is_identifier_name();
-    let comments = parsed.program.comments.iter();
-    Ok(comments
+    let comments: Vec<&Comment> = (parsed.program.comments.iter())
         .filter(|c| !annotation(c) && !module_header(text, c, &tokens))
+        .collect();
+    if comments.is_empty() {
+        return Ok(Vec::new());
+    }
+    let gaps = gaps(text, &tokens);
+    Ok(comments
+        .into_iter()
         .map(|c| {
             let after = tokens.partition_point(|t| t.end() <= c.span.start);
-            let (before, rest) = tokens.split_at(after);
-            let previous = before.last();
-            let mut key = format!(
-                "{} | {} {} ^ {} {}",
+            let (context, k) = &gaps[after];
+            let from = after.checked_sub(1).map(|i| tokens[i].end() as usize);
+            let to = tokens.get(after).map_or(text.len(), |t| t.start() as usize);
+            let trailing = from.is_some_and(|from| {
+                !breaks(&text[from..c.span.start as usize])
+                    && (c.is_line() || to == text.len() || breaks(&text[c.span.end as usize..to]))
+            });
+            format!(
+                "{} | {} {} ^ {} {} #{k} | {}",
                 c.span
                     .source_text(text)
                     .split_whitespace()
                     .collect::<Vec<_>>()
                     .join(" "),
-                token(before.iter().rev().find(is_word)),
-                token(previous),
-                token(rest.first()),
-                token(rest.iter().find(is_word)),
-            );
-            if c.is_line() {
-                let from = previous.map_or(0, |t| t.end() as usize);
-                let own_line = text[from..c.span.start as usize]
-                    .contains(['\n', '\r', '\u{2028}', '\u{2029}'])
-                    || previous.is_none();
-                key.push_str(if own_line {
-                    " | own line"
-                } else {
-                    " | trailing"
-                });
-            }
-            key
+                context[0],
+                context[1],
+                context[2],
+                context[3],
+                if trailing { "trailing" } else { "leading" },
+            )
         })
         .collect())
+}
+
+fn breaks(text: &str) -> bool {
+    text.contains(['\n', '\r', '\u{2028}', '\u{2029}'])
+}
+
+/// For each place between tokens, from before the first to after the last: the nearest word
+/// before it, the tokens on either side, the nearest word after it, and how many places before it
+/// have the same four.
+fn gaps<'t>(text: &'t str, tokens: &[Token]) -> Vec<([&'t str; 4], u32)> {
+    let is_word = |t: &Token| t.kind().is_identifier_name();
+    let spell = |t: Option<&Token>| t.map_or("EOF", |t| spelling(text, t));
+    let mut next_word = vec![None; tokens.len() + 1];
+    for i in (0..tokens.len()).rev() {
+        next_word[i] = if is_word(&tokens[i]) {
+            Some(i)
+        } else {
+            next_word[i + 1]
+        };
+    }
+    let mut seen: HashMap<[&str; 4], u32> = HashMap::new();
+    let mut last_word = None;
+    (0..=tokens.len())
+        .map(|g| {
+            if g > 0 && is_word(&tokens[g - 1]) {
+                last_word = Some(g - 1);
+            }
+            let context = [
+                spell(last_word.map(|i| &tokens[i])),
+                spell(g.checked_sub(1).map(|i| &tokens[i])),
+                spell(tokens.get(g)),
+                spell(next_word[g].map(|i| &tokens[i])),
+            ];
+            let count = seen.entry(context).or_default();
+            let k = *count;
+            *count += 1;
+            (context, k)
+        })
+        .collect()
 }
 
 /// A string token without its quotes, as the two printers quote strings differently.

@@ -34,8 +34,9 @@ A unit takes the verdict of its worst file: the lowest row of the table that app
 compares JavaScript as a syntax tree, so comments, layout and the spelling of literals do not
 count. Each compile task also has a comments ledger (`svelte.compile.comments`,
 `svelte.compileModule.comments`). Its key for a comment holds the comment's text, the tokens
-next to it and the nearest word on each side. For a line comment, the key also says whether the
-comment ends a line of code or stands on its own line. A unit matches when both outputs hold the
+next to it and the nearest word on each side. It also counts the earlier places that have the
+same tokens and words around them, so a move between two identical places counts. Last, the key
+says whether the comment ends the line of the code before it. A unit matches when both outputs hold the
 same keys. The verdict is `missing` when only the official output has keys that rsvelte's
 lacks, `unexpected` when only rsvelte's has extra keys, and `mismatch` when both happen. The key
 leaves out `@__PURE__` marks and the line that upstream writes above a module. Each unit that the
