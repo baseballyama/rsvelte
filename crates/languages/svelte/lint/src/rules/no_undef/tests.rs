@@ -157,3 +157,86 @@ fn top_level_names_of_either_script_and_reactive_names_are_defined() {
     );
     assert_eq!(reports(source, &["console"], &[]), ["9:19-9:20 e"]);
 }
+
+/// `ESLint` 10.14.0 with eslint-plugin-svelte 3.23.1 and `@typescript-eslint/parser` 8.72.1: a
+/// `/* global */` block comment anywhere in a script or a template expression sets the globals of
+/// the whole component, over the configuration's.
+#[test]
+fn global_comments_set_the_globals_of_the_component() {
+    let cases: &[(&str, &[&str], &[&str])] = &[
+        (
+            "<script>\n/* global foo */\nfoo; bar;\n</script>\n",
+            &[],
+            &["3:6-3:9 bar"],
+        ),
+        (
+            "<script>\n/* globals foo, bar:writable */\nfoo; bar; baz;\n</script>\n",
+            &[],
+            &["3:11-3:14 baz"],
+        ),
+        (
+            "<script>\n// global foo\nfoo;\n</script>\n",
+            &[],
+            &["3:1-3:4 foo"],
+        ),
+        (
+            "<script module>\n/* global foo */\n</script>\n<script>\nfoo;\n</script>\n",
+            &[],
+            &[],
+        ),
+        (
+            "<script>\nfoo;\n</script>\n{/* global foo */ foo}\n",
+            &[],
+            &[],
+        ),
+        (
+            "<!-- global foo -->\n<script>\nfoo;\n</script>\n",
+            &[],
+            &["3:1-3:4 foo"],
+        ),
+        (
+            "<script>\n/* global foo:off, Math:off, window:off */\nfoo; Math; window;\n</script>\n",
+            &[],
+            &["3:1-3:4 foo", "3:12-3:18 window"],
+        ),
+        (
+            "<script>\n/* global foo:bogus, bar */\nfoo; bar;\n</script>\n",
+            &[],
+            &["3:1-3:4 foo"],
+        ),
+        (
+            "<script>\n/*global foo bar baz*/\nfoo; bar; baz; qux;\n</script>\n",
+            &[],
+            &["3:16-3:19 qux"],
+        ),
+        ("<script>\nfoo;\n/* global foo */\n</script>\n", &[], &[]),
+        (
+            "<script lang=\"ts\">\n/* global Foo */\nlet x: Foo = Foo;\n</script>\n",
+            &[],
+            &[],
+        ),
+        (
+            "<script>\n/* global foo:off */\nfoo; ok;\n</script>\n",
+            &["ok", "foo"],
+            &["3:1-3:4 foo"],
+        ),
+        (
+            "<style>\n/* global foo */\n</style>\n<script>\nfoo;\n</script>\n",
+            &[],
+            &["5:1-5:4 foo"],
+        ),
+        (
+            "<div onclick={() => { /* global foo */ }}></div>\n<p>{foo}</p>\n",
+            &[],
+            &[],
+        ),
+        (
+            "<script>\n/* global foo:writable */\n/* global foo:off */\nfoo;\n</script>\n",
+            &[],
+            &["4:1-4:4 foo"],
+        ),
+    ];
+    for &(source, globals, expected) in cases {
+        assert_eq!(reports(source, globals, &[]), expected, "{source}");
+    }
+}

@@ -1,6 +1,7 @@
 use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::{Document, DocumentError};
+use rsvelte_kernel::source::positions::Span;
 
 use super::*;
 
