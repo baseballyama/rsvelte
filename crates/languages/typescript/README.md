@@ -28,9 +28,9 @@ The tree also reads JSX in `.jsx` and `.tsx` modules, but only the Svelte lint t
 them. Parse failures and unsupported compilation produce diagnostics and no output file.
 
 The type-check view copies the original source with byte mappings. It reads the tree only to
-add the types SvelteKit gives the exports of route, hooks and params files. The checker reads each
-document at its own path, so relative imports, declaration-file rules and `.mts`/`.cts` module
-modes are the project's.
+add the types SvelteKit gives the exports of its route, hooks and parameter-matching files. The
+checker reads each document at its own path, so relative imports, declaration-file rules and
+`.mts`/`.cts` module modes are the project's.
 
 JavaScript uses the same compile, format, and lint tasks. The type-check view marks
 JavaScript as unchecked, as it does for component scripts without type checking.
