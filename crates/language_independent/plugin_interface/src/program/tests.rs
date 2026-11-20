@@ -78,3 +78,23 @@ fn a_package_is_found_in_the_nearest_node_modules_and_its_bin_by_name() {
     assert_eq!(installed_bin("checker", "missing", &nested).unwrap(), None);
     assert_eq!(installed_package("absent", &nested).unwrap(), None);
 }
+
+#[test]
+fn a_version_is_read_only_when_it_is_a_string() {
+    let scratch = Scratch::new("version");
+    let write = |name: &str, manifest: &str| {
+        let package = scratch.0.join("node_modules").join(name);
+        std::fs::create_dir_all(&package).expect("package directory");
+        std::fs::write(package.join("package.json"), manifest).expect("manifest");
+    };
+    write("kit", r#"{"name":"kit","version":"3.0.1","bin":7}"#);
+    write("numbered", r#"{"version":3}"#);
+    write("unversioned", r#"{"name":"unversioned"}"#);
+    write("broken", "{");
+    let version = |name| installed_version(name, &scratch.0);
+    assert_eq!(version("kit").unwrap(), Some("3.0.1".to_owned()));
+    assert_eq!(version("numbered").unwrap(), None);
+    assert_eq!(version("unversioned").unwrap(), None);
+    assert_eq!(version("absent").unwrap(), None);
+    version("broken").unwrap_err();
+}
