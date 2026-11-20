@@ -41,16 +41,14 @@ export function parseLimits(value: unknown): Limits {
 	return { maxLines, exceptions };
 }
 
-/** Tracked and new files under the checked directories, without those deleted from the tree. */
+const CHECKED = ['crates', 'examples', 'tools', 'apps'];
+
+/** Tracked and new files under `CHECKED`, without those deleted from the tree. */
 export function workingTreeFiles(root: string): string[] {
 	// Crate fixtures list tens of thousands of paths, past the default 1 MiB output limit.
 	const git = { cwd: root, encoding: 'utf8', maxBuffer: Infinity } as const;
 	const list = (args: string[]) =>
-		execFileSync(
-			'git',
-			['ls-files', '-z', ...args, '--', 'crates', 'examples', 'tools', 'apps'],
-			git,
-		)
+		execFileSync('git', ['ls-files', '-z', ...args, '--', ...CHECKED], git)
 			.split('\0')
 			.filter(Boolean);
 	const deleted = new Set(list(['--deleted']));
