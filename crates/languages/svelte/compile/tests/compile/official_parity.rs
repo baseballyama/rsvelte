@@ -10,6 +10,7 @@ mod errors;
 mod exports;
 mod lets;
 mod patterns;
+mod props;
 mod runes;
 
 /// The output, or the code of the diagnostic that refuses the source.
