@@ -25,7 +25,14 @@ struct Section {
 }
 
 /// A property's value, and the `.editorconfig` that set it.
-type Property = (Value, Arc<Path>);
+type Property = (Value, Written);
+
+/// Where a property was written: its `.editorconfig` and its key there.
+#[derive(Clone, Debug)]
+pub(crate) struct Written {
+    pub(crate) file: Arc<Path>,
+    pub(crate) key: &'static str,
+}
 
 /// What `.editorconfig` gives an option of Prettier's.
 #[derive(Debug, PartialEq, Eq)]
@@ -59,7 +66,7 @@ pub(crate) const OXFMT: Reading = Reading {
 };
 
 /// An option under Prettier's name, what it is given, and the `.editorconfig` that gave it.
-pub(crate) type Setting = (&'static str, Given, Arc<Path>);
+pub(crate) type Setting = (&'static str, Given, Written);
 
 impl EditorConfig {
     /// A file that cannot be read is no `.editorconfig`, as the package reads it.
@@ -193,7 +200,7 @@ pub(crate) fn options<'a>(
     files: impl IntoIterator<Item = &'a EditorConfig>,
     file: &Path,
 ) -> Vec<Setting> {
-    let mut properties: Vec<(String, Property)> = Vec::new();
+    let mut properties: Vec<(String, (Value, Arc<Path>))> = Vec::new();
     for config in files {
         let directory = config.source.parent().unwrap_or_else(|| Path::new(""));
         let Ok(relative) = file.strip_prefix(directory) else {
@@ -215,11 +222,10 @@ pub(crate) fn options<'a>(
             }
         }
     }
-    let get = |key: &str| {
-        properties
-            .iter()
-            .find(|(k, _)| k == key)
-            .map(|(_, property)| property.clone())
+    let get = |key: &'static str| {
+        let (_, (value, file)) = properties.iter().find(|(k, _)| k == key)?;
+        let file = Arc::clone(file);
+        Some((value.clone(), Written { file, key }))
     };
     prettier(
         reading,
@@ -238,7 +244,7 @@ fn processed(
     if indent_style.as_ref().is_some_and(|(v, _)| *v == tab) && indent_size.is_none() {
         indent_size = indent_style
             .as_ref()
-            .map(|(_, at)| (tab.clone(), Arc::clone(at)));
+            .map(|(_, written)| (tab.clone(), written.clone()));
     }
     if let Some(size) = indent_size.as_ref().filter(|(v, _)| *v != tab)
         && tab_width.is_none()
@@ -257,7 +263,7 @@ fn processed(
 fn prettier(
     reading: Reading,
     [indent_style, indent_size, tab_width]: [Option<Property>; 3],
-    get: impl Fn(&str) -> Option<Property>,
+    get: impl Fn(&'static str) -> Option<Property>,
 ) -> Vec<Setting> {
     let is = |property: &Option<Property>, value: &str| {
         property.as_ref().is_some_and(|(v, _)| v == value)
@@ -265,7 +271,7 @@ fn prettier(
     let width = |property: &Option<Property>| {
         property.as_ref().and_then(|(v, at)| {
             let width = v.as_u64().filter(|&n| n >= reading.least_width)?;
-            Some((width, Arc::clone(at)))
+            Some((width, at.clone()))
         })
     };
     let mut options = Vec::new();
@@ -279,11 +285,7 @@ fn prettier(
         None
     };
     if let Some((use_tabs, at)) = use_tabs {
-        options.push((
-            "useTabs",
-            Given::Value(Value::from(use_tabs)),
-            Arc::clone(at),
-        ));
+        options.push(("useTabs", Given::Value(Value::from(use_tabs)), at.clone()));
     }
     let tab_width = match (use_tabs, width(&indent_size)) {
         (Some((false, _)), Some(size)) => Some(size),
@@ -295,7 +297,7 @@ fn prettier(
     let max_line_length = get("max_line_length");
     if let Some((_, at)) = max_line_length.as_ref().filter(|(v, _)| v == "off") {
         if reading.off_is_unlimited {
-            options.push(("printWidth", Given::Unlimited, Arc::clone(at)));
+            options.push(("printWidth", Given::Unlimited, at.clone()));
         }
     } else if let Some((width, at)) = width(&max_line_length) {
         options.push(("printWidth", Given::Value(Value::from(width)), at));
