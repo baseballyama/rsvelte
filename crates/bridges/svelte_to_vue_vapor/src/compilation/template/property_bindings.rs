@@ -26,7 +26,7 @@ impl<'t> Template<'_, '_, 't> {
                 props.push(self.bound(name, attribute.name.span(), value, attribute.span));
             } else if matches!(name, "innerHTML" | "innerText" | "textContent") {
                 let content = if name == "innerHTML" {
-                    markers::HTML_CONTENT_KEY
+                    markers::MARKUP_CONTENT_KEY
                 } else {
                     markers::TEXT_CONTENT_KEY
                 };

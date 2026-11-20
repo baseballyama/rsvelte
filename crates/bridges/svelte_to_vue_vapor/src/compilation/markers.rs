@@ -34,7 +34,7 @@ pub(crate) const PROPS_KEY: &str = "$$props";
 /// The bound property holding a block's key.
 pub(crate) const KEY_KEY: &str = "$$key";
 /// The bound property holding `bind:innerHTML`.
-pub(crate) const HTML_CONTENT_KEY: &str = "$$html_content";
+pub(crate) const MARKUP_CONTENT_KEY: &str = "$$html_content";
 /// The bound property holding `bind:innerText` or `bind:textContent`.
 pub(crate) const TEXT_CONTENT_KEY: &str = "$$text_content";
 

@@ -341,9 +341,11 @@ impl<'o> Emitter<'_, 'o> {
                     tag_parts.asynchronous |= is_expression_async(source);
                     let value = self.expression(source);
                     match name {
-                        Some(content @ (markers::HTML_CONTENT_KEY | markers::TEXT_CONTENT_KEY)) => {
+                        Some(
+                            content @ (markers::MARKUP_CONTENT_KEY | markers::TEXT_CONTENT_KEY),
+                        ) => {
                             tag_parts.editable =
-                                Some((value, content == markers::HTML_CONTENT_KEY));
+                                Some((value, content == markers::MARKUP_CONTENT_KEY));
                         }
                         Some("value") if tag == "textarea" => tag_parts.textarea = Some(value),
                         Some("style") => styles.push(value),
