@@ -8,6 +8,7 @@ pub mod input;
 pub mod javascript_error;
 pub mod legacy;
 pub mod markup_tree;
+pub mod names;
 pub mod resolve;
 pub mod typescript;
 pub mod warnings;

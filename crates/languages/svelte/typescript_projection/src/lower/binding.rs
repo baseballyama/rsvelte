@@ -3,7 +3,7 @@
 use oxc_ast::ast::Expression;
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::names::reads_as_identifier;
+use rsvelte_svelte_semantic::names::reads_as_identifier;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeValue, Part};
 use rsvelte_typescript_tree::{ExpressionIdentifier, document_span};
 

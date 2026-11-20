@@ -243,10 +243,7 @@ pub fn warnings(
         || ("Self".to_owned(), "Self.svelte"),
         |filename| {
             let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
-            (
-                rsvelte_svelte_syntax::names::component_name(filename),
-                basename,
-            )
+            (crate::names::component_name(filename), basename)
         },
     );
     let mut template = Template::new(
