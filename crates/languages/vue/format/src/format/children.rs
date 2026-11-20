@@ -1,3 +1,5 @@
+//! prettier's `print/children.js`.
+
 use super::{
     Attributes, GroupIdentifier, LayoutInstructionIdentifier, NodeIdentifier, NodeKind, Printer, R,
 };
@@ -18,8 +20,6 @@ const fn attributes_len(a: Attributes<'_>) -> usize {
 }
 
 impl Printer<'_, '_, '_> {
-    // ---- print/children.js -----------------------------------------------------------
-
     pub(super) fn force_next_empty_line(&self, i: NodeIdentifier) -> bool {
         self.n(i).next.is_some_and(|x| {
             self.t.line(self.n(i).span.end_offset) + 1 < self.t.line(self.n(x).span.start_offset)

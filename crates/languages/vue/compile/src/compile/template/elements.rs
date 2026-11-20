@@ -1,3 +1,5 @@
+//! `transformElement`.
+
 use super::{
     CAN_STRINGIFY, Codegen, CodegenIdentifier, DirectiveName, Helper, Lit, NOT_CONSTANT, Node,
     NodeIdentifier, Property, PropertyView, R, Transform, Unsupported, VChildren, VNodeArgs,
@@ -5,8 +7,6 @@ use super::{
 };
 
 impl Transform<'_> {
-    // ---- transformElement ----------------------------------------------------------------
-
     pub(super) fn prop_views(&self, n: NodeIdentifier) -> Vec<PropertyView> {
         let Node::Element { props, .. } = &self.tree[n] else {
             unreachable!("an element")

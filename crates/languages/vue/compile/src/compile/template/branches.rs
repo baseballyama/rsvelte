@@ -4,8 +4,6 @@ use super::{
 };
 
 impl Transform<'_> {
-    // ---- v-if ----------------------------------------------------------------------------
-
     /// `processIf`. `None` when the element joined an earlier `v-if`: it is traversed here and
     /// leaves its parent.
     pub(super) fn process_if(

@@ -9,8 +9,6 @@ use super::{
 use crate::compile::document_span;
 
 impl Transform<'_> {
-    // ---- expressions ---------------------------------------------------------------------
-
     /// `transformExpression` on an element: every directive's expression but `v-on`'s, which
     /// `transformOn` processes with `$event` in scope.
     pub(super) fn expression_props(&mut self, n: NodeIdentifier) -> R<()> {

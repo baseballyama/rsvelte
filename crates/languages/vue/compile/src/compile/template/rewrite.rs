@@ -4,8 +4,6 @@ use rsvelte_typescript_compile::build::Builder;
 
 use super::{BindingType, Expression, Resolution, can_prefix, ref_info};
 
-// ---- generate ----------------------------------------------------------------------------
-
 /// Rewrites a copied template expression's names as inline-mode `rewriteIdentifier` does (or to
 /// `_ctx.x` without bindings).
 pub(super) struct ExpRewrite<'r, 'b, 'o> {

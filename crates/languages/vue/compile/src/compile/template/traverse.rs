@@ -5,8 +5,6 @@ use super::{
 };
 
 impl Transform<'_> {
-    // ---- the HIR ------------------------------------------------------------------------
-
     /// The nodes as the transforms hold them, refusing what the port does not compile.
     pub(super) fn parse_children(
         &mut self,
@@ -107,8 +105,6 @@ impl Transform<'_> {
         }
         Ok(props)
     }
-
-    // ---- traverseNode --------------------------------------------------------------------
 
     /// `traverseNode` with the transforms that act on this template, in preset order:
     /// `transformIf`, `transformFor`, `transformExpression`, `transformElement`, `transformText`.

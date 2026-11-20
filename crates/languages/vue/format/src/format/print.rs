@@ -1,8 +1,8 @@
+//! prettier's `printer-html.js` and `print/element.js`.
+
 use super::{Embed, LayoutInstructionIdentifier, NodeIdentifier, NodeKind, Printer, R};
 
 impl Printer<'_, '_, '_> {
-    // ---- printer-html.js, print/element.js -------------------------------------------
-
     pub(super) fn print(&mut self, i: NodeIdentifier) -> R<LayoutInstructionIdentifier> {
         match &self.n(i).kind {
             NodeKind::Element { .. } => self.element(i),

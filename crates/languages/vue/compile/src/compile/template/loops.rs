@@ -5,8 +5,6 @@ use super::{
 };
 
 impl Transform<'_> {
-    // ---- v-for ---------------------------------------------------------------------------
-
     /// `processFor`, and the codegen `transformFor` creates before the children are traversed.
     pub(super) fn process_for(
         &mut self,

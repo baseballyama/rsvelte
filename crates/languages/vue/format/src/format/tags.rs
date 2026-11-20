@@ -1,3 +1,5 @@
+//! prettier's `print/tag.js`, and the node queries it reads.
+
 use super::{LayoutInstructionIdentifier, Node, NodeIdentifier, NodeKind, Printer, R};
 
 impl<'a> Printer<'a, '_, '_> {
@@ -38,8 +40,6 @@ impl<'a> Printer<'a, '_, '_> {
                 .is_some_and(|l| self.last_descendant_text_like(l)),
         }
     }
-
-    // ---- print/tag.js ----------------------------------------------------------------
 
     pub(super) fn borrows_prev_close_end(&self, i: NodeIdentifier) -> bool {
         let n = self.n(i);

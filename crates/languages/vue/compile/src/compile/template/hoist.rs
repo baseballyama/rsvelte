@@ -1,3 +1,5 @@
+//! `transformText`, `getConstantType`, `cacheStatic` and the root codegen.
+
 use super::{
     CAN_CACHE, CAN_SKIP_PATCH, CAN_STRINGIFY, Codegen, CodegenIdentifier, DirectiveName, Helper,
     Lit, NOT_CONSTANT, Node, NodeIdentifier, Property, Transform, VChildren, VNodeArgs, patch,
@@ -27,8 +29,6 @@ impl Transform<'_> {
             needs_patch: a.needs_patch,
         })
     }
-
-    // ---- transformText -------------------------------------------------------------------
 
     pub(super) fn transform_text(&mut self, n: NodeIdentifier) {
         let is_text = |t: &Self, c: NodeIdentifier| {
@@ -86,8 +86,6 @@ impl Transform<'_> {
         }
         *self.children_mut(n) = children;
     }
-
-    // ---- constant types, cacheStatic, the root -------------------------------------------
 
     /// `getConstantType` for a template node.
     pub(super) fn constant_type(&self, n: NodeIdentifier) -> u8 {
@@ -271,7 +269,7 @@ impl Transform<'_> {
         {
             let arr = self.cgn(Codegen::NodeArray(list.clone()));
             let c = self.cache(arr);
-            // Always spread since #13221: mounting must not mutate the cached array.
+            // Always spread: mounting must not mutate the cached array.
             if let Codegen::Cache { spread, .. } = &mut self.codegen[c] {
                 *spread = true;
             }
