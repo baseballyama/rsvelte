@@ -258,14 +258,11 @@ pub(crate) fn acorn(
             Some(fails("Assigning to rvalue", rvalue(start, read())?))
         }
         "1127" => unexpected_character(text, start, end),
-        // A word reserved in strict code, which acorn names unescaped, as its token does; the
-        // analysis passes no tokens.
-        "1212" => Some(keyword(
-            kind_at(start).map_or(text.get(start as usize..end as usize)?, |kind| {
-                kind.to_str()
-            }),
-            start,
-        )),
+        // A word reserved in strict code, which oxc names in acorn's words, by its value.
+        "1212" => Some(Acorn::Fails {
+            message: error.message.clone(),
+            at: start,
+        }),
         "1049" => Some(fails("setter should have exactly one param", start)),
         "1108" => Some(fails("'return' outside of function", start)),
         "1473" | "1474" => Some(fails(
