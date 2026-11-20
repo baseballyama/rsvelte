@@ -169,7 +169,7 @@ fn head<'t>(
             entries.push(b.init("__rsvelte_bindings", b.object([])));
         }
         let call = b.call(b.id("defineProps"), [b.object(entries)]);
-        body.push(b.const_("$$props", call));
+        body.push(b.const_(markers::SETUP_PROPS, call));
     }
     if plan.auxiliary.contains_key("$host") && !server {
         let host = if plan.custom_element.is_some() {
@@ -177,8 +177,11 @@ fn head<'t>(
         } else {
             "$$useHost"
         };
-        body.push(b.const_("$$host_value", b.call(b.id(host), [])));
-        body.push(b.const_("$$host", b.arrow(b.parameters([]), b.id("$$host_value"))));
+        body.push(b.const_(markers::HOST_VALUE, b.call(b.id(host), [])));
+        body.push(b.const_(
+            markers::HOST,
+            b.arrow(b.parameters([]), b.id(markers::HOST_VALUE)),
+        ));
     }
     if uses.prop_cells {
         body.push(prelude::marker(b, include_str!("props.js")));
@@ -187,7 +190,7 @@ fn head<'t>(
     if plan.rest.is_some() {
         body.push(prelude::marker(b, include_str!("rest.js")));
         let attributes = b.call(b.id("$$rest_props"), [b.call(b.id("$$useAttrs"), [])]);
-        body.push(b.const_("$$attrs", attributes));
+        body.push(b.const_(markers::ATTRS, attributes));
     }
     body.extend(helpers::declarations(helpers, b));
     if plan.async_values && server {

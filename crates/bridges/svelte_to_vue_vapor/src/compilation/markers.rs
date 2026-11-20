@@ -51,6 +51,15 @@ pub(crate) const GROUP_SOURCE: &str = "$$group_source";
 /// The client's `onMount`.
 pub(crate) const ON_MOUNT: &str = "$$on_mount";
 
+/// The setup's `defineProps()` object.
+pub(crate) const SETUP_PROPS: &str = "$$props";
+/// The setup's rest props.
+pub(crate) const ATTRS: &str = "$$attrs";
+/// The setup's `$host()` function.
+pub(crate) const HOST: &str = "$$host";
+/// The setup's custom element host, which `$host()` returns.
+pub(crate) const HOST_VALUE: &str = "$$host_value";
+
 /// A snippet's declared name, `$$snippet_<suffix>`, as a literal that `format!` can take.
 macro_rules! snippet_name {
     ($suffix:literal) => {

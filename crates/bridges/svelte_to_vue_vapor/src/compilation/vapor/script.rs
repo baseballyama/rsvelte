@@ -201,7 +201,7 @@ fn module_level(s: &Statement<'_>) -> bool {
                     && !id.name.starts_with(markers::PATTERN_PREFIX)
                     && !matches!(
                         id.name.as_str(),
-                        "$$props" | "$$attrs" | "$$host" | "$$host_value"
+                        markers::SETUP_PROPS | markers::ATTRS | markers::HOST | markers::HOST_VALUE
                     )
             })
         }),
@@ -225,9 +225,7 @@ impl<'o> VisitMut<'o> for PropsRewrite<'_, 'o> {
                 *it = b.id("__props");
             }
             Expression::CallExpression(c)
-                if !self.server
-                    && matches!(&c.callee, Expression::Identifier(id) if id.name == "$$async_deriv\
-                        ed") =>
+                if !self.server && c.callee.is_specific_id(markers::ASYNC_DERIVED) =>
             {
                 let getter = c.arguments[0].to_expression_mut().take_in(b);
                 *c.arguments[0].to_expression_mut() = script_getter(b, getter);

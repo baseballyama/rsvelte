@@ -10,7 +10,7 @@ use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::FxHashSet;
 
 use super::{Plan, Root};
-use crate::compilation::{R, unsupported};
+use crate::compilation::{R, markers, unsupported};
 
 pub(super) fn collect(
     res: &Resolution,
@@ -190,7 +190,7 @@ pub(crate) fn local(name: &str) -> Option<&'static str> {
         "$effect.tracking" => "$$effect_tracking",
         "$effect.pending" => "$$effect_pending",
         "$state.snapshot" => "$$snapshot",
-        "$host" => "$$host",
+        "$host" => markers::HOST,
         _ => return None,
     })
 }
