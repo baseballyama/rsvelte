@@ -127,3 +127,17 @@ fn compiler_options_experimental_async_must_be_a_boolean() {
         ExperimentalAsync::Off
     );
 }
+
+/// A number names a property as JavaScript's `ToString` prints it; the values are Node's.
+#[test]
+fn a_numeric_key_is_named_as_javascript_prints_it() {
+    let read = |pattern: &str, object: &str| {
+        routes(&format!(
+            "const {{ {pattern}: r }} = {object}; export default {{ kit: {{ files: {{ routes: r \
+             }} }} }};"
+        ))
+    };
+    assert_eq!(read("1e21", "{ '1e+21': 'z' }"), "z");
+    assert_eq!(read("1e-7", "{ '1e-7': 'y' }"), "y");
+    assert_eq!(read("'1e+21'", "{ [1e21]: 'w' }"), "w");
+}
