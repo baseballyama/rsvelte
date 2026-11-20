@@ -2,4 +2,4 @@
 '@rsvelte/cli': patch
 ---
 
-The suggestion of `svelte/no-add-event-listener` now finds the arguments after a `//` comment that a carriage return or U+2028 ends, and after U+FEFF, as ESLint does.
+The suggestion of `svelte/no-add-event-listener` now finds the arguments after a `//` comment that a carriage return or a line separator ends, and after a byte order mark, as ESLint does.
