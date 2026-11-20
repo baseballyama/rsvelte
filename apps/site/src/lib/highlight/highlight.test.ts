@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { highlight } from './highlight';
 import { outputLanguage } from './code-language';
-import { examples } from './pipeline-playground';
+import { examples } from '../playground/pipeline-playground';
 
 describe('playground highlighting', () => {
 	for (const example of examples) {
