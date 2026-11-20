@@ -1,4 +1,4 @@
-use super::{invalid_with_ancestor, invalid_with_parent};
+use super::{Ancestors, invalid_with_ancestor, invalid_with_parent};
 
 // Expected values are upstream's `is_tag_valid_with_parent` and `is_tag_valid_with_ancestor`
 // (svelte 5.57.3) on the same arguments.
@@ -69,9 +69,22 @@ fn parent_messages_match_upstream() {
     }
 }
 
+/// What a walk that carries [`Ancestors`] down to `child` says, `ancestors` running from the
+/// parent outwards.
+fn carried(child: &str, ancestors: &[&str]) -> Option<String> {
+    let mut path = ancestors.iter().rev();
+    let mut parent = path.next()?;
+    let mut carried = Ancestors::default();
+    for (depth, element) in (0..).zip(path) {
+        carried = carried.below((parent, depth, false), element);
+        parent = element;
+    }
+    carried.invalid(child)
+}
+
 #[test]
 fn ancestor_messages_match_upstream() {
-    let cases: [(&str, &[&str], Option<&str>); 9] = [
+    let cases: [(&str, &[&str], Option<&str>); 10] = [
         (
             "div",
             &["span", "p"],
@@ -83,6 +96,7 @@ fn ancestor_messages_match_upstream() {
             Some("`<dd>` cannot be a descendant of `<dt>`"),
         ),
         ("dd", &["dl", "div", "dt"], None),
+        ("dd", &["dl", "dt"], None),
         ("dd", &["x-a", "dt"], None),
         (
             "div",
@@ -111,6 +125,12 @@ fn ancestor_messages_match_upstream() {
             invalid_with_ancestor(child, ancestors).as_deref(),
             expected,
             "<{child}> below {ancestors:?}"
+        );
+        // Each case asks about its outermost ancestor, the only one with a rule for `child`.
+        assert_eq!(
+            carried(child, ancestors).as_deref(),
+            expected,
+            "<{child}> carried below {ancestors:?}"
         );
     }
 }

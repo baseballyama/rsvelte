@@ -11,14 +11,12 @@ use rustc_hash::FxHashSet;
 
 mod handlers;
 mod lets;
-mod placement;
 mod slot_snippets;
 mod slots;
 mod transitions;
 
 pub(in crate::lower) use handlers::mixed_syntaxes;
-use placement::Ancestors;
-use rsvelte_svelte_semantic::markup_tree::invalid_with_parent;
+use rsvelte_svelte_semantic::markup_tree::{Ancestors, invalid_with_parent};
 use rsvelte_svelte_semantic::typescript::without_typescript;
 use rsvelte_svelte_semantic::warnings::slot_name_error;
 pub(in crate::lower) use slot_snippets::slot_snippet_conflict;
