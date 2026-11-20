@@ -357,54 +357,37 @@ fn typecheck_reports_every_file_of_the_program_that_svelte_check_reports() {
 #[test]
 fn typecheck_reads_a_replaced_package_file_as_one_text() {
     let packages = NodePackages::locate();
-    let types = packages.package("svelte").join("types/index.d.ts");
-    let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
+    let svelte = packages.package("svelte");
+    let types = svelte.join("types/index.d.ts");
+    let types = types.strip_prefix("/").expect("an absolute path").display();
     let es5 = |name: &str, line: u32| {
         format!(
-            "{}({line},5): error TS2583: Cannot find name '{name}'. Do you need to change your \
-             target library? Try changing the 'lib' compiler option to 'es2020' or later.\n",
-            types.strip_prefix("/").expect("an absolute path").display()
+            "{types}({line},5): error TS2583: Cannot find name '{name}'. Do you need to change \
+             your target library? Try changing the 'lib' compiler option to 'es2020' or later.\n"
         )
     };
-    let cases = [
-        (r#""esnext""#, Some(0), String::new()),
-        (
-            r#""es5""#,
-            Some(1),
-            format!(
-                "{}{}\nFound 2 errors in 1 file.\n",
-                es5("BigInt64Array", 3349),
-                es5("BigUint64Array", 3350)
-            ),
-        ),
-    ];
+    let es5 = format!(
+        "{}{}\nFound 2 errors in 1 file.\n",
+        es5("BigInt64Array", 3349),
+        es5("BigUint64Array", 3350)
+    );
+    let cases = [("esnext", Some(0), String::new()), ("es5", Some(1), es5)];
     for (lib, code, expected) in cases {
+        let tsconfig = format!(
+            r#"{{"compilerOptions":{{"strict":true,"module":"esnext","moduleResolution":"bundler",
+"target":"esnext","lib":["{lib}"],"types":[],"skipLibCheck":false}},"include":["src"]}}"#
+        );
+        let component = "<script lang=\"ts\">\n\timport type { Snippet } from \"svelte\";\n\
+            \tlet { children }: { children?: Snippet } = $props();\n</script>\n\
+            {@render children?.()}\n";
         let project = Project::new(
             "typecheck-replaced",
-            &[
-                (
-                    "tsconfig.json",
-                    &format!(
-                        r#"{{"compilerOptions":{{"strict":true,"module":"esnext",
-"moduleResolution":"bundler","target":"esnext","lib":[{lib}],"types":[],"skipLibCheck":false}},
-"include":["src"]}}"#
-                    ),
-                ),
-                (
-                    "src/App.svelte",
-                    "<script lang=\"ts\">\n\timport type { Snippet } from \"svelte\";\n\
-                     \tlet { children }: { children?: Snippet } = $props();\n</script>\n\
-                     {@render children?.()}\n",
-                ),
-            ],
+            &[("tsconfig.json", &tsconfig), ("src/App.svelte", component)],
         );
         std::fs::create_dir_all(project.0.join("node_modules")).expect("node_modules");
-        std::os::unix::fs::symlink(
-            packages.package("svelte"),
-            project.0.join("node_modules/svelte"),
-        )
-        .expect("link");
+        std::os::unix::fs::symlink(&svelte, project.0.join("node_modules/svelte")).expect("link");
         // Run from `/`, the report names the package's file by its whole path.
+        let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
         let mut config: serde_json::Value = serde_json::from_str(&config).expect("config");
         config["plugins"]["typescript.check"]["tsconfig"] =
             serde_json::json!(project.0.join("tsconfig.json"));
@@ -412,15 +395,12 @@ fn typecheck_reads_a_replaced_package_file_as_one_text() {
         std::fs::write(&config_path, config.to_string()).expect("config");
         let config_path = config_path.display().to_string();
         let output = project.rsvelte_in("/", &["typecheck", "--config", &config_path]);
-        assert_eq!(
-            (
-                output.status.code(),
-                text(&output.stdout),
-                text(&output.stderr)
-            ),
-            (code, expected, String::new()),
-            "lib {lib}"
+        let output = (
+            output.status.code(),
+            text(&output.stdout),
+            text(&output.stderr),
         );
+        assert_eq!(output, (code, expected, String::new()), "lib {lib}");
     }
 }
 
