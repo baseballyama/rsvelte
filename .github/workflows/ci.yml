@@ -22,9 +22,15 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      # corpus/svelte is most of the tree, and a sparse checkout fetches no blob outside it. A job
+      # that lists files with `git ls-files` and reads them (tools/structure) needs the whole tree.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          sparse-checkout: |
+            /*
+            !/corpus/svelte/
+          sparse-checkout-cone-mode: false
       - run: |
           toolchain=$(sed -n 's/^rustfmt = "\(.*\)"$/\1/p' mise.toml)
           if [ -z "$toolchain" ]; then
@@ -41,6 +47,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          sparse-checkout: |
+            /*
+            !/corpus/svelte/
+          sparse-checkout-cone-mode: false
       - uses: ./.github/actions/rust
       - run: cargo fetch --locked
       # The same commands as `mise run lint`.
@@ -55,10 +65,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # The corpus test is the only reader of corpus/svelte.
           - part: command-line
             packages: -p rsvelte_command_line
+            sparse-checkout: ''
           - part: workspace
             packages: --workspace --exclude rsvelte_command_line
+            sparse-checkout: |
+              /*
+              !/corpus/svelte/
     name: rust-test (${{ matrix.part }})
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -66,6 +81,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          sparse-checkout: ${{ matrix.sparse-checkout }}
+          sparse-checkout-cone-mode: false
       - uses: ./.github/actions/rust
         with:
           key: ${{ matrix.part }}
@@ -115,6 +132,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          sparse-checkout: |
+            /*
+            !/corpus/svelte/
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26.13.0
@@ -195,6 +216,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Only the inputs are measured.
+          sparse-checkout: |
+            /*
+            !/corpus/svelte/*/expected/
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26.13.0
