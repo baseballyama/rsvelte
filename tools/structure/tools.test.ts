@@ -17,18 +17,18 @@ type Tool = { name: string; files: string[]; read(file: string): string };
 const root = resolve(import.meta.dirname, '../..');
 
 function tools(): Tool[] {
-	const byTool = new Map<string, string[]>();
-	for (const file of execFileSync('git', ['ls-files', '-z', '--', 'tools'], {
+	const paths = execFileSync('git', ['ls-files', '-z', '--', 'tools'], {
 		cwd: root,
 		encoding: 'utf8',
-	}).split('\0')) {
-		const [, name, rest] = /^tools\/([^/]+)\/(.+)$/.exec(file) ?? [];
-		if (name === undefined || rest === undefined) continue;
-		byTool.set(name, [...(byTool.get(name) ?? []), rest]);
-	}
-	return [...byTool].map(([name, files]) => ({
+	})
+		.split('\0')
+		.flatMap((file) => {
+			const [, name, rest] = /^tools\/([^/]+)\/(.+)$/.exec(file) ?? [];
+			return name === undefined || rest === undefined ? [] : [{ name, rest }];
+		});
+	return [...Map.groupBy(paths, (entry) => entry.name)].map(([name, files]) => ({
 		name,
-		files,
+		files: files.map((file) => file.rest),
 		read: (file) => readFileSync(resolve(root, 'tools', name, file), 'utf8'),
 	}));
 }
