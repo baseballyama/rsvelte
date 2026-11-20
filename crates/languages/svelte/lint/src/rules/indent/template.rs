@@ -14,6 +14,7 @@ use rsvelte_typescript_tree::{ExpressionIdentifier, PatternIdentifier, Tree};
 use super::layout::Item;
 use super::script::{self, Script};
 use super::tokens::{Token, Tokens};
+use crate::rules::nodes::from_oxc;
 
 pub(super) struct Template<'s, 'a> {
     pub script: Script<'s, 'a>,
@@ -57,11 +58,11 @@ impl<'a> Template<'_, 'a> {
     }
 
     fn javascript_first(&self, node: Option<OxcSpan>) -> Option<Token> {
-        self.first(script::span(node?))
+        self.first(from_oxc(node?))
     }
 
     fn javascript_outer(&self, node: Option<OxcSpan>) -> Option<(Token, Token)> {
-        self.tokens().outer(script::span(node?), 0)
+        self.tokens().outer(from_oxc(node?), 0)
     }
 
     /// The token after the node's last token.

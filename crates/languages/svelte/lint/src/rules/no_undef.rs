@@ -82,7 +82,7 @@ impl SvelteRule for NoUndef {
                 }
                 reporter.range(
                     format!("'{name}' is not defined."),
-                    super::node_span(resolution.reference_span(id)),
+                    super::nodes::from_oxc(resolution.reference_span(id)),
                 );
             }
         }

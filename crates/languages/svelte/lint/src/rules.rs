@@ -1,5 +1,3 @@
-use rsvelte_kernel::source::positions::Span;
-
 use crate::rule::RuleDefinition;
 
 mod block_lang;
@@ -196,11 +194,3 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &valid_prop_names_in_kit_pages::RULE,
     &valid_style_parse::RULE,
 ];
-
-/// An oxc span as the document's position type; every oxc tree is parsed in place.
-pub(super) const fn node_span(span: oxc_span::Span) -> Span {
-    Span {
-        start_offset: span.start,
-        end_offset: span.end,
-    }
-}

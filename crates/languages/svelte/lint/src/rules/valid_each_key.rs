@@ -68,7 +68,7 @@ impl<'a> Visit<'a> for UsesIterationVariable<'_> {
         let Some(symbol) = self.resolution.symbol(it) else {
             return;
         };
-        let declared = super::node_span(self.resolution.scoping().symbol_span(symbol));
+        let declared = nodes::from_oxc(self.resolution.scoping().symbol_span(symbol));
         let contains = |outer: Span| {
             outer.start_offset <= declared.start_offset && declared.end_offset <= outer.end_offset
         };

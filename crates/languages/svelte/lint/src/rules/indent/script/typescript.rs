@@ -8,6 +8,7 @@ use oxc_span::{GetSpan, Span as OxcSpan};
 use super::Script;
 use crate::rules::indent::layout::Item;
 use crate::rules::indent::tokens::Token;
+use crate::rules::nodes::from_oxc;
 
 impl<'a> Script<'_, 'a> {
     pub(super) fn lay_out_typescript(&mut self, kind: AstKind<'a>, first: Option<Token>) {
@@ -59,7 +60,7 @@ impl<'a> Script<'_, 'a> {
             AstKind::Decorator(n) => self.decorator(n),
             // Upstream knows no such node and leaves its tokens alone.
             AstKind::JSDocNullableType(_) | AstKind::JSDocUnknownType(_) => {
-                self.layout.ignore(super::span(node));
+                self.layout.ignore(from_oxc(node));
             }
             _ => self.lay_out_type(kind, first),
         }

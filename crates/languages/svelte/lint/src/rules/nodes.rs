@@ -4,9 +4,17 @@ use oxc_ast::ast::{Expression, FunctionBody, Statement};
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
 
+/// An oxc span as the document's position type; every oxc tree is parsed in place.
+pub(super) const fn from_oxc(span: oxc_span::Span) -> Span {
+    Span {
+        start_offset: span.start,
+        end_offset: span.end,
+    }
+}
+
 /// The node's span as the document's position type.
 pub(super) fn span(node: &impl GetSpan) -> Span {
-    super::node_span(node.span())
+    from_oxc(node.span())
 }
 
 pub(super) fn text<'s>(node: &impl GetSpan, source: &'s str) -> &'s str {
