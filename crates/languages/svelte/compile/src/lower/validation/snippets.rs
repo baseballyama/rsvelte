@@ -8,13 +8,13 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, CompilerNodeIdentifier, Element, ElementKind, NodeKind, Snippet,
 };
 use rsvelte_svelte_semantic::resolve::{Resolution, TemplateScope};
-use rsvelte_svelte_semantic::warnings::Raised;
+use rsvelte_svelte_semantic::warnings::{Raised, Section};
 use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 mod const_references;
 
-use super::{raised_in_scopes, raised_in_walk};
+use super::{raised_in_scopes_of, raised_in_walk};
 use crate::input::CompileInput;
 use crate::lower::attributes::is_directive;
 use crate::lower::snippets::{is_runtime, render_call, snippet_name};
@@ -64,6 +64,11 @@ pub(super) fn errors(input: &CompileInput<'_>, res: &Resolution) -> Vec<(Raised,
     }
     out.extend(const_references::invalid_reference(input, res));
     out
+}
+
+/// An error upstream raises as it builds the template's scopes, at `at`.
+const fn raised_in_scopes(at: u32) -> Raised {
+    raised_in_scopes_of(Section::Template, at)
 }
 
 /// Where upstream's walk is once it has walked the body of the node at `span`.
