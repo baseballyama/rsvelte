@@ -1,7 +1,6 @@
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn};
 use oxc_ast::ast::{BindingPattern, Expression, VariableDeclaration, VariableDeclarator};
 use oxc_ast_visit::{VisitMut, walk_mut};
-use oxc_semantic::SymbolId;
 
 use super::super::derived::{Created, callback, keeps_callee};
 use super::super::javascript::without_typescript;
@@ -126,7 +125,6 @@ pub(super) fn lower_destructured_state<'o>(
             names,
             array: "$$array",
             out: &mut *out,
-            rest: None,
             derived: client,
         };
         let mut walker = Paths {
@@ -233,11 +231,7 @@ pub(super) fn lower_destructured_derived<'o>(
     let argument = argument
         .expect("validation keeps a destructured derived's argument")
         .get_inner_expression();
-    let mut rest = None;
-    let value = if rune == "$derived"
-        && let Expression::Identifier(identifier) = argument
-    {
-        rest = rw.res.symbol(identifier);
+    let value = if rune == "$derived" && matches!(argument, Expression::Identifier(_)) {
         rw.expression(argument)
     } else {
         let name = names.generate("$$d");
@@ -264,7 +258,6 @@ pub(super) fn lower_destructured_derived<'o>(
             names,
             array,
             out,
-            rest,
             derived: true,
         },
         reserved: Vec::new(),
@@ -283,8 +276,6 @@ struct Hooks<'w, 'r, 'o> {
     names: &'w Names<'w>,
     array: &'static str,
     out: &'w mut Vec<VariableDeclarator<'o>>,
-    /// The name `$derived` reads when it is the value destructured.
-    rest: Option<SymbolId>,
     /// Each array is a derived; the server's destructured state keeps plain values.
     derived: bool,
 }
@@ -295,13 +286,7 @@ impl<'a, 'o> Destructure<'a, 'o> for Hooks<'_, '_, 'o> {
     }
 
     fn reads_props(&self, object: &Expression<'o>, key: &str) -> bool {
-        let rw = &self.rw;
-        rw.target == Target::Client
-            && rw.rest_reads.is_some()
-            && matches!(object, Expression::Identifier(_))
-            && self
-                .rest
-                .is_some_and(|symbol| super::super::rest_reads::reads_props(rw.res, symbol, key))
+        self.rw.reads_rest_prop(object, key)
     }
 
     fn array_name(&mut self) -> String {

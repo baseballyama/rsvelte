@@ -249,7 +249,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 custom_properties.push(b.init(a.name.text(self.source_text), value));
             }
             Prop::Accessors(a, get, set) => {
-                let functions = (self.rewrite(get, true), self.rewrite(set, true));
+                let functions = (self.rewrite(get), self.rewrite(set));
                 let name = a.name.text(self.source_text);
                 push_accessors(b, parts, accessors, name, functions, &self.names);
             }
@@ -296,7 +296,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 // A store read through a binding tells the store it is bound.
                 let store = matches!(
                     self.javascript.get_expression(target).get_inner_expression(),
-                    Expression::Identifier(identifier) if self.rewriter(true).is_store(identifier)
+                    Expression::Identifier(identifier) if self.rewriter().is_store(identifier)
                 );
                 if store {
                     let mark = b.statement(b.runtime("mark_store_binding", []));

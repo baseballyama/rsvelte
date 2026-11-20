@@ -71,7 +71,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
                     .or_else(|| self.assign(&mut e));
                 changed |= mutates || rewritten.is_some();
                 rewritten.unwrap_or_else(|| {
-                    walk_mut::walk_expression(self, &mut e);
+                    self.holding(&mut e, walk_mut::walk_expression);
                     e
                 })
             })
@@ -125,10 +125,15 @@ impl<'o> ScriptRewrite<'_, 'o> {
             if !is_pattern_assignment(slot.get_inner_expression()) {
                 return;
             }
-            let inner = without_parentheses(slot);
-            match self.pattern_assign(inner, true) {
-                Some(e) => *slot = e,
-                None => walk_mut::walk_expression(self, without_parentheses(slot)),
+            let pattern = self.holding(without_parentheses(slot), |rw, e| {
+                let pattern = rw.pattern_assign(e, true);
+                if pattern.is_none() {
+                    walk_mut::walk_expression(rw, e);
+                }
+                pattern
+            });
+            if let Some(e) = pattern {
+                *slot = e;
             }
             kept.push((index, slot.take_in(b)));
         });

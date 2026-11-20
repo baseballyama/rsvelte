@@ -95,7 +95,7 @@ pub(in crate::lower::client) struct Hooks<'c, 'x, 'o> {
 
 impl<'o> Destructure<'o, 'o> for Hooks<'_, '_, 'o> {
     fn rewrite(&mut self, e: &'o Expression<'o>) -> Expression<'o> {
-        self.context.rewrite(e, true)
+        self.context.rewrite(e)
     }
 
     fn parentheses(&self, e: &Expression<'_>) -> u8 {

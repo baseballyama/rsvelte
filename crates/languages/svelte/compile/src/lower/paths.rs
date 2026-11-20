@@ -161,7 +161,7 @@ impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, '_, 'o, D> {
             };
             let member = match &property.key {
                 PropertyKey::StaticIdentifier(key) if !property.computed => {
-                    if self.hooks.reads_props(&object, &key.name) {
+                    if self.hooks.reads_props(&value, &key.name) {
                         b.member(b.id("$$props"), &key.name)
                     } else {
                         b.member(object, &key.name)
