@@ -42,6 +42,11 @@ export async function main(args: string[]): Promise<void> {
 	fs.writeFileSync(path.join(scratch, 'src/baseline.rs'), baseline);
 	fs.writeFileSync(path.join(scratch, 'src/hashing.rs'), measuredSource);
 	fs.copyFileSync(path.join(root, 'tools/hashing/benchmark.rs'), path.join(scratch, 'src/main.rs'));
+	// The version the workspace ships, so the benchmark measures that dependency.
+	const sha2 = /\nname = "sha2"\nversion = "([^"]+)"/.exec(
+		fs.readFileSync(path.join(root, 'Cargo.lock'), 'utf8'),
+	)?.[1];
+	assert.ok(sha2, 'Cargo.lock has no sha2');
 	fs.writeFileSync(
 		path.join(scratch, 'Cargo.toml'),
 		`[package]
@@ -50,7 +55,7 @@ version = "0.0.0"
 edition = "2024"
 [dependencies]
 rsvelte_kernel = { path = ${JSON.stringify(path.join(root, 'crates/language_independent/kernel'))} }
-sha2 = { version = "=0.11.0", default-features = false }
+sha2 = { version = "=${sha2}", default-features = false }
 ring = "=0.17.14"
 [profile.release]
 lto = "thin"
