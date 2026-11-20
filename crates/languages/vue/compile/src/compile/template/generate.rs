@@ -36,10 +36,16 @@ impl Compiled {
         };
         let mut preamble = Vec::new();
         if !self.helpers.is_empty() {
+            let locals: Vec<String> = self
+                .helpers
+                .iter()
+                .map(|h| format!("_{}", h.name()))
+                .collect();
             let specifiers = self
                 .helpers
                 .iter()
-                .map(|h| (h.name(), out::name(b, &format!("_{}", h.name()))));
+                .zip(&locals)
+                .map(|(h, local)| (h.name(), local.as_str()));
             preamble.push(b.import(specifiers, "vue"));
         }
         for (i, &h) in self.hoists.iter().enumerate() {

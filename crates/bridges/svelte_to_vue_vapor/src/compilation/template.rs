@@ -19,7 +19,7 @@ use oxc_semantic::SymbolId;
 use oxc_span::{GetSpan, GetSpanMut};
 use rsvelte_kernel::index::{IndexRange, TypedIndex};
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_compile::lower::Parent;
+use rsvelte_svelte_compile::lower::{Parent, is_expression_async};
 use rsvelte_svelte_compile::render_plan::Namespace;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, CompilerNodeIdentifier, ElementKind, NodeKind, Part,
@@ -36,7 +36,7 @@ use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName, LoopEx
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::compilation::helpers::{self, Helper};
-use crate::compilation::script::prop_member;
+use crate::compilation::script::{prop_member, runes};
 use crate::compilation::{Input, R, markers};
 
 /// What the emitter reads of the template besides the Vue HIR's expressions.
@@ -208,7 +208,7 @@ impl<'i, 't> Template<'i, '_, 't> {
     /// A template expression in the component's tree.
     fn template_expression(&mut self, e: ExpressionIdentifier) -> Expression<'t> {
         let source = self.source(e);
-        if !self.i.server && rsvelte_svelte_compile::lower::is_expression_async(source) {
+        if !self.i.server && is_expression_async(source) {
             self.helpers.insert(Helper::Async);
         }
         let value = self.rewrite(source);
@@ -374,8 +374,8 @@ impl<'t> TemplateRewrite<'_, 't> {
         let (name, _) = self.res.rune(it)?;
         let b = self.b;
         let span = it.span();
-        let local = crate::compilation::script::runes::local(name);
-        let eager = crate::compilation::script::runes::eager(name);
+        let local = runes::local(name);
+        let eager = runes::eager(name);
         if local.is_none() && !eager {
             return None;
         }

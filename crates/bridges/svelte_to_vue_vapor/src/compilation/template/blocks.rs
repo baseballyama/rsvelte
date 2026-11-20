@@ -1,6 +1,6 @@
 use oxc_ast::ast::{Argument, Expression, LogicalOperator};
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_compile::lower::{Item, Parent, clean_nodes, template_end};
+use rsvelte_svelte_compile::lower::{Item, Parent, clean_nodes, is_expression_async, template_end};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use rsvelte_typescript_compile::build::sanitize_template_string;
 use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
@@ -125,7 +125,7 @@ impl<'t> Template<'_, '_, 't> {
                 .init
                 .as_ref()
                 .expect("a const tag has an initializer");
-            if !self.i.server && rsvelte_svelte_compile::lower::is_expression_async(init) {
+            if !self.i.server && is_expression_async(init) {
                 self.helpers.insert(Helper::Async);
             }
             let value = self.rewrite(init);
@@ -226,7 +226,7 @@ impl<'t> Template<'_, '_, 't> {
         }
         let value = self.template_expression(expression);
         let value = self.bound("value", at, value, at);
-        Ok(self.template_node("$$Render", at, vec![value], vue_parent))
+        Ok(self.template_node(markers::RENDER, at, vec![value], vue_parent))
     }
 
     /// A run of text and `{expression}` tags: one text node in both runtimes.

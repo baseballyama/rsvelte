@@ -1,6 +1,5 @@
 //! Output nodes the shared builder has no constructor for.
 
-use oxc_allocator::GetAllocator;
 use oxc_ast::ast::{
     Argument, ArrayExpressionElement, BindingIdentifier, ExportDefaultDeclarationKind, Expression,
     FormalParameters, ImportDeclarationSpecifier, ImportOrExportKind, Statement, StringLiteral,
@@ -95,9 +94,4 @@ pub(super) fn method<'o>(
         false,
         b,
     )
-}
-
-/// A name in the output's arena.
-pub(super) fn name<'o>(b: &Builder<'o>, name: &str) -> &'o str {
-    b.allocator().alloc_str(name)
 }

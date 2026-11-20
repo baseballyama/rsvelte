@@ -8,11 +8,29 @@ pub(crate) const SNIPPET: &str = "$$Snippet";
 pub(crate) const AWAIT: &str = "$$Await";
 /// The tag of a template node that scopes a block's declarations.
 pub(crate) const SCOPE: &str = "$$Scope";
+/// The tag of a template node for a `<svelte:boundary>`.
+pub(crate) const BOUNDARY: &str = "$$Boundary";
+/// The tag of a template node for a `{@render}` tag.
+pub(crate) const RENDER: &str = "$$Render";
+/// The tag of a template node for an `{@html}` tag.
+pub(crate) const RAW_MARKUP: &str = "$$RawMarkup";
+/// The tag of a template node for an HTML `<title>`.
+pub(crate) const TITLE: &str = "$$Title";
+/// The tag of a template node for static text.
+pub(crate) const TEXT: &str = "$$Text";
+/// The tag of a template node for static text inside `<pre>`.
+pub(crate) const PRE_TEXT: &str = "$$PreText";
+/// The tag of a template node for static text inside `<textarea>`.
+pub(crate) const TEXTAREA_TEXT: &str = "$$TextareaText";
 
 /// The bound property holding `<svelte:element>`'s tag.
 pub(crate) const TAG_KEY: &str = "$$tag";
 /// The bound property holding a `bind:this` setter.
 pub(crate) const REF_KEY: &str = "$$ref";
+/// The bound property holding a component's constructor.
+pub(crate) const TYPE_KEY: &str = "$$type";
+/// The bound property holding a component's props.
+pub(crate) const PROPS_KEY: &str = "$$props";
 /// The bound property holding a block's key.
 pub(crate) const KEY_KEY: &str = "$$key";
 /// The bound property holding `bind:innerHTML`.

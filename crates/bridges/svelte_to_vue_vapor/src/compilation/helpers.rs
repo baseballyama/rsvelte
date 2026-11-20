@@ -6,8 +6,23 @@ use rsvelte_typescript_compile::build::Builder;
 
 use crate::compilation::prelude;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) enum Helper {
+/// Declares `Helper` and, for the tests, `Helper::ALL` from one list, so neither can miss a
+/// variant.
+macro_rules! helpers {
+    ($($(#[$doc:meta])* $variant:ident,)*) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub(crate) enum Helper {
+            $($(#[$doc])* $variant,)*
+        }
+
+        impl Helper {
+            #[cfg(test)]
+            pub(crate) const ALL: &[Self] = &[$(Self::$variant,)*];
+        }
+    };
+}
+
+helpers! {
     /// The client's `{#each}` conversion (`each`: `is_array(c) ? c : c == null ? [] :
     /// array_from(c)`).
     Each,
@@ -119,6 +134,7 @@ impl Helper {
             Self::Class => include_str!("helpers/class.js"),
             Self::ToClass => include_str!("helpers/to_class.js"),
             Self::SetClass => include_str!("helpers/set_class.js"),
+            // Not `throw`: the snapshots and behaviour tests compare this `TypeError` and text.
             Self::Fail => {
                 "const $$fail = (message) => Object.defineProperty(Object.preventExtensions({}), \
                  'vuelte: ' + message, { value: 0 });"

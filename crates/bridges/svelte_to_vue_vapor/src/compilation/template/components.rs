@@ -47,10 +47,15 @@ impl<'t> Template<'_, '_, 't> {
             self.template_expression(expression)
         };
         let lead_count = properties.len();
-        properties.push(self.bound("$$type", element.name, component, node.span));
+        properties.push(self.bound(markers::TYPE_KEY, element.name, component, node.span));
         let Fields { mut fields, styles } = self.component_properties(identifier)?;
         let snippets = self.component_children(identifier, parent, &mut fields)?;
-        properties.push(self.bound("$$props", element.name, b.object(fields), node.span));
+        properties.push(self.bound(
+            markers::PROPS_KEY,
+            element.name,
+            b.object(fields),
+            node.span,
+        ));
         for attribute in tree.attributes(element.attributes) {
             if attribute.name.text(self.i.source_text) == "this"
                 && let AttributeValue::Bind(target) = attribute.value
@@ -81,7 +86,7 @@ impl<'t> Template<'_, '_, 't> {
         let kind = vue::NodeKind::Element(vue::Element {
             tag: spelled(
                 if boundary {
-                    "$$Boundary"
+                    markers::BOUNDARY
                 } else {
                     markers::COMPONENT
                 },

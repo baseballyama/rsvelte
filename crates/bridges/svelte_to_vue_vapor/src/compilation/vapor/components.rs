@@ -34,8 +34,8 @@ impl<'a, 'o> Emitter<'a, 'o> {
             body.push(declaration);
         }
         let mut component =
-            self.expression(self.source(self.component_value(identifier, "$$type")));
-        let source = self.source(self.component_value(identifier, "$$props"));
+            self.expression(self.source(self.component_value(identifier, markers::TYPE_KEY)));
+        let source = self.source(self.component_value(identifier, markers::PROPS_KEY));
         let props = self.render_expression(source, body);
         if is_expression_async(source) {
             component = b.conditional(self.copy_output(&props), component, b.null());
@@ -64,7 +64,8 @@ impl<'a, 'o> Emitter<'a, 'o> {
         for &child in self.snippets(identifier) {
             body.push(self.snippet_declaration(child, true));
         }
-        let props = self.expression(self.source(self.component_value(identifier, "$$props")));
+        let props =
+            self.expression(self.source(self.component_value(identifier, markers::PROPS_KEY)));
         let name = self.name();
         body.push(b.const_(&name, props));
         let children = || {
@@ -84,8 +85,9 @@ impl<'a, 'o> Emitter<'a, 'o> {
         identifier: CompilerNodeIdentifier,
     ) -> Expression<'o> {
         let b = self.b;
-        let component = self.expression(self.source(self.component_value(identifier, "$$type")));
-        let source = self.source(self.component_value(identifier, "$$props"));
+        let component =
+            self.expression(self.source(self.component_value(identifier, markers::TYPE_KEY)));
+        let source = self.source(self.component_value(identifier, markers::PROPS_KEY));
         let props = self.expression(source);
         let result = b.call(
             b.id("$$ssr_component"),

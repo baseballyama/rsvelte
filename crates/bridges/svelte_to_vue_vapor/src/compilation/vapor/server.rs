@@ -8,6 +8,7 @@ use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{Body, Emitter, method};
 use crate::compilation::markers;
+use crate::compilation::script::async_arrow;
 
 impl<'o> Emitter<'_, 'o> {
     /// `{ renderContent }` for setup to return, and the `ssrRender` that prints it.
@@ -136,7 +137,7 @@ impl<'o> Emitter<'_, 'o> {
                 let value = self.expression(source);
                 let escaped = b.call(b.id("$$escape"), [value]);
                 if is_expression_async(source) {
-                    b.call(crate::compilation::script::async_arrow(b, escaped), [])
+                    b.call(async_arrow(b, escaped), [])
                 } else {
                     escaped
                 }
@@ -260,9 +261,9 @@ impl<'o> Emitter<'_, 'o> {
         let children = tree.children(element.children);
         Some(match tag {
             "slot" if self.t.template.custom_element.is_some() => self.server_list(children),
-            "$$Boundary" => self.server_boundary(identifier),
+            markers::BOUNDARY => self.server_boundary(identifier),
             markers::COMPONENT => self.server_component(identifier),
-            "$$Title" => {
+            markers::TITLE => {
                 self.vue_imports.insert("useSSRContext");
                 let asynchronous = children.iter().any(|&child| {
                     matches!(tree.node(child).kind, NodeKind::Interpolation { expression }
@@ -272,7 +273,7 @@ impl<'o> Emitter<'_, 'o> {
                 let result = b.call(b.id("$$render_title"), [b.id("$$ssr_context"), value]);
                 self.server_async(result, asynchronous)
             }
-            "$$Render" | "$$RawMarkup" => self.server_value(identifier),
+            markers::RENDER | markers::RAW_MARKUP => self.server_value(identifier),
             "svelte:window" | "svelte:document" | "svelte:body" => b.string(""),
             "svelte:head" => {
                 self.vue_imports.insert("useSSRContext");
@@ -382,7 +383,7 @@ impl<'o> Emitter<'_, 'o> {
         }
         let b = self.b;
         let value = b.call(b.id("$$resolve_html"), [content]);
-        b.call(crate::compilation::script::async_arrow(b, value), [])
+        b.call(async_arrow(b, value), [])
     }
 
     fn join(&self, parts: Vec<Expression<'o>>) -> Expression<'o> {

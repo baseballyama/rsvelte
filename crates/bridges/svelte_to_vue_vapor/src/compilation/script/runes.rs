@@ -5,6 +5,7 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::NodeId;
 use oxc_span::GetSpan;
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rustc_hash::FxHashSet;
 
@@ -51,7 +52,7 @@ impl Collect<'_> {
         if name == "$derived"
             && let Some(argument) = argument
         {
-            self.plan.async_values |= rsvelte_svelte_compile::lower::is_expression_async(argument);
+            self.plan.async_values |= is_expression_async(argument);
         }
         let Expression::CallExpression(call) = init.get_inner_expression() else {
             unreachable!("a rune is a call")

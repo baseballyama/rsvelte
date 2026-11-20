@@ -107,7 +107,7 @@ impl<'t> Template<'_, '_, 't> {
         let tag_type = self.vb.tag_type(tag, range, source_text);
         let kind = vue::NodeKind::Element(vue::Element {
             tag: if el.kind == super::ElementKind::Title && namespace == Namespace::Html {
-                spelled("$$Title", el.name)
+                spelled(markers::TITLE, el.name)
             } else {
                 Name::Source(el.name)
             },

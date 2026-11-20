@@ -3,6 +3,7 @@ use oxc_ast::ast::{BindingPattern, Expression, Statement};
 use oxc_ast_visit::VisitMut;
 use oxc_span::SPAN;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use rsvelte_typescript_compile::strip::Strip;
 use rsvelte_vue_semantic::compiler_syntax_tree as vue;
@@ -11,7 +12,7 @@ use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName, LoopEx
 use super::{Template, directive};
 use crate::compilation::helpers::Helper;
 use crate::compilation::markers;
-use crate::compilation::script::runes;
+use crate::compilation::script::{patterns, rune_value, runes};
 
 impl<'t> Template<'_, '_, 't> {
     /// `{ value }`: the cell Vue's template reads a plain declaration through.
@@ -50,7 +51,7 @@ impl<'t> Template<'_, '_, 't> {
                 let value_rune = rune.is_some_and(|(name, _)| runes::value(name));
                 if let Some(init) = &declarator.init
                     && !self.i.server
-                    && rsvelte_svelte_compile::lower::is_expression_async(init)
+                    && is_expression_async(init)
                 {
                     self.helpers.insert(Helper::Async);
                 }
@@ -117,19 +118,12 @@ impl<'t> Template<'_, '_, 't> {
             .arguments
             .first()
             .map(|argument| self.rewrite(argument.to_expression()));
-        let value = crate::compilation::script::rune_value(b, rune, argument, tracking)
-            .expect("a checked rune has a value");
+        let value = rune_value(b, rune, argument, tracking).expect("a checked rune has a value");
         // The lowering rewrites the defaults itself.
         let mut pattern = declarator.id.clone_in_with_semantic_ids(b.allocator());
         Strip::new(b.allocator()).visit_binding_pattern(&mut pattern);
-        let declarators = crate::compilation::script::patterns::declarators(
-            b,
-            &mut self.rewriter(),
-            pattern,
-            value,
-            rune,
-            tracking,
-        );
+        let declarators =
+            patterns::declarators(b, &mut self.rewriter(), pattern, value, rune, tracking);
         b.declaration(oxc_ast::ast::VariableDeclarationKind::Const, declarators)
     }
 }

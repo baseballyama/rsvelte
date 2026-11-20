@@ -54,7 +54,7 @@ pub fn register(reg: &mut Registry) {
 /// `renderToString(createSSRApp(…))` (server).
 #[derive(Debug)]
 pub(crate) struct Compile {
-    pub server: bool,
+    server: bool,
 }
 
 impl Compile {

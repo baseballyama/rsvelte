@@ -1,5 +1,6 @@
 use oxc_ast::ast::Expression;
 use oxc_span::SPAN;
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_typescript_compile::build::Builder;
 
 use crate::compilation::markers;
@@ -23,7 +24,7 @@ pub(crate) fn rune_value<'t>(
         }
         "$derived" => {
             let argument = argument?;
-            let asynchronous = rsvelte_svelte_compile::lower::is_expression_async(&argument);
+            let asynchronous = is_expression_async(&argument);
             let argument = tracked(b, argument, tracking && !asynchronous);
             let getter = if asynchronous {
                 async_arrow(b, argument)

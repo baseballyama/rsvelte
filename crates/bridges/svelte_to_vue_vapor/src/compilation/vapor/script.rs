@@ -7,6 +7,7 @@ use oxc_ast_visit::{Visit, VisitMut, walk_mut};
 use oxc_span::SPAN;
 use oxc_syntax::node::NodeId;
 use oxc_syntax::scope::ScopeFlags;
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_typescript_compile::build::Builder;
 use rsvelte_vue_semantic::resolve::call_name;
 
@@ -272,7 +273,7 @@ struct TopLevelAwait(bool);
 
 impl<'a> Visit<'a> for TopLevelAwait {
     fn visit_expression(&mut self, it: &Expression<'a>) {
-        self.0 |= rsvelte_svelte_compile::lower::is_expression_async(it);
+        self.0 |= is_expression_async(it);
     }
 
     fn visit_function(&mut self, _: &Function<'a>, _: ScopeFlags) {}

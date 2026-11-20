@@ -2,6 +2,7 @@ use oxc_ast::ast::{Expression, IdentifierReference, ThisExpression};
 use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::NodeId;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
     ElementKind, MetadataTag, NodeKind,
@@ -11,6 +12,7 @@ use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rustc_hash::FxHashSet;
 
+use crate::compilation::script::runes;
 use crate::compilation::{R, span_of, unsupported};
 
 /// The parents a table part needs for the browser to parse it where it is written.
@@ -200,9 +202,7 @@ impl<'a> Visit<'a> for Names<'_> {
     fn visit_expression(&mut self, it: &Expression<'a>) {
         if let Expression::CallExpression(call) = it
             && self.res.rune(it).is_some_and(|(name, _)| {
-                crate::compilation::script::runes::local(name).is_some()
-                    || crate::compilation::script::runes::eager(name)
-                    || crate::compilation::script::runes::value(name)
+                runes::local(name).is_some() || runes::eager(name) || runes::value(name)
             })
         {
             let mut callee = call.callee.get_inner_expression();
@@ -280,9 +280,11 @@ fn check_await_directive(
             | AttributeValue::Animate { function, argument } => (Some(function), argument),
             _ => return Ok(()),
         };
-    if first.into_iter().chain(second).any(|expression| {
-        rsvelte_svelte_compile::lower::is_expression_async(javascript.get_expression(expression))
-    }) {
+    if first
+        .into_iter()
+        .chain(second)
+        .any(|expression| is_expression_async(javascript.get_expression(expression)))
+    {
         if matches!(attribute.value, AttributeValue::Bind(_)) {
             return Err(unsupported(
                 "an await expression in a binding (Svelte rejects it as `bind_invalid_expression`)",

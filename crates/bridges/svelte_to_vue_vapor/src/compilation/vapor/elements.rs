@@ -23,8 +23,10 @@ impl<'o> Emitter<'_, 'o> {
         let tag = element.tag.text(self.source_text);
         match tag {
             "slot" if self.t.template.custom_element.is_some() => return self.slot(element, body),
-            "$$Text" | "$$TextareaText" | "$$PreText" => return self.static_text(element, body),
-            "$$Boundary" => {
+            markers::TEXT | markers::TEXTAREA_TEXT | markers::PRE_TEXT => {
+                return self.static_text(element, body);
+            }
+            markers::BOUNDARY => {
                 self.vue_imports.extend([
                     "defineVaporComponent",
                     "shallowRef",
@@ -188,7 +190,7 @@ impl<'o> Emitter<'_, 'o> {
         let b = self.b;
         let tree = self.tree;
         Some(match tag {
-            "$$Title" => {
+            markers::TITLE => {
                 let value = self.title_text(identifier, body);
                 let assignment = b.assign_member(b.member(b.id("document"), "title"), value);
                 let callback = self.tracked_callback(self.arrow(assignment));
@@ -202,9 +204,9 @@ impl<'o> Emitter<'_, 'o> {
                 body.push(declaration);
                 b.array([])
             }
-            "$$Render" => self.render_snippet(identifier, body),
+            markers::RENDER => self.render_snippet(identifier, body),
             markers::AWAIT => self.await_block(identifier, body),
-            "$$RawMarkup" => self.raw_markup(identifier, body),
+            markers::RAW_MARKUP => self.raw_markup(identifier, body),
             "template" if el.tag_type == TagType::Template => {
                 let children = self.list(tree.children(el.children), body);
                 b.array(children)
@@ -395,8 +397,8 @@ impl<'o> Emitter<'_, 'o> {
             unreachable!("static text has its raw HTML")
         };
         let tag = match element.tag.text(self.source_text) {
-            "$$TextareaText" => "textarea",
-            "$$PreText" => "pre",
+            markers::TEXTAREA_TEXT => "textarea",
+            markers::PRE_TEXT => "pre",
             _ => "span",
         };
         // Vapor treats a text-only template as a literal string.
