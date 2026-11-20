@@ -1,6 +1,6 @@
 //! Where JavaScript's comments are, which the syntax-tree comparison does not see: each comment
 //! is keyed by its text, the tokens on either side of it, the nearest word on either side, which
-//! of the places with those neighbours it is, and whether it ends the line of the token before it.
+//! of the places with those neighbours it is, and whether a line break comes before and after it.
 //! The two outputs agree when they hold the same keys. Other layout does not count.
 
 use std::collections::HashMap;
@@ -52,10 +52,12 @@ pub(crate) fn difference(expected: &str, actual: &str) -> Result<Difference, Unp
     }
 }
 
-/// One key per comment: `<comment> | <word> <token> ^ <token> <word> #<k> | <side>`, where the
-/// tokens are the ones next to it, the words the nearest identifiers or keywords, `k` counts the
-/// places between tokens before it with the same tokens and words around them, and the side is
-/// `trailing` for a comment that ends the line of the token before it and `leading` otherwise.
+/// One key per comment: `<comment> | <word> <token> ^ <token> <word> #<k> | <before> <after>`,
+/// where the tokens are the ones next to it, the words the nearest identifiers or keywords, `k`
+/// counts the places between tokens before it with the same tokens and words around them,
+/// `before` is `own` when a line break separates it from the token before it and `trail`
+/// otherwise, and `after` is `eol` when a line break separates it from the token after it and
+/// `inline` otherwise.
 pub(crate) fn places(text: &str) -> Result<Vec<String>, String> {
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, text, SourceType::mjs())
@@ -85,12 +87,11 @@ pub(crate) fn places(text: &str) -> Result<Vec<String>, String> {
             let (context, k) = &gaps[after];
             let from = after.checked_sub(1).map(|i| tokens[i].end() as usize);
             let to = tokens.get(after).map_or(text.len(), |t| t.start() as usize);
-            let trailing = from.is_some_and(|from| {
-                !breaks(&text[from..c.span.start as usize])
-                    && (c.is_line() || to == text.len() || breaks(&text[c.span.end as usize..to]))
-            });
+            let own_line = from.is_none_or(|from| breaks(&text[from..c.span.start as usize]));
+            let ends_line =
+                c.is_line() || to == text.len() || breaks(&text[c.span.end as usize..to]);
             format!(
-                "{} | {} {} ^ {} {} #{k} | {}",
+                "{} | {} {} ^ {} {} #{k} | {} {}",
                 c.span
                     .source_text(text)
                     .split_whitespace()
@@ -100,7 +101,8 @@ pub(crate) fn places(text: &str) -> Result<Vec<String>, String> {
                 context[1],
                 context[2],
                 context[3],
-                if trailing { "trailing" } else { "leading" },
+                if own_line { "own" } else { "trail" },
+                if ends_line { "eol" } else { "inline" },
             )
         })
         .collect())

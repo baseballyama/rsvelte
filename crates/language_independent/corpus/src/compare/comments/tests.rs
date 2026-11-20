@@ -10,24 +10,24 @@ fn a_comment_is_keyed_by_its_text_its_neighbours_its_occurrence_and_its_line() {
     assert_eq!(
         places("let a = 1;\n// note\nf(\n\t/* x */ 'y'\n);").as_deref(),
         Ok(&[
-            "// note | a ; ^ f f #0 | leading".to_owned(),
-            "/* x */ | f ( ^ y EOF #0 | leading".to_owned()
+            "// note | a ; ^ f f #0 | own eol".to_owned(),
+            "/* x */ | f ( ^ y EOF #0 | own inline".to_owned()
         ][..])
     );
     assert_eq!(
         places("// only").as_deref(),
-        Ok(&["// only | EOF EOF ^ EOF EOF #0 | leading".to_owned()][..])
+        Ok(&["// only | EOF EOF ^ EOF EOF #0 | own eol".to_owned()][..])
     );
 }
 
 #[test]
 fn layout_and_quotes_do_not_count() {
     assert!(same("f('a', // c\n\tb);", "f(\n\t\"a\", // c\n\tb\n);\n"));
-    assert!(same("/**\n * doc\n */\nf();", "/** * doc */ f();"));
-    assert!(same("f(a, /* c */ b);", "f(\n\ta,\n\t/* c */ b\n);"));
+    assert!(same("/**\n * doc\n */\nf();", "\t/** * doc */\n\n\tf();"));
+    assert!(same("f(a, /* c */ b);", "f(\n\ta, /* c */ b\n);"));
     assert!(same(
-        "$.next(); /* c */ $.next();",
-        "$.next();\n/* c */ $.next();"
+        "$.next();\n/* c */ $.next();",
+        "\t$.next();\n\n\t\t/* c */  $.next();"
     ));
     assert!(same(
         "$.set(a, 1);\n// c\n$.set(a, 1);\n$.set(a, 1);",
@@ -60,6 +60,10 @@ fn a_move_between_like_tokens_counts() {
     assert!(!same("a(); // c\nb();", "a();\n// c\nb();"));
     // A block comment the same way.
     assert!(!same("a();\n/* c */ b();", "a(); /* c */\nb();"));
+    assert!(!same("a(); /* c */\nb();", "a();\n/* c */ b();"));
+    assert!(!same("f();\n/* c */\ng();", "f(); /* c */ g();"));
+    assert!(!same("f(a, /* c */ b);", "f(\n\ta,\n\t/* c */ b\n);"));
+    assert!(!same("f(a, /* c */ b);", "f(a, /* c */\n\tb);"));
 }
 
 #[test]
@@ -79,6 +83,11 @@ fn a_move_between_identical_places_counts() {
         &format!("{effect}{commented}")
     ));
     assert!(!same("f(a, /* c */ a, a);", "f(a, a, /* c */ a);"));
+    assert!(!same(
+        "$.a(); /* c */ $.b(); $.a(); $.b();",
+        "$.a(); $.b(); $.a(); /* c */ $.b();"
+    ));
+    assert!(!same("f(); // c\nf();\nf();", "f();\nf(); // c\nf();"));
 }
 
 #[test]
