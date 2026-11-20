@@ -91,7 +91,7 @@ pub fn lower<'a>(
         tree: SyntaxTree::default(),
         element_callee: None,
         attachment_key: None,
-        component_name: None,
+        component_instance_name: None,
         directives: directive::Directives::default(),
         root_snippets: None,
         slot_parent: None,
@@ -148,7 +148,7 @@ struct Builder<'a> {
     tree: SyntaxTree,
     element_callee: Option<NodeIdentifier>,
     attachment_key: Option<NodeIdentifier>,
-    component_name: Option<NodeIdentifier>,
+    component_instance_name: Option<NodeIdentifier>,
     /// Reused for each element, as elements' directives are done before their children.
     directives: directive::Directives,
     /// The root's snippets, which the instance script holds after its imports.

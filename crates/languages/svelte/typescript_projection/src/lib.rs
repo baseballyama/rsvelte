@@ -40,7 +40,7 @@ pub const DECLARATIONS: (&str, &str) = (
 /// It is the part of the file name before the first `.` in `PascalCase`, without the characters
 /// a name cannot have, and with the suffix that keeps it apart from the component's own names.
 #[must_use]
-pub fn component_name(path: &str) -> String {
+pub fn default_export_name(path: &str) -> String {
     const SUFFIX: &str = "__SvelteComponent_";
     let file = path.rsplit(['/', '\\']).next().unwrap_or(path);
     let stem = file.split('.').next().unwrap_or(file);
