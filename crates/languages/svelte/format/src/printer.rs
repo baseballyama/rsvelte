@@ -27,7 +27,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
 };
 use rsvelte_typescript_tree::SyntaxError;
 
-use crate::options::{EndOfLine, Options};
+use crate::options::{EndOfLine, Options, unported};
 
 type R<T> = Result<T, Unsupported>;
 
@@ -37,7 +37,7 @@ type R<T> = Result<T, Unsupported>;
 /// flat-only layout that does not fit.
 /// `rejected` is the first error a module rejects that the parsers do not report, which the
 /// plugin's parse fails on.
-pub(crate) fn format(
+pub(crate) fn print_component(
     c: &Component,
     source_text: &str,
     options: &Options,
@@ -82,7 +82,7 @@ pub(crate) fn format(
             },
             ..options.clone()
         };
-        return format(&reparsed, &normalized.text, &options, rejected.as_ref()).map_err(
+        return print_component(&reparsed, &normalized.text, &options, rejected.as_ref()).map_err(
             |u| match u.source_location.span() {
                 Some(span) => Unsupported::at(u.what, normalized.original(span)),
                 None => u,
@@ -203,7 +203,8 @@ fn core_options(options: &Options) -> R<CoreFormatOptions> {
     })
 }
 
-/// Prettier's options for the JavaScript in the component; [`unported`] has refused the others.
+/// Prettier's options for the JavaScript in the component; [`unported`](crate::options::unported)
+/// has refused the others.
 fn javascript_options(options: &Options, core: CoreFormatOptions) -> JsFormatOptions {
     JsFormatOptions {
         indent_style: core.indent_style,
@@ -305,67 +306,6 @@ fn refuse_lost_comments(
         }
     }
     Ok(())
-}
-
-/// The first option whose value this port does not print yet. The pattern names every field, so
-/// a new option does not compile until it is decided here.
-#[must_use]
-#[expect(
-    clippy::unneeded_field_pattern,
-    reason = "`..` would let a new option through unchecked"
-)]
-pub fn unported(o: &Options) -> Option<&'static str> {
-    let Options {
-        print_width: _,
-        tab_width: _,
-        use_tabs: _,
-        semi,
-        single_quote,
-        jsx_single_quote: _,
-        quote_props,
-        trailing_comma,
-        bracket_spacing,
-        object_wrap,
-        bracket_same_line: _,
-        arrow_parens,
-        markup_whitespace_sensitivity: _,
-        end_of_line: _,
-        embedded_language_formatting: _,
-        single_attribute_per_line: _,
-        prose_wrap: _,
-        require_pragma: _,
-        insert_pragma: _,
-        check_ignore_pragma: _,
-        range_start,
-        range_end,
-        experimental_ternaries,
-        experimental_operator_position,
-        svelte_sort_order: _,
-        svelte_allow_shorthand: _,
-        svelte_indent_script_and_style: _,
-    } = o;
-    let d = Options::default();
-    [
-        ("semi", *semi != d.semi),
-        ("singleQuote", *single_quote != d.single_quote),
-        ("quoteProps", *quote_props != d.quote_props),
-        ("trailingComma", *trailing_comma != d.trailing_comma),
-        ("bracketSpacing", *bracket_spacing != d.bracket_spacing),
-        ("objectWrap", *object_wrap != d.object_wrap),
-        ("arrowParens", *arrow_parens != d.arrow_parens),
-        ("rangeStart", *range_start != d.range_start),
-        ("rangeEnd", *range_end != d.range_end),
-        (
-            "experimentalTernaries",
-            *experimental_ternaries != d.experimental_ternaries,
-        ),
-        (
-            "experimentalOperatorPosition",
-            *experimental_operator_position != d.experimental_operator_position,
-        ),
-    ]
-    .into_iter()
-    .find_map(|(name, differs)| differs.then_some(name))
 }
 
 /// The component outlives the arena its layouts are built in, so they may borrow its trees.

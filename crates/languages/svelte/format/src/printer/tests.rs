@@ -10,7 +10,7 @@ fn refusal_with<'s>(source_text: &'s str, options: &Options) -> (&'static str, O
         Ok(c) => c,
         Err(d) => return ("a syntax error", Some(d.span.text(source_text))),
     };
-    let u = format(
+    let u = print_component(
         &c,
         source_text,
         options,
@@ -58,37 +58,11 @@ fn options(json: &str) -> Options {
 }
 
 #[test]
-fn every_option_value_not_printed_yet_is_refused() {
-    let cases = [
-        (r#"{"semi": false}"#, "semi"),
-        (r#"{"singleQuote": true}"#, "singleQuote"),
-        (r#"{"quoteProps": "consistent"}"#, "quoteProps"),
-        (r#"{"trailingComma": "es5"}"#, "trailingComma"),
-        (r#"{"bracketSpacing": false}"#, "bracketSpacing"),
-        (r#"{"objectWrap": "collapse"}"#, "objectWrap"),
-        (r#"{"arrowParens": "avoid"}"#, "arrowParens"),
-        (r#"{"rangeStart": 1}"#, "rangeStart"),
-        (r#"{"rangeEnd": 10}"#, "rangeEnd"),
-        (
-            r#"{"experimentalTernaries": true}"#,
-            "experimentalTernaries",
-        ),
-        (
-            r#"{"experimentalOperatorPosition": "start"}"#,
-            "experimentalOperatorPosition",
-        ),
-    ];
-    assert_eq!(unported(&Options::default()), None);
-    for (json, name) in cases {
-        assert_eq!(unported(&options(json)), Some(name), "{json}");
-    }
-}
-
-#[test]
 fn print_width_and_tab_width_reach_the_output() {
     let source_text = "<div>\n<p>aaaa bbbb cccc dddd</p>\n</div>\n";
     let c = rsvelte_svelte_syntax::parse::parse(source_text).expect("parses");
-    let print = |json: &str| format(&c, source_text, &options(json), None).expect("prints");
+    let print =
+        |json: &str| print_component(&c, source_text, &options(json), None).expect("prints");
     assert_eq!(print("{}"), "<div>\n  <p>aaaa bbbb cccc dddd</p>\n</div>\n");
     assert_eq!(
         print(r#"{"tabWidth": 3}"#),
@@ -106,7 +80,7 @@ fn formatted(source_text: &str) -> String {
 
 fn formatted_with(source_text: &str, options: &Options) -> String {
     let c = rsvelte_svelte_syntax::parse::parse(source_text).expect("parses");
-    format(
+    print_component(
         &c,
         source_text,
         options,
