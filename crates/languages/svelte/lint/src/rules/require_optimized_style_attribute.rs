@@ -9,7 +9,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/require-optimized-style-attribute",
     files: Files::Components,
-    category: Category::Pedantic,
+    category: Category::Perf,
     configure: without_options::<RequireOptimizedStyleAttribute>,
 };
 

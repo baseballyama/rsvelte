@@ -10,7 +10,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/max-lines-per-block",
     files: Files::Components,
-    category: Category::Style,
+    category: Category::Pedantic,
     configure,
 };
 

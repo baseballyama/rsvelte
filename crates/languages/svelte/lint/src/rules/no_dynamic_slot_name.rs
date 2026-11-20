@@ -10,7 +10,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-dynamic-slot-name",
     files: Files::Components,
-    category: Category::Suspicious,
+    category: Category::Correctness,
     configure: without_options::<NoDynamicSlotName>,
 };
 

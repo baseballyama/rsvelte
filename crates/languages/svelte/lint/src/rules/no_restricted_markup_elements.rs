@@ -9,7 +9,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-restricted-html-elements",
     files: Files::Components,
-    category: Category::Style,
+    category: Category::Restriction,
     configure,
 };
 

@@ -28,7 +28,7 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-navigation-without-resolve",
     files: Files::All,
-    category: Category::Correctness,
+    category: Category::Suspicious,
     configure,
 };
 

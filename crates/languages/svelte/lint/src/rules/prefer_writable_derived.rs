@@ -14,7 +14,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-writable-derived",
     files: Files::All,
-    category: Category::Correctness,
+    category: Category::Style,
     configure: without_options::<PreferWritableDerived>,
 };
 

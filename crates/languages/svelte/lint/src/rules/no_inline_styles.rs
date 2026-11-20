@@ -10,7 +10,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-inline-styles",
     files: Files::Components,
-    category: Category::Pedantic,
+    category: Category::Restriction,
     configure,
 };
 

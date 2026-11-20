@@ -9,7 +9,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/experimental-require-slot-types",
     files: Files::Components,
-    category: Category::Nursery,
+    category: Category::Style,
     configure: without_options::<ExperimentalRequireSlotTypes>,
 };
 

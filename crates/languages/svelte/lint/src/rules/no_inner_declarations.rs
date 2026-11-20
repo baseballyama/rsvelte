@@ -12,7 +12,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-inner-declarations",
     files: Files::All,
-    category: Category::Correctness,
+    category: Category::Pedantic,
     configure,
 };
 

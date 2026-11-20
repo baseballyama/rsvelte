@@ -21,7 +21,7 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-dom-manipulating",
     files: Files::Components,
-    category: Category::Correctness,
+    category: Category::Suspicious,
     configure: without_options::<NoDomManipulating>,
 };
 

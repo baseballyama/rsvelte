@@ -63,21 +63,78 @@ test('it has each configuration and export of eslint-plugin-oxlint for what both
 		assert.ok(key === 'svelteRules' || key in oxlintScopes, `${key} is not one of oxlint's scopes`);
 });
 
-test("a rule oxlint also has keeps oxlint's category", () => {
-	const oxlintCategory = new Map(
-		Object.entries(oxlintCategories).flatMap(([key, rules]) =>
-			Object.keys(rules as object).map((rule) => [rule, key.replace('TypeAware', '')]),
-		),
-	);
-	let shared = 0;
-	for (const [key, rules] of named(categories))
-		for (const rule of Object.keys(rules)) {
-			const theirs = oxlintCategory.get(rule);
-			if (theirs === undefined) continue;
-			shared += 1;
-			assert.equal(key, theirs, rule);
-		}
-	assert.ok(shared > 0, 'the comparison saw no rule');
+/** Each rule whose category follows a rule of oxlint: the same rule, or one that checks the same. */
+const ANALOGS: Record<string, string> = {
+	'@typescript-eslint/no-unused-vars': '@typescript-eslint/no-unused-vars',
+	'no-unused-vars': 'no-unused-vars',
+	'vue/html-button-has-type': 'react/button-has-type',
+	'vue/multi-word-component-names': 'react/jsx-pascal-case',
+	'vue/no-unused-vars': 'no-unused-vars',
+	'svelte/@typescript-eslint/no-unnecessary-condition':
+		'@typescript-eslint/no-unnecessary-condition',
+	'svelte/button-has-type': 'react/button-has-type',
+	'svelte/experimental-require-slot-types': 'vue/require-typed-ref',
+	'svelte/html-self-closing': 'react/self-closing-comp',
+	'svelte/infinite-reactive-loop': 'no-unmodified-loop-condition',
+	'svelte/max-lines-per-block': 'max-lines',
+	// One of two equal syntaxes.
+	'svelte/no-at-const-tags': 'react/jsx-fragments',
+	'svelte/no-at-debug-tags': 'no-debugger',
+	'svelte/no-at-html-tags': 'react/no-danger',
+	'svelte/no-dupe-else-if-blocks': 'no-dupe-else-if',
+	'svelte/no-dupe-on-directives': 'react/jsx-no-duplicate-props',
+	'svelte/no-dupe-style-properties': 'no-dupe-keys',
+	'svelte/no-dupe-use-directives': 'react/jsx-no-duplicate-props',
+	'svelte/no-inline-styles': 'react/forbid-dom-props',
+	'svelte/no-inner-declarations': 'no-inner-declarations',
+	'svelte/no-inspect': 'no-console',
+	'svelte/no-restricted-html-elements': 'react/forbid-elements',
+	'svelte/no-target-blank': 'react/jsx-no-target-blank',
+	'svelte/no-unused-svelte-ignore': 'no-unused-labels',
+	'svelte/no-useless-children-snippet': 'react/jsx-no-useless-fragment',
+	'svelte/no-useless-mustaches': 'react/jsx-curly-brace-presence',
+	'svelte/prefer-const': 'prefer-const',
+	'svelte/sort-attributes': 'sort-keys',
+};
+
+/** Rules oxlint also has, or has a counterpart of, whose category differs on purpose. */
+const DIFFERS: Record<string, string> = {
+	// oxlint's port is in its nursery because it is unfinished; rsvelte's passes upstream's tests.
+	'no-undef': 'no-undef',
+	// React needs keys and warns without them; an unkeyed each is valid Svelte.
+	'svelte/require-each-key': 'react/jsx-key',
+	// oxlint's rule restricts how JSX spells DOM attributes; this one finds CSS properties that do
+	// not exist.
+	'svelte/no-unknown-style-directive-property': 'react/no-unknown-property',
+};
+
+const oxlintCategory = new Map(
+	Object.entries(oxlintCategories).flatMap(([key, rules]) =>
+		Object.keys(rules as object).map((rule) => [rule, key.replace(/(TypeAware)?Rules$/, '')]),
+	),
+);
+const ourCategory = new Map(
+	named(categories).flatMap(([key, rules]) =>
+		Object.keys(rules).map((rule) => [rule, key.replace(/Rules$/, '')]),
+	),
+);
+
+test("a rule with an oxlint counterpart takes the counterpart's category", () => {
+	for (const [rule, counterpart] of Object.entries(ANALOGS)) {
+		const theirs = oxlintCategory.get(counterpart);
+		assert.ok(theirs, `${counterpart} is not an oxlint rule`);
+		assert.equal(ourCategory.get(rule), theirs, `${rule} follows ${counterpart}`);
+	}
+	for (const [rule, counterpart] of Object.entries(DIFFERS)) {
+		assert.ok(oxlintCategory.has(counterpart), `${counterpart} is not an oxlint rule`);
+		assert.notEqual(ourCategory.get(rule), oxlintCategory.get(counterpart), `${rule} now agrees`);
+	}
+});
+
+test('every rule oxlint also has is listed with its counterpart', () => {
+	for (const rule of everyRule)
+		if (oxlintCategory.has(rule))
+			assert.ok(rule in ANALOGS || rule in DIFFERS, `${rule} is an oxlint rule but not listed`);
 });
 
 test('flat/all leaves out the nursery, as eslint-plugin-oxlint does', () => {
@@ -119,19 +176,19 @@ test('turns off the rules rsvelte runs on a component and keeps the others', asy
 		['eqeqeq', 'no-undef', 'svelte/button-has-type', 'svelte/no-at-html-tags'],
 		'the positive control',
 	);
-	// `no-undef` is in the nursery, and `button-has-type` is pedantic.
 	assert.deepEqual(
 		await lint([...project, ...plugin.configs['flat/all']], 'App.svelte', component),
-		['eqeqeq', 'no-undef'],
+		['eqeqeq'],
 	);
+	// `button-has-type` and `no-at-html-tags` restrict features, as their React counterparts do.
 	assert.deepEqual(
 		await lint([...project, ...plugin.configs['flat/recommended']], 'App.svelte', component),
-		['eqeqeq', 'no-undef', 'svelte/button-has-type'],
+		['eqeqeq', 'svelte/button-has-type', 'svelte/no-at-html-tags'],
 	);
 });
 
 test('keeps a rule on in the files where rsvelte does not run it', async () => {
-	const config = [...project, ...plugin.configs['flat/nursery']];
+	const config = [...project, ...plugin.configs['flat/correctness']];
 	assert.deepEqual(await lint(config, 'App.svelte', '<script>b();</script>\n'), []);
 	assert.deepEqual(await lint(config, 'module.js', 'b();\n'), ['no-undef']);
 });

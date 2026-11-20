@@ -22,7 +22,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-immutable-reactive-statements",
     files: Files::Components,
-    category: Category::Correctness,
+    category: Category::Suspicious,
     configure: without_options::<NoImmutableReactiveStatements>,
 };
 

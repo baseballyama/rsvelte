@@ -17,7 +17,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-const",
     files: Files::All,
-    category: Category::Pedantic,
+    category: Category::Style,
     configure,
 };
 

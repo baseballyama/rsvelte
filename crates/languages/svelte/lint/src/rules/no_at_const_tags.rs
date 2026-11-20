@@ -12,7 +12,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-at-const-tags",
     files: Files::Components,
-    category: Category::Pedantic,
+    category: Category::Style,
     configure: without_options::<NoAtConstTags>,
 };
 

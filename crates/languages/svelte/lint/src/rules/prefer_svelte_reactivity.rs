@@ -15,7 +15,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-svelte-reactivity",
     files: Files::All,
-    category: Category::Correctness,
+    category: Category::Suspicious,
     configure: without_options::<PreferSvelteReactivity>,
 };
 

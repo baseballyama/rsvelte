@@ -11,7 +11,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-add-event-listener",
     files: Files::All,
-    category: Category::Pedantic,
+    category: Category::Restriction,
     configure: without_options::<NoAddEventListener>,
 };
 

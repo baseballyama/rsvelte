@@ -18,7 +18,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-useless-mustaches",
     files: Files::Components,
-    category: Category::Correctness,
+    category: Category::Style,
     configure,
 };
 

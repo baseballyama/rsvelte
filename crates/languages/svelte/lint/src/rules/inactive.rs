@@ -11,21 +11,21 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule, without_
 pub(super) static EXPERIMENTAL_REQUIRE_STRICT_EVENTS: RuleDefinition = RuleDefinition {
     name: "svelte/experimental-require-strict-events",
     files: Files::Components,
-    category: Category::Nursery,
+    category: Category::Style,
     configure: without_options::<Inactive>,
 };
 
 pub(super) static REQUIRE_EVENT_DISPATCHER_TYPES: RuleDefinition = RuleDefinition {
     name: "svelte/require-event-dispatcher-types",
     files: Files::Components,
-    category: Category::Correctness,
+    category: Category::Style,
     configure: without_options::<Inactive>,
 };
 
 pub(super) static NO_UNUSED_PROPS: RuleDefinition = RuleDefinition {
     name: "svelte/no-unused-props",
     files: Files::Components,
-    category: Category::Correctness,
+    category: Category::Suspicious,
     configure: no_unused_props,
 };
 

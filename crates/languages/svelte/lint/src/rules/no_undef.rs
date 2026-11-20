@@ -18,7 +18,7 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "no-undef",
     files: Files::Components,
-    category: Category::Nursery,
+    category: Category::Correctness,
     configure,
 };
 

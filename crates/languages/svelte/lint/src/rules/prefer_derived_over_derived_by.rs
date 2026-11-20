@@ -11,7 +11,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-derived-over-derived-by",
     files: Files::All,
-    category: Category::Pedantic,
+    category: Category::Style,
     configure: without_options::<PreferDerivedOverDerivedBy>,
 };
 

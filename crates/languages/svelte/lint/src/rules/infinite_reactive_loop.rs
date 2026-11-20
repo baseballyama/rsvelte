@@ -20,7 +20,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/infinite-reactive-loop",
     files: Files::Components,
-    category: Category::Correctness,
+    category: Category::Suspicious,
     configure: without_options::<InfiniteReactiveLoop>,
 };
 

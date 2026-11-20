@@ -11,7 +11,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-target-blank",
     files: Files::Components,
-    category: Category::Suspicious,
+    category: Category::Pedantic,
     configure,
 };
 

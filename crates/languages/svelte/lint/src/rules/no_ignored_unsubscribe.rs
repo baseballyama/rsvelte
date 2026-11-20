@@ -12,7 +12,7 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-ignored-unsubscribe",
     files: Files::All,
-    category: Category::Pedantic,
+    category: Category::Suspicious,
     configure: without_options::<NoIgnoredUnsubscribe>,
 };
 

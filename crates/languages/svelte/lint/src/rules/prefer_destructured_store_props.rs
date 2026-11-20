@@ -26,7 +26,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-destructured-store-props",
     files: Files::All,
-    category: Category::Pedantic,
+    category: Category::Perf,
     configure: without_options::<PreferDestructuredStoreProps>,
 };
 

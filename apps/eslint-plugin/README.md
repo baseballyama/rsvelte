@@ -70,14 +70,26 @@ rules off even when your rsvelte configuration leaves them off.
 
 ## Categories
 
-The categories are oxlint's. A rule that oxlint also has, such as `no-unused-vars`, keeps
-oxlint's category. Each other rule takes its category from the plugin it comes from:
+The categories are oxlint's, with oxlint's meanings:
 
-- The plugin's recommended rules (essential, for Vue) are `correctness`.
-- Possible errors, security and SvelteKit rules are `suspicious`.
-- Best practices are `pedantic`, and stylistic rules are `style`.
-- Experimental rules are `nursery`.
-- An extension rule takes the category of the core rule it extends, when oxlint has that rule.
+- `correctness`: code that is wrong or useless.
+- `suspicious`: code that is probably wrong or useless.
+- `pedantic`: strict rules, or rules with occasional false positives.
+- `perf`: code that can run faster.
+- `style`: code that has a more idiomatic form.
+- `restriction`: rules that forbid a language or library feature. Turn them on one by one.
+- `nursery`: rules still under development.
+
+A rule that oxlint also has takes oxlint's category, and so does a rule that checks what an oxlint
+rule checks. For example, `svelte/no-at-html-tags` is `restriction` like `react/no-danger`, and
+`svelte/button-has-type` is `restriction` like `react/button-has-type`. Each other rule takes the
+category its effect calls for, not the upstream plugin's recommended set. Three rules differ from
+their oxlint counterpart on purpose:
+
+- `no-undef` is `correctness`: oxlint keeps its own port in `nursery` while it develops it.
+- `svelte/require-each-key` is `pedantic`: React needs keys, but `{#each}` without a key is valid.
+- `svelte/no-unknown-style-directive-property` is `correctness`: it finds a CSS property that
+  does not exist, while `react/no-unknown-property` restricts how JSX spells attributes.
 
 As in `eslint-plugin-oxlint`, `all` and `flat/all` leave out the rules of `nursery`.
 

@@ -304,13 +304,13 @@ impl BuiltIn<RuleContext<'_>> for NoUnusedVariables {
 
 impl BuiltIn<RuleContext<'_>> for MarkupButtonHasType {
     fn category(&self) -> Category {
-        Category::Pedantic
+        Category::Restriction
     }
 }
 
 impl BuiltIn<RuleContext<'_>> for MultiWordComponentNames {
     fn category(&self) -> Category {
-        Category::Correctness
+        Category::Style
     }
 }
 
