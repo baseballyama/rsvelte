@@ -181,19 +181,17 @@ impl<'o> Emitter<'_, 'o> {
 /// The value rune `callee` calls, `$state` or `$derived.by`, by syntax: the script refused every
 /// other call to a `$` name.
 fn value_rune(callee: &Expression<'_>) -> Option<&'static str> {
-    let (object, property) = match callee {
-        Expression::Identifier(id) => (id.name.as_str(), None),
+    let callee = match callee {
+        Expression::Identifier(id) => (id.name.as_str(), ""),
         Expression::StaticMemberExpression(m) => match &m.object {
-            Expression::Identifier(id) => (id.name.as_str(), Some(m.property.name.as_str())),
+            Expression::Identifier(id) => (id.name.as_str(), m.property.name.as_str()),
             _ => return None,
         },
         _ => return None,
     };
-    runes::VALUE.into_iter().find(|rune| {
-        rune.split_once('.')
-            .map_or((*rune, None), |(object, property)| (object, Some(property)))
-            == (object, property)
-    })
+    runes::VALUE
+        .into_iter()
+        .find(|rune| rune.split_once('.').unwrap_or((rune, "")) == callee)
 }
 
 struct Rewrite<'r, 'a, 'o> {
