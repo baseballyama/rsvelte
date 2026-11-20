@@ -1,6 +1,8 @@
+//! `transformIf`.
+
 use super::{
     CAN_CACHE, Codegen, CodegenIdentifier, DirectiveName, Exit, ExpressionIdentifier, Helper, Lit,
-    NOT_CONSTANT, Node, NodeIdentifier, R, Transform, Unsupported,
+    NOT_CONSTANT, Node, R, Transform, TransformNodeIdentifier, Unsupported,
 };
 
 impl Transform<'_> {
@@ -8,11 +10,11 @@ impl Transform<'_> {
     /// leaves its parent.
     pub(super) fn process_if(
         &mut self,
-        el: NodeIdentifier,
-        parent: Option<NodeIdentifier>,
+        el: TransformNodeIdentifier,
+        parent: Option<TransformNodeIdentifier>,
         name: DirectiveName,
         raw: Option<ExpressionIdentifier>,
-    ) -> R<Option<(NodeIdentifier, Exit)>> {
+    ) -> R<Option<(TransformNodeIdentifier, Exit)>> {
         let parent = parent.expect("an element has a parent");
         let condition = match name {
             DirectiveName::Else => None,
@@ -84,7 +86,11 @@ impl Transform<'_> {
     }
 
     /// The branches of the `v-if` nodes before `if_node`: its first key.
-    pub(super) fn branches_before(&self, parent: NodeIdentifier, if_node: NodeIdentifier) -> usize {
+    pub(super) fn branches_before(
+        &self,
+        parent: TransformNodeIdentifier,
+        if_node: TransformNodeIdentifier,
+    ) -> usize {
         let siblings = self.children_of(parent);
         let at = siblings.iter().position(|&s| s == if_node).unwrap_or(0);
         siblings[..at]
@@ -99,7 +105,7 @@ impl Transform<'_> {
     /// `createCodegenNodeForBranch`.
     pub(super) fn branch_codegen(
         &mut self,
-        branch: NodeIdentifier,
+        branch: TransformNodeIdentifier,
         key: usize,
     ) -> CodegenIdentifier {
         let Node::Branch { condition, .. } = self.tree[branch] else {
@@ -112,11 +118,11 @@ impl Transform<'_> {
         self.helper(Helper::CreateComment);
         let a = self.lit(Lit::String("v-if".to_owned()), NOT_CONSTANT);
         let b = self.lit(Lit::Boolean(true), NOT_CONSTANT);
-        let alternate = self.cgn(Codegen::Call {
+        let alternate = self.push_codegen(Codegen::Call {
             callee: Helper::CreateComment,
             arguments: vec![a, b],
         });
-        self.cgn(Codegen::Conditional {
+        self.push_codegen(Codegen::Conditional {
             test,
             consequent: children,
             alternate,
@@ -126,7 +132,7 @@ impl Transform<'_> {
     /// `createChildrenCodegenNode` for a branch holding one element, or the `v-for` it became.
     pub(super) fn children_codegen(
         &mut self,
-        branch: NodeIdentifier,
+        branch: TransformNodeIdentifier,
         key: usize,
     ) -> CodegenIdentifier {
         let first = self.children_of(branch)[0];
@@ -163,7 +169,7 @@ impl Transform<'_> {
         };
         match props {
             None => {
-                let obj = self.cgn(Codegen::Object(vec![(key.to_owned(), value)]));
+                let obj = self.push_codegen(Codegen::Object(vec![(key.to_owned(), value)]));
                 if let Codegen::VNode { props, .. } = &mut self.codegen[vnode] {
                     *props = Some(obj);
                 }
@@ -189,9 +195,9 @@ impl Transform<'_> {
                         unreachable!("object_bind builds both calls")
                     };
                     let obj = inner[0];
-                    let k = self.cgn(Codegen::Object(vec![(key.to_owned(), value)]));
+                    let k = self.push_codegen(Codegen::Object(vec![(key.to_owned(), value)]));
                     self.helper(Helper::MergeProps);
-                    let merged = self.cgn(Codegen::Call {
+                    let merged = self.push_codegen(Codegen::Call {
                         callee: Helper::MergeProps,
                         arguments: vec![k, obj],
                     });

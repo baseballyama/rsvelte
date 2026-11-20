@@ -1,18 +1,20 @@
+//! `transformFor`.
+
 use super::{
     Codegen, DirectiveExpression, DirectiveName, Exit, ExpressionIdentifier, Helper, NOT_CONSTANT,
-    Node, NodeIdentifier, Property, PropertyIdentifier, PropertyKind, R, Transform, VChildren,
-    VNodeArgs, patch,
+    Node, Property, PropertyIdentifier, PropertyKind, R, Transform, TransformNodeIdentifier,
+    VChildren, VNodeArgs, patch,
 };
 
 impl Transform<'_> {
     /// `processFor`, and the codegen `transformFor` creates before the children are traversed.
     pub(super) fn process_for(
         &mut self,
-        el: NodeIdentifier,
-        parent: Option<NodeIdentifier>,
+        el: TransformNodeIdentifier,
+        parent: Option<TransformNodeIdentifier>,
         raw: ExpressionIdentifier,
         identifier: PropertyIdentifier,
-    ) -> R<(NodeIdentifier, Exit)> {
+    ) -> R<(TransformNodeIdentifier, Exit)> {
         let PropertyKind::Directive(d) = &self.compiler_syntax_tree.props[identifier].kind else {
             unreachable!("v-for is a directive")
         };
@@ -31,10 +33,10 @@ impl Transform<'_> {
             self.replace_child(p, el, for_node);
         }
         self.helper(Helper::RenderList);
-        let source_text_cg = self.cgn(Codegen::Exp(source));
-        let render = self.cgn(Codegen::Call {
+        let source_codegen = self.push_codegen(Codegen::Exp(source));
+        let render = self.push_codegen(Codegen::Call {
             callee: Helper::RenderList,
-            arguments: vec![source_text_cg],
+            arguments: vec![source_codegen],
         });
         let stable = source.const_type > NOT_CONSTANT;
         let flag = if stable {
@@ -63,7 +65,7 @@ impl Transform<'_> {
         Ok((for_node, Exit::For(for_node)))
     }
 
-    pub(super) fn has_key(&self, el: NodeIdentifier) -> bool {
+    pub(super) fn has_key(&self, el: TransformNodeIdentifier) -> bool {
         let Node::Element { props, .. } = &self.tree[el] else {
             return false;
         };
@@ -79,7 +81,7 @@ impl Transform<'_> {
     }
 
     /// `transformFor`'s exit: the child's codegen becomes the render function's block.
-    pub(super) fn finish_for(&mut self, for_node: NodeIdentifier) {
+    pub(super) fn finish_for(&mut self, for_node: TransformNodeIdentifier) {
         let Node::For {
             source,
             parameters,
@@ -128,7 +130,7 @@ impl Transform<'_> {
             self.helper(Helper::OpenBlock);
             self.helper(Helper::CreateElementBlock);
         }
-        let f = self.cgn(Codegen::Function {
+        let f = self.push_codegen(Codegen::Function {
             parameters,
             returns: block,
         });

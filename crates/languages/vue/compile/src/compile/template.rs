@@ -96,7 +96,7 @@ const CAN_STRINGIFY: u8 = 3;
 
 newtype_index!(
     /// A template node in [`Transform::tree`].
-    struct NodeIdentifier;
+    struct TransformNodeIdentifier;
 );
 newtype_index!(
     /// A codegen node in [`Transform::codegen`].
@@ -136,33 +136,33 @@ enum Property {
 
 #[derive(Debug)]
 enum Node {
-    Root(Vec<NodeIdentifier>),
+    Root(Vec<TransformNodeIdentifier>),
     Element {
         tag: String,
         props: Vec<Property>,
-        children: Vec<NodeIdentifier>,
+        children: Vec<TransformNodeIdentifier>,
         codegen: Option<CodegenIdentifier>,
     },
     Text(String),
     Interpolation(Exp),
     /// Adjacent text and interpolations, merged by `transformText`.
-    Compound(Vec<NodeIdentifier>),
+    Compound(Vec<TransformNodeIdentifier>),
     If {
-        branches: Vec<NodeIdentifier>,
+        branches: Vec<TransformNodeIdentifier>,
         codegen: Option<CodegenIdentifier>,
     },
     Branch {
         condition: Option<Exp>,
-        children: Vec<NodeIdentifier>,
+        children: Vec<TransformNodeIdentifier>,
     },
     For {
         source: Exp,
         parameters: ParametersIdentifier,
-        children: Vec<NodeIdentifier>,
+        children: Vec<TransformNodeIdentifier>,
         codegen: Option<CodegenIdentifier>,
     },
     TextCall {
-        content: NodeIdentifier,
+        content: TransformNodeIdentifier,
         codegen: CodegenIdentifier,
     },
 }
@@ -170,8 +170,8 @@ enum Node {
 #[derive(Debug, Clone)]
 enum VChildren {
     /// The only child, a text, interpolation or compound, passed as is.
-    Node(NodeIdentifier),
-    List(Vec<NodeIdentifier>),
+    Node(TransformNodeIdentifier),
+    List(Vec<TransformNodeIdentifier>),
     Codegen(CodegenIdentifier),
 }
 
@@ -210,7 +210,7 @@ enum Codegen {
     Array(Vec<CodegenIdentifier>),
     /// A helper's local name, as a value (a runtime directive).
     Helper(Helper),
-    NodeArray(Vec<NodeIdentifier>),
+    NodeArray(Vec<TransformNodeIdentifier>),
     /// `stringifyDynamicPropertyNames`.
     PropertyNames(Vec<String>),
     /// A simple expression the compiler wrote.
@@ -248,7 +248,7 @@ enum Codegen {
     },
     Hoisted(usize),
     /// A template node, generated through `genNode`.
-    Node(NodeIdentifier),
+    Node(TransformNodeIdentifier),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -270,7 +270,7 @@ fn ref_info(res: &Resolution, reference: ReferenceId) -> RefInfo {
 /// A compiled template, ready for [`Compiled::generate`].
 #[derive(Debug)]
 pub(crate) struct Compiled {
-    tree: IndexVector<NodeIdentifier, Node>,
+    tree: IndexVector<TransformNodeIdentifier, Node>,
     codegen: IndexVector<CodegenIdentifier, Codegen>,
     root_codegen: Option<CodegenIdentifier>,
     pub helpers: Vec<Helper>,
@@ -284,7 +284,7 @@ struct Transform<'a> {
     res: &'a Resolution,
     /// The render function is `setup`'s closure and reads bindings directly.
     inline: bool,
-    tree: IndexVector<NodeIdentifier, Node>,
+    tree: IndexVector<TransformNodeIdentifier, Node>,
     codegen: IndexVector<CodegenIdentifier, Codegen>,
     helpers: Vec<(Helper, u32)>,
     hoists: Vec<CodegenIdentifier>,
@@ -332,11 +332,11 @@ pub(crate) fn transform(
 }
 
 impl Transform<'_> {
-    fn push(&mut self, n: Node) -> NodeIdentifier {
+    fn push(&mut self, n: Node) -> TransformNodeIdentifier {
         self.tree.push(n)
     }
 
-    fn cgn(&mut self, c: Codegen) -> CodegenIdentifier {
+    fn push_codegen(&mut self, c: Codegen) -> CodegenIdentifier {
         self.codegen.push(c)
     }
 
@@ -358,7 +358,7 @@ impl Transform<'_> {
         }
     }
 
-    fn children_of(&self, n: NodeIdentifier) -> &[NodeIdentifier] {
+    fn children_of(&self, n: TransformNodeIdentifier) -> &[TransformNodeIdentifier] {
         match &self.tree[n] {
             Node::Root(children)
             | Node::Element { children, .. }
@@ -368,7 +368,7 @@ impl Transform<'_> {
         }
     }
 
-    fn children_mut(&mut self, n: NodeIdentifier) -> &mut Vec<NodeIdentifier> {
+    fn children_mut(&mut self, n: TransformNodeIdentifier) -> &mut Vec<TransformNodeIdentifier> {
         match &mut self.tree[n] {
             Node::Root(children)
             | Node::Element { children, .. }
@@ -378,7 +378,7 @@ impl Transform<'_> {
         }
     }
 
-    fn codegen_of(&self, n: NodeIdentifier) -> Option<CodegenIdentifier> {
+    fn codegen_of(&self, n: TransformNodeIdentifier) -> Option<CodegenIdentifier> {
         match &self.tree[n] {
             Node::Element { codegen, .. }
             | Node::If { codegen, .. }
@@ -389,7 +389,7 @@ impl Transform<'_> {
     }
 
     fn lit(&mut self, lit: Lit, const_type: u8) -> CodegenIdentifier {
-        self.cgn(Codegen::Lit { lit, const_type })
+        self.push_codegen(Codegen::Lit { lit, const_type })
     }
 }
 
@@ -417,14 +417,14 @@ struct VNodeArgs {
 }
 
 enum Exit {
-    Element(NodeIdentifier),
-    Text(NodeIdentifier),
+    Element(TransformNodeIdentifier),
+    Text(TransformNodeIdentifier),
     If {
-        if_node: NodeIdentifier,
-        branch: NodeIdentifier,
+        if_node: TransformNodeIdentifier,
+        branch: TransformNodeIdentifier,
         key: usize,
     },
-    For(NodeIdentifier),
+    For(TransformNodeIdentifier),
 }
 
 mod events;

@@ -5,7 +5,7 @@ use rsvelte_typescript_compile::build::Builder;
 
 use super::{
     Codegen, CodegenIdentifier, Compiled, DirectiveName, Exp, ExpRewrite, Expression, Helper, Lit,
-    Node, NodeIdentifier, PropertyView, Resolution, Tree, VChildren, is_simple_identifier,
+    Node, PropertyView, Resolution, TransformNodeIdentifier, Tree, VChildren, is_simple_identifier,
 };
 use crate::compile::out;
 
@@ -49,10 +49,10 @@ impl Compiled {
             preamble.push(b.import(specifiers, "vue"));
         }
         for (i, &h) in self.hoists.iter().enumerate() {
-            let value = g.cg(h);
+            let value = g.codegen(h);
             preamble.push(b.const_(&format!("_hoisted_{}", i + 1), value));
         }
-        let ret = self.root_codegen.map_or_else(|| b.null(), |c| g.cg(c));
+        let ret = self.root_codegen.map_or_else(|| b.null(), |c| g.codegen(c));
         (preamble, ret)
     }
 }
@@ -86,7 +86,7 @@ impl<'o> Gen<'_, '_, 'o> {
     }
 
     /// `genNode` for a template node.
-    fn node(&self, n: NodeIdentifier) -> Expression<'o> {
+    fn node(&self, n: TransformNodeIdentifier) -> Expression<'o> {
         let b = self.b;
         match &self.t.tree[n] {
             Node::Text(t) => b.string(t),
@@ -107,14 +107,14 @@ impl<'o> Gen<'_, '_, 'o> {
             }
             Node::Element { codegen, .. }
             | Node::If { codegen, .. }
-            | Node::For { codegen, .. } => self.cg(codegen.expect("a transformed node")),
-            Node::TextCall { codegen, .. } => self.cg(*codegen),
+            | Node::For { codegen, .. } => self.codegen(codegen.expect("a transformed node")),
+            Node::TextCall { codegen, .. } => self.codegen(*codegen),
             Node::Root(_) | Node::Branch { .. } => unreachable!("not generated on its own"),
         }
     }
 
     #[expect(clippy::too_many_lines, reason = "one arm per codegen node")]
-    fn cg(&self, c: CodegenIdentifier) -> Expression<'o> {
+    fn codegen(&self, c: CodegenIdentifier) -> Expression<'o> {
         let b = self.b;
         match &self.t.codegen[c] {
             Codegen::VNode {
@@ -135,14 +135,14 @@ impl<'o> Gen<'_, '_, 'o> {
                     .as_ref()
                     .map_or_else(|| self.helper(Helper::Fragment), |t| b.string(t));
                 let mut arguments: Vec<Option<Expression<'o>>> = vec![Some(tag)];
-                arguments.push(props.map(|p| self.cg(p)));
+                arguments.push(props.map(|p| self.codegen(p)));
                 arguments.push(children.as_ref().map(|ch| match ch {
                     &VChildren::Node(n) => self.node(n),
                     VChildren::List(list) => self.node_array(list),
-                    &VChildren::Codegen(c) => self.cg(c),
+                    &VChildren::Codegen(c) => self.codegen(c),
                 }));
                 arguments.push(patch_flag.map(|f| self.flag(f)));
-                arguments.push(dynamic_props.map(|d| self.cg(d)));
+                arguments.push(dynamic_props.map(|d| self.codegen(d)));
                 while arguments.last().is_some_and(Option::is_none) {
                     arguments.pop();
                 }
@@ -164,13 +164,13 @@ impl<'o> Gen<'_, '_, 'o> {
                 let Some(d) = directives else {
                     return call;
                 };
-                let list = self.cg(d);
+                let list = self.codegen(d);
                 b.call(self.helper(Helper::WithDirectives), [call, list])
             }
             Codegen::Call { callee, arguments } => {
                 let callee = *callee;
                 let arguments: Vec<Expression<'o>> =
-                    arguments.iter().map(|&a| self.cg(a)).collect();
+                    arguments.iter().map(|&a| self.codegen(a)).collect();
                 b.call(self.helper(callee), arguments)
             }
             Codegen::Object(list) => {
@@ -182,7 +182,7 @@ impl<'o> Gen<'_, '_, 'o> {
                         } else {
                             oxc_ast::ast::PropertyKey::from(b.string(k))
                         };
-                        let value = self.cg(*v);
+                        let value = self.codegen(*v);
                         b.property(key, value, false)
                     })
                     .collect();
@@ -190,7 +190,7 @@ impl<'o> Gen<'_, '_, 'o> {
             }
             Codegen::NodeArray(list) => self.node_array(list),
             Codegen::Array(list) => {
-                let items: Vec<Expression<'o>> = list.iter().map(|&c| self.cg(c)).collect();
+                let items: Vec<Expression<'o>> = list.iter().map(|&c| self.codegen(c)).collect();
                 b.array(items)
             }
             &Codegen::Helper(h) => self.helper(h),
@@ -228,7 +228,7 @@ impl<'o> Gen<'_, '_, 'o> {
                     .get_parameters(parameters)
                     .clone_in(b.allocator());
                 parameters.kind = oxc_ast::ast::FormalParameterKind::ArrowFormalParameters;
-                let r = self.cg(returns);
+                let r = self.codegen(returns);
                 b.arrow_block(b.alloc(parameters), [b.return_(Some(r))], false)
             }
             &Codegen::Conditional {
@@ -237,8 +237,8 @@ impl<'o> Gen<'_, '_, 'o> {
                 alternate,
             } => {
                 let t = self.exp(test);
-                let c = self.cg(consequent);
-                let a = self.cg(alternate);
+                let c = self.codegen(consequent);
+                let a = self.codegen(alternate);
                 b.conditional(t, c, a)
             }
             &Codegen::Cache {
@@ -248,7 +248,7 @@ impl<'o> Gen<'_, '_, 'o> {
             } => {
                 #[expect(clippy::cast_precision_loss, reason = "a cache slot")]
                 let slot = || b.computed(b.id("_cache"), b.number(index as f64));
-                let v = self.cg(value);
+                let v = self.codegen(value);
                 let cached = b.logical(slot(), LogicalOperator::Or, b.assign_member(slot(), v));
                 if spread {
                     out::spread_array(b, cached)
@@ -261,7 +261,7 @@ impl<'o> Gen<'_, '_, 'o> {
         }
     }
 
-    fn node_array(&self, list: &[NodeIdentifier]) -> Expression<'o> {
+    fn node_array(&self, list: &[TransformNodeIdentifier]) -> Expression<'o> {
         let items: Vec<Expression<'o>> = list.iter().map(|&n| self.node(n)).collect();
         self.b.array(items)
     }

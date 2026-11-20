@@ -1,3 +1,5 @@
+//! `rewriteIdentifier`, applied to the expressions `generate` copies.
+
 use oxc_ast::ast::{IdentifierReference, ObjectProperty, SimpleAssignmentTarget};
 use oxc_ast_visit::{VisitMut, walk_mut};
 use rsvelte_typescript_compile::build::Builder;

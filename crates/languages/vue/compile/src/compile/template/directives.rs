@@ -1,8 +1,8 @@
 use super::{
     BindingType, Codegen, CodegenIdentifier, DirectiveName, Exp, Expression, ExpressionIdentifier,
-    Helper, Lit, NOT_CONSTANT, Node, NodeIdentifier, Property, PropertyIdentifier, PropertyKind, R,
-    Transform, Unsupported, camelize, collect_identifiers, is_keyboard_event, resolve_modifiers,
-    to_handler_key,
+    Helper, Lit, NOT_CONSTANT, Node, Property, PropertyIdentifier, PropertyKind, R, Transform,
+    TransformNodeIdentifier, Unsupported, camelize, collect_identifiers, is_keyboard_event,
+    resolve_modifiers, to_handler_key,
 };
 use crate::compile::document_span;
 
@@ -21,7 +21,7 @@ impl Transform<'_> {
         Ok(match dir {
             DirectiveName::Bind => {
                 let exp = exp.expect("transformExpression processed it");
-                (arg, self.cgn(Codegen::Exp(exp)), None)
+                (arg, self.push_codegen(Codegen::Exp(exp)), None)
             }
             DirectiveName::On => {
                 let PropertyKind::Directive(d) = &self.compiler_syntax_tree.props[identifier].kind
@@ -50,7 +50,7 @@ impl Transform<'_> {
     /// compiler-dom `transformModel`'s choice of runtime directive for an element's `v-model`,
     /// refusing what upstream reports as an error or the port does not compile; `None` without a
     /// `v-model`.
-    pub(super) fn model_runtime(&self, n: NodeIdentifier) -> R<Option<Helper>> {
+    pub(super) fn model_runtime(&self, n: TransformNodeIdentifier) -> R<Option<Helper>> {
         let Node::Element { tag, props, .. } = &self.tree[n] else {
             return Ok(None);
         };
@@ -154,7 +154,7 @@ impl Transform<'_> {
                 ));
             }
         };
-        let update = self.cgn(Codegen::ModelUpdate {
+        let update = self.push_codegen(Codegen::ModelUpdate {
             target: exp,
             is_ref,
         });
@@ -173,8 +173,8 @@ impl Transform<'_> {
             .map(|m| m.text(self.source_text).to_owned())
             .collect();
         let mut arguments = vec![
-            self.cgn(Codegen::Helper(runtime)),
-            self.cgn(Codegen::Exp(exp)),
+            self.push_codegen(Codegen::Helper(runtime)),
+            self.push_codegen(Codegen::Exp(exp)),
         ];
         if !modifiers.is_empty() {
             arguments.push(self.lit(Lit::Undefined, NOT_CONSTANT));
@@ -182,9 +182,9 @@ impl Transform<'_> {
                 .into_iter()
                 .map(|m| (m, self.lit(Lit::Boolean(true), NOT_CONSTANT)))
                 .collect();
-            arguments.push(self.cgn(Codegen::Object(props)));
+            arguments.push(self.push_codegen(Codegen::Object(props)));
         }
-        Ok((update, self.cgn(Codegen::Array(arguments))))
+        Ok((update, self.push_codegen(Codegen::Array(arguments))))
     }
 
     /// `transformOn`, with `cacheHandlers`, and compiler-dom's augmentor for the modifiers, which
@@ -212,9 +212,9 @@ impl Transform<'_> {
         let runtime_constant = !exp.compound && exp.const_type > 0;
         let should_cache = !runtime_constant && !self.has_scope_ref(raw);
         let mut value = if inline || (should_cache && is_member) {
-            self.cgn(Codegen::Handler { exp, inline })
+            self.push_codegen(Codegen::Handler { exp, inline })
         } else {
-            self.cgn(Codegen::Exp(exp))
+            self.push_codegen(Codegen::Exp(exp))
         };
         if !modifiers.is_empty() {
             let (keys, non_keys, options) = resolve_modifiers(&key, modifiers);
@@ -229,12 +229,12 @@ impl Transform<'_> {
                     .iter()
                     .map(|m| t.lit(Lit::String((*m).to_owned()), NOT_CONSTANT))
                     .collect();
-                t.cgn(Codegen::Array(items))
+                t.push_codegen(Codegen::Array(items))
             };
             if !non_keys.is_empty() {
                 self.helper(Helper::WithModifiers);
                 let mods = list(self, &non_keys);
-                value = self.cgn(Codegen::Call {
+                value = self.push_codegen(Codegen::Call {
                     callee: Helper::WithModifiers,
                     arguments: vec![value, mods],
                 });
@@ -242,7 +242,7 @@ impl Transform<'_> {
             if !keys.is_empty() && is_keyboard_event(&key.to_ascii_lowercase()) {
                 self.helper(Helper::WithKeys);
                 let mods = list(self, &keys);
-                value = self.cgn(Codegen::Call {
+                value = self.push_codegen(Codegen::Call {
                     callee: Helper::WithKeys,
                     arguments: vec![value, mods],
                 });
@@ -275,7 +275,7 @@ impl Transform<'_> {
     pub(super) fn cache(&mut self, value: CodegenIdentifier) -> CodegenIdentifier {
         let index = self.cached;
         self.cached += 1;
-        self.cgn(Codegen::Cache {
+        self.push_codegen(Codegen::Cache {
             index,
             value,
             spread: false,

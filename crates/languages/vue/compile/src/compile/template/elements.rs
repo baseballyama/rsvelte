@@ -2,12 +2,12 @@
 
 use super::{
     CAN_STRINGIFY, Codegen, CodegenIdentifier, DirectiveName, Helper, Lit, NOT_CONSTANT, Node,
-    NodeIdentifier, Property, PropertyView, R, Transform, Unsupported, VChildren, VNodeArgs,
-    is_object_bind, is_on, is_reserved, patch,
+    Property, PropertyView, R, Transform, TransformNodeIdentifier, Unsupported, VChildren,
+    VNodeArgs, is_object_bind, is_on, is_reserved, patch,
 };
 
 impl Transform<'_> {
-    pub(super) fn prop_views(&self, n: NodeIdentifier) -> Vec<PropertyView> {
+    pub(super) fn prop_views(&self, n: TransformNodeIdentifier) -> Vec<PropertyView> {
         let Node::Element { props, .. } = &self.tree[n] else {
             unreachable!("an element")
         };
@@ -33,7 +33,7 @@ impl Transform<'_> {
     /// puts it first), and `FULL_PROPS`. An object beside other props is not compiled yet.
     pub(super) fn object_bind(
         &mut self,
-        n: NodeIdentifier,
+        n: TransformNodeIdentifier,
         tag: &str,
         props: &[PropertyView],
     ) -> R<bool> {
@@ -58,18 +58,18 @@ impl Transform<'_> {
             }
         }
         let object = object.expect("found above");
-        let obj = self.cgn(Codegen::Exp(object));
+        let obj = self.push_codegen(Codegen::Exp(object));
         let props = if self.v_for > 0 {
             let mut arguments = Vec::new();
             if let Some(k) = key {
-                let k = self.cgn(Codegen::Exp(k));
-                arguments.push(self.cgn(Codegen::Object(vec![("key".to_owned(), k)])));
+                let k = self.push_codegen(Codegen::Exp(k));
+                arguments.push(self.push_codegen(Codegen::Object(vec![("key".to_owned(), k)])));
             }
             let t = self.lit(Lit::Boolean(true), NOT_CONSTANT);
-            arguments.push(self.cgn(Codegen::Object(vec![("ref_for".to_owned(), t)])));
+            arguments.push(self.push_codegen(Codegen::Object(vec![("ref_for".to_owned(), t)])));
             arguments.push(obj);
             self.helper(Helper::MergeProps);
-            self.cgn(Codegen::Call {
+            self.push_codegen(Codegen::Call {
                 callee: Helper::MergeProps,
                 arguments,
             })
@@ -79,11 +79,11 @@ impl Transform<'_> {
             }
             self.helper(Helper::NormalizeProps);
             self.helper(Helper::GuardReactiveProps);
-            let guarded = self.cgn(Codegen::Call {
+            let guarded = self.push_codegen(Codegen::Call {
                 callee: Helper::GuardReactiveProps,
                 arguments: vec![obj],
             });
-            self.cgn(Codegen::Call {
+            self.push_codegen(Codegen::Call {
                 callee: Helper::NormalizeProps,
                 arguments: vec![guarded],
             })
@@ -109,7 +109,7 @@ impl Transform<'_> {
 
     /// `postTransformElement` for a plain element, with `buildProps`, `transformBind` and
     /// `transformOn`.
-    pub(super) fn post_transform_element(&mut self, n: NodeIdentifier) -> R<()> {
+    pub(super) fn post_transform_element(&mut self, n: TransformNodeIdentifier) -> R<()> {
         let Node::Element { tag, .. } = &self.tree[n] else {
             return Ok(());
         };
@@ -182,12 +182,13 @@ impl Transform<'_> {
         if !should_use_block && needs_patch {
             patch_flag |= patch::NEED_PATCH;
         }
-        let vnode_props = (!properties.is_empty()).then(|| self.cgn(Codegen::Object(properties)));
+        let vnode_props =
+            (!properties.is_empty()).then(|| self.push_codegen(Codegen::Object(properties)));
         let vnode_children = self.vnode_children(n, &mut patch_flag);
         let dynamic_props = (!dynamic_prop_names.is_empty())
-            .then(|| self.cgn(Codegen::PropertyNames(dynamic_prop_names)));
-        let directives =
-            (!runtime_directives.is_empty()).then(|| self.cgn(Codegen::Array(runtime_directives)));
+            .then(|| self.push_codegen(Codegen::PropertyNames(dynamic_prop_names)));
+        let directives = (!runtime_directives.is_empty())
+            .then(|| self.push_codegen(Codegen::Array(runtime_directives)));
         let vnode = self.vnode_call(VNodeArgs {
             tag: Some(tag),
             props: vnode_props,
@@ -209,7 +210,7 @@ impl Transform<'_> {
     /// element `TEXT` when it is dynamic.
     pub(super) fn vnode_children(
         &self,
-        n: NodeIdentifier,
+        n: TransformNodeIdentifier,
         patch_flag: &mut i32,
     ) -> Option<VChildren> {
         let children = self.children_of(n).to_vec();

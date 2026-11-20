@@ -1,8 +1,9 @@
-//! `transformText`, `getConstantType`, `cacheStatic` and the root codegen.
+//! `createVNodeCall`, `transformText`, `getConstantType`, `cacheStatic` and the root codegen.
 
 use super::{
     CAN_CACHE, CAN_SKIP_PATCH, CAN_STRINGIFY, Codegen, CodegenIdentifier, DirectiveName, Helper,
-    Lit, NOT_CONSTANT, Node, NodeIdentifier, Property, Transform, VChildren, VNodeArgs, patch,
+    Lit, NOT_CONSTANT, Node, Property, Transform, TransformNodeIdentifier, VChildren, VNodeArgs,
+    patch,
 };
 
 impl Transform<'_> {
@@ -17,7 +18,7 @@ impl Transform<'_> {
         if a.directives.is_some() {
             self.helper(Helper::WithDirectives);
         }
-        self.cgn(Codegen::VNode {
+        self.push_codegen(Codegen::VNode {
             tag: a.tag,
             props: a.props,
             children: a.children,
@@ -30,8 +31,8 @@ impl Transform<'_> {
         })
     }
 
-    pub(super) fn transform_text(&mut self, n: NodeIdentifier) {
-        let is_text = |t: &Self, c: NodeIdentifier| {
+    pub(super) fn transform_text(&mut self, n: TransformNodeIdentifier) {
+        let is_text = |t: &Self, c: TransformNodeIdentifier| {
             matches!(t.tree[c], Node::Text(_) | Node::Interpolation(_))
         };
         let mut children = self.children_of(n).to_vec();
@@ -40,7 +41,7 @@ impl Transform<'_> {
         while i < children.len() {
             if is_text(self, children[i]) {
                 has_text = true;
-                let mut container: Option<NodeIdentifier> = None;
+                let mut container: Option<TransformNodeIdentifier> = None;
                 while i + 1 < children.len() && is_text(self, children[i + 1]) {
                     let next = children.remove(i + 1);
                     if let Some(c) = container {
@@ -68,13 +69,13 @@ impl Transform<'_> {
                 }
                 let mut arguments = Vec::new();
                 if !matches!(&self.tree[*child], Node::Text(t) if t == " ") {
-                    arguments.push(self.cgn(Codegen::Node(*child)));
+                    arguments.push(self.push_codegen(Codegen::Node(*child)));
                 }
                 if self.constant_type(*child) == NOT_CONSTANT {
                     arguments.push(self.lit(Lit::Number(f64::from(patch::TEXT)), NOT_CONSTANT));
                 }
                 self.helper(Helper::CreateText);
-                let codegen = self.cgn(Codegen::Call {
+                let codegen = self.push_codegen(Codegen::Call {
                     callee: Helper::CreateText,
                     arguments,
                 });
@@ -88,7 +89,7 @@ impl Transform<'_> {
     }
 
     /// `getConstantType` for a template node.
-    pub(super) fn constant_type(&self, n: NodeIdentifier) -> u8 {
+    pub(super) fn constant_type(&self, n: TransformNodeIdentifier) -> u8 {
         match &self.tree[n] {
             Node::Text(_) => CAN_STRINGIFY,
             Node::Interpolation(e) => e.const_type,
@@ -101,7 +102,7 @@ impl Transform<'_> {
             Node::Element {
                 props,
                 children,
-                codegen: Some(cg),
+                codegen: Some(vnode),
                 ..
             } => {
                 let Codegen::VNode {
@@ -109,7 +110,7 @@ impl Transform<'_> {
                     patch_flag,
                     props: vprops,
                     ..
-                } = &self.codegen[*cg]
+                } = &self.codegen[*vnode]
                 else {
                     return NOT_CONSTANT;
                 };
@@ -162,13 +163,13 @@ impl Transform<'_> {
         ret
     }
 
-    pub(super) fn single_element_root(&self, root: NodeIdentifier) -> bool {
+    pub(super) fn single_element_root(&self, root: TransformNodeIdentifier) -> bool {
         matches!(self.children_of(root), [only] if matches!(self.tree[*only], Node::Element { .. }))
     }
 
     pub(super) fn hoist(&mut self, value: CodegenIdentifier) -> CodegenIdentifier {
         self.hoists.push(value);
-        self.cgn(Codegen::Hoisted(self.hoists.len()))
+        self.push_codegen(Codegen::Hoisted(self.hoists.len()))
     }
 
     /// `walk` for an element that is not constant: its props may still be hoisted.
@@ -200,7 +201,7 @@ impl Transform<'_> {
     }
 
     /// `cacheStatic`'s `walk`.
-    pub(super) fn walk_static(&mut self, n: NodeIdentifier, do_not_hoist: bool) {
+    pub(super) fn walk_static(&mut self, n: TransformNodeIdentifier, do_not_hoist: bool) {
         let children = self.children_of(n).to_vec();
         let mut to_cache = Vec::new();
         for &child in &children {
@@ -267,7 +268,7 @@ impl Transform<'_> {
                 ..
             } = &self.codegen[vnode]
         {
-            let arr = self.cgn(Codegen::NodeArray(list.clone()));
+            let arr = self.push_codegen(Codegen::NodeArray(list.clone()));
             let c = self.cache(arr);
             // Always spread: mounting must not mutate the cached array.
             if let Codegen::Cache { spread, .. } = &mut self.codegen[c] {
@@ -290,7 +291,10 @@ impl Transform<'_> {
     }
 
     /// `createRootCodegen`.
-    pub(super) fn root_codegen(&mut self, root: NodeIdentifier) -> Option<CodegenIdentifier> {
+    pub(super) fn root_codegen(
+        &mut self,
+        root: TransformNodeIdentifier,
+    ) -> Option<CodegenIdentifier> {
         let children = self.children_of(root).to_vec();
         match children.as_slice() {
             [] => None,
@@ -301,7 +305,7 @@ impl Transform<'_> {
                     self.convert_to_block(vnode);
                     Some(vnode)
                 } else {
-                    Some(self.cgn(Codegen::Node(child)))
+                    Some(self.push_codegen(Codegen::Node(child)))
                 }
             }
             _ => {
