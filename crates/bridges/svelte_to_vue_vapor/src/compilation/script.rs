@@ -33,10 +33,6 @@ pub(crate) struct Plan {
     /// `$props()`'s keys with their local names, and whether each default is a literal, in order;
     /// `None` without a `$props()`.
     props: Option<Vec<(String, SymbolId, bool)>>,
-    pub(crate) preserve_whitespace: bool,
-    pub(crate) stylesheet_mode: super::template::CssMode,
-    pub(crate) custom_element: Option<super::template::CustomElement>,
-    pub(crate) namespaces: Option<rsvelte_svelte_compile::render_plan::Namespaces>,
     pub(super) props_id: Option<SymbolId>,
     /// `...rest` in `$props()`: read through Vue's `useAttrs()`.
     pub(crate) rest: Option<SymbolId>,

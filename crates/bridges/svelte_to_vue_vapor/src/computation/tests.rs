@@ -20,13 +20,14 @@ fn run(source_text: &str, server: bool) -> Result<String, String> {
         ),
         &resolution,
     );
-    let plan = check(&c, &compiler_syntax_tree, &resolution, source_text).map_err(|d| d.message)?;
+    let checked =
+        check(&c, &compiler_syntax_tree, &resolution, source_text).map_err(|d| d.message)?;
     let t = translate(Input {
         component: &c,
         compiler_syntax_tree: &compiler_syntax_tree,
         resolution: &resolution,
         analysis: &analysis,
-        plan: &plan,
+        checked: &checked,
         source_text,
         server,
         filename: "A.svelte",

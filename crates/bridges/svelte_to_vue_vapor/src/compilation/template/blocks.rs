@@ -23,12 +23,7 @@ impl<'t> Template<'_, '_, 't> {
         at: Span,
     ) -> R<vue::Children> {
         let (compiler_syntax_tree, source_text) = (self.i.compiler_syntax_tree, self.i.source_text);
-        let namespaces = self
-            .i
-            .plan
-            .namespaces
-            .as_ref()
-            .expect("translation uses a checked plan");
+        let namespaces = &self.i.checked.namespaces;
         let (_, drops_whitespace) = namespaces.fragment(compiler_syntax_tree, source_text, ids);
         let cleaned = clean_nodes(
             compiler_syntax_tree,

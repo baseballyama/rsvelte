@@ -113,21 +113,22 @@ pub(crate) fn build<'t>(
         namespaces: FxHashMap::default(),
         declarations,
     };
-    if !i.server && i.plan.async_values {
+    if !i.server && i.checked.script.async_values {
         t.helpers.insert(Helper::Async);
     }
-    if !i.server && i.plan.auxiliary.contains_key("$effect.pending") {
+    if !i.server && i.checked.script.auxiliary.contains_key("$effect.pending") {
         t.helpers.insert(Helper::Pending);
     }
     let root = t.list(
         Parent::Root,
         compiler_syntax_tree.children(compiler_syntax_tree.root),
         None,
-        i.plan.preserve_whitespace,
+        i.checked.options.preserve_whitespace,
         Span::default(),
     )?;
     let custom_element = i
-        .plan
+        .checked
+        .options
         .custom_element
         .as_ref()
         .map(|options| t.custom_element_values(options));
@@ -502,7 +503,7 @@ use properties::{binding_event, is_boolean, is_primitive, reads_this, static_typ
 
 mod check;
 pub(crate) use check::check;
-pub(crate) use options::{CssMode, CustomElement, Options};
+pub(crate) use options::{CssMode, Options};
 
 mod attributes;
 mod await_block;

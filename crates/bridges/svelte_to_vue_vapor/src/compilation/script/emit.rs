@@ -16,7 +16,7 @@ pub(crate) use rune_values::{async_arrow, rune_value, tracked};
 
 use super::Plan;
 use crate::compilation::helpers::{self, Helper};
-use crate::compilation::{markers, prelude};
+use crate::compilation::{CheckedComponent, markers, prelude};
 
 /// What decides the imports and helpers of the program.
 #[expect(
@@ -59,6 +59,7 @@ impl Uses {
 fn imports<'t>(
     b: &Builder<'t>,
     plan: &Plan,
+    custom_element: bool,
     helpers: &[Helper],
     uses: &Uses,
     server: bool,
@@ -79,7 +80,7 @@ fn imports<'t>(
             "$$createDerived",
         ),
         (
-            plan.auxiliary.contains_key("$host") && !server && plan.custom_element.is_none(),
+            plan.auxiliary.contains_key("$host") && !server && !custom_element,
             "useHost",
             "$$useHost",
         ),
@@ -146,12 +147,13 @@ fn imports<'t>(
 fn head<'t>(
     rw: &mut ScriptRewrite<'_, 't>,
     plan: &Plan,
+    custom_element: bool,
     helpers: &[Helper],
     body: &mut Vec<Statement<'t>>,
 ) {
     let (b, res, server) = (rw.b, rw.res, rw.server);
     let uses = Uses::new(res, plan);
-    body.extend(imports(b, plan, helpers, &uses, server));
+    body.extend(imports(b, plan, custom_element, helpers, &uses, server));
     let options = b.object([b.init("inheritAttrs", b.boolean(false))]);
     body.push(b.statement(b.call(b.id("defineOptions"), [options])));
     if let Some(props) = &plan.props {
@@ -172,7 +174,7 @@ fn head<'t>(
         body.push(b.const_(markers::SETUP_PROPS, call));
     }
     if plan.auxiliary.contains_key("$host") && !server {
-        let host = if plan.custom_element.is_some() {
+        let host = if custom_element {
             "$$custom_element_host"
         } else {
             "$$useHost"
@@ -264,11 +266,12 @@ fn imported_names<'t>(rw: &ScriptRewrite<'_, 't>, plan: &Plan, body: &mut Vec<St
 pub(crate) fn emit<'t>(
     rw: &mut ScriptRewrite<'_, 't>,
     instance: Option<&Program<'_>>,
-    plan: &Plan,
+    checked: &CheckedComponent,
     helpers: &[Helper],
 ) -> Vec<Statement<'t>> {
+    let (plan, custom_element) = (&checked.script, checked.options.custom_element.is_some());
     let mut body = Vec::new();
-    head(rw, plan, helpers, &mut body);
+    head(rw, plan, custom_element, helpers, &mut body);
     for s in instance.iter().flat_map(|p| &p.body) {
         let s = match s {
             Statement::ExportDeclaration(e) => match &e.declaration {
@@ -300,7 +303,7 @@ pub(crate) fn emit<'t>(
     if !rw.server && !plan.exposed.is_empty() {
         body.push(super::exports::expose(rw.b, rw.res, &plan.exposed));
     }
-    if !rw.server && plan.custom_element.is_some() {
+    if !rw.server && custom_element {
         body.push(custom_element::bindings(rw));
     }
     body

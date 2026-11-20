@@ -9,6 +9,7 @@ use oxc_ast::ast::{Program, PropertyKey, Statement};
 use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::render_plan::Namespaces;
 use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
 use rsvelte_svelte_semantic::input::ComponentInput;
@@ -66,6 +67,14 @@ pub(crate) fn program<'t>(
     )
 }
 
+/// What [`check`] found, shared by both targets.
+#[derive(Debug)]
+pub(crate) struct CheckedComponent {
+    pub script: script::Plan,
+    pub options: template::Options,
+    pub namespaces: Namespaces,
+}
+
 /// The checks that do not depend on the target: everything [`translate`] refuses for both.
 ///
 /// # Errors
@@ -76,7 +85,7 @@ pub(crate) fn check(
     compiler_syntax_tree: &CompilerSyntaxTree,
     res: &Resolution,
     source_text: &str,
-) -> R<script::Plan> {
+) -> R<CheckedComponent> {
     for script in c.instance.iter().chain(&c.module) {
         if script.typescript
             && let Some((_, span)) = rsvelte_typescript_compile::features::first_runtime_feature(
@@ -90,22 +99,22 @@ pub(crate) fn check(
         }
     }
     let input = ComponentInput::new(c, compiler_syntax_tree, source_text, "");
-    let namespaces = rsvelte_svelte_compile::render_plan::Namespaces::build(&input.into());
+    let namespaces = Namespaces::build(&input.into());
     let options = template::check(c, compiler_syntax_tree, res, source_text, &namespaces)?;
-    let mut plan = script::plan(c, res)?;
-    plan.namespaces = Some(namespaces);
-    plan.preserve_whitespace = options.preserve_whitespace;
-    plan.custom_element = options.custom_element;
-    plan.stylesheet_mode = options.css_mode;
-    if let Some(&span) = plan.auxiliary.get("$host")
-        && plan.custom_element.is_none()
+    let script = script::plan(c, res)?;
+    if let Some(&span) = script.auxiliary.get("$host")
+        && options.custom_element.is_none()
     {
         return Err(unsupported(
             "`$host()` without custom element options",
             span,
         ));
     }
-    Ok(plan)
+    Ok(CheckedComponent {
+        script,
+        options,
+        namespaces,
+    })
 }
 
 /// What [`translate`] reads of one component.
@@ -115,7 +124,7 @@ pub(crate) struct Input<'a> {
     pub compiler_syntax_tree: &'a CompilerSyntaxTree,
     pub resolution: &'a Resolution,
     pub analysis: &'a Analysis,
-    pub plan: &'a script::Plan,
+    pub checked: &'a CheckedComponent,
     pub source_text: &'a str,
     pub server: bool,
     pub filename: &'a str,
@@ -144,12 +153,13 @@ pub(crate) fn translate(input: Input<'_>) -> R<Translation> {
     let (javascript, (script, module_script, template)) = Tree::build(input.source_text, |tree| {
         let b = Builder::new(tree.allocator());
         let (built, mut declarations) = template::build(input, hash, tree, &b)?;
-        let mut rw = script::ScriptRewrite::new(&b, input.resolution, input.plan, input.server);
+        let mut rw =
+            script::ScriptRewrite::new(&b, input.resolution, &input.checked.script, input.server);
         let instance = c
             .instance
             .as_ref()
             .map(|s| c.javascript.get_program(s.program));
-        let mut body = script::emit(&mut rw, instance, input.plan, &built.helpers);
+        let mut body = script::emit(&mut rw, instance, input.checked, &built.helpers);
         body.append(&mut declarations);
         let source_text = tree.source_text();
         let script = tree.keep_program(program(&b, source_text, body));
@@ -159,7 +169,7 @@ pub(crate) fn translate(input: Input<'_>) -> R<Translation> {
         });
         Ok((script, module_script, built))
     })?;
-    let plan = input.plan;
+    let plan = &input.checked.script;
     Ok(Translation {
         javascript,
         script,
@@ -167,7 +177,7 @@ pub(crate) fn translate(input: Input<'_>) -> R<Translation> {
         server: input.server,
         stylesheet,
         stylesheet_hash: identity.stylesheet_hash,
-        css_mode: plan.stylesheet_mode,
+        css_mode: input.checked.options.css_mode,
         destroy: plan.lifecycle.iter().any(|(name, _)| *name == "onDestroy"),
         tracking: plan.tracking(input.server),
         template,
