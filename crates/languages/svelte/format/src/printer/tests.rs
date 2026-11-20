@@ -374,8 +374,8 @@ fn what_svelte_rejects_is_refused() {
 /// the expression printer does not build: Prettier prints `<title>x</title>{a +\n  b}`.
 mod comments;
 mod directives;
-mod oracle_shapes;
 mod scripts;
+mod shapes;
 
 #[test]
 fn prettier_ignore_keeps_the_next_sibling_as_the_plugin_does() {

@@ -1,5 +1,6 @@
-//! The nodes of the scripts and the component's contract, which the template's nodes sit inside:
-//! the render function, its declarations, types and default export.
+//! The node kinds `node` does not match itself: the contract's render function, types and default
+//! export, and the declarations, quoted text, located wrappers and generated names that the
+//! template's lowering builds too.
 
 use std::fmt::Write as _;
 

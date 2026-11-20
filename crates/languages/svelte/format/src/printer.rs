@@ -203,8 +203,7 @@ fn core_options(options: &Options) -> R<CoreFormatOptions> {
     })
 }
 
-/// Prettier's options for the JavaScript in the component; [`unported`](crate::options::unported)
-/// has refused the others.
+/// Prettier's options for the JavaScript in the component; [`unported`] has refused the others.
 fn javascript_options(options: &Options, core: CoreFormatOptions) -> JsFormatOptions {
     JsFormatOptions {
         indent_style: core.indent_style,

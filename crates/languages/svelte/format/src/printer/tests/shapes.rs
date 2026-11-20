@@ -1,4 +1,5 @@
-//! Template, script and style shapes, each pinned to the oracle's output or refusal.
+//! Template, script and style shapes that the comments, directives and scripts modules do not
+//! group, each pinned to the oracle's output or refusal like theirs.
 
 use super::*;
 

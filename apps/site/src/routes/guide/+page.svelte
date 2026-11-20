@@ -169,7 +169,7 @@
 					</li>
 					<li>型定義を読むための Svelte パッケージ。</li>
 					<li>
-						<code>rsvelte-typescript-content-mapper</code>。TypeScript が Svelte
+						<code>rsvelte-svelte-content-mapper</code>。TypeScript が Svelte
 						ファイルを読むときに呼ぶ、rsvelte の実行ファイルです。Svelte から作った TypeScript
 						と、両者の位置の対応を返します。
 					</li>
@@ -269,7 +269,9 @@
 					など）も使えます。名前だけを書くと、現在のディレクトリとその親の
 					<code>node_modules/.bin</code>
 					を探し、なければ <code>PATH</code> から探します。<code>contentMapper</code>
-					を省くと、同じ方法で <code>rsvelte-typescript-content-mapper</code> を探します。
+					を省くと、実行中の <code>rsvelte</code> と同じディレクトリにある
+					<code>rsvelte-svelte-content-mapper</code> を使い、なければ <code>PATH</code>
+					から探します。
 				</p>
 				<p>
 					型チェッカーが見つからない、版が古い、といった問題は、ファイルを読む前に報告します。同じ設定は、<code

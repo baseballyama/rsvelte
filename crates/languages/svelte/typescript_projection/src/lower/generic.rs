@@ -181,7 +181,7 @@ impl Builder<'_> {
     ) -> Result<()> {
         let start = self.scratch.len();
         let mut moved = |builder: &mut Self, at: Span| {
-            let copy = builder.copy(at);
+            let copy = builder.source_at(at, None);
             builder
                 .scratch
                 .push(builder.tree.push(Node::Statement(copy)));
@@ -267,7 +267,7 @@ impl Builder<'_> {
                     Hoisted::Statement(at) => moved(self, at),
                     Hoisted::ComponentProps(annotation) => {
                         let name = self.tree.push(Node::Identifier("$$ComponentProps"));
-                        let value = self.copy(annotation);
+                        let value = self.source_at(annotation, None);
                         let alias = self.tree.push(Node::TypeAlias { name, value });
                         self.scratch.push(alias);
                         self.props_hoisted = true;

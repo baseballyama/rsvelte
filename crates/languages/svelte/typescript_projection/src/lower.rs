@@ -21,6 +21,8 @@ pub use script_kind::checked_as_typescript;
 mod tag;
 mod type_assertion;
 mod unparsed_script;
+use std::cell::OnceCell;
+
 use oxc_ast::ast::{AssignmentTarget, ChainElement, Expression};
 use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Unsupported;
@@ -101,7 +103,7 @@ pub fn lower<'a>(
         module_snippets: None,
         slot_elements: Vec::new(),
         slots_by_elements: false,
-        names: std::cell::OnceCell::new(),
+        names: OnceCell::new(),
     };
     builder.tree.javascript = !checked_as_typescript(component, source);
     // svelte2tsx moves the root's snippets after the instance script's imports. Without one it
@@ -167,12 +169,12 @@ struct Builder<'a> {
     slot_elements: Vec<Range>,
     /// Whether the contract declares neither `$$Slots` nor `$$Events` and is not generic.
     slots_by_elements: bool,
-    names: std::cell::OnceCell<names::Names<'a>>,
+    /// What the component's names say about generated names, read when first needed.
+    names: OnceCell<names::Names<'a>>,
 }
 
-/// The source text at `at`, whose mapping ends at `end` when that is not its own end.
-fn source_expression(at: oxc_span::Span, end: Option<u32>) -> SourceExpression {
-    let span = document_span(at);
+/// The source text at `span`, whose mapping ends at `end` when that is not its own end.
+fn source_expression(span: Span, end: Option<u32>) -> SourceExpression {
     SourceExpression {
         span,
         end: end.unwrap_or(span.end_offset),
@@ -227,16 +229,11 @@ impl Builder<'_> {
     }
 
     fn source(&mut self, at: oxc_span::Span, end: Option<u32>) -> NodeIdentifier {
-        let expression = source_expression(at, end);
-        self.tree.push(Node::Source(expression))
+        self.source_at(document_span(at), end)
     }
 
-    /// The source text at `span`, mapped to its own end.
-    fn copy(&mut self, span: Span) -> NodeIdentifier {
-        self.tree.push(Node::Source(SourceExpression {
-            span,
-            end: span.end_offset,
-        }))
+    fn source_at(&mut self, span: Span, end: Option<u32>) -> NodeIdentifier {
+        self.tree.push(Node::Source(source_expression(span, end)))
     }
 
     /// The source text of `span` with each hole, in order, replaced by its node or removed.
@@ -249,14 +246,14 @@ impl Builder<'_> {
         let mut cursor = span.start_offset;
         for (hole, node) in holes {
             if cursor < hole.start_offset {
-                let copy = self.copy(Span::new(cursor, hole.start_offset));
+                let copy = self.source_at(Span::new(cursor, hole.start_offset), None);
                 self.scratch.push(copy);
             }
             self.scratch.extend(node);
             cursor = hole.end_offset;
         }
         if cursor < span.end_offset {
-            let copy = self.copy(Span::new(cursor, span.end_offset));
+            let copy = self.source_at(Span::new(cursor, span.end_offset), None);
             self.scratch.push(copy);
         }
         self.finish_list(start)

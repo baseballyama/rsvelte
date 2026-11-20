@@ -14,7 +14,7 @@ use rsvelte_svelte_syntax::Parsed;
 use crate::Refusal;
 use crate::syntax_tree::SyntaxTree;
 
-/// The code of a [`EmittedProjection`] error that svelte2tsx throws, which svelte-check reports as
+/// The code of an [`EmittedProjection`] error that svelte2tsx throws, which svelte-check reports as
 /// it is.
 pub const THROWN: &str = "check_projection_thrown";
 
