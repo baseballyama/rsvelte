@@ -17,10 +17,8 @@ use rsvelte_typescript_semantic::globals::Declared;
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::{ProgramIdentifier, Script, Tree, document_span};
 
-use crate::computation::{
-    ConditionTypes, Linted, ModuleSemantic, NativeConditionTypes, SvelteConfiguration, SvelteKit,
-};
-use crate::project::SvelteKitProject;
+use crate::computation::{ConditionTypes, Linted, ModuleSemantic, NativeConditionTypes};
+use crate::project::{SvelteConfiguration, SvelteKit, SvelteKitProject};
 use crate::types::TypeFacts;
 use crate::{LintSettings, SvelteConfig};
 

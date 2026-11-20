@@ -38,7 +38,7 @@ fn a_boolean_svelte_options_runes_decides_before_the_symbols() {
 fn reports_with_config_runes(rule: &str, source_text: &str, runes: Option<bool>) -> Vec<String> {
     let mut registry = Registry::new();
     crate::register(&mut registry);
-    registry.provide::<crate::computation::SvelteConfiguration>(
+    registry.provide::<crate::project::SvelteConfiguration>(
         "svelte",
         |_| true,
         move |_| {

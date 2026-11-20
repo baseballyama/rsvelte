@@ -10,8 +10,7 @@ use rsvelte_svelte_semantic::warnings::{CompileWarnings, code_for_v5};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
 use rsvelte_typescript_tree::{ProgramIdentifier, document_span};
 
-use crate::computation::PostcssConfiguration;
-use crate::project::PostcssConfigurationOnDisk;
+use crate::project::{PostcssConfiguration, PostcssConfigurationOnDisk};
 use crate::rule::File;
 use crate::settings::ExperimentalAsync;
 use crate::words::words;

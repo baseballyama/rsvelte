@@ -406,7 +406,7 @@ fn a_rune_out_of_place_fails_the_compile_in_runes_mode() {
 fn postcss_messages(found: bool, settings: LintSettings) -> Vec<String> {
     let mut registry = Registry::new();
     crate::register_artifacts(&mut registry);
-    registry.provide::<crate::computation::PostcssConfiguration>("test", |_| true, move |_| found);
+    registry.provide::<crate::project::PostcssConfiguration>("test", |_| true, move |_| found);
     let mut configuration = Configuration::new(settings);
     configuration
         .rule("svelte/valid-compile", Severity::Error, &[], &[])

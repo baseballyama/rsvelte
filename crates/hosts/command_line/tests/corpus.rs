@@ -338,7 +338,7 @@ fn main() -> ExitCode {
     rsvelte_svelte_lint::register_with_configuration(&mut registry, oracle_lint_configuration());
     // The oracle lints each unit outside any SvelteKit project, with a `svelte.config.js` of
     // `compilerOptions: { runes: true }`.
-    registry.provide::<rsvelte_svelte_lint::computation::SvelteConfiguration>(
+    registry.provide::<rsvelte_svelte_lint::project::SvelteConfiguration>(
         "svelte",
         |_| true,
         |_| {
@@ -348,7 +348,7 @@ fn main() -> ExitCode {
             })
         },
     );
-    registry.provide::<rsvelte_svelte_lint::computation::SvelteKit>(
+    registry.provide::<rsvelte_svelte_lint::project::SvelteKit>(
         "svelte",
         |_| true,
         |_| rsvelte_svelte_lint::project::SvelteKitProject {
@@ -356,13 +356,9 @@ fn main() -> ExitCode {
             location: rsvelte_svelte_lint::project::Location::NoProject,
         },
     );
-    registry.provide::<rsvelte_svelte_lint::computation::SameNamedFile>(
-        "svelte",
-        |_| true,
-        |_| None,
-    );
+    registry.provide::<rsvelte_svelte_lint::project::SameNamedFile>("svelte", |_| true, |_| None);
     // The oracle runs where no PostCSS configuration is found, so it strips a `postcss` style.
-    registry.provide::<rsvelte_svelte_lint::computation::PostcssConfiguration>(
+    registry.provide::<rsvelte_svelte_lint::project::PostcssConfiguration>(
         "svelte",
         |_| true,
         |_| false,
