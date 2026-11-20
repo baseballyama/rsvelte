@@ -38,7 +38,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             return;
         }
         let hash = if self.an.scoped[identifier] {
-            self.identity.stylesheet_hash.clone()
+            self.identity.stylesheet_hash.as_deref()
         } else {
             None
         };
@@ -78,7 +78,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 _ => {}
             }
             let name = self.attribute_name(identifier, raw_name);
-            let trim = matches!(name.as_str(), "class" | "style");
+            let trim = matches!(&*name, "class" | "style");
             let literal = match &a.value {
                 AttributeValue::Boolean => Some(None),
                 AttributeValue::Static(v) => Some(Some(escaped_text(v, trim))),
@@ -87,18 +87,18 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             if can_use_literal(&name, directives.0, directives.1)
                 && let Some(v) = literal
             {
-                Self::literal_attribute(template, &name, v, hash.as_deref());
+                Self::literal_attribute(template, &name, v, hash);
                 continue;
             }
             let value = self.attribute_value(a, trim, raw_name == "class");
-            self.dynamic_attribute(&name, value, directives, hash.as_deref(), template);
+            self.dynamic_attribute(&name, value, directives, hash, template);
         }
         let implicit = implicit_attributes(self.source_text, list, self.an.scoped[identifier]);
         if implicit.class && !class_directives.is_empty() {
-            let call = self.attribute_class(&class_directives, self.b.string(""), hash.as_deref());
+            let call = self.attribute_class(&class_directives, self.b.string(""), hash);
             template.expression(call);
         } else if implicit.class {
-            Self::literal_attribute(template, "class", Some(String::new()), hash.as_deref());
+            Self::literal_attribute(template, "class", Some(String::new()), hash);
         }
         if implicit.style {
             let call = self.attribute_style(&style_directives, self.b.string(""));

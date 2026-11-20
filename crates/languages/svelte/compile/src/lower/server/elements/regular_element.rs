@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::Expression;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
@@ -5,6 +7,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_svelte_syntax::parse::is_void;
 
+use crate::lower::attributes::lowercase;
 use crate::lower::is_customizable_select;
 use crate::lower::server::template::Template;
 use crate::lower::server::{R, ServerCompilationContext};
@@ -23,12 +26,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         if el.kind != ElementKind::Regular {
             return self.special_element(identifier, template);
         }
-        let tag = el.name.text(self.source_text).to_lowercase();
-        let namespace = self.plan.namespace(identifier);
-        let tag = if namespace == crate::render_plan::Namespace::Html {
-            tag
+        let name = el.name.text(self.source_text);
+        let tag = if self.plan.namespace(identifier) == crate::render_plan::Namespace::Html {
+            lowercase(name)
         } else {
-            el.name.text(self.source_text).to_owned()
+            Cow::Borrowed(name)
         };
         let select_special = tag == "select"
             && compiler_syntax_tree

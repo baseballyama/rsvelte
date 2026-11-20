@@ -45,7 +45,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 .group_checked(attributes, e)
                 .map(|c| ("checked".to_owned(), c));
         }
-        Some((self.attribute_name(element, name), self.bound(e)))
+        Some((
+            self.attribute_name(element, name).into_owned(),
+            self.bound(e),
+        ))
     }
 
     /// A group checks the input whose `value` it holds: one of a checkbox group's values, or a

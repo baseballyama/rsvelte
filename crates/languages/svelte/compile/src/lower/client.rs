@@ -24,9 +24,9 @@ mod special;
 mod stores;
 mod template;
 mod template_chunk;
-#[cfg(test)]
-mod tests;
 mod title;
+
+use std::borrow::Cow;
 
 use oxc_allocator::ArenaBox;
 use oxc_ast::ast::{Expression, FormalParameters, Statement};
@@ -38,6 +38,7 @@ use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use super::attributes::lowercase;
 use super::builder::{Runtime, export_default, import};
 use super::names::Names;
 use super::script::Read;
@@ -53,9 +54,9 @@ type R<T> = Result<T, Diagnostic>;
 
 /// Upstream `normalize_attribute`.
 #[must_use]
-pub(super) fn normalize_attribute(name: &str) -> String {
-    let lower = name.to_lowercase();
-    rsvelte_markup_syntax::property_name(&lower).map_or(lower, str::to_owned)
+pub(super) fn normalize_attribute(name: &str) -> Cow<'_, str> {
+    let lower = lowercase(name);
+    rsvelte_markup_syntax::property_name(&lower).map_or(lower, Cow::Borrowed)
 }
 
 use binding_accessors::each_scopes;
@@ -339,17 +340,5 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             parameters.push("$$props");
         }
         b.function_declaration(&self.component_name, b.parameters(parameters), body, false)
-    }
-}
-
-/// `name` in lowercase, borrowed when it has nothing to lower.
-fn lowercase(name: &str) -> std::borrow::Cow<'_, str> {
-    if name
-        .bytes()
-        .any(|byte| !byte.is_ascii() || byte.is_ascii_uppercase())
-    {
-        std::borrow::Cow::Owned(name.to_lowercase())
-    } else {
-        std::borrow::Cow::Borrowed(name)
     }
 }

@@ -1,6 +1,8 @@
 use rsvelte_svelte_syntax::parse::is_void;
 use rsvelte_svelte_syntax::syntax_tree::escape_markup;
 
+use crate::lower::attributes::lowercase;
+
 /// The HTML of one fragment, built while its nodes are visited (upstream `Template`).
 #[derive(Default)]
 pub(super) struct Template {
@@ -108,7 +110,7 @@ impl Template {
                 for (k, v) in attributes {
                     out.push(' ');
                     if *is_markup {
-                        out.push_str(&super::lowercase(k));
+                        out.push_str(&lowercase(k));
                     } else {
                         out.push_str(k);
                     }

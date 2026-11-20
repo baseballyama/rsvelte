@@ -29,7 +29,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let is_markup = self.is_markup(identifier);
         let name = el.name.text(self.source_text);
         let tag = if is_markup {
-            crate::lower::client::lowercase(name)
+            crate::lower::attributes::lowercase(name)
         } else {
             name.into()
         };

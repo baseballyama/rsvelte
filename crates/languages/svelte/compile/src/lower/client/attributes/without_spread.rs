@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use oxc_ast::ast::{Expression, Statement};
 use rsvelte_svelte_semantic::analyze::cannot_be_set_statically;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
@@ -60,7 +62,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             let attribute_name = if in_markup {
                 normalize_attribute(raw_name)
             } else {
-                raw_name.to_owned()
+                Cow::Borrowed(raw_name)
             };
             // `select_value` sets these once the options exist.
             if (raw_name == "value" && needs_special_value(self.source_text, tag, attributes))
