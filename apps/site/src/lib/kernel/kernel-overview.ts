@@ -375,7 +375,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [226, 246],
 		source: {
 			path: 'crates/languages/svelte/lint/src/computation.rs',
-			line: 65,
+			line: 62,
 			text: 'self.context.get::<Lowered>()',
 		},
 	},

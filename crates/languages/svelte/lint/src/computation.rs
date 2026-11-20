@@ -10,12 +10,9 @@ use rsvelte_svelte_semantic::{Lowered, Resolved};
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_svelte_syntax::{Parsed, ParsedAsTypeScript};
 use rsvelte_typescript_semantic::semantic::Semantic;
-use rsvelte_typescript_tree::{
-    ProgramIdentifier, Script, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, Tree,
-};
+use rsvelte_typescript_tree::{Script, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, Tree};
 
 use crate::project::SvelteKitProject;
-use crate::rules::shared::legacy_reactivity::Legacy;
 use crate::types::TypeFacts;
 use crate::{Configuration, SvelteConfig};
 
@@ -175,25 +172,6 @@ impl Artifact for NativeConditionTypes {
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let linted = Linted::of(context).expect("lint requests types after parsing");
         TypeFacts::infer(linted.component, linted.resolution(), context.source_text())
-    }
-}
-
-/// The component's legacy reactivity: `$:` statements, the variables they declare, and store
-/// subscriptions.
-#[derive(Debug)]
-pub(crate) struct LegacyReactivity;
-
-impl Artifact for LegacyReactivity {
-    type Output = Legacy;
-
-    const NAME: &'static str = "svelte.lint.legacy_reactivity";
-
-    fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let linted = Linted::of(context).expect("lint requests legacy reactivity after parsing");
-        let component = linted.component;
-        let programs: Vec<ProgramIdentifier> =
-            component.scripts().map(|script| script.program).collect();
-        Legacy::new(linted.resolution(), &programs)
     }
 }
 

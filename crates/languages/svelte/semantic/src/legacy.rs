@@ -18,7 +18,7 @@ pub(crate) fn declares_implicitly(
 ) -> bool {
     body.iter().filter_map(reactive_body).any(|statement| {
         let mut found = false;
-        reactive_assignments(statement, &mut |identifier| {
+        for_each_reactive_assignee(statement, &mut |identifier| {
             found |= identifier.name == name && !bound(identifier);
         });
         found
@@ -26,7 +26,7 @@ pub(crate) fn declares_implicitly(
 }
 
 /// The identifiers that `$: body` assigns when `body` is an assignment, in source order.
-pub fn reactive_assignments<'a>(
+pub fn for_each_reactive_assignee<'a>(
     body: &'a Statement<'a>,
     f: &mut impl FnMut(&'a oxc_ast::ast::IdentifierReference<'a>),
 ) {
