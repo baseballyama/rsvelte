@@ -11,7 +11,9 @@ pub use lower::{
 mod emit;
 pub use emit::emit;
 mod computation;
-pub use computation::{Printed, Projected, THROWN, register, register_artifacts};
+pub use computation::{
+    EmittedProjection, ProjectionTree, TASK, THROWN, register, register_artifacts,
+};
 
 /// The helpers' declarations without the element types, for a project that reads them from
 /// svelte's own `svelte-html.d.ts`, as svelte-check does when the package has one.

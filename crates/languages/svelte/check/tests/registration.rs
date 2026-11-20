@@ -20,7 +20,7 @@ fn projection_and_typecheck_can_be_registered_together() {
         &[document],
         &RunOptions {
             tasks: &[
-                "svelte.typescript_projection/default",
+                rsvelte_svelte_typescript_projection::TASK,
                 "svelte.check/default",
             ],
             sharing: Sharing::Shared,

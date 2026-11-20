@@ -16,7 +16,9 @@ use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, TemplateNode,
 };
 use rsvelte_svelte_syntax::{Parsed, ParsedAsTypeScript};
-use rsvelte_svelte_typescript_projection::{Printed, THROWN, checked_as_typescript, store_reads};
+use rsvelte_svelte_typescript_projection::{
+    EmittedProjection, THROWN, checked_as_typescript, store_reads,
+};
 use rsvelte_typescript_check::{
     Check, CheckedDocument, Documents, Hidden, Import, MappedLanguage, MappedLanguages,
     TypeScriptDocument, TypeScriptEnv, TypeScriptStandIn, TypeScriptView,
@@ -191,7 +193,7 @@ fn typescript_view(
     }
     // svelte-check reads the component as TypeScript when either script is, else as JavaScript.
     let typescript = checked_as_typescript(component, &context.document.text);
-    let projection = match context.get::<Printed>() {
+    let projection = match context.get::<EmittedProjection>() {
         Ok(projection) => projection,
         Err(thrown) if thrown.code == THROWN => {
             return Ok(TypeScriptDocument::Rejected {
