@@ -436,7 +436,7 @@
 		opacity: 1;
 	}
 
-	/* Wide figures used to borrow a margin column; the right column now holds the page outline, so they keep the body width. */
+	/* The right column holds the page outline, so wide figures keep the body width. */
 	.fig-wide {
 		margin-right: 0;
 	}

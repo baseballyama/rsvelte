@@ -8,10 +8,10 @@ use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_semantic::reference_tracker::{global_references, import_references};
+use rsvelte_typescript_tree::node_span;
 use rustc_hash::FxHashSet;
 
 use super::shared::legacy_reactivity::{expression_node, legacy};
-use super::shared::nodes::span;
 use super::shared::reactive_statements::{by_statement, reactive_statements};
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
@@ -58,7 +58,7 @@ impl SvelteRule for InfiniteReactiveLoop {
             .collect();
         let ranges: Vec<Span> = statements
             .iter()
-            .map(|&(statement, _)| span(statement))
+            .map(|&(statement, _)| node_span(statement))
             .collect();
         let names = by_statement(
             &ranges,
@@ -207,7 +207,7 @@ impl<'a> Lint<'a, '_, '_> {
         }
         self.reporter.report(Report::range(
             "Possibly it may occur an infinite reactive loop.",
-            span(identifier),
+            node_span(identifier),
         ));
         for &call in &self.calls {
             self.reporter.report(Report::range(
@@ -215,7 +215,7 @@ impl<'a> Lint<'a, '_, '_> {
                     "Possibly it may occur an infinite reactive loop because this function \
                          may update `{name}`."
                 ),
-                span(&self.nodes.kind(call)),
+                node_span(&self.nodes.kind(call)),
             ));
         }
     }

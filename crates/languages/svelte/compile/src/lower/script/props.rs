@@ -78,15 +78,19 @@ pub(super) fn lower_client_props<'o>(
     names: &Names<'_>,
 ) {
     let (b, res) = (rw.b, rw.res);
-    let mut seen: Vec<String> = ["$$slots", "$$events", "$$legacy"]
-        .map(str::to_owned)
-        .to_vec();
+    // Upstream's `seen`: each key as its literal value, so a number key stays a number.
+    let mut seen: Vec<Expression<'o>> = ["$$slots", "$$events", "$$legacy"]
+        .map(|name| b.string(name))
+        .into();
     if rw.accessors {
-        seen.push("$$host".to_owned());
+        seen.push(b.string("$$host"));
     }
-    let mut rest_props = |target: &str, seen: &[String]| {
+    let mut rest_props = |target: &str, seen: &[Expression<'o>]| {
         let exclude = names.unique("rest_excludes");
-        let set = b.new_(b.id("Set"), [b.array(seen.iter().map(|n| b.string(n)))]);
+        let set = b.new_(
+            b.id("Set"),
+            [b.array(seen.iter().map(|key| key.clone_in(b.allocator())))],
+        );
         hoisted.push(b.var(&exclude, set));
         let call = b.runtime("rest_props", [b.id("$$props"), b.id(&exclude)]);
         b.declarator(b.binding(target), Some(call))
@@ -100,9 +104,12 @@ pub(super) fn lower_client_props<'o>(
     };
     for property in &object.properties {
         let key_name = prop_alias(&property.key);
-        // Upstream excludes a number key as a number, which a rest object's string keys never
-        // match.
-        seen.push(key_name.clone().into_owned());
+        // Upstream passes the key's own value, which reads the same prop.
+        let key = match &property.key {
+            PropertyKey::NumericLiteral(literal) => b.number(literal.value),
+            _ => b.string(&key_name),
+        };
+        seen.push(key.clone_in(b.allocator()));
         let local = match &property.value {
             BindingPattern::AssignmentPattern(assignment) => &assignment.left,
             value => value,
@@ -124,11 +131,6 @@ pub(super) fn lower_client_props<'o>(
         if rw.accessors || res.reassigned(symbol) || res.mutations(symbol) > 0 {
             flags |= 4; // PROPS_IS_UPDATED
         }
-        // Upstream passes the key's own value, which reads the same prop.
-        let key_argument = match &property.key {
-            PropertyKey::NumericLiteral(literal) => b.number(literal.value),
-            _ => b.string(&key_name),
-        };
         let initial = info.initial.map(|i| {
             let initializer = rw.expression(i);
             if info.kind == BindingKind::BindableProperty && should_proxy_read(res, i) {
@@ -152,7 +154,7 @@ pub(super) fn lower_client_props<'o>(
                 initializer => b.arrow(b.parameters([]), initializer),
             }
         });
-        let mut arguments = vec![b.id("$$props"), key_argument, b.number(f64::from(flags))];
+        let mut arguments = vec![b.id("$$props"), key, b.number(f64::from(flags))];
         arguments.extend(argument);
         let mut declarator = b.declarator(
             b.binding_at(&local.name, local.span),

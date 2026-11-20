@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -38,6 +39,20 @@ export function parseLimits(value: unknown): Limits {
 		exceptions[file] = { maxLines: entry.maxLines as number, reason: entry.reason };
 	}
 	return { maxLines, exceptions };
+}
+
+const CHECKED = ['crates', 'examples', 'tools', 'apps'];
+
+/** Tracked and new files under `CHECKED`, without those deleted from the tree. */
+export function workingTreeFiles(root: string): string[] {
+	// Crate fixtures list tens of thousands of paths, past the default 1 MiB output limit.
+	const git = { cwd: root, encoding: 'utf8', maxBuffer: Infinity } as const;
+	const list = (args: string[]) =>
+		execFileSync('git', ['ls-files', '-z', ...args, '--', ...CHECKED], git)
+			.split('\0')
+			.filter(Boolean);
+	const deleted = new Set(list(['--deleted']));
+	return list(['--cached', '--others', '--exclude-standard']).filter((file) => !deleted.has(file));
 }
 
 export function lineCount(text: string): number {

@@ -184,3 +184,68 @@ fn a_props_call_after_the_first_or_off_the_top_level_is_an_error() {
         assert_eq!(compiled_with_errors(code, Some(true)).1, expected, "{code}");
     }
 }
+
+#[test]
+fn the_template_rejects_a_dollar_name_where_the_walk_visits_its_declaration() {
+    // What svelte 5.57.3 raises with `runes: true`, in bytes; with `runes: false` it raises none
+    // of these (a declaration tag is its own error there).
+    let cases = [
+        ("{let $ = 1}", Some(("dollar_binding_invalid", 5))),
+        ("{const $x = 1}", Some(("dollar_prefix_invalid", 7))),
+        ("{let {$} = a}", Some(("dollar_binding_invalid", 6))),
+        ("{#if a}{@const $ = 1}{/if}", None),
+        ("{#if a}{@const $x = 1}{/if}", None),
+        ("{#each a as $x}{/each}", None),
+        ("{#await p then $x}{/await}", None),
+        (
+            "{(() => { let $x = 1; })()}",
+            Some(("dollar_prefix_invalid", 14)),
+        ),
+        (
+            "{(() => () => { let $x = 1; })()}",
+            Some(("dollar_prefix_invalid", 20)),
+        ),
+        (
+            "{(() => { function $f() {} })()}",
+            Some(("dollar_prefix_invalid", 19)),
+        ),
+        (
+            "{(() => { class $C {} })()}",
+            Some(("dollar_prefix_invalid", 16)),
+        ),
+        ("{(function $f() {})()}", None),
+        ("{(class $C {})}", None),
+        ("{(($x) => 1)(1)}", None),
+        ("{#snippet $()}{/snippet}", None),
+        ("{#snippet s($)}{/snippet}", None),
+        (
+            "<button onclick={() => { let $ = 1; }}></button>",
+            Some(("dollar_binding_invalid", 29)),
+        ),
+        (
+            "{#if a}{@const f = () => { let $x = 1; }}{/if}",
+            Some(("dollar_prefix_invalid", 31)),
+        ),
+    ];
+    let mut registry = Registry::new();
+    crate::register(&mut registry);
+    for (source, expected) in cases {
+        let document = Document::new("Test.svelte".to_owned(), source.to_owned()).expect("small");
+        let context = DocumentContext::new(&document, registry.artifacts());
+        let component = context.get::<Parsed>().as_ref().expect("parses");
+        let resolution = context.get::<Resolved>().as_ref().expect("resolves");
+        for (runes, expected) in [(true, expected), (false, None)] {
+            let errors =
+                super::dollar_name_errors(&component.javascript, None, None, resolution, runes);
+            let raised: Vec<_> = errors
+                .iter()
+                .map(|(_, e)| (e.code.to_string(), e.span.start_offset))
+                .collect();
+            let expected: Vec<_> = expected
+                .map(|(code, at)| (code.to_owned(), at))
+                .into_iter()
+                .collect();
+            assert_eq!(raised, expected, "{source} runes={runes}");
+        }
+    }
+}

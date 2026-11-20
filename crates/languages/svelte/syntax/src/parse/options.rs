@@ -7,6 +7,7 @@ use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKey};
 use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_tree::document_span;
 
 use super::svelte_error;
 use crate::syntax_tree::{
@@ -191,7 +192,7 @@ impl<'c> Reader<'c> {
             };
             // Upstream passes the property as a tuple without a position; it means the property.
             let span = property.span();
-            validate_tag(tag, Span::new(span.start, span.end))?;
+            validate_tag(tag, document_span(span))?;
         }
         if let Some(props) = find("props") {
             validate_props(props, attribute)?;

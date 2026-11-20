@@ -11,6 +11,7 @@ use oxc_transformer::{TransformOptions, Transformer};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_typescript_tree::document_span;
 
 use super::{
     Builder, CompileInput, Target, Unit, builder, check_runes, prepare, script, validate_unit,
@@ -86,7 +87,7 @@ fn typescript_emit<'o>(
     if let Some(error) = transformed.diagnostics.first() {
         // oxc's transform labels the node it cannot emit, in the module's own text.
         let span = error.labels.first().map_or_else(
-            || Span::new(source.span.start, source.span.end),
+            || document_span(source.span),
             |label| Span::new(label.offset(), label.offset() + label.len()),
         );
         return Err(Diagnostic::error(

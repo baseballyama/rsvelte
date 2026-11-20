@@ -1,7 +1,7 @@
 {
 	"name": "@rsvelte-experimental/type-information",
 	"private": true,
-	"description": "Type information from a native TypeScript 7 project, shared by type checking and typed lint",
+	"description": "Adapter for reading types from a native TypeScript 7.1 project; only the oracle's semantic comparison uses it",
 	"type": "module",
 	"exports": "./type-information.ts",
 	"scripts": {

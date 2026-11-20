@@ -15,7 +15,7 @@ use rsvelte_svelte_semantic::warnings::CompileWarnings;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_semantic::globals::Declared;
 use rsvelte_typescript_semantic::semantic::Semantic;
-use rsvelte_typescript_tree::{ProgramIdentifier, Script, Tree};
+use rsvelte_typescript_tree::{ProgramIdentifier, Script, Tree, document_span};
 
 use crate::computation::{
     ConditionTypes, Linted, ModuleSemantic, NativeConditionTypes, SvelteConfiguration, SvelteKit,
@@ -141,7 +141,7 @@ impl<'a> File<'a> {
                 .into_iter()
                 .flat_map(|program| &tree.get_program(program).comments)
                 .chain(tree.comments())
-                .map(|comment| Span::new(comment.span.start, comment.span.end))
+                .map(|comment| document_span(comment.span))
                 .collect();
             out.sort_unstable_by_key(|comment| comment.start_offset);
             out

@@ -54,7 +54,7 @@ impl Template<'_> {
             .unwrap_or(text.len());
         let found = error(
             "block_unexpected_character",
-            &format!("Expected a `{sigil}` character immediately following the opening bracket"),
+            format!("Expected a `{sigil}` character immediately following the opening bracket"),
             Span::new(span.start_offset, span.start_offset + end as u32),
         );
         self.error(span, found);

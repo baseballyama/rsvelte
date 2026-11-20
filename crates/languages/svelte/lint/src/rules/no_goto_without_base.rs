@@ -1,11 +1,11 @@
 use oxc_ast::ast::Expression;
 use rsvelte_lint_runner::rule::Reporter;
+use rsvelte_typescript_tree::node_span;
 
 use super::shared::kit_navigation::{
     Navigation, Script, first_argument, has_scheme, leading_expression,
 };
 use super::shared::kit_route::{BASE_VERSIONS, runs_for};
-use super::shared::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -49,7 +49,7 @@ impl SvelteRule for NoGotoWithoutBase {
             if !prefixed {
                 reporter.range(
                     "Found a goto() call with a url that isn't prefixed with the base path.",
-                    span(url),
+                    node_span(url),
                 );
             }
         }

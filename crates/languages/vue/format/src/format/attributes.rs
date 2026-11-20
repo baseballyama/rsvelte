@@ -1,4 +1,5 @@
 use oxc_span::GetSpan;
+use rsvelte_typescript_tree::document_span;
 
 use super::{
     Attribute, AttributeKind, Attributes, DirectiveExpression, LayoutInstructionIdentifier,
@@ -110,7 +111,7 @@ impl Printer<'_, '_, '_> {
                 let value = match &d.exp {
                     DirectiveExpression::For(f) => {
                         let source = self.c.javascript.get_expression(f.source).span();
-                        self.v_for(v, f.parameters, Span::new(source.start, source.end))?
+                        self.v_for(v, f.parameters, document_span(source))?
                     }
                     DirectiveExpression::Expression(_) => self.directive_value(d.name, v)?,
                     DirectiveExpression::None => return Ok(self.d().text(name)),

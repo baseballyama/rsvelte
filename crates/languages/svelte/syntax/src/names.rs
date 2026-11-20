@@ -309,7 +309,8 @@ pub fn component_name(filename: &str) -> String {
     sanitize_chars(first.to_uppercase().chain(chars), name.len())
 }
 
-/// `[^a-zA-Z0-9_$]` → `_`, and a leading digit → `_` (upstream `scope.generate`).
+/// `[^a-zA-Z0-9_$]` → `_`, and a leading digit → `_` (upstream `scope.generate`, and the same
+/// as its `regex_invalid_identifier_chars` replacement).
 #[must_use]
 pub fn sanitize_identifier(name: &str) -> Cow<'_, str> {
     let valid = |c: char| c.is_ascii_alphanumeric() || c == '_' || c == '$';

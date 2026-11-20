@@ -255,7 +255,9 @@ impl<'a> Evaluator<'a> {
                             key.name.as_str().to_owned()
                         }
                         PropertyKey::StringLiteral(key) => key.value.display().to_string(),
-                        PropertyKey::NumericLiteral(key) => number_key(key.value),
+                        PropertyKey::NumericLiteral(key) => {
+                            rsvelte_typescript_semantic::number::number(key.value)
+                        }
                         _ => return None,
                     };
                     Some((name, &property.value))
@@ -321,7 +323,7 @@ impl<'a> Evaluator<'a> {
             depth + 1,
         )? {
             Static::String(name) => Some(name),
-            Static::Number(number) => Some(number_key(number)),
+            Static::Number(number) => Some(rsvelte_typescript_semantic::number::number(number)),
             Static::Boolean(value) => Some(value.to_string()),
             Static::Null => Some("null".to_owned()),
             Static::Undefined => Some("undefined".to_owned()),
@@ -356,14 +358,5 @@ impl<'a> Evaluator<'a> {
             }
         }
         Some(Static::Object(out))
-    }
-}
-
-/// A number as JavaScript names a property with it, for the integers configurations use.
-fn number_key(number: f64) -> String {
-    if number.fract() == 0.0 && number.abs() < 1e15 {
-        format!("{number:.0}")
-    } else {
-        number.to_string()
     }
 }

@@ -3,8 +3,8 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TokenType;
+use rsvelte_typescript_tree::node_span;
 
-use super::shared::nodes::span;
 use super::shared::reactive_statements::{between, reactive_statements};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -34,7 +34,7 @@ impl SvelteRule for NoReactiveFunctions {
             ) {
                 continue;
             }
-            let span = span(statement);
+            let span = node_span(statement);
             let mut report = Report::range(
                 "Do not create functions inside reactive statements unless absolutely necessary.",
                 span,

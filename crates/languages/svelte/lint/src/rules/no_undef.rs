@@ -1,6 +1,7 @@
 use oxc_ast::AstKind;
 use oxc_syntax::operator::UnaryOperator;
 use rsvelte_lint_runner::rule::Reporter;
+use rsvelte_typescript_tree::document_span;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
@@ -76,7 +77,7 @@ impl SvelteRule for NoUndef {
                 }
                 reporter.range(
                     format!("'{name}' is not defined."),
-                    super::shared::nodes::from_oxc(resolution.reference_span(id)),
+                    document_span(resolution.reference_span(id)),
                 );
             }
         }

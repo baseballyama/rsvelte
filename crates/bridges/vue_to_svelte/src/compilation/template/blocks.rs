@@ -4,6 +4,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree as svelte;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Branch, CompilerNodeIdentifier as SvelteNodeIdentifier, Each, NodeKind as SvelteNodeKind,
 };
+use rsvelte_typescript_tree::document_span;
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, Directive, Element, NodeKind, Property,
     PropertyKind, TagType,
@@ -11,7 +12,7 @@ use rsvelte_vue_semantic::compiler_syntax_tree::{
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{T, directive, directives, expression_of};
-use crate::compilation::context::{Helper, R, output_span, span_of, unsupported};
+use crate::compilation::context::{Helper, R, output_span, unsupported};
 
 /// The `:key` of a `v-for` element.
 fn directive_key<'h>(
@@ -275,14 +276,14 @@ impl T<'_, '_, '_, '_> {
                 prop.span,
             ));
         }
-        let destructuring = |span| unsupported("a destructuring `v-for` alias", span_of(span));
+        let destructuring = |span| unsupported("a destructuring `v-for` alias", span);
         let mut aliases: Vec<&BindingIdentifier<'_>> = Vec::with_capacity(count);
         for parameter in &parameters.items {
             let BindingPattern::BindingIdentifier(identifier) = &parameter.pattern else {
-                return Err(destructuring(parameter.span));
+                return Err(destructuring(document_span(parameter.span)));
             };
             if parameter.initializer.is_some() {
-                return Err(destructuring(parameter.span));
+                return Err(destructuring(document_span(parameter.span)));
             }
             if identifier
                 .symbol_id
@@ -291,13 +292,13 @@ impl T<'_, '_, '_, '_> {
             {
                 return Err(unsupported(
                     "a write to a `v-for` alias",
-                    span_of(parameter.span),
+                    document_span(parameter.span),
                 ));
             }
             aliases.push(identifier);
         }
         if let Some(rest) = &parameters.rest {
-            return Err(destructuring(rest.span));
+            return Err(destructuring(document_span(rest.span)));
         }
         let source = self.expression(f.source)?;
         let names: Vec<String> = ["value", "key", "index"][..count]

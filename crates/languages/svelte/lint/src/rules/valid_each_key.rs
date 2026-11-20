@@ -4,8 +4,8 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
 use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_typescript_tree::{document_span, node_span};
 
-use super::shared::nodes;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -38,16 +38,16 @@ fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
         let key = javascript.get_expression(key);
         let mut uses = UsesIterationVariable {
             resolution,
-            context: each.context.map(|p| nodes::span(javascript.get_pattern(p))),
-            index: each.index.map(|p| nodes::span(javascript.get_pattern(p))),
-            collection: nodes::span(javascript.get_expression(each.collection)),
+            context: each.context.map(|p| node_span(javascript.get_pattern(p))),
+            index: each.index.map(|p| node_span(javascript.get_pattern(p))),
+            collection: node_span(javascript.get_expression(each.collection)),
             found: false,
         };
         uses.visit_expression(key);
         if !uses.found {
             reporter.range(
                 "Expected key to use the variables which are defined by the `{#each}` block.",
-                nodes::span(key),
+                node_span(key),
             );
         }
     }
@@ -68,7 +68,7 @@ impl<'a> Visit<'a> for UsesIterationVariable<'_> {
         let Some(symbol) = self.resolution.symbol(it) else {
             return;
         };
-        let declared = nodes::from_oxc(self.resolution.scoping().symbol_span(symbol));
+        let declared = document_span(self.resolution.scoping().symbol_span(symbol));
         let contains = |outer: Span| {
             outer.start_offset <= declared.start_offset && declared.end_offset <= outer.end_offset
         };

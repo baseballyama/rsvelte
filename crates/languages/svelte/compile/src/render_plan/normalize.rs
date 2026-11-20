@@ -5,7 +5,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, ElementKind, MetadataTag, NodeKind,
 };
-use rsvelte_svelte_syntax::syntax_tree::decode_text;
+use rsvelte_svelte_syntax::syntax_tree::{decode_text, escape_markup};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 #[cfg(test)]
@@ -207,7 +207,7 @@ pub fn clean_nodes(
                     });
                 let raw = if *spelled {
                     let decoded = data.get(source_text, compiler_syntax_tree);
-                    match crate::markup::escape_markup(decoded, false) {
+                    match escape_markup(decoded, false) {
                         Cow::Borrowed(_) => data.clone(),
                         Cow::Owned(escaped) => Text::changed(decoded, escaped),
                     }

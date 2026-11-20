@@ -2,14 +2,14 @@ pub(crate) mod context;
 pub(crate) mod script;
 pub(crate) mod template;
 
-use context::{Info, Names, R, span_of, unsupported};
+use context::{Info, Names, R, unsupported};
 use oxc_ast::ast::Program;
 use oxc_ast_visit::VisitMut;
 use oxc_span::{SPAN, SourceType};
 use rsvelte_svelte_compile::{CompileInput, Target};
 use rsvelte_typescript_compile::build::Builder;
 use rsvelte_typescript_compile::strip::Strip;
-use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree, document_span};
 use rsvelte_vue_semantic::resolve::Resolution;
 
 /// The component as the Svelte compiler reads it: a runes instance program and a Svelte HIR, in a
@@ -73,7 +73,7 @@ pub(crate) fn translate(
     {
         return Err(unsupported(
             "a TypeScript construct with a runtime value",
-            span_of(span),
+            document_span(span),
         ));
     }
     let mut names = Names::new(sfc, compiler_syntax_tree);

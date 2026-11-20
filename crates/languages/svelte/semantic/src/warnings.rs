@@ -6,6 +6,7 @@
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_syntax::svelte_diagnostics::{error, warning};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Script};
 use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 
@@ -162,19 +163,6 @@ pub fn slot_name_error(name: Option<&str>) -> Option<(&'static str, &'static str
         )),
         Some(_) => None,
     }
-}
-
-fn warning(code: &'static str, message: &str, span: Span) -> Diagnostic {
-    let message = format!("{message}\nhttps://svelte.dev/e/{code}");
-    Diagnostic::warning(code, message, span)
-}
-
-fn error(code: &'static str, message: &str, span: Span) -> Diagnostic {
-    Diagnostic::error(
-        code,
-        format!("{message}\nhttps://svelte.dev/e/{code}"),
-        span,
-    )
 }
 
 /// The compile options that change what the compiler warns about.

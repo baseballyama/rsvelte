@@ -110,7 +110,7 @@ pub(super) fn unused_exports(
                 0,
                 warning(
                     "export_let_unused",
-                    &format!(
+                    format!(
                         "Component has unused export property '{text}'. If it is for external \
                         reference only, please consider using `export const {text}`"
                     ),

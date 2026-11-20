@@ -67,6 +67,13 @@ function violations(tool: Tool): string[] {
 		)
 			fail(`Names: ${file} is not kebab-case`);
 	}
+	const workloads = new Set(
+		tool.files.flatMap((file) => /^workloads\/([^/]+)\//.exec(file)?.slice(1) ?? []),
+	);
+	for (const workload of workloads) {
+		if (!tool.files.includes(`workloads/${workload}/README.md`))
+			fail(`Workloads: workloads/${workload}/README.md is missing`);
+	}
 	if (!library && tool.files.includes(entry)) {
 		const source = tool.read(entry);
 		if (!source.startsWith(`// ${tool.name}`))

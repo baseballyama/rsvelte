@@ -4,10 +4,10 @@
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, Component, Part, TemplateNode};
+use rsvelte_typescript_tree::node_span;
 
 use super::expressions::equal_tokens;
 use super::markup::parts;
-use super::nodes;
 
 #[cfg(test)]
 mod tests;
@@ -36,7 +36,7 @@ pub(crate) fn report_duplicates<'s>(
             };
             let expression = match *parts(component, attribute) {
                 [Part::Expression { expression, .. }] => {
-                    Some(nodes::span(javascript.get_expression(expression)))
+                    Some(node_span(javascript.get_expression(expression)))
                 }
                 _ => None,
             };

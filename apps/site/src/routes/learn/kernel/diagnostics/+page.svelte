@@ -68,7 +68,7 @@
 	</p>
 </div>
 
-<Code item={data.code.format} mark={['.map_err(|u| {', 'u.span(),']} />
+<Code item={data.code.format} mark={['.map_err(|u| u.diagnostic(']} />
 
 <div class="prose-learn">
 	<p>

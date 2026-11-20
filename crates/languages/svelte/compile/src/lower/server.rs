@@ -27,7 +27,6 @@ use oxc_ast::ast::{Statement, UnaryOperator, VariableDeclarationKind};
 use oxc_semantic::SymbolId;
 use oxc_span::SPAN;
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_markup_syntax::decode_attribute;
 use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
@@ -35,6 +34,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_svelte_syntax::parse::is_void;
+use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_typescript_tree::Tree;
 use rustc_hash::{FxHashMap, FxHashSet};
 use template::Template;

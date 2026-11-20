@@ -3,8 +3,8 @@ use oxc_ast::ast::Expression;
 use oxc_semantic::AstNodes;
 use oxc_syntax::operator::{LogicalOperator, UnaryOperator};
 use rsvelte_lint_runner::rule::Reporter;
+use rsvelte_typescript_tree::node_span;
 
-use super::shared::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 use crate::types::TypeFacts;
 
@@ -28,7 +28,7 @@ impl SvelteRule for NoUnnecessaryCondition {
 
 fn check(nodes: &AstNodes<'_>, types: &TypeFacts, reporter: &mut Reporter<'_>) {
     let report = |node: &Expression<'_>, message, reporter: &mut Reporter<'_>| {
-        reporter.range(message, span(node));
+        reporter.range(message, node_span(node));
     };
     let condition = |node: &Expression<'_>, reporter: &mut Reporter<'_>| {
         let mut node = node;

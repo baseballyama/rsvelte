@@ -13,7 +13,6 @@ mod fragment;
 mod identifier;
 mod javascript;
 mod options;
-pub use javascript::javascript_failure;
 mod pattern;
 mod script;
 mod sequence;
@@ -23,6 +22,7 @@ mod token;
 mod whitespace;
 
 pub use element_rules::{AUTOCLOSING_CHILDREN, Autoclosing, is_void};
+pub use javascript::javascript_failure;
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;
@@ -238,16 +238,18 @@ fn acorn_position(mut e: Diagnostic) -> Diagnostic {
     e
 }
 
-/// Upstream's error `code`, whose message ends with the link to its docs; an error of this
-/// parser's own, `parse_error`, has no docs page.
+/// Upstream's error `code`; an error of this parser's own, `parse_error`, has no docs page.
 #[cold]
-fn svelte_error(code: &'static str, message: impl std::fmt::Display, span: Span) -> Diagnostic {
-    let message = if code == "parse_error" {
-        message.to_string()
+fn svelte_error(
+    code: &'static str,
+    message: impl AsRef<str> + Into<String>,
+    span: Span,
+) -> Diagnostic {
+    if code == "parse_error" {
+        Diagnostic::error(code, message.into(), span)
     } else {
-        format!("{message}\nhttps://svelte.dev/e/{code}")
-    };
-    Diagnostic::error(code, message, span)
+        crate::svelte_diagnostics::error(code, message, span)
+    }
 }
 
 /// The component without its JavaScript, while the parser fills the arena.
@@ -409,7 +411,7 @@ impl<'a> Parser<'a, '_> {
         code: &'static str,
         message: impl std::fmt::Display,
     ) -> ParseResult<T> {
-        Err(svelte_error(code, message, span))
+        Err(svelte_error(code, message.to_string(), span))
     }
 
     /// Upstream's `expected_token`, which its `eat(token, true)` raises.

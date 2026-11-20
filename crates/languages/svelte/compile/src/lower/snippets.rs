@@ -7,7 +7,7 @@ use oxc_semantic::{ReferenceId, ScopeId, SymbolFlags, SymbolId};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, Element, Snippet};
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rsvelte_svelte_semantic::warnings::Raised;
-use rsvelte_typescript_tree::Tree;
+use rsvelte_typescript_tree::{Tree, document_span, node_span};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 mod const_references;
@@ -15,7 +15,6 @@ mod const_references;
 use super::validation::{raised_in_scopes, raised_in_walk};
 use super::{
     AttributeValue, BindingKind, CompileInput, Diagnostic, ElementKind, NodeKind, Resolution, Span,
-    span_of,
 };
 use crate::lower::{error, invalid};
 
@@ -41,7 +40,7 @@ pub(super) fn errors(input: &CompileInput<'_>, res: &Resolution) -> Vec<(Raised,
                     call.arguments.iter().find(|a| a.is_spread())
                 {
                     let message = "cannot use spread arguments in `{@render ...}` tags";
-                    let spread = span_of(&**spread);
+                    let spread = node_span(&**spread);
                     out.push((
                         at,
                         error("render_tag_invalid_spread_argument", message, spread),
@@ -73,7 +72,7 @@ const fn after(span: Span) -> u32 {
 fn duplicate(name: &str, span: Span) -> Diagnostic {
     error(
         "declaration_duplicate",
-        &format!("`{name}` has already been declared"),
+        format!("`{name}` has already been declared"),
         span,
     )
 }
@@ -91,12 +90,12 @@ fn snippet_errors<'a>(
     let node = tree.node(identifier);
     if let Some(rest) = &javascript.get_parameters(snippet.parameters).rest {
         let message = "Snippets do not support rest parameters; use an array instead";
-        let rest = span_of(&**rest);
+        let rest = node_span(&**rest);
         let at = raised_in_walk(node.span.start_offset);
         out.push((at, error("snippet_invalid_rest_parameter", message, rest)));
     }
     let name = snippet_name(javascript, snippet);
-    let name_span = span_of(javascript.get_expression(snippet.name));
+    let name_span = node_span(javascript.get_expression(snippet.name));
     let Some(symbol) = res.snippet(identifier) else {
         return;
     };
@@ -146,7 +145,7 @@ fn snippet_errors<'a>(
     } else if opened(TemplateScope::Then(parent)) || opened(TemplateScope::Catch(parent)) {
         // Upstream declares the value after it walks the branch.
         let value = scoping.symbol_span(other);
-        let value = Span::new(value.start, value.end);
+        let value = document_span(value);
         out.push((raised_in_scopes(after(parent_span)), duplicate(name, value)));
     }
 }
@@ -256,14 +255,14 @@ pub(super) fn check_exports(
                         "snippet_invalid_export",
                         "An exported snippet can only reference things declared in a `<script \
                             module>`, or other exportable snippets",
-                        span_of(specifier),
+                        node_span(specifier),
                     );
                 }
                 None => {
                     return invalid(
                         "export_undefined",
-                        &format!("`{}` is not defined", local.name),
-                        span_of(specifier),
+                        format!("`{}` is not defined", local.name),
+                        node_span(specifier),
                     );
                 }
             }

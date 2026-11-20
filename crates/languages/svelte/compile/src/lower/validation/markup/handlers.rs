@@ -41,7 +41,7 @@ pub(in crate::lower) fn mixed_syntaxes(input: &CompileInput<'_>) -> Option<Diagn
     let name = directive.name.text(source);
     Some(error(
         "mixed_event_handler_syntaxes",
-        &format!(
+        format!(
             "Mixing old (on:{name}) and new syntaxes for event handling is not allowed. Use only \
                 the on{name} syntax"
         ),

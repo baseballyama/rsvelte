@@ -1,8 +1,8 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::Expression;
 use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_typescript_tree::node_span;
 
-use super::shared::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 #[cfg(test)]
@@ -32,17 +32,17 @@ impl SvelteRule for NoIgnoredUnsubscribe {
                 Expression::StaticMemberExpression(member)
                     if member.property.name == "subscribe" =>
                 {
-                    span(&member.property)
+                    node_span(&member.property)
                 }
                 Expression::ComputedMemberExpression(member) => match &member.expression {
                     Expression::Identifier(property) if property.name == "subscribe" => {
-                        span(property.as_ref())
+                        node_span(property.as_ref())
                     }
                     _ => continue,
                 },
                 // A private name's ESTree `name` has no `#`.
                 Expression::PrivateFieldExpression(member) if member.field.name == "subscribe" => {
-                    span(&member.field)
+                    node_span(&member.field)
                 }
                 _ => continue,
             };

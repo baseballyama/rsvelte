@@ -8,9 +8,9 @@ use oxc_syntax::reference::Reference;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_typescript_semantic::reference_tracker::import_references;
+use rsvelte_typescript_tree::node_span;
 use rustc_hash::FxHashSet;
 
-use super::nodes::span;
 use crate::rule::File;
 
 /// The calls of `names` (some of `writable`, `readable` and `derived`) imported from
@@ -146,7 +146,7 @@ pub(crate) fn rename(
                 .iter()
                 .map(|&id| scoping.get_reference(id))
                 .filter(|reference| is_value(reference))
-                .map(|reference| span(&semantic.nodes().kind(reference.node_id()))),
+                .map(|reference| node_span(&semantic.nodes().kind(reference.node_id()))),
         );
     }
     spans.sort_by_key(|s| s.start_offset);

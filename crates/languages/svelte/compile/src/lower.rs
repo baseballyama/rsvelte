@@ -36,7 +36,7 @@ pub(crate) use module::lower_module;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Program, Statement};
 use oxc_ast_visit::VisitMut;
-use oxc_span::{GetSpan, SPAN, SourceType};
+use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::analyze::Analysis;
@@ -46,6 +46,8 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
     ElementKind, NodeKind,
 };
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
+pub(crate) use rsvelte_svelte_syntax::svelte_diagnostics::error;
+pub(crate) use rsvelte_svelte_syntax::syntax_tree::escape_markup;
 use rustc_hash::{FxHashMap, FxHashSet};
 pub use script::is_expression_async;
 pub use template::{DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select};
@@ -60,7 +62,6 @@ pub(crate) use validation::{
 use validation::{check_runes, uses_slots};
 
 use crate::input::{CompileInput, Target};
-pub(crate) use crate::markup::escape_markup;
 use crate::render_plan::{Item, RenderPlan};
 
 /// # Errors
@@ -200,12 +201,6 @@ pub(crate) struct Prepared<'c, 'o> {
     component_name: String,
 }
 
-/// The document span of an oxc node.
-pub(crate) fn span_of(node: &impl GetSpan) -> Span {
-    let span = node.span();
-    Span::new(span.start, span.end)
-}
-
 /// The code of what this port refuses, which upstream compiles.
 pub(crate) const UNSUPPORTED: &str = "unsupported";
 
@@ -219,14 +214,10 @@ fn unsupported<T>(what: &str, span: Span) -> Result<T, Diagnostic> {
 }
 
 /// An upstream error, whose message ends with the link to its documentation.
-pub(crate) fn invalid<T>(code: &'static str, message: &str, span: Span) -> Result<T, Diagnostic> {
+pub(crate) fn invalid<T>(
+    code: &'static str,
+    message: impl AsRef<str>,
+    span: Span,
+) -> Result<T, Diagnostic> {
     Err(error(code, message, span))
-}
-
-pub(crate) fn error(code: &'static str, message: &str, span: Span) -> Diagnostic {
-    Diagnostic::error(
-        code,
-        format!("{message}\nhttps://svelte.dev/e/{code}"),
-        span,
-    )
 }

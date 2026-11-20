@@ -170,6 +170,15 @@ impl Unsupported {
     pub fn span(&self) -> Span {
         self.source_location.span().unwrap_or_default()
     }
+
+    /// The error a task reports for it: "not supported by `refuser` yet", or "not supported yet"
+    /// when the task itself refuses.
+    #[must_use]
+    pub fn diagnostic(&self, code: &'static str, refuser: Option<&str>) -> Diagnostic {
+        let (by, refuser) = refuser.map_or(("", ""), |refuser| (" by ", refuser));
+        let message = ["not supported", by, refuser, " yet: ", self.what].concat();
+        Diagnostic::error(code, message, self.span())
+    }
 }
 
 #[cfg(test)]

@@ -243,7 +243,7 @@ impl<'a> Template<'a> {
             } else {
                 error(
                     "illegal_element_attribute",
-                    &format!(
+                    format!(
                         "`<{name}>` does not support non-event attributes or spread attributes"
                     ),
                     attribute.span,

@@ -10,10 +10,10 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_semantic::semantic::Semantic;
-use rsvelte_typescript_tree::ProgramIdentifier;
+use rsvelte_typescript_tree::{ProgramIdentifier, document_span};
 use rustc_hash::FxHashMap;
 
-use super::{Facts, Use, identifier_range, roots, span};
+use super::{Facts, Use, identifier_range, roots};
 
 /// `ESLint`'s `prefer-const` options.
 #[derive(Clone, Copy, Debug, Default)]
@@ -214,8 +214,8 @@ fn check_group<'s>(
                 AstKind::BindingIdentifier(i) => i
                     .symbol_id
                     .get()
-                    .map_or_else(|| span(i.span), |s| identifier_range(f, s, i.span)),
-                _ => span(f.span(node)),
+                    .map_or_else(|| document_span(i.span), |s| identifier_range(f, s, i.span)),
+                _ => document_span(f.span(node)),
             },
         );
         if should_fix && let Some((_, declaration)) = declaration {

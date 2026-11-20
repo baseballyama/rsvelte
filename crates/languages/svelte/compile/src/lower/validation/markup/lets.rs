@@ -80,7 +80,7 @@ pub(super) fn snippet_conflict(
         );
     invalid(
         "let_directive_snippet_conflict",
-        &format!(
+        format!(
             "Cannot use `let:` directives on a component that has a `children` snippet. Use \
              snippet parameters instead (e.g. `{{#snippet children({{ {pattern} }})}}`)"
         ),

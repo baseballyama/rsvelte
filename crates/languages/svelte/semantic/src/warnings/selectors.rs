@@ -65,7 +65,7 @@ pub(super) fn unused_selector(
             0,
             warning(
                 "css_unused_selector",
-                &format!("Unused CSS selector \"{}\"", selector.span.text(source)),
+                format!("Unused CSS selector \"{}\"", selector.span.text(source)),
                 selector.span,
             ),
         );

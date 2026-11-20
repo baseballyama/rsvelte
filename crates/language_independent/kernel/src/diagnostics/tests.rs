@@ -1,4 +1,4 @@
-use super::{Replacement, apply_fixes};
+use super::{Replacement, Unsupported, apply_fixes};
 use crate::source::positions::Span;
 
 fn replace(start: u32, end: u32, text: &str) -> Replacement {
@@ -33,4 +33,14 @@ fn a_fix_merges_its_replacements_with_the_text_between() {
     let fix = [replace(3, 4, "Z"), replace(0, 1, "X")];
     assert_eq!(apply_fixes("abcdef", [&fix[..]]), "XbcZef");
     assert_eq!(super::merge("abc", &[]), None);
+}
+
+#[test]
+fn an_unsupported_construct_names_who_refuses_it() {
+    let unsupported = Unsupported::at("a thing", Span::new(2, 5));
+    let by = unsupported.diagnostic("format_unsupported", Some("the formatter"));
+    assert_eq!(by.message, "not supported by the formatter yet: a thing");
+    assert_eq!(by.span, Span::new(2, 5));
+    let own = unsupported.diagnostic("compile_unsupported", None);
+    assert_eq!(own.message, "not supported yet: a thing");
 }
