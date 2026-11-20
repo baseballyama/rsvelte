@@ -1,5 +1,3 @@
-use std::process::Command;
-
 use crate::Scratch;
 
 const UNFORMATTED: &str = "<script>\nlet   a=1\n</script>\n<p   class=\"x\">{a}</p>\n";
@@ -21,8 +19,7 @@ impl Project {
     }
 
     fn format(&self, arguments: &[&str]) -> std::process::Output {
-        Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-            .current_dir(&self.0)
+        crate::rsvelte_dev(&self.0)
             .arg("format")
             .args(arguments)
             .output()
@@ -71,8 +68,7 @@ fn an_enclosing_repositorys_excludes_do_not_reach_a_nested_repository() {
         std::fs::create_dir_all(file.parent().expect("a parent")).expect("directory");
         std::fs::write(file, text).expect("file");
     }
-    let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-        .current_dir(project.0.join("nested"))
+    let output = crate::rsvelte_dev(project.0.join("nested"))
         .args(["format", "--check"])
         .output()
         .expect("run CLI");
@@ -92,8 +88,7 @@ fn without_git_a_gitignore_still_counts_and_so_do_those_of_its_ancestors() {
         std::fs::create_dir_all(file.parent().expect("a parent")).expect("directory");
         std::fs::write(file, text).expect("file");
     }
-    let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-        .current_dir(project.0.join("nested"))
+    let output = crate::rsvelte_dev(project.0.join("nested"))
         .args(["format", "--check"])
         .output()
         .expect("run CLI");
@@ -116,8 +111,7 @@ fn a_path_out_of_a_repository_is_read_as_outside_it() {
         std::fs::create_dir_all(file.parent().expect("a parent")).expect("directory");
         std::fs::write(file, text).expect("file");
     }
-    let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-        .current_dir(project.0.join("a"))
+    let output = crate::rsvelte_dev(project.0.join("a"))
         .args(["format", "--check", "../b"])
         .output()
         .expect("run CLI");

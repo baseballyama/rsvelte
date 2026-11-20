@@ -2,6 +2,7 @@
 //! each has its own harness.
 
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 mod arguments;
@@ -14,6 +15,13 @@ mod release;
 mod svelte_kit;
 mod tool_plugins;
 mod unit_names;
+
+/// `rsvelte-dev`, to be run in `directory`.
+fn rsvelte_dev(directory: impl AsRef<Path>) -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"));
+    command.current_dir(directory);
+    command
+}
 
 /// A directory of its own below the temporary directory, holding `files`, removed when dropped.
 struct Scratch(PathBuf);

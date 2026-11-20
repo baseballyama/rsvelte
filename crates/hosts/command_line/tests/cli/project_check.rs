@@ -1,7 +1,6 @@
 //! `rsvelte-dev check` on a project on disk, whose own tsconfig sets the options under test.
 
 use std::path::Path;
-use std::process::Command;
 
 use rsvelte_test_harness::NodePackages;
 
@@ -48,8 +47,7 @@ impl Project {
             "svelte": packages.package("svelte"),
             "contentMapper": rsvelte_test_harness::content_mapper(),
         });
-        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-            .current_dir(&self.0)
+        let output = crate::rsvelte_dev(&self.0)
             .arg("check")
             .args(["--options", "typescript.check", &tsc.to_string()])
             .args(["--options", "svelte.check", &svelte.to_string()])

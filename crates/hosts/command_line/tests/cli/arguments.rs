@@ -80,8 +80,7 @@ fn outputs_that_cannot_be_written_fail_the_run() {
 
 /// `rsvelte <arguments>` in `directory`, which holds `App.svelte/input.svelte`.
 fn rsvelte_in(directory: &Scratch, arguments: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-        .current_dir(&directory.0)
+    crate::rsvelte_dev(&directory.0)
         .args(arguments)
         .output()
         .expect("run CLI")

@@ -2,7 +2,6 @@
 //! directory the command runs in.
 
 use std::path::Path;
-use std::process::Command;
 
 use crate::Scratch;
 
@@ -16,8 +15,7 @@ fn lint_from(scratch: &Scratch, directory: &str) -> String {
         r#"{"rules":{"svelte/valid-compile":"error","#,
         r#""svelte/valid-prop-names-in-kit-pages":"error"}}"#
     );
-    let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-        .current_dir(cwd)
+    let output = crate::rsvelte_dev(cwd)
         .arg("corpus")
         .arg(scratch.join("corpus"))
         .args([
