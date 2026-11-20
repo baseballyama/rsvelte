@@ -6,7 +6,8 @@ use super::whitespace::is_ascii_whitespace;
 use super::{AutoClosed, End, ParseResult, Parser, is_void};
 use crate::names::{META_TAGS, is_component_name, is_valid_element_name};
 use crate::syntax_tree::{
-    AttributeKind, AttributeValue, Part, Range, TemplateNode, TemplateNodeIdentifier, TokenType,
+    AttributeKind, AttributeValue, ElementEnd, Part, Range, TemplateNode, TemplateNodeIdentifier,
+    TokenType,
 };
 
 #[cfg(test)]
@@ -52,16 +53,6 @@ const ROOT_ONLY_META_TAGS: &[&str] = &[
 pub(super) struct Read {
     pub(super) element: TemplateNodeIdentifier,
     pub(super) closed_by_start_tag: bool,
-}
-
-/// How an element's children ended.
-enum Closed {
-    /// By its own `</name>`.
-    EndTag,
-    /// By an ancestor's end tag, or by the end of the file.
-    Outside,
-    /// By a start tag that `closing_tag_omitted` says it cannot hold.
-    StartTag,
 }
 
 impl<'a> Parser<'a, '_> {
@@ -131,7 +122,7 @@ impl<'a> Parser<'a, '_> {
             _ => true,
         };
         let (children, closed) = if self_closing || is_void(name_text) {
-            (self.empty_range(), Closed::Outside)
+            (self.empty_range(), ElementEnd::StartTag)
         } else if name_text == "textarea" {
             self.textarea_children()?
         } else if matches!(name_text, "script" | "style") {
@@ -147,12 +138,12 @@ impl<'a> Parser<'a, '_> {
             children,
             start_tag,
             self_closing,
-            end_tag: matches!(closed, Closed::EndTag),
+            end: closed,
             span,
         });
         Ok(Some(Read {
             element,
-            closed_by_start_tag: matches!(closed, Closed::StartTag),
+            closed_by_start_tag: closed == ElementEnd::NextStartTag,
         }))
     }
 
@@ -165,7 +156,7 @@ impl<'a> Parser<'a, '_> {
         component: bool,
         attributes: Range,
         start_offset: usize,
-    ) -> ParseResult<(Range, Closed)> {
+    ) -> ParseResult<(Range, ElementEnd)> {
         let ancestry = self.ancestry;
         if name == "svelte:head" {
             self.ancestry.head = true;
@@ -235,18 +226,16 @@ impl<'a> Parser<'a, '_> {
         Span::new(start_offset as u32, self.position as u32)
     }
 
-    fn end_tag(&mut self, name: &'a str, regular: bool) -> ParseResult<Closed> {
+    fn end_tag(&mut self, name: &'a str, regular: bool) -> ParseResult<ElementEnd> {
         let rest = self.rest();
         let Some(after) = rest.strip_prefix("</") else {
-            if rest.is_empty() {
-                return Ok(Closed::Outside);
-            }
+            // `fragment` refuses an open element at the end of the input, so a start tag is here.
             self.auto_closed = Some(AutoClosed {
                 name,
                 by: peek_tag_name(&rest[1..]),
                 depth: self.depth,
             });
-            return Ok(Closed::StartTag);
+            return Ok(ElementEnd::NextStartTag);
         };
         if self.position + 2 >= self.source_text.len() {
             return self.unexpected_eof();
@@ -254,7 +243,10 @@ impl<'a> Parser<'a, '_> {
         let closing = peek_tag_name(after);
         if closing != name {
             if regular {
-                return Ok(Closed::Outside);
+                return Ok(match self.auto_closed {
+                    Some(a) if a.name == closing => ElementEnd::AutoClosedEndTag,
+                    _ => ElementEnd::AncestorEndTag,
+                });
             }
             return self.stray_closing_tag();
         }
@@ -268,7 +260,7 @@ impl<'a> Parser<'a, '_> {
         if self.auto_closed.is_some_and(|a| self.depth < a.depth) {
             self.auto_closed = None;
         }
-        Ok(Closed::EndTag)
+        Ok(ElementEnd::EndTag)
     }
 
     /// Whether the start tag after this name ends in `/>`, as svelte-eslint-parser's
@@ -324,7 +316,7 @@ impl<'a> Parser<'a, '_> {
         }
     }
 
-    fn textarea_children(&mut self) -> ParseResult<(Range, Closed)> {
+    fn textarea_children(&mut self) -> ParseResult<(Range, ElementEnd)> {
         let children_start = self.pending_children.len();
         loop {
             let rest = self.rest();
@@ -367,10 +359,10 @@ impl<'a> Parser<'a, '_> {
         self.position = end - 1;
         self.words(TokenType::Text, ignored);
         self.eat_token(TokenType::TagEnd, 1);
-        Ok((children, Closed::EndTag))
+        Ok((children, ElementEnd::EndTag))
     }
 
-    fn raw_children(&mut self, name: &str) -> ParseResult<(Range, Closed)> {
+    fn raw_children(&mut self, name: &str) -> ParseResult<(Range, ElementEnd)> {
         let close = match name {
             "script" => "</script>",
             "style" => "</style>",
@@ -400,7 +392,7 @@ impl<'a> Parser<'a, '_> {
         self.eat_token(TokenType::EndTagOpen, 2);
         self.tag_name();
         self.eat_token(TokenType::TagEnd, 1);
-        Ok((children, Closed::EndTag))
+        Ok((children, ElementEnd::EndTag))
     }
 }
 

@@ -5,7 +5,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::names::{is_mathml, is_svg};
 use rsvelte_svelte_syntax::parse::is_void;
 use rsvelte_svelte_syntax::syntax_tree::{
-    AttributeKind, AttributeValue, Part, Range, TemplateNode,
+    AttributeKind, AttributeValue, ElementEnd, Part, Range, TemplateNode,
 };
 
 use super::super::{a11y, error, warning};
@@ -53,7 +53,7 @@ impl<'a> Template<'a> {
             attributes,
             children,
             self_closing,
-            end_tag,
+            end,
             span,
             ..
         } = *component.node(node)
@@ -118,7 +118,7 @@ impl<'a> Template<'a> {
             Owner::Other
         };
         let closer = self.closer;
-        if end_tag {
+        if end.has_end_tag() {
             self.closer = Some(name);
         }
         // What the elements inside see as their ancestry and `parent_element`.
@@ -140,9 +140,7 @@ impl<'a> Template<'a> {
         self.closer = closer;
         self.shadow_root = shadow_root;
         // After the children, so that of the elements one end tag closes, the inner comes first.
-        if tag == Tag::Regular && !end_tag && !self_closing && !is_void(name) {
-            self.implicitly_closed(name, span, children, next);
-        }
+        self.implicitly_closed(name, span, children, end, next);
     }
 
     /// The checks of one kind of element, before its directives and children.
@@ -230,22 +228,27 @@ impl<'a> Template<'a> {
         }
     }
 
-    /// `element_implicitly_closed`, which the parser emits where it closes the element: at the
-    /// next sibling's start tag, or else at the enclosing element's end tag.
-    fn implicitly_closed(&mut self, name: &str, span: Span, children: Range, next: Option<u32>) {
+    /// `element_implicitly_closed`, where the parser closed the element with another element's
+    /// tag: the next sibling's start tag, or the end tag of the nearest element that has one.
+    fn implicitly_closed(
+        &mut self,
+        name: &str,
+        span: Span,
+        children: Range,
+        end: ElementEnd,
+        next: Option<u32>,
+    ) {
         let component = self.context.component;
         let source = self.context.source;
-        let (tag, closed_at) = match next.map(|n| component.node(n)) {
-            Some(&TemplateNode::Element {
-                name: next,
-                span: next_span,
-                ..
-            }) => (format!("<{}>", next.text(source)), next_span.start_offset),
-            _ => match self.closer {
-                Some(closer) => (format!("</{closer}>"), span.end_offset),
-                None => return,
-            },
+        let tag = match (end, next.map(|n| component.node(n)), self.closer) {
+            (ElementEnd::NextStartTag, Some(&TemplateNode::Element { name: next, .. }), _) => {
+                format!("<{}>", next.text(source))
+            }
+            (ElementEnd::AncestorEndTag, _, Some(closer)) => format!("</{closer}>"),
+            _ => return,
         };
+        // The element ends where the tag that closed it starts.
+        let closed_at = span.end_offset;
         let end = component
             .children(children)
             .first()

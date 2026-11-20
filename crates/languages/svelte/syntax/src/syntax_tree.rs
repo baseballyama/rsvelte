@@ -16,6 +16,31 @@ use rsvelte_typescript_tree::{
 
 pub type TemplateNodeIdentifier = u32;
 
+/// What ended an element, as the parser read it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ElementEnd {
+    /// Its start tag: written `<name … />`, or a void element.
+    StartTag,
+    /// Its own `</name>`, the last tokens of the element.
+    EndTag,
+    /// The start tag of the next sibling, an element it cannot hold.
+    NextStartTag,
+    /// The end tag of an ancestor.
+    AncestorEndTag,
+    /// The end tag of an ancestor that also names the element a start tag closed last
+    /// (upstream's `last_auto_closed_tag`): upstream takes it as meant for that one, and does not
+    /// warn about the elements it closes on the way.
+    AutoClosedEndTag,
+}
+
+impl ElementEnd {
+    /// Whether the element's own `</name>` ends it.
+    #[must_use]
+    pub const fn has_end_tag(self) -> bool {
+        matches!(self, Self::EndTag)
+    }
+}
+
 /// A slice of one of the side vectors (`children`, `attributes`, `parts`, `modifiers`,
 /// `debug_identifiers`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -77,9 +102,7 @@ pub enum TemplateNode {
         start_tag: Span,
         /// Written `<name … />`.
         self_closing: bool,
-        /// Closed by its own `</name>`, the last tokens of `span`; not when self-closing, void or
-        /// closed by a following tag or its parent's end tag.
-        end_tag: bool,
+        end: ElementEnd,
         span: Span,
     },
     If {
