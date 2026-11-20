@@ -96,8 +96,8 @@ timed('build', () => {
 	fs.mkdirSync(bin, { recursive: true });
 	// One target directory per tree, so the arms of a tree share their dependencies.
 	for (const [arm, tree] of [
-		['main', 'main'],
-		['experimental', 'experimental'],
+		['lint-main', 'main'],
+		['lint-experimental', 'experimental'],
 		['tasks-main', 'main'],
 		['tasks-experimental', 'experimental'],
 	] as const) {
@@ -196,9 +196,9 @@ timed('tasks', () => {
 timed('lint', () => {
 	const arms = [
 		'--main',
-		path.join(bin, 'main-arm'),
+		path.join(bin, 'lint-main-arm'),
 		'--experimental',
-		path.join(bin, 'experimental-arm'),
+		path.join(bin, 'lint-experimental-arm'),
 		'--eslint',
 		path.join(root, here, 'lint-versus-main/eslint.ts'),
 		'--out',

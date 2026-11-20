@@ -1,12 +1,11 @@
-// `arms.ts <main checkout> <output directory>`: writes the two arm packages, `main` and
-// `experimental`, which differ only in the lint library.
+// `arms.ts <main checkout> <output directory>`: writes the two arm packages, `lint-main`
+// and `lint-experimental`, which differ only in the lint library.
 import { crate, writeArmPackages } from '../arm-packages.ts';
 
 writeArmPackages(
 	{
 		here: import.meta.dirname,
 		workload: 'lint',
-		directoryPrefix: '',
 		shared: ['libc = "=0.2.191"', 'mimalloc = "=0.1.52"'],
 		arms: (main, root) => [
 			{

@@ -6,7 +6,6 @@ writeArmPackages(
 	{
 		here: import.meta.dirname,
 		workload: 'tasks',
-		directoryPrefix: 'tasks-',
 		shared: ['libc = "=0.2.191"'],
 		arms: (main, root) => [
 			{

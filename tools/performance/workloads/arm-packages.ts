@@ -17,10 +17,8 @@ type Arm = {
 type Workload = {
 	/** The directory of `harness.rs` and the arms' sources. */
 	here: string;
-	/** Names the packages: `<workload>-arm-<arm>`. */
+	/** Names each arm's package `<workload>-arm-<arm>`, directory `<workload>-<arm>` and binary `<workload>-<arm>-arm`. */
 	workload: string;
-	/** Put before each arm's name in its directory and binary. */
-	directoryPrefix: string;
 	/** The crates every arm pins, one dependency line each. */
 	shared: string[];
 	arms(main: string, root: string): Arm[];
@@ -53,7 +51,7 @@ export function writeArmPackages(workload: Workload, args: string[]): void {
 	const output = path.resolve(outputDirectory);
 	const directories: string[] = [];
 	for (const arm of workload.arms(path.resolve(mainCheckout), root)) {
-		const name = `${workload.directoryPrefix}${arm.name}`;
+		const name = `${workload.workload}-${arm.name}`;
 		const directory = path.join(output, name);
 		fs.mkdirSync(path.join(directory, 'src'), { recursive: true });
 		const manifest = [
