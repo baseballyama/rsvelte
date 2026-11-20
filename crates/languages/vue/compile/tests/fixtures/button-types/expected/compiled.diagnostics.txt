@@ -1,0 +1,1 @@
+error compile_unsupported 1:1-1:1 not supported yet: a repeated attribute
