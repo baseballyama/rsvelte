@@ -46,7 +46,6 @@ pub struct Conformance {
 #[derive(Debug)]
 struct Compared {
     task: &'static str,
-    implemented: bool,
     /// A task in `readers.toml`: it compares one file of another task's official output.
     reader: bool,
 }
@@ -73,7 +72,6 @@ impl Conformance {
     pub fn compare(mut self, task: &'static str) -> Self {
         self.compared.push(Compared {
             task,
-            implemented: true,
             reader: false,
         });
         self
@@ -87,19 +85,7 @@ impl Conformance {
     pub fn compare_file(mut self, task: &'static str) -> Self {
         self.compared.push(Compared {
             task,
-            implemented: true,
             reader: true,
-        });
-        self
-    }
-
-    /// An official task rsvelte does not have yet: its units are `missing`.
-    #[must_use]
-    pub fn not_implemented(mut self, task: &'static str) -> Self {
-        self.compared.push(Compared {
-            task,
-            implemented: false,
-            reader: false,
         });
         self
     }
@@ -264,7 +250,6 @@ impl Conformance {
         let tasks: Vec<&str> = self
             .compared
             .iter()
-            .filter(|c| c.implemented)
             .map(|c| c.task)
             .chain(self.also_run.iter().copied())
             .chain(self.out_of_scope)
@@ -385,7 +370,7 @@ impl Conformance {
             }
             let verdict = if result.panic.is_some() {
                 // A unit the task has no official output for is not the task's to judge.
-                (!official.is_empty() && c.implemented).then_some(Verdict::Panicked)
+                (!official.is_empty()).then_some(Verdict::Panicked)
             } else {
                 let ours = ours.map(|(_, out)| Ours {
                     output: out,
