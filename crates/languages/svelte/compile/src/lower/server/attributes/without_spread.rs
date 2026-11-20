@@ -2,6 +2,7 @@ use oxc_ast::ast::Expression;
 
 use super::escaped_text;
 use crate::lower::Target;
+use crate::lower::attributes::{can_use_literal, implicit_attributes, scoped_class};
 use crate::lower::builder::Runtime;
 use crate::lower::javascript::string_value;
 use crate::lower::server::{
@@ -9,7 +10,6 @@ use crate::lower::server::{
     capture_event, capture_load_events, escape_markup, event_attribute, is_behaviour,
     is_boolean_attribute, is_directive, push_captured_events,
 };
-use crate::lower::template::{can_use_literal, implicit_attributes, scoped_class};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_element_attributes` (no spread).

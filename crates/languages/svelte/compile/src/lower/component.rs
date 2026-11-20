@@ -10,11 +10,11 @@ use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
 use super::javascript::member_root;
 use super::snippets::{is_dynamic_render, render_call};
-use super::template::{is_directive, single_expression};
 use super::{
     Attribute, AttributeValue, BindingKind, Builder, CompilerNodeIdentifier, CompilerSyntaxTree,
     Diagnostic, Item, NodeKind, Resolution, Target,
 };
+use crate::lower::attributes::{is_directive, single_expression};
 use crate::lower::builder::Runtime;
 
 #[derive(Clone, Copy)]

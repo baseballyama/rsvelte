@@ -16,8 +16,8 @@ mod const_references;
 
 use super::{raised_in_scopes, raised_in_walk};
 use crate::input::CompileInput;
+use crate::lower::attributes::is_directive;
 use crate::lower::snippets::{is_runtime, render_call, snippet_name};
-use crate::lower::template::is_directive;
 use crate::lower::{error, invalid};
 
 /// Upstream's errors of snippets and render tags, with when it raises each: a duplicate name as

@@ -1,13 +1,13 @@
 use oxc_ast::ast::{Expression, ObjectPropertyKind};
 
 use super::escaped_text;
+use crate::lower::attributes::implicit_attributes;
 use crate::lower::builder::Runtime;
 use crate::lower::server::{
     Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind, ServerCompilationContext,
     Template, capture_event, capture_load_events, event_attribute, is_behaviour,
     push_captured_events,
 };
-use crate::lower::template::implicit_attributes;
 
 const ELEMENT_IS_INPUT: u32 = 1 << 2;
 

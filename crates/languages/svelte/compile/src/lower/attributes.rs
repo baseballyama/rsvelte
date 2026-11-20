@@ -1,3 +1,5 @@
+//! What both targets read off an element and its attributes.
+
 use oxc_ast::ast::{ArrowFunctionExpression, Expression, Function, IdentifierReference};
 use oxc_ast_visit::{Visit, walk};
 use oxc_syntax::scope::ScopeFlags;

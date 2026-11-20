@@ -3,9 +3,9 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::StyleValue;
 
 use super::attribute_text;
 use crate::lower::Target;
+use crate::lower::attributes::style_directives_object;
 use crate::lower::builder::Runtime;
 use crate::lower::server::{Attribute, AttributeValue, ServerCompilationContext};
-use crate::lower::template::style_directives_object;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_attr_style`: `$.attr_style(value, { name: value })`, the important ones in a

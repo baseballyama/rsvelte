@@ -3,9 +3,9 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{Part, StyleValue};
 use rsvelte_svelte_semantic::resolve::BindingKind;
 
 use crate::lower::Target;
+use crate::lower::attributes::style_directives_object;
 use crate::lower::builder::Runtime;
 use crate::lower::client::{Attribute, AttributeValue, ClientCompilationContext, Lists, Memo};
-use crate::lower::template::style_directives_object;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_set_style`; `attribute` is `None` for the empty `style` upstream's analysis

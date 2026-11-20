@@ -4,6 +4,7 @@
 //! name generation are shared; only the parts where the targets really differ (DOM building on
 //! the client, string pushing on the server) live in `client` and `server`.
 
+mod attributes;
 mod binding_groups;
 mod bindings;
 mod builder;
@@ -26,10 +27,14 @@ mod server;
 mod slot_element;
 mod snippets;
 mod stores;
-mod template;
 mod unsupported_syntax;
 mod validation;
 
+pub use attributes::{DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select};
+use attributes::{
+    event_attribute, has_dependency, is_behaviour, is_directive, is_dom_property,
+    is_load_error_element, needs_clsx, synthetic_value,
+};
 pub(crate) use builder::Builder;
 pub(crate) use module::lower_module;
 use oxc_allocator::Allocator;
@@ -49,11 +54,6 @@ pub(crate) use rsvelte_svelte_syntax::svelte_diagnostics::error;
 pub(crate) use rsvelte_svelte_syntax::syntax_tree::escape_markup;
 use rustc_hash::{FxHashMap, FxHashSet};
 pub use script::is_expression_async;
-pub use template::{DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select};
-use template::{
-    event_attribute, has_dependency, is_behaviour, is_directive, is_dom_property,
-    is_load_error_element, needs_clsx, synthetic_value,
-};
 pub use validation::CompileErrors;
 pub(crate) use validation::{
     Unit, Validation, mode_independent_errors, raised_in_parse, rune_error, validate, validate_unit,

@@ -1,7 +1,7 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
 
+use crate::lower::attributes::single_expression;
 use crate::lower::global_binding_table::GlobalBinding;
-use crate::lower::template::single_expression;
 use crate::lower::{
     AttributeValue, CompileInput, CompilerNodeIdentifier, CompilerSyntaxTree, Diagnostic, Element,
     NodeKind, Span, invalid, unsupported,
@@ -120,7 +120,7 @@ pub(super) fn special_element_error(input: &CompileInput<'_>) -> Result<(), Diag
                     if !matches!(
                         attribute.name.text(source),
                         "onerror" | "failed" | "pending"
-                    ) || crate::lower::template::is_directive(&attribute.value)
+                    ) || crate::lower::attributes::is_directive(&attribute.value)
                     {
                         return invalid(
                             "svelte_boundary_invalid_attribute",

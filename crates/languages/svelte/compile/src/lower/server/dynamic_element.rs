@@ -1,6 +1,6 @@
 use super::{CompilerNodeIdentifier, NodeKind, R, ServerCompilationContext, Template};
+use crate::lower::attributes::DynamicTag;
 use crate::lower::builder::Runtime;
-use crate::lower::template::DynamicTag;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     pub(super) fn dynamic_element(
@@ -15,7 +15,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         };
         let attributes = tree.attributes(element.attributes);
         let tag = &tree.attributes[element.this.expect("dynamic tag is validated")];
-        let tag = match super::super::template::dynamic_tag(&tag.value) {
+        let tag = match crate::lower::attributes::dynamic_tag(&tag.value) {
             DynamicTag::Text(tag) => b.string(&tag),
             DynamicTag::Expression(e) => self.expression(e),
         };

@@ -34,7 +34,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             declarations.push(self.snippet_declaration(snippet)?);
             Some(b.id(self.snippet_name(snippet)))
         } else if let Some(attribute) = failed_attribute {
-            let expression = super::super::template::single_expression(&attribute.value)
+            let expression = crate::lower::attributes::single_expression(&attribute.value)
                 .expect("a validated boundary attribute");
             Some(self.expression(expression))
         } else {
@@ -71,7 +71,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             .iter()
             .find(|a| a.name.text(self.source_text) == "pending");
         if let Some(attribute) = pending_attribute {
-            let expression = super::super::template::single_expression(&attribute.value)
+            let expression = crate::lower::attributes::single_expression(&attribute.value)
                 .expect("a validated boundary attribute");
             let callee = self.expression(expression);
             // The callee is both the test and the call when the pending value may be absent.

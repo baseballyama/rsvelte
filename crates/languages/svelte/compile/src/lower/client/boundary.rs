@@ -18,7 +18,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         let mut properties = Vec::new();
         for attribute in tree.attributes(element.attributes) {
-            let expression = super::super::template::single_expression(&attribute.value)
+            let expression = crate::lower::attributes::single_expression(&attribute.value)
                 .expect("boundary attributes are validated");
             let value = self.expression(expression);
             let name = attribute.name.text(self.source_text);

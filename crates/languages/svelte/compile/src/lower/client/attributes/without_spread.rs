@@ -1,13 +1,13 @@
 use oxc_ast::ast::{Expression, Statement};
 
 use crate::lower::Target;
+use crate::lower::attributes::{can_use_literal, implicit_attributes, scoped_class};
 use crate::lower::bindings::needs_special_value;
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, Memo,
     NodeKind, R, event_attribute, is_behaviour, is_directive, normalize_attribute, unsupported,
 };
-use crate::lower::template::{can_use_literal, implicit_attributes, scoped_class};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// The attribute loop of upstream `RegularElement` (no spread).

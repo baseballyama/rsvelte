@@ -2,13 +2,13 @@ use oxc_ast::ast::Expression;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use crate::lower::Target;
+use crate::lower::attributes::scoped_class;
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Lists, Memo,
     escape_markup, needs_clsx,
 };
 use crate::lower::javascript::string_value;
-use crate::lower::template::scoped_class;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// A `class` value written as one expression, through `$.clsx` when upstream's `needs_clsx`.

@@ -1,10 +1,10 @@
 use oxc_ast::ast::Expression;
 
 use crate::lower::Target;
+use crate::lower::attributes::scoped_class;
 use crate::lower::builder::Runtime;
 use crate::lower::javascript::string_value;
 use crate::lower::server::{Attribute, AttributeValue, ServerCompilationContext};
-use crate::lower::template::scoped_class;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_attr_class`.
