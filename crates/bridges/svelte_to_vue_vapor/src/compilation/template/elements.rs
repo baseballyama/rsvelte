@@ -1,7 +1,6 @@
 use oxc_ast::ast::{BinaryOperator, Expression};
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_compile::lower::{Item, Parent};
-use rsvelte_svelte_compile::render_plan::Namespace;
+use rsvelte_svelte_compile::render_plan::{Item, Namespace, Parent};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind, Part,
 };

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_compile::lower::{Item, Parent};
+use rsvelte_svelte_compile::render_plan::{Item, Parent};
 use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 use rsvelte_vue_semantic::compiler_syntax_tree::Text;
 

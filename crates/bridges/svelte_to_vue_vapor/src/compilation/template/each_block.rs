@@ -1,5 +1,5 @@
 use oxc_span::GetSpan;
-use rsvelte_svelte_compile::lower::Parent;
+use rsvelte_svelte_compile::render_plan::Parent;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, EachKey, NodeKind,
 };

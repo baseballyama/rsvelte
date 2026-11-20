@@ -1,6 +1,6 @@
 use oxc_ast::ast::{Expression, FormalParameter};
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_compile::lower::Parent;
+use rsvelte_svelte_compile::render_plan::Parent;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 

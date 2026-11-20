@@ -1,6 +1,7 @@
 use oxc_ast::ast::{Argument, Expression, LogicalOperator};
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_compile::lower::{Item, Parent, clean_nodes, is_expression_async, template_end};
+use rsvelte_svelte_compile::lower::is_expression_async;
+use rsvelte_svelte_compile::render_plan::{Item, Parent, clean_nodes, template_end};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use rsvelte_typescript_compile::build::sanitize_template_string;
 use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
