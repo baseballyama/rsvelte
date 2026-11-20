@@ -33,8 +33,8 @@ use rsvelte_typescript_tree::{SyntaxError, Tree, TreeBuilder};
 use rustc_hash::FxHashSet;
 
 use crate::syntax_tree::{
-    Attribute, Component, Part, Range, Script, Style, TemplateNode, TemplateNodeIdentifier,
-    TokenType,
+    Attribute, Component, ImplicitlyClosed, Part, Range, Script, Style, TemplateNode,
+    TemplateNodeIdentifier, TokenType,
 };
 
 type ParseResult<T> = Result<T, Diagnostic>;
@@ -259,6 +259,7 @@ struct Template {
     modifiers: Vec<Span>,
     debug_identifiers: Vec<rsvelte_typescript_tree::ExpressionIdentifier>,
     tag_comments: Vec<Span>,
+    implicitly_closed: Vec<ImplicitlyClosed>,
     root: Range,
     module: Option<Script>,
     instance: Option<Script>,
@@ -278,6 +279,7 @@ impl Template {
             debug_identifiers: buffer_pool::take_keyed::<Component, _>(),
             // Rare, so it starts without an allocation instead of from the pool.
             tag_comments: Vec::new(),
+            implicitly_closed: Vec::new(),
             root: Range::default(),
             module: None,
             instance: None,
@@ -300,6 +302,7 @@ impl Template {
             modifiers: std::mem::take(&mut self.modifiers),
             debug_identifiers: std::mem::take(&mut self.debug_identifiers),
             tag_comments: std::mem::take(&mut self.tag_comments),
+            implicitly_closed: std::mem::take(&mut self.implicitly_closed),
             root: self.root,
             module: self.module.take(),
             instance: self.instance.take(),

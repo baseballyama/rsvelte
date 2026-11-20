@@ -363,12 +363,12 @@ impl Builder<'_> {
                 children,
                 start_tag,
                 self_closing,
-                end_tag,
+                end,
                 span,
                 ..
             } => {
                 // svelte2tsx reads a component's name again where its end tag names it.
-                let end_name = (end_tag && component.is_some())
+                let end_name = (end.has_end_tag() && component.is_some())
                     .then(|| self.end_tag_name(name, span))
                     .flatten();
                 let tag = (start_tag, self_closing);

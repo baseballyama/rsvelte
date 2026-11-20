@@ -357,9 +357,16 @@ impl<'a> Template<'_, 'a> {
                 attributes,
                 children,
                 start_tag,
-                end_tag,
+                end,
                 ..
-            } => self.element(span, name, attributes, children, start_tag, end_tag),
+            } => self.element(
+                span,
+                name,
+                attributes,
+                children,
+                start_tag,
+                end.has_end_tag(),
+            ),
             TemplateNode::If { .. } => self.if_block(id),
             TemplateNode::Each {
                 expression,

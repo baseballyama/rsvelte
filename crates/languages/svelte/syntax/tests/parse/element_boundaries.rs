@@ -1,5 +1,7 @@
 use rsvelte_svelte_syntax::parse::parse;
-use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
+use rsvelte_svelte_syntax::syntax_tree::{
+    ClosingTag, Component, ElementEnd, ImplicitlyClosed, Range, TemplateNode,
+};
 
 fn element_names<'a>(component: &Component, children: Range, source: &'a str) -> Vec<&'a str> {
     component
@@ -63,37 +65,61 @@ fn closing_names_keep_unicode_whitespace_and_error_positions() {
 }
 
 #[test]
-fn an_element_records_only_its_own_end_tag() {
+fn an_element_records_what_ended_it() {
+    use ElementEnd::{AncestorEndTag, EndTag, NextStartTag, StartTag};
     let source = "<div><p>a \
         <b>x</b><div>y</div></div><ul><li>one<li>two</ul><br><i/><textarea>t</textarea><svelte:hea\
-        d><script>s</script></svelte:head>";
+        d><script>s</script></svelte:head><p>a<p>b</p><div><p><span>x</p></div>";
     let component = parse(source).expect("elements");
-    let end_tags: Vec<(&str, bool)> = component
+    let mut ends: Vec<(u32, &str, ElementEnd)> = component
         .nodes
         .iter()
         .filter_map(|node| match *node {
-            TemplateNode::Element { name, end_tag, .. } => Some((name.text(source), end_tag)),
+            TemplateNode::Element { name, end, .. } => {
+                Some((name.start_offset, name.text(source), end))
+            }
             _ => None,
         })
         .collect();
-    let mut expected = vec![
-        ("div", true),
-        ("p", false),
-        ("b", true),
-        ("div", true),
-        ("ul", true),
-        ("li", false),
-        ("li", false),
-        ("br", false),
-        ("i", false),
-        ("textarea", true),
-        ("svelte:head", true),
-        ("script", true),
-    ];
-    let mut end_tags = end_tags;
-    expected.sort_unstable();
-    end_tags.sort_unstable();
-    assert_eq!(end_tags, expected);
+    ends.sort_unstable_by_key(|&(at, ..)| at);
+    let ends: Vec<_> = ends.into_iter().map(|(_, name, end)| (name, end)).collect();
+    assert_eq!(
+        ends,
+        [
+            ("div", EndTag),
+            ("p", NextStartTag),
+            ("b", EndTag),
+            ("div", EndTag),
+            ("ul", EndTag),
+            ("li", NextStartTag),
+            ("li", AncestorEndTag),
+            ("br", StartTag),
+            ("i", StartTag),
+            ("textarea", EndTag),
+            ("svelte:head", EndTag),
+            ("script", EndTag),
+            ("p", NextStartTag),
+            ("p", EndTag),
+            ("div", EndTag),
+            ("p", EndTag),
+            ("span", AncestorEndTag),
+        ]
+    );
+    let closed: Vec<(&str, String)> = (component.implicitly_closed.iter())
+        .map(|&ImplicitlyClosed { element, by }| {
+            let TemplateNode::Element { name, .. } = *component.node(element) else {
+                panic!("{element} is not an element");
+            };
+            let by = match by {
+                ClosingTag::Start(by) => format!("<{}", by.text(source)),
+                ClosingTag::End(by) => format!("</{}", by.text(source)),
+            };
+            (name.text(source), by)
+        })
+        .collect();
+    // `</p>` follows the `<p>` that `<p>` closed, so upstream does not warn about `<span>`.
+    let expected = [("p", "<div"), ("li", "<li"), ("li", "</ul"), ("p", "<p")];
+    assert_eq!(closed, expected.map(|(name, by)| (name, by.to_owned())));
 }
 
 /// Each code and offset is the official compiler's.
