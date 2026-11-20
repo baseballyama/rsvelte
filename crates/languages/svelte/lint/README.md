@@ -3,7 +3,7 @@
 This crate has every rule of the Svelte lint. TypeScript core supplies JS/TS parsing and scopes; the
 crate does not depend on `rsvelte_typescript_check` and does not start tsgo.
 
-Rules live in `src/rules/<rule>.rs`; helpers that several rules share live in
+Rules live in `src/rules/<rule>.rs`; helpers that more than one rule uses live in
 `src/rules/shared/`. `lint.rs` is the library entry point. `configuration.rs`
 selects rules, severity and options, and `task.rs` adapts the library to the registry and JSON
 output. The crate caches facts once per document, and a rule computes only the facts it asks

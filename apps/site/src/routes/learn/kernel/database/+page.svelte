@@ -122,10 +122,7 @@
 	</p>
 </div>
 
-<Code
-	item={data.code.eachKey}
-	mark={['file.component()', 'file.lowered()', 'file.resolution()']}
-/>
+<Code item={data.code.eachKey} mark={['file.component()', 'file.lowered()', 'file.resolution()']} />
 
 <div class="prose-learn">
 	<p>
