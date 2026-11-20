@@ -175,7 +175,7 @@ fn print(
             .collect(),
     };
     let root = f.top_level()?;
-    refuse_lost_comments(&f.comments, &f.embedder.kept, &f.embedder.dropped)?;
+    refuse_lost_comments(&f.comments, &mut f.embedder.kept, &mut f.embedder.dropped)?;
     let embedding = f.embedder.embedding;
     // Room for output a quarter longer than its source, so the buffer seldom grows.
     embedding.print(&docs, root, text.len() + text.len() / 4)
@@ -271,19 +271,33 @@ fn has_pragma(text: &str) -> bool {
 /// A JavaScript comment outside the code the output keeps as text, which the template printer
 /// does not place: around an expression (`{/* a */ b}`) or between a tag's attributes
 /// (`<A // b={1}>`, only a token), it would be lost.
+///
+/// `comments` are in source order; `kept` and `dropped` are sorted here, `dropped` stably so the
+/// first reason given for a comment wins.
 fn refuse_lost_comments(
     comments: &[Span],
-    kept: &[Span],
-    dropped: &[(Span, &'static str)],
+    kept: &mut [Span],
+    dropped: &mut [(Span, &'static str)],
 ) -> R<()> {
+    let key = |s: &Span| (s.start_offset, s.end_offset);
+    kept.sort_unstable_by_key(key);
+    dropped.sort_by_key(|(s, _)| key(s));
+    let (mut next, mut reach) = (0, None);
     for &comment in comments {
-        if let Some(&(_, why)) = dropped.iter().find(|(d, _)| *d == comment) {
+        let first = dropped.partition_point(|(d, _)| key(d) < key(&comment));
+        if let Some(&(d, why)) = dropped.get(first)
+            && d == comment
+        {
             return Err(Unsupported::at(why, comment));
         }
-        let printed = kept
-            .iter()
-            .any(|s| s.start_offset <= comment.start_offset && comment.end_offset <= s.end_offset);
-        if !printed {
+        // The furthest end of a kept span that starts at or before the comment.
+        while let Some(s) = kept.get(next)
+            && s.start_offset <= comment.start_offset
+        {
+            reach = reach.max(Some(s.end_offset));
+            next += 1;
+        }
+        if reach.is_none_or(|end| end < comment.end_offset) {
             return Err(Unsupported::at(
                 "comments in the template's JavaScript",
                 comment,
