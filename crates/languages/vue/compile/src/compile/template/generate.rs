@@ -27,7 +27,7 @@ impl Compiled {
         inline: bool,
         b: &Builder<'o>,
     ) -> (Vec<Statement<'o>>, Expression<'o>) {
-        let mut g = Gen {
+        let g = Gen {
             t: self,
             javascript,
             res,
@@ -86,7 +86,7 @@ impl<'o> Gen<'_, '_, 'o> {
     }
 
     /// `genNode` for a template node.
-    fn node(&mut self, n: NodeIdentifier) -> Expression<'o> {
+    fn node(&self, n: NodeIdentifier) -> Expression<'o> {
         let b = self.b;
         match &self.t.tree[n] {
             Node::Text(t) => b.string(t),
@@ -114,7 +114,7 @@ impl<'o> Gen<'_, '_, 'o> {
     }
 
     #[expect(clippy::too_many_lines, reason = "one arm per codegen node")]
-    fn cg(&mut self, c: CodegenIdentifier) -> Expression<'o> {
+    fn cg(&self, c: CodegenIdentifier) -> Expression<'o> {
         let b = self.b;
         match &self.t.codegen[c] {
             Codegen::VNode {
@@ -136,11 +136,10 @@ impl<'o> Gen<'_, '_, 'o> {
                     .map_or_else(|| self.helper(Helper::Fragment), |t| b.string(t));
                 let mut arguments: Vec<Option<Expression<'o>>> = vec![Some(tag)];
                 arguments.push(props.map(|p| self.cg(p)));
-                let children = children.clone();
-                arguments.push(children.map(|ch| match ch {
-                    VChildren::Node(n) => self.node(n),
-                    VChildren::List(list) => self.node_array(&list),
-                    VChildren::Codegen(c) => self.cg(c),
+                arguments.push(children.as_ref().map(|ch| match ch {
+                    &VChildren::Node(n) => self.node(n),
+                    VChildren::List(list) => self.node_array(list),
+                    &VChildren::Codegen(c) => self.cg(c),
                 }));
                 arguments.push(patch_flag.map(|f| self.flag(f)));
                 arguments.push(dynamic_props.map(|d| self.cg(d)));
@@ -171,32 +170,27 @@ impl<'o> Gen<'_, '_, 'o> {
             Codegen::Call { callee, arguments } => {
                 let callee = *callee;
                 let arguments: Vec<Expression<'o>> =
-                    arguments.clone().into_iter().map(|a| self.cg(a)).collect();
+                    arguments.iter().map(|&a| self.cg(a)).collect();
                 b.call(self.helper(callee), arguments)
             }
             Codegen::Object(list) => {
                 let properties: Vec<_> = list
-                    .clone()
-                    .into_iter()
+                    .iter()
                     .map(|(k, v)| {
-                        let key = if is_simple_identifier(&k) {
-                            b.key(&k)
+                        let key = if is_simple_identifier(k) {
+                            b.key(k)
                         } else {
-                            oxc_ast::ast::PropertyKey::from(b.string(&k))
+                            oxc_ast::ast::PropertyKey::from(b.string(k))
                         };
-                        let value = self.cg(v);
+                        let value = self.cg(*v);
                         b.property(key, value, false)
                     })
                     .collect();
                 b.object(properties)
             }
-            Codegen::NodeArray(list) => {
-                let list = list.clone();
-                self.node_array(&list)
-            }
+            Codegen::NodeArray(list) => self.node_array(list),
             Codegen::Array(list) => {
-                let items: Vec<Expression<'o>> =
-                    list.clone().into_iter().map(|c| self.cg(c)).collect();
+                let items: Vec<Expression<'o>> = list.iter().map(|&c| self.cg(c)).collect();
                 b.array(items)
             }
             &Codegen::Helper(h) => self.helper(h),
@@ -267,7 +261,7 @@ impl<'o> Gen<'_, '_, 'o> {
         }
     }
 
-    fn node_array(&mut self, list: &[NodeIdentifier]) -> Expression<'o> {
+    fn node_array(&self, list: &[NodeIdentifier]) -> Expression<'o> {
         let items: Vec<Expression<'o>> = list.iter().map(|&n| self.node(n)).collect();
         self.b.array(items)
     }
