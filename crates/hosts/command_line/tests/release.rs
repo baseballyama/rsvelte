@@ -68,7 +68,7 @@ fn help_and_version_succeed_and_a_development_command_is_unknown() {
 }
 
 #[test]
-fn lint_and_format_read_svelte_and_typescript_and_not_vue() {
+fn lint_reads_svelte_and_typescript_and_not_vue() {
     let project = Project::new(
         "languages",
         &[
@@ -85,10 +85,6 @@ fn lint_and_format_read_svelte_and_typescript_and_not_vue() {
         "{report}"
     );
     assert!(!report.contains("C.vue"), "{report}");
-    let format = project.rsvelte(&["format", "--check"]);
-    let listed = text(&format.stdout);
-    assert!(listed.contains("a.ts"), "{listed}");
-    assert!(!listed.contains("C.vue"), "{listed}");
 }
 
 #[test]
@@ -261,173 +257,119 @@ fn typecheck_without_a_checker_says_what_to_install() {
 }
 
 #[test]
-fn format_follows_the_projects_formatter_configuration() {
+fn format_formats_what_oxfmt_formats_natively_and_svelte() {
+    let project = Project::new(
+        "format-languages",
+        &[
+            ("a.ts", "const   a = [1,2]\n"),
+            ("b.json", "{\"a\":1}\n"),
+            ("c.css", "a{color:red}\n"),
+            ("d.md", "* a\n"),
+            (
+                "E.vue",
+                "<template>\n<p   class=\"x\">{{ a }}</p>\n</template>\n",
+            ),
+            (
+                "F.svelte",
+                "<script>\nlet   a=1\n</script>\n<p   class=\"x\">{a}</p>\n",
+            ),
+            ("G.astro", "---\n---\n<p   class=\"x\">a</p>\n"),
+        ],
+    );
+    let output = project.rsvelte(&["format"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(read("a.ts"), "const a = [1, 2];\n");
+    assert_eq!(read("b.json"), "{ \"a\": 1 }\n");
+    assert_eq!(read("c.css"), "a {\n  color: red;\n}\n");
+    assert_eq!(read("d.md"), "- a\n");
+    assert_eq!(
+        read("E.vue"),
+        "<template>\n  <p class=\"x\">{{ a }}</p>\n</template>\n"
+    );
+    assert_eq!(
+        read("F.svelte"),
+        "<script>\n  let a = 1;\n</script>\n\n<p class=\"x\">{a}</p>\n"
+    );
+    assert_eq!(read("G.astro"), "---\n---\n<p   class=\"x\">a</p>\n");
+}
+
+#[test]
+fn format_takes_oxfmts_options_and_configuration_for_svelte_too() {
     let project = Project::new(
         "format-configuration",
         &[
-            (".prettierrc.json", r#"{"tabWidth":4,"printWidth":100}"#),
+            (
+                ".oxfmtrc.json",
+                r#"{ "tabWidth": 4, "svelte": { "indentScriptAndStyle": false } }"#,
+            ),
             ("a.ts", "if (x) {\n  y(\"z\");\n}\n"),
-            ("App.svelte", "<script>\n  let a = 1;\n</script>\n"),
+            (
+                "App.svelte",
+                "<script>\n  let a = 1;\n</script>\n\n<p>{#if a}\n<b>a</b>\n{/if}</p>\n",
+            ),
         ],
+    );
+    let check = project.rsvelte(&["format", "--list-different"]);
+    assert_eq!(check.status.code(), Some(1), "{}", text(&check.stderr));
+    let listed = text(&check.stdout);
+    assert!(
+        listed.contains("a.ts") && listed.contains("App.svelte"),
+        "{listed}"
     );
     let output = project.rsvelte(&["format"]);
     assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
     let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
     assert_eq!(read("a.ts"), "if (x) {\n    y(\"z\");\n}\n");
-    assert_eq!(read("App.svelte"), "<script>\n    let a = 1;\n</script>\n");
+    assert_eq!(
+        read("App.svelte"),
+        "<script>\nlet a = 1;\n</script>\n\n<p>\n    {#if a}\n        <b>a</b>\n    {/if}\n</p>\n"
+    );
+    let help = project.rsvelte(&["format", "--help"]);
+    assert!(
+        text(&help.stdout).contains("Usage: rsvelte format"),
+        "{}",
+        text(&help.stdout)
+    );
 }
 
 #[test]
-fn format_leaves_svelte_files_whose_options_it_cannot_print_and_says_so() {
+fn format_reports_each_svelte_file_whose_options_it_cannot_print_and_formats_the_others() {
+    let svelte = "<script>\nlet   a = \"1\"\n</script>\n";
     let project = Project::new(
-        "format-refused",
+        "format-unprinted",
         &[
-            (
-                ".oxfmtrc.jsonc",
-                r#"{
-  // the house style
-  "singleQuote": true,
-  "ignorePatterns": ["generated/"],
-}
-"#,
-            ),
+            (".oxfmtrc.json", r#"{ "singleQuote": true }"#),
             ("a.ts", "y(\"z\");\n"),
-            ("generated/b.ts", "y(\"z\");\n"),
-            ("App.svelte", "<script>\nlet   a = \"1\"\n</script>\n"),
+            ("App.svelte", svelte),
         ],
     );
     let output = project.rsvelte(&["format"]);
-    let stderr = text(&output.stderr);
-    assert_eq!(output.status.code(), Some(2), "{stderr}");
+    let report = format!("{}{}", text(&output.stdout), text(&output.stderr));
+    assert_eq!(output.status.code(), Some(2), "{report}");
     assert!(
-        stderr.contains("1 Svelte files were not formatted"),
-        "{stderr}"
+        report.contains("`singleQuote`") && report.contains("App.svelte"),
+        "{report}"
     );
-    assert!(stderr.contains("`singleQuote`"), "{stderr}");
     let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
     assert_eq!(read("a.ts"), "y('z');\n");
-    assert_eq!(read("generated/b.ts"), "y(\"z\");\n");
-    assert_eq!(read("App.svelte"), "<script>\nlet   a = \"1\"\n</script>\n");
+    assert_eq!(read("App.svelte"), svelte);
 }
 
 #[test]
-fn format_refuses_a_configuration_it_cannot_honor_and_writes_nothing() {
+fn format_leaves_svelte_files_a_configuration_turns_off() {
+    let svelte = "<script>\nlet   a = 1\n</script>\n";
     let project = Project::new(
-        "format-overrides",
+        "format-svelte-off",
         &[
-            (
-                ".prettierrc",
-                r#"{"overrides":[{"files":"*.ts","options":{"semi":false}}]}"#,
-            ),
+            (".oxfmtrc.json", r#"{ "svelte": false }"#),
             ("a.ts", "y(\"z\")\n"),
-        ],
-    );
-    let output = project.rsvelte(&["format"]);
-    assert_eq!(output.status.code(), Some(2));
-    assert!(
-        text(&output.stderr).contains("`overrides`"),
-        "{}",
-        text(&output.stderr)
-    );
-    assert_eq!(
-        std::fs::read_to_string(project.0.join("a.ts")).expect("file"),
-        "y(\"z\")\n"
-    );
-}
-
-#[test]
-fn format_resolves_the_configuration_of_each_file_as_prettier_does() {
-    let unformatted = "function f() {\nreturn \"x\"\n}\n";
-    let project = Project::new(
-        "format-per-file",
-        &[
-            (".git/HEAD", "ref: refs/heads/main\n"),
-            ("sub/.prettierrc", r#"{"tabWidth":4}"#),
-            ("sub/a.ts", unformatted),
-            ("a.ts", unformatted),
-            ("tabs/.editorconfig", "[*.ts]\nindent_style = tab\n"),
-            ("tabs/b.ts", unformatted),
+            ("App.svelte", svelte),
         ],
     );
     let output = project.rsvelte(&["format"]);
     assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
     let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
-    assert_eq!(read("a.ts"), "function f() {\n  return \"x\";\n}\n");
-    assert_eq!(read("sub/a.ts"), "function f() {\n    return \"x\";\n}\n");
-    assert_eq!(read("tabs/b.ts"), "function f() {\n\treturn \"x\";\n}\n");
-}
-
-#[test]
-fn format_takes_from_rsvelte_config_the_options_it_names() {
-    let project = Project::new(
-        "format-rsvelte-config",
-        &[
-            (".prettierrc", r#"{"semi":false}"#),
-            ("rsvelte.config.json", r#"{"plugins":{"svelte.format":{}}}"#),
-            ("App.svelte", "<script>\nlet   a = 1\n</script>\n"),
-            ("a.ts", "y(\"z\");\n"),
-        ],
-    );
-    let output = project.rsvelte(&["format"]);
-    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
-    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
-    assert_eq!(read("App.svelte"), "<script>\n  let a = 1;\n</script>\n");
-    assert_eq!(read("a.ts"), "y(\"z\")\n");
-}
-
-#[test]
-fn format_ignores_an_unknown_option_and_says_so() {
-    let project = Project::new(
-        "format-unknown-option",
-        &[
-            (".prettierrc", r#"{"svelteStrictMode":true,"tabWidth":4}"#),
-            ("a.ts", "if (x) {\n  y(\"z\");\n}\n"),
-        ],
-    );
-    let output = project.rsvelte(&["format"]);
-    let stderr = text(&output.stderr);
-    assert_eq!(output.status.code(), Some(0), "{stderr}");
-    assert!(
-        stderr.contains("ignored unknown option `svelteStrictMode`"),
-        "{stderr}"
-    );
-    assert_eq!(
-        std::fs::read_to_string(project.0.join("a.ts")).expect("file"),
-        "if (x) {\n    y(\"z\");\n}\n"
-    );
-}
-
-#[test]
-fn format_reads_nothing_for_a_file_oxfmt_leaves_and_skips_a_package_json_that_does_not_parse() {
-    let unformatted = "const a = [1,2];\n";
-    let formatted = "const a = [1, 2];\n";
-    let project = Project::new(
-        "format-left-unread",
-        &[
-            (
-                ".oxfmtrc.json",
-                r#"{"ignorePatterns":["vendor/**","fixtures/**","big"]}"#,
-            ),
-            ("a.ts", unformatted),
-            ("vendor/.prettierrc.yaml", "semi: false\n"),
-            ("vendor/x.ts", unformatted),
-            ("fixtures/bad/package.json", "{ broken\n"),
-            ("fixtures/bad/x.ts", unformatted),
-            ("big/y.ts", unformatted),
-            ("big/sub/.oxfmtrc.json", "{}"),
-            ("big/sub/x.ts", unformatted),
-            ("prettier/fixtures/package.json", "{ broken\n"),
-            ("prettier/.prettierrc", "{}"),
-            ("prettier/fixtures/x.ts", unformatted),
-        ],
-    );
-    let output = project.rsvelte(&["format"]);
-    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
-    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
-    assert_eq!(read("a.ts"), formatted);
-    assert_eq!(read("vendor/x.ts"), unformatted);
-    assert_eq!(read("fixtures/bad/x.ts"), unformatted);
-    assert_eq!(read("big/y.ts"), unformatted);
-    assert_eq!(read("big/sub/x.ts"), formatted);
-    assert_eq!(read("prettier/fixtures/x.ts"), formatted);
+    assert_eq!(read("a.ts"), "y(\"z\");\n");
+    assert_eq!(read("App.svelte"), svelte);
 }
