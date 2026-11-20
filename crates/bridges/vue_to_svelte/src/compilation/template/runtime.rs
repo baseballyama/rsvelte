@@ -155,7 +155,6 @@ pub(super) fn vmodel<'a>(
 
     let bindings_declaration = b.const_(&bindings, b.new_(b.id("WeakMap"), []));
 
-    // The hooks.
     let vnode_object = b.object([b.init("props", b.id(&props))]);
     let created = b.block([
         b.statement(b.assign_name(
@@ -217,7 +216,6 @@ pub(super) fn vmodel<'a>(
         false,
     );
 
-    // traverse(value, seen = new Set())
     let recurse =
         |argument: Expression<'a>| b.statement(b.call(b.id(&traverse), [argument, b.id(&seen)]));
     let not_object = b.binary(

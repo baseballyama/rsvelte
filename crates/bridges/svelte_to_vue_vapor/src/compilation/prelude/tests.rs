@@ -80,9 +80,9 @@ fn a_string_the_script_wrote_is_not_a_marker() {
     assert!(expand(&written).is_none());
 }
 
-/// The document's scope analysis no longer sees the preludes, so a reference to a name one
-/// declares no longer resolves. The emitter leaves such a reference as written either way when
-/// the name is a `$$` constant that no rune cell or ref initializes, which this checks.
+/// The document's scope analysis does not see the preludes, so a reference to a name one declares
+/// resolves to nothing; the emitter leaves it as written only when the name is a `$$` constant
+/// that no rune cell or ref initializes, which this checks.
 #[test]
 fn no_prelude_name_is_a_cell_or_a_ref() {
     let allocator = oxc_allocator::Allocator::default();
