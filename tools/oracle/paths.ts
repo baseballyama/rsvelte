@@ -9,7 +9,7 @@ const REGISTRY = path.join(CORPUS, '_registry');
 export const SOURCES_FILE = path.join(REGISTRY, 'sources.json');
 export const ORACLES_FILE = path.join(REGISTRY, 'oracles.json');
 export const IMPORT_REPORT_FILE = path.join(REGISTRY, 'import-report.json');
-/** The hand-written part of units (types.ts `FixtureToml`), one table per unit key. */
+/** The hand-written part of units (types.ts `UnitTable`), one table per unit key. */
 export const UNITS_FILE = path.join(REGISTRY, 'units.toml');
 /** Tasks that compare one file of another task's pack, by name: `{ pack, file }`. */
 export const READERS_FILE = path.join(REGISTRY, 'readers.toml');

@@ -10,7 +10,7 @@ const compile = {
 	appliesTo: () => true,
 	run: () => ({}),
 } as unknown as Task;
-const unit = (skip: Record<string, string>) => ({ fixture: { skip } }) as unknown as Unit;
+const unit = (skip: Record<string, string>) => ({ table: { skip } }) as unknown as Unit;
 
 test("a pack keeps a skipped unit's entries while a reader of it applies", () => {
 	// readers.toml: svelte.compile.warnings reads the client pack.

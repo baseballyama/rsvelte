@@ -24,7 +24,7 @@ export interface UnitKey {
 }
 
 /** The hand-written part of a unit, its table in corpus/_registry/units.toml. */
-export interface FixtureToml {
+export interface UnitTable {
 	skip?: Record<string, string>;
 	/** Root props and user steps for the behaviour tasks (behaviour/runtime.ts). */
 	behaviour?: Behaviour;
@@ -34,7 +34,7 @@ export interface Unit extends UnitKey, UnitMeta {
 	src: string;
 	sourceFile?: string;
 	ext: string;
-	fixture: FixtureToml;
+	table: UnitTable;
 }
 
 type Admission =
