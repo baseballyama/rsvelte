@@ -5,8 +5,8 @@ use rsvelte_vue_semantic::compiler_syntax_tree::CompilerNodeIdentifier;
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{Body, Emitter};
+use crate::compilation::helpers::Helper;
 use crate::compilation::markers;
-use crate::helpers::Helper;
 
 impl<'o> Emitter<'_, 'o> {
     pub(super) fn client_setup(&mut self, body: &mut Body<'o>) -> Expression<'o> {

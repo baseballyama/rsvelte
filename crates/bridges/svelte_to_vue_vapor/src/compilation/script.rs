@@ -16,8 +16,7 @@ use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::compilation::span_of;
-use crate::{R, unsupported};
+use crate::compilation::{R, span_of, unsupported};
 
 /// What `plan` found: the script's runes and the names the template needs.
 #[derive(Debug, Default)]

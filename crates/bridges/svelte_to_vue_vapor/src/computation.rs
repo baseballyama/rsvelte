@@ -5,7 +5,7 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
 
-use crate::script;
+use crate::compilation::script;
 
 /// `check` on the Svelte plugin's artifacts, shared by both targets.
 #[derive(Debug)]
@@ -88,8 +88,8 @@ impl Compile {
         };
         let _p = measurement::phase("vuelte.vapor");
         let javascript = compile(&t);
-        let external_stylesheet =
-            t.css_mode == crate::template::CssMode::External && t.template.custom_element.is_none();
+        let external_stylesheet = t.css_mode == crate::compilation::template::CssMode::External
+            && t.template.custom_element.is_none();
         Ok((
             javascript,
             external_stylesheet.then_some(t.stylesheet).flatten(),

@@ -13,7 +13,7 @@ use rsvelte_vue_semantic::resolve::{DefineProps, Resolution, unwrap_typescript};
 use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
 use rustc_hash::FxHashMap;
 
-use crate::context::{
+use crate::compilation::context::{
     Class, Declared, Helper, Info, Names, Prop, R, Rewriter, Top, span_of, unsupported,
 };
 

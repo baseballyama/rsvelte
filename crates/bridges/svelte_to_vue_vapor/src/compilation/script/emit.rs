@@ -14,8 +14,8 @@ use rsvelte_typescript_compile::build::Builder;
 pub(crate) use rune_values::{async_arrow, rune_value, tracked};
 
 use super::{BindingKind, Plan, Resolution};
+use crate::compilation::helpers::{self, Helper};
 use crate::compilation::{markers, prelude};
-use crate::helpers::{self, Helper};
 
 /// What decides the imports and helpers of the program.
 #[expect(

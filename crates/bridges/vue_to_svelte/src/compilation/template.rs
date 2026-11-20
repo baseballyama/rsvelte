@@ -23,7 +23,7 @@ use rsvelte_vue_semantic::compiler_syntax_tree::{
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 use rustc_hash::FxHashMap;
 
-use crate::context::{
+use crate::compilation::context::{
     Class, Declared, Helper, Info, Names, R, Rewriter, output_span, span_of, unsupported,
 };
 

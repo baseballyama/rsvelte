@@ -197,9 +197,9 @@ impl<'a> Visit<'a> for Names<'_> {
     fn visit_expression(&mut self, it: &Expression<'a>) {
         if let Expression::CallExpression(call) = it
             && self.res.rune(it).is_some_and(|(name, _)| {
-                crate::script::runes::local(name).is_some()
-                    || crate::script::runes::eager(name)
-                    || crate::script::runes::value(name)
+                crate::compilation::script::runes::local(name).is_some()
+                    || crate::compilation::script::runes::eager(name)
+                    || crate::compilation::script::runes::value(name)
             })
         {
             let mut callee = call.callee.get_inner_expression();
@@ -364,7 +364,7 @@ pub(super) fn check_element(
 /// `spread`: the element has a spread attribute, so all its attributes are one object that
 /// Svelte's `set_attributes` (client) and `attributes` (server) apply, which [`helpers`] port.
 ///
-/// [`helpers`]: crate::helpers
+/// [`helpers`]: crate::compilation::helpers
 pub(super) fn check_attribute(
     source_text: &str,
     tag: &str,

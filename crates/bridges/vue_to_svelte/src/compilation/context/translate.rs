@@ -32,7 +32,7 @@ pub(crate) fn translate(
         ));
     }
     let mut names = Names::new(sfc, compiler_syntax_tree);
-    let (class, props) = crate::script::classify(sfc, resolution, &mut names)?;
+    let (class, props) = crate::compilation::script::classify(sfc, resolution, &mut names)?;
     let info = Info {
         from,
         source_text,
@@ -41,13 +41,14 @@ pub(crate) fn translate(
         typescript: sfc.typescript,
         class,
         props,
-        top: crate::script::top_level(script),
+        top: crate::compilation::script::top_level(script),
     };
-    let roots = compiler_syntax_tree.map_or_else(Vec::new, crate::template::fallthrough_targets);
+    let roots = compiler_syntax_tree
+        .map_or_else(Vec::new, crate::compilation::template::fallthrough_targets);
     let attributes = (!roots.is_empty()).then(|| names.fresh("attrs"));
     let (javascript, (program, compiler_syntax_tree)) = Tree::build(source_text, |tree| {
         let b = Builder::new(tree.allocator());
-        let template = crate::template::translate(
+        let template = crate::compilation::template::translate(
             &info,
             compiler_syntax_tree,
             &roots,
@@ -56,7 +57,8 @@ pub(crate) fn translate(
             &b,
             &mut names,
         )?;
-        let body = crate::script::emit(sfc, &info, attributes.as_deref(), &b, &mut names)?;
+        let body =
+            crate::compilation::script::emit(sfc, &info, attributes.as_deref(), &b, &mut names)?;
         let mut statements = names.imports(&b);
         statements.extend(template.hoisted);
         statements.extend(body);

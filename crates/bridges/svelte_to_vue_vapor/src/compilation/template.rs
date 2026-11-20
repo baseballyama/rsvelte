@@ -36,10 +36,9 @@ use rsvelte_vue_semantic::compiler_syntax_tree::{
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName, LoopExpression};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::compilation::{Input, markers, span_of};
-use crate::helpers::{self, Helper};
-use crate::script::prop_member;
-use crate::{R, unsupported};
+use crate::compilation::helpers::{self, Helper};
+use crate::compilation::script::prop_member;
+use crate::compilation::{Input, R, markers, span_of, unsupported};
 
 /// What the emitter reads of the template besides the Vue HIR's expressions.
 #[derive(Debug)]
@@ -376,8 +375,8 @@ impl<'t> TemplateRewrite<'_, 't> {
         let (name, _) = self.res.rune(it)?;
         let b = self.b;
         let span = it.span();
-        let local = crate::script::runes::local(name);
-        let eager = crate::script::runes::eager(name);
+        let local = crate::compilation::script::runes::local(name);
+        let eager = crate::compilation::script::runes::eager(name);
         if local.is_none() && !eager {
             return None;
         }

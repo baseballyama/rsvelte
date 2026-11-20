@@ -228,14 +228,14 @@ impl<'o> Rewrite<'_, '_, 'o> {
             return Some(self.e.b.id(&id.name));
         }
         let name = rune_name(&call.callee)?;
-        if !crate::script::runes::value(&name) {
+        if !crate::compilation::script::runes::value(&name) {
             return None;
         }
         let mut argument = call.arguments.pop().map(Argument::into_expression);
         if let Some(argument) = &mut argument {
             self.visit_expression(argument);
         }
-        crate::script::rune_value(self.e.b, &name, argument, self.e.t.tracking)
+        crate::compilation::script::rune_value(self.e.b, &name, argument, self.e.t.tracking)
     }
 }
 
@@ -300,7 +300,7 @@ impl<'o> VisitMut<'o> for Rewrite<'_, '_, 'o> {
                 self.visit_expression(init);
             }
             let target = SimpleAssignmentTarget::StaticMemberExpression(m);
-            *it = crate::script::property_target(self.e.b, p, target, init);
+            *it = crate::compilation::script::property_target(self.e.b, p, target, init);
             return;
         }
         walk_mut::walk_assignment_target_property(self, it);

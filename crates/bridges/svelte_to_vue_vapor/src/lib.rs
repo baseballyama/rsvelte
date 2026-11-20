@@ -15,8 +15,6 @@
 
 pub(crate) mod compilation;
 pub(crate) mod computation;
-use compilation::{R, unsupported};
-pub(crate) use compilation::{helpers, script, template};
 pub use computation::{Checked, Compile, PLUGIN, register};
 
 /// Takes no options.

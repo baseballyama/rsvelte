@@ -105,7 +105,6 @@
 pub(crate) mod compilation;
 pub(crate) mod computation;
 pub use compilation::Translation;
-pub(crate) use compilation::{context, script, template};
 pub use computation::{
     Analyzed, Client, Compile, PLUGIN, Resolved, Server, Side, Translated, register,
 };

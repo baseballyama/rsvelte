@@ -9,7 +9,7 @@ use super::{
     Span, Template, directive, vue,
 };
 use crate::compilation::markers;
-use crate::script::runes;
+use crate::compilation::script::runes;
 
 impl<'t> Template<'_, '_, 't> {
     /// `{ value }`: the cell Vue's template reads a plain declaration through.
@@ -115,12 +115,12 @@ impl<'t> Template<'_, '_, 't> {
             .arguments
             .first()
             .map(|argument| self.rewrite(argument.to_expression()));
-        let value = crate::script::rune_value(b, rune, argument, tracking)
+        let value = crate::compilation::script::rune_value(b, rune, argument, tracking)
             .expect("a checked rune has a value");
         // The lowering rewrites the defaults itself.
         let mut pattern = declarator.id.clone_in_with_semantic_ids(b.allocator());
         Strip::new(b.allocator()).visit_binding_pattern(&mut pattern);
-        let declarators = crate::script::patterns::declarators(
+        let declarators = crate::compilation::script::patterns::declarators(
             b,
             &mut self.rewriter(),
             pattern,

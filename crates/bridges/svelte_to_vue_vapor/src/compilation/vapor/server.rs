@@ -136,7 +136,7 @@ impl<'o> Emitter<'_, 'o> {
                 let value = self.expression(source);
                 let escaped = b.call(b.id("$$escape"), [value]);
                 if is_expression_async(source) {
-                    b.call(crate::script::async_arrow(b, escaped), [])
+                    b.call(crate::compilation::script::async_arrow(b, escaped), [])
                 } else {
                     escaped
                 }
@@ -382,7 +382,7 @@ impl<'o> Emitter<'_, 'o> {
         }
         let b = self.b;
         let value = b.call(b.id("$$resolve_html"), [content]);
-        b.call(crate::script::async_arrow(b, value), [])
+        b.call(crate::compilation::script::async_arrow(b, value), [])
     }
 
     fn join(&self, parts: Vec<Expression<'o>>) -> Expression<'o> {

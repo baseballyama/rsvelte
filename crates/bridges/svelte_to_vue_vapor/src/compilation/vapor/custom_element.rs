@@ -1,7 +1,7 @@
 use oxc_ast::ast::Expression;
 
 use super::Emitter;
-use crate::template::CustomElementValues;
+use crate::compilation::template::CustomElementValues;
 
 impl<'o> Emitter<'_, 'o> {
     /// `const $$component = …; $$component.element = $$custom_element($$component, config)`, and
