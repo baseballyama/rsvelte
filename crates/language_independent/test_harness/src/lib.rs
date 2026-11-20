@@ -38,16 +38,33 @@ use snapshots::{Outcome, Snapshot};
 /// If it is not built.
 #[must_use]
 pub fn content_mapper() -> PathBuf {
-    let name = "rsvelte-typescript-content-mapper";
+    built(
+        "rsvelte-typescript-content-mapper",
+        "rsvelte_typescript_content_mapper",
+    )
+}
+
+/// `rsvelte-svelte-content-mapper`, the content mapper `rsvelte` ships, which projects a
+/// component no store holds, such as one the checker finds through an import. Built as
+/// [`content_mapper`] is.
+///
+/// # Panics
+///
+/// If it is not built.
+#[must_use]
+pub fn svelte_content_mapper() -> PathBuf {
+    built(
+        "rsvelte-svelte-content-mapper",
+        "rsvelte_svelte_typescript_projection",
+    )
+}
+
+fn built(name: &str, package: &str) -> PathBuf {
     std::env::current_exe()
         .ok()
         .and_then(|test| Some(test.parent()?.parent()?.join(name)))
-        .filter(|mapper| mapper.is_file())
-        .unwrap_or_else(|| {
-            panic!(
-                "{name} is not built: run `cargo build -p rsvelte_typescript_content_mapper --bins`"
-            )
-        })
+        .filter(|program| program.is_file())
+        .unwrap_or_else(|| panic!("{name} is not built: run `cargo build -p {package} --bins`"))
 }
 
 const FIXTURES_DIR: &str = "tests/fixtures";

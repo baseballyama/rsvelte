@@ -3,7 +3,7 @@
 
 use std::fmt::Write as _;
 use std::io::Write as _;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::ExitCode;
 
 use rsvelte_kernel::computation::pipeline::DocumentResult;
@@ -109,6 +109,21 @@ pub(crate) fn problems(
     Ok(report.finish())
 }
 
+/// `path` from `here`, as tsc prints a file: with `..` for each directory of `here` that `path` is
+/// not in, such as a workspace package a link in `node_modules` reaches.
+fn relative(path: &Path, here: &Path) -> PathBuf {
+    let shared = (path.components().zip(here.components()))
+        .take_while(|(a, b)| a == b)
+        .count();
+    if shared == 0 {
+        return path.to_owned();
+    }
+    (here.components().skip(shared))
+        .map(|_| Component::ParentDir)
+        .chain(path.components().skip(shared))
+        .collect()
+}
+
 struct Report<'h> {
     out: String,
     errors: usize,
@@ -136,9 +151,8 @@ impl<'h> Report<'h> {
     ) {
         let path = self
             .here
-            .and_then(|here| path.strip_prefix(here).ok())
-            .unwrap_or(path)
-            .display();
+            .map_or_else(|| path.to_owned(), |here| relative(path, here));
+        let path = path.display();
         let before = self.errors;
         if let Some(panic) = panic {
             writeln!(self.out, "{path}: error: rsvelte panicked: {panic}")

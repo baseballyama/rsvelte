@@ -337,8 +337,6 @@ fn tsconfig_json(
     w.key("compilerOptions")
         .begin_object()
         .key("noEmit")
-        .write_boolean(true)
-        .key("skipLibCheck")
         .write_boolean(true);
     if let Some(root_dir) = own.default_root_dir.as_deref() {
         // The default would otherwise be the overlay's directory.
