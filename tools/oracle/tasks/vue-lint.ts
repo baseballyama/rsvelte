@@ -1,7 +1,7 @@
 import { Linter } from 'eslint';
 import vuePlugin from 'eslint-plugin-vue';
 import * as tsParser from '@typescript-eslint/parser';
-import { CORE_RECOMMENDED, enabledRules, lintArtifacts } from './lint-shared.ts';
+import { CORE_RECOMMENDED, enabledRules, lintArtifacts } from './eslint.ts';
 import type { Task } from '../types.ts';
 
 // eslint-plugin-vue has no `all` configuration, so this is the one its `recommended` would be if it

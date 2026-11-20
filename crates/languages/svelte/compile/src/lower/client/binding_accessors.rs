@@ -27,7 +27,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .get_inner_expression()
             && let [get, set] = s.expressions.as_slice()
         {
-            return (self.rewrite(get, true), self.rewrite(set, true));
+            return (self.rewrite(get), self.rewrite(set));
         }
         let get = self.b.thunk(self.expression(expression));
         let set = self.binding_setter(expression, primitive);
@@ -69,7 +69,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             Cow::Owned(reads)
         };
-        let read = self.rewriter(true);
+        let read = self.rewriter();
         let values: Vec<_> = (names.iter())
             .map(|&(symbol, name)| {
                 read.read_symbol(symbol, name, SPAN)
@@ -79,7 +79,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let ids = names.iter().map(|&(_, name)| name);
         let mut rewrite = ScriptRewrite {
             template: Some(&*reads),
-            ..self.rewriter(true)
+            ..self.rewriter()
         };
         let get = rewrite.expression(getter);
         let set = match setter {
@@ -123,7 +123,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .get_inner_expression()
             && let [_, set] = s.expressions.as_slice()
         {
-            return self.rewrite(set, true);
+            return self.rewrite(set);
         }
         let b = self.b;
         let assignment = self.binding_assignment(expression, primitive);
@@ -140,7 +140,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .javascript
             .get_expression(expression)
             .get_inner_expression();
-        self.rewriter(true).binding_assignment(source, primitive)
+        self.rewriter().binding_assignment(source, primitive)
     }
 }
 

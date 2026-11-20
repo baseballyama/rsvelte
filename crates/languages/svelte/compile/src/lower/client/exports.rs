@@ -12,7 +12,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     /// a setter for a name the instance can write.
     pub(super) fn export_properties(&self, exports: &[Export<'_>]) -> Vec<ObjectPropertyKind<'o>> {
         let b = self.b;
-        let read = self.rewriter(false);
+        let read = self.rewriter();
         let mut properties = Vec::with_capacity(exports.len());
         for export in exports {
             let (name, alias) = (export.name, export.alias);

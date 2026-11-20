@@ -1,4 +1,4 @@
-use oxc_semantic::{ReferenceId, SymbolId};
+use oxc_semantic::SymbolId;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
 use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature_where};
 use rustc_hash::FxHashSet;
@@ -15,8 +15,8 @@ use runes::script_and_template_errors;
 pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, script_error};
 
 use super::{
-    CompileInput, Diagnostic, Resolution, Span, Target, const_cycles, custom_element, rest_reads,
-    script, snippets, stores, unsupported_syntax,
+    CompileInput, Diagnostic, Resolution, Span, Target, const_cycles, custom_element, script,
+    snippets, stores, unsupported_syntax,
 };
 
 /// An error upstream raises as it parses, before any other.
@@ -55,8 +55,6 @@ pub(super) const fn raised_in_scopes(at: u32) -> Raised {
 pub(crate) struct Validation {
     pub(in crate::lower) custom_element: Option<custom_element::CustomElement>,
     pub(in crate::lower) stylesheet_injected: bool,
-    /// The references to a rest prop that read `$$props` instead (upstream's `rest_prop` read).
-    pub(in crate::lower) rest_reads: FxHashSet<ReferenceId>,
     /// The top-level snippets declared beside the component.
     pub(in crate::lower) hoistable: FxHashSet<SymbolId>,
     /// The store subscriptions (`$name`), in the order upstream declares them.
@@ -137,11 +135,9 @@ pub(crate) fn validate_unit(
         let script = script_error(input, res, custom_element.is_some());
         return Err(script.map_or(refusal, |(_, error)| error));
     }
-    let rest_reads = rest_reads::build(res, custom_element.is_some());
     Ok(Validation {
         custom_element,
         stylesheet_injected,
-        rest_reads,
         hoistable,
         stores: names.subscriptions(res),
     })

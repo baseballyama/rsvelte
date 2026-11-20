@@ -4,8 +4,9 @@
 use oxc_ast::ast::{Declaration, Program, Statement};
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::GetSpan;
+use rsvelte_typescript_tree::document_span;
 
-use super::{Span, span};
+use super::Span;
 
 /// The imports svelte2tsx moves and the exports it removes, in source order.
 #[derive(Default)]
@@ -33,7 +34,7 @@ impl Nested {
 impl<'a> Visit<'a> for Nested {
     fn visit_statement(&mut self, it: &Statement<'a>) {
         if let Statement::ImportDeclaration(import) = it {
-            self.imports.push(span(import.span));
+            self.imports.push(document_span(import.span));
         }
         self.removed.extend(removed_export(it));
         walk::walk_statement(self, it);
@@ -44,8 +45,8 @@ impl<'a> Visit<'a> for Nested {
 /// from `statement`.
 fn removed_export(statement: &Statement<'_>) -> Option<Span> {
     match statement {
-        Statement::ExportNamedDeclaration(named) => Some(span(named.span)),
-        Statement::ExportFromDeclaration(from) => Some(span(from.span)),
+        Statement::ExportNamedDeclaration(named) => Some(document_span(named.span)),
+        Statement::ExportFromDeclaration(from) => Some(document_span(from.span)),
         Statement::ExportDeclaration(export)
             if matches!(
                 export.declaration,

@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"release": "node release.ts",
-		"test": "node --test '*.test.ts'",
+		"test": "node --test '*.test.ts' '*/*.test.ts'",
 		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
 	},
 	"engines": {

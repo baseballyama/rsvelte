@@ -20,7 +20,7 @@ export default {
 			// Oracles run from their installed path or named in reports, not imported.
 			ignoreDependencies: ['svelte-check', 'vue-tsc'],
 		},
-		'tools/release': {
+		'apps/cli': {
 			// The command of the npm package, which a release copies there, not an import.
 			entry: ['launcher.js'],
 		},

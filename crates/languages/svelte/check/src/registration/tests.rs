@@ -1,37 +1,43 @@
-use super::without_any_component_module;
+use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
+use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::source::document::Document;
 
 #[test]
-fn only_the_any_component_module_is_blanked_in_place() {
-    let types = "declare module 'svelte' {\n}declare module '*.svelte' {\n\tconst C: \
-        any;\n}\n\nexport {};\n";
-    let blanked = without_any_component_module(types.to_owned());
-    assert_eq!(blanked.len(), types.len());
-    assert!(blanked.starts_with("declare module 'svelte' {\n}"));
-    assert!(!blanked.contains("*.svelte"));
-    assert!(blanked.ends_with("\n\nexport {};\n"));
-}
-
-#[test]
-fn types_without_the_module_stay_as_they_are() {
-    let types = "declare module 'svelte' {}\n";
-    assert_eq!(without_any_component_module(types.to_owned()), types);
-}
-
-#[test]
-fn a_dynamic_import_s_relative_specifier_is_an_import_too() {
-    let source = concat!(
-        "<script>\n\timport A from './a.svelte';\n\texport { b } from './b.js';\n",
-        "\tconst c = import('./c.svelte');\n\tasync function d() {\n",
-        "\t\tawait import('./d.svelte');\n\t\timport(name);\n\t\timport('pkg');\n\t}\n</script>\n",
+fn projection_and_typecheck_can_be_registered_together() {
+    let mut registry = Registry::new();
+    rsvelte_svelte_typescript_projection::register(&mut registry);
+    crate::register(&mut registry, &crate::Configuration::default());
+    let document = Document::new(
+        "App.svelte".to_owned(),
+        "<script lang=\"ts\">let x: number = 1;</script><p>{x}</p>".to_owned(),
+    )
+    .unwrap();
+    let results = run(
+        &registry,
+        &[document],
+        &RunOptions {
+            tasks: &[rsvelte_svelte_typescript_projection::TASK, super::TASK],
+            sharing: Sharing::Shared,
+            threads: Some(1),
+        },
+    )
+    .unwrap();
+    assert!(
+        results[0].panic.is_none(),
+        "both capabilities must share artifacts without a conflict"
     );
-    let component = rsvelte_svelte_syntax::parse::parse(source).expect("valid Svelte source");
-    let found: Vec<_> = super::relative_imports(&component)
-        .into_iter()
-        .map(|import| (import.at.text(source).to_owned(), import.specifier))
-        .collect();
-    let expected = ["./a.svelte", "./b.js", "./c.svelte", "./d.svelte"];
+    let projection = &results[0].outputs[0].1;
+    assert!(
+        projection.diagnostics.is_empty(),
+        "projection must need no checker configuration"
+    );
     assert_eq!(
-        found,
-        expected.map(|s| (format!("'{s}'"), s.to_owned())).to_vec()
+        projection.files.len(),
+        2,
+        "the task must provide TypeScript and its source map"
+    );
+    assert_eq!(
+        results[0].outputs[1].1.diagnostics[0].code,
+        "check_unconfigured"
     );
 }

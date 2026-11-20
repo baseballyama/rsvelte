@@ -3,8 +3,9 @@
 
 use oxc_ast::ast::{TSType, TSTypeAnnotation};
 use oxc_span::GetSpan;
+use rsvelte_typescript_tree::document_span;
 
-use super::super::{Buffer, Builder, Node, NodeIdentifier, Span, span};
+use super::super::{Buffer, Builder, Node, NodeIdentifier, Span};
 use super::Edit;
 
 /// The type annotation of a `$props()` declaration.
@@ -21,8 +22,8 @@ pub(in super::super) struct PropsAnnotation {
 impl PropsAnnotation {
     pub(in super::super) fn of(annotation: &TSTypeAnnotation<'_>) -> Self {
         Self {
-            whole: span(annotation.span),
-            value: span(annotation.type_annotation.span()),
+            whole: document_span(annotation.span),
+            value: document_span(annotation.type_annotation.span()),
             reference: matches!(annotation.type_annotation, TSType::TSTypeReference(_)),
         }
     }
@@ -39,9 +40,7 @@ impl Builder<'_> {
             name: "$$ComponentProps",
             at: annotation.whole.start_offset + 1,
         });
-        let value = self.tree.push(Node::SourceCopy {
-            span: annotation.value,
-        });
+        let value = self.source_at(annotation.value, None);
         self.tree.push(Node::TypeAlias { name, value })
     }
 
@@ -58,9 +57,7 @@ impl Builder<'_> {
         let at_statement = Span::new(statement, statement);
         if annotation.reference {
             let name = self.unused_name("__rsvelte_props_type");
-            let value = self.tree.push(Node::SourceCopy {
-                span: annotation.value,
-            });
+            let value = self.source_at(annotation.value, None);
             // JavaScript keeps the reference where svelte2tsx keeps it, where TypeScript reports
             // it, and names it in a comment it does not.
             let (alias, replaced) = if self.tree.javascript {

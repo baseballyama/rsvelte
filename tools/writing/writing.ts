@@ -1,47 +1,28 @@
-// The English prose check: which Markdown files it reads, and the linter it runs on them.
+// writing [<file>...]
+//
+// Checks the English prose of every first-party Markdown file, or of the files given.
 
-import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { createLinter, loadTextlintrc } from 'textlint';
-import { rules } from './rules.ts';
+import { englishLinter, markdownFiles, root } from './linter.ts';
 
-export const root = path.resolve(import.meta.dirname, '../..');
-
-/** Text written by others: test inputs, copied upstream files, licenses, and changelogs that Changesets assembles from the changesets this check reads. */
-const thirdParty = [
-	/(^|\/)CHANGELOG\.md$/,
-	/^corpus\//,
-	/^submodules\//,
-	/\/fixtures\//,
-	/\/vendor\//,
-	/(^|\/)LICENSE/,
-];
-
-export function markdownFiles(): string[] {
-	const tracked = execFileSync('git', ['-C', root, 'ls-files', '-z', '--', '*.md'], {
-		encoding: 'utf8',
-	});
-	return (
-		tracked
-			.split('\0')
-			.filter((file) => file && !thirdParty.some((pattern) => pattern.test(file)))
-			// Below the root, a directory with its own license holds text copied from another project.
-			.filter((file) => {
-				for (
-					let directory = path.dirname(file);
-					directory !== '.';
-					directory = path.dirname(directory)
-				) {
-					if (existsSync(path.join(root, directory, 'LICENSE'))) return false;
-				}
-				return true;
-			})
-	);
+const linter = await englishLinter();
+// pnpm runs the script in this directory; INIT_CWD is where the command was typed.
+const typedIn = process.env.INIT_CWD ?? process.cwd();
+const only = process.argv.slice(2).map((file) => path.relative(root, path.resolve(typedIn, file)));
+const files = only.length ? only : markdownFiles();
+if (!files.length) throw new Error('No Markdown file was found');
+let errors = 0;
+for (const file of files) {
+	const absolute = path.resolve(root, file);
+	// oxlint-disable-next-line no-await-in-loop -- one file at a time keeps the report in file order
+	const result = await linter.lintText(readFileSync(absolute, 'utf8'), absolute);
+	for (const message of result.messages) {
+		console.error(
+			`${file}:${message.loc.start.line}:${message.loc.start.column + 1} [${message.ruleId}] ${message.message}`,
+		);
+		errors++;
+	}
 }
-
-/** A linter with every English rule. With no config file, the loader gives only the built-in Markdown and text plugins. */
-export async function englishLinter() {
-	const plugins = await loadTextlintrc();
-	return createLinter({ descriptor: plugins.shallowMerge({ rules }) });
-}
+console.log(`Checked ${files.length} Markdown files; ${errors} errors.`);
+process.exitCode = errors ? 1 : 0;

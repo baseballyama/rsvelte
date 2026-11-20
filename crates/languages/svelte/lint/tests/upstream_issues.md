@@ -439,7 +439,7 @@ rules take the references of an import specifier's local name. Of the other uses
 `ReferenceTracker` of `@eslint-community/eslint-utils` finds, they keep only a `p.resolve` or
 `p.base` member. This crate follows the value through the namespace, the constant and the
 pattern, and reports none of them.
-Tests in `crates/hosts/command_line/tests/svelte_kit.rs`: `asset_through_the_namespace_is_resolved`,
+Tests in `crates/hosts/command_line/tests/cli/svelte_kit.rs`: `asset_through_the_namespace_is_resolved`,
 `resolve_through_a_constant_is_resolved` and `a_path_destructured_from_the_namespace_is_followed`.
 
 ## The SvelteKit navigation rules throw

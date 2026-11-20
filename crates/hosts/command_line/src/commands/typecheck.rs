@@ -3,7 +3,7 @@
 
 use std::fmt::Write as _;
 use std::io::Write as _;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::ExitCode;
 
 use rsvelte_kernel::computation::pipeline::DocumentResult;
@@ -17,38 +17,51 @@ use crate::usage;
 
 /// Checks the files of the project the tasks check. Exit code 1 means an error was found.
 pub(crate) fn typecheck(reg: &Registry, tasks: &[&str]) -> ExitCode {
-    let project = match reg.project_files(tasks) {
-        Ok(project) => project,
+    let files = match project_files(reg, tasks) {
+        Project::Files(files) => files,
+        Project::Reported(code) => return code,
+    };
+    let documents = match files::read_all(reg, files, tasks) {
+        Ok(documents) => documents,
         Err(e) => return usage(&e),
     };
-    let here = std::env::current_dir().and_then(std::fs::canonicalize).ok();
-    // As svelte-check, a configuration with errors is reported instead of the files it selects.
-    if !project.problems.is_empty() {
-        return match problems(&project.problems, here.as_deref()) {
-            Ok(report) => print(report),
-            Err(e) => usage(&e),
-        };
-    }
-    let mut documents = Vec::new();
-    for file in project.files {
-        let text = match std::fs::read_to_string(&file) {
-            Ok(text) => text,
-            Err(e) => return usage(&format!("{}: {e}", file.display())),
-        };
-        match files::document(reg, file, text) {
-            Ok(document) => documents.push(document),
-            Err(e) => return usage(&e),
-        }
-    }
     let results = match files::run(reg, &documents, tasks) {
         Ok(results) => results,
         Err(code) => return code,
     };
-    print(report(&documents, &results, here.as_deref()))
+    print(report(&documents, &results, here().as_deref()))
+}
+
+/// The files of the project the tasks check, or what was printed instead of checking them.
+pub(crate) enum Project {
+    Files(Vec<PathBuf>),
+    /// The configuration's problems, as svelte-check prints them, or the error of reading it, were
+    /// printed with this exit code. It is success when no problem is an error.
+    Reported(ExitCode),
+}
+
+/// The files of the project the tasks check. A configuration with problems is reported instead.
+pub(crate) fn project_files(reg: &Registry, tasks: &[&str]) -> Project {
+    let project = match reg.project_files(tasks) {
+        Ok(project) => project,
+        Err(e) => return Project::Reported(usage(&e)),
+    };
+    if project.problems.is_empty() {
+        return Project::Files(project.files);
+    }
+    Project::Reported(match problems(&project.problems, here().as_deref()) {
+        Ok(report) => print(report),
+        Err(e) => usage(&e),
+    })
+}
+
+/// The current directory, which the report names files relative to.
+fn here() -> Option<PathBuf> {
+    std::env::current_dir().and_then(std::fs::canonicalize).ok()
 }
 
 /// Prints a report; exit code 1 when it counts an error.
-pub(crate) fn print((text, errors): (String, usize)) -> ExitCode {
+fn print((text, errors): (String, usize)) -> ExitCode {
     // A closed pipe, as `| head` closes it, only cuts the report short.
     drop(std::io::stdout().lock().write_all(text.as_bytes()));
     if errors > 0 {
@@ -83,7 +96,7 @@ fn report(
 
 /// The problems of a project's configuration, each file's together, as [`report`] reports a
 /// document's findings.
-pub(crate) fn problems(
+fn problems(
     problems: &[(PathBuf, Diagnostic)],
     here: Option<&Path>,
 ) -> Result<(String, usize), String> {
@@ -107,6 +120,21 @@ pub(crate) fn problems(
         report.file(path, &text, None, found.into_iter());
     }
     Ok(report.finish())
+}
+
+/// `path` from `here`, as tsc prints a file: with `..` for each directory of `here` that `path` is
+/// not in, such as a workspace package a link in `node_modules` reaches.
+fn relative(path: &Path, here: &Path) -> PathBuf {
+    let shared = (path.components().zip(here.components()))
+        .take_while(|(a, b)| a == b)
+        .count();
+    if shared == 0 {
+        return path.to_owned();
+    }
+    (here.components().skip(shared))
+        .map(|_| Component::ParentDir)
+        .chain(path.components().skip(shared))
+        .collect()
 }
 
 struct Report<'h> {
@@ -136,9 +164,8 @@ impl<'h> Report<'h> {
     ) {
         let path = self
             .here
-            .and_then(|here| path.strip_prefix(here).ok())
-            .unwrap_or(path)
-            .display();
+            .map_or_else(|| path.to_owned(), |here| relative(path, here));
+        let path = path.display();
         let before = self.errors;
         if let Some(panic) = panic {
             writeln!(self.out, "{path}: error: rsvelte panicked: {panic}")

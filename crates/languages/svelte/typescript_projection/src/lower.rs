@@ -12,13 +12,14 @@ mod generic;
 mod names;
 mod nested;
 pub use contract::store_reads;
-pub use generic::{UnparsedScript, unparsed_script};
 mod hoistable;
 mod root_snippets;
 mod standalone;
 pub use standalone::lower_alone;
 mod tag;
 mod type_assertion;
+mod unparsed_script;
+use std::cell::OnceCell;
 
 use oxc_ast::ast::{AssignmentTarget, ChainElement, Expression};
 use oxc_span::GetSpan;
@@ -26,7 +27,8 @@ use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode, TokenType};
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, document_span};
+pub use unparsed_script::{UnparsedScript, unparsed_script};
 
 use crate::buffers::Buffer;
 use crate::syntax_tree::{Node, NodeIdentifier, SourceExpression, SyntaxTree};
@@ -89,7 +91,7 @@ pub fn lower<'a>(
         tree: SyntaxTree::default(),
         element_callee: None,
         attachment_key: None,
-        component_name: None,
+        component_instance_name: None,
         directives: directive::Directives::default(),
         root_snippets: None,
         slot_parent: None,
@@ -99,6 +101,7 @@ pub fn lower<'a>(
         module_snippets: None,
         slot_elements: Vec::new(),
         slots_by_elements: false,
+        names: OnceCell::new(),
     };
     builder.tree.javascript = !component.checked_as_typescript(source);
     // svelte2tsx moves the root's snippets after the instance script's imports. Without one it
@@ -145,7 +148,7 @@ struct Builder<'a> {
     tree: SyntaxTree,
     element_callee: Option<NodeIdentifier>,
     attachment_key: Option<NodeIdentifier>,
-    component_name: Option<NodeIdentifier>,
+    component_instance_name: Option<NodeIdentifier>,
     /// Reused for each element, as elements' directives are done before their children.
     directives: directive::Directives,
     /// The root's snippets, which the instance script holds after its imports.
@@ -164,11 +167,12 @@ struct Builder<'a> {
     slot_elements: Vec<Range>,
     /// Whether the contract declares neither `$$Slots` nor `$$Events` and is not generic.
     slots_by_elements: bool,
+    /// What the component's names say about generated names, read when first needed.
+    names: OnceCell<names::Names<'a>>,
 }
 
-/// The source text at `at`, whose mapping ends at `end` when that is not its own end.
-fn source_expression(at: oxc_span::Span, end: Option<u32>) -> SourceExpression {
-    let span = span(at);
+/// The source text at `span`, whose mapping ends at `end` when that is not its own end.
+fn source_expression(span: Span, end: Option<u32>) -> SourceExpression {
     SourceExpression {
         span,
         end: end.unwrap_or(span.end_offset),
@@ -217,19 +221,40 @@ fn starts_with_object(mut e: &Expression<'_>) -> bool {
     }
 }
 
-/// The document position of an oxc node.
-const fn span(span: oxc_span::Span) -> Span {
-    Span::new(span.start, span.end)
-}
-
 impl Builder<'_> {
     fn expression(&self, identifier: ExpressionIdentifier) -> &Expression<'_> {
         self.component.javascript.get_expression(identifier)
     }
 
     fn source(&mut self, at: oxc_span::Span, end: Option<u32>) -> NodeIdentifier {
-        let expression = source_expression(at, end);
-        self.tree.push(Node::Source(expression))
+        self.source_at(document_span(at), end)
+    }
+
+    fn source_at(&mut self, span: Span, end: Option<u32>) -> NodeIdentifier {
+        self.tree.push(Node::Source(source_expression(span, end)))
+    }
+
+    /// The source text of `span` with each hole, in order, replaced by its node or removed.
+    fn spliced(
+        &mut self,
+        span: Span,
+        holes: impl IntoIterator<Item = (Span, Option<NodeIdentifier>)>,
+    ) -> Range {
+        let start = self.scratch.len();
+        let mut cursor = span.start_offset;
+        for (hole, node) in holes {
+            if cursor < hole.start_offset {
+                let copy = self.source_at(Span::new(cursor, hole.start_offset), None);
+                self.scratch.push(copy);
+            }
+            self.scratch.extend(node);
+            cursor = hole.end_offset;
+        }
+        if cursor < span.end_offset {
+            let copy = self.source_at(Span::new(cursor, span.end_offset), None);
+            self.scratch.push(copy);
+        }
+        self.finish_list(start)
     }
 
     fn expression_source(
@@ -326,7 +351,7 @@ impl Builder<'_> {
                 expression,
                 span: tag,
             } => {
-                let at = span(self.expression(expression).span());
+                let at = document_span(self.expression(expression).span());
                 self.mustache(expression, at, tag.end_offset - 1)
             }
             TemplateNode::Element {

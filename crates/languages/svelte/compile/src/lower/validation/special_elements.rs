@@ -230,7 +230,6 @@ fn validate_globals(
             && GlobalBinding::of(tag, attribute.name.text(source)).is_none()
         {
             crate::lower::bindings::check_binding(source, host, attributes, attribute)?;
-            return unsupported("this global binding", attribute.span);
         }
     }
     Ok(())

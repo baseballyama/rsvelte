@@ -12,13 +12,17 @@ use rsvelte_kernel::source::positions::LineBreaks;
 use crate::Refusal;
 use crate::syntax_tree::SyntaxTree;
 
-/// The code of a [`Printed`] error that svelte2tsx throws, which svelte-check reports as it is.
+/// The code of an [`EmittedProjection`] error that svelte2tsx throws, which svelte-check reports as
+/// it is.
 pub const THROWN: &str = "check_projection_thrown";
 
-#[derive(Debug)]
-pub struct Projected;
+/// The identifier of the task that writes each component's projection and its source map.
+pub const TASK: &str = "svelte.typescript_projection/default";
 
-impl Artifact for Projected {
+#[derive(Debug)]
+pub struct ProjectionTree;
+
+impl Artifact for ProjectionTree {
     type Output = Result<SyntaxTree, Diagnostic>;
 
     const NAME: &'static str = "svelte.typescript_projection.ast";
@@ -49,15 +53,18 @@ impl Artifact for Projected {
 }
 
 #[derive(Debug)]
-pub struct Printed;
+pub struct EmittedProjection;
 
-impl Artifact for Printed {
+impl Artifact for EmittedProjection {
     type Output = Result<Arc<Emitter>, Diagnostic>;
 
     const NAME: &'static str = "svelte.typescript_projection.emit";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let tree = context.get::<Projected>().as_ref().map_err(Clone::clone)?;
+        let tree = context
+            .get::<ProjectionTree>()
+            .as_ref()
+            .map_err(Clone::clone)?;
         Ok(Arc::new(crate::emit(
             tree,
             context.source_text(),
@@ -91,8 +98,8 @@ pub fn register_artifacts(registry: &mut Registry) {
     rsvelte_svelte_semantic::register(registry);
     registry
         .artifact::<crate::read::ResolvedAsChecked>()
-        .artifact::<Projected>()
-        .artifact::<Printed>();
+        .artifact::<ProjectionTree>()
+        .artifact::<EmittedProjection>();
 }
 
 #[derive(Debug)]
@@ -100,7 +107,7 @@ struct Project;
 
 impl Task for Project {
     fn identifier(&self) -> &'static str {
-        "svelte.typescript_projection/default"
+        TASK
     }
 
     fn applies(&self, document: &Document) -> bool {
@@ -108,7 +115,7 @@ impl Task for Project {
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-        match context.get::<Printed>() {
+        match context.get::<EmittedProjection>() {
             Ok(projection) => {
                 out.file("ts", projection.out.clone());
                 out.file(

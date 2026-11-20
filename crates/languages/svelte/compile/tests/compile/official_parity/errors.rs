@@ -362,8 +362,11 @@ fn a_binding_upstream_rejects_on_its_element_is_refused_on_both_targets() {
             "<input type=\"radio\" bind:checked={x} />",
             "bind_invalid_target",
         ),
-        ("<input type={t} bind:checked={x} />", "unsupported"),
-        ("<input type bind:value={x} />", "unsupported"),
+        (
+            "<input type={t} bind:checked={x} />",
+            "attribute_invalid_type",
+        ),
+        ("<input type bind:value={x} />", "attribute_invalid_type"),
         ("<input bind:files={x} />", "bind_invalid_target"),
         ("<div bind:value={x}></div>", "bind_invalid_target"),
         ("<div bind:innerHTML={x}></div>", "unsupported"),

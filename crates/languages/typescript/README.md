@@ -17,10 +17,10 @@ syntax.
 | `ts.check/default`   | JSON                     | Every document with a TypeScript view, by the type checker `typescript.check` names      |
 
 ```sh
-cargo run -p rsvelte_command_line -- run input.ts --task ts.compile/default
-cargo run -p rsvelte_command_line -- run input.ts --task ts.format/default
-cargo run -p rsvelte_command_line -- run input.ts --task ts.lint/default
-cargo run -p rsvelte_command_line -- run input.ts --task ts.check/default \
+cargo run -p rsvelte_command_line --bin rsvelte-dev -- run input.ts --task ts.compile/default
+cargo run -p rsvelte_command_line --bin rsvelte-dev -- run input.ts --task ts.format/default
+cargo run -p rsvelte_command_line --bin rsvelte-dev -- run input.ts --task ts.lint/default
+cargo run -p rsvelte_command_line --bin rsvelte-dev -- run input.ts --task ts.check/default \
   --options typescript.check '{"command": ["/path/to/tsc"]}'
 ```
 

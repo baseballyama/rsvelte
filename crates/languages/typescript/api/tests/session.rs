@@ -55,13 +55,14 @@ fn a_layer_supplies_files_the_disk_lacks() {
     assert!(!root.exists());
     let (config, file) = (root.join("tsconfig.json"), root.join("a.ts"));
     let layer = Layer {
-        files: vec![
+        files: [
             (
                 config.clone(),
                 r#"{"compilerOptions":{"strict":true}}"#.to_owned(),
             ),
             (file.clone(), "export const n: number = 's';\n".to_owned()),
-        ],
+        ]
+        .into(),
         links: Vec::new(),
     };
     let (program, _) = NodePackages::locate().type_checker();
@@ -84,14 +85,15 @@ fn a_syntax_error_in_one_file_keeps_the_type_errors_of_another() {
         root.join("typed.ts"),
     );
     let layer = Layer {
-        files: vec![
+        files: [
             (
                 config.clone(),
                 r#"{"compilerOptions":{"strict":true}}"#.to_owned(),
             ),
             (broken.clone(), "export const = ;\n".to_owned()),
             (typed.clone(), "export const n: number = 's';\n".to_owned()),
-        ],
+        ]
+        .into(),
         links: Vec::new(),
     };
     let (program, _) = NodePackages::locate().type_checker();

@@ -577,7 +577,7 @@
 		'M4',
 		'命令数の基準値を作業ツリーのテスト用の入力と期待値で測っていた',
 		'fixed',
-		'tools/performance/linux.ts',
+		'tools/performance/ratchet-linux.ts',
 	)}
 	<p>
 		以前は、作業ツリーに残ったローカルの出力（<code>actual/</code

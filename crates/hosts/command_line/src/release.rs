@@ -1,15 +1,17 @@
 //! `rsvelte`, the command people install: `lint`, `format` and `typecheck` over the Svelte and
 //! TypeScript files of a project.
 
+mod formatting;
+
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Arc;
 
+use formatting::{Refusal, Resolution, Resolved, Resolver};
 use rsvelte_plugin_interface::{Extension, Selection};
 
 use crate::commands::{files, format, lint, typecheck};
-use crate::formatting::{Refusal, Resolution, Resolved, Resolver};
 use crate::{Installation, configuration, configured_registry, install, usage};
 
 /// The plugins `rsvelte` installs, in installation order.
@@ -128,13 +130,38 @@ fn format_project(config: &configuration::Options, paths: &[&str], check: bool) 
     }
 }
 
-/// A plugin's options, as JSON, out of a file's resolved options.
-type OptionsOf = fn(&Resolved) -> String;
+/// A plugin `format` gives the resolved options.
+struct FormatPlugin {
+    name: &'static str,
+    formatter: &'static str,
+    /// The task that formats with it.
+    task: &'static str,
+    /// The options it takes, as JSON, out of a file's resolved options.
+    options: fn(&Resolved) -> String,
+    /// Reads them as the plugin does: the option it cannot print, if any.
+    read: fn(&str) -> serde_json::Result<Option<&'static str>>,
+}
 
-/// The plugins `format` gives the resolved options, with the options each takes.
-const FORMAT_PLUGINS: &[(&str, OptionsOf)] = &[
-    ("svelte.format", Resolved::svelte),
-    ("typescript.format", Resolved::typescript),
+const FORMAT_PLUGINS: &[FormatPlugin] = &[
+    FormatPlugin {
+        name: "svelte.format",
+        formatter: "Svelte",
+        task: "svelte.format/default",
+        options: Resolved::svelte,
+        read: |json| {
+            serde_json::from_str(json).map(|options| rsvelte_svelte_format::unported(&options))
+        },
+    },
+    FormatPlugin {
+        name: "typescript.format",
+        formatter: "TypeScript",
+        task: "ts.format/default",
+        options: Resolved::typescript,
+        read: |json| {
+            serde_json::from_str::<rsvelte_typescript_format::Options>(json)
+                .map(|options| options.formatter().err())
+        },
+    },
 ];
 
 fn format_resolved(
@@ -146,21 +173,18 @@ fn format_resolved(
     let named = |plugin: &str| {
         (loaded.as_ref()).is_some_and(|(_, l)| l.configuration.plugins.contains_key(plugin))
     };
-    let resolved_plugins: Vec<(&str, OptionsOf)> = (FORMAT_PLUGINS.iter())
-        .filter(|(plugin, _)| !named(plugin))
-        .copied()
+    let resolved_plugins: Vec<&FormatPlugin> = (FORMAT_PLUGINS.iter())
+        .filter(|plugin| !named(plugin.name))
         .collect();
-    let installation = |tasks: &[&str], options: &Resolved| Installation {
+    let installation = |plan: &Plan| Installation {
         extensions: EXTENSIONS,
-        selection: Selection::Named(tasks.iter().map(|&task| (*task).to_owned()).collect()),
-        defaults: (resolved_plugins.iter())
-            .map(|&(plugin, options_of)| (plugin, options_of(options)))
-            .collect(),
+        selection: Selection::Named(plan.tasks.iter().map(|&task| task.to_owned()).collect()),
+        defaults: plan.read.clone(),
     };
     let (selector, _) = install(
         loaded.as_ref(),
         &[],
-        installation(FORMAT, &Resolved::default()),
+        installation(&plan(&Resolved::default(), &resolved_plugins).0),
     )?;
     let here = std::env::current_dir().map_err(|e| format!("current directory: {e}"))?;
     let resolver = Arc::new(Resolver::new(here, !resolved_plugins.is_empty()));
@@ -185,29 +209,25 @@ fn format_resolved(
     let mut installed = Vec::new();
     let mut left = Vec::new();
     for (options, files) in groups {
-        let refused = refusal(&options, &resolved_plugins)?;
-        let tasks = if refused.is_some() {
-            &FORMAT[1..]
-        } else {
-            FORMAT
-        };
-        let (reg, _) = install(loaded.as_ref(), &[], installation(tasks, &options))
-            .map_err(|error| format!("{error} (from {})", sources(&options)))?;
-        let (formatted, svelte): (Vec<PathBuf>, Vec<PathBuf>) = files
-            .into_iter()
-            .partition(|file| files::applies(&reg, tasks, file));
-        if let Some(refused) = refused
-            && !svelte.is_empty()
-        {
-            left.push((svelte.len(), refused));
+        let (plan, refused) = plan(&options, &resolved_plugins);
+        let mut unformatted = files;
+        if !plan.tasks.is_empty() {
+            let (reg, _) = install(loaded.as_ref(), &[], installation(&plan))
+                .map_err(|error| format!("{error} (from {})", sources(&options)))?;
+            let formatted;
+            (formatted, unformatted) =
+                (unformatted.into_iter()).partition(|file| files::applies(&reg, &plan.tasks, file));
+            installed.push((reg, plan.tasks, formatted));
         }
-        installed.push((reg, tasks, formatted));
+        if let Some(refused) = refused
+            && !unformatted.is_empty()
+        {
+            left.push((unformatted.len(), refused));
+        }
     }
     let mut batches = Vec::new();
     for (reg, tasks, formatted) in &installed {
-        let documents = (formatted.iter())
-            .map(|file| files::read(reg, file.clone()))
-            .collect::<Result<_, _>>()?;
+        let documents = files::read_all(reg, formatted.iter().cloned(), tasks)?;
         batches.push(format::Batch {
             reg,
             tasks,
@@ -216,7 +236,12 @@ fn format_resolved(
     }
     let code = format::format(&batches, check);
     for (count, refusal) in &left {
-        eprintln!("rsvelte: {count} Svelte files were not formatted: {refusal}");
+        let files = if *count == 1 {
+            "1 file was".to_owned()
+        } else {
+            format!("{count} files were")
+        };
+        eprintln!("rsvelte: {files} not formatted: {refusal}");
     }
     Ok(if left.is_empty() {
         code
@@ -225,31 +250,81 @@ fn format_resolved(
     })
 }
 
-/// What a plugin that takes the resolved options cannot format with them: the TypeScript
-/// formatter's refusal refuses the run, and the Svelte formatter's, returned, leaves the Svelte
-/// files. A refusal of the sources is both formatters'.
-fn refusal(options: &Resolved, plugins: &[(&str, OptionsOf)]) -> Result<Option<Refusal>, String> {
-    let resolves = |plugin: &str| plugins.iter().any(|&(p, _)| p == plugin);
-    let refusal = |unprinted: Option<&str>, formatter: &str| {
-        (options.refused().cloned())
-            .or_else(|| unprinted.map(|name| options.refusal(name, formatter)))
+/// What `format` runs on one group's files: the tasks, and the options of each plugin that read
+/// them, as JSON. A plugin that cannot read its options is not in `read`, so installing a plan
+/// cannot fail on them.
+struct Plan {
+    tasks: Vec<&'static str>,
+    read: Vec<(&'static str, String)>,
+}
+
+/// Why a group's files are not all formatted.
+enum Refused {
+    /// The options cannot be loaded or honored at all, as a configuration that oxfmt cannot load:
+    /// no file of the group is formatted.
+    Group(Refusal),
+    /// One formatter does not print a value yet: the other still formats its files.
+    Formatter(Refusal),
+}
+
+/// The plan of a group, and the first refusal that leaves some or all of its files, as Prettier
+/// and oxfmt leave the files of a configuration they cannot load and format the others.
+fn plan(options: &Resolved, plugins: &[&FormatPlugin]) -> (Plan, Option<Refusal>) {
+    let mut plan = Plan {
+        tasks: FORMAT.to_vec(),
+        read: Vec::new(),
     };
-    if resolves("typescript.format") {
-        let typescript =
-            serde_json::from_str::<rsvelte_typescript_format::Options>(&options.typescript());
-        let unprinted = typescript.ok().and_then(|o| o.formatter().err());
-        if let Some(refused) = refusal(unprinted, "TypeScript") {
-            return Err(refused.to_string());
-        }
+    let mut first = None;
+    for plugin in plugins {
+        let json = (plugin.options)(options);
+        let refusal = match refused(options, plugin, &json) {
+            None => {
+                plan.read.push((plugin.name, json));
+                continue;
+            }
+            Some(Refused::Group(refusal)) => {
+                plan.tasks.clear();
+                refusal
+            }
+            Some(Refused::Formatter(refusal)) => {
+                plan.tasks.retain(|&task| task != plugin.task);
+                refusal
+            }
+        };
+        first.get_or_insert(refusal);
     }
-    if !resolves("svelte.format") {
-        return Ok(None);
+    (plan, first)
+}
+
+/// Why `plugin` cannot format with its options, `json`: it cannot read them, their sources are
+/// refused, or it does not print one of them.
+fn refused(options: &Resolved, plugin: &FormatPlugin, json: &str) -> Option<Refused> {
+    let Ok(unprinted) = (plugin.read)(json) else {
+        return Some(Refused::Group(unread(options, plugin)));
+    };
+    if let Some(refusal) = options.refused() {
+        return Some(Refused::Group(refusal.clone()));
     }
-    let svelte = serde_json::from_str(&options.svelte()).ok();
-    Ok(refusal(
-        svelte.as_ref().and_then(rsvelte_svelte_format::unported),
-        "Svelte",
-    ))
+    unprinted.map(|name| {
+        Refused::Formatter(options.refusal(name, |name| {
+            let formatter = plugin.formatter;
+            format!("the {formatter} formatter does not print this `{name}` value yet")
+        }))
+    })
+}
+
+/// The refusal of options `plugin` cannot read, named by the first option it cannot read alone.
+fn unread(options: &Resolved, plugin: &FormatPlugin) -> Refusal {
+    let reads = |name: &&str| (plugin.read)(&(plugin.options)(&options.only(name))).is_ok();
+    let name = (options.names())
+        .find(|name| !reads(name))
+        .unwrap_or("options");
+    options.refusal(name, |name| {
+        format!(
+            "the {} formatter cannot read this `{name}` value",
+            plugin.formatter
+        )
+    })
 }
 
 fn sources(options: &Resolved) -> String {

@@ -9,6 +9,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::bindings::{self, BindStrategy, attribute_value, property_of};
+use super::global_binding_table::GlobalBinding;
 use super::javascript::member_root;
 use super::{
     Attribute, AttributeValue, BindingKind, CompileInput, CompilerSyntaxTree, Diagnostic, Element,
@@ -72,7 +73,9 @@ pub(super) fn refuse(input: &CompileInput<'_>, res: &Resolution) -> Result<(), D
 }
 
 /// What one target does not lower. Upstream's client throws at a `let:` on an element that is
-/// not regular, a `<slot>` or `<svelte:fragment>`; its server ignores it.
+/// not regular, a `<slot>` or `<svelte:fragment>`, and at a binding named after a property no
+/// element has, such as an inherited `bind:toString`; its server ignores the first and renders
+/// the second as an attribute.
 pub(super) fn refuse_for_target(
     input: &CompileInput<'_>,
     target: Target,
@@ -95,6 +98,11 @@ pub(super) fn refuse_for_target(
         {
             return unsupported("a `let:` directive", a.span);
         }
+        if let NodeKind::Element(el) = &node.kind
+            && let Some((a, what)) = unknown_binding(input, el)
+        {
+            return unsupported(&what, a.span);
+        }
         // Upstream's client assigns to the name, `this = $$value`, which does not parse.
         if let NodeKind::Element(el) = &node.kind
             && let Some(a) = tree.attributes(el.attributes).iter().find(|a| {
@@ -107,6 +115,35 @@ pub(super) fn refuse_for_target(
         }
     }
     Ok(())
+}
+
+/// A binding of `el` whose name no element or global property has, which the client cannot
+/// lower, with what to call it.
+fn unknown_binding<'t>(input: &CompileInput<'t>, el: &Element) -> Option<(&'t Attribute, String)> {
+    let tree = input.component.compiler_syntax_tree;
+    let source = input.component.source_text;
+    let tag = match el.kind {
+        ElementKind::Regular => el.name.text(source),
+        ElementKind::Metadata(Some(MetadataTag::Element)) => "svelte:element",
+        ElementKind::Metadata(Some(
+            MetadataTag::Window | MetadataTag::Document | MetadataTag::Body,
+        )) => "",
+        _ => return None,
+    };
+    let known = |name: &str| match el.kind {
+        ElementKind::Metadata(Some(tag)) if tag != MetadataTag::Element => {
+            GlobalBinding::of(tag, name).is_some()
+        }
+        _ => property_of(name).is_some(),
+    };
+    let a = (tree.attributes(el.attributes).iter())
+        .find(|a| matches!(a.value, AttributeValue::Bind(_)) && !known(a.name.text(source)))?;
+    let what = if tag.is_empty() {
+        "this global binding".to_owned()
+    } else {
+        format!("`bind:{}` on this `<{tag}>`", a.name.text(source))
+    };
+    Some((a, what))
 }
 
 /// Whether `at` is in a component's content, which takes slot props, with no snippet between.
@@ -301,23 +338,10 @@ fn supported_binding(
     a: &Attribute,
 ) -> bool {
     let property = a.name.text(source_text);
-    let Some(p) = property_of(property) else {
-        return false;
-    };
     if bindings::check_binding(source_text, tag, attributes, a).is_err() {
         return false;
     }
-    // Upstream's `attribute_invalid_type`: only `bind:value` beside a `type` not written as text.
-    if tag == "input"
-        && attribute_value(source_text, attributes, "type").is_some_and(|ty| match ty {
-            AttributeValue::Static(_) => false,
-            AttributeValue::Boolean => true,
-            _ => property != "value",
-        })
-    {
-        return false;
-    }
-    if p.strategy == BindStrategy::ContentEditable {
+    if property_of(property).is_some_and(|p| p.strategy == BindStrategy::ContentEditable) {
         let editable = attribute_value(source_text, attributes, "contenteditable");
         if !matches!(
             editable,

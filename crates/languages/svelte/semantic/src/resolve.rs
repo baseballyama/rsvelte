@@ -264,13 +264,8 @@ impl Resolution {
         self.semantic().scoping()
     }
 
-    /// The first error a module rejects that no parser reported, in the scripts or the template.
-    #[must_use]
-    pub fn syntax_error(&self) -> Option<&rsvelte_kernel::diagnostics::Diagnostic> {
-        self.semantic().syntax_error()
-    }
-
-    /// [`Self::syntax_error`], with what acorn reports for it.
+    /// [`Semantic::syntax_error`](rsvelte_typescript_semantic::semantic::Semantic::syntax_error),
+    /// with what acorn reports for it.
     #[must_use]
     pub fn javascript_syntax_error(&self) -> Option<&rsvelte_typescript_tree::SyntaxError> {
         self.semantic().javascript_syntax_error()

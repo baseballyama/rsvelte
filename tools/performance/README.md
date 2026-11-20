@@ -3,14 +3,14 @@
 Every command is `node tools/performance/performance.ts <command>`; the header of
 `performance.ts` lists them with their options.
 
-| Command                                                     | Measures                                                                 |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `mise run performance` (`ratchet`)                          | Allocation ratchet over the corpus                                       |
-| `performance.ts linux`                                      | Allocation and instruction ratchets in Linux (`linux.Dockerfile`)        |
-| `mise run performance:cache <config.json> <report.json>`    | Cachegrind cache simulation and an optional baseline gate                |
-| `mise run performance:hardware <config.json> <report.json>` | Linux `perf` CPU and cache hardware events                               |
-| `performance.ts macos-cycles <config.json> <report.json>`   | macOS hardware CPU cycles and instructions, P-core share, peak footprint |
-| `mise run performance:test`                                 | Measurement tests and defect controls                                    |
+| Command                                                     | Measures                                                                  |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `mise run performance` (`ratchet`)                          | Allocation ratchet over the corpus                                        |
+| `performance.ts ratchet-linux`                              | Allocation and instruction ratchets in Linux (`ratchet-linux.Dockerfile`) |
+| `mise run performance:cache <config.json> <report.json>`    | Cachegrind cache simulation and an optional baseline gate                 |
+| `mise run performance:hardware <config.json> <report.json>` | Linux `perf` CPU and cache hardware events                                |
+| `performance.ts macos-cycles <config.json> <report.json>`   | macOS hardware CPU cycles and instructions, P-core share, peak footprint  |
+| `mise run performance:test`                                 | Measurement tests and defect controls                                     |
 
 `mise run performance` copies the built binary and writes the report into its own temporary
 directory, so a later build or run in the same tree cannot change what it measures. A build that
@@ -20,7 +20,7 @@ tree. Cargo reads `CARGO_BUILD_JOBS` from the environment.
 ## Cache profiles
 
 Run in Linux with `valgrind`, `cg_annotate`, Node and a release binary with debug line tables;
-`linux.Dockerfile` supplies these tools. Profile a frozen source tree, and use separate Cargo
+`ratchet-linux.Dockerfile` supplies these tools. Profile a frozen source tree, and use separate Cargo
 target directories for different source trees.
 
 The config has these fields:

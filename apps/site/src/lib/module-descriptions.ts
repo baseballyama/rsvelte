@@ -172,9 +172,27 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		title: '処理時間とメモリの計測',
 		summary: '処理ごとの時間と、メモリ割り当ての回数・大きさを測ります。',
 	},
-	'kernel/performance/measurement/imp/tests': {
+	'kernel/performance/measurement/phases': {
+		title: '処理ごとの計測',
+		summary:
+			'処理ごとの時間とメモリ割り当てを、スレッドごとの表に集めます。計測を有効にしたビルドだけで使います。',
+	},
+	'kernel/performance/measurement/phases/tests': {
 		title: '処理時間とメモリの計測のテスト',
 		summary: '終了したスレッドの計測値が、集計を取り出すまで残ることを確かめます。',
+	},
+	'kernel/performance/measurement/phases_disabled': {
+		title: '計測を外したときの処理ごとの計測',
+		summary: '計測を外したビルドの代わりの実装です。何もしないので、呼び出しごと最適化で消えます。',
+	},
+	'kernel/performance/parallel': {
+		title: '項目ごとの並列処理',
+		summary:
+			'項目をすべてのコアのスレッドで分けて処理し、結果を項目の順に返します。空いたスレッドが次の項目を取ります。',
+	},
+	'kernel/performance/parallel/tests': {
+		title: '項目ごとの並列処理のテスト',
+		summary: '結果が項目の順に並ぶこと、項目がないときは空を返すことを確かめます。',
 	},
 	'kernel/performance/stack': {
 		title: '深い入れ子のための呼び出しスタック',

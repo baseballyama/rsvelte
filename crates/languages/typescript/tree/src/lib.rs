@@ -378,6 +378,12 @@ impl Tree {
 mod computation;
 pub use computation::{PLUGIN, Parsed, Script, is_jsx, is_typescript, matches, register};
 
+/// The document span of an oxc node, whose offsets are already the document's.
+#[must_use]
+pub const fn document_span(span: oxc_span::Span) -> rsvelte_kernel::source::positions::Span {
+    rsvelte_kernel::source::positions::Span::new(span.start, span.end)
+}
+
 /// Upstream's `regex_is_valid_identifier` and `regex_valid_identifier`, both
 /// `/^[a-zA-Z_$][a-zA-Z_$0-9]*$/`: an ASCII-only name that can follow a `.`.
 #[must_use]

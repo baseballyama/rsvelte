@@ -271,9 +271,8 @@ impl Element<'_, '_> {
     }
 
     fn check(&mut self) {
-        let attributes = self.attributes.list.clone();
-        for attribute in attributes {
-            self.attribute(attribute);
+        for index in 0..self.attributes.list.len() {
+            self.attribute(self.attributes.list[index]);
         }
         self.handlers();
         if self.element_specific() {
@@ -312,7 +311,12 @@ impl Element<'_, '_> {
 
     /// The checks of one attribute, in the order the attributes are written.
     fn attribute(&mut self, attribute: &Attribute) {
-        let name = attribute.name.text(self.source).to_ascii_lowercase();
+        let text = attribute.name.text(self.source);
+        let name: Cow<'_, str> = if text.bytes().any(|b| b.is_ascii_uppercase()) {
+            Cow::Owned(text.to_ascii_lowercase())
+        } else {
+            Cow::Borrowed(text)
+        };
         let element = self.name;
         let span = attribute.span;
         if let Some(property) = name.strip_prefix("aria-") {
@@ -358,7 +362,7 @@ impl Element<'_, '_> {
                 );
             }
         }
-        match name.as_str() {
+        match &*name {
             "role" => self.role_attribute(attribute),
             "accesskey" => self.warn("a11y_accesskey", "Avoid using accesskey", span),
             "autofocus" if element != "dialog" && !self.parent.is(&["dialog"]) => {

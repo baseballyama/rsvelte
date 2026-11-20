@@ -48,7 +48,10 @@ describe('the overview figure draws only what the code shows', () => {
 				(key) => key.startsWith('kernel/') && !groups.has(key) && !/(^|\/)tests(\/|$)/.test(key),
 			);
 		expect(modules.length).toBeGreaterThan(10);
-		expect(modules.filter((key) => !drawn.has(key))).toEqual([]);
+		// A module inside a drawn module is drawn as part of it.
+		const isDrawn = (key: string) =>
+			drawn.has(key) || [...drawn].some((module) => key.startsWith(`${module}/`));
+		expect(modules.filter((key) => !isDrawn(key))).toEqual([]);
 	});
 
 	it('connects only nodes that exist', () => {

@@ -27,9 +27,9 @@ export const guideExamples = {
 	check:
 		'./target/release/rsvelte-dev run Counter.svelte \\\n  --task svelte.check/default \\\n  --options typescript.check "{\\"command\\": [\\"$TSC\\"]}" \\\n  --options svelte.check \'{"svelte": "typecheck-tools/node_modules/svelte"}\'',
 	wasmBuild:
-		'rustup target add wasm32-unknown-unknown\ncargo install wasm-pack --version 0.15.1 --locked\nwasm-pack build crates/hosts/browser --target web --release \\\n  --out-dir ../../../browser-package --out-name rsvelte_kernel_browser',
+		'rustup target add wasm32-unknown-unknown\ncargo install wasm-pack --version 0.15.1 --locked\nwasm-pack build crates/hosts/browser --target web --release \\\n  --out-dir ../../../browser-package --out-name rsvelte_browser',
 	wasmUse:
-		"import init, { runPipeline } from './browser-package/rsvelte_kernel_browser.js';\n\nawait init();\nconst result = JSON.parse(runPipeline(\n  '<p>Hello</p>', 'App.svelte', 'svelte', 'compile-client,lint', true\n));\n\nif (!result.ok) {\n  throw new Error(result.message);\n}\nfor (const step of result.steps) {\n  console.log(step.files, step.diagnostics);\n}",
+		"import init, { runPipeline } from './browser-package/rsvelte_browser.js';\n\nawait init();\nconst result = JSON.parse(runPipeline(\n  '<p>Hello</p>', 'App.svelte', 'svelte', 'compile-client,lint', true\n));\n\nif (!result.ok) {\n  throw new Error(result.message);\n}\nfor (const step of result.steps) {\n  console.log(step.files, step.diagnostics);\n}",
 	wasmPage:
 		'<!doctype html>\n<meta charset="utf-8" />\n<script type="module" src="./main.js"></script>',
 	wasmServe: 'python3 -m http.server 8000',

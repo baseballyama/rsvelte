@@ -81,7 +81,8 @@ pub(crate) fn format(batches: &[Batch<'_>], check: bool) -> ExitCode {
         }
         drop(writeln!(out, "{shown}"));
     }
-    if check {
+    // Nothing checked is no verdict, as when every file was refused.
+    if check && !formatted.is_empty() {
         if changed == 0 {
             drop(writeln!(
                 out,

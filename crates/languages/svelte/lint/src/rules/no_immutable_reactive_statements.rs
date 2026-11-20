@@ -7,16 +7,18 @@ use oxc_span::GetSpan;
 use oxc_syntax::operator::{AssignmentOperator, UnaryOperator};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte_semantic::legacy::{Legacy, Variable};
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::shared::legacy_reactivity::{bindings, expression_node, legacy};
+use super::shared::legacy_reactivity::{Legacy, Variable, bindings, expression_node, legacy};
 use super::shared::nodes::span;
 use super::shared::reactive_statements::{by_statement, reactive_statements};
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
+
+#[cfg(test)]
+mod tests;
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-immutable-reactive-statements",
@@ -46,7 +48,6 @@ impl SvelteRule for NoImmutableReactiveStatements {
             &ranges,
             (0..scoping.references_len())
                 .map(ReferenceId::from_usize)
-                .filter(|&id| is_value(scoping.get_reference(id)))
                 .map(|id| {
                     let node = scoping.get_reference(id).node_id();
                     (nodes.kind(node).span().start, id)
@@ -66,10 +67,12 @@ impl SvelteRule for NoImmutableReactiveStatements {
                         }
                     }
                     // A name no scope declares: `$$` builtins and names unknown to `ESLint` make
-                    // the statement reactive.
+                    // the statement reactive, type references included.
                     None if reference.symbol_id().is_none() => {
                         let name = name_of(resolution, id);
-                        if name.starts_with("$$") || !file.globals().declares(name) {
+                        if name.starts_with("$$")
+                            || !file.globals().resolves(name, reference.flags())
+                        {
                             reactive = true;
                             break;
                         }

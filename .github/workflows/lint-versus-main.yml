@@ -46,7 +46,7 @@ jobs:
       - run: node "$W/arms.ts" .main "$RUNNER_TEMP/arms"
       # One build at a time, so the two never compete for the runner.
       - run: |
-          for arm in main experimental; do
+          for arm in lint-main lint-experimental; do
             cargo build --release --manifest-path "$RUNNER_TEMP/arms/$arm/Cargo.toml" \
               --target-dir "$RUNNER_TEMP/target-$arm"
             mkdir -p bin
@@ -87,7 +87,7 @@ jobs:
           LABEL: ${{ matrix.os }}
         run: |
           M=(node "$W/measure.ts")
-          A=(--main bin/main-arm --experimental bin/experimental-arm --out results)
+          A=(--main bin/lint-main-arm --experimental bin/lint-experimental-arm --out results)
           "${M[@]}" platform "${A[@]}" --main-revision "$(cat bin/main-revision)" \
             --experimental-revision "$(cat bin/experimental-revision)" --label "$LABEL"
           "${M[@]}" universe "${A[@]}"
@@ -133,7 +133,7 @@ jobs:
           LABEL: ${{ matrix.os }}
         run: |
           M=(node "$W/measure.ts")
-          A=(--main bin/main-arm --experimental bin/experimental-arm --eslint "$W/eslint.ts" --out results)
+          A=(--main bin/lint-main-arm --experimental bin/lint-experimental-arm --eslint "$W/eslint.ts" --out results)
           "${M[@]}" platform "${A[@]}" --main-revision "$(cat bin/main-revision)" \
             --experimental-revision "$(cat bin/experimental-revision)" --label "$LABEL"
           "${M[@]}" universe "${A[@]}"
@@ -189,7 +189,7 @@ jobs:
           PART: ${{ matrix.part }}
         run: |
           M=(node "$W/measure.ts")
-          A=(--main bin/main-arm --experimental bin/experimental-arm --out results)
+          A=(--main bin/lint-main-arm --experimental bin/lint-experimental-arm --out results)
           # The same rules and inputs as the measure job, from the same binaries.
           "${M[@]}" universe "${A[@]}" > /dev/null
           "${M[@]}" check "${A[@]}" --inputs "$RUNNER_TEMP/stage/inputs.txt" --sample 20

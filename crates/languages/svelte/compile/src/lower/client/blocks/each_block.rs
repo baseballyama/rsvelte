@@ -316,7 +316,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         let key = self.expression(key);
         let mut pattern = pattern.clone_in_with_semantic_ids(b.allocator());
-        self.rewriter(true).visit_binding_pattern(&mut pattern);
+        self.rewriter().visit_binding_pattern(&mut pattern);
         let mut parameters = vec![b.parameter(pattern)];
         if key_uses_index {
             parameters.push(b.parameter(b.binding(index_name)));

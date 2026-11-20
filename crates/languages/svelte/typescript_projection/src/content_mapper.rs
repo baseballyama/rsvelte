@@ -1,5 +1,6 @@
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_content_mapper::write_mappings;
 
 /// The projection of the component at `path`, as the check prints it.
 pub fn write_transform(path: &str, source: &str, output: &mut StructuredDataWriter) {
@@ -37,8 +38,6 @@ pub fn write_transform(path: &str, source: &str, output: &mut StructuredDataWrit
     }
     output.end_object();
 }
-
-pub use rsvelte_typescript_content_mapper::write_mappings;
 
 fn write_diagnostic(code: u32, message: &str, span: Span, output: &mut StructuredDataWriter) {
     output
