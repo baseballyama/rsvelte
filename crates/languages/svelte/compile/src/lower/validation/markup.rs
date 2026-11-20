@@ -171,7 +171,7 @@ pub(in crate::lower) fn each_key(javascript: &Tree, each: &Each) -> Result<EachK
     each.key(javascript).map_err(|key| {
         let key = without_typescript(javascript.get_expression(key));
         let key = oxc_span::GetSpan::span(key);
-        super::super::special::error(
+        crate::lower::error(
             "each_key_without_as",
             "An `{#each ...}` block without an `as` clause cannot have a key",
             Span::new(key.start, key.end),
