@@ -23,7 +23,9 @@ fn string_to_number_rounds_radix_literals_once() {
             "{source}"
         );
     }
-    for source in ["0x", "-0x10", "0x1g", "1_0", "infinity", "."] {
+    for source in [
+        "0x", "-0x10", "0x1g", "0x+1", "0o+7", "0b+1", "1_0", "infinity", ".",
+    ] {
         assert!(string_to_number(source).is_nan(), "{source}");
     }
 }
