@@ -269,9 +269,8 @@
 					など）も使えます。名前だけを書くと、現在のディレクトリとその親の
 					<code>node_modules/.bin</code>
 					を探し、なければ <code>PATH</code> から探します。<code>contentMapper</code>
-					を省くと、実行中の <code>rsvelte</code> と同じディレクトリにある
-					<code>rsvelte-svelte-content-mapper</code> を使い、なければ <code>PATH</code>
-					から探します。
+					を省くと、<code>rsvelte-svelte-content-mapper</code> を使います。実行中の
+					<code>rsvelte</code> と同じディレクトリを探し、なければ <code>PATH</code> から探します。
 				</p>
 				<p>
 					型チェッカーが見つからない、版が古い、といった問題は、ファイルを読む前に報告します。同じ設定は、<code
