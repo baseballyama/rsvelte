@@ -154,6 +154,7 @@ fn parse_as(
             scripts,
             self_closing_blocks,
             ancestry: Ancestry::default(),
+            auto_closed: None,
         };
         // Upstream removes a leading byte order mark before parsing, so no node covers it.
         if source_text.starts_with('\u{feff}') {
@@ -358,6 +359,19 @@ struct Parser<'a, 'b> {
     /// Whether a self-closing `<script …/>` or `<style …/>` at the root is a plain element.
     self_closing_blocks: bool,
     ancestry: Ancestry,
+    /// Upstream's `last_auto_closed_tag`.
+    auto_closed: Option<AutoClosed<'a>>,
+}
+
+/// The latest element a start tag closed, kept until an end tag closes one of the elements that
+/// were open around it.
+#[derive(Clone, Copy)]
+struct AutoClosed<'a> {
+    name: &'a str,
+    /// The start tag that closed it.
+    by: &'a str,
+    /// How many fragments were open around it.
+    depth: u32,
 }
 
 /// What upstream reads off the open elements around the fragment being read.

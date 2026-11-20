@@ -85,3 +85,59 @@ fn only_a_regular_element_is_left_open_as_an_element() {
         "template(div(slot()))"
     );
 }
+
+#[test]
+fn an_end_tag_for_an_element_a_start_tag_closed_says_so_until_its_parent_closes() {
+    // Svelte 5.57.3's code and offset for each.
+    let autoclosed = "element_invalid_closing_tag_autoclosed";
+    let not_open = "element_invalid_closing_tag";
+    for (source, code, at) in [
+        ("<p>a<div>b</div></p>", autoclosed, 16),
+        ("<Foo><p>a<div>b</div></p></Foo>", autoclosed, 21),
+        ("{#if x}<p>a<div>b</div></p>{/if}", autoclosed, 23),
+        (
+            "<div><slot><p>a<div>b</div></p></slot></div>",
+            autoclosed,
+            27,
+        ),
+        ("<p>a<div>b</div><span></span></p>", autoclosed, 29),
+        ("<p>a<p>b<div></div></p>", autoclosed, 19),
+        ("{#if x}<p>a<div>b</div>{/if}</p>", autoclosed, 28),
+        (
+            "<div>{#if x}y{:else if z}<p>a<div></div></p>{/if}</div>",
+            autoclosed,
+            40,
+        ),
+        ("<p>a<div>b<p>c<span>d</span></p></div></p>", autoclosed, 38),
+        ("<li>a<li>b</li></li>", autoclosed, 15),
+        // An end tag that closes the auto-closed element's parent forgets it.
+        ("<div><p>a<div>b</div></div></p>", not_open, 27),
+        ("<div><p>a<div>b</div></div><span></span></p>", not_open, 40),
+        ("<ul><li>a<li>b</ul></li>", not_open, 19),
+        ("<Foo><p>a<div></div></Foo></p>", not_open, 26),
+        (
+            "<div>{#if x}<p>a<div></div>{:else if y}z{/if}</div></p>",
+            not_open,
+            51,
+        ),
+        ("<p>a<div>b</div></P>", not_open, 16),
+        ("<p>a<div>b</div></br>", "void_element_invalid_content", 16),
+        ("<p>a<div>b</div></p x>", "expected_token", 20),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert_eq!(
+            (&*error.code, error.span.start_offset),
+            (code, at),
+            "{source}"
+        );
+    }
+    let error = parse("<p>a<p>b<div></div></p>").expect_err("autoclosed");
+    assert!(
+        error.message.starts_with(
+            "`</p>` attempted to close element that was already automatically closed by `<div>` \
+             (cannot nest `<div>` inside `<p>`)"
+        ),
+        "{}",
+        error.message
+    );
+}
