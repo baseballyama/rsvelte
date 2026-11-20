@@ -1,5 +1,18 @@
 # @rsvelte/cli
 
+## 0.2.3
+
+### Patch Changes
+
+- fb3b328: Read `{let$: 1}`, `{constñ: 1}` and `{typeñ: 1}` as declaration tags of the wrong type, as Svelte does: a declaration keyword ends where an ASCII word ends.
+- 4ed91f3: `rsvelte format` now formats the other files when it cannot read or honor one configuration. It leaves the files of that configuration, names it, and exits with 2.
+- 8a3c481: A binding named after an inherited object property, such as `bind:toString` on a `<select>` with a dynamic `multiple`, now gets the same checks as any binding.
+- 318cb91: A binding on an `<input>` whose `type` is not static text now raises `attribute_invalid_type` as Svelte does. The compiler used to refuse it as unsupported.
+- 3c5a684: Lint reads `/* global */` and `/* globals */` comments, so `no-undef` and the rules that track globals see the names they declare or turn off.
+- 89b4ef4: `svelte/no-immutable-reactive-statements` reads the type references of a reactive statement, so an undeclared type or a `typeof` of a reassigned variable makes the statement reactive as in eslint-plugin-svelte.
+- a411f92: `rsvelte lint` prints the line and column `ESLint` prints for a file that starts with a byte order mark or uses `\r`, U+2028 or U+2029 line breaks. It prints a Svelte syntax error as `ESLint` does: the 0-based column and a `Parsing error: ` message with no rule.
+- 0b5746f: Svelte constant folding converts strings such as `"0x+1"`, long hex strings and large `ToInt32` inputs as JavaScript does.
+
 ## 0.2.2
 
 ### Patch Changes
