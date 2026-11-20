@@ -14,7 +14,7 @@ mod stores;
 mod writes;
 
 pub(super) use classes::Classes;
-pub(super) use exports::{Export, default_exports};
+pub(super) use exports::Export;
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::ast::{
     Argument, ArrowFunctionExpression, BindingIdentifier, ClassBody, Expression, Function,

@@ -10,7 +10,6 @@ mod builder;
 mod class_fields;
 mod client;
 mod component;
-mod const_cycles;
 mod custom_element;
 mod debug_tag;
 mod derived;

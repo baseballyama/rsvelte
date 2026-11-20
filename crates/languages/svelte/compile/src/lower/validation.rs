@@ -7,9 +7,12 @@ use rsvelte_typescript_tree::document_span;
 use rustc_hash::FxHashSet;
 
 mod awaits;
+mod const_cycles;
 mod declarations;
+mod exports;
 pub(super) mod markup;
 mod runes;
+mod snippets;
 mod special_elements;
 
 pub(super) use awaits::check as check_awaits;
@@ -18,8 +21,7 @@ use runes::script_and_template_errors;
 pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, script_error};
 
 use super::{
-    CompileInput, Diagnostic, Resolution, Span, Target, const_cycles, custom_element, script,
-    snippets, stores, unsupported_syntax,
+    CompileInput, Diagnostic, Resolution, Span, Target, custom_element, stores, unsupported_syntax,
 };
 
 /// An error upstream raises as it parses, before any other.
@@ -121,10 +123,10 @@ pub(crate) fn validate_unit(
     let names = stores::StoreSubscriptions::new(input, res);
     let mut errors = snippets::errors(input, res);
     if unit == Unit::Component {
-        errors.extend(script::default_exports(input));
+        errors.extend(exports::default_exports(input));
     }
     check_analysis(input, res, &names, unit, errors, custom_element.is_some())?;
-    let hoistable = snippets::hoistable(input, res, &names);
+    let hoistable = super::snippets::hoistable(input, res, &names);
     snippets::check_exports(input, res, &hoistable)?;
     const_cycles::check(input, res)?;
     // A refusal waits for the scripts' errors, which the rune checks raise only later.
