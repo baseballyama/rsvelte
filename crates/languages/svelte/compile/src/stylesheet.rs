@@ -27,7 +27,7 @@ pub(crate) fn scoped_stylesheet_with_mode(
         (Some(sheet), Some(hash)) => (sheet, hash),
         (Some(_), None) => unreachable!("a component with a style has a hash"),
     };
-    Some(rsvelte_stylesheet_compile::scope::render_with_mode(
+    Some(rsvelte_stylesheet_compile::scope::render(
         input.source_text,
         sheet,
         &an.stylesheet_used,

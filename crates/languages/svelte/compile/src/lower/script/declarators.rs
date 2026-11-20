@@ -50,12 +50,12 @@ pub(super) fn lower_value_declarator<'o>(
     let signal = (d.id.get_binding_identifier())
         .and_then(|identifier| identifier.symbol_id.get())
         .is_some_and(|symbol| rw.res.is_state_source(symbol, rw.accessors));
-    let lowering = Lowering {
+    let storage = RuneStorage {
         proxy,
         signal,
         keeps,
     };
-    d.init = Some(rune_value(rw, rune, Some(value), lowering));
+    d.init = Some(rune_value(rw, rune, Some(value), storage));
     true
 }
 
@@ -142,13 +142,13 @@ pub(super) fn lower_destructured_state<'o>(
         let signal = (binding.symbol_id.get())
             .is_some_and(|symbol| rw.res.is_state_source(symbol, rw.accessors));
         // Upstream proxies each path, as none is a value `should_proxy` keeps.
-        let lowering = Lowering {
+        let storage = RuneStorage {
             proxy: rune == "$state",
             signal,
             keeps: false,
         };
         let value = if client {
-            rune_value(rw, rune, Some(path.value), lowering)
+            rune_value(rw, rune, Some(path.value), storage)
         } else {
             path.value
         };
@@ -172,7 +172,7 @@ fn rune_argument<'o>(rw: &ScriptRewrite<'_, 'o>, d: &mut VariableDeclarator<'o>)
 
 /// How a declaration lowers its state or derived rune.
 #[derive(Clone, Copy)]
-pub(super) struct Lowering {
+pub(super) struct RuneStorage {
     /// `$state` makes a deep proxy of its value.
     pub proxy: bool,
     /// The client keeps the state in a signal, not as its plain value.
@@ -187,18 +187,18 @@ pub(super) fn rune_value<'o>(
     rw: &ScriptRewrite<'_, 'o>,
     rune: &str,
     value: Option<Expression<'o>>,
-    lowering: Lowering,
+    storage: RuneStorage,
 ) -> Expression<'o> {
     let b = rw.b;
     match rune {
         "$state" | "$state.raw" if rw.target == Target::Client => {
-            let value = if lowering.proxy {
+            let value = if storage.proxy {
                 value.map(|v| b.runtime("proxy", [v]))
             } else {
                 value
             };
             match value {
-                Some(value) if !lowering.signal => value,
+                Some(value) if !storage.signal => value,
                 value => b.runtime("state", value),
             }
         }
@@ -206,7 +206,7 @@ pub(super) fn rune_value<'o>(
         "$derived" => {
             let value = value.expect("validation keeps a derived's argument");
             let callback = b.arrow(b.parameters([]), value);
-            let callback = if lowering.keeps {
+            let callback = if storage.keeps {
                 super::super::builder::unthunk(callback)
             } else {
                 callback

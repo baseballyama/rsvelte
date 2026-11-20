@@ -1,13 +1,9 @@
 //! What the script and the template translations share: the names svue adds, the runtime helpers
 //! it imports, and the rewrite every user expression goes through.
 
-use oxc_ast::ast::{
-    BindingIdentifier, Expression, IdentifierName, IdentifierReference, ImportDeclarationSpecifier,
-    ImportOrExportKind, ModuleExportName, Statement, StringLiteral,
-};
+use oxc_ast::ast::{BindingIdentifier, Expression, IdentifierName, IdentifierReference, Statement};
 use oxc_ast_visit::Visit;
 use oxc_semantic::SymbolId;
-use oxc_span::SPAN;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_compile::Target;
@@ -17,8 +13,6 @@ use rsvelte_vue_semantic::compiler_syntax_tree::{CompilerSyntaxTree, PropertyKin
 use rsvelte_vue_semantic::resolve::Resolution;
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, SingleFileComponent};
 use rustc_hash::{FxHashMap, FxHashSet};
-
-use crate::Translation;
 
 pub(crate) type R<T> = Result<T, Diagnostic>;
 
@@ -179,28 +173,12 @@ impl<'v> Names<'v> {
         modules
             .into_iter()
             .map(|m| {
-                let specifiers =
-                    self.helpers
-                        .iter()
-                        .filter(|(h, _)| h.module() == m)
-                        .map(|(h, local)| {
-                            ImportDeclarationSpecifier::new_import_specifier(
-                                SPAN,
-                                ModuleExportName::new_identifier_name(SPAN, b.str(h.export()), b),
-                                BindingIdentifier::new(SPAN, b.str(local), b),
-                                ImportOrExportKind::Value,
-                                b,
-                            )
-                        });
-                Statement::new_import_declaration(
-                    SPAN,
-                    Some(b.vec(specifiers)),
-                    StringLiteral::new(SPAN, b.str(m), None, b),
-                    None,
-                    None,
-                    ImportOrExportKind::Value,
-                    b,
-                )
+                let specifiers = self
+                    .helpers
+                    .iter()
+                    .filter(|(h, _)| h.module() == m)
+                    .map(|(h, local)| (h.export(), local.as_str()));
+                b.import(specifiers, m)
             })
             .collect()
     }
@@ -335,7 +313,4 @@ pub(crate) fn can_never_be_ref(e: &Expression<'_>) -> bool {
 }
 
 mod rewrite;
-
-mod translate;
 pub(crate) use rewrite::Rewriter;
-pub(crate) use translate::translate;

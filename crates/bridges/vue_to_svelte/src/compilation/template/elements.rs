@@ -1,8 +1,18 @@
-use super::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, Directive, DirectiveName, Expression,
-    NodeKind, Property, PropertyKind, R, Span, SvelteElement, SvelteNodeIdentifier, SvelteNodeKind,
-    T, TagType, Target, directive, expression_of, is_boolean_attribute, svelte, unsupported,
+use oxc_ast::ast::Expression;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::Target;
+use rsvelte_svelte_semantic::compiler_syntax_tree as svelte;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier as SvelteNodeIdentifier,
+    Element as SvelteElement, NodeKind as SvelteNodeKind,
 };
+use rsvelte_vue_semantic::compiler_syntax_tree::{
+    CompilerNodeIdentifier, Directive, NodeKind, Property, PropertyKind, TagType,
+};
+use rsvelte_vue_syntax::syntax_tree::DirectiveName;
+
+use super::{T, directive, expression_of, is_boolean_attribute};
+use crate::compilation::context::{R, unsupported};
 
 /// Whether Vue's runtime leaves the attribute as written: runtime-dom's `shouldSetAsProp` sets
 /// some names as DOM properties, and these properties either do not reflect to the attribute or

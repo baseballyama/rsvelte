@@ -1,5 +1,5 @@
 use super::*;
-use crate::helpers;
+use crate::compilation::helpers;
 
 /// The module for one target on one line, or the refusal's message.
 fn run(source_text: &str, server: bool) -> Result<String, String> {

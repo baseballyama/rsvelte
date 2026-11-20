@@ -183,7 +183,7 @@ impl Analysis<'_> {
         };
         let span = super::Span::new(at.start, at.end);
         if self.fields.by_name.contains_key(name.as_ref()) {
-            return super::special::invalid(
+            return crate::lower::invalid(
                 "state_field_duplicate",
                 &format!("`{name}` has already been declared on this class"),
                 span,
@@ -244,7 +244,7 @@ impl Analysis<'_> {
 }
 
 fn duplicate_class_field<T>(name: &str, span: super::Span) -> Result<T, Diagnostic> {
-    super::special::invalid(
+    crate::lower::invalid(
         "duplicate_class_field",
         &format!("`{name}` has already been declared"),
         span,

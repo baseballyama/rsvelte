@@ -1,7 +1,7 @@
 //! Upstream's transition checks of an element.
 
-use super::super::super::special::invalid;
 use super::{Attribute, AttributeValue, Diagnostic};
+use crate::lower::invalid;
 
 /// Upstream's `transition_duplicate` and `transition_conflict`: one intro and one outro per
 /// element, whatever their modifiers.

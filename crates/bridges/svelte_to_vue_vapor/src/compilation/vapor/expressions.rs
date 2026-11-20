@@ -10,10 +10,12 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_span::GetSpan;
 use oxc_syntax::scope::ScopeFlags;
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_vue_semantic::resolve::{BindingType, call_name};
 
 use super::{Body, Emitter};
-use crate::compilation::asynchronous::has_await;
+use crate::compilation::markers;
+use crate::compilation::script::{property_target, rune_value, runes};
 
 mod asynchronous;
 pub(super) use asynchronous::script_getter;
@@ -44,7 +46,7 @@ impl<'o> Emitter<'_, 'o> {
         e: &Expression<'_>,
         body: &mut Body<'o>,
     ) -> Expression<'o> {
-        if has_await(e) {
+        if is_expression_async(e) {
             return self.async_text(e, body);
         }
         self.rewrite(e, Memo::Render, Some(body))
@@ -157,7 +159,7 @@ impl<'o> Emitter<'_, 'o> {
         }
         // Svelte refuses `$` declarations, so a `$$` name is a compiler constant, never a ref.
         if kind == Some(BindingType::SetupMaybeRef) && !id.name.starts_with("$$") {
-            self.helpers.insert("unref");
+            self.vue_imports.insert("unref");
             return Some(b.call(b.id("$$v_unref"), [b.id_at(&id.name, id.span)]));
         }
         None
@@ -173,11 +175,11 @@ impl<'o> Emitter<'_, 'o> {
         };
         match d.init.as_ref() {
             Some(Expression::AwaitExpression(a)) => {
-                call_name(&a.argument) == Some("$$async_derived")
+                call_name(&a.argument) == Some(markers::ASYNC_DERIVED)
             }
             Some(init) => matches!(
                 call_name(init),
-                Some("$$ref" | "$$computed" | "$$prop_cell")
+                Some(markers::REF | markers::COMPUTED | markers::PROP_CELL)
             ),
             None => false,
         }
@@ -210,7 +212,9 @@ impl<'o> Rewrite<'_, '_, 'o> {
         match self.memo {
             Memo::None => false,
             Memo::Render => self.e.t.template.memoized.contains(&it.span()),
-            Memo::Callback => self.e.t.template.memoized.contains(&it.span()) && !has_await(it),
+            Memo::Callback => {
+                self.e.t.template.memoized.contains(&it.span()) && !is_expression_async(it)
+            }
         }
     }
 
@@ -218,21 +222,21 @@ impl<'o> Rewrite<'_, '_, 'o> {
         let Expression::CallExpression(call) = it else {
             return None;
         };
-        if matches!(&call.callee, Expression::Identifier(id) if id.name == "$$group_source") {
+        if matches!(&call.callee, Expression::Identifier(id) if id.name == markers::GROUP_SOURCE) {
             let Some(Argument::Identifier(id)) = call.arguments.first() else {
                 unreachable!("a group source names its binding")
             };
             return Some(self.e.b.id(&id.name));
         }
         let name = rune_name(&call.callee)?;
-        if !crate::script::runes::value(&name) {
+        if !runes::value(&name) {
             return None;
         }
         let mut argument = call.arguments.pop().map(Argument::into_expression);
         if let Some(argument) = &mut argument {
             self.visit_expression(argument);
         }
-        crate::script::rune_value(self.e.b, &name, argument, self.e.t.tracking)
+        rune_value(self.e.b, &name, argument, self.e.t.tracking)
     }
 }
 
@@ -269,7 +273,8 @@ impl<'o> VisitMut<'o> for Rewrite<'_, '_, 'o> {
 
     fn visit_static_member_expression(&mut self, it: &mut StaticMemberExpression<'o>) {
         // A pattern's intermediate cell is read as the template translation wrote it.
-        if matches!(&it.object, Expression::Identifier(id) if id.name.starts_with("$$pattern_"))
+        if let Expression::Identifier(id) = &it.object
+            && id.name.starts_with(markers::PATTERN_PREFIX)
             && it.property.name == "value"
         {
             return;
@@ -296,7 +301,7 @@ impl<'o> VisitMut<'o> for Rewrite<'_, '_, 'o> {
                 self.visit_expression(init);
             }
             let target = SimpleAssignmentTarget::StaticMemberExpression(m);
-            *it = crate::script::property_target(self.e.b, p, target, init);
+            *it = property_target(self.e.b, p, target, init);
             return;
         }
         walk_mut::walk_assignment_target_property(self, it);

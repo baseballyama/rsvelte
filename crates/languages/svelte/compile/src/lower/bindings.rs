@@ -3,15 +3,15 @@
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 
-use super::special::invalid;
 use super::{Attribute, AttributeValue};
+use crate::lower::invalid;
 
 #[cfg(test)]
 mod tests;
 
 /// How the client keeps a bound property in sync with its target.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum Lowering {
+pub(super) enum BindStrategy {
     /// `$.bind_property(name, event, node, set, get?)`; the getter only when bidirectional.
     Event(&'static str),
     /// `$.<runtime>(node, get, set)`.
@@ -29,7 +29,7 @@ pub(super) enum Lowering {
 }
 
 pub(super) struct Property {
-    pub lowering: Lowering,
+    pub strategy: BindStrategy,
     pub bidirectional: bool,
     /// The server renders nothing for it.
     pub client_only: bool,
@@ -38,9 +38,9 @@ pub(super) struct Property {
 const MEDIA: &[&str] = &["audio", "video"];
 const INPUT: &[&str] = &["input"];
 
-const fn property(lowering: Lowering, bidirectional: bool, client_only: bool) -> Property {
+const fn property(strategy: BindStrategy, bidirectional: bool, client_only: bool) -> Property {
     Property {
-        lowering,
+        strategy,
         bidirectional,
         client_only,
     }
@@ -138,6 +138,15 @@ const INHERITED: &[&str] = &[
     "__lookupSetter__",
 ];
 
+/// Where the binding `name` is valid, or `None` when upstream's `name in binding_properties`
+/// fails. That test also finds what every object inherits, a property with no element rules.
+fn hosts_of(name: &str) -> Option<Hosts> {
+    match BINDINGS.iter().find(|&&(n, _)| n == name) {
+        Some(&(_, hosts)) => Some(hosts),
+        None => INHERITED.contains(&name).then_some(Hosts::Any),
+    }
+}
+
 /// Upstream `BindDirective`'s checks of the binding `a` against `host`, the tag as written.
 ///
 /// # Errors
@@ -156,10 +165,7 @@ pub(super) fn check_binding(
         let message = format!("`bind:{name}` is not a valid binding{explanation}");
         invalid("bind_invalid_name", &message, a.span)
     };
-    let Some(&(_, hosts)) = BINDINGS.iter().find(|&&(n, _)| n == name) else {
-        if INHERITED.contains(&name) {
-            return Ok(());
-        }
+    let Some(hosts) = hosts_of(name) else {
         let names: Vec<&str> = BINDINGS.iter().map(|&(n, _)| n).collect();
         if let Some(near) = rsvelte_svelte_semantic::fuzzymatch::fuzzymatch(name, &names)
             && BINDINGS.iter().any(|&(n, h)| {
@@ -258,7 +264,7 @@ fn invalid_target(name: &str, elements: &str, a: &Attribute) -> Result<(), Diagn
 
 /// The element property `name`, or `None` when no element takes it.
 pub(super) fn property_of(name: &str) -> Option<Property> {
-    use Lowering::{Accessors, ContentEditable, Event, Group, Measured, Setter, This, Value};
+    use BindStrategy::{Accessors, ContentEditable, Event, Group, Measured, Setter, This, Value};
     Some(match name {
         "currentTime" => property(Accessors("bind_current_time"), true, true),
         "duration" => property(Event("durationchange"), false, true),

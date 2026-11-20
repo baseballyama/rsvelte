@@ -23,14 +23,13 @@ mod token;
 mod whitespace;
 
 pub use element_rules::{AUTOCLOSING_CHILDREN, Autoclosing, is_void};
-use identifier::is_identifier_continue;
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
-use rsvelte_typescript_tree::{Builder, SyntaxError, Tree};
+use rsvelte_typescript_tree::{SyntaxError, Tree, TreeBuilder};
 use rustc_hash::FxHashSet;
 
 use crate::syntax_tree::{
@@ -342,7 +341,7 @@ struct Parser<'a, 'b> {
     /// The component's text, in the arena.
     source_text: &'a str,
     position: usize,
-    builder: &'b mut Builder<'a>,
+    builder: &'b mut TreeBuilder<'a>,
     component: Template,
     /// Whether expressions parse as TypeScript, before a script element says.
     typescript: bool,
@@ -499,14 +498,5 @@ impl<'a> Parser<'a, '_> {
             start: self.component.children.len() as u32,
             len: 0,
         }
-    }
-
-    fn at_word(&self, word: &str) -> bool {
-        self.rest().starts_with(word)
-            && !self
-                .rest()
-                .get(word.len()..)
-                .and_then(|r| r.chars().next())
-                .is_some_and(is_identifier_continue)
     }
 }

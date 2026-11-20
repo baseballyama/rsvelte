@@ -1,10 +1,14 @@
 use oxc_ast::ast::{Expression, ObjectPropertyKind};
-
-use super::{
-    AttributeValue, CompilerNodeIdentifier, Helper, Namespace, NodeKind, Parent, R, Template,
-    TypedIndex, clean_nodes, spelled, template_end, unsupported, vue,
+use rsvelte_kernel::index::TypedIndex;
+use rsvelte_svelte_compile::render_plan::{Namespace, Parent, clean_nodes, template_end};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    AttributeValue, CompilerNodeIdentifier, NodeKind,
 };
-use crate::compilation::string_key;
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
+
+use super::{Template, spelled};
+use crate::compilation::helpers::Helper;
+use crate::compilation::{R, markers, string_key, unsupported};
 
 /// A component's props object: its fields, and the `--` custom properties its wrapper styles.
 struct Fields<'t> {
@@ -42,10 +46,15 @@ impl<'t> Template<'_, '_, 't> {
             self.template_expression(expression)
         };
         let lead_count = properties.len();
-        properties.push(self.bound("$$type", element.name, component, node.span));
+        properties.push(self.bound(markers::TYPE_KEY, element.name, component, node.span));
         let Fields { mut fields, styles } = self.component_properties(identifier)?;
         let snippets = self.component_children(identifier, parent, &mut fields)?;
-        properties.push(self.bound("$$props", element.name, b.object(fields), node.span));
+        properties.push(self.bound(
+            markers::PROPS_KEY,
+            element.name,
+            b.object(fields),
+            node.span,
+        ));
         for attribute in tree.attributes(element.attributes) {
             if attribute.name.text(self.i.source_text) == "this"
                 && let AttributeValue::Bind(target) = attribute.value
@@ -54,7 +63,12 @@ impl<'t> Template<'_, '_, 't> {
                 if !self.i.server {
                     let assignment = self.binding_write(target, b.id("$$component"));
                     let setter = b.arrow(b.parameters(["$$component"]), assignment);
-                    properties.push(self.bound("$$ref", attribute.span, setter, attribute.span));
+                    properties.push(self.bound(
+                        markers::REF_KEY,
+                        attribute.span,
+                        setter,
+                        attribute.span,
+                    ));
                 }
             }
         }
@@ -71,9 +85,9 @@ impl<'t> Template<'_, '_, 't> {
         let kind = vue::NodeKind::Element(vue::Element {
             tag: spelled(
                 if boundary {
-                    "$$Boundary"
+                    markers::BOUNDARY
                 } else {
-                    "$$Component"
+                    markers::COMPONENT
                 },
                 element.name,
             ),

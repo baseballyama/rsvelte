@@ -47,6 +47,8 @@ impl Parser<'_, '_> {
         self.token(kind, start_offset);
     }
 
+    /// Upstream's `eat`: `word` as a prefix, so `asx` reads `as` and the whitespace after it is
+    /// what fails.
     pub(super) fn eat_word(&mut self, kind: TokenType, word: &str) -> bool {
         if !self.rest().starts_with(word) {
             return false;

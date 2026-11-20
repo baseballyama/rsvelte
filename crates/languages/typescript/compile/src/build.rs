@@ -5,9 +5,10 @@ use oxc_allocator::{Allocator, ArenaBox, ArenaVec, GetAllocator};
 use oxc_ast::ast;
 use oxc_ast::ast::{
     Argument, ArrayExpressionElement, AssignmentOperator, AssignmentTarget, BinaryOperator,
-    BindingPattern, Expression, FormalParameters, IdentifierName, LogicalOperator,
+    BindingIdentifier, BindingPattern, Expression, FormalParameters, IdentifierName,
+    ImportDeclarationSpecifier, ImportOrExportKind, LogicalOperator, ModuleExportName,
     ObjectPropertyKind, PropertyKey, PropertyKind, SimpleAssignmentTarget, Statement,
-    TemplateElement, TemplateElementValue, UnaryOperator, VariableDeclarationKind,
+    StringLiteral, TemplateElement, TemplateElementValue, UnaryOperator, VariableDeclarationKind,
     VariableDeclarator,
 };
 use oxc_ast::builder::{AstBuilder, GetAstBuilder};
@@ -282,6 +283,16 @@ impl<'o> Builder<'o> {
         Expression::new_logical_expression(SPAN, left, operator, right, self)
     }
 
+    #[must_use]
+    pub fn conditional(
+        &self,
+        test: Expression<'o>,
+        consequent: Expression<'o>,
+        alternate: Expression<'o>,
+    ) -> Expression<'o> {
+        Expression::new_conditional_expression(SPAN, test, consequent, alternate, self)
+    }
+
     pub fn sequence(
         &self,
         expressions: impl IntoIterator<Item = Expression<'o>>,
@@ -349,6 +360,32 @@ impl<'o> Builder<'o> {
     #[must_use]
     pub fn return_(&self, argument: Option<Expression<'o>>) -> Statement<'o> {
         Statement::new_return_statement(SPAN, argument, self)
+    }
+
+    /// `import { imported as local, … } from "source"`.
+    pub fn import<'n>(
+        &self,
+        specifiers: impl IntoIterator<Item = (&'n str, &'n str)>,
+        source: &str,
+    ) -> Statement<'o> {
+        let specifiers = specifiers.into_iter().map(|(imported, local)| {
+            ImportDeclarationSpecifier::new_import_specifier(
+                SPAN,
+                ModuleExportName::new_identifier_name(SPAN, self.str(imported), self),
+                BindingIdentifier::new(SPAN, self.str(local), self),
+                ImportOrExportKind::Value,
+                self,
+            )
+        });
+        Statement::new_import_declaration(
+            SPAN,
+            Some(self.vec(specifiers)),
+            StringLiteral::new(SPAN, self.str(source), None, self),
+            None,
+            None,
+            ImportOrExportKind::Value,
+            self,
+        )
     }
 
     #[must_use]

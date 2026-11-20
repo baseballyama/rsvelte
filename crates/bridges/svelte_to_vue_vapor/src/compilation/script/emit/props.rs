@@ -4,6 +4,7 @@ use rsvelte_typescript_compile::build::Builder;
 
 use super::super::prop_cell;
 use super::ScriptRewrite;
+use crate::compilation::markers;
 
 /// What a template read of a prop becomes: `$$props.<key>`, `$$attrs` for the rest, or the
 /// prop's cell, which Vue unwraps.
@@ -50,7 +51,7 @@ pub(super) fn prop_declarations<'t>(rw: &mut ScriptRewrite<'_, 't>, body: &mut V
             unreachable!("a prop has a key")
         };
         let value = b.call(
-            b.id("$$prop_cell"),
+            b.id(markers::PROP_CELL),
             [
                 b.id("$$props"),
                 b.string(&key.name),

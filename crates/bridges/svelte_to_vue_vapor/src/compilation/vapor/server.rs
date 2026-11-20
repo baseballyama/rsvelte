@@ -1,13 +1,14 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{Expression, ObjectPropertyKind, Statement};
-use oxc_span::SPAN;
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, Element, NodeKind, PropertyKind, TagType,
 };
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{Body, Emitter, method};
-use crate::compilation::asynchronous::has_await;
+use crate::compilation::markers;
+use crate::compilation::script::async_arrow;
 
 impl<'o> Emitter<'_, 'o> {
     /// `{ renderContent }` for setup to return, and the `ssrRender` that prints it.
@@ -22,7 +23,7 @@ impl<'o> Emitter<'_, 'o> {
             && self.t.template.custom_element.is_none()
             && self.t.stylesheet.is_some()
         {
-            self.helpers.insert("useSSRContext");
+            self.vue_imports.insert("useSSRContext");
             let [hash, stylesheet] = self.stylesheet_values();
             let style = b.call(
                 b.id("$$render_css"),
@@ -30,7 +31,7 @@ impl<'o> Emitter<'_, 'o> {
             );
             content = self.join(vec![style, content]);
         }
-        if self.helpers.contains("useSSRContext") {
+        if self.vue_imports.contains("useSSRContext") {
             let renderer = self.call("useSSRContext", []);
             body.insert(b.const_("$$ssr_context", renderer));
         }
@@ -61,7 +62,7 @@ impl<'o> Emitter<'_, 'o> {
         let mut declarations = Vec::new();
         let mut index = 0;
         while index < nodes.len() {
-            if self.tag(nodes[index]) == "$$Snippet" {
+            if self.tag(nodes[index]) == markers::SNIPPET {
                 declarations.push(self.snippet_declaration(nodes[index], true));
                 index += 1;
                 continue;
@@ -91,14 +92,14 @@ impl<'o> Emitter<'_, 'o> {
             return content;
         };
         let condition = self.source(condition);
-        let asynchronous = has_await(condition);
+        let asynchronous = is_expression_async(condition);
         let condition = self.expression(condition);
         let otherwise = if nodes.len() > 1 {
             self.server_if(&nodes[1..])
         } else {
             b.string("")
         };
-        let result = Expression::new_conditional_expression(SPAN, condition, content, otherwise, b);
+        let result = b.conditional(condition, content, otherwise);
         self.server_async(result, asynchronous)
     }
 
@@ -107,7 +108,7 @@ impl<'o> Emitter<'_, 'o> {
         if self.t.template.scopes.contains(&identifier) {
             return self.scope(identifier, true);
         }
-        if self.tag(identifier) == "$$Await" {
+        if self.tag(identifier) == markers::AWAIT {
             return self.server_await(identifier);
         }
         if let Some(directive) = self.structural(identifier, DirectiveName::For) {
@@ -115,7 +116,7 @@ impl<'o> Emitter<'_, 'o> {
                 unreachable!("a loop directive")
             };
             let source = self.source(each.source);
-            let asynchronous = has_await(source);
+            let asynchronous = is_expression_async(source);
             let source = self.expression(source);
             let parameters = self.res.tree().get_parameters(each.parameters);
             let mut parameters = parameters.clone_in_with_semantic_ids(b.allocator());
@@ -135,8 +136,8 @@ impl<'o> Emitter<'_, 'o> {
                 let source = self.source(expression);
                 let value = self.expression(source);
                 let escaped = b.call(b.id("$$escape"), [value]);
-                if has_await(source) {
-                    b.call(crate::script::async_arrow(b, escaped), [])
+                if is_expression_async(source) {
+                    b.call(async_arrow(b, escaped), [])
                 } else {
                     escaped
                 }
@@ -221,13 +222,7 @@ impl<'o> Emitter<'_, 'o> {
                 let content =
                     self.join(vec![content, b.string("</"), b.id("$$tag"), b.string(">")]);
                 let test = b.call(b.id("$$is_void"), [b.id("$$tag")]);
-                output.push(Expression::new_conditional_expression(
-                    SPAN,
-                    test,
-                    b.string(""),
-                    content,
-                    b,
-                ));
+                output.push(b.conditional(test, b.string(""), content));
             } else {
                 output.push(content);
                 output.push(b.string(&format!("</{tag}>")));
@@ -238,13 +233,12 @@ impl<'o> Emitter<'_, 'o> {
             return self.server_async(content, asynchronous);
         }
         let source = self.source(
-            self.bound(identifier, Some("$$tag"))
+            self.bound(identifier, Some(markers::TAG_KEY))
                 .expect("a dynamic tag"),
         );
-        asynchronous |= has_await(source);
+        asynchronous |= is_expression_async(source);
         let value = self.expression(source);
-        let content =
-            Expression::new_conditional_expression(SPAN, b.id("$$tag"), content, b.string(""), b);
+        let content = b.conditional(b.id("$$tag"), content, b.string(""));
         let content = if asynchronous {
             b.call(b.id("$$resolve_html"), [content])
         } else {
@@ -267,22 +261,22 @@ impl<'o> Emitter<'_, 'o> {
         let children = tree.children(element.children);
         Some(match tag {
             "slot" if self.t.template.custom_element.is_some() => self.server_list(children),
-            "$$Boundary" => self.server_boundary(identifier),
-            "$$Component" => self.server_component(identifier),
-            "$$Title" => {
-                self.helpers.insert("useSSRContext");
+            markers::BOUNDARY => self.server_boundary(identifier),
+            markers::COMPONENT => self.server_component(identifier),
+            markers::TITLE => {
+                self.vue_imports.insert("useSSRContext");
                 let asynchronous = children.iter().any(|&child| {
                     matches!(tree.node(child).kind, NodeKind::Interpolation { expression }
-                        if has_await(self.source(expression)))
+                        if is_expression_async(self.source(expression)))
                 });
                 let value = self.title_text(identifier, &mut Body::default());
                 let result = b.call(b.id("$$render_title"), [b.id("$$ssr_context"), value]);
                 self.server_async(result, asynchronous)
             }
-            "$$Render" | "$$RawMarkup" => self.server_value(identifier),
+            markers::RENDER | markers::RAW_MARKUP => self.server_value(identifier),
             "svelte:window" | "svelte:document" | "svelte:body" => b.string(""),
             "svelte:head" => {
-                self.helpers.insert("useSSRContext");
+                self.vue_imports.insert("useSSRContext");
                 let content = self.server_list(children);
                 b.call(b.id("$$render_head"), [b.id("$$ssr_context"), content])
             }
@@ -295,7 +289,7 @@ impl<'o> Emitter<'_, 'o> {
     fn server_value(&mut self, identifier: CompilerNodeIdentifier) -> Expression<'o> {
         let source = self.source(self.bound(identifier, None).expect("a value"));
         let value = self.expression(source);
-        self.server_async(value, has_await(source))
+        self.server_async(value, is_expression_async(source))
     }
 
     /// The attributes of an element's opening tag, pushed to `output`.
@@ -337,15 +331,21 @@ impl<'o> Emitter<'_, 'o> {
                         .arg
                         .as_ref()
                         .map(|name| name.text(self.source_text));
-                    if matches!(name, Some("$$key" | "$$ref" | "$$tag")) {
+                    if matches!(
+                        name,
+                        Some(markers::KEY_KEY | markers::REF_KEY | markers::TAG_KEY)
+                    ) {
                         continue;
                     }
                     let source = self.source(expression);
-                    tag_parts.asynchronous |= has_await(source);
+                    tag_parts.asynchronous |= is_expression_async(source);
                     let value = self.expression(source);
                     match name {
-                        Some(content @ ("$$html_content" | "$$text_content")) => {
-                            tag_parts.editable = Some((value, content == "$$html_content"));
+                        Some(
+                            content @ (markers::MARKUP_CONTENT_KEY | markers::TEXT_CONTENT_KEY),
+                        ) => {
+                            tag_parts.editable =
+                                Some((value, content == markers::MARKUP_CONTENT_KEY));
                         }
                         Some("value") if tag == "textarea" => tag_parts.textarea = Some(value),
                         Some("style") => styles.push(value),
@@ -385,7 +385,7 @@ impl<'o> Emitter<'_, 'o> {
         }
         let b = self.b;
         let value = b.call(b.id("$$resolve_html"), [content]);
-        b.call(crate::script::async_arrow(b, value), [])
+        b.call(async_arrow(b, value), [])
     }
 
     fn join(&self, parts: Vec<Expression<'o>>) -> Expression<'o> {

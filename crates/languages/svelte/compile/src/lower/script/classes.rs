@@ -14,7 +14,7 @@ use oxc_syntax::scope::ScopeFlags;
 
 use super::super::class_fields::{ClassFields, StateField, class_fields, key_name, member_name};
 use super::super::javascript::without_typescript;
-use super::declarators::{Lowering, rune_value};
+use super::declarators::{RuneStorage, rune_value};
 use super::writes::assignment_value;
 use super::{ScriptRewrite, Target};
 use crate::lower::builder::Runtime;
@@ -142,12 +142,12 @@ impl<'o> ScriptRewrite<'_, 'o> {
         if let Some(argument) = &mut argument {
             self.visit_expression(argument);
         }
-        let lowering = Lowering {
+        let storage = RuneStorage {
             proxy,
             signal: true,
             keeps: true,
         };
-        Some(rune_value(self, rune, argument, lowering))
+        Some(rune_value(self, rune, argument, storage))
     }
 
     /// The getter and the setter of a public state field: on the client they read and write

@@ -1,6 +1,9 @@
 use oxc_ast::ast::Expression;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue};
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 
-use super::{Attribute, AttributeValue, Helper, Steps, Template, attribute, vue};
+use super::{Steps, Template, attribute};
+use crate::compilation::helpers::Helper;
 
 impl<'t> Template<'_, '_, 't> {
     /// A plain attribute's value as an expression.

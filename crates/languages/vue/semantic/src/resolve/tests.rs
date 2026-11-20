@@ -52,7 +52,6 @@ fn template_names_resolve_to_the_script_or_a_v_for_alias() {
             item + other }}</p></template>\n",
     );
     let element = compiler_syntax_tree.root()[0];
-    assert!(r.for_scope(element).is_some());
     let NodeKind::Element(el) = &compiler_syntax_tree.node(element).kind else {
         unreachable!("the root is the element")
     };

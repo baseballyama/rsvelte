@@ -1,11 +1,16 @@
 use oxc_ast::ast::{BinaryOperator, Expression};
-
-use super::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Helper,
-    Item, Name, Namespace, NodeKind, Parent, Part, R, Span, Steps, Template, directive, spelled,
-    unsupported, vue,
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::render_plan::{Item, Namespace, Parent};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind, Part,
 };
-use crate::compilation::string_key;
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
+use rsvelte_vue_semantic::compiler_syntax_tree::Name;
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
+
+use super::{Steps, Template, directive, spelled};
+use crate::compilation::helpers::Helper;
+use crate::compilation::{R, markers, string_key, unsupported};
 
 /// Svelte's `LOAD_ERROR_ELEMENTS`: its server marks `onload` / `onerror` on them so that the
 /// client can replay an event that fired before hydration.
@@ -79,7 +84,7 @@ impl<'t> Template<'_, '_, 't> {
                     ));
                 }
             };
-            props.push(self.bound("$$tag", el.name, value, attribute.span));
+            props.push(self.bound(markers::TAG_KEY, el.name, value, attribute.span));
         }
         let mut steps = Steps::default();
         let select_target = self.element_attributes(
@@ -95,13 +100,13 @@ impl<'t> Template<'_, '_, 't> {
             captured_events(attributes, source_text, &mut props);
         }
         if let Some(f) = self.ref_function(steps) {
-            props.push(self.bound("$$ref", el.name, f, el.name));
+            props.push(self.bound(markers::REF_KEY, el.name, f, el.name));
         }
         let range = self.vb.props(props);
         let tag_type = self.vb.tag_type(tag, range, source_text);
         let kind = vue::NodeKind::Element(vue::Element {
             tag: if el.kind == super::ElementKind::Title && namespace == Namespace::Html {
-                spelled("$$Title", el.name)
+                spelled(markers::TITLE, el.name)
             } else {
                 Name::Source(el.name)
             },
@@ -164,12 +169,12 @@ impl<'t> Template<'_, '_, 't> {
             .iter()
             .map(|part| match *part {
                 Part::Text(span) => Item::Text {
-                    data: rsvelte_svelte_compile::lower::Text::transformed(
+                    data: rsvelte_svelte_compile::render_plan::Text::transformed(
                         span,
                         source_text,
                         rsvelte_svelte_syntax::syntax_tree::decode_attribute,
                     ),
-                    raw: rsvelte_svelte_compile::lower::Text::Source(span),
+                    raw: rsvelte_svelte_compile::render_plan::Text::Source(span),
                 },
                 Part::Expression { expression, .. } => Item::Expression(expression),
             })

@@ -48,6 +48,7 @@ rsvelte_svelte_to_vue_vapor.workspace = true
 rayon.workspace = true
 libc.workspace = true
 ignore.workspace = true
+globset.workspace = true
 json-strip-comments.workspace = true
 
 [dev-dependencies]

@@ -1,11 +1,17 @@
-use oxc_ast::ast::{BindingIdentifier, BindingPattern};
-
-use super::{
-    Argument, Branch, CompilerNodeIdentifier, CompilerSyntaxTree, Directive, DirectiveExpression,
-    DirectiveName, Each, Element, Expression, Helper, NodeKind, Property, PropertyKind, R, Span,
-    SvelteNodeIdentifier, SvelteNodeKind, T, TagType, directive, directives, expression_of,
-    output_span, span_of, svelte, unsupported,
+use oxc_ast::ast::{Argument, BindingIdentifier, BindingPattern, Expression};
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_semantic::compiler_syntax_tree as svelte;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Branch, CompilerNodeIdentifier as SvelteNodeIdentifier, Each, NodeKind as SvelteNodeKind,
 };
+use rsvelte_vue_semantic::compiler_syntax_tree::{
+    CompilerNodeIdentifier, CompilerSyntaxTree, Directive, Element, NodeKind, Property,
+    PropertyKind, TagType,
+};
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
+
+use super::{T, directive, directives, expression_of};
+use crate::compilation::context::{Helper, R, output_span, span_of, unsupported};
 
 /// The `:key` of a `v-for` element.
 fn directive_key<'h>(

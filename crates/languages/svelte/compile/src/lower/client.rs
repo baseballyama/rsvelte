@@ -48,8 +48,8 @@ use super::script::{Read, ScriptRewrite};
 use super::slot_element::has_slot_element;
 use super::{
     Builder, Item, Prepared, Target, escape_markup, event_attribute, has_dependency, is_behaviour,
-    is_custom_element_node, is_customizable_select, is_directive, is_load_error_element,
-    needs_clsx, synthetic_value, unsupported, uses_slots,
+    is_customizable_select, is_directive, is_load_error_element, needs_clsx, synthetic_value,
+    unsupported, uses_slots,
 };
 use crate::lower::builder::{Runtime, export_default, import};
 use crate::render_plan::RenderPlan;
@@ -148,7 +148,7 @@ struct ClientCompilationContext<'c, 'o> {
     an: &'c Analysis,
     names: Names<'c>,
     hoisted: Vec<Statement<'o>>,
-    templates: FxHashMap<(&'static str, u32, String), String>,
+    templates: FxHashMap<(crate::render_plan::Namespace, u32, String), String>,
     events: Vec<String>,
     /// How the template's names in scope are read.
     reads: FxHashMap<SymbolId, Read>,
@@ -182,11 +182,11 @@ struct ClientCompilationContext<'c, 'o> {
 }
 
 pub(super) fn lower_prepared<'c, 'o>(
-    facts: super::Lowering<'c, 'o>,
+    facts: super::LoweringFacts<'c, 'o>,
     prepared: Prepared<'c, 'o>,
     b: &Builder<'o>,
 ) -> R<Vec<Statement<'o>>> {
-    let super::Lowering {
+    let super::LoweringFacts {
         input,
         res,
         an,

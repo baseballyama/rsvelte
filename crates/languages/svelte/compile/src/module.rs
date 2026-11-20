@@ -16,8 +16,8 @@ use rsvelte_svelte_semantic::resolve::resolve_module;
 use rsvelte_svelte_semantic::warnings::module_warnings;
 use rsvelte_typescript_compile::print;
 
-use crate::lower::{self, CompileInput, Target};
 use crate::warnings::OPTIONS;
+use crate::{CompileInput, Target, lower};
 
 /// A module `compileModule` reads; a `.svelte.ts` one is read with its types. A declaration file
 /// only describes a module, and nothing compiles it at runtime.

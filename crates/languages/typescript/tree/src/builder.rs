@@ -29,7 +29,7 @@ use crate::{
 };
 
 /// Parses parts of one document into its arena.
-pub struct Builder<'a> {
+pub struct TreeBuilder<'a> {
     allocator: &'a Allocator,
     source_text: &'a str,
     programs: Vec<Program<'a>>,
@@ -65,16 +65,16 @@ impl<'a> Part<'_, 'a> {
     }
 }
 
-impl std::fmt::Debug for Builder<'_> {
+impl std::fmt::Debug for TreeBuilder<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Builder")
+        f.debug_struct("TreeBuilder")
             .field("programs", &self.programs.len())
             .field("expressions", &self.expressions.len())
             .finish_non_exhaustive()
     }
 }
 
-impl<'a> Builder<'a> {
+impl<'a> TreeBuilder<'a> {
     pub(crate) const fn new(allocator: &'a Allocator, source_text: &'a str) -> Self {
         Self {
             allocator,
@@ -442,12 +442,12 @@ impl<'a> Builder<'a> {
         crate::push(&mut self.expressions, expression)
     }
 
-    /// Keeps a program built in [`Builder::nodes`]'s arena, such as one a compiler writes.
+    /// Keeps a program built in [`TreeBuilder::nodes`]'s arena, such as one a compiler writes.
     pub fn keep_program(&mut self, program: Program<'a>) -> ProgramIdentifier {
         crate::push(&mut self.programs, program)
     }
 
-    /// Keeps a parameter list built in [`Builder::nodes`]'s arena, such as aliases a compiler
+    /// Keeps a parameter list built in [`TreeBuilder::nodes`]'s arena, such as aliases a compiler
     /// writes.
     pub fn keep_parameters(&mut self, parameters: FormalParameters<'a>) -> ParametersIdentifier {
         crate::push(&mut self.parameters, parameters)

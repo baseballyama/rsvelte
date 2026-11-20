@@ -3,54 +3,66 @@
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::Arc;
 
-use ignore::gitignore::Gitignore;
 use rsvelte_kernel::computation::pipeline::{self, DocumentResult, RunOptions, Sharing};
 use rsvelte_kernel::computation::registry::{Project, Registry};
 use rsvelte_kernel::source::document::Document;
 
 use crate::usage;
 
-/// What a walk skips besides `node_modules`, `.git` and what `.gitignore` and `.ignore` skip:
-/// what each of `files` skips, and `patterns`.
-#[derive(Clone, Copy, Default)]
-pub(crate) struct Skip<'a> {
-    pub(crate) files: &'a [&'a str],
-    pub(crate) patterns: Option<&'a Gitignore>,
-}
-
-/// The documents of every file below `paths` that a task of `tasks` reads and `skip` keeps, in
-/// the order of their path strings, as `ESLint` lists them: `a-b/x` before `a/x`.
+/// The documents of every file below `paths` that a task of `tasks` reads, in the order of their
+/// path strings, as `ESLint` lists them: `a-b/x` before `a/x`. What `node_modules`, `.git`,
+/// `.gitignore`, `.ignore` and each of `ignore_files` skip is skipped.
 pub(crate) fn load(
     reg: &Registry,
     paths: &[&str],
     tasks: &[&str],
-    skip: Skip<'_>,
+    ignore_files: &[&str],
 ) -> Result<Vec<Document>, String> {
-    let read = |path: &Path| {
-        let probe = reg.document(path.to_string_lossy().into_owned(), String::new());
-        probe.is_ok_and(|document| reg.applies(tasks, &document))
+    let walk = Walk {
+        ignore_files,
+        prune: None,
     };
-    find(paths, skip, &read)?
+    find(paths, &walk, &|path| applies(reg, tasks, path))?
         .into_iter()
-        .map(|file| {
-            let text =
-                std::fs::read_to_string(&file).map_err(|e| format!("{}: {e}", file.display()))?;
-            document(reg, file, text)
-        })
+        .map(|file| read(reg, file))
         .collect()
 }
 
-/// The files below `paths` that `keep` keeps and `skip` does not skip, sorted. A named file is
+/// Whether a task of `tasks` reads the file at `path`.
+pub(crate) fn applies(reg: &Registry, tasks: &[&str], path: &Path) -> bool {
+    let probe = reg.document(path.to_string_lossy().into_owned(), String::new());
+    probe.is_ok_and(|document| reg.applies(tasks, &document))
+}
+
+/// The document of the file at `path`.
+pub(crate) fn read(reg: &Registry, path: PathBuf) -> Result<Document, String> {
+    let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    document(reg, path, text)
+}
+
+/// Leaves the directories it says, without reading them.
+pub(crate) trait Prune: Send + Sync {
+    fn prunes(&self, directory: &Path) -> bool;
+}
+
+/// What a walk skips besides `node_modules`, `.git` and what `.gitignore` and `.ignore` skip.
+pub(crate) struct Walk<'a> {
+    pub(crate) ignore_files: &'a [&'a str],
+    pub(crate) prune: Option<Arc<dyn Prune>>,
+}
+
+/// The files below `paths` that `keep` keeps and `walk` does not skip, sorted. A named file is
 /// taken as it is.
 pub(crate) fn find(
     paths: &[&str],
-    skip: Skip<'_>,
+    walk: &Walk<'_>,
     keep: &dyn Fn(&Path) -> bool,
 ) -> Result<Vec<PathBuf>, String> {
     let mut files = Vec::new();
     for path in paths {
-        collect(skip, keep, Path::new(path), &mut files)?;
+        collect(walk, keep, Path::new(path), &mut files)?;
     }
     files.sort_unstable_by(|a, b| a.as_os_str().cmp(b.as_os_str()));
     files.dedup();
@@ -95,7 +107,7 @@ pub(crate) fn run(
 }
 
 fn collect(
-    skip: Skip<'_>,
+    skip: &Walk<'_>,
     keep: &dyn Fn(&Path) -> bool,
     path: &Path,
     files: &mut Vec<PathBuf>,
@@ -105,7 +117,6 @@ fn collect(
         files.push(path.to_owned());
         return Ok(());
     }
-    let here = std::env::current_dir().map_err(|e| format!("current directory: {e}"))?;
     // Inside a repository, `.gitignore` files and excludes count up to the repository root, as
     // oxfmt and git read them. Outside one, every `.gitignore` still counts.
     let root = std::fs::canonicalize(path).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -115,20 +126,15 @@ fn collect(
     let mut walk = ignore::WalkBuilder::new(path);
     // Dotfiles are source too.
     walk.hidden(false).require_git(in_repository);
-    for name in skip.files {
+    for name in skip.ignore_files {
         walk.add_custom_ignore_filename(name);
     }
-    let patterns = skip.patterns.cloned();
+    let prune = skip.prune.clone();
     walk.filter_entry(move |entry| {
-        if matches!(entry.file_name().to_str(), Some("node_modules" | ".git")) {
-            return false;
-        }
-        // A path outside the patterns' root is not theirs to skip.
-        patterns.as_ref().is_none_or(|patterns| {
-            let path = here.join(entry.path());
-            let directory = entry.file_type().is_some_and(|kind| kind.is_dir());
-            !path.starts_with(patterns.path()) || !patterns.matched(&path, directory).is_ignore()
-        })
+        let skipped = matches!(entry.file_name().to_str(), Some("node_modules" | ".git"));
+        let directory = entry.depth() > 0 && entry.file_type().is_some_and(|kind| kind.is_dir());
+        let pruned = directory && prune.as_ref().is_some_and(|p| p.prunes(entry.path()));
+        !(skipped || pruned)
     });
     for entry in walk.build() {
         let entry = entry.map_err(|e| e.to_string())?;

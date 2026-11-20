@@ -4,7 +4,7 @@ use oxc_ast::ast::Program;
 use oxc_semantic::{Host, HostVisitor, ScopeFlags, ScopeId};
 use rsvelte_typescript_tree::Tree;
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, LoopExpression};
-use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 
 use crate::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind, PropertyKind,
@@ -17,7 +17,7 @@ pub(super) struct TemplateHost<'t, 'a> {
     pub(super) nested_setup: Option<&'a Program<'a>>,
     pub(super) compiler_syntax_tree: Option<&'t CompilerSyntaxTree>,
     /// The scopes the `v-for` elements opened, once the builder has visited the template.
-    pub(super) for_scopes: RefCell<FxHashMap<CompilerNodeIdentifier, ScopeId>>,
+    pub(super) alias_scopes: RefCell<FxHashSet<ScopeId>>,
 }
 
 impl<'a> Host<'a> for TemplateHost<'_, 'a> {
@@ -81,7 +81,7 @@ impl<'a> TemplateHost<'_, 'a> {
                     visitor.leave_scope();
                     // The pass that only counts nodes sets no id.
                     if let Some(id) = scope.get() {
-                        self.for_scopes.borrow_mut().insert(n, id);
+                        self.alias_scopes.borrow_mut().insert(id);
                     }
                 }
             }

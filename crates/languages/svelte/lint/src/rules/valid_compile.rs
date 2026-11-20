@@ -2,7 +2,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use serde::Deserialize;
 
-use super::shared::compile_warnings::{Postcss, apply, ignores};
+use super::shared::compile_warnings::{Postcss, compile, ignores};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 use crate::settings::Warning;
 
@@ -38,28 +38,14 @@ struct ValidCompile {
 
 impl SvelteRule for ValidCompile {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let Some(compile) = file.compile_warnings() else {
-            return;
-        };
         let component = file.component().expect("a component rule");
         let source = file.source();
-        let config = match file.svelte_config() {
+        let compiled = match compile(file, &ignores(component, source), self.postcss) {
+            None => return,
             Some(Err(why)) => return reporter.fail(why),
-            Some(Ok(config)) => Some(config),
-            None => None,
+            Some(Ok(compiled)) => compiled,
         };
-        let compile = match compile {
-            Ok(compile) => compile,
-            Err(error) => return report(reporter, error, &error.message, &error.code),
-        };
-        let experimental_async = config.is_some_and(|c| c.experimental_async);
-        let applied = apply(
-            file,
-            compile,
-            &ignores(component, source),
-            experimental_async,
-            self.postcss,
-        );
+        let (config, applied) = (compiled.config, compiled.applied);
         if let Some(error) = &applied.error {
             report(reporter, error, &error.message, &error.code);
             return;

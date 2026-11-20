@@ -1,8 +1,11 @@
 use oxc_ast::ast::{BindingPattern, Declaration, Program, Statement};
 use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::resolve::Resolution;
+use rustc_hash::FxHashMap;
 
-use super::{FxHashMap, R, Resolution, runes, span_of, unsupported};
+use super::runes;
+use crate::compilation::{R, span_of, unsupported};
 
 pub(super) fn check(
     program: &Program<'_>,

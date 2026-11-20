@@ -7,11 +7,12 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_semantic::{NodeId, SymbolId};
 use oxc_span::SPAN;
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_compile::build::Builder;
 use rsvelte_typescript_compile::strip::Strip;
 use rustc_hash::FxHashMap;
 
-use super::super::{BindingKind, Plan, Resolution, constructors, prop_cell, runes};
+use super::super::{Plan, constructors, prop_cell, runes};
 use super::rune_value;
 
 /// Copies script nodes into the translation's tree: `x.value` for `$state` and `$derived`,
@@ -43,7 +44,7 @@ impl<'r, 't> ScriptRewrite<'r, 't> {
             constructors: &plan.constructors,
             constructor_storage: FxHashMap::default(),
             server,
-            tracking: plan.auxiliary.contains_key("$effect.tracking") && !server,
+            tracking: plan.tracking(server),
             private_fields: Vec::new(),
         }
     }

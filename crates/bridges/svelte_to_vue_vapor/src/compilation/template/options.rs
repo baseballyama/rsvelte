@@ -1,7 +1,8 @@
 use oxc_ast::ast::{Expression, ObjectExpression, ObjectPropertyKind, PropertyKey};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
-use super::{Attribute, AttributeValue, R, unsupported};
+use crate::compilation::{R, unsupported};
 
 mod custom_element;
 

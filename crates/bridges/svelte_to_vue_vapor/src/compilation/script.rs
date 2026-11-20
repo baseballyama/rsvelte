@@ -16,12 +16,11 @@ use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::compilation::span_of;
-use crate::{R, unsupported};
+use crate::compilation::{R, span_of, unsupported};
 
 /// What `plan` found: the script's runes and the names the template needs.
 #[derive(Debug, Default)]
-pub struct Plan {
+pub(crate) struct Plan {
     constructors: constructors::Plan,
     pub(super) module_exports: FxHashMap<SymbolId, String>,
     pub(super) core_patterns: bool,
@@ -39,8 +38,15 @@ pub struct Plan {
     pub(crate) namespaces: Option<rsvelte_svelte_compile::render_plan::Namespaces>,
     pub(super) props_id: Option<SymbolId>,
     /// `...rest` in `$props()`: read through Vue's `useAttrs()`.
-    pub rest: Option<SymbolId>,
+    pub(crate) rest: Option<SymbolId>,
     pub(super) auxiliary: FxHashMap<&'static str, Span>,
+}
+
+impl Plan {
+    /// Whether the client component reads `$effect.tracking()`.
+    pub(crate) fn tracking(&self, server: bool) -> bool {
+        !server && self.auxiliary.contains_key("$effect.tracking")
+    }
 }
 
 /// The names Vue's compiler treats as macros wherever they are called.

@@ -8,8 +8,7 @@ use rsvelte_svelte_semantic::resolve::BindingKind;
 
 use super::RuneWalk;
 use crate::lower::paths::bound_names;
-use crate::lower::special::invalid;
-use crate::lower::{Diagnostic, span_of};
+use crate::lower::{Diagnostic, invalid, span_of};
 
 impl RuneWalk<'_> {
     /// Upstream raises these after it visits the declaration: an exported derived, an exported

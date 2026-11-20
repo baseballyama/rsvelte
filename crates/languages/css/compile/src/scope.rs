@@ -13,7 +13,7 @@ pub enum RenderMode {
 }
 
 #[must_use]
-pub fn render_with_mode(
+pub fn render(
     source: &str,
     sheet: &StyleSheet,
     used: &[bool],

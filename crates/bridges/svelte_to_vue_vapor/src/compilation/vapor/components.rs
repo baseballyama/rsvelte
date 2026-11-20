@@ -1,10 +1,10 @@
 use oxc_ast::ast::{Expression, LogicalOperator};
-use oxc_span::SPAN;
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rsvelte_vue_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 
 use super::{Body, Emitter};
-use crate::compilation::asynchronous::has_await;
+use crate::compilation::markers;
 
 impl<'a, 'o> Emitter<'a, 'o> {
     fn component_value(
@@ -34,17 +34,11 @@ impl<'a, 'o> Emitter<'a, 'o> {
             body.push(declaration);
         }
         let mut component =
-            self.expression(self.source(self.component_value(identifier, "$$type")));
-        let source = self.source(self.component_value(identifier, "$$props"));
+            self.expression(self.source(self.component_value(identifier, markers::TYPE_KEY)));
+        let source = self.source(self.component_value(identifier, markers::PROPS_KEY));
         let props = self.render_expression(source, body);
-        if has_await(source) {
-            component = Expression::new_conditional_expression(
-                SPAN,
-                self.copy_output(&props),
-                component,
-                b.null(),
-                b,
-            );
+        if is_expression_async(source) {
+            component = b.conditional(self.copy_output(&props), component, b.null());
         }
         let props = b.call(b.id("$$component_props"), [props]);
         let sources = b.array([self.arrow(props)]);
@@ -53,7 +47,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
             [self.arrow(component), b.object([b.init("$", sources)])],
         );
         let fragment = self.declare(value, body);
-        if let Some(setter) = self.bound(identifier, Some("$$ref")) {
+        if let Some(setter) = self.bound(identifier, Some(markers::REF_KEY)) {
             let setter = self.expression(self.source(setter));
             let call = self.call(
                 "setTemplateRefBinding",
@@ -70,7 +64,8 @@ impl<'a, 'o> Emitter<'a, 'o> {
         for &child in self.snippets(identifier) {
             body.push(self.snippet_declaration(child, true));
         }
-        let props = self.expression(self.source(self.component_value(identifier, "$$props")));
+        let props =
+            self.expression(self.source(self.component_value(identifier, markers::PROPS_KEY)));
         let name = self.name();
         body.push(b.const_(&name, props));
         let children = || {
@@ -80,13 +75,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
                 b.member(b.id(&name), "children"),
             )
         };
-        let value = Expression::new_conditional_expression(
-            SPAN,
-            children(),
-            b.call(children(), []),
-            b.string(""),
-            b,
-        );
+        let value = b.conditional(children(), b.call(children(), []), b.string(""));
         body.push(b.return_(Some(value)));
         self.run(body, false)
     }
@@ -96,14 +85,15 @@ impl<'a, 'o> Emitter<'a, 'o> {
         identifier: CompilerNodeIdentifier,
     ) -> Expression<'o> {
         let b = self.b;
-        let component = self.expression(self.source(self.component_value(identifier, "$$type")));
-        let source = self.source(self.component_value(identifier, "$$props"));
+        let component =
+            self.expression(self.source(self.component_value(identifier, markers::TYPE_KEY)));
+        let source = self.source(self.component_value(identifier, markers::PROPS_KEY));
         let props = self.expression(source);
         let result = b.call(
             b.id("$$ssr_component"),
             [component, props, b.null(), b.id("$$ssr_parent")],
         );
-        let result = self.server_async(result, has_await(source));
+        let result = self.server_async(result, is_expression_async(source));
         let children = self.snippets(identifier);
         if children.is_empty() {
             return result;

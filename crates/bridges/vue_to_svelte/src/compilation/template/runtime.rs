@@ -1,11 +1,11 @@
 use oxc_ast::ast::{
-    ForStatementInit, UpdateOperator, VariableDeclaration, VariableDeclarationKind,
+    BinaryOperator, Expression, ForStatementInit, LogicalOperator, SimpleAssignmentTarget,
+    Statement, UnaryOperator, UpdateOperator, VariableDeclaration, VariableDeclarationKind,
 };
+use oxc_span::SPAN;
+use rsvelte_typescript_compile::build::Builder;
 
-use super::{
-    BinaryOperator, Builder, Expression, LogicalOperator, Names, SPAN, SimpleAssignmentTarget,
-    Statement, UnaryOperator, conditional,
-};
+use crate::compilation::context::Names;
 
 /// `function includeBooleanAttr(value) { return !!value || value === ''; }`
 pub(super) fn include_boolean_attribute<'a>(
@@ -43,7 +43,7 @@ pub(super) fn renderable<'a>(b: &Builder<'a>, name: &str, names: &mut Names<'_>)
         LogicalOperator::Or,
         is("boolean"),
     );
-    let c = conditional(b, test, b.id(&v), b.id("undefined"));
+    let c = b.conditional(test, b.id(&v), b.id("undefined"));
     b.function_declaration(
         name,
         b.parameters([v.as_str()]),

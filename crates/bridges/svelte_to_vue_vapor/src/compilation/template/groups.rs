@@ -1,7 +1,11 @@
 use oxc_ast::ast::Expression;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue};
 use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 
-use super::{Attribute, AttributeValue, Helper, R, Steps, Template, static_type, unsupported, vue};
+use super::{Steps, Template, static_type};
+use crate::compilation::helpers::Helper;
+use crate::compilation::{R, markers, unsupported};
 
 impl<'t> Template<'_, '_, 't> {
     pub(super) fn bind_group(
@@ -51,7 +55,7 @@ impl<'t> Template<'_, '_, 't> {
             }
             Expression::Identifier(_) => {
                 let target = self.template_expression(target);
-                (self.call("$$group_source", [target]), b.null())
+                (self.call(markers::GROUP_SOURCE, [target]), b.null())
             }
             _ => return Err(unsupported("this group binding target", attribute.span)),
         };

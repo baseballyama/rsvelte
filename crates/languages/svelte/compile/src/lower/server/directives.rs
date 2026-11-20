@@ -5,7 +5,7 @@ use super::{
     Attribute, AttributeValue, Part, ServerCompilationContext, decode_attribute,
     is_boolean_attribute, is_directive,
 };
-use crate::lower::bindings::{Lowering, attribute_value, property_of};
+use crate::lower::bindings::{BindStrategy, attribute_value, property_of};
 use crate::lower::builder::Runtime;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -30,7 +30,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let skipped = match name {
             "value" => matches!(tag, "select" | "textarea") || file(),
             _ => property_of(name)
-                .is_none_or(|p| p.client_only || p.lowering == Lowering::ContentEditable),
+                .is_none_or(|p| p.client_only || p.strategy == BindStrategy::ContentEditable),
         };
         if skipped {
             return None;
@@ -101,7 +101,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             };
             if tag == "textarea" && name == "value" {
                 body = Some(b.runtime("escape", [self.bound(e)]));
-            } else if property_of(name).is_some_and(|p| p.lowering == Lowering::ContentEditable) {
+            } else if property_of(name).is_some_and(|p| p.strategy == BindStrategy::ContentEditable)
+            {
                 let value = self.bound(e);
                 // `innerHTML` is the one binding upstream does not escape.
                 body = Some(if name == "innerHTML" {

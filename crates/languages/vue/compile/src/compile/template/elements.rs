@@ -1,22 +1,28 @@
+//! `transformElement`.
+
 use super::{
-    CAN_STRINGIFY, Cg, Cid, DirectiveName, Helper, Lit, NOT_CONSTANT, Nid, Node, Property,
-    PropertyView, R, Transform, Unsupported, VChildren, VNodeArgs, is_object_bind, is_on,
-    is_reserved, patch,
+    CAN_STRINGIFY, Codegen, CodegenIdentifier, DirectiveName, Helper, Lit, NOT_CONSTANT, Node,
+    Property, PropertyView, R, Transform, TransformNodeIdentifier, Unsupported, VChildren,
+    VNodeArgs, is_object_bind, is_on, is_reserved, patch,
 };
 
 impl Transform<'_> {
-    // ---- transformElement ----------------------------------------------------------------
-
-    pub(super) fn prop_views(&self, n: Nid) -> Vec<PropertyView> {
+    pub(super) fn prop_views(&self, n: TransformNodeIdentifier) -> Vec<PropertyView> {
         let Node::Element { props, .. } = &self.tree[n] else {
             unreachable!("an element")
         };
         props
             .iter()
             .map(|p| match p {
-                Property::Static { name, value } => {
-                    PropertyView::Static(name.clone(), value.clone().unwrap_or_default())
-                }
+                Property::Static {
+                    name,
+                    value,
+                    identifier,
+                } => PropertyView::Static(
+                    name.clone(),
+                    value.clone().unwrap_or_default(),
+                    *identifier,
+                ),
                 Property::Dir {
                     name,
                     arg,
@@ -31,7 +37,12 @@ impl Transform<'_> {
     /// `buildProps` for an element with `v-bind="obj"`: `normalizeProps(guardReactiveProps(obj))`,
     /// or in a `v-for` `mergeProps({ key }, { ref_for: true }, obj)` (the key as `injectProperty`
     /// puts it first), and `FULL_PROPS`. An object beside other props is not compiled yet.
-    pub(super) fn object_bind(&mut self, n: Nid, tag: &str, props: &[PropertyView]) -> R<bool> {
+    pub(super) fn object_bind(
+        &mut self,
+        n: TransformNodeIdentifier,
+        tag: &str,
+        props: &[PropertyView],
+    ) -> R<bool> {
         if !props.iter().any(is_object_bind) {
             return Ok(false);
         }
@@ -53,18 +64,18 @@ impl Transform<'_> {
             }
         }
         let object = object.expect("found above");
-        let obj = self.cgn(Cg::Exp(object));
+        let obj = self.push_codegen(Codegen::Exp(object));
         let props = if self.v_for > 0 {
             let mut arguments = Vec::new();
             if let Some(k) = key {
-                let k = self.cgn(Cg::Exp(k));
-                arguments.push(self.cgn(Cg::Object(vec![("key".to_owned(), k)])));
+                let k = self.push_codegen(Codegen::Exp(k));
+                arguments.push(self.push_codegen(Codegen::Object(vec![("key".to_owned(), k)])));
             }
             let t = self.lit(Lit::Boolean(true), NOT_CONSTANT);
-            arguments.push(self.cgn(Cg::Object(vec![("ref_for".to_owned(), t)])));
+            arguments.push(self.push_codegen(Codegen::Object(vec![("ref_for".to_owned(), t)])));
             arguments.push(obj);
             self.helper(Helper::MergeProps);
-            self.cgn(Cg::Call {
+            self.push_codegen(Codegen::Call {
                 callee: Helper::MergeProps,
                 arguments,
             })
@@ -74,11 +85,11 @@ impl Transform<'_> {
             }
             self.helper(Helper::NormalizeProps);
             self.helper(Helper::GuardReactiveProps);
-            let guarded = self.cgn(Cg::Call {
+            let guarded = self.push_codegen(Codegen::Call {
                 callee: Helper::GuardReactiveProps,
                 arguments: vec![obj],
             });
-            self.cgn(Cg::Call {
+            self.push_codegen(Codegen::Call {
                 callee: Helper::NormalizeProps,
                 arguments: vec![guarded],
             })
@@ -104,7 +115,7 @@ impl Transform<'_> {
 
     /// `postTransformElement` for a plain element, with `buildProps`, `transformBind` and
     /// `transformOn`.
-    pub(super) fn post_transform_element(&mut self, n: Nid) -> R<()> {
+    pub(super) fn post_transform_element(&mut self, n: TransformNodeIdentifier) -> R<()> {
         let Node::Element { tag, .. } = &self.tree[n] else {
             return Ok(());
         };
@@ -114,20 +125,21 @@ impl Transform<'_> {
         if self.object_bind(n, &tag, &props)? {
             return Ok(());
         }
-        let mut properties: Vec<(String, Cid)> = Vec::new();
-        let mut runtime_directives: Vec<Cid> = Vec::new();
+        let mut properties: Vec<(String, CodegenIdentifier)> = Vec::new();
+        let mut runtime_directives: Vec<CodegenIdentifier> = Vec::new();
         let mut patch_flag = 0;
         let mut dynamic_prop_names: Vec<String> = Vec::new();
         let mut has_hydration_event = false;
         let mut has_ref = false;
         let mut should_use_block = false;
         for p in props {
+            let identifier = p.identifier();
             let (key, value) = match p {
-                PropertyView::Static(name, value) => {
+                PropertyView::Static(name, value, _) => {
                     let v = self.lit(Lit::String(value), CAN_STRINGIFY);
                     (name, v)
                 }
-                PropertyView::Dir(dir, arg, raw, exp, identifier) => {
+                PropertyView::Dir(dir, arg, raw, exp, _) => {
                     if dir == DirectiveName::Bind && arg == "key" {
                         should_use_block = true;
                     }
@@ -162,7 +174,10 @@ impl Transform<'_> {
             };
             // `dedupeProperties` merges repeated `on*`/`class`/`style`; nothing here repeats.
             if properties.iter().any(|(k, _)| *k == key) {
-                return Err(Unsupported::nowhere("a repeated attribute"));
+                return Err(Unsupported::at(
+                    "a repeated attribute",
+                    self.compiler_syntax_tree.props[identifier].span,
+                ));
             }
             properties.push((key, value));
         }
@@ -177,12 +192,13 @@ impl Transform<'_> {
         if !should_use_block && needs_patch {
             patch_flag |= patch::NEED_PATCH;
         }
-        let vnode_props = (!properties.is_empty()).then(|| self.cgn(Cg::Object(properties)));
+        let vnode_props =
+            (!properties.is_empty()).then(|| self.push_codegen(Codegen::Object(properties)));
         let vnode_children = self.vnode_children(n, &mut patch_flag);
         let dynamic_props = (!dynamic_prop_names.is_empty())
-            .then(|| self.cgn(Cg::PropertyNames(dynamic_prop_names)));
-        let directives =
-            (!runtime_directives.is_empty()).then(|| self.cgn(Cg::Array(runtime_directives)));
+            .then(|| self.push_codegen(Codegen::PropertyNames(dynamic_prop_names)));
+        let directives = (!runtime_directives.is_empty())
+            .then(|| self.push_codegen(Codegen::Array(runtime_directives)));
         let vnode = self.vnode_call(VNodeArgs {
             tag: Some(tag),
             props: vnode_props,
@@ -202,7 +218,11 @@ impl Transform<'_> {
 
     /// `transformElement`'s children: a lone text-like child is passed as is, and marks the
     /// element `TEXT` when it is dynamic.
-    pub(super) fn vnode_children(&self, n: Nid, patch_flag: &mut i32) -> Option<VChildren> {
+    pub(super) fn vnode_children(
+        &self,
+        n: TransformNodeIdentifier,
+        patch_flag: &mut i32,
+    ) -> Option<VChildren> {
         let children = self.children_of(n).to_vec();
         match children.as_slice() {
             [] => None,
@@ -227,15 +247,15 @@ impl Transform<'_> {
 
     /// `analyzePatchFlag`'s early return: a cached handler or a constant value; an event
     /// modifier's wrapper is looked through once, as upstream does.
-    pub(super) fn skips_patch_flag(&self, key: &str, value: Cid) -> bool {
-        let value = match &self.cg[value] {
-            Cg::Call { arguments, .. } if is_on(key) => arguments[0],
+    pub(super) fn skips_patch_flag(&self, key: &str, value: CodegenIdentifier) -> bool {
+        let value = match &self.codegen[value] {
+            Codegen::Call { arguments, .. } if is_on(key) => arguments[0],
             _ => value,
         };
-        match &self.cg[value] {
-            Cg::Cache { .. } => true,
-            Cg::Exp(e) | Cg::Handler { exp: e, .. } => e.const_type > 0,
-            Cg::ModelUpdate { target, is_ref } => !is_ref && target.const_type > 0,
+        match &self.codegen[value] {
+            Codegen::Cache { .. } => true,
+            Codegen::Exp(e) | Codegen::Handler { exp: e, .. } => e.const_type > 0,
+            Codegen::ModelUpdate { target, is_ref } => !is_ref && target.const_type > 0,
             _ => false,
         }
     }

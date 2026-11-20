@@ -22,11 +22,11 @@ use rsvelte_svelte_semantic::typescript::without_typescript;
 use rsvelte_svelte_semantic::warnings::slot_name_error;
 pub(in crate::lower) use slot_snippets::slot_snippet_conflict;
 
-use super::super::special::invalid;
 use super::super::{
     AttributeValue, Children, CompileInput, CompilerNodeIdentifier, Diagnostic, Element, NodeKind,
-    is_custom_element_node, is_directive,
+    is_directive,
 };
+use crate::lower::invalid;
 use crate::render_plan::is_template_whitespace;
 
 /// The nearest component, `<svelte:element>` or custom element above a node, which decides where a
@@ -151,7 +151,7 @@ pub(in crate::lower) fn unparenthesized_sequence(
                     && javascript.parentheses(span) == 0)
                     .then_some(span)
             })?;
-            let error = super::super::special::error(
+            let error = crate::lower::error(
                 "attribute_invalid_sequence_expression",
                 "Comma-separated expressions are not allowed as attribute/directive values in \
                     runes mode, unless wrapped in parentheses",
@@ -171,7 +171,7 @@ pub(in crate::lower) fn each_key(javascript: &Tree, each: &Each) -> Result<EachK
     each.key(javascript).map_err(|key| {
         let key = without_typescript(javascript.get_expression(key));
         let key = oxc_span::GetSpan::span(key);
-        super::super::special::error(
+        crate::lower::error(
             "each_key_without_as",
             "An `{#each ...}` block without an `as` clause cannot have a key",
             Span::new(key.start, key.end),
@@ -330,7 +330,7 @@ fn element<'a>(
     let owner = match el.kind {
         kind if kind.renders_component() => Some(Owner::Component(identifier)),
         ElementKind::Metadata(Some(MetadataTag::Element)) => Some(Owner::Element),
-        ElementKind::Regular if is_custom_element_node(tree, source, el) => Some(Owner::Element),
+        ElementKind::Regular if tree.is_custom_element(el, source) => Some(Owner::Element),
         _ => owner,
     };
     Ok((owner, placement))

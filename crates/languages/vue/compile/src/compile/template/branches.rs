@@ -1,20 +1,20 @@
+//! `transformIf`.
+
 use super::{
-    CAN_CACHE, Cg, Cid, DirectiveName, Exit, ExpressionIdentifier, Helper, Lit, NOT_CONSTANT, Nid,
-    Node, R, Transform, Unsupported,
+    CAN_CACHE, Codegen, CodegenIdentifier, DirectiveName, Exit, ExpressionIdentifier, Helper, Lit,
+    NOT_CONSTANT, Node, R, Transform, TransformNodeIdentifier, Unsupported,
 };
 
 impl Transform<'_> {
-    // ---- v-if ----------------------------------------------------------------------------
-
     /// `processIf`. `None` when the element joined an earlier `v-if`: it is traversed here and
     /// leaves its parent.
     pub(super) fn process_if(
         &mut self,
-        el: Nid,
-        parent: Option<Nid>,
+        el: TransformNodeIdentifier,
+        parent: Option<TransformNodeIdentifier>,
         name: DirectiveName,
         raw: Option<ExpressionIdentifier>,
-    ) -> R<Option<(Nid, Exit)>> {
+    ) -> R<Option<(TransformNodeIdentifier, Exit)>> {
         let parent = parent.expect("an element has a parent");
         let condition = match name {
             DirectiveName::Else => None,
@@ -74,19 +74,23 @@ impl Transform<'_> {
             unreachable!("the v-if branch has set the codegen")
         };
         // `getParentCondition`.
-        while let Cg::Conditional { alternate: a, .. } = self.cg[c]
-            && matches!(self.cg[a], Cg::Conditional { .. })
+        while let Codegen::Conditional { alternate: a, .. } = self.codegen[c]
+            && matches!(self.codegen[a], Codegen::Conditional { .. })
         {
             c = a;
         }
-        if let Cg::Conditional { alternate: a, .. } = &mut self.cg[c] {
+        if let Codegen::Conditional { alternate: a, .. } = &mut self.codegen[c] {
             *a = alternate;
         }
         Ok(None)
     }
 
     /// The branches of the `v-if` nodes before `if_node`: its first key.
-    pub(super) fn branches_before(&self, parent: Nid, if_node: Nid) -> usize {
+    pub(super) fn branches_before(
+        &self,
+        parent: TransformNodeIdentifier,
+        if_node: TransformNodeIdentifier,
+    ) -> usize {
         let siblings = self.children_of(parent);
         let at = siblings.iter().position(|&s| s == if_node).unwrap_or(0);
         siblings[..at]
@@ -99,7 +103,11 @@ impl Transform<'_> {
     }
 
     /// `createCodegenNodeForBranch`.
-    pub(super) fn branch_codegen(&mut self, branch: Nid, key: usize) -> Cid {
+    pub(super) fn branch_codegen(
+        &mut self,
+        branch: TransformNodeIdentifier,
+        key: usize,
+    ) -> CodegenIdentifier {
         let Node::Branch { condition, .. } = self.tree[branch] else {
             unreachable!("a branch")
         };
@@ -110,11 +118,11 @@ impl Transform<'_> {
         self.helper(Helper::CreateComment);
         let a = self.lit(Lit::String("v-if".to_owned()), NOT_CONSTANT);
         let b = self.lit(Lit::Boolean(true), NOT_CONSTANT);
-        let alternate = self.cgn(Cg::Call {
+        let alternate = self.push_codegen(Codegen::Call {
             callee: Helper::CreateComment,
             arguments: vec![a, b],
         });
-        self.cgn(Cg::Conditional {
+        self.push_codegen(Codegen::Conditional {
             test,
             consequent: children,
             alternate,
@@ -122,7 +130,11 @@ impl Transform<'_> {
     }
 
     /// `createChildrenCodegenNode` for a branch holding one element, or the `v-for` it became.
-    pub(super) fn children_codegen(&mut self, branch: Nid, key: usize) -> Cid {
+    pub(super) fn children_codegen(
+        &mut self,
+        branch: TransformNodeIdentifier,
+        key: usize,
+    ) -> CodegenIdentifier {
         let first = self.children_of(branch)[0];
         let vnode = self.codegen_of(first).expect("a transformed element");
         if matches!(self.tree[first], Node::Element { .. }) {
@@ -134,8 +146,8 @@ impl Transform<'_> {
         vnode
     }
 
-    pub(super) fn convert_to_block(&mut self, vnode: Cid) {
-        if let Cg::VNode { is_block, .. } = &mut self.cg[vnode]
+    pub(super) fn convert_to_block(&mut self, vnode: CodegenIdentifier) {
+        if let Codegen::VNode { is_block, .. } = &mut self.codegen[vnode]
             && !*is_block
         {
             *is_block = true;
@@ -146,45 +158,50 @@ impl Transform<'_> {
     }
 
     /// `injectProperty`.
-    pub(super) fn inject_prop(&mut self, vnode: Cid, key: &str, value: Cid) {
-        let Cg::VNode { props, .. } = self.cg[vnode] else {
+    pub(super) fn inject_prop(
+        &mut self,
+        vnode: CodegenIdentifier,
+        key: &str,
+        value: CodegenIdentifier,
+    ) {
+        let Codegen::VNode { props, .. } = self.codegen[vnode] else {
             unreachable!("a vnode call")
         };
         match props {
             None => {
-                let obj = self.cgn(Cg::Object(vec![(key.to_owned(), value)]));
-                if let Cg::VNode { props, .. } = &mut self.cg[vnode] {
+                let obj = self.push_codegen(Codegen::Object(vec![(key.to_owned(), value)]));
+                if let Codegen::VNode { props, .. } = &mut self.codegen[vnode] {
                     *props = Some(obj);
                 }
             }
-            Some(p) => match &mut self.cg[p] {
-                Cg::Object(list) => {
+            Some(p) => match &mut self.codegen[p] {
+                Codegen::Object(list) => {
                     if !list.iter().any(|(k, _)| k == key) {
                         list.insert(0, (key.to_owned(), value));
                     }
                 }
                 // `getUnnormalizedProps` unwraps `normalizeProps(guardReactiveProps(obj))`; the
                 // object, not a call, is merged after the key.
-                Cg::Call {
+                Codegen::Call {
                     callee: Helper::NormalizeProps,
                     arguments,
                 } => {
                     let guarded = arguments[0];
-                    let Cg::Call {
+                    let Codegen::Call {
                         callee: Helper::GuardReactiveProps,
                         arguments: inner,
-                    } = &self.cg[guarded]
+                    } = &self.codegen[guarded]
                     else {
                         unreachable!("object_bind builds both calls")
                     };
                     let obj = inner[0];
-                    let k = self.cgn(Cg::Object(vec![(key.to_owned(), value)]));
+                    let k = self.push_codegen(Codegen::Object(vec![(key.to_owned(), value)]));
                     self.helper(Helper::MergeProps);
-                    let merged = self.cgn(Cg::Call {
+                    let merged = self.push_codegen(Codegen::Call {
                         callee: Helper::MergeProps,
                         arguments: vec![k, obj],
                     });
-                    if let Cg::Call { arguments, .. } = &mut self.cg[p] {
+                    if let Codegen::Call { arguments, .. } = &mut self.codegen[p] {
                         arguments[0] = merged;
                     }
                 }

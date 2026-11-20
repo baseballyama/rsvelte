@@ -27,6 +27,6 @@ pub use input::{CompileInput, Target};
 pub use module::CompileModule;
 pub use render_plan::RenderPlan;
 pub use task::{
-    Compile, PLUGIN, compile_input, lower_document, register, register_with_configuration,
+    Compile, PLUGIN, compile_to_javascript, lower_document, register, register_with_configuration,
 };
 pub use warnings::Warn;

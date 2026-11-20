@@ -1,6 +1,12 @@
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::render_plan::Namespace;
+use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier;
 use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 
-use super::{CompilerNodeIdentifier, Helper, Namespace, Span, Template, spelled, vue};
+use super::{Template, spelled};
+use crate::compilation::helpers::Helper;
+use crate::compilation::markers;
 
 impl Template<'_, '_, '_> {
     pub(super) fn raw_markup(
@@ -17,7 +23,7 @@ impl Template<'_, '_, '_> {
         let value = self.bound("value", span, value, span);
         let props = self.vb.props([value]);
         let kind = vue::NodeKind::Element(vue::Element {
-            tag: spelled("$$RawMarkup", span),
+            tag: spelled(markers::RAW_MARKUP, span),
             tag_type: vue::TagType::Component,
             props,
             children: vue::Children::default(),

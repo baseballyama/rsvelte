@@ -64,9 +64,20 @@ pub struct SvelteConfig {
     pub runes: Option<bool>,
     pub kit: Option<Kit>,
     /// `compilerOptions.experimental.async`.
-    pub experimental_async: bool,
+    pub experimental_async: ExperimentalAsync,
     /// `warningFilter`, or else `onwarn`, as one function: the warning to report, or `None`.
     pub on_warning: Option<WarningHandler>,
+}
+
+/// `compilerOptions.experimental.async`, which Svelte's `compile` takes only as a boolean.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ExperimentalAsync {
+    /// Unset, `false`, or a value with code in it.
+    #[default]
+    Off,
+    On,
+    /// A static value that is not a boolean, which fails every compile.
+    Invalid,
 }
 
 /// A compiler warning as `svelte.config.js`'s `onwarn` and `warningFilter` see it.

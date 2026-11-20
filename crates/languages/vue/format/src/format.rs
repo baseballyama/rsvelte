@@ -22,6 +22,8 @@ use rsvelte_document_printer::{
     Embedding, GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions,
 };
 pub(crate) use rsvelte_kernel::diagnostics::Unsupported;
+use rsvelte_kernel::index::IndexVector;
+use rsvelte_kernel::newtype_index;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_vue_syntax::syntax_tree::{
     Attribute, AttributeKind, DirectiveExpression, SingleFileComponent, TagAttributes,
@@ -53,7 +55,7 @@ pub(crate) fn format(c: &SingleFileComponent, source_text: &str, lines: &LineInd
             ..JsFormatOptions::default()
         },
     };
-    let children = p.children(ROOT)?;
+    let children = p.children(NodeIdentifier::ROOT)?;
     let body = p.d().group(&children);
     let h = p.d().hardline();
     let root = p.d().concat(&[body, h]);
@@ -71,10 +73,14 @@ fn core_options() -> CoreFormatOptions {
     }
 }
 
-const ROOT: usize = 0;
+newtype_index!(
+    /// A node of the preprocessed [`Tree`].
+    struct NodeIdentifier;
+    const ROOT = 0;
+);
 
 #[derive(Debug)]
-enum Kind2<'a> {
+enum NodeKind<'a> {
     Root,
     Element {
         name: &'a str,
@@ -102,11 +108,12 @@ enum Embed {
 
 #[derive(Debug)]
 struct Node<'a> {
-    kind: Kind2<'a>,
-    parent: usize,
-    children: Vec<usize>,
-    prev: Option<usize>,
-    next: Option<usize>,
+    kind: NodeKind<'a>,
+    /// `None` for the root.
+    parent: Option<NodeIdentifier>,
+    children: Vec<NodeIdentifier>,
+    prev: Option<NodeIdentifier>,
+    next: Option<NodeIdentifier>,
     /// `sourceSpan`.
     span: Span,
     /// `startSourceSpan.end`, for an element.
@@ -130,7 +137,7 @@ struct Sides {
 }
 
 impl<'a> Node<'a> {
-    const fn new(kind: Kind2<'a>, parent: usize, span: Span) -> Self {
+    const fn new(kind: NodeKind<'a>, parent: Option<NodeIdentifier>, span: Span) -> Self {
         Node {
             kind,
             parent,
@@ -159,7 +166,7 @@ impl<'a> Node<'a> {
 /// The preprocessed document (`print-preprocess.js`).
 #[derive(Debug)]
 struct Tree<'a> {
-    n: Vec<Node<'a>>,
+    n: IndexVector<NodeIdentifier, Node<'a>>,
     lines: &'a LineIndex,
     source_text: &'a str,
 }

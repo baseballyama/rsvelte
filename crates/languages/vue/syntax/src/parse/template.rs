@@ -32,8 +32,6 @@ fn split_for(text: &str) -> Option<(usize, usize)> {
 type ParsedDirective = (DirectiveName, Option<Span>, Box<[Span]>);
 
 impl P<'_, '_> {
-    // ---- the template ----------------------------------------------------------------------
-
     /// Nodes up to the end tag of `parent` (left unconsumed).
     pub(super) fn fragment(&mut self, parent: Option<&str>) -> R<Range> {
         let mut items = Vec::new();

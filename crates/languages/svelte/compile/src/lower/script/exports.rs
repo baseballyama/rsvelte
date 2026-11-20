@@ -10,8 +10,8 @@ use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
 
 use super::super::paths::bound_names;
-use super::super::special::error;
 use super::super::{CompileInput, span_of, unsupported};
+use crate::lower::error;
 
 /// Upstream `module_illegal_default_export`, which its walk of either script raises at an
 /// `export default` or an `export { … as default }`.

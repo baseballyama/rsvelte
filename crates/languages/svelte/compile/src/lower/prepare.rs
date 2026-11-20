@@ -9,7 +9,7 @@ use super::{
 };
 
 pub(super) fn prepare<'c, 'o>(
-    facts: super::Lowering<'c, 'o>,
+    facts: super::LoweringFacts<'c, 'o>,
     target: Target,
     b: &Builder<'o>,
 ) -> Result<Prepared<'c, 'o>, Diagnostic> {
@@ -18,7 +18,7 @@ pub(super) fn prepare<'c, 'o>(
     let custom_element = facts.validated.custom_element.as_ref();
     let javascript = input.component.javascript;
     check_runes(input, res, target, custom_element.is_some())?;
-    super::coverage::check_for(input, target)?;
+    super::unsupported_syntax::refuse_for_target(input, target)?;
     let mut names = names(res);
     let each_index = each_index_names(input.component.compiler_syntax_tree, &mut names);
     let binding_groups = super::binding_groups::binding_groups(

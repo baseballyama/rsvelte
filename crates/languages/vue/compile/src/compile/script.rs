@@ -107,7 +107,7 @@ pub(super) fn script_setup<'o>(
 
 /// `import { defineComponent as _defineComponent } from 'vue'`.
 pub(super) fn define_component_import<'o>(b: &Builder<'o>) -> Statement<'o> {
-    out::import(b, [("defineComponent", "_defineComponent")], "vue")
+    b.import([("defineComponent", "_defineComponent")], "vue")
 }
 
 /// The component object, merged with `defineOptions`' argument.

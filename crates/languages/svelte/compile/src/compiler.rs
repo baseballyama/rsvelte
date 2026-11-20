@@ -102,7 +102,7 @@ pub fn compile(source: &str, options: &CompileOptions) -> Result<CompileResult, 
             map,
         },
         css: compiled.stylesheet.map(str::to_owned),
-        warnings: Vec::new(),
+        warnings: compiled.warnings.to_vec(),
     })
 }
 

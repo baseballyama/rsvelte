@@ -1,6 +1,9 @@
 use oxc_ast::ast::Expression;
 use oxc_span::SPAN;
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_typescript_compile::build::Builder;
+
+use crate::compilation::markers;
 
 /// What a value rune makes of its rewritten argument: a cell.
 pub(crate) fn rune_value<'t>(
@@ -13,7 +16,7 @@ pub(crate) fn rune_value<'t>(
         "$props" => return None,
         "$state" | "$state.raw" => {
             let local = if rune == "$state" {
-                "$$ref"
+                markers::REF
             } else {
                 "$$shallowRef"
             };
@@ -21,7 +24,7 @@ pub(crate) fn rune_value<'t>(
         }
         "$derived" => {
             let argument = argument?;
-            let asynchronous = crate::compilation::asynchronous::has_await(&argument);
+            let asynchronous = is_expression_async(&argument);
             let argument = tracked(b, argument, tracking && !asynchronous);
             let getter = if asynchronous {
                 async_arrow(b, argument)
@@ -29,10 +32,10 @@ pub(crate) fn rune_value<'t>(
                 b.arrow(b.parameters([]), argument)
             };
             if asynchronous {
-                let call = b.call(b.id("$$async_derived"), [getter]);
+                let call = b.call(b.id(markers::ASYNC_DERIVED), [getter]);
                 Expression::new_await_expression(SPAN, call, b)
             } else {
-                b.call(b.id("$$computed"), [getter])
+                b.call(b.id(markers::COMPUTED), [getter])
             }
         }
         "$derived.by" => {
@@ -43,7 +46,7 @@ pub(crate) fn rune_value<'t>(
             } else {
                 argument
             };
-            b.call(b.id("$$computed"), [getter])
+            b.call(b.id(markers::COMPUTED), [getter])
         }
         _ => unreachable!("checked by plan"),
     })

@@ -1,18 +1,19 @@
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn};
 use oxc_ast::ast::{
-    ArrowFunctionExpression, BlockStatement, Expression, Function, ObjectPropertyKind, Statement,
+    ArrowFunctionExpression, BlockStatement, Class, Expression, Function, ObjectPropertyKind,
+    Program, Statement,
 };
-use oxc_ast_visit::{VisitMut, walk_mut};
+use oxc_ast_visit::{Visit, VisitMut, walk_mut};
 use oxc_span::SPAN;
 use oxc_syntax::node::NodeId;
 use oxc_syntax::scope::ScopeFlags;
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_typescript_compile::build::Builder;
 use rsvelte_vue_semantic::resolve::call_name;
 
 use super::expressions::script_getter;
 use super::{Body, Emitter};
-use crate::compilation::asynchronous::program_has_await;
-use crate::compilation::prelude;
+use crate::compilation::{markers, prelude};
 
 const EFFECT_WATCH: [&str; 4] = [
     "currentInstance",
@@ -42,7 +43,7 @@ impl<'o> Emitter<'_, 'o> {
                 && prelude.iter().all(module_level)
             {
                 for s in prelude {
-                    self.note_helpers(s);
+                    self.note_vue_imports(s);
                 }
                 module.push(prelude::remark(b, marked).expect("a prelude's marker"));
                 continue;
@@ -51,11 +52,11 @@ impl<'o> Emitter<'_, 'o> {
                 if let Statement::FunctionDeclaration(f) = s
                     && f.id
                         .as_ref()
-                        .is_some_and(|id| id.name.starts_with("$$snippet_"))
+                        .is_some_and(|id| id.name.starts_with(markers::SNIPPET_PREFIX))
                 {
                     continue;
                 }
-                self.note_helpers(s);
+                self.note_vue_imports(s);
                 if module_level(s) {
                     module.push(s.clone_in(b.allocator()));
                     continue;
@@ -115,13 +116,13 @@ impl<'o> Emitter<'_, 'o> {
         (module, fields)
     }
 
-    /// The runtime helpers a declaration of the script needs.
-    fn note_helpers(&mut self, s: &Statement<'_>) {
-        if !self.t.server && declares(s, |name| name == "$$on_mount") {
-            self.helpers.insert("currentInstance");
+    /// The Vue exports a declaration of the script needs.
+    fn note_vue_imports(&mut self, s: &Statement<'_>) {
+        if !self.t.server && declares(s, |name| name == markers::ON_MOUNT) {
+            self.vue_imports.insert("currentInstance");
         }
         if !self.t.server && declares(s, |name| name == "$$effect_watch") {
-            self.helpers.extend(EFFECT_WATCH);
+            self.vue_imports.extend(EFFECT_WATCH);
         }
     }
 
@@ -137,7 +138,7 @@ impl<'o> Emitter<'_, 'o> {
         let mut body = body;
         if asynchronous {
             if self.t.server {
-                self.helpers.insert("withAsyncContext");
+                self.vue_imports.insert("withAsyncContext");
                 module.push(prelude::marker(b, include_str!("async_server.js")));
                 let context = b.call(b.id("$$server_async_context"), []);
                 body.insert(0, b.const_("$$async_context", context));
@@ -164,7 +165,7 @@ impl<'o> Emitter<'_, 'o> {
         module: &mut Vec<Statement<'o>>,
     ) -> Vec<Statement<'o>> {
         let b = self.b;
-        self.helpers.extend([
+        self.vue_imports.extend([
             "VaporFragment",
             "currentInstance",
             "effectScope",
@@ -197,7 +198,7 @@ fn module_level(s: &Statement<'_>) -> bool {
         Statement::VariableDeclaration(d) => d.declarations.iter().all(|d| {
             d.id.get_binding_identifier().is_some_and(|id| {
                 id.name.starts_with("$$")
-                    && !id.name.starts_with("$$pattern_")
+                    && !id.name.starts_with(markers::PATTERN_PREFIX)
                     && !matches!(
                         id.name.as_str(),
                         "$$props" | "$$attrs" | "$$host" | "$$host_value"
@@ -257,4 +258,25 @@ fn declares(statement: &Statement<'_>, wanted: impl Fn(&str) -> bool) -> bool {
         d.id.get_binding_identifier()
             .is_some_and(|id| wanted(&id.name))
     })
+}
+
+/// An `await` that a program's top level runs, the preludes it marks among it.
+fn program_has_await(program: &Program<'_>) -> bool {
+    let mut v = TopLevelAwait(false);
+    for statement in prelude::expanded(&program.body) {
+        v.visit_statement(statement);
+    }
+    v.0
+}
+
+struct TopLevelAwait(bool);
+
+impl<'a> Visit<'a> for TopLevelAwait {
+    fn visit_expression(&mut self, it: &Expression<'a>) {
+        self.0 |= is_expression_async(it);
+    }
+
+    fn visit_function(&mut self, _: &Function<'a>, _: ScopeFlags) {}
+
+    fn visit_class(&mut self, _: &Class<'a>) {}
 }

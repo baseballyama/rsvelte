@@ -27,7 +27,7 @@ pub(super) fn imports(import: &ImportDeclaration<'_>) -> Result<(), Diagnostic> 
     }
     let source = &import.source.value;
     if source.starts_with("svelte/internal") {
-        return crate::lower::special::invalid(
+        return crate::lower::invalid(
             "import_svelte_internal_forbidden",
             "Imports of `svelte/internal/*` are forbidden. It contains private runtime code which \
                 is subject to change without notice. If you're importing from `svelte/internal/*` \
@@ -44,7 +44,7 @@ pub(super) fn imports(import: &ImportDeclaration<'_>) -> Result<(), Diagnostic> 
             && let ModuleExportName::IdentifierName(imported) = &specifier.imported
             && matches!(imported.name.as_str(), "beforeUpdate" | "afterUpdate")
         {
-            return crate::lower::special::invalid(
+            return crate::lower::invalid(
                 "runes_mode_invalid_import",
                 &format!("{} cannot be used in runes mode", imported.name),
                 span_of(&**specifier),
@@ -61,7 +61,7 @@ pub(super) fn check_props_pattern(declarator: &VariableDeclarator<'_>) -> Result
         BindingPattern::BindingIdentifier(_) => return Ok(()),
         BindingPattern::ObjectPattern(pattern) => &pattern.properties,
         _ => {
-            return crate::lower::special::invalid(
+            return crate::lower::invalid(
                 "props_invalid_identifier",
                 "`$props()` can only be used with an object destructuring pattern",
                 span_of(declarator),
@@ -74,7 +74,7 @@ pub(super) fn check_props_pattern(declarator: &VariableDeclarator<'_>) -> Result
             value => value,
         };
         if property.computed || !matches!(value, BindingPattern::BindingIdentifier(_)) {
-            return crate::lower::special::invalid(
+            return crate::lower::invalid(
                 "props_invalid_pattern",
                 "`$props()` assignment must not contain nested properties or computed keys",
                 span_of(property),

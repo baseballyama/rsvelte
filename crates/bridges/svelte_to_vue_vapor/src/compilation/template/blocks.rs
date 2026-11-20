@@ -1,11 +1,16 @@
 use oxc_ast::ast::{Argument, Expression, LogicalOperator};
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::lower::is_expression_async;
+use rsvelte_svelte_compile::render_plan::{Item, Parent, clean_nodes, template_end};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
+use rsvelte_typescript_compile::build::sanitize_template_string;
 use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
-use super::{
-    CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Helper, Item, NodeKind, Parent, R,
-    Span, Template, clean_nodes, directive, known_string, sanitize_template_string, template_end,
-    unsupported, vue,
-};
+use super::{Template, directive, known_string};
+use crate::compilation::helpers::Helper;
+use crate::compilation::{R, markers, unsupported};
 
 impl<'t> Template<'_, '_, 't> {
     pub(super) fn list(
@@ -121,7 +126,7 @@ impl<'t> Template<'_, '_, 't> {
                 .init
                 .as_ref()
                 .expect("a const tag has an initializer");
-            if !self.i.server && crate::compilation::asynchronous::has_await(init) {
+            if !self.i.server && is_expression_async(init) {
                 self.helpers.insert(Helper::Async);
             }
             let value = self.rewrite(init);
@@ -172,7 +177,7 @@ impl<'t> Template<'_, '_, 't> {
                         b.array([value]),
                         node.span,
                     ),
-                    self.bound("$$key", at, b.id("$$key"), at),
+                    self.bound(markers::KEY_KEY, at, b.id("$$key"), at),
                 ];
                 out.push(self.block_element(
                     Parent::Block,
@@ -222,7 +227,7 @@ impl<'t> Template<'_, '_, 't> {
         }
         let value = self.template_expression(expression);
         let value = self.bound("value", at, value, at);
-        Ok(self.template_node("$$Render", at, vec![value], vue_parent))
+        Ok(self.template_node(markers::RENDER, at, vec![value], vue_parent))
     }
 
     /// A run of text and `{expression}` tags: one text node in both runtimes.

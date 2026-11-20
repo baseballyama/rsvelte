@@ -13,8 +13,9 @@ use rsvelte_typescript_tree::ProgramIdentifier;
 use crate::computation::PostcssConfiguration;
 use crate::project::PostcssConfigurationOnDisk;
 use crate::rule::File;
+use crate::settings::ExperimentalAsync;
 use crate::words::words;
-use crate::{LintSettings, settings};
+use crate::{LintSettings, SvelteConfig, settings};
 
 /// One code of a `svelte-ignore` comment.
 #[derive(Debug)]
@@ -186,17 +187,73 @@ impl Postcss {
     }
 }
 
-/// Upstream's `processIgnore`, over the warnings of a style in CSS only.
-pub(crate) fn apply<'a>(
+/// What the compiler makes of a component under its `svelte.config.js`.
+pub(crate) struct Compiled<'a> {
+    pub(crate) config: Option<&'a SvelteConfig>,
+    pub(crate) applied: Applied<'a>,
+}
+
+/// [`apply`] with the options of the document's `svelte.config.js`: `None` for a module, or why
+/// the host cannot read the configuration.
+pub(crate) fn compile<'a>(
     file: &File<'a>,
-    compile: &'a CompileWarnings,
     ignores: &Ignores,
-    experimental_async: bool,
+    postcss: Postcss,
+) -> Option<Result<Compiled<'a>, &'a str>> {
+    let compile = file.compile_warnings()?;
+    let config = match file.svelte_config() {
+        Some(Err(why)) => return Some(Err(why)),
+        Some(Ok(config)) => Some(config),
+        None => None,
+    };
+    let experimental_async = config.map_or(ExperimentalAsync::Off, |c| c.experimental_async);
+    Some(Ok(Compiled {
+        config,
+        applied: apply(file, compile, ignores, experimental_async, postcss),
+    }))
+}
+
+/// Svelte's `options_invalid_value` for a boolean option, which it reports at the start.
+fn invalid_option(name: &str) -> Diagnostic {
+    let code = "options_invalid_value";
+    Diagnostic::error(
+        code,
+        format!(
+            "Invalid compiler option: {name} should be true or false, if \
+             specified\nhttps://svelte.dev/e/{code}"
+        ),
+        Span::new(0, 0),
+    )
+}
+
+/// Upstream's `processIgnore`, over the warnings of a style in CSS only.
+fn apply<'a>(
+    file: &File<'a>,
+    compile: Result<&'a CompileWarnings, &'a Diagnostic>,
+    ignores: &Ignores,
+    experimental_async: ExperimentalAsync,
     postcss: Postcss,
 ) -> Applied<'a> {
+    let mut used = vec![false; ignores.items.len()];
+    let failed = |error: Diagnostic| Applied {
+        warnings: Vec::new(),
+        error: Some(error),
+        used: vec![false; ignores.items.len()],
+    };
+    // Svelte validates its options before it parses the component.
+    let experimental_async = match experimental_async {
+        ExperimentalAsync::Off => false,
+        ExperimentalAsync::On => true,
+        ExperimentalAsync::Invalid => {
+            return failed(invalid_option("experimental.async"));
+        }
+    };
+    let compile = match compile {
+        Ok(compile) => compile,
+        Err(error) => return failed(error.clone()),
+    };
     let component = file.component().expect("a component");
     let source = file.source();
-    let mut used = vec![false; ignores.items.len()];
     let stripped = component
         .style
         .as_ref()
@@ -224,11 +281,7 @@ pub(crate) fn apply<'a>(
             .or(others.after_analysis)
     });
     if let Some(error) = first_error {
-        return Applied {
-            warnings: Vec::new(),
-            error: Some(error),
-            used,
-        };
+        return failed(error);
     }
     let targets = Targets { component };
     let mut warnings = Vec::new();

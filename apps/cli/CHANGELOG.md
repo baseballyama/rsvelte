@@ -1,5 +1,16 @@
 # @rsvelte/cli
 
+## 0.2.2
+
+### Patch Changes
+
+- 8a99b42: Read `as`, `then` and `catch` in a block tag as a prefix, so `{#each items asx}` reports `expected_whitespace` as Svelte does.
+- f022127: Report `each_key_without_as` for a keyed `{#each}` block without `as` instead of crashing, and read an `{#each}` key with its types erased, as Svelte does.
+- aacdd5a: Report `element_invalid_closing_tag_autoclosed` for an end tag of an element that a start tag already closed, as Svelte does.
+- 9810d15: `rsvelte format` resolves the formatter options of each file as Prettier and oxfmt do: from the nearest configuration and `.editorconfig`. It ignores an unknown option with a warning, and an option that `rsvelte.config` gives a plugin replaces the project's.
+- 507e702: `rsvelte lint` reads `compilerOptions.experimental.async` from `svelte.config.js`, so `svelte/valid-compile` no longer reports `experimental_async` for top-level `await` when the option is on.
+- 5a1f605: Report a repeated attribute in a Vue template at the repeated attribute instead of at 1:1.
+
 ## 0.2.1
 
 ### Patch Changes

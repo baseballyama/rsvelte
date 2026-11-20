@@ -6,17 +6,18 @@ use oxc_ast::ast::{
 use oxc_semantic::{ReferenceId, ScopeId, SymbolFlags, SymbolId};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, Element, Snippet};
 use rsvelte_svelte_semantic::resolve::TemplateScope;
-use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
+use rsvelte_svelte_semantic::warnings::Raised;
 use rsvelte_typescript_tree::Tree;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 mod const_references;
 
-use super::special::{error, invalid};
+use super::validation::{raised_in_scopes, raised_in_walk};
 use super::{
     AttributeValue, BindingKind, CompileInput, Diagnostic, ElementKind, NodeKind, Resolution, Span,
     span_of,
 };
+use crate::lower::{error, invalid};
 
 /// Upstream's errors of snippets and render tags, with when it raises each: a duplicate name as
 /// it builds the template's scopes, the others as its walk enters a node or, after a snippet's
@@ -35,7 +36,7 @@ pub(super) fn errors(input: &CompileInput<'_>, res: &Resolution) -> Vec<(Raised,
             NodeKind::Element(owner) => child_snippet_errors(input, owner, &mut out),
             &NodeKind::Render { expression } => {
                 let (call, _) = render_call(javascript.get_expression(expression));
-                let at = walk(node.span.start_offset);
+                let at = raised_in_walk(node.span.start_offset);
                 if let Some(Argument::SpreadElement(spread)) =
                     call.arguments.iter().find(|a| a.is_spread())
                 {
@@ -62,22 +63,6 @@ pub(super) fn errors(input: &CompileInput<'_>, res: &Resolution) -> Vec<(Raised,
     }
     out.extend(const_references::invalid_reference(input, res));
     out
-}
-
-const fn walk(at: u32) -> Raised {
-    Raised {
-        phase: Phase::Walk,
-        section: Section::Template,
-        at,
-    }
-}
-
-const fn scopes(at: u32) -> Raised {
-    Raised {
-        phase: Phase::Scopes,
-        section: Section::Template,
-        at,
-    }
 }
 
 /// Where upstream's walk is once it has walked the body of the node at `span`.
@@ -107,7 +92,7 @@ fn snippet_errors<'a>(
     if let Some(rest) = &javascript.get_parameters(snippet.parameters).rest {
         let message = "Snippets do not support rest parameters; use an array instead";
         let rest = span_of(&**rest);
-        let at = walk(node.span.start_offset);
+        let at = raised_in_walk(node.span.start_offset);
         out.push((at, error("snippet_invalid_rest_parameter", message, rest)));
     }
     let name = snippet_name(javascript, snippet);
@@ -123,7 +108,7 @@ fn snippet_errors<'a>(
         } else {
             std::mem::replace(first, name_span)
         };
-        out.push((scopes(later.start_offset), duplicate(name, later)));
+        out.push((raised_in_scopes(later.start_offset), duplicate(name, later)));
     } else {
         declared.insert((scope, name), name_span);
     }
@@ -134,7 +119,7 @@ fn snippet_errors<'a>(
             && !scoping.symbol_flags(other).is_import()
             && is_runtime(scoping.symbol_flags(other))
         {
-            out.push((walk(after(node.span)), duplicate(name, name_span)));
+            out.push((raised_in_walk(after(node.span)), duplicate(name, name_span)));
         }
         return;
     };
@@ -149,14 +134,20 @@ fn snippet_errors<'a>(
     let opened = |scope| res.template_scope(scope) == Some(block);
     let parent_span = tree.node(parent).span;
     if opened(TemplateScope::Each(parent)) || opened(TemplateScope::Let(parent)) {
-        out.push((scopes(name_span.start_offset), duplicate(name, name_span)));
+        out.push((
+            raised_in_scopes(name_span.start_offset),
+            duplicate(name, name_span),
+        ));
     } else if opened(TemplateScope::Snippet(parent)) {
-        out.push((scopes(after(parent_span)), duplicate(name, name_span)));
+        out.push((
+            raised_in_scopes(after(parent_span)),
+            duplicate(name, name_span),
+        ));
     } else if opened(TemplateScope::Then(parent)) || opened(TemplateScope::Catch(parent)) {
         // Upstream declares the value after it walks the branch.
         let value = scoping.symbol_span(other);
         let value = Span::new(value.start, value.end);
-        out.push((scopes(after(parent_span)), duplicate(name, value)));
+        out.push((raised_in_scopes(after(parent_span)), duplicate(name, value)));
     }
 }
 
@@ -195,7 +186,7 @@ fn child_snippet_errors(
             continue;
         };
         let name = snippet_name(javascript, snippet);
-        let at = walk(after(node.span));
+        let at = raised_in_walk(after(node.span));
         if props.contains(name) {
             let message = format!("This snippet is shadowing the prop `{name}` with the same name");
             out.push((at, error("snippet_shadowing_prop", &message, node.span)));
@@ -392,7 +383,7 @@ pub(super) fn place(
 pub(super) fn hoistable(
     input: &CompileInput<'_>,
     res: &Resolution,
-    stores: &super::stores::Names<'_>,
+    stores: &super::stores::StoreSubscriptions<'_>,
 ) -> FxHashSet<SymbolId> {
     let tree = input.component.compiler_syntax_tree;
     let scoping = res.scoping();

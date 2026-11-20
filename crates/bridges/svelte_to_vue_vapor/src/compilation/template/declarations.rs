@@ -2,13 +2,17 @@ use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{BindingPattern, Expression, Statement};
 use oxc_ast_visit::VisitMut;
 use oxc_span::SPAN;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::lower::is_expression_async;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use rsvelte_typescript_compile::strip::Strip;
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName, LoopExpression};
 
-use super::{
-    CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Helper, LoopExpression, NodeKind,
-    Span, Template, directive, vue,
-};
-use crate::script::runes;
+use super::{Template, directive};
+use crate::compilation::helpers::Helper;
+use crate::compilation::markers;
+use crate::compilation::script::{patterns, rune_value, runes};
 
 impl<'t> Template<'_, '_, 't> {
     /// `{ value }`: the cell Vue's template reads a plain declaration through.
@@ -47,7 +51,7 @@ impl<'t> Template<'_, '_, 't> {
                 let value_rune = rune.is_some_and(|(name, _)| runes::value(name));
                 if let Some(init) = &declarator.init
                     && !self.i.server
-                    && crate::compilation::asynchronous::has_await(init)
+                    && is_expression_async(init)
                 {
                     self.helpers.insert(Helper::Async);
                 }
@@ -93,7 +97,7 @@ impl<'t> Template<'_, '_, 't> {
             DirectiveExpression::For(LoopExpression { parameters, source }),
             span,
         );
-        let node = self.template_node("$$Scope", span, vec![property], parent);
+        let node = self.template_node(markers::SCOPE, span, vec![property], parent);
         self.scopes.insert(node);
         Some(node)
     }
@@ -101,7 +105,7 @@ impl<'t> Template<'_, '_, 't> {
     /// `let { a, b } = $state(v)`: a cell per name, as the script lowers it.
     fn rune_pattern(&self, declarator: &oxc_ast::ast::VariableDeclarator<'_>) -> Statement<'t> {
         let b = self.b;
-        let tracking = !self.i.server && self.i.plan.auxiliary.contains_key("$effect.tracking");
+        let tracking = self.i.plan.tracking(self.i.server);
         let Some(Expression::CallExpression(call)) = &declarator.init else {
             unreachable!("a rune is a call")
         };
@@ -114,19 +118,12 @@ impl<'t> Template<'_, '_, 't> {
             .arguments
             .first()
             .map(|argument| self.rewrite(argument.to_expression()));
-        let value = crate::script::rune_value(b, rune, argument, tracking)
-            .expect("a checked rune has a value");
+        let value = rune_value(b, rune, argument, tracking).expect("a checked rune has a value");
         // The lowering rewrites the defaults itself.
         let mut pattern = declarator.id.clone_in_with_semantic_ids(b.allocator());
         Strip::new(b.allocator()).visit_binding_pattern(&mut pattern);
-        let declarators = crate::script::patterns::declarators(
-            b,
-            &mut self.rewriter(),
-            pattern,
-            value,
-            rune,
-            tracking,
-        );
+        let declarators =
+            patterns::declarators(b, &mut self.rewriter(), pattern, value, rune, tracking);
         b.declaration(oxc_ast::ast::VariableDeclarationKind::Const, declarators)
     }
 }
