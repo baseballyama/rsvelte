@@ -4,7 +4,7 @@ use oxc_ast_visit::{VisitMut, walk_mut};
 use rsvelte_typescript_tree::node_span;
 
 use super::super::derived::{Created, callback, keeps_callee};
-use super::super::javascript::without_typescript;
+use super::super::javascript::into_without_typescript;
 use super::super::names::Names;
 use super::super::paths::{Destructure, Paths};
 use super::{ScriptRewrite, Target, should_proxy_read};
@@ -159,12 +159,13 @@ pub(super) fn lower_destructured_state<'o>(
 /// `$derived(x as T)` may keep `x`.
 fn rune_argument<'o>(rw: &ScriptRewrite<'_, 'o>, d: &mut VariableDeclarator<'o>) -> Expression<'o> {
     let b = rw.b;
-    let Some(Expression::CallExpression(mut call)) = d.init.take().map(without_typescript) else {
+    let Some(Expression::CallExpression(mut call)) = d.init.take().map(into_without_typescript)
+    else {
         unreachable!("a rune is a call")
     };
     call.arguments.first_mut().map_or_else(
         || b.void0(),
-        |argument| without_typescript(argument.take_in(b).into_expression()),
+        |argument| into_without_typescript(argument.take_in(b).into_expression()),
     )
 }
 

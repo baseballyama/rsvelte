@@ -13,7 +13,7 @@ use oxc_span::SPAN;
 use oxc_syntax::scope::ScopeFlags;
 
 use super::super::class_fields::{ClassFields, StateField, class_fields, key_name, member_name};
-use super::super::javascript::without_typescript;
+use super::super::javascript::into_without_typescript;
 use super::declarators::{RuneStorage, rune_value};
 use super::writes::assignment_value;
 use super::{ScriptRewrite, Target};
@@ -131,11 +131,11 @@ impl<'o> ScriptRewrite<'_, 'o> {
         // Upstream decides on the argument as written.
         let proxy = rune == "$state"
             && argument.is_some_and(|a| self.res.should_proxy(a.get_inner_expression()));
-        let Expression::CallExpression(mut call) = without_typescript(value) else {
+        let Expression::CallExpression(mut call) = into_without_typescript(value) else {
             unreachable!("a rune is a call")
         };
         let mut argument = (call.arguments.first_mut())
-            .map(|a| without_typescript(a.take_in(b).into_expression()));
+            .map(|a| into_without_typescript(a.take_in(b).into_expression()));
         if definition && argument.is_none() && self.target == Target::Server {
             return None;
         }
