@@ -6,10 +6,7 @@ use rsvelte_kernel::source::document::Document;
 fn projection_and_typecheck_can_be_registered_together() {
     let mut registry = Registry::new();
     rsvelte_svelte_typescript_projection::register(&mut registry);
-    rsvelte_svelte_check::register(
-        &mut registry,
-        &rsvelte_svelte_check::Configuration::default(),
-    );
+    crate::register(&mut registry, &crate::Configuration::default());
     let document = Document::new(
         "App.svelte".to_owned(),
         "<script lang=\"ts\">let x: number = 1;</script><p>{x}</p>".to_owned(),
@@ -19,10 +16,7 @@ fn projection_and_typecheck_can_be_registered_together() {
         &registry,
         &[document],
         &RunOptions {
-            tasks: &[
-                rsvelte_svelte_typescript_projection::TASK,
-                "svelte.check/default",
-            ],
+            tasks: &[rsvelte_svelte_typescript_projection::TASK, super::TASK],
             sharing: Sharing::Shared,
             threads: Some(1),
         },

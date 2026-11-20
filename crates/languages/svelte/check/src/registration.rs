@@ -87,3 +87,6 @@ mod environment;
 use environment::typescript_env;
 mod view;
 use view::typescript_view;
+
+#[cfg(test)]
+mod tests;
