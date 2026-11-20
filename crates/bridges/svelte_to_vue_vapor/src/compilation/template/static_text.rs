@@ -1,6 +1,11 @@
 use std::borrow::Cow;
 
-use super::{Item, Parent, Span, Template, Text, spelled, vue};
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::lower::{Item, Parent};
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
+use rsvelte_vue_semantic::compiler_syntax_tree::Text;
+
+use super::{Template, spelled};
 
 /// A `<textarea>`'s text. As its content, the parser drops one leading newline (client), and
 /// Svelte's server drops a lone one beside an expression. As its `value`, whose leading newline

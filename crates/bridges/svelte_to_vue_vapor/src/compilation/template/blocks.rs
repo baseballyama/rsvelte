@@ -1,12 +1,15 @@
 use oxc_ast::ast::{Argument, Expression, LogicalOperator};
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::lower::{Item, Parent, clean_nodes, template_end};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
+use rsvelte_typescript_compile::build::sanitize_template_string;
 use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
-use super::{
-    CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Helper, Item, NodeKind, Parent, R,
-    Span, Template, clean_nodes, directive, known_string, sanitize_template_string, template_end,
-    unsupported, vue,
-};
-use crate::compilation::markers;
+use super::{Template, directive, known_string};
+use crate::compilation::helpers::Helper;
+use crate::compilation::{R, markers, unsupported};
 
 impl<'t> Template<'_, '_, 't> {
     pub(super) fn list(

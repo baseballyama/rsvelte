@@ -1,10 +1,15 @@
 use oxc_ast::ast::{Expression, ObjectPropertyKind};
-
-use super::{
-    AttributeValue, CompilerNodeIdentifier, Helper, Namespace, NodeKind, Parent, R, Template,
-    TypedIndex, clean_nodes, spelled, template_end, unsupported, vue,
+use rsvelte_kernel::index::TypedIndex;
+use rsvelte_svelte_compile::lower::{Parent, clean_nodes, template_end};
+use rsvelte_svelte_compile::render_plan::Namespace;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    AttributeValue, CompilerNodeIdentifier, NodeKind,
 };
-use crate::compilation::{markers, string_key};
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
+
+use super::{Template, spelled};
+use crate::compilation::helpers::Helper;
+use crate::compilation::{R, markers, string_key, unsupported};
 
 /// A component's props object: its fields, and the `--` custom properties its wrapper styles.
 struct Fields<'t> {

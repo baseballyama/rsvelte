@@ -10,10 +10,11 @@ use oxc_span::SPAN;
 use props::prop_declarations;
 pub(crate) use props::prop_member;
 pub(crate) use rewrite::{ScriptRewrite, property_target};
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_compile::build::Builder;
 pub(crate) use rune_values::{async_arrow, rune_value, tracked};
 
-use super::{BindingKind, Plan, Resolution};
+use super::Plan;
 use crate::compilation::helpers::{self, Helper};
 use crate::compilation::{markers, prelude};
 

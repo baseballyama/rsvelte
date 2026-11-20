@@ -2,12 +2,14 @@ use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{BindingPattern, Expression, Statement};
 use oxc_ast_visit::VisitMut;
 use oxc_span::SPAN;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use rsvelte_typescript_compile::strip::Strip;
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName, LoopExpression};
 
-use super::{
-    CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Helper, LoopExpression, NodeKind,
-    Span, Template, directive, vue,
-};
+use super::{Template, directive};
+use crate::compilation::helpers::Helper;
 use crate::compilation::markers;
 use crate::compilation::script::runes;
 

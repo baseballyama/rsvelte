@@ -1,7 +1,7 @@
 use oxc_ast::ast::{Declaration, ExportDeclaration, VariableDeclarationKind};
 use oxc_semantic::SymbolId;
 
-use super::{R, span_of, unsupported};
+use crate::compilation::{R, span_of, unsupported};
 
 /// The names `export const`, `export function` and `export class` expose on the component.
 pub(super) fn collect(e: &ExportDeclaration<'_>, names: &mut Vec<SymbolId>) -> R<()> {

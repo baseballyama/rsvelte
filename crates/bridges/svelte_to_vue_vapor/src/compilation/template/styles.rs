@@ -1,8 +1,11 @@
 use oxc_ast::ast::Expression;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{Modifiers, StyleValue};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, Modifiers, StyleValue,
+};
 
-use super::{Attribute, AttributeValue, Helper, R, Steps, Template, unsupported};
-use crate::compilation::string_key;
+use super::{Steps, Template};
+use crate::compilation::helpers::Helper;
+use crate::compilation::{R, string_key, unsupported};
 
 impl<'t> Template<'_, '_, 't> {
     /// `style:` directives with the `style` attribute: `$$styles` after each patch (client).

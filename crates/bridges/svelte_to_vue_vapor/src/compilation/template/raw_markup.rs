@@ -1,6 +1,11 @@
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::render_plan::Namespace;
+use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier;
 use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 
-use super::{CompilerNodeIdentifier, Helper, Namespace, Span, Template, spelled, vue};
+use super::{Template, spelled};
+use crate::compilation::helpers::Helper;
 
 impl Template<'_, '_, '_> {
     pub(super) fn raw_markup(

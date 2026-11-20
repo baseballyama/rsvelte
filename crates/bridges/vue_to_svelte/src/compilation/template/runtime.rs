@@ -1,11 +1,11 @@
 use oxc_ast::ast::{
-    ForStatementInit, UpdateOperator, VariableDeclaration, VariableDeclarationKind,
+    BinaryOperator, Expression, ForStatementInit, LogicalOperator, SimpleAssignmentTarget,
+    Statement, UnaryOperator, UpdateOperator, VariableDeclaration, VariableDeclarationKind,
 };
+use oxc_span::SPAN;
+use rsvelte_typescript_compile::build::Builder;
 
-use super::{
-    BinaryOperator, Builder, Expression, LogicalOperator, Names, SPAN, SimpleAssignmentTarget,
-    Statement, UnaryOperator,
-};
+use crate::compilation::context::Names;
 
 /// `function includeBooleanAttr(value) { return !!value || value === ''; }`
 pub(super) fn include_boolean_attribute<'a>(

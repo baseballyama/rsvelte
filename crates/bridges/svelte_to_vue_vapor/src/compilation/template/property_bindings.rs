@@ -1,6 +1,9 @@
+use rsvelte_svelte_semantic::compiler_syntax_tree::Attribute;
 use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 
-use super::{Attribute, Helper, Steps, Template, vue};
+use super::{Steps, Template};
+use crate::compilation::helpers::Helper;
 use crate::compilation::markers;
 
 impl<'t> Template<'_, '_, 't> {

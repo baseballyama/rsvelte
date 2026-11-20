@@ -1,14 +1,17 @@
 use oxc_ast::ast::{Expression, IdentifierReference, ThisExpression};
 use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::NodeId;
-use rsvelte_svelte_semantic::compiler_syntax_tree::MetadataTag;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
+    ElementKind, MetadataTag, NodeKind,
+};
+use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_tree::ExpressionIdentifier;
+use rustc_hash::FxHashSet;
 
-use super::{
-    Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
-    ElementKind, FxHashSet, NodeKind, R, Resolution, Span, span_of, unsupported,
-};
+use crate::compilation::{R, span_of, unsupported};
 
 /// The parents a table part needs for the browser to parse it where it is written.
 fn table_parents(tag: &str) -> Option<&'static [&'static str]> {

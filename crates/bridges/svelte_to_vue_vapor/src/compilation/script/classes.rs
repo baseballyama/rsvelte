@@ -9,10 +9,11 @@ use oxc_ast::ast::{
 use oxc_ast_visit::VisitMut;
 use oxc_span::SPAN;
 use rsvelte_typescript_compile::build::Builder;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::constructors::key_name;
 use super::emit::{ScriptRewrite, rune_value};
-use super::{FxHashMap, FxHashSet, runes};
+use super::runes;
 
 impl<'t> ScriptRewrite<'_, 't> {
     /// Whether the server stores `rune` as a plain value rather than a cell.

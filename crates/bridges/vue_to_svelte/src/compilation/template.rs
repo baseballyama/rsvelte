@@ -1,19 +1,10 @@
 //! The template: Vue's HIR to Svelte's.
 
 use oxc_allocator::{CloneIn, GetAllocator};
-use oxc_ast::ast::{
-    Argument, AssignmentOperator, AssignmentTarget, BinaryOperator, Expression, LogicalOperator,
-    SimpleAssignmentTarget, Statement, UnaryOperator,
-};
+use oxc_ast::ast::{Expression, Statement};
 use oxc_semantic::SymbolId;
-use oxc_span::{GetSpan, SPAN};
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_compile::Target;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    self as svelte, Attribute, AttributeValue, Branch,
-    CompilerNodeIdentifier as SvelteNodeIdentifier, CompilerSyntaxTreeBuilder, Each,
-    Element as SvelteElement, NodeKind as SvelteNodeKind,
-};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{self as svelte, CompilerSyntaxTreeBuilder};
 use rsvelte_typescript_compile::build::Builder;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rsvelte_vue_semantic::compiler_syntax_tree::{
@@ -23,9 +14,7 @@ use rsvelte_vue_semantic::compiler_syntax_tree::{
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 use rustc_hash::FxHashMap;
 
-use crate::compilation::context::{
-    Class, Declared, Helper, Info, Names, R, Rewriter, output_span, span_of, unsupported,
-};
+use crate::compilation::context::{Helper, Info, Names, R, Rewriter, unsupported};
 
 /// The translated template, and the declarations the instance script needs for it.
 #[derive(Debug)]

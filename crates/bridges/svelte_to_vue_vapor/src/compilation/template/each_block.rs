@@ -1,11 +1,14 @@
 use oxc_span::GetSpan;
-use rsvelte_svelte_semantic::compiler_syntax_tree::EachKey;
-
-use super::{
-    AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, DirectiveExpression,
-    DirectiveName, Helper, NodeKind, Parent, R, Template, directive, vue,
+use rsvelte_svelte_compile::lower::Parent;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, EachKey, NodeKind,
 };
-use crate::compilation::{markers, span_of};
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
+
+use super::{Template, directive};
+use crate::compilation::helpers::Helper;
+use crate::compilation::{R, markers, span_of};
 
 fn has_animation(tree: &CompilerSyntaxTree, body: Children) -> bool {
     tree.children(body).iter().any(|&child| {

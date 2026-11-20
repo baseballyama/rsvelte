@@ -1,11 +1,17 @@
 use oxc_ast::ast::{BinaryOperator, Expression};
-
-use super::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Helper,
-    Item, Name, Namespace, NodeKind, Parent, Part, R, Span, Steps, Template, directive, spelled,
-    unsupported, vue,
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::lower::{Item, Parent};
+use rsvelte_svelte_compile::render_plan::Namespace;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind, Part,
 };
-use crate::compilation::{markers, string_key};
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
+use rsvelte_vue_semantic::compiler_syntax_tree::Name;
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
+
+use super::{Steps, Template, directive, spelled};
+use crate::compilation::helpers::Helper;
+use crate::compilation::{R, markers, string_key, unsupported};
 
 /// Svelte's `LOAD_ERROR_ELEMENTS`: its server marks `onload` / `onerror` on them so that the
 /// client can replay an event that fired before hydration.

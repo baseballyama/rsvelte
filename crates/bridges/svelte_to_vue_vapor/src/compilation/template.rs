@@ -19,11 +19,10 @@ use oxc_semantic::SymbolId;
 use oxc_span::{GetSpan, GetSpanMut};
 use rsvelte_kernel::index::{IndexRange, TypedIndex};
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_compile::lower::{Item, Parent, clean_nodes, template_end};
+use rsvelte_svelte_compile::lower::Parent;
 use rsvelte_svelte_compile::render_plan::Namespace;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
-    ElementKind, NodeKind, Part,
+    Attribute, CompilerNodeIdentifier, ElementKind, NodeKind, Part,
 };
 use rsvelte_svelte_semantic::evaluate::{Evaluation, Evaluator, Value};
 use rsvelte_svelte_semantic::resolve::Resolution;
@@ -38,7 +37,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::compilation::helpers::{self, Helper};
 use crate::compilation::script::prop_member;
-use crate::compilation::{Input, R, markers, span_of, unsupported};
+use crate::compilation::{Input, R, markers};
 
 /// What the emitter reads of the template besides the Vue HIR's expressions.
 #[derive(Debug)]

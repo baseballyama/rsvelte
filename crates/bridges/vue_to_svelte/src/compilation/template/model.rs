@@ -1,9 +1,16 @@
-use super::{
-    AssignmentOperator, AssignmentTarget, Attribute, AttributeValue, Class, Declared, Directive,
-    Expression, ExpressionIdentifier, GetSpan, Helper, Property, R, SimpleAssignmentTarget, Span,
-    SvelteNodeIdentifier, T, Target, expression_of, output_span, span_of, svelte, unsupported,
-    vmodel,
+use oxc_ast::ast::{AssignmentOperator, AssignmentTarget, Expression, SimpleAssignmentTarget};
+use oxc_span::GetSpan;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::Target;
+use rsvelte_svelte_semantic::compiler_syntax_tree as svelte;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier as SvelteNodeIdentifier,
 };
+use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_vue_semantic::compiler_syntax_tree::{Directive, Property};
+
+use super::{T, expression_of, vmodel};
+use crate::compilation::context::{Class, Declared, Helper, R, output_span, span_of, unsupported};
 
 /// An attribute waiting for the element it goes on.
 type Pending = Box<dyn FnOnce(SvelteNodeIdentifier, &Property) -> Attribute>;

@@ -1,8 +1,15 @@
-use super::{
-    Attribute, AttributeValue, BinaryOperator, Declared, Directive, Expression, GetSpan, Helper,
-    Property, R, Rewriter, Span, SvelteNodeIdentifier, T, Target, expression_of,
-    include_boolean_attribute, renderable, span_of, svelte, unsupported,
+use oxc_ast::ast::{BinaryOperator, Expression};
+use oxc_span::GetSpan;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::Target;
+use rsvelte_svelte_semantic::compiler_syntax_tree as svelte;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier as SvelteNodeIdentifier,
 };
+use rsvelte_vue_semantic::compiler_syntax_tree::{Directive, Property};
+
+use super::{T, expression_of, include_boolean_attribute, renderable};
+use crate::compilation::context::{Declared, Helper, R, Rewriter, span_of, unsupported};
 
 impl<'a> T<'_, '_, '_, 'a> {
     /// `normalizeClass([…items])`.

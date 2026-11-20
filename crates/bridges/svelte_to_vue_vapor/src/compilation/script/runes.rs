@@ -5,9 +5,11 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::NodeId;
 use oxc_span::GetSpan;
+use rsvelte_svelte_semantic::resolve::Resolution;
 use rustc_hash::FxHashSet;
 
-use super::{Plan, R, Resolution, Root, span_of, unsupported};
+use super::{Plan, Root};
+use crate::compilation::{R, span_of, unsupported};
 
 pub(super) fn collect(
     res: &Resolution,

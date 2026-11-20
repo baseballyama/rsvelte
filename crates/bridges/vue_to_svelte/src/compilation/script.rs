@@ -14,7 +14,7 @@ use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
 use rustc_hash::FxHashMap;
 
 use crate::compilation::context::{
-    Class, Declared, Helper, Info, Names, Prop, R, Rewriter, Top, span_of, unsupported,
+    Class, Declared, Info, Names, Prop, R, Top, span_of, unsupported,
 };
 
 const VUE_APIS: [&str; 4] = ["ref", "computed", "reactive", "onMounted"];

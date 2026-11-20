@@ -1,7 +1,11 @@
 use oxc_ast::ast::{Expression, FormalParameter};
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::lower::Parent;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 
-use super::{CompilerNodeIdentifier, NodeKind, Parent, R, Span, Template, unsupported, vue};
-use crate::compilation::markers;
+use super::Template;
+use crate::compilation::{R, markers, unsupported};
 
 impl<'t> Template<'_, '_, 't> {
     /// `{#snippet}` as a `$$Snippet` named after its declaration, whose `v-for` names the

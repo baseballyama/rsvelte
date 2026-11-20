@@ -14,8 +14,6 @@ use rsvelte_vue_semantic::resolve::Resolution;
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, SingleFileComponent};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::Translation;
-
 pub(crate) type R<T> = Result<T, Diagnostic>;
 
 pub(crate) fn unsupported(what: impl std::fmt::Display, span: Span) -> Diagnostic {

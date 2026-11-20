@@ -1,4 +1,7 @@
-use super::{Attribute, Helper, Steps, Template};
+use rsvelte_svelte_semantic::compiler_syntax_tree::Attribute;
+
+use super::{Steps, Template};
+use crate::compilation::helpers::Helper;
 
 impl<'t> Template<'_, '_, 't> {
     pub(super) fn custom_element_attribute(

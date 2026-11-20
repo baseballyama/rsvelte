@@ -1,10 +1,13 @@
 use oxc_ast::ast::BinaryOperator;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::lower::{Item, Parent, clean_nodes, template_end};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{AttributeValue, Children, NodeKind};
 use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 
-use super::{
-    AttributeValue, Children, Helper, Item, NodeKind, Parent, R, Span, Template, clean_nodes,
-    template_end, unsupported, vue,
-};
+use super::Template;
+use crate::compilation::helpers::Helper;
+use crate::compilation::{R, unsupported};
 
 impl Template<'_, '_, '_> {
     /// The options of a bound `<select>`, each an `<option>` with a static `value`; on the server

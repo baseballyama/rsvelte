@@ -1,11 +1,14 @@
 use oxc_ast::ast::Program;
 use oxc_ast_visit::VisitMut;
 use oxc_span::{SPAN, SourceType};
+use rsvelte_svelte_compile::Target;
 use rsvelte_typescript_compile::build::Builder;
 use rsvelte_typescript_compile::strip::Strip;
 use rsvelte_typescript_tree::Tree;
+use rsvelte_vue_semantic::resolve::Resolution;
 
-use super::{Info, Names, R, Resolution, Target, Translation, span_of, unsupported};
+use super::{Info, Names, R, span_of, unsupported};
+use crate::Translation;
 
 /// The whole translation: the script first, as the template reads what it declares.
 pub(crate) fn translate(

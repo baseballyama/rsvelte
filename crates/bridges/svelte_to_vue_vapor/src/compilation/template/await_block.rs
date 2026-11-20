@@ -1,8 +1,13 @@
 use oxc_ast::ast::BinaryOperator;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::lower::Parent;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Await;
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
+use rsvelte_vue_syntax::syntax_tree::DirectiveName;
 
-use super::{DirectiveName, Helper, Parent, R, Span, Template, vue};
-use crate::compilation::markers;
+use super::Template;
+use crate::compilation::helpers::Helper;
+use crate::compilation::{R, markers};
 
 impl Template<'_, '_, '_> {
     /// `{#await}` as a `$$Await` whose `v-for` names the promise's state, with a branch per
