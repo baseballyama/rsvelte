@@ -178,7 +178,7 @@ jobs:
           CARGO_PROFILE_RELEASE_LTO: false
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16
           CARGO_PROFILE_RELEASE_DEBUG: false
-        run: pnpm run generate
+        run: pnpm run generate --no-wasm-opt
       # test, check and build each start by generating; it is done, so they skip that and run at
       # once. SvelteKit's sync writes a file only when its content changes, so they share it.
       - run: |
