@@ -9,6 +9,7 @@ mod arguments;
 mod configuration;
 mod documents;
 mod format;
+mod format_options;
 mod lint;
 mod lint_globals;
 mod project_check;

@@ -7,6 +7,8 @@ use std::sync::Arc;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use serde_json::{Map, Value};
 
+use super::editorconfig::Given;
+
 /// The formatter a configuration is written for. Its rules decide which options exist, which
 /// `.editorconfig` files count, and the defaults.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -15,11 +17,20 @@ pub(crate) enum Formatter {
     Prettier,
 }
 
+impl std::fmt::Display for Formatter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Oxfmt => "oxfmt",
+            Self::Prettier => "Prettier",
+        })
+    }
+}
+
 /// What an option of a formatter's configuration means to rsvelte.
 #[derive(Clone, Copy)]
 enum Meaning {
-    /// Given to the formatters, under this name of Prettier's.
-    Printed(&'static str),
+    /// Given to the formatters under this name of Prettier's, as the formatter loads its value.
+    Printed(&'static str, fn(&Value) -> Loaded),
     /// Changes no Svelte or TypeScript output.
     NoEffect,
     /// Changes no output with a value that passes; any other value is refused.
@@ -35,8 +46,85 @@ enum Meaning {
 
 use Meaning::{IgnorePatterns, NoEffect, NoEffectWhen, Printed, Refused, Svelte};
 
+/// What a formatter makes of one value it is given.
+enum Loaded {
+    Value(Value),
+    /// The formatter takes the value, and rsvelte does not print it yet.
+    Unprinted,
+    /// The formatter refuses the configuration that gives it.
+    Unloaded,
+}
+
+/// An option whose every value the plugins read as the formatter loads them.
 const fn printed(name: &'static str) -> (&'static str, Meaning) {
-    (name, Printed(name))
+    (name, Printed(name, |value| Loaded::Value(value.clone())))
+}
+
+/// An option whose formatter loads its values by `load`.
+const fn loaded(name: &'static str, load: fn(&Value) -> Loaded) -> (&'static str, Meaning) {
+    (name, Printed(name, load))
+}
+
+/// oxfmt loads oxc's widths and refuses any other, as it checks them while it loads them.
+fn oxfmt_width(value: &Value, takes: fn(usize) -> bool) -> Loaded {
+    match value.as_u64().and_then(|width| usize::try_from(width).ok()) {
+        Some(width) if takes(width) => Loaded::Value(value.clone()),
+        _ => Loaded::Unloaded,
+    }
+}
+
+/// Prettier loads any integer, `80.0` and `1e2` among them; rsvelte prints oxc's widths.
+fn prettier_width(value: &Value, takes: fn(usize) -> bool) -> Loaded {
+    let Some(number) = value.as_f64().filter(|number| number.fract() == 0.0) else {
+        return Loaded::Unloaded;
+    };
+    match value.as_u64().or_else(|| integral(number)) {
+        Some(width) if usize::try_from(width).is_ok_and(takes) => Loaded::Value(width.into()),
+        _ => Loaded::Unprinted,
+    }
+}
+
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "the number is integral and checked to fit"
+)]
+fn integral(number: f64) -> Option<u64> {
+    (0.0..=f64::from(u32::MAX))
+        .contains(&number)
+        .then_some(number as u64)
+}
+
+fn takes_line_width(width: usize) -> bool {
+    rsvelte_typescript_format::options::line_width(width).is_some()
+}
+
+fn takes_indent_width(width: usize) -> bool {
+    rsvelte_typescript_format::options::indent_width(width).is_some()
+}
+
+fn oxfmt_line_width(value: &Value) -> Loaded {
+    oxfmt_width(value, takes_line_width)
+}
+
+fn oxfmt_indent_width(value: &Value) -> Loaded {
+    oxfmt_width(value, takes_indent_width)
+}
+
+fn prettier_line_width(value: &Value) -> Loaded {
+    prettier_width(value, takes_line_width)
+}
+
+fn prettier_indent_width(value: &Value) -> Loaded {
+    prettier_width(value, takes_indent_width)
+}
+
+fn oxfmt_end_of_line(value: &Value) -> Loaded {
+    if (value.as_str()).is_some_and(|eol| ["lf", "crlf", "cr"].contains(&eol)) {
+        Loaded::Value(value.clone())
+    } else {
+        Loaded::Unloaded
+    }
 }
 
 fn is_empty_list(value: &Value) -> bool {
@@ -74,11 +162,11 @@ const PRETTIER: &[(&str, Meaning)] = &[
     printed("checkIgnorePragma"),
     printed("endOfLine"),
     printed("insertPragma"),
-    printed("printWidth"),
+    loaded("printWidth", prettier_line_width),
     printed("rangeEnd"),
     printed("rangeStart"),
     printed("requirePragma"),
-    printed("tabWidth"),
+    loaded("tabWidth", prettier_indent_width),
     printed("useTabs"),
     printed("embeddedLanguageFormatting"),
     ("vueIndentScriptAndStyle", NoEffect),
@@ -97,18 +185,18 @@ const OXFMT: &[(&str, Meaning)] = &[
     printed("bracketSameLine"),
     printed("bracketSpacing"),
     printed("embeddedLanguageFormatting"),
-    printed("endOfLine"),
+    loaded("endOfLine", oxfmt_end_of_line),
     printed("experimentalOperatorPosition"),
     printed("htmlWhitespaceSensitivity"),
     printed("jsxSingleQuote"),
     printed("objectWrap"),
-    printed("printWidth"),
+    loaded("printWidth", oxfmt_line_width),
     printed("proseWrap"),
     printed("quoteProps"),
     printed("semi"),
     printed("singleAttributePerLine"),
     printed("singleQuote"),
-    printed("tabWidth"),
+    loaded("tabWidth", oxfmt_indent_width),
     printed("trailingComma"),
     printed("useTabs"),
     ("ignorePatterns", IgnorePatterns),
@@ -136,6 +224,33 @@ const OXFMT_SVELTE: &[(&str, &str)] = &[
 ];
 
 impl Formatter {
+    /// Whether `null` leaves an option unset; Prettier refuses it.
+    const fn unsets_null(self) -> bool {
+        matches!(self, Self::Oxfmt)
+    }
+
+    /// The value the formatter takes for the option Prettier calls `name`, from any source:
+    /// `Err` with the reason for one it refuses or that rsvelte does not print yet.
+    /// The reason names the option `written`, as its source calls it.
+    pub(crate) fn load(self, name: &str, written: &str, given: &Given) -> Result<Value, String> {
+        let load = (self.options().iter())
+            .find_map(|&(_, meaning)| match meaning {
+                Printed(as_named, load) if as_named == name => Some(load),
+                _ => None,
+            })
+            .unwrap_or(|value| Loaded::Value(value.clone()));
+        let loaded = match given {
+            Given::Value(Value::Null) => Loaded::Unloaded,
+            Given::Value(value) => load(value),
+            Given::Unlimited => Loaded::Unprinted,
+        };
+        match loaded {
+            Loaded::Value(value) => Ok(value),
+            Loaded::Unprinted => Err(format!("rsvelte does not print this `{written}` value yet")),
+            Loaded::Unloaded => Err(format!("{self} does not load this `{written}` value")),
+        }
+    }
+
     const fn options(self) -> &'static [(&'static str, Meaning)] {
         match self {
             Self::Oxfmt => OXFMT,
@@ -302,15 +417,15 @@ fn meaning(formatter: Formatter, options: Map<String, Value>) -> (Options, Vec<S
     };
     let mut printed = Vec::new();
     let mut unknown = Vec::new();
-    // `null` leaves an option unset, as in oxfmt.
-    for (name, value) in options.into_iter().filter(|(_, value)| !value.is_null()) {
+    let unset = |value: &Value| value.is_null() && formatter.unsets_null();
+    for (name, value) in options.into_iter().filter(|(_, value)| !unset(value)) {
         let found = formatter
             .options()
             .iter()
             .find(|&&(known, _)| known == name);
         match found.map(|&(_, meaning)| meaning) {
             None => unknown.push(name),
-            Some(Printed(as_named)) => printed.push((as_named.to_owned(), name, value)),
+            Some(Printed(as_named, _)) => printed.push((as_named.to_owned(), name, value)),
             Some(NoEffect) => {}
             Some(NoEffectWhen(passes)) if passes(&value) => {}
             Some(NoEffectWhen(_) | Refused) => {
@@ -323,7 +438,7 @@ fn meaning(formatter: Formatter, options: Map<String, Value>) -> (Options, Vec<S
             Some(Svelte) => match value {
                 Value::Bool(true) => {}
                 Value::Object(plugin) => {
-                    for (name, value) in plugin.into_iter().filter(|(_, value)| !value.is_null()) {
+                    for (name, value) in plugin.into_iter().filter(|(_, value)| !unset(value)) {
                         match OXFMT_SVELTE.iter().find(|&&(oxfmt, _)| oxfmt == name) {
                             Some(&(_, as_named)) => {
                                 printed.push((
@@ -363,7 +478,7 @@ pub(crate) fn printed_names() -> impl Iterator<Item = &'static str> {
         .into_iter()
         .flatten()
         .filter_map(|&(_, meaning)| match meaning {
-            Printed(name) => Some(name),
+            Printed(name, _) => Some(name),
             _ => None,
         })
         .chain(OXFMT_SVELTE.iter().map(|&(_, name)| name))
