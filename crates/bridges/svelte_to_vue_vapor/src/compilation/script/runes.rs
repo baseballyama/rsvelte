@@ -49,7 +49,7 @@ impl Collect<'_> {
         if name == "$derived"
             && let Some(argument) = argument
         {
-            self.plan.async_values |= crate::compilation::asynchronous::has_await(argument);
+            self.plan.async_values |= rsvelte_svelte_compile::lower::is_expression_async(argument);
         }
         let Expression::CallExpression(call) = init.get_inner_expression() else {
             unreachable!("a rune is a call")

@@ -1,8 +1,9 @@
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn};
 use oxc_ast::ast::{
-    ArrowFunctionExpression, BlockStatement, Expression, Function, ObjectPropertyKind, Statement,
+    ArrowFunctionExpression, BlockStatement, Class, Expression, Function, ObjectPropertyKind,
+    Program, Statement,
 };
-use oxc_ast_visit::{VisitMut, walk_mut};
+use oxc_ast_visit::{Visit, VisitMut, walk_mut};
 use oxc_span::SPAN;
 use oxc_syntax::node::NodeId;
 use oxc_syntax::scope::ScopeFlags;
@@ -11,7 +12,6 @@ use rsvelte_vue_semantic::resolve::call_name;
 
 use super::expressions::script_getter;
 use super::{Body, Emitter};
-use crate::compilation::asynchronous::program_has_await;
 use crate::compilation::{markers, prelude};
 
 const EFFECT_WATCH: [&str; 4] = [
@@ -257,4 +257,25 @@ fn declares(statement: &Statement<'_>, wanted: impl Fn(&str) -> bool) -> bool {
         d.id.get_binding_identifier()
             .is_some_and(|id| wanted(&id.name))
     })
+}
+
+/// An `await` that a program's top level runs, the preludes it marks among it.
+fn program_has_await(program: &Program<'_>) -> bool {
+    let mut v = TopLevelAwait(false);
+    for statement in prelude::expanded(&program.body) {
+        v.visit_statement(statement);
+    }
+    v.0
+}
+
+struct TopLevelAwait(bool);
+
+impl<'a> Visit<'a> for TopLevelAwait {
+    fn visit_expression(&mut self, it: &Expression<'a>) {
+        self.0 |= rsvelte_svelte_compile::lower::is_expression_async(it);
+    }
+
+    fn visit_function(&mut self, _: &Function<'a>, _: ScopeFlags) {}
+
+    fn visit_class(&mut self, _: &Class<'a>) {}
 }

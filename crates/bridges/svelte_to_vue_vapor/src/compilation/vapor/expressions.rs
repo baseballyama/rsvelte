@@ -10,10 +10,10 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_span::GetSpan;
 use oxc_syntax::scope::ScopeFlags;
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_vue_semantic::resolve::{BindingType, call_name};
 
 use super::{Body, Emitter};
-use crate::compilation::asynchronous::has_await;
 use crate::compilation::markers;
 
 mod asynchronous;
@@ -45,7 +45,7 @@ impl<'o> Emitter<'_, 'o> {
         e: &Expression<'_>,
         body: &mut Body<'o>,
     ) -> Expression<'o> {
-        if has_await(e) {
+        if is_expression_async(e) {
             return self.async_text(e, body);
         }
         self.rewrite(e, Memo::Render, Some(body))
@@ -211,7 +211,9 @@ impl<'o> Rewrite<'_, '_, 'o> {
         match self.memo {
             Memo::None => false,
             Memo::Render => self.e.t.template.memoized.contains(&it.span()),
-            Memo::Callback => self.e.t.template.memoized.contains(&it.span()) && !has_await(it),
+            Memo::Callback => {
+                self.e.t.template.memoized.contains(&it.span()) && !is_expression_async(it)
+            }
         }
     }
 

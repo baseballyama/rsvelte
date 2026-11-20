@@ -1,9 +1,9 @@
 use oxc_ast::ast::{Expression, LogicalOperator};
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rsvelte_vue_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 
 use super::{Body, Emitter};
-use crate::compilation::asynchronous::has_await;
 use crate::compilation::markers;
 
 impl<'a, 'o> Emitter<'a, 'o> {
@@ -37,7 +37,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
             self.expression(self.source(self.component_value(identifier, "$$type")));
         let source = self.source(self.component_value(identifier, "$$props"));
         let props = self.render_expression(source, body);
-        if has_await(source) {
+        if is_expression_async(source) {
             component = b.conditional(self.copy_output(&props), component, b.null());
         }
         let props = b.call(b.id("$$component_props"), [props]);
@@ -91,7 +91,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
             b.id("$$ssr_component"),
             [component, props, b.null(), b.id("$$ssr_parent")],
         );
-        let result = self.server_async(result, has_await(source));
+        let result = self.server_async(result, is_expression_async(source));
         let children = self.snippets(identifier);
         if children.is_empty() {
             return result;

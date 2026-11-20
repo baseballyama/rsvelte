@@ -48,7 +48,7 @@ impl<'t> Template<'_, '_, 't> {
                 let value_rune = rune.is_some_and(|(name, _)| runes::value(name));
                 if let Some(init) = &declarator.init
                     && !self.i.server
-                    && crate::compilation::asynchronous::has_await(init)
+                    && rsvelte_svelte_compile::lower::is_expression_async(init)
                 {
                     self.helpers.insert(Helper::Async);
                 }

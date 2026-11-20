@@ -1,9 +1,9 @@
 use oxc_ast::ast::{Argument, Expression, LogicalOperator, Statement};
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_vue_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{Body, Emitter};
-use crate::compilation::asynchronous::has_await;
 
 impl<'o> Emitter<'_, 'o> {
     /// `function $$snippet_N(parameters) { …; return nodes; }`.
@@ -113,7 +113,7 @@ impl<'o> Emitter<'_, 'o> {
         ready: &mut Vec<Expression<'o>>,
     ) -> Expression<'o> {
         let value = self.render_expression(source, body);
-        if has_await(source) {
+        if is_expression_async(source) {
             ready.push(self.ready(&value));
         }
         value

@@ -210,7 +210,7 @@ impl<'i, 't> Template<'i, '_, 't> {
     /// A template expression in the component's tree.
     fn template_expression(&mut self, e: ExpressionIdentifier) -> Expression<'t> {
         let source = self.source(e);
-        if !self.i.server && crate::compilation::asynchronous::has_await(source) {
+        if !self.i.server && rsvelte_svelte_compile::lower::is_expression_async(source) {
             self.helpers.insert(Helper::Async);
         }
         let value = self.rewrite(source);

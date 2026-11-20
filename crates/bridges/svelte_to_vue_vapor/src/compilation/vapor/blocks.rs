@@ -1,10 +1,10 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::Expression;
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_vue_semantic::compiler_syntax_tree::CompilerNodeIdentifier;
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{Body, Emitter};
-use crate::compilation::asynchronous::has_await;
 use crate::compilation::markers;
 use crate::helpers::Helper;
 
@@ -79,7 +79,7 @@ impl<'o> Emitter<'_, 'o> {
                 },
             );
         }
-        if has_await(test) {
+        if is_expression_async(test) {
             return self.async_if(test, arguments);
         }
         let test = self.expression(test);

@@ -23,7 +23,7 @@ pub(crate) fn rune_value<'t>(
         }
         "$derived" => {
             let argument = argument?;
-            let asynchronous = crate::compilation::asynchronous::has_await(&argument);
+            let asynchronous = rsvelte_svelte_compile::lower::is_expression_async(&argument);
             let argument = tracked(b, argument, tracking && !asynchronous);
             let getter = if asynchronous {
                 async_arrow(b, argument)

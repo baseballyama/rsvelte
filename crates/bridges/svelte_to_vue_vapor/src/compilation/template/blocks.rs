@@ -122,7 +122,7 @@ impl<'t> Template<'_, '_, 't> {
                 .init
                 .as_ref()
                 .expect("a const tag has an initializer");
-            if !self.i.server && crate::compilation::asynchronous::has_await(init) {
+            if !self.i.server && rsvelte_svelte_compile::lower::is_expression_async(init) {
                 self.helpers.insert(Helper::Async);
             }
             let value = self.rewrite(init);

@@ -278,7 +278,7 @@ fn check_await_directive(
             _ => return Ok(()),
         };
     if first.into_iter().chain(second).any(|expression| {
-        crate::compilation::asynchronous::has_await(javascript.get_expression(expression))
+        rsvelte_svelte_compile::lower::is_expression_async(javascript.get_expression(expression))
     }) {
         if matches!(attribute.value, AttributeValue::Bind(_)) {
             return Err(unsupported(

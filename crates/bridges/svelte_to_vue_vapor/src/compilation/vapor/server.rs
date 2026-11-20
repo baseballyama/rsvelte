@@ -1,12 +1,12 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{Expression, ObjectPropertyKind, Statement};
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, Element, NodeKind, PropertyKind, TagType,
 };
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{Body, Emitter, method};
-use crate::compilation::asynchronous::has_await;
 use crate::compilation::markers;
 
 impl<'o> Emitter<'_, 'o> {
@@ -91,7 +91,7 @@ impl<'o> Emitter<'_, 'o> {
             return content;
         };
         let condition = self.source(condition);
-        let asynchronous = has_await(condition);
+        let asynchronous = is_expression_async(condition);
         let condition = self.expression(condition);
         let otherwise = if nodes.len() > 1 {
             self.server_if(&nodes[1..])
@@ -115,7 +115,7 @@ impl<'o> Emitter<'_, 'o> {
                 unreachable!("a loop directive")
             };
             let source = self.source(each.source);
-            let asynchronous = has_await(source);
+            let asynchronous = is_expression_async(source);
             let source = self.expression(source);
             let parameters = self.res.tree().get_parameters(each.parameters);
             let mut parameters = parameters.clone_in_with_semantic_ids(b.allocator());
@@ -135,7 +135,7 @@ impl<'o> Emitter<'_, 'o> {
                 let source = self.source(expression);
                 let value = self.expression(source);
                 let escaped = b.call(b.id("$$escape"), [value]);
-                if has_await(source) {
+                if is_expression_async(source) {
                     b.call(crate::script::async_arrow(b, escaped), [])
                 } else {
                     escaped
@@ -235,7 +235,7 @@ impl<'o> Emitter<'_, 'o> {
             self.bound(identifier, Some(markers::TAG_KEY))
                 .expect("a dynamic tag"),
         );
-        asynchronous |= has_await(source);
+        asynchronous |= is_expression_async(source);
         let value = self.expression(source);
         let content = b.conditional(b.id("$$tag"), content, b.string(""));
         let content = if asynchronous {
@@ -266,7 +266,7 @@ impl<'o> Emitter<'_, 'o> {
                 self.helpers.insert("useSSRContext");
                 let asynchronous = children.iter().any(|&child| {
                     matches!(tree.node(child).kind, NodeKind::Interpolation { expression }
-                        if has_await(self.source(expression)))
+                        if is_expression_async(self.source(expression)))
                 });
                 let value = self.title_text(identifier, &mut Body::default());
                 let result = b.call(b.id("$$render_title"), [b.id("$$ssr_context"), value]);
@@ -288,7 +288,7 @@ impl<'o> Emitter<'_, 'o> {
     fn server_value(&mut self, identifier: CompilerNodeIdentifier) -> Expression<'o> {
         let source = self.source(self.bound(identifier, None).expect("a value"));
         let value = self.expression(source);
-        self.server_async(value, has_await(source))
+        self.server_async(value, is_expression_async(source))
     }
 
     /// The attributes of an element's opening tag, pushed to `output`.
@@ -337,7 +337,7 @@ impl<'o> Emitter<'_, 'o> {
                         continue;
                     }
                     let source = self.source(expression);
-                    tag_parts.asynchronous |= has_await(source);
+                    tag_parts.asynchronous |= is_expression_async(source);
                     let value = self.expression(source);
                     match name {
                         Some(content @ (markers::HTML_CONTENT_KEY | markers::TEXT_CONTENT_KEY)) => {
