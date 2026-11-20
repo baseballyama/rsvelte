@@ -160,7 +160,8 @@ impl SvelteRule for MarkupSelfClosing {
 
 const VOID: usize = 0;
 
-/// An index into [`Values`].
+/// An index into [`Values`]. eslint-plugin-svelte's void elements (`src/utils/element-types.ts`)
+/// add the obsolete `keygen` and `menuitem` to HTML's; its SVG and math lists are Svelte's.
 fn element_type(name: &str) -> usize {
     if is_component_name(name) {
         4
@@ -168,135 +169,11 @@ fn element_type(name: &str) -> usize {
         5
     } else if rsvelte_markup_syntax::is_void(name) || matches!(name, "keygen" | "menuitem") {
         VOID
-    } else if SVG_ELEMENTS.contains(&name) {
+    } else if rsvelte_svelte_syntax::names::is_svg(name) {
         2
-    } else if MATHML_ELEMENTS.contains(&name) {
+    } else if rsvelte_svelte_syntax::names::is_mathml(name) {
         3
     } else {
         1
     }
 }
-
-/// eslint-plugin-svelte's lists (`src/utils/element-types.ts`); its void elements add the obsolete
-/// `keygen` and `menuitem` to HTML's.
-const SVG_ELEMENTS: &[&str] = &[
-    "altGlyph",
-    "altGlyphDef",
-    "altGlyphItem",
-    "animate",
-    "animateColor",
-    "animateMotion",
-    "animateTransform",
-    "circle",
-    "clipPath",
-    "color-profile",
-    "cursor",
-    "defs",
-    "desc",
-    "discard",
-    "ellipse",
-    "feBlend",
-    "feColorMatrix",
-    "feComponentTransfer",
-    "feComposite",
-    "feConvolveMatrix",
-    "feDiffuseLighting",
-    "feDisplacementMap",
-    "feDistantLight",
-    "feDropShadow",
-    "feFlood",
-    "feFuncA",
-    "feFuncB",
-    "feFuncG",
-    "feFuncR",
-    "feGaussianBlur",
-    "feImage",
-    "feMerge",
-    "feMergeNode",
-    "feMorphology",
-    "feOffset",
-    "fePointLight",
-    "feSpecularLighting",
-    "feSpotLight",
-    "feTile",
-    "feTurbulence",
-    "filter",
-    "font",
-    "font-face",
-    "font-face-format",
-    "font-face-name",
-    "font-face-src",
-    "font-face-uri",
-    "foreignObject",
-    "g",
-    "glyph",
-    "glyphRef",
-    "hatch",
-    "hatchpath",
-    "hkern",
-    "image",
-    "line",
-    "linearGradient",
-    "marker",
-    "mask",
-    "mesh",
-    "meshgradient",
-    "meshpatch",
-    "meshrow",
-    "metadata",
-    "missing-glyph",
-    "mpath",
-    "path",
-    "pattern",
-    "polygon",
-    "polyline",
-    "radialGradient",
-    "rect",
-    "set",
-    "solidcolor",
-    "stop",
-    "svg",
-    "switch",
-    "symbol",
-    "text",
-    "textPath",
-    "tref",
-    "tspan",
-    "unknown",
-    "use",
-    "view",
-    "vkern",
-];
-
-const MATHML_ELEMENTS: &[&str] = &[
-    "annotation",
-    "annotation-xml",
-    "maction",
-    "math",
-    "merror",
-    "mfrac",
-    "mi",
-    "mmultiscripts",
-    "mn",
-    "mo",
-    "mover",
-    "mpadded",
-    "mphantom",
-    "mprescripts",
-    "mroot",
-    "mrow",
-    "ms",
-    "mspace",
-    "msqrt",
-    "mstyle",
-    "msub",
-    "msubsup",
-    "msup",
-    "mtable",
-    "mtd",
-    "mtext",
-    "mtr",
-    "munder",
-    "munderover",
-    "semantics",
-];
