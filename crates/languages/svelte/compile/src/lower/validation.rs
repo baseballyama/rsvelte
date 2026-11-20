@@ -7,6 +7,7 @@ pub(super) mod markup;
 mod runes;
 
 pub(super) use awaits::check as check_awaits;
+pub(in crate::lower) use markup::each_key;
 use runes::script_and_template_errors;
 pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, script_error};
 

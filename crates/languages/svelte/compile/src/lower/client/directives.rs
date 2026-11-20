@@ -1,7 +1,7 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{ArrowFunctionBody, Directive, Expression, FunctionBody, Statement};
 use oxc_span::SPAN;
-use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{EachKey, Modifiers};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{Attribute, AttributeValue, ClientCompilationContext, Lists, NodeKind};
@@ -204,7 +204,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 unreachable!("a group's blocks are `{{#each}}` blocks")
             };
             let index = b.id(&self.each_index[&block]);
-            if each.keyed(self.javascript) && each.index.is_some() {
+            if matches!(each.key(self.javascript), Ok(EachKey::Keyed { .. }))
+                && each.index.is_some()
+            {
                 b.runtime("get", [index])
             } else {
                 index

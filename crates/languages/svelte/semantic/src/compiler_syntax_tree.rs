@@ -219,14 +219,32 @@ pub struct Each {
     pub fallback: Option<Children>,
 }
 
+/// How an `{#each}` block tells its items apart: upstream's `metadata.keyed`.
+#[derive(Clone, Copy, Debug)]
+pub enum EachKey {
+    /// By position: no key, or the index as its own key.
+    Index,
+    /// By `key`, computed from each item as `context` names it.
+    Keyed {
+        context: PatternIdentifier,
+        key: ExpressionIdentifier,
+    },
+}
+
 impl Each {
-    /// Upstream's `metadata.keyed`: a key other than the index itself.
-    #[must_use]
-    pub fn keyed(&self, javascript: &rsvelte_typescript_tree::Tree) -> bool {
+    /// # Errors
+    ///
+    /// The key, when the block has one other than the index and no context to compute it
+    /// from (upstream's `each_key_without_as`).
+    pub fn key(
+        &self,
+        javascript: &rsvelte_typescript_tree::Tree,
+    ) -> Result<EachKey, ExpressionIdentifier> {
         let Some(key) = self.key else {
-            return false;
+            return Ok(EachKey::Index);
         };
-        let is_index = match (javascript.get_expression(key), self.index) {
+        let read = crate::typescript::without_typescript(javascript.get_expression(key));
+        let is_index = match (read, self.index) {
             (oxc_ast::ast::Expression::Identifier(key), Some(index)) => javascript
                 .get_pattern(index)
                 .pattern
@@ -234,7 +252,11 @@ impl Each {
                 .is_some_and(|index| index.name == key.name),
             _ => false,
         };
-        !is_index
+        match (is_index, self.context) {
+            (true, _) => Ok(EachKey::Index),
+            (false, Some(context)) => Ok(EachKey::Keyed { context, key }),
+            (false, None) => Err(key),
+        }
     }
 }
 

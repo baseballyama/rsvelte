@@ -2,7 +2,7 @@ use rsvelte_typescript_semantic::semantic::Semantic;
 
 use super::super::{BindingInformation, BindingKind, TemplateNames};
 use super::for_each_binding;
-use crate::compiler_syntax_tree::{CompilerSyntaxTree, NodeKind};
+use crate::compiler_syntax_tree::{CompilerSyntaxTree, EachKey, NodeKind};
 
 /// The kinds upstream's `create_scopes` gives the names the template declares.
 pub(super) fn classify_template(
@@ -26,10 +26,10 @@ pub(super) fn classify_template(
                     });
                 }
                 if let Some(index) = each.index {
-                    let kind = if each.keyed(tree) {
-                        BindingKind::KeyedIndex
-                    } else {
-                        BindingKind::StaticIndex
+                    // A block that cannot compile (`Err`) is keyed to upstream as well.
+                    let kind = match each.key(tree) {
+                        Ok(EachKey::Index) => BindingKind::StaticIndex,
+                        Ok(EachKey::Keyed { .. }) | Err(_) => BindingKind::KeyedIndex,
                     };
                     for_each_binding(&tree.get_pattern(index).pattern, &mut |s| {
                         set(s, kind, false);
