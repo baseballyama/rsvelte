@@ -280,21 +280,13 @@ fn is_exported(f: &Facts<'_>, declaration: NodeId) -> bool {
     })
 }
 
-/// An expression without the parentheses `ESTree` does not keep.
-fn without_parentheses<'a, 'b>(mut expression: &'b Expression<'a>) -> &'b Expression<'a> {
-    while let Expression::ParenthesizedExpression(p) = expression {
-        expression = &p.expression;
-    }
-    expression
-}
-
 /// The function a name refers to when it is one: a function declaration, or a declarator whose
 /// initializer is a function.
 fn function_definition(f: &Facts<'_>, declaration: NodeId) -> Option<NodeId> {
     match f.kind(declaration) {
         AstKind::Function(_) => Some(declaration),
         AstKind::VariableDeclarator(declarator) => {
-            match without_parentheses(declarator.init.as_ref()?) {
+            match declarator.init.as_ref()?.without_parentheses() {
                 Expression::FunctionExpression(function) => Some(function.node_id.get()),
                 Expression::ArrowFunctionExpression(arrow) => Some(arrow.node_id.get()),
                 _ => None,
@@ -401,7 +393,7 @@ fn rhs_node(
                 && is_unused_expression(f, parent)
                 && !can_be_used_later =>
         {
-            Some(without_parentheses(&assignment.right).node_id())
+            Some(assignment.right.without_parentheses().node_id())
         }
         _ => None,
     }
