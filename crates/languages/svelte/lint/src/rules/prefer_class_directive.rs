@@ -157,7 +157,7 @@ impl<'a> Values<'a> {
     fn strings(&self, part: &Part) -> Option<Vec<Cow<'a, str>>> {
         let mut out = Vec::new();
         match *part {
-            Part::Text(span) => out.push(rsvelte_markup_syntax::decode_attribute(
+            Part::Text(span) => out.push(rsvelte_svelte_syntax::syntax_tree::decode_attribute(
                 span.text(self.source),
             )),
             Part::Expression { expression, .. } => {

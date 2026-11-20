@@ -113,14 +113,18 @@ fn static_problem(
     let parts = component.parts(parts);
     let value = match parts {
         [] => return Some(Problem::Empty.message()),
-        [Part::Text(span)] => rsvelte_markup_syntax::decode_attribute(span.text(source)),
+        [Part::Text(span)] => {
+            rsvelte_svelte_syntax::syntax_tree::decode_attribute(span.text(source))
+        }
         _ => {
             let mut text = String::new();
             for part in parts {
                 let Part::Text(span) = part else {
                     return None;
                 };
-                text.push_str(&rsvelte_markup_syntax::decode_attribute(span.text(source)));
+                text.push_str(&rsvelte_svelte_syntax::syntax_tree::decode_attribute(
+                    span.text(source),
+                ));
             }
             Cow::Owned(text)
         }

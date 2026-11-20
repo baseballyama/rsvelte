@@ -13,7 +13,6 @@ mod fragment;
 mod identifier;
 mod javascript;
 mod options;
-pub use javascript::javascript_failure;
 mod pattern;
 mod script;
 mod sequence;
@@ -23,6 +22,7 @@ mod token;
 mod whitespace;
 
 pub use element_rules::{AUTOCLOSING_CHILDREN, Autoclosing, is_void};
+pub use javascript::javascript_failure;
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;

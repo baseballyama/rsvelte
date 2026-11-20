@@ -8,6 +8,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::{TokenKind, Tokens};
+pub use rsvelte_markup_syntax::{decode_attribute, decode_text};
 use rsvelte_stylesheet_syntax::StyleSheet;
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
@@ -534,8 +535,6 @@ impl Component {
         r.get(&self.debug_identifiers)
     }
 }
-
-pub use rsvelte_markup_syntax::{decode_attribute, decode_text};
 
 // Pinned so a change to the surface tree's layout is a decision.
 const _: () = assert!(
