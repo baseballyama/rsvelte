@@ -6,7 +6,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
 
-use crate::finding::{Finding, UNUSED_DIRECTIVE};
+use crate::finding::{Finding, PARSE_ERROR, UNUSED_DIRECTIVE};
 use crate::findings::Findings;
 use crate::rule::Rule;
 
@@ -19,9 +19,15 @@ const FINDING_BYTES: usize = 200;
 /// text after a leading byte order mark, which `ESLint` removes before it lints.
 #[derive(Clone, Copy)]
 pub struct Positions<'a> {
-    /// The line index, built only when a position is asked for: most documents report nothing.
-    lines: &'a dyn Fn() -> &'a LineIndex,
+    lines: Lines<'a>,
     byte_order_mark: bool,
+}
+
+#[derive(Clone, Copy)]
+enum Lines<'a> {
+    /// Built only when a position is asked for: most documents report nothing.
+    Lazy(&'a dyn Fn() -> &'a LineIndex),
+    Built(&'a LineIndex),
 }
 
 impl std::fmt::Debug for Positions<'_> {
@@ -35,6 +41,16 @@ impl std::fmt::Debug for Positions<'_> {
 impl<'a> Positions<'a> {
     #[must_use]
     pub fn new(lines: &'a dyn Fn() -> &'a LineIndex, source_text: &str) -> Self {
+        Self::with(Lines::Lazy(lines), source_text)
+    }
+
+    /// The positions of `source_text` from its built `lines`.
+    #[must_use]
+    pub fn of(lines: &'a LineIndex, source_text: &str) -> Self {
+        Self::with(Lines::Built(lines), source_text)
+    }
+
+    fn with(lines: Lines<'a>, source_text: &str) -> Self {
         Self {
             lines,
             byte_order_mark: source_text.starts_with('\u{feff}'),
@@ -44,7 +60,11 @@ impl<'a> Positions<'a> {
     /// The 1-based line and 0-based UTF-16 column of a byte offset.
     #[must_use]
     pub fn at(self, offset: u32) -> (u32, u32) {
-        let at = (self.lines)().line_column(offset);
+        let lines = match self.lines {
+            Lines::Lazy(lines) => lines(),
+            Lines::Built(lines) => lines,
+        };
+        let at = lines.line_column(offset);
         let column = if self.byte_order_mark && at.line == 1 {
             at.column.saturating_sub(1)
         } else {
@@ -100,7 +120,7 @@ pub fn report_parse_error(
 ) {
     out.file("lint.json", render_parse_error(positions, message, offset));
     out.findings.push(rsvelte_kernel::diagnostics::Finding {
-        diagnostic: Diagnostic::error("parse_error", message, Span::new(offset, offset))
+        diagnostic: Diagnostic::error(PARSE_ERROR, message, Span::new(offset, offset))
             .without_end(),
         fix: Vec::new(),
     });
@@ -163,7 +183,7 @@ pub fn render_parse_error(positions: Positions<'_>, message: &str, offset: u32) 
         .key("rule")
         .null()
         .key("message")
-        .write_string(&format!("Parsing error: {message}"))
+        .write_string(&parsing_error(message))
         .key("start")
         .begin_object()
         .key("line")
@@ -177,6 +197,12 @@ pub fn render_parse_error(positions: Positions<'_>, message: &str, offset: u32) 
         .end_array()
         .end_object();
     w.finish()
+}
+
+/// The message `ESLint` reports for a parser that threw `message`.
+#[must_use]
+pub fn parsing_error(message: &str) -> String {
+    format!("Parsing error: {message}")
 }
 
 /// An upper bound on the report's length, unless a message needs many escapes.

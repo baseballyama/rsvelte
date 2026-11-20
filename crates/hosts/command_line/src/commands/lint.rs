@@ -10,8 +10,8 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex};
-use rsvelte_lint_runner::finding::UNUSED_DIRECTIVE;
-use rsvelte_lint_runner::output::Positions;
+use rsvelte_lint_runner::finding::{PARSE_ERROR, UNUSED_DIRECTIVE};
+use rsvelte_lint_runner::output::{Positions, parsing_error};
 
 use super::files;
 use crate::usage;
@@ -72,18 +72,23 @@ fn report(documents: &[Document], results: &[DocumentResult], colors: bool) -> (
             }
         }
         let index = LineIndex::with_breaks(&document.text, LineBreaks::Ecmascript);
-        let lines = || &index;
-        let positions = Positions::new(&lines, &document.text);
+        let positions = Positions::of(&index, &document.text);
         let rows: Vec<[String; 5]> = (problems.iter())
             .map(|&(d, _)| {
                 let (line, column) = positions.at(d.span.start_offset);
+                // A parse error is printed as `lint.json` reports it: the parser's 0-based column,
+                // its message as the parser wrote it, and no rule.
+                let parse_error = d.code == PARSE_ERROR;
                 [
                     line.to_string(),
-                    (column + 1).to_string(),
+                    (if parse_error { column } else { column + 1 }).to_string(),
                     d.severity.as_str().to_owned(),
-                    shown_message(&d.message),
-                    // An unused directive names no rule.
-                    if d.code == UNUSED_DIRECTIVE {
+                    if parse_error {
+                        without_period(parsing_error(&d.message))
+                    } else {
+                        without_period(d.message.replace('\n', " "))
+                    },
+                    if parse_error || d.code == UNUSED_DIRECTIVE {
                         String::new()
                     } else {
                         d.code.to_string()
@@ -146,9 +151,8 @@ fn report(documents: &[Document], results: &[DocumentResult], colors: bool) -> (
     (out, errors)
 }
 
-/// The message on one line, without the final period that `stylish` drops after a word.
-fn shown_message(message: &str) -> String {
-    let message = message.replace('\n', " ");
+/// `message` without the final period that `stylish` drops after a character other than a space.
+fn without_period(message: String) -> String {
     match message.strip_suffix('.') {
         Some(rest) if !rest.is_empty() && !rest.ends_with(' ') => rest.to_owned(),
         _ => message,

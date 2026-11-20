@@ -130,3 +130,26 @@ fn lint_counts_lines_and_columns_as_eslint_does() {
         }
     }
 }
+
+#[test]
+fn lint_prints_a_parse_error_as_eslint_does() {
+    let project = Project::new();
+    // Each expected row is what `eslint --format stylish` prints with svelte-eslint-parser.
+    for (name, text, row) in [
+        (
+            "Block.svelte",
+            "<script>\n  let unused = 1;\n</script>\n\n<div>\n  {#if x}\n</div>\n",
+            "  7:0  error  Parsing error: `</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag\n",
+        ),
+        (
+            "Bom.svelte",
+            "\u{feff}<p>{</p>\n",
+            "  1:4  error  Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error\n",
+        ),
+    ] {
+        std::fs::write(project.0.join("src").join(name), text).expect("file");
+        let output = project.lint(&[&format!("src/{name}")]);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains(&format!("\n{row}")), "{name}: {stdout}");
+    }
+}
