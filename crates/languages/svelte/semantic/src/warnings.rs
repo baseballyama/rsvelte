@@ -32,7 +32,6 @@ use exports::{state_exports, unused_exports};
 use found::{Found, VisitOrder};
 pub use ignore::{LEGACY_REPLACEMENTS, code_for_v5};
 pub use runes::dollar_name_errors;
-pub(crate) use runes::svelte_option;
 use runes::{custom_element, declaration_errors, runes};
 use selectors::unused_selectors;
 use template::Template;
@@ -293,7 +292,7 @@ impl Options {
     /// `<svelte:options>` names `tag` or `customElement`.
     #[must_use]
     pub fn linting(component: &Component, source: &str) -> Self {
-        let names = |name| svelte_option(component, source, name).is_some();
+        let names = |name| component.svelte_option(source, name).is_some();
         Self {
             runes: None,
             custom_element: names("tag") || names("customElement"),
@@ -329,7 +328,7 @@ pub fn warnings(
     ));
     declaration_errors(component, resolution, runes, &mut out.errors);
     let mut found = Found::default();
-    let custom_options = svelte_option(component, source, "customElement").is_some();
+    let custom_options = component.svelte_option(source, "customElement").is_some();
     let none = rustc_hash::FxHashMap::default();
     let exported = if runes {
         resolution.exported_by_specifier()
@@ -562,32 +561,25 @@ impl<'a> Scripts<'a> {
     }
 }
 
-/// `<svelte:options tag>`, which Svelte 5's parser rejects.
+/// `<svelte:options tag>`, which Svelte 5's parser rejects; it reaches here only when a style
+/// sheet error kept the parser from reading the options.
 fn deprecated_tag(component: &Component, source: &str, out: &mut Vec<(Raised, Diagnostic)>) {
-    for &child in component.children(component.root) {
-        let TemplateNode::Element {
-            name, attributes, ..
-        } = *component.node(child)
-        else {
-            continue;
-        };
-        if name.text(source) != "svelte:options" {
-            continue;
-        }
-        for attribute in component.attributes(attributes) {
-            if attribute.kind == AttributeKind::Attribute && attribute.name.text(source) == "tag" {
-                let raised = Raised {
-                    phase: Phase::Parse,
-                    section: Section::Template,
-                    at: attribute.span.start_offset,
-                };
-                let found = error(
-                    "svelte_options_deprecated_tag",
-                    "\"tag\" option is deprecated — use \"customElement\" instead",
-                    attribute.span,
-                );
-                out.push((raised, found));
-            }
+    let Some((attributes, _)) = component.svelte_options(source) else {
+        return;
+    };
+    for attribute in attributes {
+        if attribute.kind == AttributeKind::Attribute && attribute.name.text(source) == "tag" {
+            let raised = Raised {
+                phase: Phase::Parse,
+                section: Section::Template,
+                at: attribute.span.start_offset,
+            };
+            let found = error(
+                "svelte_options_deprecated_tag",
+                "\"tag\" option is deprecated — use \"customElement\" instead",
+                attribute.span,
+            );
+            out.push((raised, found));
         }
     }
 }

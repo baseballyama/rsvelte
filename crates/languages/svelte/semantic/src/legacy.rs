@@ -253,7 +253,7 @@ pub fn legacy_syntax(
     if runes {
         return None;
     }
-    if crate::warnings::svelte_option(component, source, "runes").is_some() {
+    if component.svelte_option(source, "runes").is_some() {
         return Some("<svelte:options runes={false}>");
     }
     let tree = &component.javascript;

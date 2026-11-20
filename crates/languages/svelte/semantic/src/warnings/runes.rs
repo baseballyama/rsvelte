@@ -9,7 +9,7 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::SymbolFlags;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Component, Part, TemplateNode};
+use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Component, Part};
 use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 use rustc_hash::FxHashSet;
 
@@ -26,8 +26,8 @@ pub(super) fn runes(
     awaits: &[Span],
     forced: Option<bool>,
 ) -> bool {
-    if let Some(value) = svelte_option(component, source, "runes") {
-        return match value {
+    if let Some(attribute) = component.svelte_option(source, "runes") {
+        return match attribute.value {
             AttributeValue::True => true,
             AttributeValue::Parts(parts) => !matches!(
                 component.parts(parts),
@@ -48,35 +48,6 @@ pub(super) fn runes(
     resolution
         .unresolved_names()
         .any(|name| is_rune(name) && !resolution.is_store_subscription(name))
-}
-
-/// The value of attribute `name` of `<svelte:options>`.
-pub(crate) fn svelte_option(
-    component: &Component,
-    source: &str,
-    name: &str,
-) -> Option<AttributeValue> {
-    component
-        .children(component.root)
-        .iter()
-        .find_map(|&child| {
-            let TemplateNode::Element {
-                name: tag,
-                attributes,
-                ..
-            } = *component.node(child)
-            else {
-                return None;
-            };
-            if tag.text(source) != "svelte:options" {
-                return None;
-            }
-            component
-                .attributes(attributes)
-                .iter()
-                .find(|a| a.name.text(source) == name)
-                .map(|a| a.value)
-        })
 }
 
 /// `dollar_prefix_invalid` and `dollar_binding_invalid`, with where the compiler raises each.
@@ -448,11 +419,11 @@ pub(super) fn custom_element(
     source: &str,
     out: &mut Found,
 ) {
-    let Some(custom) = svelte_option(component, source, "customElement") else {
+    let Some(custom) = component.svelte_option(source, "customElement") else {
         return;
     };
     let javascript = &component.javascript;
-    let names_props = match custom {
+    let names_props = match custom.value {
         AttributeValue::Parts(parts) => match component.parts(parts) {
             [Part::Expression { expression, .. }] => match javascript.get_expression(*expression) {
                 Expression::ObjectExpression(object) => object.properties.iter().any(|p| {
