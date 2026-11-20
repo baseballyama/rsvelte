@@ -80,13 +80,6 @@ pub enum ExperimentalAsync {
     Invalid,
 }
 
-impl ExperimentalAsync {
-    #[must_use]
-    pub fn is_on(self) -> bool {
-        self == Self::On
-    }
-}
-
 /// A compiler warning as `svelte.config.js`'s `onwarn` and `warningFilter` see it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Warning {

@@ -1,11 +1,10 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use serde::Deserialize;
 
-use super::compile_warnings::{Postcss, apply, ignores};
+use super::compile_warnings::{Postcss, compile, ignores};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
-use crate::settings::{ExperimentalAsync, Warning};
+use crate::settings::Warning;
 
 #[cfg(test)]
 mod tests;
@@ -39,37 +38,14 @@ struct ValidCompile {
 
 impl SvelteRule for ValidCompile {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let Some(compile) = file.compile_warnings() else {
-            return;
-        };
         let component = file.component().expect("a component rule");
         let source = file.source();
-        let config = match file.svelte_config() {
+        let compiled = match compile(file, &ignores(component, source), self.postcss) {
+            None => return,
             Some(Err(why)) => return reporter.fail(why),
-            Some(Ok(config)) => Some(config),
-            None => None,
+            Some(Ok(compiled)) => compiled,
         };
-        let experimental_async = config.map_or(ExperimentalAsync::Off, |c| c.experimental_async);
-        if experimental_async == ExperimentalAsync::Invalid {
-            let code = "options_invalid_value";
-            let message = format!(
-                "Invalid compiler option: experimental.async should be true or false, if \
-                 specified\nhttps://svelte.dev/e/{code}"
-            );
-            reporter.report(Report::range(format!("{message}({code})"), Span::new(0, 0)));
-            return;
-        }
-        let compile = match compile {
-            Ok(compile) => compile,
-            Err(error) => return report(reporter, error, &error.message, &error.code),
-        };
-        let applied = apply(
-            file,
-            compile,
-            &ignores(component, source),
-            experimental_async.is_on(),
-            self.postcss,
-        );
+        let (config, applied) = (compiled.config, compiled.applied);
         if let Some(error) = &applied.error {
             report(reporter, error, &error.message, &error.code);
             return;
