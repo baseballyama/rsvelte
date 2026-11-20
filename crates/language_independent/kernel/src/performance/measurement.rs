@@ -1,9 +1,9 @@
 //! Measurement built in from the start.
 //!
-//! - [`CountingAllocator`]: a global allocator wrapper a binary options into; it counts allocations
+//! - [`CountingAllocator`]: a global allocator wrapper a binary opts into; it counts allocations
 //!   and bytes per thread. Allocation counts are deterministic, so they can gate CI where time
 //!   cannot. With [`track_global`] on it also keeps process-wide totals and the peak of live heap
-//!   growth; that costs shared atomics per allocation, so timed runs leave it offset.
+//!   growth; that costs shared atomics per allocation, so timed runs leave it off.
 //! - [`phase`]: a scope guard attributing wall time and allocations to a named phase, **exclusive**
 //!   of nested phases. Artifacts and tasks are phases, so an artifact computed on behalf of a task
 //!   is charged to the artifact, not to whichever task asked first.

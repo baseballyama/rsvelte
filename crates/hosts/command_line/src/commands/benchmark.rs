@@ -8,7 +8,7 @@
 //! |---|---|---|---|
 //! | `shared` | artifacts shared by a document's tasks | on | all |
 //! | `isolated` | every task recomputes its artifacts | on | all |
-//! | `nopool` | shared | offset | all |
+//! | `nopool` | shared | off | all |
 //! | `serial` | shared | on | 1 |
 //! | `streaming` | shared, each result dropped as soon as it is final | on | all |
 //!
@@ -125,7 +125,7 @@ fn run_arm(reg: &Registry, docs: &[Document], tasks: &[&str], arm: &Arm) -> Vec<
         sharing: arm.sharing,
         threads: arm.threads,
     };
-    // `main` has checked the task identifiers.
+    // `development` has checked the task identifiers.
     if arm.stream {
         pipeline::run_each(reg, docs, &options, &|_, r| drop(r)).expect("known task ids");
         return Vec::new();

@@ -159,7 +159,7 @@ fn measure(reg: &Registry, docs: &[Document], tasks: &[&str], rounds: usize) -> 
         measurement::reset();
         measurement::track_global(true);
         let round_counted = Counted::default();
-        // `main` has checked the task identifiers.
+        // `development` has checked the task identifiers.
         pipeline::run_each(reg, docs, &run, &|i, result| round_counted.add(i, result))
             .expect("known task ids");
         measurement::track_global(false);
