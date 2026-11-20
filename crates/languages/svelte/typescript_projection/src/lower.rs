@@ -236,6 +236,37 @@ impl Builder<'_> {
         self.tree.push(Node::Source(expression))
     }
 
+    /// The source text at `span`, mapped to its own end.
+    fn copy(&mut self, span: Span) -> NodeIdentifier {
+        self.tree.push(Node::Source(SourceExpression {
+            span,
+            end: span.end_offset,
+        }))
+    }
+
+    /// The source text of `span` with each hole, in order, replaced by its node or removed.
+    fn spliced(
+        &mut self,
+        span: Span,
+        holes: impl IntoIterator<Item = (Span, Option<NodeIdentifier>)>,
+    ) -> Range {
+        let start = self.scratch.len();
+        let mut cursor = span.start_offset;
+        for (hole, node) in holes {
+            if cursor < hole.start_offset {
+                let copy = self.copy(Span::new(cursor, hole.start_offset));
+                self.scratch.push(copy);
+            }
+            self.scratch.extend(node);
+            cursor = hole.end_offset;
+        }
+        if cursor < span.end_offset {
+            let copy = self.copy(Span::new(cursor, span.end_offset));
+            self.scratch.push(copy);
+        }
+        self.finish_list(start)
+    }
+
     fn expression_source(
         &mut self,
         identifier: ExpressionIdentifier,

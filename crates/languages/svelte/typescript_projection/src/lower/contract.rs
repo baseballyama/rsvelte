@@ -495,25 +495,8 @@ impl Builder<'_> {
             self.scratch.push(self.tree.push(Node::Program { span }));
             return;
         }
-        let start = self.scratch.len();
-        let mut cursor = span.start_offset;
-        for edit in edits {
-            if cursor < edit.span.start_offset {
-                self.scratch.push(self.tree.push(Node::SourceCopy {
-                    span: Span::new(cursor, edit.span.start_offset),
-                }));
-            }
-            if let Some(replacement) = edit.replacement {
-                self.scratch.push(replacement);
-            }
-            cursor = edit.span.end_offset;
-        }
-        if cursor < span.end_offset {
-            self.scratch.push(self.tree.push(Node::SourceCopy {
-                span: Span::new(cursor, span.end_offset),
-            }));
-        }
-        let parts = self.finish_list(start);
+        let holes = edits.iter().map(|edit| (edit.span, edit.replacement));
+        let parts = self.spliced(span, holes);
         self.scratch
             .push(self.tree.push(Node::ProgramParts { parts }));
     }

@@ -14,9 +14,6 @@ pub enum Node {
     ProgramParts {
         parts: Range,
     },
-    SourceCopy {
-        span: Span,
-    },
     GeneratedIdentifier {
         prefix: NodeIdentifier,
         index: u32,

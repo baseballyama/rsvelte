@@ -236,10 +236,6 @@ impl Printer<'_> {
                 self.source_expression(value);
                 self.output.push(";\n");
             }
-            Node::SourceCopy { span, .. } => {
-                self.output.copy(self.source, span);
-                self.output.mark(span.end_offset);
-            }
             Node::AsType { parts, written } => {
                 self.output.push("(");
                 for &part in self.tree.children(parts) {

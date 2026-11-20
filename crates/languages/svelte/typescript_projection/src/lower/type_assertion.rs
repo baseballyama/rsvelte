@@ -71,25 +71,8 @@ impl Builder<'_> {
         written: Span,
         inner: &[(Span, NodeIdentifier)],
     ) -> NodeIdentifier {
-        let start = self.scratch.len();
-        let mut cursor = expression.start_offset;
-        for &(at, node) in inner {
-            if cursor < at.start_offset {
-                let copy = Node::SourceCopy {
-                    span: Span::new(cursor, at.start_offset),
-                };
-                self.scratch.push(self.tree.push(copy));
-            }
-            self.scratch.push(node);
-            cursor = at.end_offset;
-        }
-        if cursor < expression.end_offset {
-            let copy = Node::SourceCopy {
-                span: Span::new(cursor, expression.end_offset),
-            };
-            self.scratch.push(self.tree.push(copy));
-        }
-        let parts = self.finish_list(start);
+        let holes = inner.iter().map(|&(at, node)| (at, Some(node)));
+        let parts = self.spliced(expression, holes);
         self.tree.push(Node::AsType { parts, written })
     }
 }

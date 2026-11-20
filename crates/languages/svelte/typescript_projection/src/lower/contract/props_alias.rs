@@ -22,7 +22,7 @@ impl Builder<'_> {
             self.tree.push(Node::Identifier("$$ComponentProps"))
         };
         if reference || !self.props_hoisted {
-            let value = self.tree.push(Node::SourceCopy { span: annotation });
+            let value = self.copy(annotation);
             let alias = self.tree.push(Node::TypeAlias { name, value });
             edits.push(Edit {
                 span: Span::new(statement, statement),
