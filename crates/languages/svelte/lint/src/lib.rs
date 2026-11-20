@@ -5,7 +5,7 @@ pub use lint::lint;
 
 pub mod computation;
 mod configuration;
-pub use configuration::{Configuration, ConfiguredRule, check_plugins, definition};
+pub use configuration::{Configuration, ConfiguredRule, definition};
 mod extension;
 pub use extension::EXTENSION;
 pub mod host_rule;
