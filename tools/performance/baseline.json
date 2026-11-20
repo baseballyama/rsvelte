@@ -87,22 +87,22 @@
 			"allocs": 3761030,
 			"alloc_bytes": 254976999
 		},
-		"svelte.lint.compiler_syntax_tree_as_typescript": {
-			"calls": 115,
-			"allocs": 442,
-			"alloc_bytes": 39635
-		},
 		"svelte.lint.legacy_reactivity": {
 			"calls": 573,
 			"allocs": 2505,
 			"alloc_bytes": 131046
+		},
+		"svelte.lint.lower_as_svelte_eslint_parser": {
+			"calls": 115,
+			"allocs": 442,
+			"alloc_bytes": 39635
 		},
 		"svelte.lint.parse_as_svelte_eslint_parser": {
 			"calls": 9,
 			"allocs": 44,
 			"alloc_bytes": 11306
 		},
-		"svelte.lint.resolve_as_typescript": {
+		"svelte.lint.resolve_as_svelte_eslint_parser": {
 			"calls": 115,
 			"allocs": 2475,
 			"alloc_bytes": 385913

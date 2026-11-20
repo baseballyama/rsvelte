@@ -117,7 +117,7 @@ impl Artifact for LoweredAsSvelteEslintParser {
     /// `None` when svelte-eslint-parser's reading does not parse either.
     type Output = Option<CompilerSyntaxTree>;
 
-    const NAME: &'static str = "svelte.lint.compiler_syntax_tree_as_typescript";
+    const NAME: &'static str = "svelte.lint.lower_as_svelte_eslint_parser";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let component = read_as_svelte_eslint_parser(context).ok()?;
@@ -136,7 +136,7 @@ impl Artifact for ResolvedAsSvelteEslintParser {
     /// `None` when svelte-eslint-parser's reading does not parse either.
     type Output = Option<Resolution>;
 
-    const NAME: &'static str = "svelte.lint.resolve_as_typescript";
+    const NAME: &'static str = "svelte.lint.resolve_as_svelte_eslint_parser";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let component = read_as_svelte_eslint_parser(context).ok()?;
