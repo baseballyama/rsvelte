@@ -6,7 +6,7 @@ use oxc_ast::ast::{
     VariableDeclaration, VariableDeclarationKind,
 };
 use oxc_ast_visit::{Visit, walk};
-use oxc_semantic::SymbolFlags;
+use oxc_semantic::{ScopeId, SymbolFlags};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Component, Part};
@@ -15,7 +15,7 @@ use rustc_hash::FxHashSet;
 
 use super::found::{Found, Stage};
 use super::{Phase, Raised, Section, error, warning};
-use crate::resolve::{Resolution, is_rune};
+use crate::resolve::{BindingKind, Resolution, is_rune};
 
 /// Svelte's runes mode: `<svelte:options runes>`, or else a top-level `await` or a reference to
 /// a rune that is not a store subscription.
@@ -112,11 +112,6 @@ pub fn dollar_name_errors(
         } else {
             Section::Template
         };
-        let program = match section {
-            Section::Module => scoping.root_scope_id(),
-            Section::Instance => resolution.instance_scope(),
-            Section::Template => continue,
-        };
         let scope = scoping.symbol_scope_id(symbol);
         let scope_node = nodes.kind(scoping.get_node_id(scope));
         // A class expression's own name is not in the compiler's scopes.
@@ -126,29 +121,35 @@ pub fn dollar_name_errors(
         // Upstream declares a function expression's name in a scope that counts no depth.
         let names_function_expression = matches!(scope_node, AstKind::Function(f)
             if f.is_expression() && f.id.as_ref().and_then(|id| id.symbol_id.get()) == Some(symbol));
-        let phase = if flags.intersects(SymbolFlags::Enum) {
-            Phase::Scopes
-        } else {
-            let mut depth = u32::from(section == Section::Instance);
-            let mut scope = scope;
-            while scope != program {
-                depth += u32::from(resolution.is_function_scope(scope));
-                let Some(parent) = scoping.scope_parent_id(scope) else {
-                    break;
-                };
-                scope = parent;
-            }
-            depth -= u32::from(names_function_expression);
-            // The walk checks only function and class declarations and variable declarators.
-            let declared = (flags.contains(SymbolFlags::Function) && !names_function_expression)
-                || flags.contains(SymbolFlags::Class)
-                || matches!(declaration, AstKind::VariableDeclarator(_));
-            if depth <= 1 {
+        // The walk checks function and class declarations and variable declarators, and visits
+        // a `{@const}`'s declarator only through its id and value.
+        let walked = runes
+            && match declaration {
+                AstKind::Function(function) => function.is_declaration(),
+                AstKind::Class(class) => class.is_declaration(),
+                AstKind::VariableDeclarator(_) => {
+                    resolution.binding(symbol).kind != BindingKind::Template
+                }
+                _ => false,
+            };
+        let phase = match section {
+            // Upstream's template scopes sit more than one function below the module's, out of
+            // reach of the check creating the scopes makes.
+            Section::Template if walked => Phase::Walk,
+            Section::Template => continue,
+            Section::Module | Section::Instance if flags.intersects(SymbolFlags::Enum) => {
                 Phase::Scopes
-            } else if runes && declared {
-                Phase::Walk
-            } else {
-                continue;
+            }
+            Section::Module | Section::Instance => {
+                let depth = function_depth(resolution, scope, section == Section::Instance)
+                    - u32::from(names_function_expression);
+                if depth <= 1 {
+                    Phase::Scopes
+                } else if walked {
+                    Phase::Walk
+                } else {
+                    continue;
+                }
             }
         };
         let raised = Raised {
@@ -162,6 +163,26 @@ pub fn dollar_name_errors(
         out.push((raised, reserved(span, source)));
     }
     out
+}
+
+/// Upstream's `function_depth` of a script's `scope`: the functions around it, and one more in
+/// the instance, whose program is a function of the module's.
+fn function_depth(resolution: &Resolution, mut scope: ScopeId, instance: bool) -> u32 {
+    let scoping = resolution.scoping();
+    let program = if instance {
+        resolution.instance_scope()
+    } else {
+        scoping.root_scope_id()
+    };
+    let mut depth = u32::from(instance);
+    while scope != program {
+        depth += u32::from(resolution.is_function_scope(scope));
+        let Some(parent) = scoping.scope_parent_id(scope) else {
+            break;
+        };
+        scope = parent;
+    }
+    depth
 }
 
 /// The error a reserved name declared at `span` raises.
