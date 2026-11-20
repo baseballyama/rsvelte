@@ -7,10 +7,10 @@ use oxc_ast::ast::{
 use oxc_ast_visit::Visit;
 use oxc_parser::Kind;
 use oxc_span::{GetSpan, Span as OxcSpan};
+use rsvelte_typescript_tree::document_span;
 
 use super::layout::{Item, Layout};
 use super::tokens::{Token, Tokens};
-use crate::rules::shared::nodes::from_oxc;
 
 pub(super) struct Script<'s, 'a> {
     pub layout: &'s mut Layout<'a>,
@@ -66,16 +66,16 @@ impl<'a> Script<'_, 'a> {
     }
 
     pub(super) fn first(&self, node: OxcSpan) -> Option<Token> {
-        self.tokens().first(from_oxc(node))
+        self.tokens().first(document_span(node))
     }
 
     pub(super) fn last(&self, node: OxcSpan) -> Option<Token> {
-        self.tokens().last(from_oxc(node))
+        self.tokens().last(document_span(node))
     }
 
     /// `getFirstAndLastTokens(node)`.
     pub(super) fn outer(&self, node: OxcSpan) -> Option<(Token, Token)> {
-        self.tokens().outer(from_oxc(node), 0)
+        self.tokens().outer(document_span(node), 0)
     }
 
     pub(super) fn outer_first(&self, node: OxcSpan) -> Option<Token> {
@@ -119,7 +119,7 @@ impl<'a> Script<'_, 'a> {
     }
 
     pub(super) const fn item(node: OxcSpan) -> Item {
-        Item::Node(from_oxc(node))
+        Item::Node(document_span(node))
     }
 
     pub(super) fn items(nodes: impl IntoIterator<Item = OxcSpan>) -> Vec<Option<Item>> {
@@ -226,7 +226,7 @@ impl<'a> Script<'_, 'a> {
     pub(super) fn parentheses(&mut self, node: OxcSpan) {
         let tokens = self.tokens();
         let (Some(mut first), Some(mut left), Some(mut right)) = (
-            tokens.first(from_oxc(node)),
+            tokens.first(document_span(node)),
             tokens.before_offset(node.start),
             tokens.after_offset(node.end),
         ) else {

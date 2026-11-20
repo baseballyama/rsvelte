@@ -1,5 +1,6 @@
 use oxc_ast::ast::{BinaryOperator, Expression, VariableDeclarationKind};
 use rsvelte_svelte_compile::render_plan::Namespace;
+use rsvelte_svelte_syntax::syntax_tree::escape_markup;
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, Element, NodeKind, PropertyKind, TagType,
 };
@@ -321,7 +322,7 @@ impl<'o> Emitter<'_, 'o> {
                 markup.push_str(name.text(self.source_text));
                 if let Some(value) = value {
                     markup.push_str("=\"");
-                    escape_attribute(value.text(self.source_text), &mut markup);
+                    markup.push_str(&escape_markup(value.text(self.source_text), true));
                     markup.push('"');
                 }
             }
@@ -441,15 +442,4 @@ impl<'o> Emitter<'_, 'o> {
 
 fn boolean_property(attribute: &str) -> &str {
     rsvelte_markup_syntax::property_name(attribute).unwrap_or(attribute)
-}
-
-fn escape_attribute(value: &str, out: &mut String) {
-    for c in value.chars() {
-        match c {
-            '&' => out.push_str("&amp;"),
-            '"' => out.push_str("&quot;"),
-            '<' => out.push_str("&lt;"),
-            c => out.push(c),
-        }
-    }
 }

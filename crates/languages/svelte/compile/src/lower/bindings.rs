@@ -303,7 +303,7 @@ fn check_input(
 fn invalid_target(name: &str, elements: &str, a: &Attribute) -> Result<(), Diagnostic> {
     invalid(
         "bind_invalid_target",
-        &format!("`bind:{name}` can only be used with {elements}"),
+        format!("`bind:{name}` can only be used with {elements}"),
         a.span,
     )
 }

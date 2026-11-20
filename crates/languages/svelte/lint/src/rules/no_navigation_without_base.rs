@@ -2,13 +2,13 @@ use oxc_ast::ast::{ChainElement, Expression};
 use oxc_semantic::{NodeId, SymbolId};
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_syntax::syntax_tree::{Part, decode_attribute};
+use rsvelte_typescript_tree::node_span;
 
 use super::shared::kit_navigation::{
     Navigation, Options, Script, first_argument, first_part, has_scheme, leading_expression, links,
     string, template,
 };
 use super::shared::kit_route::{BASE_VERSIONS, runs_for};
-use super::shared::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -61,7 +61,7 @@ impl SvelteRule for NoNavigationWithoutBase {
                 .as_expression()
                 .is_some_and(|url| (allow_empty && is_empty(url)) || check.starts_with_base(url));
             if !allowed {
-                reporter.range(message, span(argument));
+                reporter.range(message, node_span(argument));
             }
         }
         let Some(component) = file.component().filter(|_| !self.0.ignore_links) else {

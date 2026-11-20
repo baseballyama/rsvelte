@@ -9,11 +9,12 @@ use oxc_semantic::{ScopeFlags, SymbolId};
 use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_typescript_compile::build::Builder;
+use rsvelte_typescript_tree::document_span;
 use rsvelte_vue_semantic::expressions::is_global;
 use rsvelte_vue_semantic::resolve::BindingType;
 use rustc_hash::FxHashMap;
 
-use super::{Class, Declared, Info, R, can_never_be_ref, span_of, unsupported};
+use super::{Class, Declared, Info, R, can_never_be_ref, unsupported};
 
 /// Copies one user expression or statement of the Vue tree into the output, rewriting what Vue
 /// and Svelte spell differently and refusing what svue does not translate.
@@ -85,7 +86,7 @@ impl<'r, 'v, 'a> Rewriter<'r, 'v, 'a> {
 
     fn refuse(&mut self, what: impl std::fmt::Display, span: oxc_span::Span) {
         if self.error.is_none() {
-            self.error = Some(unsupported(what, span_of(span)));
+            self.error = Some(unsupported(what, document_span(span)));
         }
     }
 

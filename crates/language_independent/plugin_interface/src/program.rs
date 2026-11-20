@@ -56,17 +56,37 @@ pub fn installed_package(name: &str, base: &Path) -> io::Result<Option<PathBuf>>
 ///
 /// As [`installed_package`], or the package's `package.json` cannot be read or decoded.
 pub fn installed_bin(name: &str, bin: &str, base: &Path) -> io::Result<Option<PathBuf>> {
-    let Some(package) = installed_package(name, base)? else {
+    let Some((package, manifest)) = installed_manifest::<Manifest>(name, base)? else {
         return Ok(None);
     };
-    let manifest = std::fs::read(package.join("package.json"))?;
-    let manifest: Manifest = serde_json::from_slice(&manifest).map_err(io::Error::other)?;
     let script = match manifest.bin {
         Some(Bin::One(script)) if manifest.name == bin => Some(script),
         Some(Bin::Named(mut scripts)) => scripts.remove(bin),
         _ => None,
     };
     Ok(script.map(|script| package.join(script)))
+}
+
+/// The `version` of package `name` when `base` resolves it and the version is a string.
+///
+/// # Errors
+///
+/// As [`installed_package`], or the package's `package.json` cannot be read or decoded.
+pub fn installed_version(name: &str, base: &Path) -> io::Result<Option<String>> {
+    let manifest = installed_manifest::<serde_json::Value>(name, base)?;
+    Ok(manifest.and_then(|(_, manifest)| manifest["version"].as_str().map(str::to_owned)))
+}
+
+fn installed_manifest<T: serde::de::DeserializeOwned>(
+    name: &str,
+    base: &Path,
+) -> io::Result<Option<(PathBuf, T)>> {
+    let Some(package) = installed_package(name, base)? else {
+        return Ok(None);
+    };
+    let manifest = std::fs::read(package.join("package.json"))?;
+    let manifest = serde_json::from_slice(&manifest).map_err(io::Error::other)?;
+    Ok(Some((package, manifest)))
 }
 
 #[derive(serde::Deserialize)]

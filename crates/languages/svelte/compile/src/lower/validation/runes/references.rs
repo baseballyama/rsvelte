@@ -4,9 +4,10 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::IdentifierReference;
 use rsvelte_svelte_semantic::resolve::is_rune;
+use rsvelte_typescript_tree::node_span;
 
 use super::RuneWalk;
-use crate::lower::{Diagnostic, Span, invalid, span_of};
+use crate::lower::{Diagnostic, Span, invalid};
 
 impl RuneWalk<'_> {
     /// `reference` is the node being entered; its ancestors are the walk's frames.
@@ -23,7 +24,7 @@ impl RuneWalk<'_> {
                 "invalid_arguments_usage",
                 "The arguments keyword cannot be used within the template or at the top level of \
                     a component",
-                span_of(reference),
+                node_span(reference),
             );
         }
         if !is_rune(name)
@@ -45,7 +46,7 @@ impl RuneWalk<'_> {
             )
         });
         let mut name = name.to_owned();
-        let mut current = span_of(&AstKind::IdentifierReference(reference));
+        let mut current = node_span(&AstKind::IdentifierReference(reference));
         let mut parent = ancestors.next();
         loop {
             let property = match parent {
@@ -53,7 +54,7 @@ impl RuneWalk<'_> {
                     return invalid(
                         "rune_invalid_computed_property",
                         "Cannot access a computed property of a rune",
-                        span_of(&AstKind::ComputedMemberExpression(member)),
+                        node_span(&AstKind::ComputedMemberExpression(member)),
                     );
                 }
                 Some(AstKind::StaticMemberExpression(member)) => member.property.name.as_str(),
@@ -62,12 +63,12 @@ impl RuneWalk<'_> {
             };
             name.push('.');
             name.push_str(property);
-            current = span_of(&parent.expect("a member expression"));
+            current = node_span(&parent.expect("a member expression"));
             parent = ancestors.next();
             if !is_rune(&name) {
                 // At a template expression's root upstream names the tag, which the walk cannot
                 // see.
-                let at = parent.map_or(self.tag, |parent| Some(span_of(&parent)));
+                let at = parent.map_or(self.tag, |parent| Some(node_span(&parent)));
                 return invalid_name(&name, at.unwrap_or(current), at.is_some());
             }
         }
@@ -104,7 +105,7 @@ fn invalid_name(name: &str, span: Span, known: bool) -> Result<(), Diagnostic> {
         ),
         _ => invalid(
             "rune_invalid_name",
-            &format!("`{name}` is not a valid rune"),
+            format!("`{name}` is not a valid rune"),
             span,
         ),
     }

@@ -4,11 +4,11 @@ use oxc_ast::AstKind;
 use oxc_ast::ast::{ArrayExpressionElement, BindingPattern, Expression, FormalParameter};
 use oxc_parser::Kind;
 use oxc_span::{GetSpan, Span as OxcSpan};
+use rsvelte_typescript_tree::document_span;
 
 use super::{Script, parameter_spans};
 use crate::rules::indent::layout::Item;
 use crate::rules::indent::tokens::Token;
-use crate::rules::shared::nodes::from_oxc;
 
 impl<'a> Script<'_, 'a> {
     #[expect(clippy::too_many_lines, reason = "one arm per construct")]
@@ -338,7 +338,7 @@ impl<'a> Script<'_, 'a> {
         let statements = Self::items(statements);
         self.layout.list(
             &statements,
-            Item::Node(from_oxc(node)),
+            Item::Node(document_span(node)),
             self.last(node).map(Item::Token),
             1,
             false,

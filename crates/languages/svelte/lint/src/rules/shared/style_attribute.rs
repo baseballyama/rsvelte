@@ -8,10 +8,9 @@ use rsvelte_stylesheet_syntax::postcss::{self, InlineNode};
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part,
 };
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, node_span};
 
 use super::markup::part_span;
-use super::nodes;
 use crate::rule::File;
 
 /// The inline style of every `style` attribute, by index in [`Component::attributes`]; `None` for
@@ -117,7 +116,7 @@ fn literals<'e>(expression: &'e Expression<'e>, out: &mut Vec<&'e Expression<'e>
 
 /// The inline style a string or template literal holds; a template's expressions are holes.
 pub(crate) fn literal_style(source: &str, literal: &Expression<'_>) -> Option<Vec<InlineNode>> {
-    let span = nodes::span(literal);
+    let span = node_span(literal);
     let content = Span::new(span.start_offset + 1, span.end_offset - 1);
     let holes: Vec<Span> = match literal {
         Expression::TemplateLiteral(template) => template
@@ -125,8 +124,8 @@ pub(crate) fn literal_style(source: &str, literal: &Expression<'_>) -> Option<Ve
             .windows(2)
             .map(|pair| {
                 Span::new(
-                    nodes::span(&pair[0]).end_offset,
-                    nodes::span(&pair[1]).start_offset,
+                    node_span(&pair[0]).end_offset,
+                    node_span(&pair[1]).start_offset,
                 )
             })
             .collect(),

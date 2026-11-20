@@ -1,16 +1,15 @@
 use oxc_ast::ast::{AssignmentOperator, AssignmentTarget, Expression, SimpleAssignmentTarget};
-use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_compile::Target;
 use rsvelte_svelte_semantic::compiler_syntax_tree as svelte;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier as SvelteNodeIdentifier,
 };
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, document_span, node_span};
 use rsvelte_vue_semantic::compiler_syntax_tree::{Directive, Property};
 
 use super::{T, expression_of, vmodel};
-use crate::compilation::context::{Class, Declared, Helper, R, output_span, span_of, unsupported};
+use crate::compilation::context::{Class, Declared, Helper, R, output_span, unsupported};
 
 /// An attribute waiting for the element it goes on.
 type Pending = Box<dyn FnOnce(SvelteNodeIdentifier, &Property) -> Attribute>;
@@ -47,7 +46,7 @@ impl<'a> T<'_, '_, '_, 'a> {
         if !matches!(written, Expression::Identifier(_)) && !written.is_member_expression() {
             return Err(unsupported(
                 "a `v-model` value other than a variable or a member",
-                span_of(written.span()),
+                node_span(written),
             ));
         }
         self.check_model_target(written)?;
@@ -101,7 +100,7 @@ impl<'a> T<'_, '_, '_, 'a> {
             _ => {
                 return Err(unsupported(
                     "a `v-model` value other than a variable or a member",
-                    span_of(written.span()),
+                    node_span(written),
                 ));
             }
         };
@@ -251,7 +250,7 @@ impl<'a> T<'_, '_, '_, 'a> {
             if !ok {
                 return Err(unsupported(
                     "`v-model` on something other than a ref or a variable",
-                    span_of(identifier.span),
+                    document_span(identifier.span),
                 ));
             }
         } else if info
@@ -260,7 +259,7 @@ impl<'a> T<'_, '_, '_, 'a> {
         {
             return Err(unsupported(
                 "`v-model` on a prop or a computed",
-                span_of(e.span()),
+                node_span(e),
             ));
         }
         Ok(())

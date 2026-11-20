@@ -125,7 +125,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
             if !is_pattern_assignment(slot.get_inner_expression()) {
                 return;
             }
-            let pattern = self.holding(without_parentheses(slot), |rw, e| {
+            let pattern = self.holding(slot.without_parentheses_mut(), |rw, e| {
                 let pattern = rw.pattern_assign(e, true);
                 if pattern.is_none() {
                     walk_mut::walk_expression(rw, e);
@@ -157,13 +157,6 @@ fn is_pattern_assignment(e: &Expression<'_>) -> bool {
         a.left,
         AssignmentTarget::ArrayAssignmentTarget(_) | AssignmentTarget::ObjectAssignmentTarget(_)
     ))
-}
-
-fn without_parentheses<'s, 'o>(mut e: &'s mut Expression<'o>) -> &'s mut Expression<'o> {
-    while let Expression::ParenthesizedExpression(p) = e {
-        e = &mut p.expression;
-    }
-    e
 }
 
 /// The expressions `statement` holds as its own children, in order.

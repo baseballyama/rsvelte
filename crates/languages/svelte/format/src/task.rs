@@ -95,13 +95,8 @@ fn formatted(
     options: &Options,
     rejected: Option<&rsvelte_typescript_tree::SyntaxError>,
 ) -> Result<String, Diagnostic> {
-    crate::printer::print_component(component, source_text, options, rejected).map_err(|u| {
-        Diagnostic::error(
-            "format_unsupported",
-            format!("not supported by the formatter yet: {}", u.what),
-            u.span(),
-        )
-    })
+    crate::printer::print_component(component, source_text, options, rejected)
+        .map_err(|u| u.diagnostic("format_unsupported", Some("the formatter")))
 }
 
 #[cfg(test)]
