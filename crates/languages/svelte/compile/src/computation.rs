@@ -148,7 +148,7 @@ pub fn compile_errors(context: &DocumentContext<'_>, runes: bool) -> CompileErro
         }
         Err(error) if lint_raises(error) => {
             return CompileErrors {
-                raised: vec![(crate::lower::raised_at_parse(), error.clone())],
+                raised: vec![(crate::lower::raised_in_parse(), error.clone())],
                 after_analysis: None,
             };
         }

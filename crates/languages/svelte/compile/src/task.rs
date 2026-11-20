@@ -77,31 +77,30 @@ impl Task for Compile {
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
         match compiled(context, self.target, false) {
-            Ok(compiled) => match context.get::<crate::warnings::Warned>() {
-                Ok(shown) => {
-                    out.file("js", compiled.javascript.out);
-                    // An empty stylesheet is no file, as the official output writes none.
-                    if let Some(stylesheet) = compiled.stylesheet.filter(|s| !s.is_empty()) {
-                        out.file("css", stylesheet.to_owned());
-                    }
-                    out.diagnostics.extend(shown.iter().cloned());
+            Ok(compiled) => {
+                out.file("js", compiled.javascript.out);
+                // An empty stylesheet is no file, as the official output writes none.
+                if let Some(stylesheet) = compiled.stylesheet.filter(|s| !s.is_empty()) {
+                    out.file("css", stylesheet.to_owned());
                 }
-                Err(error) => out.diagnostics.push(error.clone()),
-            },
+                out.diagnostics.extend(compiled.warnings.iter().cloned());
+            }
             Err(diagnostic) => out.diagnostics.push(diagnostic),
         }
     }
 }
 
-/// One target's output: the module, and the stylesheet when the component does not inject it.
+/// One target's output: the module, the stylesheet when the component does not inject it, and the
+/// warnings `compile` shows.
 pub(crate) struct Compiled<'a> {
     pub(crate) javascript: Emitter,
     pub(crate) stylesheet: Option<&'a str>,
+    pub(crate) warnings: &'a [Diagnostic],
 }
 
 /// # Errors
 ///
-/// What [`lower_document`] rejects.
+/// What [`lower_document`] rejects, then the error that stops the warnings.
 pub(crate) fn compiled<'a>(
     context: &'a DocumentContext<'_>,
     target: Target,
@@ -121,9 +120,14 @@ pub(crate) fn compiled<'a>(
     } else {
         context.get::<ScopedStylesheet>().as_deref()
     };
+    let warnings = context
+        .get::<crate::warnings::Warned>()
+        .as_ref()
+        .map_err(Clone::clone)?;
     Ok(Compiled {
         javascript,
         stylesheet,
+        warnings,
     })
 }
 
@@ -165,7 +169,8 @@ pub fn lower_document<'o>(
     let identity = context.get::<Identified>().as_ref().map_err(Clone::clone)?;
     let validated = context.get::<Validated>().as_ref().map_err(Clone::clone)?;
     let stylesheet = context.get::<ScopedStylesheet>();
-    lower_measured(
+    let _p = measurement::phase(target.lower_phase());
+    lower::lower_with_facts(
         lower::LoweringFacts {
             input: &input,
             res,
@@ -201,13 +206,4 @@ pub fn compile_to_javascript(
         let _p = measurement::phase("js.print");
         Ok(print::print(&module))
     })
-}
-
-fn lower_measured<'o>(
-    facts: lower::LoweringFacts<'_, 'o>,
-    target: Target,
-    allocator: &'o Allocator,
-) -> Result<Program<'o>, Diagnostic> {
-    let _p = measurement::phase(target.lower_phase());
-    lower::lower_with_facts(facts, target, allocator)
 }

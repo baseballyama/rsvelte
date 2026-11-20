@@ -14,7 +14,7 @@ mod const_cycles;
 mod custom_element;
 mod debug_tag;
 mod derived;
-mod global_bindings;
+mod global_binding_table;
 mod javascript;
 mod lets;
 mod module;
@@ -55,7 +55,7 @@ use template::{
 };
 pub use validation::CompileErrors;
 pub(crate) use validation::{
-    Unit, Validation, mode_independent_errors, raised_at_parse, rune_error, validate, validate_unit,
+    Unit, Validation, mode_independent_errors, raised_in_parse, rune_error, validate, validate_unit,
 };
 use validation::{check_runes, uses_slots};
 

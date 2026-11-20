@@ -1,25 +1,30 @@
-use rsvelte_svelte_compile::{Target, lower};
+use rsvelte_svelte_compile::Target;
 
 #[test]
-fn direct_lowering_and_compilation_refuse_runtime_typescript() {
-    for script in [
-        "enum Color { Red }",
-        "namespace Color { export const red = 1; }",
+fn compilation_refuses_runtime_typescript() {
+    // The features and spans are the official compiler's (5.57.3) on both targets.
+    for (script, feature) in [
+        ("enum Color { Red }", "like enums "),
+        (
+            "namespace Color { export const red = 1; }",
+            "like namespaces with non-type nodes ",
+        ),
     ] {
         let source = format!("<script lang=\"ts\">{script}</script>");
         super::analyzed(&source, "App.svelte", |input, resolution, analysis| {
             for target in [Target::Client, Target::Server] {
-                let allocator = oxc_allocator::Allocator::default();
-                let lowered = lower::lower(&input, resolution, analysis, target, &allocator)
-                    .expect_err("runtime TypeScript refused");
-                let compiled = rsvelte_svelte_compile::compile_to_javascript(
+                let error = rsvelte_svelte_compile::compile_to_javascript(
                     &input, resolution, analysis, target,
                 )
                 .expect_err("runtime TypeScript refused");
-                assert_eq!(lowered.code, "typescript_invalid_feature");
-                assert_eq!(lowered.code, compiled.code);
-                assert_eq!(lowered.message, compiled.message);
-                assert_eq!(lowered.span, compiled.span);
+                assert_eq!(error.code, "typescript_invalid_feature");
+                assert!(error.message.contains(feature), "{}", error.message);
+                let start = u32::try_from("<script lang=\"ts\">".len()).expect("short");
+                let end = start + u32::try_from(script.len()).expect("short");
+                assert_eq!(
+                    (error.span.start_offset, error.span.end_offset),
+                    (start, end)
+                );
             }
         })
         .expect("parses");

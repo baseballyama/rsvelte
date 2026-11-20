@@ -1,6 +1,6 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
 
-use crate::lower::global_bindings::global_binding;
+use crate::lower::global_binding_table::GlobalBinding;
 use crate::lower::template::single_expression;
 use crate::lower::{
     AttributeValue, CompileInput, CompilerNodeIdentifier, CompilerSyntaxTree, Diagnostic, Element,
@@ -17,7 +17,19 @@ pub(super) struct SvelteOptions {
     pub(super) stylesheet_injected: bool,
 }
 
-pub(super) fn read_svelte_options(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagnostic> {
+/// What upstream's parser checks of the special elements: `<svelte:options>`, then each
+/// `<svelte:element>`'s `this`.
+///
+/// # Errors
+///
+/// The first error, in that order.
+pub(super) fn parse_time_checks(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagnostic> {
+    let options = read_svelte_options(input)?;
+    check_element_tags(input)?;
+    Ok(options)
+}
+
+fn read_svelte_options(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     // The parser has checked the placement and the options, as upstream's does.
     let mut options = SvelteOptions::default();
@@ -26,6 +38,11 @@ pub(super) fn read_svelte_options(input: &CompileInput<'_>) -> Result<SvelteOpti
             options = options::read(input, tree.attributes(element.attributes))?;
         }
     }
+    Ok(options)
+}
+
+fn check_element_tags(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
+    let tree = input.component.compiler_syntax_tree;
     for (_, element) in tree.elements() {
         if element.kind != ElementKind::Metadata(Some(MetadataTag::Element)) {
             continue;
@@ -54,7 +71,7 @@ pub(super) fn read_svelte_options(input: &CompileInput<'_>) -> Result<SvelteOpti
             return unsupported("this dynamic tag value", tag.span);
         }
     }
-    Ok(options)
+    Ok(())
 }
 
 /// The special elements' errors upstream's analysis raises, the first in document order.
@@ -210,7 +227,7 @@ fn validate_globals(
     // Upstream checks a binding where it visits the directive, after the element's attributes.
     for attribute in attributes {
         if let AttributeValue::Bind(_) = attribute.value
-            && global_binding(tag, attribute.name.text(source)).is_none()
+            && GlobalBinding::of(tag, attribute.name.text(source)).is_none()
         {
             crate::lower::bindings::check_binding(source, host, attributes, attribute)?;
             return unsupported("this global binding", attribute.span);
