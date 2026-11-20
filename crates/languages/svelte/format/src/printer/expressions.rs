@@ -5,10 +5,10 @@ use oxc_ast_visit::Visit;
 use oxc_parser::Kind;
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::tokens::{Token, TokenKind};
-use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
+use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier, document_span};
 
 use super::javascript::{Adjust, Part, trim_semicolon};
-use super::patterns::{has_typescript, span};
+use super::patterns::has_typescript;
 use super::{LayoutInstructionIdentifier, Printer, R, Span, TokenType, Unsupported};
 use crate::options::EmbeddedLanguageFormatting;
 
@@ -54,7 +54,7 @@ impl Printer<'_, '_, '_> {
         e: ExpressionIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
         let e = self.c.javascript.get_expression(e);
-        let span = span(e.span());
+        let span = document_span(e.span());
         let raw = span.text(self.source_text);
         let text = match e {
             Expression::Identifier(identifier) => identifier.name.as_str().to_owned(),
@@ -108,7 +108,7 @@ impl Printer<'_, '_, '_> {
         }
         let expression = self.c.javascript.get_expression(e);
         let sequence = bare_sequence && matches!(expression, Expression::SequenceExpression(_));
-        let written = span(expression.span());
+        let written = document_span(expression.span());
         let keeps_parentheses = sequence
             && comments == Comments::AsThePlugin
             && self.sequence_keeps_parentheses(written)?;
@@ -206,7 +206,7 @@ impl Printer<'_, '_, '_> {
 
     /// The source of `e`.
     pub(super) fn javascript_span(&self, e: ExpressionIdentifier) -> Span {
-        span(self.c.javascript.get_expression(e).span())
+        document_span(self.c.javascript.get_expression(e).span())
     }
 
     /// `{@const a = b}`'s declarator, which the plugin formats as the expression `a = b`.
@@ -218,10 +218,10 @@ impl Printer<'_, '_, '_> {
         let [declarator] = declaration.declarations.as_slice() else {
             return Err(Unsupported::at(
                 "a {@const} with other than one declarator",
-                span(declaration.span),
+                document_span(declaration.span),
             ));
         };
-        let span = span(declarator.span);
+        let span = document_span(declarator.span);
         // `(a: T = b)` is no expression: the plugin's parse fails and it prints the source.
         if declarator.type_annotation.is_some() {
             let source = span.text(self.source_text);
@@ -245,7 +245,7 @@ impl Printer<'_, '_, '_> {
     ) -> R<LayoutInstructionIdentifier> {
         let statement = self.c.javascript.get_declaration(statement);
         let plain = matches!(statement.declarations.as_slice(), [only] if only.init.is_none());
-        let span = span(statement.span);
+        let span = document_span(statement.span);
         // Whether Prettier merges `let a: T;` into one text is not known.
         if plain && has_typescript(|f| f.visit_variable_declaration(statement)) {
             return Err(Unsupported::at(

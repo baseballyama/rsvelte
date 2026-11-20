@@ -161,3 +161,28 @@ fn comments_before_a_bound_sequence_the_plugin_leaves_unbalanced_are_refused() {
         );
     }
 }
+
+#[test]
+fn a_comment_is_lost_unless_a_kept_span_holds_it_and_the_first_reason_to_drop_it_wins() {
+    let what = |comments: &[Span], kept: &[Span], dropped: &[(Span, &'static str)]| {
+        let (mut kept, mut dropped) = (kept.to_vec(), dropped.to_vec());
+        refuse_lost_comments(comments, &mut kept, &mut dropped)
+            .err()
+            .map(|refusal| (refusal.what, refusal.span()))
+    };
+    let s = Span::new;
+    // A long kept span before a short one that does not reach the comment still holds it.
+    assert_eq!(what(&[s(5, 8)], &[s(4, 6), s(0, 10)], &[]), None);
+    assert_eq!(
+        what(&[s(2, 3), s(12, 14)], &[s(0, 10), s(11, 13)], &[]),
+        Some(("comments in the template's JavaScript", s(12, 14)))
+    );
+    assert_eq!(
+        what(
+            &[s(2, 3)],
+            &[s(0, 10)],
+            &[(s(2, 3), "first"), (s(2, 3), "second")]
+        ),
+        Some(("first", s(2, 3)))
+    );
+}

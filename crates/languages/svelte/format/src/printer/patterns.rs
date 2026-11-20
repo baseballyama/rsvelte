@@ -5,14 +5,9 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
-use rsvelte_typescript_tree::PatternIdentifier;
+use rsvelte_typescript_tree::{PatternIdentifier, document_span};
 
 use super::{Printer, R, Span, TokenType, Unsupported};
-
-/// The document position of an oxc node.
-pub(super) const fn span(span: oxc_span::Span) -> Span {
-    Span::new(span.start, span.end)
-}
 
 /// Whether what `visit` walks holds TypeScript: an annotation, a cast or type arguments.
 pub(super) fn has_typescript(visit: impl FnOnce(&mut TypeScriptFinder)) -> bool {
@@ -67,7 +62,7 @@ impl Printer<'_, '_, '_> {
         let parameter = self.c.javascript.get_pattern(pattern);
         self.expand_pattern(&parameter.pattern, &mut out)?;
         // `expandNode` prints the pattern from its nodes and deletes its comments.
-        let pattern_span = span(parameter.pattern.span());
+        let pattern_span = document_span(parameter.pattern.span());
         if self.holds_comment(pattern_span) {
             let comments = (self.c.tokens.within(pattern_span).iter())
                 .filter(|t| t.kind == TokenType::JavaScriptComment)
@@ -83,12 +78,12 @@ impl Printer<'_, '_, '_> {
         if has_typescript(|f| f.visit_binding_pattern(&parameter.pattern)) {
             return Err(Unsupported::at(
                 "TypeScript inside a block's pattern",
-                span(parameter.pattern.span()),
+                document_span(parameter.pattern.span()),
             ));
         }
         if let Some(annotation) = &parameter.type_annotation {
             out.push_str(": ");
-            out.push_str(span(annotation.type_annotation.span()).text(self.source_text));
+            out.push_str(document_span(annotation.type_annotation.span()).text(self.source_text));
         }
         Ok(out)
     }
@@ -142,7 +137,7 @@ impl Printer<'_, '_, '_> {
                         Value::Pattern(&property.value),
                         property.computed,
                         false,
-                        span(property.span),
+                        document_span(property.span),
                         out,
                     )?;
                 }
@@ -198,7 +193,7 @@ impl Printer<'_, '_, '_> {
             | Expression::BigIntLiteral(_)
             | Expression::RegExpLiteral(_) => {
                 out.push(' ');
-                out.push_str(span(e.span()).text(self.source_text));
+                out.push_str(document_span(e.span()).text(self.source_text));
             }
             Expression::ObjectExpression(object) => {
                 out.push_str(" {");
@@ -215,7 +210,7 @@ impl Printer<'_, '_, '_> {
                                 Value::Expression(&p.value),
                                 p.computed,
                                 true,
-                                span(p.span),
+                                document_span(p.span),
                                 out,
                             )?;
                         }
@@ -223,7 +218,7 @@ impl Printer<'_, '_, '_> {
                             if !matches!(spread.argument, Expression::Identifier(_)) {
                                 return Err(Unsupported::at(
                                     "a pattern after `...` in an object",
-                                    span(spread.span),
+                                    document_span(spread.span),
                                 ));
                             }
                             self.expand_rest(Value::Expression(&spread.argument), out)?;
@@ -231,7 +226,7 @@ impl Printer<'_, '_, '_> {
                         ObjectPropertyKind::ObjectProperty(p) => {
                             return Err(Unsupported::at(
                                 "this part of a block's pattern",
-                                span(p.span),
+                                document_span(p.span),
                             ));
                         }
                     }
@@ -242,7 +237,7 @@ impl Printer<'_, '_, '_> {
             _ => {
                 return Err(Unsupported::at(
                     "this part of a block's pattern",
-                    span(e.span()),
+                    document_span(e.span()),
                 ));
             }
         }
@@ -285,7 +280,7 @@ impl Printer<'_, '_, '_> {
         let key_doc = |out: &mut String| -> R<()> {
             if computed {
                 out.push_str(" [");
-                out.push_str(span(key.span()).text(self.source_text));
+                out.push_str(document_span(key.span()).text(self.source_text));
                 out.push(']');
                 return Ok(());
             }
@@ -297,12 +292,12 @@ impl Printer<'_, '_, '_> {
                 }
                 PropertyKey::StringLiteral(_) | PropertyKey::NumericLiteral(_) => {
                     out.push(' ');
-                    out.push_str(span(key.span()).text(self.source_text));
+                    out.push_str(document_span(key.span()).text(self.source_text));
                     Ok(())
                 }
                 _ => Err(Unsupported::at(
                     "this part of a block's pattern",
-                    span(key.span()),
+                    document_span(key.span()),
                 )),
             }
         };

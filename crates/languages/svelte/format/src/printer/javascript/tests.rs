@@ -1,13 +1,13 @@
-use crate::format::{format, rejected};
 use crate::options::Options;
+use crate::printer::{first_module_syntax_error, print_component};
 
 fn formatted(source_text: &str) -> String {
     let c = rsvelte_svelte_syntax::parse::parse(source_text).expect("parses");
-    format(
+    print_component(
         &c,
         source_text,
         &Options::default(),
-        rejected(&c, source_text).as_ref(),
+        first_module_syntax_error(&c, source_text).as_ref(),
     )
     .expect("prints")
 }

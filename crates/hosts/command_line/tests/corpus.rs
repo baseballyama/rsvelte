@@ -20,7 +20,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::legacy::legacy_syntax;
 use rsvelte_svelte_semantic::{Resolved, Warned};
 use rsvelte_svelte_syntax::Parsed;
-use rsvelte_svelte_typescript_projection::Printed;
+use rsvelte_svelte_typescript_projection::EmittedProjection;
 use rsvelte_test_harness::NodePackages;
 use rsvelte_typescript_check::{Tsc, TypeChecker, TypeScriptDocument, TypeScriptView};
 
@@ -102,7 +102,7 @@ impl Task for CountCoverage {
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .push(format!("{}: {wrong}", context.document.path));
         }
-        match context.get::<Printed>() {
+        match context.get::<EmittedProjection>() {
             Ok(projection) => {
                 let allocator = Allocator::default();
                 // The projection exports its component, so it is a module.

@@ -27,7 +27,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
 };
 use rsvelte_typescript_tree::SyntaxError;
 
-use crate::options::{EndOfLine, Options};
+use crate::options::{EndOfLine, Options, unported};
 
 type R<T> = Result<T, Unsupported>;
 
@@ -37,7 +37,7 @@ type R<T> = Result<T, Unsupported>;
 /// flat-only layout that does not fit.
 /// `rejected` is the first error a module rejects that the parsers do not report, which the
 /// plugin's parse fails on.
-pub(crate) fn format(
+pub(crate) fn print_component(
     c: &Component,
     source_text: &str,
     options: &Options,
@@ -74,7 +74,7 @@ pub(crate) fn format(
                 Span::new(at, at + 1),
             )
         })?;
-        let rejected = self::rejected(&reparsed, &normalized.text);
+        let rejected = first_module_syntax_error(&reparsed, &normalized.text);
         let options = Options {
             end_of_line: match options.end_of_line {
                 EndOfLine::Auto => guess_end_of_line(text),
@@ -82,7 +82,7 @@ pub(crate) fn format(
             },
             ..options.clone()
         };
-        return format(&reparsed, &normalized.text, &options, rejected.as_ref()).map_err(
+        return print_component(&reparsed, &normalized.text, &options, rejected.as_ref()).map_err(
             |u| match u.source_location.span() {
                 Some(span) => Unsupported::at(u.what, normalized.original(span)),
                 None => u,
@@ -175,7 +175,7 @@ fn print(
             .collect(),
     };
     let root = f.top_level()?;
-    refuse_lost_comments(&f.comments, &f.embedder.kept, &f.embedder.dropped)?;
+    refuse_lost_comments(&f.comments, &mut f.embedder.kept, &mut f.embedder.dropped)?;
     let embedding = f.embedder.embedding;
     // Room for output a quarter longer than its source, so the buffer seldom grows.
     embedding.print(&docs, root, text.len() + text.len() / 4)
@@ -271,19 +271,33 @@ fn has_pragma(text: &str) -> bool {
 /// A JavaScript comment outside the code the output keeps as text, which the template printer
 /// does not place: around an expression (`{/* a */ b}`) or between a tag's attributes
 /// (`<A // b={1}>`, only a token), it would be lost.
+///
+/// `comments` are in source order; `kept` and `dropped` are sorted here, `dropped` stably so the
+/// first reason given for a comment wins.
 fn refuse_lost_comments(
     comments: &[Span],
-    kept: &[Span],
-    dropped: &[(Span, &'static str)],
+    kept: &mut [Span],
+    dropped: &mut [(Span, &'static str)],
 ) -> R<()> {
+    let key = |s: &Span| (s.start_offset, s.end_offset);
+    kept.sort_unstable_by_key(key);
+    dropped.sort_by_key(|(s, _)| key(s));
+    let (mut next, mut reach) = (0, None);
     for &comment in comments {
-        if let Some(&(_, why)) = dropped.iter().find(|(d, _)| *d == comment) {
+        let first = dropped.partition_point(|(d, _)| key(d) < key(&comment));
+        if let Some(&(d, why)) = dropped.get(first)
+            && d == comment
+        {
             return Err(Unsupported::at(why, comment));
         }
-        let printed = kept
-            .iter()
-            .any(|s| s.start_offset <= comment.start_offset && comment.end_offset <= s.end_offset);
-        if !printed {
+        // The furthest end of a kept span that starts at or before the comment.
+        while let Some(s) = kept.get(next)
+            && s.start_offset <= comment.start_offset
+        {
+            reach = reach.max(Some(s.end_offset));
+            next += 1;
+        }
+        if reach.is_none_or(|end| end < comment.end_offset) {
             return Err(Unsupported::at(
                 "comments in the template's JavaScript",
                 comment,
@@ -291,67 +305,6 @@ fn refuse_lost_comments(
         }
     }
     Ok(())
-}
-
-/// The first option whose value this port does not print yet. The pattern names every field, so
-/// a new option does not compile until it is decided here.
-#[must_use]
-#[expect(
-    clippy::unneeded_field_pattern,
-    reason = "`..` would let a new option through unchecked"
-)]
-pub fn unported(o: &Options) -> Option<&'static str> {
-    let Options {
-        print_width: _,
-        tab_width: _,
-        use_tabs: _,
-        semi,
-        single_quote,
-        jsx_single_quote: _,
-        quote_props,
-        trailing_comma,
-        bracket_spacing,
-        object_wrap,
-        bracket_same_line: _,
-        arrow_parens,
-        markup_whitespace_sensitivity: _,
-        end_of_line: _,
-        embedded_language_formatting: _,
-        single_attribute_per_line: _,
-        prose_wrap: _,
-        require_pragma: _,
-        insert_pragma: _,
-        check_ignore_pragma: _,
-        range_start,
-        range_end,
-        experimental_ternaries,
-        experimental_operator_position,
-        svelte_sort_order: _,
-        svelte_allow_shorthand: _,
-        svelte_indent_script_and_style: _,
-    } = o;
-    let d = Options::default();
-    [
-        ("semi", *semi != d.semi),
-        ("singleQuote", *single_quote != d.single_quote),
-        ("quoteProps", *quote_props != d.quote_props),
-        ("trailingComma", *trailing_comma != d.trailing_comma),
-        ("bracketSpacing", *bracket_spacing != d.bracket_spacing),
-        ("objectWrap", *object_wrap != d.object_wrap),
-        ("arrowParens", *arrow_parens != d.arrow_parens),
-        ("rangeStart", *range_start != d.range_start),
-        ("rangeEnd", *range_end != d.range_end),
-        (
-            "experimentalTernaries",
-            *experimental_ternaries != d.experimental_ternaries,
-        ),
-        (
-            "experimentalOperatorPosition",
-            *experimental_operator_position != d.experimental_operator_position,
-        ),
-    ]
-    .into_iter()
-    .find_map(|(name, differs)| differs.then_some(name))
 }
 
 /// The component outlives the arena its layouts are built in, so they may borrow its trees.
@@ -463,14 +416,9 @@ mod unparsed;
 mod tests;
 
 /// The first error a module rejects in `c`, outside the artifact database.
-pub(crate) fn rejected(c: &Component, source_text: &str) -> Option<SyntaxError> {
+pub(crate) fn first_module_syntax_error(c: &Component, source_text: &str) -> Option<SyntaxError> {
     let lowered = rsvelte_svelte_semantic::compiler_syntax_tree::lower(c, source_text);
-    rsvelte_svelte_semantic::resolve::resolve(
-        &c.javascript,
-        c.instance.as_ref().map(|s| s.program),
-        c.module.as_ref().map(|s| s.program),
-        &lowered,
-    )
-    .javascript_syntax_error()
-    .cloned()
+    rsvelte_svelte_semantic::resolve_component(c, &lowered)
+        .javascript_syntax_error()
+        .cloned()
 }

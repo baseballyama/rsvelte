@@ -9,6 +9,7 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_parser::Kind;
 use oxc_syntax::scope::ScopeFlags;
 use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
+use rsvelte_typescript_tree::document_span;
 
 use super::{R, Span, Unsupported, in_typescript};
 
@@ -64,7 +65,7 @@ impl Find<'_> {
 
     fn find(&mut self, span: oxc_span::Span, reason: &'static str) {
         self.found
-            .get_or_insert_with(|| (Span::new(span.start, span.end), reason));
+            .get_or_insert_with(|| (document_span(span), reason));
     }
 }
 

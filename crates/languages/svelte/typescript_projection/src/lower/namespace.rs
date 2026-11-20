@@ -3,8 +3,9 @@
 
 use oxc_ast::ast::{Declaration, Statement, TSNamespaceDeclarationBody};
 use oxc_span::GetSpan;
+use rsvelte_typescript_tree::document_span;
 
-use super::{Span, span};
+use super::Span;
 
 /// The statements of the namespace that `statement` declares, inside its dotted names.
 pub(super) fn namespace_body<'s>(statement: &'s Statement<'s>) -> Option<&'s [Statement<'s>]> {
@@ -30,8 +31,8 @@ pub(super) fn namespace_body<'s>(statement: &'s Statement<'s>) -> Option<&'s [St
 /// from `statement`.
 pub(super) fn removed_export(statement: &Statement<'_>) -> Option<Span> {
     match statement {
-        Statement::ExportNamedDeclaration(named) => Some(span(named.span)),
-        Statement::ExportFromDeclaration(from) => Some(span(from.span)),
+        Statement::ExportNamedDeclaration(named) => Some(document_span(named.span)),
+        Statement::ExportFromDeclaration(from) => Some(document_span(from.span)),
         Statement::ExportDeclaration(export)
             if matches!(
                 export.declaration,
@@ -64,7 +65,7 @@ pub(super) fn namespace_exports(statement: &Statement<'_>, removed: &mut impl Fn
 pub(super) fn nested_imports(statement: &Statement<'_>, imports: &mut Vec<Span>) {
     for nested in namespace_body(statement).unwrap_or_default() {
         if let Statement::ImportDeclaration(import) = nested {
-            imports.push(span(import.span));
+            imports.push(document_span(import.span));
         }
         nested_imports(nested, imports);
     }
