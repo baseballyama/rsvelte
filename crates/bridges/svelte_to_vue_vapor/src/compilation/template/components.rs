@@ -4,7 +4,7 @@ use super::{
     AttributeValue, CompilerNodeIdentifier, Helper, Namespace, NodeKind, Parent, R, Template,
     TypedIndex, clean_nodes, spelled, template_end, unsupported, vue,
 };
-use crate::compilation::string_key;
+use crate::compilation::{markers, string_key};
 
 /// A component's props object: its fields, and the `--` custom properties its wrapper styles.
 struct Fields<'t> {
@@ -54,7 +54,12 @@ impl<'t> Template<'_, '_, 't> {
                 if !self.i.server {
                     let assignment = self.binding_write(target, b.id("$$component"));
                     let setter = b.arrow(b.parameters(["$$component"]), assignment);
-                    properties.push(self.bound("$$ref", attribute.span, setter, attribute.span));
+                    properties.push(self.bound(
+                        markers::REF_KEY,
+                        attribute.span,
+                        setter,
+                        attribute.span,
+                    ));
                 }
             }
         }
@@ -73,7 +78,7 @@ impl<'t> Template<'_, '_, 't> {
                 if boundary {
                     "$$Boundary"
                 } else {
-                    "$$Component"
+                    markers::COMPONENT
                 },
                 element.name,
             ),

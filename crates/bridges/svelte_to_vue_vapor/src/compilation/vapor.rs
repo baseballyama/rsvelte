@@ -20,6 +20,7 @@ use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::{Translation, helpers, prelude, program};
+use crate::compilation::markers;
 
 mod blocks;
 mod components;
@@ -50,7 +51,11 @@ fn compile_in(t: &Translation, res: &Resolution, allocator: &Allocator) -> Strin
     let tree = &t.template.compiler_syntax_tree;
     if t.server {
         e.helpers.insert("normalizeStyle");
-        if tree.nodes.iter().any(|node| e.tag_is(node, "$$Component")) {
+        if tree
+            .nodes
+            .iter()
+            .any(|node| e.tag_is(node, markers::COMPONENT))
+        {
             module.push(super::import(
                 &b,
                 [("ssrRenderComponent", "$$ssr_component")],

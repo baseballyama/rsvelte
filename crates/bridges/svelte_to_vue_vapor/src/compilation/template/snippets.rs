@@ -1,6 +1,7 @@
 use oxc_ast::ast::{Expression, FormalParameter};
 
 use super::{CompilerNodeIdentifier, NodeKind, Parent, R, Span, Template, unsupported, vue};
+use crate::compilation::markers;
 
 impl<'t> Template<'_, '_, 't> {
     /// `{#snippet}` as a `$$Snippet` named after its declaration, whose `v-for` names the
@@ -54,7 +55,7 @@ impl<'t> Template<'_, '_, 't> {
             self.bound("name", at, name, at),
             self.loop_directive(parameters.unwrap_or_default(), self.b.id("undefined"), at),
         ];
-        let node = self.template_node("$$Snippet", at, properties, parent);
+        let node = self.template_node(markers::SNIPPET, at, properties, parent);
         let children = self.list(Parent::Block, body, Some(node), preserve, at)?;
         self.vb.set_element_children(node, children);
         Ok(node)

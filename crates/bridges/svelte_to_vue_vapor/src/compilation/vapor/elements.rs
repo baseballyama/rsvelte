@@ -7,6 +7,7 @@ use rsvelte_vue_semantic::compiler_syntax_tree::{
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{Body, Emitter, effects};
+use crate::compilation::markers;
 
 const SVG: &str = "http://www.w3.org/2000/svg";
 const MATHML: &str = "http://www.w3.org/1998/Math/MathML";
@@ -38,7 +39,7 @@ impl<'o> Emitter<'_, 'o> {
                 ]);
                 return self.component(identifier, body);
             }
-            "$$Component" => return self.component(identifier, body),
+            markers::COMPONENT => return self.component(identifier, body),
             "svelte:element" => return self.dynamic_element(identifier, body),
             _ => {}
         }
@@ -53,7 +54,7 @@ impl<'o> Emitter<'_, 'o> {
     ) -> Expression<'o> {
         let b = self.b;
         let source = self.source(
-            self.bound(identifier, Some("$$tag"))
+            self.bound(identifier, Some(markers::TAG_KEY))
                 .expect("a dynamic tag"),
         );
         let value = self.render_expression(source, body);
@@ -197,14 +198,14 @@ impl<'o> Emitter<'_, 'o> {
                 body.push(b.statement(effect));
                 b.array([])
             }
-            "$$Scope" => self.scope(identifier, false),
-            "$$Snippet" => {
+            markers::SCOPE => self.scope(identifier, false),
+            markers::SNIPPET => {
                 let declaration = self.snippet_declaration(identifier, false);
                 body.push(declaration);
                 b.array([])
             }
             "$$Render" => self.render_snippet(identifier, body),
-            "$$Await" => self.await_block(identifier, body),
+            markers::AWAIT => self.await_block(identifier, body),
             "$$RawMarkup" => self.raw_markup(identifier, body),
             "template" if el.tag_type == TagType::Template => {
                 let children = self.list(tree.children(el.children), body);
@@ -244,8 +245,8 @@ impl<'o> Emitter<'_, 'o> {
             };
             let arg = d.arg.as_ref().map(|a| a.text(self.source_text));
             match (d.name, arg) {
-                (DirectiveName::Bind, Some("$$key" | "$$tag")) => {}
-                (DirectiveName::Bind, Some("$$ref")) => {
+                (DirectiveName::Bind, Some(markers::KEY_KEY | markers::TAG_KEY)) => {}
+                (DirectiveName::Bind, Some(markers::REF_KEY)) => {
                     let value = self.callback_expression(self.source(expression), body);
                     let dom = effects::dom_callback(&value);
                     let reads =

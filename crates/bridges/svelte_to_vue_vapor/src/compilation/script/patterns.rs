@@ -7,6 +7,7 @@ use oxc_span::GetSpan;
 use rsvelte_typescript_compile::build::Builder;
 
 use super::emit::tracked;
+use crate::compilation::markers;
 
 #[derive(Clone, Copy)]
 enum Mode {
@@ -24,7 +25,7 @@ pub(crate) fn declarators<'t>(
     rune: &str,
     tracking: bool,
 ) -> Vec<VariableDeclarator<'t>> {
-    let base = format!("$$pattern_base_{}", pattern.span().start);
+    let base = format!("{}base_{}", markers::PATTERN_PREFIX, pattern.span().start);
     let mut out = vec![b.declarator(b.binding(&base), Some(source))];
     let mode = match rune {
         "$state" => Mode::State,
@@ -59,7 +60,8 @@ impl<'t, V: VisitMut<'t>> Lower<'_, 't, V> {
                 let a = a.unbox();
                 let mut fallback = a.right;
                 self.rw.visit_expression(&mut fallback);
-                let input = || b.id("$$pattern_default");
+                let default = format!("{}default", markers::PATTERN_PREFIX);
+                let input = || b.id(&default);
                 let test = b.binary(input(), BinaryOperator::StrictEquality, b.id("undefined"));
                 let result = Expression::new_conditional_expression(
                     oxc_span::SPAN,
@@ -68,7 +70,7 @@ impl<'t, V: VisitMut<'t>> Lower<'_, 't, V> {
                     input(),
                     b,
                 );
-                let select = b.arrow(b.parameters(["$$pattern_default"]), result);
+                let select = b.arrow(b.parameters([default.as_str()]), result);
                 let cell = self.intermediate(at, b.call(select, [value]));
                 self.pattern(a.left, cell);
             }
@@ -131,7 +133,7 @@ impl<'t, V: VisitMut<'t>> Lower<'_, 't, V> {
             let copy = value.clone_in_with_semantic_ids(b.allocator());
             return (value, copy);
         }
-        let name = format!("$$pattern_key_{at}");
+        let name = format!("{}key_{at}", markers::PATTERN_PREFIX);
         let cell = self.cell(value);
         self.out.push(b.declarator(b.binding(&name), Some(cell)));
         let read = || b.member(b.id(&name), "value");
@@ -140,7 +142,7 @@ impl<'t, V: VisitMut<'t>> Lower<'_, 't, V> {
 
     /// A cell for a part of the pattern, named after where the part starts.
     fn intermediate(&mut self, at: u32, value: Expression<'t>) -> Expression<'t> {
-        let name = format!("$$pattern_{at}");
+        let name = format!("{}{at}", markers::PATTERN_PREFIX);
         let cell = self.cell(value);
         let b = self.b;
         self.out.push(b.declarator(b.binding(&name), Some(cell)));
@@ -152,9 +154,9 @@ impl<'t, V: VisitMut<'t>> Lower<'_, 't, V> {
         match self.mode {
             Mode::Derived { tracking } => {
                 let value = tracked(b, value, tracking);
-                b.call(b.id("$$computed"), [b.arrow(b.parameters([]), value)])
+                b.call(b.id(markers::COMPUTED), [b.arrow(b.parameters([]), value)])
             }
-            Mode::State => b.call(b.id("$$ref"), [value]),
+            Mode::State => b.call(b.id(markers::REF), [value]),
             Mode::RawState => b.call(b.id("$$shallowRef"), [value]),
         }
     }

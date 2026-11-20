@@ -36,7 +36,7 @@ use rsvelte_vue_semantic::compiler_syntax_tree::{
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName, LoopExpression};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::compilation::{Input, span_of};
+use crate::compilation::{Input, markers, span_of};
 use crate::helpers::{self, Helper};
 use crate::script::prop_member;
 use crate::{R, unsupported};
@@ -90,7 +90,7 @@ pub(crate) fn build<'t>(
                 .resolution
                 .snippet(identifier)
                 .expect("a snippet name has a symbol");
-            let name = format!("$$snippet_{}", symbol.index());
+            let name = format!("{}{}", markers::SNIPPET_PREFIX, symbol.index());
             declarations.push(b.function_declaration(&name, b.parameters([]), [], false));
             snippet_names.insert(symbol, name);
         }

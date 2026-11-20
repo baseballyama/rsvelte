@@ -12,7 +12,7 @@ use rsvelte_vue_semantic::resolve::call_name;
 use super::expressions::script_getter;
 use super::{Body, Emitter};
 use crate::compilation::asynchronous::program_has_await;
-use crate::compilation::prelude;
+use crate::compilation::{markers, prelude};
 
 const EFFECT_WATCH: [&str; 4] = [
     "currentInstance",
@@ -51,7 +51,7 @@ impl<'o> Emitter<'_, 'o> {
                 if let Statement::FunctionDeclaration(f) = s
                     && f.id
                         .as_ref()
-                        .is_some_and(|id| id.name.starts_with("$$snippet_"))
+                        .is_some_and(|id| id.name.starts_with(markers::SNIPPET_PREFIX))
                 {
                     continue;
                 }
@@ -117,7 +117,7 @@ impl<'o> Emitter<'_, 'o> {
 
     /// The runtime helpers a declaration of the script needs.
     fn note_helpers(&mut self, s: &Statement<'_>) {
-        if !self.t.server && declares(s, |name| name == "$$on_mount") {
+        if !self.t.server && declares(s, |name| name == markers::ON_MOUNT) {
             self.helpers.insert("currentInstance");
         }
         if !self.t.server && declares(s, |name| name == "$$effect_watch") {
@@ -197,7 +197,7 @@ fn module_level(s: &Statement<'_>) -> bool {
         Statement::VariableDeclaration(d) => d.declarations.iter().all(|d| {
             d.id.get_binding_identifier().is_some_and(|id| {
                 id.name.starts_with("$$")
-                    && !id.name.starts_with("$$pattern_")
+                    && !id.name.starts_with(markers::PATTERN_PREFIX)
                     && !matches!(
                         id.name.as_str(),
                         "$$props" | "$$attrs" | "$$host" | "$$host_value"

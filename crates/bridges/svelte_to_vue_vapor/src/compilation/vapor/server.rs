@@ -8,6 +8,7 @@ use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{Body, Emitter, method};
 use crate::compilation::asynchronous::has_await;
+use crate::compilation::markers;
 
 impl<'o> Emitter<'_, 'o> {
     /// `{ renderContent }` for setup to return, and the `ssrRender` that prints it.
@@ -61,7 +62,7 @@ impl<'o> Emitter<'_, 'o> {
         let mut declarations = Vec::new();
         let mut index = 0;
         while index < nodes.len() {
-            if self.tag(nodes[index]) == "$$Snippet" {
+            if self.tag(nodes[index]) == markers::SNIPPET {
                 declarations.push(self.snippet_declaration(nodes[index], true));
                 index += 1;
                 continue;
@@ -107,7 +108,7 @@ impl<'o> Emitter<'_, 'o> {
         if self.t.template.scopes.contains(&identifier) {
             return self.scope(identifier, true);
         }
-        if self.tag(identifier) == "$$Await" {
+        if self.tag(identifier) == markers::AWAIT {
             return self.server_await(identifier);
         }
         if let Some(directive) = self.structural(identifier, DirectiveName::For) {
@@ -238,7 +239,7 @@ impl<'o> Emitter<'_, 'o> {
             return self.server_async(content, asynchronous);
         }
         let source = self.source(
-            self.bound(identifier, Some("$$tag"))
+            self.bound(identifier, Some(markers::TAG_KEY))
                 .expect("a dynamic tag"),
         );
         asynchronous |= has_await(source);
@@ -268,7 +269,7 @@ impl<'o> Emitter<'_, 'o> {
         Some(match tag {
             "slot" if self.t.template.custom_element.is_some() => self.server_list(children),
             "$$Boundary" => self.server_boundary(identifier),
-            "$$Component" => self.server_component(identifier),
+            markers::COMPONENT => self.server_component(identifier),
             "$$Title" => {
                 self.helpers.insert("useSSRContext");
                 let asynchronous = children.iter().any(|&child| {
@@ -337,15 +338,19 @@ impl<'o> Emitter<'_, 'o> {
                         .arg
                         .as_ref()
                         .map(|name| name.text(self.source_text));
-                    if matches!(name, Some("$$key" | "$$ref" | "$$tag")) {
+                    if matches!(
+                        name,
+                        Some(markers::KEY_KEY | markers::REF_KEY | markers::TAG_KEY)
+                    ) {
                         continue;
                     }
                     let source = self.source(expression);
                     tag_parts.asynchronous |= has_await(source);
                     let value = self.expression(source);
                     match name {
-                        Some(content @ ("$$html_content" | "$$text_content")) => {
-                            tag_parts.editable = Some((value, content == "$$html_content"));
+                        Some(content @ (markers::HTML_CONTENT_KEY | markers::TEXT_CONTENT_KEY)) => {
+                            tag_parts.editable =
+                                Some((value, content == markers::HTML_CONTENT_KEY));
                         }
                         Some("value") if tag == "textarea" => tag_parts.textarea = Some(value),
                         Some("style") => styles.push(value),

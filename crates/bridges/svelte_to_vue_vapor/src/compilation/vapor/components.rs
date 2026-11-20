@@ -5,6 +5,7 @@ use rsvelte_vue_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKin
 
 use super::{Body, Emitter};
 use crate::compilation::asynchronous::has_await;
+use crate::compilation::markers;
 
 impl<'a, 'o> Emitter<'a, 'o> {
     fn component_value(
@@ -53,7 +54,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
             [self.arrow(component), b.object([b.init("$", sources)])],
         );
         let fragment = self.declare(value, body);
-        if let Some(setter) = self.bound(identifier, Some("$$ref")) {
+        if let Some(setter) = self.bound(identifier, Some(markers::REF_KEY)) {
             let setter = self.expression(self.source(setter));
             let call = self.call(
                 "setTemplateRefBinding",

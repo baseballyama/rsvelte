@@ -6,6 +6,7 @@ use super::{
     Span, Template, clean_nodes, directive, known_string, sanitize_template_string, template_end,
     unsupported, vue,
 };
+use crate::compilation::markers;
 
 impl<'t> Template<'_, '_, 't> {
     pub(super) fn list(
@@ -172,7 +173,7 @@ impl<'t> Template<'_, '_, 't> {
                         b.array([value]),
                         node.span,
                     ),
-                    self.bound("$$key", at, b.id("$$key"), at),
+                    self.bound(markers::KEY_KEY, at, b.id("$$key"), at),
                 ];
                 out.push(self.block_element(
                     Parent::Block,

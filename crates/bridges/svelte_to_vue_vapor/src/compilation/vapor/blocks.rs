@@ -5,6 +5,7 @@ use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{Body, Emitter};
 use crate::compilation::asynchronous::has_await;
+use crate::compilation::markers;
 use crate::helpers::Helper;
 
 impl<'o> Emitter<'_, 'o> {
@@ -91,7 +92,10 @@ impl<'o> Emitter<'_, 'o> {
         identifier: CompilerNodeIdentifier,
         body: &mut Body<'o>,
     ) -> Expression<'o> {
-        let special = matches!(self.tag(identifier), "$$Await" | "$$Snippet" | "$$Scope");
+        let special = matches!(
+            self.tag(identifier),
+            markers::AWAIT | markers::SNIPPET | markers::SCOPE
+        );
         if special || self.structural(identifier, DirectiveName::For).is_none() {
             return self.node(identifier, body);
         }
@@ -110,7 +114,7 @@ impl<'o> Emitter<'_, 'o> {
         let parameters = self.res.tree().get_parameters(loop_.parameters);
         let source = self.render_expression(self.source(loop_.source), body);
         let source = self.arrow(source);
-        let key = self.bound(identifier, Some("$$key")).map(|key| {
+        let key = self.bound(identifier, Some(markers::KEY_KEY)).map(|key| {
             let key = self.expression(self.source(key));
             b.arrow(b.alloc(parameters.clone_in(b.allocator())), key)
         });

@@ -5,7 +5,7 @@ use super::{
     AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, DirectiveExpression,
     DirectiveName, Helper, NodeKind, Parent, R, Template, directive, vue,
 };
-use crate::compilation::span_of;
+use crate::compilation::{markers, span_of};
 
 fn has_animation(tree: &CompilerSyntaxTree, body: Children) -> bool {
     tree.children(body).iter().any(|&child| {
@@ -68,7 +68,7 @@ impl Template<'_, '_, '_> {
         if let Ok(EachKey::Keyed { key, .. }) | Err(key) = each.key(javascript) {
             let span = span_of(self.source(key).span());
             let value = self.template_expression(key);
-            lead.push(self.bound("$$key", span, value, span));
+            lead.push(self.bound(markers::KEY_KEY, span, value, span));
         }
         let loop_node = self.block_element(
             Parent::Each,

@@ -8,6 +8,7 @@ use super::{
     CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Helper, LoopExpression, NodeKind,
     Span, Template, directive, vue,
 };
+use crate::compilation::markers;
 use crate::script::runes;
 
 impl<'t> Template<'_, '_, 't> {
@@ -93,7 +94,7 @@ impl<'t> Template<'_, '_, 't> {
             DirectiveExpression::For(LoopExpression { parameters, source }),
             span,
         );
-        let node = self.template_node("$$Scope", span, vec![property], parent);
+        let node = self.template_node(markers::SCOPE, span, vec![property], parent);
         self.scopes.insert(node);
         Some(node)
     }

@@ -5,7 +5,7 @@ use super::{
     Item, Name, Namespace, NodeKind, Parent, Part, R, Span, Steps, Template, directive, spelled,
     unsupported, vue,
 };
-use crate::compilation::string_key;
+use crate::compilation::{markers, string_key};
 
 /// Svelte's `LOAD_ERROR_ELEMENTS`: its server marks `onload` / `onerror` on them so that the
 /// client can replay an event that fired before hydration.
@@ -79,7 +79,7 @@ impl<'t> Template<'_, '_, 't> {
                     ));
                 }
             };
-            props.push(self.bound("$$tag", el.name, value, attribute.span));
+            props.push(self.bound(markers::TAG_KEY, el.name, value, attribute.span));
         }
         let mut steps = Steps::default();
         let select_target = self.element_attributes(
@@ -95,7 +95,7 @@ impl<'t> Template<'_, '_, 't> {
             captured_events(attributes, source_text, &mut props);
         }
         if let Some(f) = self.ref_function(steps) {
-            props.push(self.bound("$$ref", el.name, f, el.name));
+            props.push(self.bound(markers::REF_KEY, el.name, f, el.name));
         }
         let range = self.vb.props(props);
         let tag_type = self.vb.tag_type(tag, range, source_text);

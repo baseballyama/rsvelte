@@ -1,5 +1,6 @@
 pub(crate) mod asynchronous;
 pub(crate) mod helpers;
+pub(crate) mod markers;
 pub(crate) mod prelude;
 pub(crate) mod script;
 pub(crate) mod template;

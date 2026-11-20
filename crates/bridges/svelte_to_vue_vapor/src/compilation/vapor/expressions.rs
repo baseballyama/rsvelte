@@ -14,6 +14,7 @@ use rsvelte_vue_semantic::resolve::{BindingType, call_name};
 
 use super::{Body, Emitter};
 use crate::compilation::asynchronous::has_await;
+use crate::compilation::markers;
 
 mod asynchronous;
 pub(super) use asynchronous::script_getter;
@@ -173,11 +174,11 @@ impl<'o> Emitter<'_, 'o> {
         };
         match d.init.as_ref() {
             Some(Expression::AwaitExpression(a)) => {
-                call_name(&a.argument) == Some("$$async_derived")
+                call_name(&a.argument) == Some(markers::ASYNC_DERIVED)
             }
             Some(init) => matches!(
                 call_name(init),
-                Some("$$ref" | "$$computed" | "$$prop_cell")
+                Some(markers::REF | markers::COMPUTED | markers::PROP_CELL)
             ),
             None => false,
         }
@@ -218,7 +219,7 @@ impl<'o> Rewrite<'_, '_, 'o> {
         let Expression::CallExpression(call) = it else {
             return None;
         };
-        if matches!(&call.callee, Expression::Identifier(id) if id.name == "$$group_source") {
+        if matches!(&call.callee, Expression::Identifier(id) if id.name == markers::GROUP_SOURCE) {
             let Some(Argument::Identifier(id)) = call.arguments.first() else {
                 unreachable!("a group source names its binding")
             };
@@ -269,7 +270,8 @@ impl<'o> VisitMut<'o> for Rewrite<'_, '_, 'o> {
 
     fn visit_static_member_expression(&mut self, it: &mut StaticMemberExpression<'o>) {
         // A pattern's intermediate cell is read as the template translation wrote it.
-        if matches!(&it.object, Expression::Identifier(id) if id.name.starts_with("$$pattern_"))
+        if let Expression::Identifier(id) = &it.object
+            && id.name.starts_with(markers::PATTERN_PREFIX)
             && it.property.name == "value"
         {
             return;
