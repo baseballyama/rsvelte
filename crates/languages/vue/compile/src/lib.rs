@@ -2,7 +2,7 @@
 
 mod hashing;
 mod task;
-pub use task::*;
+pub use task::register;
 
 pub(crate) mod compile;
 
