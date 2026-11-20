@@ -12,7 +12,6 @@ mod generic;
 mod names;
 mod namespace;
 pub use contract::store_reads;
-pub use generic::{UnparsedScript, unparsed_script};
 mod hoistable;
 mod root_snippets;
 mod standalone;
@@ -21,7 +20,7 @@ mod script_kind;
 pub use script_kind::checked_as_typescript;
 mod tag;
 mod type_assertion;
-
+mod unparsed_script;
 use oxc_ast::ast::{AssignmentTarget, ChainElement, Expression};
 use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Unsupported;
@@ -29,6 +28,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode, TokenType};
 use rsvelte_typescript_tree::ExpressionIdentifier;
+pub use unparsed_script::{UnparsedScript, unparsed_script};
 
 use crate::buffers::Buffer;
 use crate::syntax_tree::{Node, NodeIdentifier, SourceExpression, SyntaxTree};
