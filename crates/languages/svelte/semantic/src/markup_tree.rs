@@ -22,16 +22,17 @@ impl Rule {
             if !reset_by.is_empty() && (tag.contains('-') || reset_by.contains(&tag)))
     }
 
-    /// Why `child` cannot sit at any depth below `ancestor`, whose rule this is.
+    /// Whether `child` cannot sit at any depth below this rule's element.
     #[must_use]
-    pub fn invalid_descendant(self, child: &str, ancestor: &str) -> Option<String> {
-        match self {
-            Self::Descendant(tags, _) if !child.contains('-') && tags.contains(&child) => Some(
-                format!("`<{child}>` cannot be a descendant of `<{ancestor}>`"),
-            ),
-            _ => None,
-        }
+    pub fn forbids_descendant(self, child: &str) -> bool {
+        matches!(self, Self::Descendant(tags, _) if !child.contains('-') && tags.contains(&child))
     }
+}
+
+/// Why `child` cannot sit below `ancestor`, whose rule [forbids it](Rule::forbids_descendant).
+#[must_use]
+pub fn invalid_descendant(child: &str, ancestor: &str) -> String {
+    format!("`<{child}>` cannot be a descendant of `<{ancestor}>`")
 }
 
 const HEADINGS: &[&str] = &["h1", "h2", "h3", "h4", "h5", "h6"];
@@ -150,7 +151,8 @@ pub fn invalid_with_ancestor(child: &str, ancestors: &[&str]) -> Option<String> 
     if between.iter().any(|tag| rule.reset_by(tag)) {
         return None;
     }
-    rule.invalid_descendant(child, ancestor)
+    rule.forbids_descendant(child)
+        .then(|| invalid_descendant(child, ancestor))
 }
 
 #[cfg(test)]

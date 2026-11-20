@@ -1,6 +1,6 @@
 //! Upstream `html-tree-validation`: where the HTML parser would repair the tree a template writes.
 
-use rsvelte_svelte_semantic::markup_tree::{Rule, SLOTS, entry, rule};
+use rsvelte_svelte_semantic::markup_tree::{Rule, SLOTS, entry, invalid_descendant, rule};
 
 /// The nearest element above the parent with each tag of a [`Rule::Descendant`], which upstream's
 /// `is_tag_valid_with_ancestor` asks about while it walks up to a component or snippet.
@@ -48,11 +48,11 @@ impl Ancestors {
 
     /// Why `child` cannot sit below its nearest forbidding ancestor, unless a block lies between.
     pub(super) fn invalid(&self, child: &str) -> Option<String> {
-        let (message, seen) = (self.seen.iter().enumerate())
+        let (tag, seen) = (self.seen.iter().enumerate())
             .filter_map(|(slot, seen)| Some((entry(slot), (*seen)?)))
-            .filter(|(_, seen)| !seen.reset)
-            .filter_map(|((tag, rule), seen)| Some((rule.invalid_descendant(child, tag)?, seen)))
+            .filter(|&((_, rule), seen)| !seen.reset && rule.forbids_descendant(child))
+            .map(|((tag, _), seen)| (tag, seen))
             .max_by_key(|(_, seen)| seen.depth)?;
-        (!seen.crossed_block).then_some(message)
+        (!seen.crossed_block).then(|| invalid_descendant(child, tag))
     }
 }
