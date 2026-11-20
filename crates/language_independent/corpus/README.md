@@ -36,12 +36,12 @@ count. Each compile task also has a comments ledger (`svelte.compile.comments`,
 `svelte.compileModule.comments`). Its key for a comment holds the comment's text, the tokens
 next to it and the nearest word on each side. For a line comment, the key also says whether the
 comment ends a line of code or stands on its own line. A unit matches when both outputs hold the
-same keys. It is `missing` when only the official output has keys that rsvelte's lacks,
-`unexpected` when only rsvelte's has extra keys, and `mismatch` when both happen. The key leaves
-out `@__PURE__` marks and the line that upstream writes above a module. A unit that the comments
-ledger does not compare still gets a line: `official-rejected` when the official compiler
-rejected it, `skipped` when `units.toml` skips it, and `refused`, `panicked` or `unparseable` for
-rsvelte's side. The test compares lint findings only for the rules rsvelte ran. JSON counts as values and everything else as bytes. When both tools reject a
+same keys. The verdict is `missing` when only the official output has keys that rsvelte's
+lacks, `unexpected` when only rsvelte's has extra keys, and `mismatch` when both happen. The key
+leaves out `@__PURE__` marks and the line that upstream writes above a module. Each unit that the
+comments ledger does not compare still gets a line. The line says `official-rejected` when the
+official compiler rejected the unit and `skipped` when `units.toml` skips it. It says `refused`,
+`panicked` or `unparseable` for rsvelte's side. The test compares lint findings only for the rules rsvelte ran. JSON counts as values and everything else as bytes. When both tools reject a
 unit, the compile errors must agree.
 
 ## The ledger
