@@ -3,6 +3,7 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_compile::CompileInput;
 use rsvelte_svelte_semantic::analyze::{self, Analysis};
+use rsvelte_svelte_semantic::input::ComponentInput;
 use rsvelte_svelte_semantic::resolve::{self, Resolution};
 
 /// Parses, resolves and analyzes `source` as `filename`, and calls `f` with what the compiler
@@ -18,9 +19,7 @@ pub(crate) fn analyzed<R>(
 ) -> Result<R, Diagnostic> {
     let component = rsvelte_svelte_syntax::parse::parse(source)?;
     let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
-    let input = CompileInput::from(rsvelte_svelte_semantic::svelte_input(
-        &component, &tree, source, filename,
-    ));
+    let input = CompileInput::from(ComponentInput::new(&component, &tree, source, filename));
     let resolution = resolve::resolve(
         &component.javascript,
         component.instance.as_ref().map(|s| s.program),

@@ -1,19 +1,14 @@
 use rsvelte_svelte_syntax::parse::parse;
 
 use crate::compiler_syntax_tree::{NodeKind, lower};
-use crate::resolve::resolve;
+use crate::input::ComponentInput;
 
 /// Whether each argument of each `{@render}` tag in `source` has a call, in document order.
 fn render_calls(source: &str) -> Vec<Vec<bool>> {
     let component = parse(source).expect("parses");
     let lowered = lower(&component, source);
-    let res = resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        None,
-        &lowered,
-    );
-    let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
+    let res = crate::resolve_component(&component, &lowered);
+    let input = ComponentInput::new(&component, &lowered, source, "App.svelte");
     let analysis = super::analyze(&input, &res);
     lowered
         .nodes
@@ -44,24 +39,14 @@ fn a_render_tag_needs_no_context_for_its_call() {
     let source = "<script>let { children, f } = $props();</script>{@render children?.()}";
     let component = parse(source).expect("parses");
     let lowered = lower(&component, source);
-    let res = resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        None,
-        &lowered,
-    );
-    let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
+    let res = crate::resolve_component(&component, &lowered);
+    let input = ComponentInput::new(&component, &lowered, source, "App.svelte");
     assert!(!super::analyze(&input, &res).needs_context);
     let with_call = "<script>let { children, f } = $props();</script>{@render children(f())}";
     let component = parse(with_call).expect("parses");
     let lowered = lower(&component, with_call);
-    let res = resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        None,
-        &lowered,
-    );
-    let input = crate::svelte_input(&component, &lowered, with_call, "App.svelte");
+    let res = crate::resolve_component(&component, &lowered);
+    let input = ComponentInput::new(&component, &lowered, with_call, "App.svelte");
     assert!(super::analyze(&input, &res).needs_context);
 }
 
@@ -71,8 +56,8 @@ fn a_global_block_scopes_no_element_and_uses_its_rules() {
                   <style>:global { .tabs { & > a { color: red } } } .x { color: red }</style>";
     let component = parse(source).expect("parses");
     let lowered = lower(&component, source);
-    let res = resolve(&component.javascript, None, None, &lowered);
-    let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
+    let res = crate::resolve_component(&component, &lowered);
+    let input = ComponentInput::new(&component, &lowered, source, "App.svelte");
     let analysis = super::analyze(&input, &res);
     let scoped: Vec<&str> = lowered
         .nodes
@@ -91,13 +76,8 @@ fn a_call_in_a_snippet_default_needs_context_and_one_in_a_block_pattern_does_not
     let needs = |source: &str| {
         let component = parse(source).expect("parses");
         let lowered = lower(&component, source);
-        let res = resolve(
-            &component.javascript,
-            component.instance.as_ref().map(|s| s.program),
-            None,
-            &lowered,
-        );
-        let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
+        let res = crate::resolve_component(&component, &lowered);
+        let input = ComponentInput::new(&component, &lowered, source, "App.svelte");
         super::analyze(&input, &res).needs_context
     };
     let script = "<script>let { f, xs } = $props();</script>";
@@ -122,13 +102,8 @@ fn a_store_subscription_is_state_and_asks_of_its_store() {
     let analyzed = |source: &str| {
         let component = parse(source).expect("parses");
         let lowered = lower(&component, source);
-        let res = resolve(
-            &component.javascript,
-            component.instance.as_ref().map(|s| s.program),
-            None,
-            &lowered,
-        );
-        let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
+        let res = crate::resolve_component(&component, &lowered);
+        let input = ComponentInput::new(&component, &lowered, source, "App.svelte");
         let analysis = super::analyze(&input, &res);
         let mut metas: Vec<(String, bool, bool, bool)> = component
             .javascript
@@ -190,8 +165,8 @@ fn no_selector_matches_an_element_inside_svelte_head() {
         );
         let component = parse(&source).expect("parses");
         let lowered = lower(&component, &source);
-        let res = resolve(&component.javascript, None, None, &lowered);
-        let input = crate::svelte_input(&component, &lowered, &source, "App.svelte");
+        let res = crate::resolve_component(&component, &lowered);
+        let input = ComponentInput::new(&component, &lowered, &source, "App.svelte");
         let analysis = super::analyze(&input, &res);
         let actual: Vec<&str> = lowered
             .nodes
@@ -211,8 +186,8 @@ fn a_custom_element_with_attributes_makes_its_parent_s_children_dynamic() {
     let dynamic = |source: &str| {
         let component = parse(source).expect("parses");
         let lowered = lower(&component, source);
-        let res = resolve(&component.javascript, None, None, &lowered);
-        let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
+        let res = crate::resolve_component(&component, &lowered);
+        let input = ComponentInput::new(&component, &lowered, source, "App.svelte");
         let analysis = super::analyze(&input, &res);
         let (div, _) = lowered
             .nodes
@@ -244,13 +219,8 @@ fn a_rune_call_around_state_is_a_call_as_any_other() {
                   <p>{2 in $state.snapshot(s)}</p><p>{$state.snapshot(1)}</p>";
     let component = parse(source).expect("parses");
     let lowered = lower(&component, source);
-    let res = resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        None,
-        &lowered,
-    );
-    let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
+    let res = crate::resolve_component(&component, &lowered);
+    let input = ComponentInput::new(&component, &lowered, source, "App.svelte");
     let analysis = super::analyze(&input, &res);
     let mut calls: Vec<(String, bool)> = component
         .javascript
@@ -278,8 +248,8 @@ fn a_select_s_rich_content_makes_it_and_its_parent_dynamic() {
     let dynamic = |source: &str, tag: &str| {
         let component = parse(source).expect("parses");
         let lowered = lower(&component, source);
-        let res = resolve(&component.javascript, None, None, &lowered);
-        let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
+        let res = crate::resolve_component(&component, &lowered);
+        let input = ComponentInput::new(&component, &lowered, source, "App.svelte");
         let analysis = super::analyze(&input, &res);
         let find = |name: &str| {
             lowered
