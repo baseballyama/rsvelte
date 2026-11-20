@@ -1,4 +1,4 @@
-use super::{Kind2, LayoutInstructionIdentifier, Node, Printer, R};
+use super::{LayoutInstructionIdentifier, Node, NodeIdentifier, NodeKind, Printer, R};
 
 impl<'a> Printer<'a, '_, '_> {
     pub(super) fn lit(&mut self, s: &'static str) -> LayoutInstructionIdentifier {
@@ -12,27 +12,27 @@ impl<'a> Printer<'a, '_, '_> {
         self.d().concat(items)
     }
 
-    pub(super) fn n(&self, i: usize) -> &'a Node<'a> {
+    pub(super) fn n(&self, i: NodeIdentifier) -> &'a Node<'a> {
         &self.t.n[i]
     }
 
-    pub(super) fn first(&self, i: usize) -> Option<usize> {
+    pub(super) fn first(&self, i: NodeIdentifier) -> Option<NodeIdentifier> {
         self.n(i).children.first().copied()
     }
 
-    pub(super) fn last(&self, i: usize) -> Option<usize> {
+    pub(super) fn last(&self, i: NodeIdentifier) -> Option<NodeIdentifier> {
         self.n(i).children.last().copied()
     }
 
     /// `isTextLikeNode` (there are no comments).
-    pub(super) fn text_like(&self, i: usize) -> bool {
+    pub(super) fn text_like(&self, i: NodeIdentifier) -> bool {
         self.t.is_text(i)
     }
 
     /// `isTextLikeNode(getLastDescendant(node))`; an interpolation's last descendant is its text.
-    pub(super) fn last_descendant_text_like(&self, i: usize) -> bool {
+    pub(super) fn last_descendant_text_like(&self, i: NodeIdentifier) -> bool {
         match self.n(i).kind {
-            Kind2::Text(_) | Kind2::Interpolation(_) => true,
+            NodeKind::Text(_) | NodeKind::Interpolation(_) => true,
             _ => self
                 .last(i)
                 .is_some_and(|l| self.last_descendant_text_like(l)),
@@ -41,19 +41,19 @@ impl<'a> Printer<'a, '_, '_> {
 
     // ---- print/tag.js ----------------------------------------------------------------
 
-    pub(super) fn borrows_prev_close_end(&self, i: usize) -> bool {
+    pub(super) fn borrows_prev_close_end(&self, i: NodeIdentifier) -> bool {
         let n = self.n(i);
         n.prev.is_some_and(|p| !self.text_like(p)) && n.sensitive.leading && !n.has.leading
     }
 
-    pub(super) fn borrows_last_child_close_end(&self, i: usize) -> bool {
+    pub(super) fn borrows_last_child_close_end(&self, i: NodeIdentifier) -> bool {
         self.last(i).is_some_and(|l| {
             let l2 = self.n(l);
             l2.sensitive.trailing && !l2.has.trailing && !self.last_descendant_text_like(l)
         })
     }
 
-    pub(super) fn borrows_parent_close_start(&self, i: usize) -> bool {
+    pub(super) fn borrows_parent_close_start(&self, i: NodeIdentifier) -> bool {
         let n = self.n(i);
         n.next.is_none()
             && !n.has.trailing
@@ -61,7 +61,7 @@ impl<'a> Printer<'a, '_, '_> {
             && self.last_descendant_text_like(i)
     }
 
-    pub(super) fn borrows_next_open_start(&self, i: usize) -> bool {
+    pub(super) fn borrows_next_open_start(&self, i: NodeIdentifier) -> bool {
         let n = self.n(i);
         n.next.is_some_and(|x| !self.text_like(x))
             && self.text_like(i)
@@ -69,33 +69,33 @@ impl<'a> Printer<'a, '_, '_> {
             && !n.has.trailing
     }
 
-    pub(super) fn borrows_parent_open_end(&self, i: usize) -> bool {
+    pub(super) fn borrows_parent_open_end(&self, i: NodeIdentifier) -> bool {
         let n = self.n(i);
         n.prev.is_none() && n.sensitive.leading && !n.has.leading
     }
 
-    pub(super) fn open_start_marker(&mut self, i: usize) -> LayoutInstructionIdentifier {
+    pub(super) fn open_start_marker(&mut self, i: NodeIdentifier) -> LayoutInstructionIdentifier {
         match self.n(i).kind {
-            Kind2::Interpolation(_) => self.lit("{{"),
-            Kind2::Element { name, .. } => self.d().text(&format!("<{name}")),
+            NodeKind::Interpolation(_) => self.lit("{{"),
+            NodeKind::Element { name, .. } => self.d().text(&format!("<{name}")),
             _ => unreachable!("only tags have markers"),
         }
     }
 
-    pub(super) fn close_start_marker(&mut self, i: usize) -> LayoutInstructionIdentifier {
+    pub(super) fn close_start_marker(&mut self, i: NodeIdentifier) -> LayoutInstructionIdentifier {
         let name = self.t.name(i).expect("an element");
         self.d().text(&format!("</{name}"))
     }
 
-    pub(super) fn close_end_marker(&mut self, i: usize) -> LayoutInstructionIdentifier {
+    pub(super) fn close_end_marker(&mut self, i: NodeIdentifier) -> LayoutInstructionIdentifier {
         match self.n(i).kind {
-            Kind2::Interpolation(_) => self.lit("}}"),
-            Kind2::Element { .. } if self.n(i).self_closing => self.lit("/>"),
+            NodeKind::Interpolation(_) => self.lit("}}"),
+            NodeKind::Element { .. } if self.n(i).self_closing => self.lit("/>"),
             _ => self.lit(">"),
         }
     }
 
-    pub(super) fn closing_tag(&mut self, i: usize) -> LayoutInstructionIdentifier {
+    pub(super) fn closing_tag(&mut self, i: NodeIdentifier) -> LayoutInstructionIdentifier {
         let start = if self.n(i).self_closing {
             self.d().nil()
         } else {
@@ -105,7 +105,7 @@ impl<'a> Printer<'a, '_, '_> {
         self.cat(&[start, end])
     }
 
-    pub(super) fn closing_tag_start(&mut self, i: usize) -> LayoutInstructionIdentifier {
+    pub(super) fn closing_tag_start(&mut self, i: NodeIdentifier) -> LayoutInstructionIdentifier {
         if self
             .last(i)
             .is_some_and(|l| self.borrows_parent_close_start(l))
@@ -124,15 +124,15 @@ impl<'a> Printer<'a, '_, '_> {
 
     /// Whether the next sibling (or, for a last child, the parent) prints this node's
     /// closing-tag end marker.
-    pub(super) fn close_end_borrowed(&self, i: usize) -> bool {
+    pub(super) fn close_end_borrowed(&self, i: NodeIdentifier) -> bool {
         let n = self.n(i);
         n.next.map_or_else(
-            || self.borrows_last_child_close_end(n.parent),
+            || self.borrows_last_child_close_end(self.t.parent(i)),
             |x| self.borrows_prev_close_end(x),
         )
     }
 
-    pub(super) fn closing_tag_end(&mut self, i: usize) -> LayoutInstructionIdentifier {
+    pub(super) fn closing_tag_end(&mut self, i: NodeIdentifier) -> LayoutInstructionIdentifier {
         if self.close_end_borrowed(i) {
             return self.d().nil();
         }
@@ -141,9 +141,9 @@ impl<'a> Printer<'a, '_, '_> {
         self.cat(&[marker, suffix])
     }
 
-    pub(super) fn closing_tag_suffix(&mut self, i: usize) -> LayoutInstructionIdentifier {
+    pub(super) fn closing_tag_suffix(&mut self, i: NodeIdentifier) -> LayoutInstructionIdentifier {
         if self.borrows_parent_close_start(i) {
-            let p = self.n(i).parent;
+            let p = self.t.parent(i);
             return self.close_start_marker(p);
         }
         if self.borrows_next_open_start(i) {
@@ -153,7 +153,7 @@ impl<'a> Printer<'a, '_, '_> {
         self.d().nil()
     }
 
-    pub(super) fn opening_tag_prefix(&mut self, i: usize) -> LayoutInstructionIdentifier {
+    pub(super) fn opening_tag_prefix(&mut self, i: NodeIdentifier) -> LayoutInstructionIdentifier {
         if self.borrows_parent_open_end(i) {
             return self.lit(">");
         }
@@ -164,7 +164,7 @@ impl<'a> Printer<'a, '_, '_> {
         self.d().nil()
     }
 
-    pub(super) fn opening_tag_start(&mut self, i: usize) -> LayoutInstructionIdentifier {
+    pub(super) fn opening_tag_start(&mut self, i: NodeIdentifier) -> LayoutInstructionIdentifier {
         if self
             .n(i)
             .prev
@@ -177,7 +177,7 @@ impl<'a> Printer<'a, '_, '_> {
         self.cat(&[prefix, marker])
     }
 
-    pub(super) fn opening_tag(&mut self, i: usize) -> R<LayoutInstructionIdentifier> {
+    pub(super) fn opening_tag(&mut self, i: NodeIdentifier) -> R<LayoutInstructionIdentifier> {
         let start = self.opening_tag_start(i);
         let attributes = self.attributes(i)?;
         let end = if self.n(i).self_closing

@@ -1,14 +1,14 @@
 use oxc_span::GetSpan;
 
 use super::{
-    Attribute, AttributeKind, Attributes, DirectiveExpression, Kind2, LayoutInstructionIdentifier,
-    Printer, R, Span, Unsupported,
+    Attribute, AttributeKind, Attributes, DirectiveExpression, LayoutInstructionIdentifier,
+    NodeIdentifier, NodeKind, Printer, R, Span, Unsupported,
 };
 
 impl Printer<'_, '_, '_> {
     /// `printAttributes`.
-    pub(super) fn attributes(&mut self, i: usize) -> R<LayoutInstructionIdentifier> {
-        let Kind2::Element { attributes, .. } = self.n(i).kind else {
+    pub(super) fn attributes(&mut self, i: NodeIdentifier) -> R<LayoutInstructionIdentifier> {
+        let NodeKind::Element { attributes, .. } = self.n(i).kind else {
             unreachable!("an element")
         };
         let printed = match attributes {
@@ -36,7 +36,7 @@ impl Printer<'_, '_, '_> {
         inner.extend(joined);
         let inner = self.cat(&inner);
         let indented = self.d().indent(inner);
-        let parent = self.n(i).parent;
+        let parent = self.t.parent(i);
         let hug_end = self
             .first(i)
             .is_some_and(|f| self.borrows_parent_open_end(f))

@@ -1,4 +1,6 @@
-use super::{Attributes, GroupIdentifier, Kind2, LayoutInstructionIdentifier, Printer, R, ROOT};
+use super::{
+    Attributes, GroupIdentifier, LayoutInstructionIdentifier, NodeIdentifier, NodeKind, Printer, R,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Between {
@@ -18,32 +20,33 @@ const fn attributes_len(a: Attributes<'_>) -> usize {
 impl Printer<'_, '_, '_> {
     // ---- print/children.js -----------------------------------------------------------
 
-    pub(super) fn force_next_empty_line(&self, i: usize) -> bool {
+    pub(super) fn force_next_empty_line(&self, i: NodeIdentifier) -> bool {
         self.n(i).next.is_some_and(|x| {
             self.t.line(self.n(i).span.end_offset) + 1 < self.t.line(self.n(x).span.start_offset)
         })
     }
 
-    pub(super) fn has_leading_line_break(&self, i: usize) -> bool {
+    pub(super) fn has_leading_line_break(&self, i: NodeIdentifier) -> bool {
         let n = self.n(i);
         n.has.leading
             && n.prev.map_or_else(
                 || {
-                    n.parent == ROOT
-                        || self.t.line(self.n(n.parent).open_end) < self.t.line(n.span.start_offset)
+                    n.parent == Some(NodeIdentifier::ROOT)
+                        || self.t.line(self.n(self.t.parent(i)).open_end)
+                            < self.t.line(n.span.start_offset)
                 },
                 |p| self.t.line(self.n(p).span.end_offset) < self.t.line(n.span.start_offset),
             )
     }
 
-    pub(super) fn has_trailing_line_break(&self, i: usize) -> bool {
+    pub(super) fn has_trailing_line_break(&self, i: NodeIdentifier) -> bool {
         let n = self.n(i);
         n.has.trailing
             && n.next.map_or_else(
                 || {
-                    n.parent == ROOT
+                    n.parent == Some(NodeIdentifier::ROOT)
                         || self
-                            .n(n.parent)
+                            .n(self.t.parent(i))
                             .close_start
                             .is_some_and(|c| self.t.line(c) > self.t.line(n.span.end_offset))
                 },
@@ -51,11 +54,11 @@ impl Printer<'_, '_, '_> {
             )
     }
 
-    pub(super) fn surrounding_hardline(&self, i: usize) -> bool {
+    pub(super) fn surrounding_hardline(&self, i: NodeIdentifier) -> bool {
         matches!(self.t.name(i), Some("script" | "select"))
     }
 
-    pub(super) fn prefer_hardline_leading(&self, i: usize) -> bool {
+    pub(super) fn prefer_hardline_leading(&self, i: NodeIdentifier) -> bool {
         self.surrounding_hardline(i)
             || self
                 .n(i)
@@ -64,14 +67,14 @@ impl Printer<'_, '_, '_> {
             || (self.has_leading_line_break(i) && self.has_trailing_line_break(i))
     }
 
-    pub(super) fn prefer_hardline_trailing(&self, i: usize) -> bool {
+    pub(super) fn prefer_hardline_trailing(&self, i: NodeIdentifier) -> bool {
         self.surrounding_hardline(i)
             || self.t.name(i) == Some("br")
             || (self.has_leading_line_break(i) && self.has_trailing_line_break(i))
     }
 
     /// `printBetweenLine`.
-    fn between(&self, prev: usize, next: usize) -> Between {
+    fn between(&self, prev: NodeIdentifier, next: NodeIdentifier) -> Between {
         if self.text_like(prev) && self.text_like(next) {
             let p = self.n(prev);
             if p.sensitive.trailing {
@@ -91,8 +94,10 @@ impl Printer<'_, '_, '_> {
             };
         }
         let nx = self.n(next);
-        let has_attributes =
-            matches!(nx.kind, Kind2::Element { attributes, .. } if attributes_len(attributes) > 0);
+        let has_attributes = matches!(
+            nx.kind,
+            NodeKind::Element { attributes, .. } if attributes_len(attributes) > 0
+        );
         if (self.borrows_next_open_start(prev)
             && (!nx.children.is_empty() || nx.self_closing || has_attributes))
             || (self.t.is_element(prev)
@@ -127,7 +132,7 @@ impl Printer<'_, '_, '_> {
         }
     }
 
-    pub(super) fn force_break_children(&self, i: usize) -> bool {
+    pub(super) fn force_break_children(&self, i: NodeIdentifier) -> bool {
         let n = self.n(i);
         self.t.is_element(i)
             && !n.children.is_empty()
@@ -137,9 +142,10 @@ impl Printer<'_, '_, '_> {
             ) || (n.display.starts_with("table") && n.display != "table-cell"))
     }
 
-    pub(super) fn force_break_content(&self, i: usize) -> bool {
+    pub(super) fn force_break_content(&self, i: NodeIdentifier) -> bool {
         let n = self.n(i);
-        let has_non_text_child = |c: usize| self.n(c).children.iter().any(|&g| !self.t.is_text(g));
+        let has_non_text_child =
+            |c: NodeIdentifier| self.n(c).children.iter().any(|&g| !self.t.is_text(g));
         self.force_break_children(i)
             || (self.t.is_element(i)
                 && !n.children.is_empty()
@@ -154,7 +160,7 @@ impl Printer<'_, '_, '_> {
     }
 
     /// `printChildren`.
-    pub(super) fn children(&mut self, i: usize) -> R<Vec<LayoutInstructionIdentifier>> {
+    pub(super) fn children(&mut self, i: NodeIdentifier) -> R<Vec<LayoutInstructionIdentifier>> {
         let children = self.n(i).children.clone();
         if self.force_break_children(i) {
             let mut out = vec![self.d().break_parent()];
