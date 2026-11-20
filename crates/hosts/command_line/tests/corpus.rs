@@ -371,18 +371,7 @@ fn main() -> ExitCode {
     rsvelte_svelte_check::register(&mut registry, &typecheck);
     registry.task(CountCoverage(Arc::clone(&coverage)));
     registry.task(LegacyComponent);
-    let result = rsvelte_corpus::Conformance::new("svelte", registry)
-        .compare("svelte.compile/client")
-        .compare("svelte.compile/server")
-        .compare_file("svelte.compile.warnings")
-        .compare("svelte.compileModule/client")
-        .compare("svelte.compileModule/server")
-        .compare("svelte.format/default")
-        .compare("svelte.lint/default")
-        .compare("svelte.check/default")
-        .also_run("test.svelte.coverage")
-        .out_of_scope("test.svelte.legacy")
-        .run();
+    let result = compared(rsvelte_corpus::Conformance::new("svelte", registry)).run();
     let c = &coverage;
     let n = |counter: &AtomicUsize| counter.load(Ordering::Relaxed);
     let invalid = c
@@ -444,4 +433,29 @@ fn oracle_lint_configuration() -> rsvelte_svelte_lint::Configuration {
         }
     }
     configuration
+}
+
+/// Every task the corpus compares, and what else it runs on each unit.
+fn compared(conformance: rsvelte_corpus::Conformance) -> rsvelte_corpus::Conformance {
+    conformance
+        .compare("svelte.compile/client")
+        .compare("svelte.compile/server")
+        .compare_file("svelte.compile.warnings")
+        .compare("svelte.compileModule/client")
+        .compare("svelte.compileModule/server")
+        .compare("svelte.format/default")
+        .compare("svelte.lint/default")
+        .compare("svelte.check/default")
+        .compare_comments("svelte.compile.comments/client", "svelte.compile/client")
+        .compare_comments("svelte.compile.comments/server", "svelte.compile/server")
+        .compare_comments(
+            "svelte.compileModule.comments/client",
+            "svelte.compileModule/client",
+        )
+        .compare_comments(
+            "svelte.compileModule.comments/server",
+            "svelte.compileModule/server",
+        )
+        .also_run("test.svelte.coverage")
+        .out_of_scope("test.svelte.legacy")
 }

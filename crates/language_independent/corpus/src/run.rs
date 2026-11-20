@@ -47,8 +47,17 @@ pub struct Conformance {
 #[derive(Debug)]
 struct Compared {
     task: &'static str,
+    kind: Kind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Kind {
+    /// The task's output against its own pack.
+    Output,
     /// A task in `readers.toml`: it compares one file of another task's official output.
-    reader: bool,
+    Reader,
+    /// Where the comments of another task's JavaScript are, against that task's pack.
+    Comments { of: &'static str },
 }
 
 /// One source's verdicts: (unit key, index into `compared`, verdict).
@@ -73,7 +82,19 @@ impl Conformance {
     pub fn compare(mut self, task: &'static str) -> Self {
         self.compared.push(Compared {
             task,
-            reader: false,
+            kind: Kind::Output,
+        });
+        self
+    }
+
+    /// Compares where the comments of the JavaScript that the compared task `of` writes are with
+    /// the official output, under the ledger of `task`. The syntax-tree comparison does not see
+    /// them.
+    #[must_use]
+    pub fn compare_comments(mut self, task: &'static str, of: &'static str) -> Self {
+        self.compared.push(Compared {
+            task,
+            kind: Kind::Comments { of },
         });
         self
     }
@@ -84,7 +105,10 @@ impl Conformance {
     /// judge; one without the file expects none.
     #[must_use]
     pub fn compare_file(mut self, task: &'static str) -> Self {
-        self.compared.push(Compared { task, reader: true });
+        self.compared.push(Compared {
+            task,
+            kind: Kind::Reader,
+        });
         self
     }
 
@@ -137,7 +161,7 @@ impl Conformance {
         if let Some(c) = self
             .compared
             .iter()
-            .find(|c| c.reader && !registry.readers.contains_key(c.task))
+            .find(|c| c.kind == Kind::Reader && !registry.readers.contains_key(c.task))
         {
             return Err(format!("{} is not in readers.toml", c.task));
         }
@@ -243,11 +267,12 @@ impl Conformance {
         let expected: Vec<Pack> = self
             .compared
             .iter()
-            .map(|c| source.expected(reader_of(c, registry).map_or(c.task, |r| &r.pack)))
+            .map(|c| source.expected(pack_of(c, registry)))
             .collect::<Result<_, _>>()?;
         let tasks: Vec<&str> = self
             .compared
             .iter()
+            .filter(|c| !matches!(c.kind, Kind::Comments { .. }))
             .map(|c| c.task)
             .chain(self.also_run.iter().copied())
             .chain(self.out_of_scope)
@@ -296,6 +321,9 @@ impl Conformance {
                 .into_inner()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             for (c, files) in self.compared.iter().zip(&actual) {
+                if matches!(c.kind, Kind::Comments { .. }) {
+                    continue;
+                }
                 let text = pack::format(files.iter().map(|(path, name, body)| Entry {
                     path,
                     attributes: name,
@@ -323,7 +351,7 @@ impl Conformance {
         let table = registry.units.get(&key);
         for (i, c) in self.compared.iter().enumerate() {
             // Regen writes nothing for a unit no reader of the pack takes.
-            if !c.reader
+            if c.kind == Kind::Output
                 && table.is_some_and(|t| registry.skips_every_reader(t, c.task))
                 && expected[i].find(&document.path).next().is_some()
             {
@@ -349,6 +377,18 @@ impl Conformance {
                 continue;
             }
             let official: Vec<Entry<'_>> = expected[i].find(&document.path).collect();
+            if let Kind::Comments { of } = c.kind {
+                if result.panic.is_some() || table.is_some_and(|t| t.skips(of)) {
+                    continue;
+                }
+                let ours = result.outputs.iter().find(|(t, _)| *t == of);
+                let verdict = compare::comments_verdict(&official, ours.map(|(_, out)| out))
+                    .map_err(|e| format!("{key}: {e}"))?;
+                if let Some(v) = verdict {
+                    out.push((key.clone(), i, v));
+                }
+                continue;
+            }
             let ours = result.outputs.iter().find(|(t, _)| *t == c.task);
             if let Some(file) = reader_of(c, registry).map(|r| r.file.as_str()) {
                 if official.is_empty()
@@ -386,9 +426,17 @@ impl Conformance {
     }
 }
 
+/// The official pack a compared task reads.
+fn pack_of<'r>(c: &'r Compared, registry: &'r sources::Registry) -> &'r str {
+    match c.kind {
+        Kind::Comments { of } => of,
+        _ => reader_of(c, registry).map_or(c.task, |r| &r.pack),
+    }
+}
+
 /// The pack and file a reader task compares; `None` for a task with a pack of its own.
 fn reader_of<'r>(c: &Compared, registry: &'r sources::Registry) -> Option<&'r sources::Reader> {
-    if c.reader {
+    if c.kind == Kind::Reader {
         registry.readers.get(c.task)
     } else {
         None
