@@ -377,7 +377,7 @@ pub(super) fn place(
 pub(super) fn hoistable(
     input: &CompileInput<'_>,
     res: &Resolution,
-    stores: &super::stores::Names<'_>,
+    stores: &super::stores::StoreSubscriptions<'_>,
 ) -> FxHashSet<SymbolId> {
     let tree = input.component.compiler_syntax_tree;
     let scoping = res.scoping();

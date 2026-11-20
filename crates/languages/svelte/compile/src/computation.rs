@@ -104,7 +104,7 @@ impl Facet for CompileConfiguration {
 pub(crate) struct Validated;
 
 impl Artifact for Validated {
-    type Output = Result<crate::lower::ValidatedOptions, Diagnostic>;
+    type Output = Result<crate::lower::Validation, Diagnostic>;
 
     const NAME: &'static str = "svelte.validate";
 

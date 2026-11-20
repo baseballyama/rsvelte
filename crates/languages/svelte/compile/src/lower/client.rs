@@ -182,11 +182,11 @@ struct ClientCompilationContext<'c, 'o> {
 }
 
 pub(super) fn lower_prepared<'c, 'o>(
-    facts: super::Lowering<'c, 'o>,
+    facts: super::LoweringFacts<'c, 'o>,
     prepared: Prepared<'c, 'o>,
     b: &Builder<'o>,
 ) -> R<Vec<Statement<'o>>> {
-    let super::Lowering {
+    let super::LoweringFacts {
         input,
         res,
         an,

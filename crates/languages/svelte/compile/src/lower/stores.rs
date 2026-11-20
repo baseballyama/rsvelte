@@ -14,11 +14,11 @@ use super::{CompileInput, Diagnostic, Resolution, Span, Unit, span_of};
 /// The `$name`s no binding declares, each with its references, in upstream's order: the module
 /// script's, the instance script's, then the template's, each in the order upstream's scope walk
 /// meets them.
-pub(super) struct Names<'r> {
+pub(super) struct StoreSubscriptions<'r> {
     names: Vec<(&'r str, Vec<ReferenceId>)>,
 }
 
-impl<'r> Names<'r> {
+impl<'r> StoreSubscriptions<'r> {
     pub(super) fn new(input: &CompileInput<'_>, res: &'r Resolution) -> Self {
         let dollar = |name: &str| {
             name.starts_with('$') && !matches!(name, "$$props" | "$$restProps" | "$$slots")

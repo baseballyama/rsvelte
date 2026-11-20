@@ -167,7 +167,7 @@ pub fn lower_document<'o>(
     let validated = context.get::<Validated>().as_ref().map_err(Clone::clone)?;
     let stylesheet = context.get::<ScopedStylesheet>();
     lower_measured(
-        lower::Lowering {
+        lower::LoweringFacts {
             input: &input,
             res,
             an,
@@ -205,7 +205,7 @@ pub fn compile_to_javascript(
 }
 
 fn lower_measured<'o>(
-    facts: lower::Lowering<'_, 'o>,
+    facts: lower::LoweringFacts<'_, 'o>,
     target: Target,
     allocator: &'o Allocator,
 ) -> Result<Program<'o>, Diagnostic> {

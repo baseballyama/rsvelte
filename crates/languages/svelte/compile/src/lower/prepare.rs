@@ -9,7 +9,7 @@ use super::{
 };
 
 pub(super) fn prepare<'c, 'o>(
-    facts: super::Lowering<'c, 'o>,
+    facts: super::LoweringFacts<'c, 'o>,
     target: Target,
     b: &Builder<'o>,
 ) -> Result<Prepared<'c, 'o>, Diagnostic> {

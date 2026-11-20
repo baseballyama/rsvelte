@@ -55,8 +55,7 @@ use template::{
 };
 pub use validation::CompileErrors;
 pub(crate) use validation::{
-    Unit, ValidatedOptions, mode_independent_errors, raised_at_parse, rune_error, validate,
-    validate_unit,
+    Unit, Validation, mode_independent_errors, raised_at_parse, rune_error, validate, validate_unit,
 };
 use validation::{check_runes, uses_slots};
 
@@ -102,7 +101,7 @@ pub fn lower_with_plan<'o>(
         None
     };
     lower_with_facts(
-        Lowering {
+        LoweringFacts {
             input,
             res,
             an,
@@ -118,7 +117,7 @@ pub fn lower_with_plan<'o>(
 
 /// The module of one target, in `allocator`; its spans index the component's text.
 pub(crate) fn lower_with_facts<'o>(
-    facts: Lowering<'_, 'o>,
+    facts: LoweringFacts<'_, 'o>,
     target: Target,
     allocator: &'o Allocator,
 ) -> Result<Program<'o>, Diagnostic> {
@@ -159,20 +158,20 @@ pub(crate) fn lower_with_facts<'o>(
 }
 
 #[derive(Clone, Copy)]
-pub(crate) struct Lowering<'context, 'source> {
+pub(crate) struct LoweringFacts<'context, 'source> {
     pub input: &'context CompileInput<'source>,
     pub res: &'context Resolution,
     pub an: &'context Analysis,
     pub plan: &'context RenderPlan,
     pub identity: &'context crate::OutputIdentity,
-    pub validated: &'context ValidatedOptions,
+    pub validated: &'context Validation,
     pub stylesheet: Option<&'context str>,
 }
 
 /// Upstream's `const $$css = { hash, code }`, when `target`'s module adds the stylesheet itself.
 fn embedded_stylesheet<'o>(
     b: &Builder<'o>,
-    facts: &Lowering<'_, 'o>,
+    facts: &LoweringFacts<'_, 'o>,
     target: Target,
 ) -> Option<Statement<'o>> {
     let code = facts

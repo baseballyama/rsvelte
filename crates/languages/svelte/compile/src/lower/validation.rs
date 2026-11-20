@@ -47,7 +47,7 @@ pub(super) const fn scopes(at: u32) -> Raised {
 }
 
 #[derive(Debug)]
-pub(crate) struct ValidatedOptions {
+pub(crate) struct Validation {
     pub(in crate::lower) custom_element: Option<custom_element::CustomElement>,
     pub(in crate::lower) stylesheet_injected: bool,
     /// The references to a rest prop that read `$$props` instead (upstream's `rest_prop` read).
@@ -58,7 +58,7 @@ pub(crate) struct ValidatedOptions {
     pub(in crate::lower) stores: Vec<String>,
 }
 
-impl ValidatedOptions {
+impl Validation {
     /// Upstream `inject_styles`: no stylesheet file, and the minified stylesheet in the module.
     pub(crate) const fn injects_stylesheet(&self) -> bool {
         self.stylesheet_injected || self.custom_element.is_some()
@@ -76,7 +76,7 @@ impl ValidatedOptions {
 pub(crate) fn validate(
     input: &CompileInput<'_>,
     res: &Resolution,
-) -> Result<ValidatedOptions, Diagnostic> {
+) -> Result<Validation, Diagnostic> {
     validate_unit(input, res, Unit::Component)
 }
 
@@ -93,7 +93,7 @@ pub(crate) fn validate_unit(
     input: &CompileInput<'_>,
     res: &Resolution,
     unit: Unit,
-) -> Result<ValidatedOptions, Diagnostic> {
+) -> Result<Validation, Diagnostic> {
     // Acorn rejects at parse time what oxc's semantic checker finds after the parser.
     if let Some(error) =
         rsvelte_svelte_semantic::javascript_error::parse_error(&input.component, res)
@@ -112,7 +112,7 @@ pub(crate) fn validate_unit(
     if typescript {
         check_typescript(input)?;
     }
-    let names = stores::Names::new(input, res);
+    let names = stores::StoreSubscriptions::new(input, res);
     let mut errors = snippets::errors(input, res);
     if unit == Unit::Component {
         errors.extend(script::default_exports(input));
@@ -133,7 +133,7 @@ pub(crate) fn validate_unit(
         return Err(script.map_or(refusal, |(_, error)| error));
     }
     let rest_reads = rest_reads::build(res, custom_element.is_some());
-    Ok(ValidatedOptions {
+    Ok(Validation {
         custom_element,
         stylesheet_injected,
         rest_reads,
@@ -149,7 +149,7 @@ pub(crate) fn validate_unit(
 pub(crate) fn rune_error(
     input: &CompileInput<'_>,
     res: &Resolution,
-    options: &ValidatedOptions,
+    options: &Validation,
 ) -> Option<(Raised, Diagnostic)> {
     let custom_element = options.custom_element.is_some();
     let error =
@@ -222,7 +222,7 @@ pub struct CompileErrors {
 pub(super) fn check_analysis(
     input: &CompileInput<'_>,
     res: &Resolution,
-    names: &stores::Names<'_>,
+    names: &stores::StoreSubscriptions<'_>,
     unit: Unit,
     mut errors: Vec<(Raised, Diagnostic)>,
     custom_element: bool,

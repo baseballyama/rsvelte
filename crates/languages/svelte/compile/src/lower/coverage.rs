@@ -8,7 +8,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::bindings::{self, Lowering, attribute_value, property_of};
+use super::bindings::{self, BindStrategy, attribute_value, property_of};
 use super::javascript::member_root;
 use super::{
     Attribute, AttributeValue, BindingKind, CompileInput, CompilerSyntaxTree, Diagnostic, Element,
@@ -314,7 +314,7 @@ fn supported_binding(
     {
         return false;
     }
-    if p.lowering == Lowering::ContentEditable {
+    if p.strategy == BindStrategy::ContentEditable {
         let editable = attribute_value(source_text, attributes, "contenteditable");
         if !matches!(
             editable,
