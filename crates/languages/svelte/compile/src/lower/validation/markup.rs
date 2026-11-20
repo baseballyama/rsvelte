@@ -13,12 +13,11 @@ mod handlers;
 mod lets;
 mod slot_snippets;
 mod slots;
-mod transitions;
 
 pub(in crate::lower) use handlers::mixed_syntaxes;
 use rsvelte_svelte_semantic::markup_tree::{Ancestors, invalid_with_parent};
 use rsvelte_svelte_semantic::typescript::without_typescript;
-use rsvelte_svelte_semantic::warnings::slot_name_error;
+use rsvelte_svelte_semantic::warnings::{TransitionDirections, slot_name_error};
 pub(in crate::lower) use slot_snippets::slot_snippet_conflict;
 
 use super::super::{
@@ -301,7 +300,15 @@ fn element<'a>(
         ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element))
     ) {
         animation(input, parent, attributes)?;
-        transitions::check(attributes)?;
+        let mut directions = TransitionDirections::default();
+        if let Some(error) = attributes.iter().find_map(|a| match a.value {
+            AttributeValue::Transition { intro, outro, .. } => {
+                directions.visit(intro, outro, a.span)
+            }
+            _ => None,
+        }) {
+            return Err(error);
+        }
         event_modifiers(attributes)?;
     }
     if el.kind.renders_component() {
