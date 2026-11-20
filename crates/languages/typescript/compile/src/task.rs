@@ -4,7 +4,7 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
-use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_typescript_tree::{Parsed, document_span};
 
@@ -57,11 +57,9 @@ impl Task for Compile {
                 Feature::ImportEquals => "import assignments",
                 Feature::ExportAssignment => "export assignments",
             };
-            out.diagnostics.push(Diagnostic::error(
-                "compile_unsupported",
-                format!("not supported by type erasure yet: {feature}"),
-                document_span(span),
-            ));
+            let refusal = Unsupported::at(feature, document_span(span));
+            out.diagnostics
+                .push(refusal.diagnostic("compile_unsupported", Some("type erasure")));
             return;
         }
         let allocator = Allocator::default();
