@@ -34,10 +34,10 @@ struct Uses {
 impl Uses {
     fn new(res: &Resolution, plan: &Plan) -> Self {
         let mut uses = Self {
-            state: plan.core_values.contains("$state"),
-            raw: plan.core_values.contains("$state.raw"),
-            derived: plan.core_values.contains("$derived")
-                || plan.core_values.contains("$derived.by"),
+            state: plan.value_runes.contains("$state"),
+            raw: plan.value_runes.contains("$state.raw"),
+            derived: plan.value_runes.contains("$derived")
+                || plan.value_runes.contains("$derived.by"),
             bindable: false,
             prop_cells: false,
         };
@@ -80,7 +80,7 @@ fn imports<'t>(
             "$$createDerived",
         ),
         (
-            plan.auxiliary.contains_key("$host") && !server && !custom_element,
+            plan.called_runes.contains_key("$host") && !server && !custom_element,
             "useHost",
             "$$useHost",
         ),
@@ -98,7 +98,7 @@ fn imports<'t>(
     };
     if uses.derived
         || uses.prop_cells
-        || !plan.auxiliary.is_empty()
+        || !plan.called_runes.is_empty()
         || helpers.contains(&Helper::Lifecycle)
         || helpers.contains(&Helper::CustomElementData)
         || helpers.contains(&Helper::Await)
@@ -119,8 +119,8 @@ fn imports<'t>(
     let scope_imports = helpers.contains(&Helper::Lifecycle)
         || helpers.contains(&Helper::Group)
         || !plan.attachments.is_empty()
-        || plan.auxiliary.contains_key("$effect")
-        || plan.auxiliary.contains_key("$effect.pre");
+        || plan.called_runes.contains_key("$effect")
+        || plan.called_runes.contains_key("$effect.pre");
     if scope_imports {
         specs.push(("watch", "$$watch".to_owned()));
         specs.push(("onScopeDispose", "$$onScopeDispose".to_owned()));
@@ -159,12 +159,13 @@ fn head<'t>(
     if let Some(props) = &plan.props {
         let mut entries: Vec<_> = props
             .iter()
-            .map(|(name, symbol, literal)| {
-                let default = literal
-                    .then(|| res.binding(*symbol).initial)
+            .map(|key| {
+                let default = key
+                    .literal_default
+                    .then(|| res.binding(key.local).initial)
                     .flatten()
                     .map(|d| b.init("default", rw.verbatim(d)));
-                b.init(name, b.object(default))
+                b.init(&key.name, b.object(default))
             })
             .collect();
         if uses.bindable {
@@ -173,7 +174,7 @@ fn head<'t>(
         let call = b.call(b.id("defineProps"), [b.object(entries)]);
         body.push(b.const_(markers::SETUP_PROPS, call));
     }
-    if plan.auxiliary.contains_key("$host") && !server {
+    if plan.called_runes.contains_key("$host") && !server {
         let host = if custom_element {
             "$$custom_element_host"
         } else {
@@ -198,7 +199,7 @@ fn head<'t>(
     if plan.async_values && server {
         body.push(prelude::marker(b, include_str!("async_derived.js")));
     }
-    if plan.core_patterns {
+    if plan.destructured_value_runes {
         body.push(prelude::marker(b, include_str!("patterns.js")));
     }
     if (uses.state || uses.bindable) && !server {
@@ -210,7 +211,7 @@ fn head<'t>(
         body.push(b.const_(markers::COMPUTED, make));
     }
     if uses.prop_cells
-        || !plan.auxiliary.is_empty()
+        || !plan.called_runes.is_empty()
         || !plan.lifecycle.is_empty()
         || !plan.attachments.is_empty()
         || helpers.contains(&Helper::Lifecycle)

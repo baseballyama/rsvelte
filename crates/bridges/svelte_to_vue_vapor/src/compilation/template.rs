@@ -116,7 +116,12 @@ pub(crate) fn build<'t>(
     if !i.server && i.checked.script.async_values {
         t.helpers.insert(Helper::Async);
     }
-    if !i.server && i.checked.script.auxiliary.contains_key("$effect.pending") {
+    if !i.server
+        && i.checked
+            .script
+            .called_runes
+            .contains_key("$effect.pending")
+    {
         t.helpers.insert(Helper::Pending);
     }
     let root = t.list(

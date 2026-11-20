@@ -102,7 +102,7 @@ pub(crate) fn check(
     let namespaces = Namespaces::build(&input.into());
     let options = template::check(c, compiler_syntax_tree, res, source_text, &namespaces)?;
     let script = script::plan(c, res)?;
-    if let Some(&span) = script.auxiliary.get("$host")
+    if let Some(&span) = script.called_runes.get("$host")
         && options.custom_element.is_none()
     {
         return Err(unsupported(
