@@ -199,7 +199,8 @@ pub(crate) struct Configuration {
 /// The options a configuration gives, under Prettier's names.
 #[derive(Debug, Default)]
 pub(crate) struct Options {
-    pub(crate) printed: Vec<(String, Value)>,
+    /// Each option's name, the name it has in the configuration, and its value.
+    pub(crate) printed: Vec<(String, String, Value)>,
     /// The names the formatter does not know, which it ignores.
     pub(crate) unknown: Vec<String>,
     /// Why rsvelte cannot format as the configuration says.
@@ -301,14 +302,15 @@ fn meaning(formatter: Formatter, options: Map<String, Value>) -> (Options, Vec<S
     };
     let mut printed = Vec::new();
     let mut unknown = Vec::new();
-    for (name, value) in options {
+    // `null` leaves an option unset, as in oxfmt.
+    for (name, value) in options.into_iter().filter(|(_, value)| !value.is_null()) {
         let found = formatter
             .options()
             .iter()
             .find(|&&(known, _)| known == name);
         match found.map(|&(_, meaning)| meaning) {
             None => unknown.push(name),
-            Some(Printed(as_named)) => printed.push((as_named.to_owned(), value)),
+            Some(Printed(as_named)) => printed.push((as_named.to_owned(), name, value)),
             Some(NoEffect) => {}
             Some(NoEffectWhen(passes)) if passes(&value) => {}
             Some(NoEffectWhen(_) | Refused) => {
@@ -321,9 +323,15 @@ fn meaning(formatter: Formatter, options: Map<String, Value>) -> (Options, Vec<S
             Some(Svelte) => match value {
                 Value::Bool(true) => {}
                 Value::Object(plugin) => {
-                    for (name, value) in plugin {
+                    for (name, value) in plugin.into_iter().filter(|(_, value)| !value.is_null()) {
                         match OXFMT_SVELTE.iter().find(|&&(oxfmt, _)| oxfmt == name) {
-                            Some(&(_, as_named)) => printed.push((as_named.to_owned(), value)),
+                            Some(&(_, as_named)) => {
+                                printed.push((
+                                    as_named.to_owned(),
+                                    format!("svelte.{name}"),
+                                    value,
+                                ));
+                            }
                             None => unknown.push(format!("svelte.{name}")),
                         }
                     }

@@ -49,19 +49,34 @@ impl fmt::Display for Refusal {
     }
 }
 
-/// The options one file is formatted with, under Prettier's names: each value as JSON, with its
-/// origin, and the first refusal of its sources. Files with equal options are formatted
-/// together.
+/// The options one file is formatted with, under Prettier's names, and the first refusal of their
+/// sources. Files with equal options are formatted together.
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct Resolved {
-    options: BTreeMap<String, (String, Origin)>,
+    options: BTreeMap<String, Set>,
     refused: Option<Refusal>,
+}
+
+/// One option's value, as JSON, with its origin and the name it has there.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct Set {
+    json: String,
+    origin: Origin,
+    written: String,
 }
 
 impl Resolved {
     fn set(&mut self, name: &str, value: &Value, origin: Origin) {
-        self.options
-            .insert(name.to_owned(), (value.to_string(), origin));
+        self.set_as(name, name, value, origin);
+    }
+
+    fn set_as(&mut self, name: &str, written: &str, value: &Value, origin: Origin) {
+        let set = Set {
+            json: value.to_string(),
+            origin,
+            written: written.to_owned(),
+        };
+        self.options.insert(name.to_owned(), set);
     }
 
     fn refuse(&mut self, reason: String, origin: Origin) {
@@ -81,14 +96,14 @@ impl Resolved {
     fn json(&self, keep: impl Fn(&str) -> bool) -> String {
         let pairs: Vec<String> = (self.options.iter())
             .filter(|(name, _)| keep(name))
-            .map(|(name, (value, _))| format!("{}:{value}", Value::from(name.as_str())))
+            .map(|(name, set)| format!("{}:{}", Value::from(name.as_str()), set.json))
             .collect();
         format!("{{{}}}", pairs.join(","))
     }
 
     /// Every source an option came from.
     pub(crate) fn sources(&self) -> BTreeSet<&Origin> {
-        self.options.values().map(|(_, origin)| origin).collect()
+        self.options.values().map(|set| &set.origin).collect()
     }
 
     /// Why the formatters cannot take these options, whatever they print.
@@ -97,16 +112,39 @@ impl Resolved {
     }
 
     /// Where the option `name` came from.
+    #[cfg(test)]
     pub(crate) fn origin(&self, name: &str) -> Option<&Origin> {
-        self.options.get(name).map(|(_, origin)| origin)
+        self.options.get(name).map(|set| &set.origin)
     }
 
-    /// The refusal of option `name`, which a formatter cannot print, named by its origin.
-    pub(crate) fn refusal(&self, name: &str, formatter: &str) -> Refusal {
-        let origin = (self.origin(name).cloned()).unwrap_or(Origin::Default(Formatter::Prettier));
-        Refusal {
-            reason: format!("the {formatter} formatter does not print this `{name}` value yet"),
-            origin,
+    /// The refusal of option `name`, with `reason` given the name it has where it was set, and
+    /// that place.
+    pub(crate) fn refusal(&self, name: &str, reason: impl FnOnce(&str) -> String) -> Refusal {
+        match self.options.get(name) {
+            Some(set) => Refusal {
+                reason: reason(&set.written),
+                origin: set.origin.clone(),
+            },
+            None => Refusal {
+                reason: reason(name),
+                origin: Origin::Default(Formatter::Prettier),
+            },
+        }
+    }
+
+    /// The names of the options.
+    pub(crate) fn names(&self) -> impl Iterator<Item = &str> {
+        self.options.keys().map(String::as_str)
+    }
+
+    /// These options with only `name`.
+    pub(crate) fn only(&self, name: &str) -> Self {
+        Self {
+            options: (self.options.iter())
+                .filter(|(n, _)| *n == name)
+                .map(|(n, value)| (n.clone(), value.clone()))
+                .collect(),
+            refused: None,
         }
     }
 }
@@ -195,8 +233,8 @@ impl Resolver {
         if let Some(configuration) = configuration {
             let source = || Origin::File(Arc::clone(&configuration.source));
             let options = &configuration.options;
-            for (name, value) in &options.printed {
-                resolved.set(name, value, source());
+            for (name, written, value) in &options.printed {
+                resolved.set_as(name, written, value, source());
             }
             if let Some(reason) = &options.refused {
                 resolved.refuse(reason.clone(), source());
