@@ -316,7 +316,9 @@
 		窓口の答えを作るコードは、ふつうに計算結果を求めます。Svelte の答えを作る <code
 			>typescript_view</code
 		>
-		は、Svelte の <code>Parsed</code> と <code>EmittedProjection</code> を求めます。<code>EmittedProjection</code>
+		は、Svelte の <code>Parsed</code> と <code>EmittedProjection</code> を求めます。<code
+			>EmittedProjection</code
+		>
 		は、生成した TypeScript を持つ計算結果です。以前あった言語ごとの
 		<code>TypeScriptProjection</code>
 		という計算結果は、窓口を入れたときに廃止しました。
