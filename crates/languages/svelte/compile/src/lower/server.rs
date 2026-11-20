@@ -36,9 +36,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::builder::{Runtime, export_default, import};
 use super::names::Names;
-use super::slot_element::has_slot_element;
 use super::validation::uses_slots;
-use super::{Builder, Prepared};
+use super::{Builder, Prepared, takes_props};
 use crate::input::{CompileInput, Target};
 use crate::render_plan::RenderPlan;
 
@@ -80,15 +79,6 @@ struct ServerCompilationContext<'c, 'o> {
     instance_script: bool,
     /// The component's function, which `<svelte:self>` calls.
     component_name: &'c str,
-}
-
-/// Upstream's condition for the `$$props` parameter.
-fn takes_props(an: &Analysis, res: &Resolution, exports: bool, input: &CompileInput<'_>) -> bool {
-    an.needs_context
-        || res.uses_props()
-        || exports
-        || has_slot_element(input.component.compiler_syntax_tree)
-        || uses_slots(res)
 }
 
 /// The statements upstream puts around the component's body: `$.props_id` first, the
@@ -189,7 +179,12 @@ pub(super) fn lower_prepared<'c, 'o>(
         body.insert(0, b.statement(b.call(add, [b.id("$$css")])));
     }
     let mut parameters = vec!["$$renderer"];
-    if takes_props(an, res, !exports.is_empty(), input) {
+    if takes_props(
+        an,
+        res,
+        !exports.is_empty(),
+        input.component.compiler_syntax_tree,
+    ) {
         parameters.push("$$props");
     }
     let function = b.function_declaration(&component_name, b.parameters(parameters), body, false);

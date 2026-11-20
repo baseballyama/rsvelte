@@ -40,7 +40,7 @@ use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::analyze::Analysis;
-use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, CompilerSyntaxTree};
 use rsvelte_svelte_semantic::resolve::Resolution;
 pub(crate) use rsvelte_svelte_syntax::svelte_diagnostics::error;
 use rustc_hash::FxHashMap;
@@ -176,6 +176,16 @@ pub(crate) struct Prepared<'c, 'o> {
     custom_element: Option<&'c custom_element::CustomElement>,
     /// Upstream `analysis.name`: the component name, renamed if the source declares it.
     component_name: String,
+}
+
+/// Upstream's condition for the `$$props` parameter that both targets share; the client adds
+/// its own for `$host` and bubbled events.
+fn takes_props(an: &Analysis, res: &Resolution, exports: bool, tree: &CompilerSyntaxTree) -> bool {
+    an.needs_context
+        || res.uses_props()
+        || exports
+        || slot_element::has_slot_element(tree)
+        || validation::uses_slots(res)
 }
 
 /// The code of what this port refuses, which upstream compiles.

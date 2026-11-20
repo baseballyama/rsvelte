@@ -42,9 +42,8 @@ use super::attributes::lowercase;
 use super::builder::{Runtime, export_default, import};
 use super::names::Names;
 use super::script::Read;
-use super::slot_element::has_slot_element;
 use super::validation::uses_slots;
-use super::{Builder, Prepared};
+use super::{Builder, Prepared, takes_props};
 use crate::input::Target;
 use crate::render_plan::RenderPlan;
 
@@ -219,9 +218,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         identity,
         component_name,
         custom_element,
-        needs_props: res.unresolved_names().any(|name| name == "$host")
-            || has_slot_element(input.component.compiler_syntax_tree)
-            || uses_slots(res),
+        needs_props: res.unresolved_names().any(|name| name == "$host"),
         snippets: Vec::new(),
         module_snippets: Vec::new(),
         instance_snippets: Vec::new(),
@@ -336,7 +333,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             body.insert(0, b.const_(id, b.runtime("props_id", [])));
         }
         let mut parameters = vec!["$$anchor"];
-        if self.res.uses_props() || needs_context || self.needs_props {
+        if takes_props(self.an, self.res, has_exports, self.compiler_syntax_tree)
+            || self.needs_props
+        {
             parameters.push("$$props");
         }
         b.function_declaration(&self.component_name, b.parameters(parameters), body, false)
