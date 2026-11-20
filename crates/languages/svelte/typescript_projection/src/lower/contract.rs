@@ -127,7 +127,7 @@ impl Builder<'_> {
         events: bool,
         parts: [NodeIdentifier; 3],
     ) -> NodeIdentifier {
-        let slots = self.declares("$$Slots");
+        let slots = self.declares_slots();
         let typed = !generic && (events || slots);
         let helper = self.tree.push(Node::Identifier(match (generic, typed) {
             (true, _) => "__rsvelte_export_generic",

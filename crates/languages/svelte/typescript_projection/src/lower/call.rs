@@ -195,7 +195,7 @@ impl Builder<'_> {
         };
         self.slot_elements.push(attributes);
         let mut callee = self.tree.push(Node::Identifier("__rsvelte_slots"));
-        if self.declares("$$Slots") {
+        if self.declares_slots() {
             let slots = self.tree.push(Node::Identifier("$$Slots"));
             let arguments = self.tree.list(&[slots]);
             callee = self.tree.push(Node::TypeArguments { callee, arguments });
