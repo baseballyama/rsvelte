@@ -31,6 +31,7 @@ use std::borrow::Cow;
 use oxc_allocator::ArenaBox;
 use oxc_ast::ast::{Expression, FormalParameters, Statement};
 use oxc_semantic::{ScopeId, SymbolId};
+use oxc_span::Span;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, CompilerSyntaxTree};
@@ -235,6 +236,7 @@ pub(super) fn lower_prepared<'c, 'o>(
     returned.extend(context.custom_element_exports());
     let func = context.component_function(
         instance,
+        super::script::instance_span(input.component),
         template,
         returned,
         stylesheet.is_some(),
@@ -281,9 +283,12 @@ impl Walk {
 }
 
 impl<'o> ClientCompilationContext<'_, 'o> {
+    /// The component's function; its body holds the instance script's statements and stands
+    /// where the script does, `instance_span`.
     fn component_function(
         &mut self,
         instance: Vec<Statement<'o>>,
+        instance_span: Span,
         template: Vec<Statement<'o>>,
         exports: Vec<oxc_ast::ast::ObjectPropertyKind<'o>>,
         stylesheet: bool,
@@ -339,6 +344,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         {
             parameters.push("$$props");
         }
-        b.function_declaration(&self.component_name, b.parameters(parameters), body, false)
+        let parameters = b.parameters(parameters);
+        b.function_declaration_at(instance_span, &self.component_name, parameters, body, false)
     }
 }

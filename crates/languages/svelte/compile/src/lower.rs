@@ -27,6 +27,8 @@ mod server;
 mod slot_element;
 mod snippets;
 mod stores;
+#[cfg(test)]
+mod tests;
 mod unsupported_syntax;
 mod validation;
 
@@ -105,11 +107,21 @@ pub(crate) fn lower_with_facts<'o>(
         Target::Server => server::lower_prepared(facts, prepared, &b),
     }?;
     let component = &facts.input.component;
+    // Every comment of the component, the scripts' and the template's; the printer places them
+    // by position.
+    let scripts = [component.module, component.instance]
+        .into_iter()
+        .flatten()
+        .map(|p| component.javascript.get_program(p));
+    let comments = scripts
+        .flat_map(|p| p.comments.iter())
+        .chain(component.javascript.comments())
+        .cloned();
     let mut program = Program::new(
         SPAN,
         SourceType::mjs(),
         component.source_text,
-        [],
+        b.vec(comments),
         None,
         [],
         b.vec(body),

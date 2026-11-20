@@ -54,7 +54,7 @@ pub(crate) fn lower_module<'o>(
         SPAN,
         SourceType::mjs(),
         b.str(component.source_text),
-        [],
+        b.vec(program.comments.iter().cloned()),
         None,
         [],
         b.vec(hoisted.into_iter().chain(statements)),
