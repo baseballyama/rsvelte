@@ -6,15 +6,9 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::{Token, TokenIdentifier, Tokens};
 use rsvelte_svelte_semantic::legacy::reactive_body;
 use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
-use rsvelte_typescript_tree::ProgramIdentifier;
 
 use super::runes::runes_mode;
 use crate::rule::File;
-
-/// The scripts' programs, the module script's first.
-fn programs(component: &Component) -> impl Iterator<Item = ProgramIdentifier> + '_ {
-    component.scripts().map(|script| script.program)
-}
 
 /// The top-level `$:` statements with their bodies, in source order; none in runes mode, where
 /// upstream's rules on them do not run.
@@ -23,7 +17,9 @@ pub(crate) fn reactive_statements<'a>(
     component: &'a Component,
 ) -> impl Iterator<Item = (&'a Statement<'a>, &'a Statement<'a>)> + 'a {
     let javascript = &component.javascript;
-    let mut statements = programs(component)
+    let mut statements = file
+        .programs()
+        .into_iter()
         .flat_map(move |program| &javascript.get_program(program).body)
         .filter_map(|statement| reactive_body(statement).map(|body| (statement, body)))
         .peekable();
