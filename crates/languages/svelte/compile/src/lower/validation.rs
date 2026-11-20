@@ -34,7 +34,7 @@ pub(crate) const fn raised_in_parse() -> Raised {
 }
 
 /// An error upstream's walk over the template raises at `at`.
-pub(super) const fn raised_in_walk(at: u32) -> Raised {
+const fn raised_in_walk(at: u32) -> Raised {
     raised_in_walk_of(Section::Template, at)
 }
 
@@ -48,10 +48,15 @@ const fn raised_in_walk_of(section: Section, at: u32) -> Raised {
 }
 
 /// An error upstream raises as it builds the template's scopes, at `at`.
-pub(super) const fn raised_in_scopes(at: u32) -> Raised {
+const fn raised_in_scopes(at: u32) -> Raised {
+    raised_in_scopes_of(Section::Template, at)
+}
+
+/// An error upstream raises as it builds `section`'s scopes, at `at`.
+const fn raised_in_scopes_of(section: Section, at: u32) -> Raised {
     Raised {
         phase: Phase::Scopes,
-        section: Section::Template,
+        section,
         at,
     }
 }
