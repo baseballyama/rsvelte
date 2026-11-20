@@ -1,6 +1,6 @@
 use super::{
     Attribute, AttributeValue, BinaryOperator, Declared, Directive, Expression, GetSpan, Helper,
-    Property, R, Rewriter, Span, SvelteNodeIdentifier, T, Target, conditional, expression_of,
+    Property, R, Rewriter, Span, SvelteNodeIdentifier, T, Target, expression_of,
     include_boolean_attribute, renderable, span_of, svelte, unsupported,
 };
 
@@ -40,7 +40,7 @@ impl<'a> T<'_, '_, '_, 'a> {
                 items.push(b.member(b.id(a), "class"));
                 let merged = self.normalize_class(items);
                 let (spread, value) = if let Some(own) = own {
-                    (b.id(a), Some(conditional(b, has, merged, own)))
+                    (b.id(a), Some(b.conditional(has, merged, own)))
                 } else {
                     // `{...attrs}` with its class normalized: a class attribute after a spread
                     // always renders, even for `undefined`.
@@ -48,7 +48,7 @@ impl<'a> T<'_, '_, '_, 'a> {
                         b.spread_property(b.id(a)),
                         b.property(b.key("class"), merged, false),
                     ]);
-                    (conditional(b, has, with_class, b.id(a)), None)
+                    (b.conditional(has, with_class, b.id(a)), None)
                 };
                 let spread = self.keep(spread);
                 attributes.push(Attribute {

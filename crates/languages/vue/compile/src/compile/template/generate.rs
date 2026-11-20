@@ -40,7 +40,7 @@ impl Compiled {
                 .helpers
                 .iter()
                 .map(|h| (h.name(), out::name(b, &format!("_{}", h.name()))));
-            preamble.push(out::import(b, specifiers, "vue"));
+            preamble.push(b.import(specifiers, "vue"));
         }
         for (i, &h) in self.hoists.iter().enumerate() {
             let value = g.cg(h);
@@ -239,7 +239,7 @@ impl<'o> Gen<'_, '_, 'o> {
                 let t = self.exp(test);
                 let c = self.cg(consequent);
                 let a = self.cg(alternate);
-                Expression::new_conditional_expression(oxc_span::SPAN, t, c, a, b)
+                b.conditional(t, c, a)
             }
             &Cg::Cache {
                 index,

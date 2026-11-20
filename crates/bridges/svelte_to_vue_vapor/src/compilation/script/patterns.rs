@@ -63,13 +63,7 @@ impl<'t, V: VisitMut<'t>> Lower<'_, 't, V> {
                 let default = format!("{}default", markers::PATTERN_PREFIX);
                 let input = || b.id(&default);
                 let test = b.binary(input(), BinaryOperator::StrictEquality, b.id("undefined"));
-                let result = Expression::new_conditional_expression(
-                    oxc_span::SPAN,
-                    test,
-                    fallback,
-                    input(),
-                    b,
-                );
+                let result = b.conditional(test, fallback, input());
                 let select = b.arrow(b.parameters([default.as_str()]), result);
                 let cell = self.intermediate(at, b.call(select, [value]));
                 self.pattern(a.left, cell);

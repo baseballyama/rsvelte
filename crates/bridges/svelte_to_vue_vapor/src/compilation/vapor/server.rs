@@ -1,6 +1,5 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{Expression, ObjectPropertyKind, Statement};
-use oxc_span::SPAN;
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, Element, NodeKind, PropertyKind, TagType,
 };
@@ -99,7 +98,7 @@ impl<'o> Emitter<'_, 'o> {
         } else {
             b.string("")
         };
-        let result = Expression::new_conditional_expression(SPAN, condition, content, otherwise, b);
+        let result = b.conditional(condition, content, otherwise);
         self.server_async(result, asynchronous)
     }
 
@@ -222,13 +221,7 @@ impl<'o> Emitter<'_, 'o> {
                 let content =
                     self.join(vec![content, b.string("</"), b.id("$$tag"), b.string(">")]);
                 let test = b.call(b.id("$$is_void"), [b.id("$$tag")]);
-                output.push(Expression::new_conditional_expression(
-                    SPAN,
-                    test,
-                    b.string(""),
-                    content,
-                    b,
-                ));
+                output.push(b.conditional(test, b.string(""), content));
             } else {
                 output.push(content);
                 output.push(b.string(&format!("</{tag}>")));
@@ -244,8 +237,7 @@ impl<'o> Emitter<'_, 'o> {
         );
         asynchronous |= has_await(source);
         let value = self.expression(source);
-        let content =
-            Expression::new_conditional_expression(SPAN, b.id("$$tag"), content, b.string(""), b);
+        let content = b.conditional(b.id("$$tag"), content, b.string(""));
         let content = if asynchronous {
             b.call(b.id("$$resolve_html"), [content])
         } else {

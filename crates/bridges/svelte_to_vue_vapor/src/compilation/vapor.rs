@@ -56,8 +56,7 @@ fn compile_in(t: &Translation, res: &Resolution, allocator: &Allocator) -> Strin
             .iter()
             .any(|node| e.tag_is(node, markers::COMPONENT))
         {
-            module.push(super::import(
-                &b,
+            module.push(b.import(
                 [("ssrRenderComponent", "$$ssr_component")],
                 "vue/server-renderer",
             ));
@@ -223,8 +222,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
             .iter()
             .map(|&name| (name, format!("$$v_{name}")))
             .collect();
-        super::import(
-            self.b,
+        self.b.import(
             locals.iter().map(|(name, local)| (*name, local.as_str())),
             "vue",
         )

@@ -1,5 +1,4 @@
 use oxc_ast::ast::{BinaryOperator, Expression, VariableDeclarationKind};
-use oxc_span::SPAN;
 use rsvelte_svelte_compile::render_plan::Namespace;
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, Element, NodeKind, PropertyKind, TagType,
@@ -73,7 +72,7 @@ impl<'o> Emitter<'_, 'o> {
                     [b.string(SVG), b.id(&tag)],
                 );
                 let test = b.binary(b.id(&tag), BinaryOperator::StrictEquality, b.string("svg"));
-                Expression::new_conditional_expression(SPAN, test, svg, markup, b)
+                b.conditional(test, svg, markup)
             }
             namespace => {
                 let uri = if namespace == Namespace::Svg {
@@ -93,8 +92,7 @@ impl<'o> Emitter<'_, 'o> {
         let mut statements = content.finish(b);
         statements.push(b.return_(Some(node)));
         let present = self.run(statements, false);
-        let render =
-            Expression::new_conditional_expression(SPAN, b.id(&tag), present, b.array([]), b);
+        let render = b.conditional(b.id(&tag), present, b.array([]));
         let render = self.arrow(render);
         let fragment = self.keyed_fragment(getter, render);
         b.id(&self.declare(fragment, body))

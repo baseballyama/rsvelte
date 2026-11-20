@@ -14,7 +14,7 @@ use rsvelte_typescript_compile::build::Builder;
 pub(crate) use rune_values::{async_arrow, rune_value, tracked};
 
 use super::{BindingKind, Plan, Resolution};
-use crate::compilation::{import, markers, prelude};
+use crate::compilation::{markers, prelude};
 use crate::helpers::{self, Helper};
 
 /// What decides the imports and helpers of the program.
@@ -131,8 +131,7 @@ fn imports<'t>(
         specs.push(("nextTick", "$$nextTick".to_owned()));
     }
     (!specs.is_empty()).then(|| {
-        import(
-            b,
+        b.import(
             specs
                 .iter()
                 .map(|(imported, local)| (*imported, local.as_str())),

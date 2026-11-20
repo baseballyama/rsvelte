@@ -1,5 +1,4 @@
 use oxc_ast::ast::{Expression, LogicalOperator};
-use oxc_span::SPAN;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rsvelte_vue_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 
@@ -39,13 +38,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
         let source = self.source(self.component_value(identifier, "$$props"));
         let props = self.render_expression(source, body);
         if has_await(source) {
-            component = Expression::new_conditional_expression(
-                SPAN,
-                self.copy_output(&props),
-                component,
-                b.null(),
-                b,
-            );
+            component = b.conditional(self.copy_output(&props), component, b.null());
         }
         let props = b.call(b.id("$$component_props"), [props]);
         let sources = b.array([self.arrow(props)]);
@@ -81,13 +74,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
                 b.member(b.id(&name), "children"),
             )
         };
-        let value = Expression::new_conditional_expression(
-            SPAN,
-            children(),
-            b.call(children(), []),
-            b.string(""),
-            b,
-        );
+        let value = b.conditional(children(), b.call(children(), []), b.string(""));
         body.push(b.return_(Some(value)));
         self.run(body, false)
     }

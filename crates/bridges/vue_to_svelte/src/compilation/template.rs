@@ -219,16 +219,6 @@ impl<'a> T<'_, '_, '_, 'a> {
     }
 }
 
-/// `test ? consequent : alternate`.
-fn conditional<'a>(
-    b: &Builder<'a>,
-    test: Expression<'a>,
-    consequent: Expression<'a>,
-    alternate: Expression<'a>,
-) -> Expression<'a> {
-    Expression::new_conditional_expression(SPAN, test, consequent, alternate, b)
-}
-
 /// `@vue/shared`'s `isBooleanAttr` with `isSpecialBooleanAttr`.
 fn is_boolean_attribute(name: &str) -> bool {
     matches!(

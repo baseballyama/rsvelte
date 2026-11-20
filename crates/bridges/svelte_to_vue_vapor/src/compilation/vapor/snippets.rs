@@ -94,8 +94,7 @@ impl<'o> Emitter<'_, 'o> {
             .collect();
         let key = self.arrow(self.copy_output(&callee));
         let invoked = b.call(self.copy_output(&callee), arguments);
-        let result =
-            Expression::new_conditional_expression(oxc_span::SPAN, callee, invoked, b.array([]), b);
+        let result = b.conditional(callee, invoked, b.array([]));
         let render = self.arrow(result);
         let mut fragment = self.keyed_fragment(key, render);
         if let Some(test) = ready

@@ -1,8 +1,8 @@
 use super::{
     AssignmentOperator, AssignmentTarget, Attribute, AttributeValue, Class, Declared, Directive,
     Expression, ExpressionIdentifier, GetSpan, Helper, Property, R, SimpleAssignmentTarget, Span,
-    SvelteNodeIdentifier, T, Target, conditional, expression_of, output_span, span_of, svelte,
-    unsupported, vmodel,
+    SvelteNodeIdentifier, T, Target, expression_of, output_span, span_of, svelte, unsupported,
+    vmodel,
 };
 
 /// An attribute waiting for the element it goes on.
@@ -148,7 +148,7 @@ impl<'a> T<'_, '_, '_, 'a> {
                 let contain = self.helper(Helper::SsrLooseContain);
                 let contain = b.call(contain, [m, value]);
                 let m = self.expression(e)?;
-                let c = conditional(b, test, contain, m);
+                let c = b.conditional(test, contain, m);
                 ("checked", self.ssr_boolean(c))
             }
             Helper::VModelRadio => {
@@ -194,7 +194,7 @@ impl<'a> T<'_, '_, '_, 'a> {
         let m = self.expression(model)?;
         let eq = self.helper(Helper::SsrLooseEqual);
         let eq = b.call(eq, [m, value]);
-        let c = conditional(b, test, contain, eq);
+        let c = b.conditional(test, contain, eq);
         let v = self.ssr_boolean(c);
         let v = self.keep(v);
         Ok(Attribute {
