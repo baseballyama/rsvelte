@@ -9,7 +9,8 @@ use rsvelte_typescript_tree::ExpressionIdentifier;
 use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
-use super::{Steps, Template, directive, spelled, static_type};
+use super::properties::static_type;
+use super::{Steps, Template, directive, spelled};
 use crate::compilation::helpers::Helper;
 use crate::compilation::{R, unsupported};
 

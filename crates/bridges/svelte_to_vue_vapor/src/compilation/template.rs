@@ -504,7 +504,6 @@ fn template_element(
 }
 
 mod properties;
-use properties::{binding_event, is_boolean, is_primitive, reads_this, static_type};
 
 mod check;
 pub(crate) use check::check;
