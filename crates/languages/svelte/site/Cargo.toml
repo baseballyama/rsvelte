@@ -6,6 +6,16 @@ version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[[bin]]
+name = "export_site_layers"
+path = "src/bin/export_site_layers.rs"
+test = false
+
+[[bin]]
+name = "export_site_source_maps"
+path = "src/bin/export_site_source_maps.rs"
+test = false
+
 [dependencies]
 oxc_allocator.workspace = true
 oxc_ast.workspace = true

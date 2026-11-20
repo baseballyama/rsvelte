@@ -9,6 +9,11 @@ publish.workspace = true
 [lib]
 doctest = false
 
+[[bin]]
+name = "rsvelte-typescript-content-mapper"
+path = "src/bin/rsvelte-typescript-content-mapper.rs"
+test = false
+
 [dependencies]
 rsvelte_kernel.workspace = true
 serde.workspace = true

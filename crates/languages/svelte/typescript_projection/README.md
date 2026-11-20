@@ -98,8 +98,8 @@ Program for both consumers. The Rust CLI checker does not use that API yet.
 ```sh
 cargo test -p rsvelte_svelte_typescript_projection
 cargo test -p rsvelte_svelte_typescript_projection --test fixtures
-cargo run --profile benchmark -p rsvelte_svelte_typescript_projection --example verify -- corpus/svelte
-cargo run --profile benchmark -p rsvelte_svelte_typescript_projection --example benchmark -- corpus/svelte 20
+cargo run --release -p rsvelte_svelte_typescript_projection --example verify -- corpus/svelte
+cargo run --release -p rsvelte_svelte_typescript_projection --example benchmark -- corpus/svelte 20
 cargo run -p rsvelte_svelte_typescript_projection --example layout
 ```
 

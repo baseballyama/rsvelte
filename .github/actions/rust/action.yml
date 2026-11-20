@@ -6,26 +6,56 @@ inputs:
   targets:
     description: Extra compilation targets, separated by spaces.
     default: ''
+  key:
+    description: Separates the build caches of a matrix job's entries.
+    default: ''
+  save:
+    description: >-
+      Whether the job saves its caches: true, false, or auto (only on main). Pull requests restore
+      main's entries, and every other saved entry pushes the repository past its cache limit.
+    default: auto
 runs:
   using: composite
   steps:
-    - id: channel
+    - id: settings
       shell: bash
       working-directory: ${{ github.workspace }}
-      run: echo "channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
-    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      env:
+        SAVE: ${{ inputs.save == 'true' || (inputs.save == 'auto' && github.ref == 'refs/heads/main') }}
+      run: |
+        echo "channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+        echo "save=$SAVE" >> "$GITHUB_OUTPUT"
+    - id: rustup
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: ~/.rustup/toolchains/${{ steps.channel.outputs.channel }}-*
+        path: ~/.rustup/toolchains/${{ steps.settings.outputs.channel }}-*
         key: rustup-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml') }}-${{ inputs.targets }}
+    # rust-cache hashes the version of every installed toolchain into its key, and runner image
+    # versions roll out with different preinstalled toolchains, so only the pinned one may stay.
     - shell: bash
       working-directory: ${{ github.workspace }}
       env:
+        CHANNEL: ${{ steps.settings.outputs.channel }}
         TARGETS: ${{ inputs.targets }}
       run: |
         rustup toolchain install
         for target in $TARGETS; do rustup target add "$target"; done
+        rustup default "$CHANNEL"
+        for toolchain in $(rustup toolchain list --quiet | tr -d '\r'); do
+          case "$toolchain" in
+            "$CHANNEL"-*) ;;
+            *) rustup toolchain uninstall "$toolchain" ;;
+          esac
+        done
+    - if: steps.settings.outputs.save == 'true' && steps.rustup.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.rustup/toolchains/${{ steps.settings.outputs.channel }}-*
+        key: ${{ steps.rustup.outputs.cache-primary-key }}
     # rust-cache saves only under a new key, so a change to which target directories a job
     # builds needs a new prefix to be cached.
     - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       with:
-        prefix-key: v1-rust
+        prefix-key: v2-rust
+        key: ${{ inputs.key }}
+        save-if: ${{ steps.settings.outputs.save }}
