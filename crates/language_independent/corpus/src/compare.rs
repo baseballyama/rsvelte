@@ -231,7 +231,7 @@ struct Finding {
 }
 
 impl Finding {
-    /// The finding as a `lint.txt` line (tools/oracle/tasks/lint-shared.ts).
+    /// The finding as a `lint.txt` line (tools/oracle/tasks/eslint.ts).
     fn line(&self) -> String {
         let end = self
             .end
