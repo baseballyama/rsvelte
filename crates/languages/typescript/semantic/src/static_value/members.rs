@@ -3,9 +3,9 @@
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 use super::conversions::{join, to_integer, to_number, to_string, to_uint32};
-use super::operators::{power, same_value_zero, strict_equals};
+use super::operators::{same_value_zero, strict_equals};
 use super::{Global, Value};
-use crate::number::number;
+use crate::number::{exponentiate, number};
 
 /// Names every object inherits, whose values (functions) this module cannot hold.
 const OBJECT_PROTOTYPE: [&str; 12] = [
@@ -175,7 +175,7 @@ pub(super) fn global_method(global: Global, name: &str, arguments: &[Value]) -> 
         ),
         (Global::Math, "pow") => {
             let second = arguments.get(1).unwrap_or(&Value::Undefined);
-            Value::Number(power(to_number(first)?, to_number(second)?))
+            Value::Number(exponentiate(to_number(first)?, to_number(second)?))
         }
         (Global::Math, _) => {
             let n = to_number(first)?;

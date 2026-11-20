@@ -1,5 +1,4 @@
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
-use rsvelte_typescript_semantic::number::number;
+use rsvelte_typescript_semantic::number::{number, string_to_number};
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -108,28 +107,5 @@ impl Value {
             Self::RegExp { .. } => true,
             _ => unreachable!("only known values are tested"),
         }
-    }
-}
-
-#[expect(
-    clippy::cast_precision_loss,
-    reason = "a JavaScript number is an f64 and rounds the same way"
-)]
-fn string_to_number(s: &str) -> f64 {
-    let t = s.trim_matches(is_ecmascript_whitespace);
-    if t.is_empty() {
-        return 0.0;
-    }
-    let radix = |p: &str, r| u64::from_str_radix(p, r).map_or(f64::NAN, |v| v as f64);
-    match t.get(..2) {
-        Some("0x" | "0X") => radix(&t[2..], 16),
-        Some("0o" | "0O") => radix(&t[2..], 8),
-        Some("0b" | "0B") => radix(&t[2..], 2),
-        _ => match t {
-            "Infinity" | "+Infinity" => f64::INFINITY,
-            "-Infinity" => f64::NEG_INFINITY,
-            _ if t.contains(|c: char| c.is_ascii_alphabetic() && c != 'e' && c != 'E') => f64::NAN,
-            _ => t.parse().unwrap_or(f64::NAN),
-        },
     }
 }
