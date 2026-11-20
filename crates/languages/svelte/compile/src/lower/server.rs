@@ -47,7 +47,6 @@ const BLOCK_OPEN_ELSE: &str = "<!--[!-->";
 const BLOCK_CLOSE: &str = "<!--]-->";
 const EMPTY_COMMENT: &str = "<!---->";
 
-/// `String(value ?? '')` for a known value.
 struct ServerCompilationContext<'c, 'o> {
     b: &'c Builder<'o>,
     javascript: &'o Tree,
