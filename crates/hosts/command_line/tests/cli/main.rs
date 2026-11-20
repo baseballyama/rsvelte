@@ -15,6 +15,7 @@ mod project_check;
 mod release;
 mod svelte_kit;
 mod tool_plugins;
+mod typecheck;
 mod unit_names;
 
 /// `rsvelte-dev`, to be run in `directory`.

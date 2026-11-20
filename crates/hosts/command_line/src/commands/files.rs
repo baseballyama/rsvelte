@@ -24,7 +24,11 @@ pub(crate) fn load(
         ignore_files,
         prune: None,
     };
-    read_all(reg, find(paths, &walk, &|path| applies(reg, tasks, path))?)
+    read_all(
+        reg,
+        find(paths, &walk, &|path| applies(reg, tasks, path))?,
+        tasks,
+    )
 }
 
 /// Whether a task of `tasks` reads the file at `path`.
@@ -33,18 +37,21 @@ pub(crate) fn applies(reg: &Registry, tasks: &[&str], path: &Path) -> bool {
     probe.is_ok_and(|document| reg.applies(tasks, &document))
 }
 
-/// The document of the file at `path`.
-pub(crate) fn read(reg: &Registry, path: PathBuf) -> Result<Document, String> {
-    let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+/// The document of the file at `path`, with the text `tasks` read it with.
+pub(crate) fn read(reg: &Registry, path: PathBuf, tasks: &[&str]) -> Result<Document, String> {
+    let text = (reg.read(&path, tasks)).map_err(|e| format!("{}: {e}", path.display()))?;
     document(reg, path, text)
 }
 
-/// The documents of the files at `paths`, in their order.
+/// The documents of the files at `paths`, in their order, with the text `tasks` read them with.
 pub(crate) fn read_all(
     reg: &Registry,
     paths: impl IntoIterator<Item = PathBuf>,
+    tasks: &[&str],
 ) -> Result<Vec<Document>, String> {
-    paths.into_iter().map(|path| read(reg, path)).collect()
+    (paths.into_iter())
+        .map(|path| read(reg, path, tasks))
+        .collect()
 }
 
 /// Leaves the directories it says, without reading them.

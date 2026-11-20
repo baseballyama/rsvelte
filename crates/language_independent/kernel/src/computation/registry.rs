@@ -48,6 +48,27 @@ impl Contribution for ProjectFiles {
     type Item = (&'static str, ProjectFilesFn);
 }
 
+/// Files that tasks read with other text than the disk's, such as a package's types a checker
+/// rewrites.
+///
+/// A host reads every document through [`Registry::read`], so the document, its positions and
+/// what the task reads have one text.
+#[derive(Debug)]
+pub struct ReplacedFiles;
+
+#[derive(Debug)]
+pub struct ReplacedFile {
+    /// The tasks that read the file replaced.
+    pub tasks: &'static [&'static str],
+    /// The file's real path.
+    pub path: std::path::PathBuf,
+    pub text: String,
+}
+
+impl Contribution for ReplacedFiles {
+    type Item = ReplacedFile;
+}
+
 impl std::fmt::Debug for Registry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Registry")
@@ -107,6 +128,23 @@ impl Registry {
                     .all(|t| t.identifier() != identifier),
             "task `{identifier}` is registered twice"
         );
+    }
+
+    /// The text `tasks` read `file` with: the disk's, unless a task among them replaces it.
+    ///
+    /// # Errors
+    ///
+    /// `file` cannot be read.
+    pub fn read(&self, file: &std::path::Path, tasks: &[&str]) -> std::io::Result<String> {
+        let real = std::fs::canonicalize(file)?;
+        (self.contributions::<ReplacedFiles>().iter())
+            .find(|replaced| {
+                replaced.path == real && replaced.tasks.iter().any(|task| tasks.contains(task))
+            })
+            .map_or_else(
+                || std::fs::read_to_string(file),
+                |replaced| Ok(replaced.text.clone()),
+            )
     }
 
     /// The files of the project that the tasks among `tasks` check, each once, in the order the

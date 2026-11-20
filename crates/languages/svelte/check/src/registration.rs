@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
-use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::computation::registry::{Registry, ReplacedFile, ReplacedFiles};
 use rsvelte_svelte_syntax::Parsed;
 use rsvelte_typescript_check::{
     Check, Documents, MappedLanguage, MappedLanguages, TypeScriptDocument, TypeScriptStandIn,
@@ -48,6 +48,13 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         .check
         .as_ref()
         .map(|c| typescript_env(&c.svelte, &c.content_mapper).map(Arc::new));
+    for (path, text) in (env.iter().flatten()).flat_map(|env| &env.replaced) {
+        reg.contribute::<ReplacedFiles>(ReplacedFile {
+            tasks: &[TASK, rsvelte_typescript_check::TASK],
+            path: path.clone(),
+            text: text.clone(),
+        });
+    }
     reg.provide::<TypeScriptView>("svelte", rsvelte_svelte_syntax::matches, move |context| {
         typescript_view(context, env.as_ref())
     });

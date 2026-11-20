@@ -99,7 +99,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel#modules',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/registry.rs',
-			line: 79,
+			line: 100,
 			text: 'pub fn validate_plugins(&self) -> Result<(), PluginError> {',
 		},
 		box: { x: right, y: 60, w: width, h: height },

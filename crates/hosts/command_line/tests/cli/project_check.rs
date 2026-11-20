@@ -63,11 +63,14 @@ impl Project {
         for block in stdout.split("// ").skip(1) {
             let (header, body) = block.split_once('\n').expect("a header line");
             let file = header.split(' ').next().expect("a file");
-            let file = Path::new(file)
-                .strip_prefix(&self.0)
-                .expect("a file of the project");
             let findings: serde_json::Value = serde_json::from_str(body).expect("findings");
-            for finding in findings.as_array().expect("a list") {
+            let findings = findings.as_array().expect("a list");
+            // Without `skipLibCheck` the program's default libraries are checked too, clean.
+            let Ok(file) = Path::new(file).strip_prefix(&*self.0) else {
+                assert!(findings.is_empty(), "{file}: {findings:?}");
+                continue;
+            };
+            for finding in findings {
                 let message = finding["message"].as_str().unwrap_or_default().to_owned();
                 found.push((file.display().to_string(), finding["code"].clone(), message));
             }

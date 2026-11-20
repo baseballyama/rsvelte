@@ -17,7 +17,7 @@ const MAX_FIX_PASSES: usize = 10;
 /// pass, writes the file, and prints the output for the fixed text. Exit code 1 means an error
 /// diagnostic or finding is left.
 pub(crate) fn run_file(reg: &Registry, file: &Path, tasks: &[&str], fix: bool) -> ExitCode {
-    let mut text = match std::fs::read_to_string(file) {
+    let mut text = match reg.read(file, tasks) {
         Ok(t) => t,
         Err(e) => return usage(&format!("{}: {e}", file.display())),
     };
@@ -69,7 +69,7 @@ pub(crate) fn run_project(reg: &Registry, tasks: &[&str]) -> ExitCode {
 /// Runs `tasks` on every file of `files` in one run, so a project task such as a type check sees
 /// all of them, and prints each output under its file. Exit code 1 means an error is left.
 pub(crate) fn run_files(reg: &Registry, files: Vec<PathBuf>, tasks: &[&str]) -> ExitCode {
-    let documents = match files::read_all(reg, files) {
+    let documents = match files::read_all(reg, files, tasks) {
         Ok(documents) => documents,
         Err(e) => return usage(&e),
     };
