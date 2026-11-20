@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use rsvelte_corpus::task_files::diagnostics_json;
@@ -50,21 +50,7 @@ pub(crate) fn run_file(reg: &Registry, file: &Path, tasks: &[&str], fix: bool) -
         eprintln!("panic: {p}");
         return ExitCode::FAILURE;
     }
-    let mut failed = false;
-    for (task, out) in &result.outputs {
-        for f in &out.files {
-            println!("// {task} {}\n{}", f.name, f.text);
-        }
-        if !out.diagnostics.is_empty() {
-            println!("// {task} diagnostics\n{}", diagnostics_json(&text, out));
-        }
-        failed |= out
-            .diagnostics
-            .iter()
-            .chain(out.findings.iter().map(|finding| &finding.diagnostic))
-            .any(|diagnostic| diagnostic.severity == Severity::Error);
-    }
-    if failed {
+    if print_outputs("", &text, &result) {
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS
@@ -73,38 +59,19 @@ pub(crate) fn run_file(reg: &Registry, file: &Path, tasks: &[&str], fix: bool) -
 
 /// Runs `tasks` on every file of the project they check, as the project's checker selects them.
 pub(crate) fn run_project(reg: &Registry, tasks: &[&str]) -> ExitCode {
-    let project = match reg.project_files(tasks) {
-        Ok(project) => project,
-        Err(e) => return usage(&e),
-    };
-    if !project.problems.is_empty() {
-        let here = std::env::current_dir().and_then(std::fs::canonicalize).ok();
-        return match typecheck::problems(&project.problems, here.as_deref()) {
-            Ok(report) => typecheck::print(report),
-            Err(e) => usage(&e),
-        };
+    match typecheck::project_files(reg, tasks) {
+        Ok(files) => run_files(reg, &files, tasks),
+        Err(code) => code,
     }
-    let names: Vec<String> = (project.files.iter())
-        .map(|file| file.to_string_lossy().into_owned())
-        .collect();
-    let names: Vec<&str> = names.iter().map(String::as_str).collect();
-    run_files(reg, &names, tasks)
 }
 
 /// Runs `tasks` on every file of `files` in one run, so a project task such as a type check sees
 /// all of them, and prints each output under its file. Exit code 1 means an error is left.
-pub(crate) fn run_files(reg: &Registry, files: &[&str], tasks: &[&str]) -> ExitCode {
-    let mut documents = Vec::with_capacity(files.len());
-    for file in files {
-        let text = match std::fs::read_to_string(file) {
-            Ok(t) => t,
-            Err(e) => return usage(&format!("{file}: {e}")),
-        };
-        match files::document(reg, (*file).into(), text) {
-            Ok(document) => documents.push(document),
-            Err(e) => return usage(&e),
-        }
-    }
+pub(crate) fn run_files(reg: &Registry, files: &[PathBuf], tasks: &[&str]) -> ExitCode {
+    let documents = match files::read_all(reg, files) {
+        Ok(documents) => documents,
+        Err(e) => return usage(&e),
+    };
     let results = match files::run(reg, &documents, tasks) {
         Ok(results) => results,
         Err(code) => return code,
@@ -115,29 +82,36 @@ pub(crate) fn run_files(reg: &Registry, files: &[&str], tasks: &[&str]) -> ExitC
             println!("// {} panic\n{p}", document.path);
             failed = true;
         }
-        for (task, out) in &result.outputs {
-            for f in &out.files {
-                println!("// {} {task} {}\n{}", document.path, f.name, f.text);
-            }
-            if !out.diagnostics.is_empty() {
-                println!(
-                    "// {} {task} diagnostics\n{}",
-                    document.path,
-                    diagnostics_json(&document.text, out)
-                );
-            }
-            failed |= out
-                .diagnostics
-                .iter()
-                .chain(out.findings.iter().map(|finding| &finding.diagnostic))
-                .any(|diagnostic| diagnostic.severity == Severity::Error);
-        }
+        failed |= print_outputs(&format!("{} ", document.path), &document.text, result);
     }
     if failed {
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS
     }
+}
+
+/// Prints each task's files and diagnostics under a `// <prefix><task>` line, and returns whether
+/// an error diagnostic or finding is among them.
+fn print_outputs(prefix: &str, text: &str, result: &DocumentResult) -> bool {
+    let mut failed = false;
+    for (task, out) in &result.outputs {
+        for f in &out.files {
+            println!("// {prefix}{task} {}\n{}", f.name, f.text);
+        }
+        if !out.diagnostics.is_empty() {
+            println!(
+                "// {prefix}{task} diagnostics\n{}",
+                diagnostics_json(text, out)
+            );
+        }
+        failed |= out
+            .diagnostics
+            .iter()
+            .chain(out.findings.iter().map(|finding| &finding.diagnostic))
+            .any(|diagnostic| diagnostic.severity == Severity::Error);
+    }
+    failed
 }
 
 fn run_once(

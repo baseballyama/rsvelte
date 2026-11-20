@@ -17,38 +17,41 @@ use crate::usage;
 
 /// Checks the files of the project the tasks check. Exit code 1 means an error was found.
 pub(crate) fn typecheck(reg: &Registry, tasks: &[&str]) -> ExitCode {
-    let project = match reg.project_files(tasks) {
-        Ok(project) => project,
+    let files = match project_files(reg, tasks) {
+        Ok(files) => files,
+        Err(code) => return code,
+    };
+    let documents = match files::read_all(reg, &files) {
+        Ok(documents) => documents,
         Err(e) => return usage(&e),
     };
-    let here = std::env::current_dir().and_then(std::fs::canonicalize).ok();
-    // As svelte-check, a configuration with errors is reported instead of the files it selects.
-    if !project.problems.is_empty() {
-        return match problems(&project.problems, here.as_deref()) {
-            Ok(report) => print(report),
-            Err(e) => usage(&e),
-        };
-    }
-    let mut documents = Vec::new();
-    for file in project.files {
-        let text = match std::fs::read_to_string(&file) {
-            Ok(text) => text,
-            Err(e) => return usage(&format!("{}: {e}", file.display())),
-        };
-        match files::document(reg, file, text) {
-            Ok(document) => documents.push(document),
-            Err(e) => return usage(&e),
-        }
-    }
     let results = match files::run(reg, &documents, tasks) {
         Ok(results) => results,
         Err(code) => return code,
     };
-    print(report(&documents, &results, here.as_deref()))
+    print(report(&documents, &results, here().as_deref()))
+}
+
+/// The files of the project the tasks check. A configuration with errors is reported instead, as
+/// svelte-check reports it, and the error is the report's exit code.
+pub(crate) fn project_files(reg: &Registry, tasks: &[&str]) -> Result<Vec<PathBuf>, ExitCode> {
+    let project = reg.project_files(tasks).map_err(|e| usage(&e))?;
+    if project.problems.is_empty() {
+        return Ok(project.files);
+    }
+    Err(match problems(&project.problems, here().as_deref()) {
+        Ok(report) => print(report),
+        Err(e) => usage(&e),
+    })
+}
+
+/// The current directory, which the report names files relative to.
+fn here() -> Option<PathBuf> {
+    std::env::current_dir().and_then(std::fs::canonicalize).ok()
 }
 
 /// Prints a report; exit code 1 when it counts an error.
-pub(crate) fn print((text, errors): (String, usize)) -> ExitCode {
+fn print((text, errors): (String, usize)) -> ExitCode {
     // A closed pipe, as `| head` closes it, only cuts the report short.
     drop(std::io::stdout().lock().write_all(text.as_bytes()));
     if errors > 0 {
@@ -83,7 +86,7 @@ fn report(
 
 /// The problems of a project's configuration, each file's together, as [`report`] reports a
 /// document's findings.
-pub(crate) fn problems(
+fn problems(
     problems: &[(PathBuf, Diagnostic)],
     here: Option<&Path>,
 ) -> Result<(String, usize), String> {
