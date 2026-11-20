@@ -2,9 +2,10 @@ use oxc_ast::ast::{BindingPattern, Statement};
 use oxc_semantic::SymbolId;
 
 use crate::lower::builder::Runtime;
+use crate::lower::client::ClientCompilationContext;
 use crate::lower::client::snippets::Hooks;
-use crate::lower::client::{ClientCompilationContext, Read};
 use crate::lower::paths::{Paths, bound_names};
+use crate::lower::script::Read;
 
 /// The names a destructuring context binds, and whether a default value applies to each.
 pub(super) fn names(pattern: &BindingPattern<'_>) -> Vec<(SymbolId, bool)> {

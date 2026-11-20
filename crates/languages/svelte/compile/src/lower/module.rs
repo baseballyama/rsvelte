@@ -13,9 +13,9 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_typescript_tree::document_span;
 
-use super::{
-    Builder, CompileInput, Target, Unit, builder, check_runes, prepare, script, validate_unit,
-};
+use super::validation::check_runes;
+use super::{Builder, Unit, builder, prepare, script, validate_unit};
+use crate::input::{CompileInput, Target};
 
 /// The module of one target, in `allocator`; its spans index the module's text.
 ///

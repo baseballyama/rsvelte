@@ -1,10 +1,13 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::Expression;
-
-use crate::lower::server::{
-    AttributeValue, CompilerNodeIdentifier, Element, ElementKind, NodeKind, R,
-    ServerCompilationContext, Template, is_customizable_select, is_void,
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    AttributeValue, CompilerNodeIdentifier, Element, ElementKind, NodeKind,
 };
+use rsvelte_svelte_syntax::parse::is_void;
+
+use crate::lower::is_customizable_select;
+use crate::lower::server::template::Template;
+use crate::lower::server::{R, ServerCompilationContext};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `RegularElement` + `build_element_attributes` (server, no spread).

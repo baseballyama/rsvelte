@@ -2,12 +2,12 @@
 
 use oxc_ast::ast::{Argument, CallExpression, ChainElement, Expression};
 use oxc_semantic::{ReferenceId, ScopeId, SymbolFlags, SymbolId};
-use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, Snippet};
-use rsvelte_svelte_semantic::resolve::TemplateScope;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind, Snippet};
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution, TemplateScope};
 use rsvelte_typescript_tree::Tree;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::{BindingKind, CompileInput, NodeKind, Resolution};
+use crate::input::CompileInput;
 
 /// A name that stays in the output once upstream erases the types.
 pub(super) fn is_runtime(flags: SymbolFlags) -> bool {

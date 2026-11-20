@@ -3,18 +3,20 @@
 
 use oxc_ast::ast::Expression;
 use oxc_syntax::keyword::is_reserved_keyword;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    CompilerNodeIdentifier, ElementKind, MetadataTag, Name, StyleValue,
+    Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
+    MetadataTag, Name, NodeKind, StyleValue,
 };
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
+use super::attributes::is_directive;
 use super::bindings::property_of;
 use super::global_binding_table::GlobalBinding;
 use super::javascript::member_root;
-use super::{
-    Attribute, AttributeValue, BindingKind, CompileInput, CompilerSyntaxTree, Diagnostic, Element,
-    NodeKind, Resolution, Target, unsupported,
-};
+use super::unsupported;
+use crate::input::{CompileInput, Target};
 
 pub(super) fn refuse(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
@@ -298,10 +300,8 @@ fn check_element_binding(
             && match o.name.text(source_text) {
                 // A `<textarea>`'s moved content, which a binding renders after.
                 "value" if tag == "textarea" && matches!(o.name, Name::Spelled { .. }) => false,
-                "value" if !super::is_directive(&o.value) => !keeps_value,
-                "checked" => {
-                    !matches!(property, "group" | "value") && !super::is_directive(&o.value)
-                }
+                "value" if !is_directive(&o.value) => !keeps_value,
+                "checked" => !matches!(property, "group" | "value") && !is_directive(&o.value),
                 "group" => true,
                 _ => false,
             }

@@ -2,12 +2,15 @@
 //! imports, which its scopes see where oxc's do not.
 
 use oxc_ast::ast::{Declaration, ImportDeclarationSpecifier, Statement};
-use rsvelte_svelte_semantic::resolve::TemplateScope;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
+use rsvelte_svelte_semantic::resolve::{Resolution, TemplateScope};
 use rsvelte_svelte_semantic::warnings::{Raised, Section};
 use rsvelte_typescript_tree::{document_span, node_span};
 
-use super::{CompileInput, Diagnostic, Resolution, raised_in_scopes_of, raised_in_walk_of};
-use crate::lower::{NodeKind, error};
+use super::{raised_in_scopes_of, raised_in_walk_of};
+use crate::input::CompileInput;
+use crate::lower::error;
 
 /// Each duplicate with when upstream raises it, as it builds the scopes.
 pub(super) fn duplicates(input: &CompileInput<'_>, res: &Resolution) -> Vec<(Raised, Diagnostic)> {

@@ -4,12 +4,14 @@ use oxc_ast::ast::{ArrowFunctionExpression, Expression, Function, IdentifierRefe
 use oxc_ast_visit::{Visit, walk};
 use oxc_syntax::scope::ScopeFlags;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
-use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerSyntaxTree, Element, Modifiers, NodeKind,
+};
+use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{
-    Attribute, AttributeValue, Builder, CompilerSyntaxTree, Element, NodeKind, Resolution, Target,
-};
+use super::Builder;
+use crate::input::Target;
 
 #[cfg(test)]
 mod tests;

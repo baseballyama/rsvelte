@@ -5,11 +5,14 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_span::SPAN;
+use rsvelte_svelte_semantic::resolve::BindingKind;
 
 use super::writes::is_prop_source;
-use super::{BindingKind, Names, ScriptRewrite, should_proxy_read};
+use super::{ScriptRewrite, should_proxy_read};
 use crate::lower::builder::Runtime;
 use crate::lower::javascript::{is_simple_expression, prop_alias};
+use crate::lower::names::Names;
+use crate::lower::validation::uses_slots;
 
 /// Upstream server `$props` declaration: `$$slots` and `$$events` go beside the rest, and
 /// `x = $bindable(d)` becomes `x = d`.
@@ -19,7 +22,7 @@ pub(super) fn server_props_pattern<'o>(
 ) -> BindingPattern<'o> {
     let b = rw.b;
     // A component that reads `$$slots` declares it, so the pattern takes another name.
-    let slots = if crate::lower::uses_slots(rw.res) {
+    let slots = if uses_slots(rw.res) {
         "$$slots_"
     } else {
         "$$slots"

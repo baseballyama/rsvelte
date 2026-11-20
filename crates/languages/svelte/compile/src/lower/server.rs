@@ -22,32 +22,24 @@ mod template;
 
 use std::borrow::Cow;
 
-use events::{capture_event, capture_load_events, push_captured_events};
 use oxc_ast::ast::{Statement, UnaryOperator, VariableDeclarationKind};
 use oxc_semantic::SymbolId;
 use oxc_span::SPAN;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
-    NodeKind, Part,
+    AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree,
 };
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
-use rsvelte_svelte_syntax::parse::is_void;
-use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_typescript_tree::Tree;
 use rustc_hash::{FxHashMap, FxHashSet};
-use template::Template;
 
+use super::builder::{Runtime, export_default, import};
 use super::names::Names;
-use super::script::ScriptRewrite;
 use super::slot_element::has_slot_element;
-use super::{
-    Builder, Item, Prepared, Target, escape_markup, event_attribute, is_behaviour,
-    is_boolean_attribute, is_customizable_select, is_directive, is_load_error_element, needs_clsx,
-    synthetic_value, unsupported, uses_slots,
-};
-use crate::lower::builder::{Runtime, export_default, import};
+use super::validation::uses_slots;
+use super::{Builder, Prepared};
+use crate::input::{CompileInput, Target};
 use crate::render_plan::RenderPlan;
 
 type R<T> = Result<T, Diagnostic>;
@@ -91,12 +83,7 @@ struct ServerCompilationContext<'c, 'o> {
 }
 
 /// Upstream's condition for the `$$props` parameter.
-fn takes_props(
-    an: &Analysis,
-    res: &Resolution,
-    exports: bool,
-    input: &super::CompileInput<'_>,
-) -> bool {
+fn takes_props(an: &Analysis, res: &Resolution, exports: bool, input: &CompileInput<'_>) -> bool {
     an.needs_context
         || res.uses_props()
         || exports
@@ -310,7 +297,7 @@ fn set_settled<'o>(b: &Builder<'o>, value: bool) -> Statement<'o> {
 }
 
 /// Upstream `analysis.uses_component_bindings`.
-fn uses_component_bindings(input: &super::CompileInput<'_>) -> bool {
+fn uses_component_bindings(input: &CompileInput<'_>) -> bool {
     let tree = input.component.compiler_syntax_tree;
     tree.elements().any(|(_, element)| {
         element.kind.renders_component()

@@ -1,11 +1,9 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::Statement;
-use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Element, NodeKind, Snippet};
 
-use super::{
-    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, Element, NodeKind, R, ServerCompilationContext,
-    Template,
-};
+use super::template::Template;
+use super::{BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, R, ServerCompilationContext};
 use crate::lower::Builder;
 
 impl<'o> ServerCompilationContext<'_, 'o> {

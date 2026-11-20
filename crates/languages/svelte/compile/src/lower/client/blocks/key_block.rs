@@ -1,7 +1,7 @@
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
+
 use crate::lower::builder::Runtime;
-use crate::lower::client::{
-    ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R,
-};
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, R};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `KeyBlock` (client): `$.key(node, () => key, ($$anchor) => { … })`.

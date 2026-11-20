@@ -4,9 +4,13 @@ mod input_defaults;
 mod regular_element;
 mod select_value;
 
-use super::{
-    AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, NodeKind, event_attribute,
+use rsvelte_svelte_semantic::analyze::cannot_be_set_statically;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    AttributeValue, CompilerNodeIdentifier, ElementKind, NodeKind,
 };
+
+use super::ClientCompilationContext;
+use crate::lower::attributes::event_attribute;
 
 impl ClientCompilationContext<'_, '_> {
     /// Upstream `is_markup` of an element: it stands in html and is no `<svg>`, so its tag and
@@ -23,7 +27,7 @@ impl ClientCompilationContext<'_, '_> {
         let NodeKind::Element(el) = &self.compiler_syntax_tree.node(identifier).kind else {
             return false;
         };
-        if el.kind != super::ElementKind::Regular || self.an.dynamic[identifier] {
+        if el.kind != ElementKind::Regular || self.an.dynamic[identifier] {
             return false;
         }
         if self
@@ -36,7 +40,7 @@ impl ClientCompilationContext<'_, '_> {
         for a in self.compiler_syntax_tree.attributes(el.attributes) {
             let n = a.name.text(self.source_text);
             if event_attribute(self.source_text, a).is_some()
-                || crate::lower::cannot_be_set_statically(n)
+                || cannot_be_set_statically(n)
                 || n == "dir"
             {
                 return false;

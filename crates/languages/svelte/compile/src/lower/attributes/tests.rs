@@ -1,5 +1,5 @@
 use super::scoped_class;
-use crate::lower::Target;
+use crate::input::Target;
 
 #[test]
 fn a_scoped_class_trims_its_start_on_the_server_only() {

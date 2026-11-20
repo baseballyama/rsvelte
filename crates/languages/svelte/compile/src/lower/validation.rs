@@ -17,12 +17,14 @@ mod special_elements;
 
 pub(super) use awaits::check as check_awaits;
 pub(in crate::lower) use markup::each_key;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_semantic::resolve::Resolution;
 use runes::script_and_template_errors;
 pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, script_error};
 
-use super::{
-    CompileInput, Diagnostic, Resolution, Span, Target, custom_element, stores, unsupported_syntax,
-};
+use super::{custom_element, stores, unsupported_syntax};
+use crate::input::{CompileInput, Target};
 
 /// An error upstream raises as it parses, before any other.
 pub(crate) const fn raised_in_parse() -> Raised {

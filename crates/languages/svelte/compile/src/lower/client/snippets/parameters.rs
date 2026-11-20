@@ -6,8 +6,9 @@ use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
 
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Read};
+use crate::lower::client::ClientCompilationContext;
 use crate::lower::paths::{Destructure, Paths};
+use crate::lower::script::Read;
 
 pub(super) struct Parameters<'o> {
     pub(super) arguments: Vec<FormalParameter<'o>>,

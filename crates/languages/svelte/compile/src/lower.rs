@@ -31,10 +31,6 @@ mod unsupported_syntax;
 mod validation;
 
 pub use attributes::{DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select};
-use attributes::{
-    event_attribute, has_dependency, is_behaviour, is_directive, is_dom_property,
-    is_load_error_element, needs_clsx, synthetic_value,
-};
 pub(crate) use builder::Builder;
 pub(crate) use module::lower_module;
 use oxc_allocator::Allocator;
@@ -44,24 +40,18 @@ use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::analyze::Analysis;
-pub(crate) use rsvelte_svelte_semantic::analyze::cannot_be_set_statically;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
-    ElementKind, NodeKind,
-};
-use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
+use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier;
+use rsvelte_svelte_semantic::resolve::Resolution;
 pub(crate) use rsvelte_svelte_syntax::svelte_diagnostics::error;
-pub(crate) use rsvelte_svelte_syntax::syntax_tree::escape_markup;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 pub use script::is_expression_async;
 pub use validation::CompileErrors;
 pub(crate) use validation::{
     Unit, Validation, mode_independent_errors, raised_in_parse, rune_error, validate, validate_unit,
 };
-use validation::{check_runes, uses_slots};
 
 use crate::input::{CompileInput, Target};
-use crate::render_plan::{Item, RenderPlan};
+use crate::render_plan::RenderPlan;
 
 /// `plan` must be built from this input and its whitespace option.
 ///

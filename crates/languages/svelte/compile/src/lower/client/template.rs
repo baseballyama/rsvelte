@@ -1,4 +1,5 @@
-use super::{escape_markup, is_void};
+use rsvelte_svelte_syntax::parse::is_void;
+use rsvelte_svelte_syntax::syntax_tree::escape_markup;
 
 /// The HTML of one fragment, built while its nodes are visited (upstream `Template`).
 #[derive(Default)]

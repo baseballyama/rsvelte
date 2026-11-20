@@ -1,10 +1,11 @@
-use rsvelte_svelte_semantic::compiler_syntax_tree::MetadataTag;
-
-use super::{
-    CompilerNodeIdentifier, ElementKind, NodeKind, R, ServerCompilationContext, Template,
-    unsupported,
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    CompilerNodeIdentifier, ElementKind, MetadataTag, NodeKind,
 };
+
+use super::template::Template;
+use super::{R, ServerCompilationContext};
 use crate::lower::builder::Runtime;
+use crate::lower::unsupported;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// The snippets and special elements of a fragment, but the snippets named so that `skipped`

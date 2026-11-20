@@ -5,12 +5,13 @@ mod without_spread;
 
 use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
-use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier;
-
-use super::{
-    Attribute, AttributeValue, Part, ServerCompilationContext, decode_attribute, escape_markup,
-    known_string, needs_clsx,
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier, Part,
 };
+use rsvelte_svelte_syntax::syntax_tree::{decode_attribute, escape_markup};
+
+use super::{ServerCompilationContext, known_string};
+use crate::lower::attributes::needs_clsx;
 use crate::lower::builder::Runtime;
 
 impl<'o> ServerCompilationContext<'_, 'o> {

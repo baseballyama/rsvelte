@@ -1,7 +1,10 @@
 //! The scripts' first rune error, which upstream's analysis meets before the template.
 
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::resolve::Resolution;
+
 use super::{Awaits, walk_scripts, walk_template};
-use crate::lower::{CompileInput, Diagnostic, Resolution, Target};
+use crate::input::{CompileInput, Target};
 
 /// The first upstream error the scripts raise, which upstream's analysis meets before the
 /// template, and whether the module raises it.

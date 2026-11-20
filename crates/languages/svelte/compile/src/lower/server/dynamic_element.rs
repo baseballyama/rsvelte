@@ -1,4 +1,7 @@
-use super::{CompilerNodeIdentifier, NodeKind, R, ServerCompilationContext, Template};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
+
+use super::template::Template;
+use super::{R, ServerCompilationContext};
 use crate::lower::attributes::DynamicTag;
 use crate::lower::builder::Runtime;
 

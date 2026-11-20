@@ -3,18 +3,20 @@ use oxc_ast::ast::{
     BindingPattern, BindingProperty, Expression, FormalParameters, ObjectPropertyKind, Statement,
 };
 use oxc_span::SPAN;
-use rsvelte_svelte_semantic::compiler_syntax_tree::Element;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, Element, NodeKind};
 
-use super::super::component::{
+use super::template::Template;
+use super::{
+    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, EMPTY_COMMENT, R, ServerCompilationContext,
+    set_settled,
+};
+use crate::input::Target;
+use crate::lower::builder::Runtime;
+use crate::lower::component::{
     Callee, DefaultSlot, Entry, Prop, SlotCallback, callee, child_snippets, props,
     props_expression, push_accessors, push_binding, push_children,
 };
-use super::super::lets::{pattern, slot_lets};
-use super::{
-    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind, R,
-    ServerCompilationContext, Target, Template, set_settled,
-};
-use crate::lower::builder::Runtime;
+use crate::lower::lets::{pattern, slot_lets};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_inline_component`; a `standalone` component is its fragment's only node, so

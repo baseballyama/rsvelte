@@ -1,13 +1,15 @@
 use oxc_ast::ast::{BinaryOperator, Expression};
-use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier, Part,
+};
+use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{
-    Attribute, AttributeValue, Part, ServerCompilationContext, decode_attribute,
-    is_boolean_attribute, is_directive,
-};
+use super::ServerCompilationContext;
+use crate::lower::attributes::is_directive;
 use crate::lower::bindings::{BindStrategy, attribute_value, property_of};
 use crate::lower::builder::Runtime;
+use crate::lower::is_boolean_attribute;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_element_attributes` (server): the attribute a binding renders, by name

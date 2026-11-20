@@ -33,25 +33,18 @@ use oxc_ast::ast::{Expression, FormalParameters, Statement};
 use oxc_semantic::{ScopeId, SymbolId};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::analyze::Analysis;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
-    NodeKind, Part,
-};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, CompilerSyntaxTree};
 use rsvelte_svelte_semantic::resolve::Resolution;
-use rsvelte_svelte_syntax::parse::is_void;
-use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use super::builder::{Runtime, export_default, import};
 use super::names::Names;
-use super::script::{Read, ScriptRewrite};
+use super::script::Read;
 use super::slot_element::has_slot_element;
-use super::{
-    Builder, Item, Prepared, Target, escape_markup, event_attribute, has_dependency, is_behaviour,
-    is_customizable_select, is_directive, is_load_error_element, needs_clsx, synthetic_value,
-    unsupported, uses_slots,
-};
-use crate::lower::builder::{Runtime, export_default, import};
+use super::validation::uses_slots;
+use super::{Builder, Prepared};
+use crate::input::Target;
 use crate::render_plan::RenderPlan;
 
 const PASSIVE_EVENTS: &[&str] = &["touchstart", "touchmove"];

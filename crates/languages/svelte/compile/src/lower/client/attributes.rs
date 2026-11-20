@@ -4,8 +4,9 @@ mod with_spread;
 mod without_spread;
 
 use oxc_ast::ast::Expression;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue};
 
-use super::{Attribute, AttributeValue, ClientCompilationContext, Memo};
+use super::{ClientCompilationContext, Memo};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_attribute_value` (client).

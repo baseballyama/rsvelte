@@ -1,13 +1,14 @@
 use oxc_ast::ast::Expression;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier, ElementKind, NodeKind,
+};
+use rsvelte_svelte_syntax::syntax_tree::escape_markup;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use crate::lower::Target;
-use crate::lower::attributes::scoped_class;
+use crate::input::Target;
+use crate::lower::attributes::{needs_clsx, scoped_class};
 use crate::lower::builder::Runtime;
-use crate::lower::client::{
-    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Lists, Memo,
-    escape_markup, needs_clsx,
-};
+use crate::lower::client::{ClientCompilationContext, Lists, Memo};
 use crate::lower::javascript::string_value;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -114,13 +115,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             stylesheet_hash = Some(b.null());
         }
         let x = b.id(node);
-        let super::super::NodeKind::Element(element) =
-            &self.compiler_syntax_tree.node(identifier).kind
-        else {
+        let NodeKind::Element(element) = &self.compiler_syntax_tree.node(identifier).kind else {
             unreachable!("classes belong to elements")
         };
-        let markup_namespace =
-            element.kind == super::super::ElementKind::Regular && self.is_markup(identifier);
+        let markup_namespace = element.kind == ElementKind::Regular && self.is_markup(identifier);
         let is_markup = b.number(f64::from(u8::from(markup_namespace)));
         let mut set_class = b.runtime_some(
             "set_class",

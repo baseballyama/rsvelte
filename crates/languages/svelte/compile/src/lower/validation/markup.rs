@@ -15,15 +15,17 @@ mod slot_snippets;
 mod slots;
 
 pub(in crate::lower) use handlers::mixed_syntaxes;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    AttributeValue, Children, CompilerNodeIdentifier, Element, NodeKind,
+};
 use rsvelte_svelte_semantic::markup_tree::{Ancestors, invalid_with_parent};
 use rsvelte_svelte_semantic::typescript::without_typescript;
 use rsvelte_svelte_semantic::warnings::{TransitionDirections, slot_name_error};
 pub(in crate::lower) use slot_snippets::slot_snippet_conflict;
 
-use super::super::{
-    AttributeValue, Children, CompileInput, CompilerNodeIdentifier, Diagnostic, Element, NodeKind,
-    is_directive,
-};
+use crate::input::CompileInput;
+use crate::lower::attributes::is_directive;
 use crate::lower::invalid;
 use crate::render_plan::is_template_whitespace;
 
@@ -523,7 +525,7 @@ fn directives(
     };
     for a in attributes {
         if let (AttributeValue::Bind(_), Some(host)) = (&a.value, host) {
-            super::super::bindings::check_binding(source, host, attributes, a)?;
+            crate::lower::bindings::check_binding(source, host, attributes, a)?;
         }
         if let AttributeValue::Style { modifiers, .. } = &a.value
             && ![Modifiers::default(), Modifiers::IMPORTANT].contains(modifiers)

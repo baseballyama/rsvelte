@@ -4,12 +4,15 @@ use oxc_ast::ast::{
     AssignmentTarget, AssignmentTargetMaybeDefault, AssignmentTargetProperty, Expression,
     IdentifierReference, MemberExpression, SimpleAssignmentTarget,
 };
-use rsvelte_svelte_semantic::resolve::BindingKind;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 
 use super::RuneWalk;
+use crate::input::Target;
 use crate::lower::javascript::member_root;
 use crate::lower::script::mutates_signal;
-use crate::lower::{Diagnostic, Resolution, Span, Target, unsupported};
+use crate::lower::unsupported;
 
 /// A name an assignment or a binding cannot change, as upstream's `validate_assignment` sorts it.
 #[derive(Clone, Copy, PartialEq, Eq)]

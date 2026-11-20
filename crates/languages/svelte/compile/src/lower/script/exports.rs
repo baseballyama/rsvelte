@@ -9,8 +9,8 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_tree::node_span;
 
-use super::super::paths::bound_names;
-use super::super::unsupported;
+use crate::lower::paths::bound_names;
+use crate::lower::unsupported;
 
 /// One of upstream's `analysis.exports`: the local `name`, exported as `alias`.
 pub(in crate::lower) struct Export<'t> {

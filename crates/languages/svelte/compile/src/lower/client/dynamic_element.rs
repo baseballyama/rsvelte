@@ -1,10 +1,10 @@
 use oxc_ast::ast::Expression;
-
-use super::{
-    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists,
-    NodeKind, R, is_behaviour,
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind,
 };
-use crate::lower::attributes::DynamicTag;
+
+use super::{ClientCompilationContext, Frag, Lists, R};
+use crate::lower::attributes::{DynamicTag, is_behaviour};
 use crate::lower::builder::Runtime;
 
 impl<'o> ClientCompilationContext<'_, 'o> {

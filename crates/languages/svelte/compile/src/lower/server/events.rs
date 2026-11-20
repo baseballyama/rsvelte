@@ -1,4 +1,5 @@
-use super::{Template, is_load_error_element};
+use super::template::Template;
+use crate::lower::attributes::is_load_error_element;
 
 pub(super) fn capture_event<'a>(events: &mut Vec<&'a str>, tag: &str, name: &'a str) {
     if matches!(name, "onload" | "onerror") && is_load_error_element(tag) && !events.contains(&name)

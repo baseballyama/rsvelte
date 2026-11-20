@@ -2,10 +2,13 @@
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::{Argument, CallExpression, Expression};
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_typescript_tree::node_span;
 
-use super::{Body, Parent, Place, RuneWalk, state_invalid_placement};
-use crate::lower::{Diagnostic, Target, unsupported};
+use super::{Body, Parent, Place, RuneWalk};
+use crate::input::Target;
+use crate::lower::unsupported;
+use crate::lower::validation::state_invalid_placement;
 
 impl RuneWalk<'_> {
     /// Upstream's `CallExpression` checks for a rune call, then whether this port lowers it.

@@ -10,8 +10,9 @@ use rsvelte_typescript_tree::node_span;
 
 use super::statements::{Inspect, declares_nothing, inspect, inspects_with, is_effect};
 use super::{Export, ScriptRewrite, declarators, exports, props};
+use crate::input::Target;
 use crate::lower::names::Names;
-use crate::lower::{Target, unsupported};
+use crate::lower::unsupported;
 
 /// Which script is lowered; the instance's exports are collected while it is.
 pub(in crate::lower) enum ScriptContext<'e, 't> {

@@ -1,10 +1,11 @@
 use oxc_allocator::{CloneIn, GetAllocator};
-
-use crate::lower::builder::Runtime;
-use crate::lower::client::{
-    AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, ElementKind, Frag, Lists,
-    Memo, NodeKind, R, is_directive, is_load_error_element,
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    AttributeValue, CompilerNodeIdentifier, ElementKind, NodeKind,
 };
+
+use crate::lower::attributes::{is_directive, is_load_error_element};
+use crate::lower::builder::Runtime;
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, Memo, R};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `RegularElement`.
@@ -28,7 +29,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let is_markup = self.is_markup(identifier);
         let name = el.name.text(self.source_text);
         let tag = if is_markup {
-            super::super::lowercase(name)
+            crate::lower::client::lowercase(name)
         } else {
             name.into()
         };

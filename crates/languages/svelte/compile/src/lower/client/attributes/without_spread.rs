@@ -1,13 +1,18 @@
 use oxc_ast::ast::{Expression, Statement};
+use rsvelte_svelte_semantic::analyze::cannot_be_set_statically;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind,
+};
 
-use crate::lower::Target;
-use crate::lower::attributes::{can_use_literal, implicit_attributes, scoped_class};
+use crate::input::Target;
+use crate::lower::attributes::{
+    can_use_literal, event_attribute, implicit_attributes, is_behaviour, is_directive,
+    is_dom_property, scoped_class,
+};
 use crate::lower::bindings::needs_special_value;
 use crate::lower::builder::Runtime;
-use crate::lower::client::{
-    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, Memo,
-    NodeKind, R, event_attribute, is_behaviour, is_directive, normalize_attribute, unsupported,
-};
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, Memo, R, normalize_attribute};
+use crate::lower::unsupported;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// The attribute loop of upstream `RegularElement` (no spread).
@@ -69,7 +74,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 _ => None,
             };
             if !custom_element
-                && !crate::lower::cannot_be_set_statically(raw_name)
+                && !cannot_be_set_statically(raw_name)
                 && (attribute_name != "value" || tag != "textarea")
                 && can_use_literal(&attribute_name, &class_directives, &style_directives)
                 && let Some(value) = literal
@@ -258,7 +263,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             "value" => b.runtime("set_value", [x, value]),
             "checked" => b.runtime("set_checked", [x, value]),
             "selected" => b.runtime("set_selected", [x, value]),
-            _ if crate::lower::is_dom_property(name) => b.assign_member(b.member(x, name), value),
+            _ if is_dom_property(name) => b.assign_member(b.member(x, name), value),
             _ => {
                 let method = if name.starts_with("xlink") {
                     "set_xlink_attribute"

@@ -1,13 +1,12 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{BinaryOperator, Expression, LogicalOperator, VariableDeclarationKind};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue, Element};
 use rsvelte_svelte_semantic::evaluate::Evaluator;
 
+use crate::lower::attributes::{is_directive, synthetic_value};
 use crate::lower::bindings::needs_special_value;
 use crate::lower::builder::Runtime;
-use crate::lower::client::{
-    Attribute, AttributeValue, ClientCompilationContext, Element, Frag, Lists, is_directive,
-    normalize_attribute, synthetic_value,
-};
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, normalize_attribute};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// The tail of upstream `RegularElement` for `<option>`, `<select>` and a bound checkbox or

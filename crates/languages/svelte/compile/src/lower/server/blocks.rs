@@ -31,7 +31,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             let raw = format!("{}{}", sanitize_template_string(marker), quasi.value.raw);
             quasi.value.raw = b.str(&raw).into();
             if let Some(cooked) = quasi.value.cooked {
-                let cooked = format!("{marker}{}", super::super::javascript::string_value(cooked));
+                let cooked = format!("{marker}{}", crate::lower::javascript::string_value(cooked));
                 quasi.value.cooked = Some(b.str(&cooked).into());
             }
         } else {

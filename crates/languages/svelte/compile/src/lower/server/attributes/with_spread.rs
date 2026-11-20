@@ -1,13 +1,14 @@
 use oxc_ast::ast::{Expression, ObjectPropertyKind};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind,
+};
 
 use super::escaped_text;
-use crate::lower::attributes::implicit_attributes;
+use crate::lower::attributes::{event_attribute, implicit_attributes, is_behaviour};
 use crate::lower::builder::Runtime;
-use crate::lower::server::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind, ServerCompilationContext,
-    Template, capture_event, capture_load_events, event_attribute, is_behaviour,
-    push_captured_events,
-};
+use crate::lower::server::ServerCompilationContext;
+use crate::lower::server::events::{capture_event, capture_load_events, push_captured_events};
+use crate::lower::server::template::Template;
 
 const ELEMENT_IS_INPUT: u32 = 1 << 2;
 

@@ -1,8 +1,9 @@
 use oxc_ast::ast::Statement;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Children;
 
-use super::super::component::{Standalone, standalone};
-use super::{EMPTY_COMMENT, R, ServerCompilationContext, Template};
+use super::template::Template;
+use super::{EMPTY_COMMENT, R, ServerCompilationContext};
+use crate::lower::component::{Standalone, standalone};
 use crate::render_plan::Region;
 
 impl<'c, 'o> ServerCompilationContext<'c, 'o> {

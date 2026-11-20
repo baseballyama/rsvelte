@@ -1,8 +1,8 @@
 use oxc_ast::ast::Statement;
 
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Frag, Item, Lists, Memo, Prev, R};
-use crate::render_plan::Namespace;
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, Memo, Prev, R};
+use crate::render_plan::{Item, Namespace};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `RegularElement`'s branch for a `<select>`, `<optgroup>` or `<option>` with rich
@@ -40,7 +40,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             &content.tpl,
             namespace,
             &name,
-            super::super::fragments::TEMPLATE_FRAGMENT,
+            crate::lower::client::fragments::TEMPLATE_FRAGMENT,
         );
         let mut body = vec![
             b.var(&anchor, b.runtime("child", [b.id(node)])),

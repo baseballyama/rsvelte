@@ -1,6 +1,7 @@
 use oxc_allocator::{CloneIn, GetAllocator};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 
-use super::{ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R};
+use super::{ClientCompilationContext, Frag, Lists, R};
 use crate::lower::builder::Runtime;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
