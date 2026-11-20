@@ -8,7 +8,7 @@ mod configuration;
 pub use configuration::{Configuration, ConfiguredRule, check_plugins, definition};
 mod extension;
 pub use extension::EXTENSION;
-pub mod external;
+pub mod host_rule;
 mod pattern;
 pub use pattern::Pattern;
 pub mod project;
