@@ -76,7 +76,7 @@ const RULES: [(&str, Rule); 18] = [
 /// The number of tags with a rule, so a caller can keep one slot per tag.
 pub const SLOTS: usize = AUTOCLOSING_CHILDREN.len() + RULES.len();
 
-/// The rule for `tag` and its slot, below [`SLOTS`]: [`RULES`] first since it overrides.
+/// The rule for `tag` and its slot, below [`SLOTS`]; what `disallowed_children` overrides wins.
 #[must_use]
 pub fn rule(tag: &str) -> Option<(usize, Rule)> {
     let slot = match RULES.iter().position(|&(t, _)| t == tag) {
