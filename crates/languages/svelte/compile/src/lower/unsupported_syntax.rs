@@ -307,16 +307,6 @@ fn supported_binding(
     if bindings::check_binding(source_text, tag, attributes, a).is_err() {
         return false;
     }
-    // Upstream's `attribute_invalid_type`: only `bind:value` beside a `type` not written as text.
-    if tag == "input"
-        && attribute_value(source_text, attributes, "type").is_some_and(|ty| match ty {
-            AttributeValue::Static(_) => false,
-            AttributeValue::Boolean => true,
-            _ => property != "value",
-        })
-    {
-        return false;
-    }
     if p.strategy == BindStrategy::ContentEditable {
         let editable = attribute_value(source_text, attributes, "contenteditable");
         if !matches!(
