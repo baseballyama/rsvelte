@@ -258,7 +258,8 @@ fn typescript_eslint_verdict<'a>(context: &'a DocumentContext<'_>) -> Typescript
     let at = (error.typescript_eslint_at).unwrap_or(error.diagnostic.span.start_offset);
     // svelte-eslint-parser hands typescript-eslint the template's code after the script's, so
     // what it throws at the script's end depends on that code.
-    let inside = (component.module.iter().chain(&component.instance))
+    let inside = component
+        .scripts()
         .any(|script| script.content.start_offset <= at && at < script.content.end_offset);
     if !inside {
         return missing_at_the_end(context.source_text(), component, error, at)
@@ -286,7 +287,8 @@ fn missing_at_the_end(
     error: &rsvelte_typescript_tree::SyntaxError,
     at: u32,
 ) -> Option<(&'static str, u32)> {
-    let last = (component.module.iter().chain(&component.instance))
+    let last = component
+        .scripts()
         .max_by_key(|script| script.content.end_offset)?;
     let after = source_text.get(at as usize..)?;
     if last.content.end_offset != at || after.contains('{') {

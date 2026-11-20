@@ -191,12 +191,8 @@ impl Artifact for LegacyReactivity {
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let linted = Linted::of(context).expect("lint requests legacy reactivity after parsing");
         let component = linted.component;
-        let programs: Vec<ProgramIdentifier> = component
-            .module
-            .iter()
-            .chain(&component.instance)
-            .map(|script| script.program)
-            .collect();
+        let programs: Vec<ProgramIdentifier> =
+            component.scripts().map(|script| script.program).collect();
         Legacy::new(linted.resolution(), &programs)
     }
 }

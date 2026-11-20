@@ -211,7 +211,7 @@ fn virtually_read(file: &File<'_>, runes: bool, out: &mut FxHashSet<SymbolId>) {
         );
     };
     let tree = file.javascript();
-    for script in component.module.iter().chain(&component.instance) {
+    for script in component.scripts() {
         for statement in &tree.get_program(script.program).body {
             match statement {
                 Statement::VariableDeclaration(declaration) if runes => {

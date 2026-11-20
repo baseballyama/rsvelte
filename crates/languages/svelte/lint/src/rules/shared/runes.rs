@@ -31,7 +31,7 @@ pub(crate) fn runes_mode(file: &File<'_>, component: &Component) -> bool {
     }
     let tree = &component.javascript;
     let mut finder = RuneName(false);
-    for script in component.module.iter().chain(&component.instance) {
+    for script in component.scripts() {
         finder.visit_program(tree.get_program(script.program));
     }
     for (_, expression) in tree.expressions() {

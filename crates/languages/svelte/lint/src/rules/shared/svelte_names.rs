@@ -109,7 +109,7 @@ pub(crate) fn has_reactive_statement(file: &File<'_>) -> bool {
     let (Some(component), tree) = (file.component(), file.javascript()) else {
         return false;
     };
-    (component.module.iter().chain(&component.instance)).any(|script| {
+    component.scripts().any(|script| {
         tree.get_program(script.program).body.iter().any(|statement| {
             matches!(statement, Statement::LabeledStatement(labeled) if labeled.label.name == "$")
         })

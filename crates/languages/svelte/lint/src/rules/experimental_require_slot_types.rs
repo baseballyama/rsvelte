@@ -47,9 +47,7 @@ impl SvelteRule for ExperimentalRequireSlotTypes {
 /// The `lang` of the last `<script>`, which upstream's listener leaves set.
 fn is_typescript(component: &Component, source: &str) -> bool {
     let last = component
-        .module
-        .iter()
-        .chain(&component.instance)
+        .scripts()
         .max_by_key(|script| script.span.start_offset);
     last.is_some_and(|script| {
         let lang = script

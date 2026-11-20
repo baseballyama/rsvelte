@@ -13,11 +13,7 @@ use crate::rule::File;
 
 /// The scripts' programs, the module script's first.
 fn programs(component: &Component) -> impl Iterator<Item = ProgramIdentifier> + '_ {
-    component
-        .module
-        .iter()
-        .chain(&component.instance)
-        .map(|script| script.program)
+    component.scripts().map(|script| script.program)
 }
 
 /// The top-level `$:` statements with their bodies, in source order; none in runes mode, where

@@ -44,8 +44,8 @@ const STYLESHEET_CODES: &[&str] = &[
 pub(crate) fn ignores(component: &Component, source: &str) -> Ignores {
     let mut out = Ignores::default();
     let tree = &component.javascript;
-    let scripts = component.module.iter().chain(&component.instance);
-    let comments = scripts
+    let comments = component
+        .scripts()
         .flat_map(|script| &tree.get_program(script.program).comments)
         .chain(tree.comments());
     for comment in comments {
@@ -311,12 +311,7 @@ impl Targets<'_> {
         {
             return vec![self.leading(component.root, style.span.start_offset)];
         }
-        if let Some(script) = component
-            .module
-            .iter()
-            .chain(&component.instance)
-            .find(|s| contains(s.span, at))
-        {
+        if let Some(script) = component.scripts().find(|s| contains(s.span, at)) {
             return self.statement(script.program, script.content.start_offset, at);
         }
         // Upstream retries at the warning's middle, then its end, when nothing is at its start.
@@ -422,13 +417,7 @@ impl Targets<'_> {
             .style
             .iter()
             .map(|s| s.span)
-            .chain(
-                component
-                    .module
-                    .iter()
-                    .chain(&component.instance)
-                    .map(|s| s.span),
-            )
+            .chain(component.scripts().map(|s| s.span))
             .filter(|s| s.end_offset <= start)
             .map(|s| s.end_offset)
             .max();

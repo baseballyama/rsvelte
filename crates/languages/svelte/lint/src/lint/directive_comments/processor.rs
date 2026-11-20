@@ -3,7 +3,7 @@
 
 use rsvelte_kernel::source::positions::{LineColumn, LineIndex};
 use rsvelte_lint_runner::finding::Finding;
-use rsvelte_svelte_syntax::syntax_tree::{Component, Script};
+use rsvelte_svelte_syntax::syntax_tree::Component;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::{Kind, markup_directives};
@@ -233,7 +233,7 @@ pub(crate) fn template<'a>(
             }
         }
     }
-    for script in scripts(component) {
+    for script in component.scripts() {
         out.block(
             lines,
             script.content.start_offset,
@@ -255,15 +255,11 @@ pub(crate) fn ignored_in_template<'a>(
     let mut out = ProcessorDirectives::default();
     let target = Target::Ignored(patterns);
     out.block(lines, 0, target, false, 0);
-    for script in scripts(component) {
+    for script in component.scripts() {
         out.block(lines, script.content.start_offset, target, true, 0);
         out.block(lines, script.content.end_offset, target, false, 0);
     }
     out
-}
-
-fn scripts(component: &Component) -> impl Iterator<Item = &Script> {
-    component.module.iter().chain(&component.instance)
 }
 
 const fn is_rule(target: Target<'_>) -> bool {

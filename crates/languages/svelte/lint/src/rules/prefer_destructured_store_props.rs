@@ -36,12 +36,7 @@ impl SvelteRule for PreferDestructuredStoreProps {
         // Outside `<script>`: a component's template, or a whole module.
         let (scripts, runes) = match (file.component(), file.module()) {
             (Some(component), _) => (
-                component
-                    .module
-                    .iter()
-                    .chain(&component.instance)
-                    .map(|script| script.content)
-                    .collect(),
+                component.scripts().map(|script| script.content).collect(),
                 runes_mode(file, component),
             ),
             (None, Some(_)) => (Vec::new(), file.is_svelte_module()),

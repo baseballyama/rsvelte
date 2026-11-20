@@ -207,8 +207,7 @@ impl<'a> File<'a> {
     pub fn programs(&self) -> Vec<ProgramIdentifier> {
         match self.parsed {
             Source::Component(Linted { component, .. }) => {
-                let mut scripts: Vec<_> =
-                    component.module.iter().chain(&component.instance).collect();
+                let mut scripts: Vec<_> = component.scripts().collect();
                 scripts.sort_by_key(|script| script.span.start_offset);
                 scripts.iter().map(|script| script.program).collect()
             }

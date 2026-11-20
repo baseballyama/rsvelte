@@ -321,6 +321,11 @@ impl Component {
     pub fn style_error(&self) -> Option<&Diagnostic> {
         self.style.as_ref()?.sheet.as_ref().err()
     }
+
+    /// `<script module>`, then `<script>`, whichever exist.
+    pub fn scripts(&self) -> impl Iterator<Item = &Script> {
+        self.module.iter().chain(&self.instance)
+    }
 }
 
 #[derive(Debug)]
