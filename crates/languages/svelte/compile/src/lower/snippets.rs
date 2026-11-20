@@ -12,11 +12,11 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 mod const_references;
 
-use super::special::{error, invalid};
 use super::{
     AttributeValue, BindingKind, CompileInput, Diagnostic, ElementKind, NodeKind, Resolution, Span,
     span_of,
 };
+use crate::lower::{error, invalid};
 
 /// Upstream's errors of snippets and render tags, with when it raises each: a duplicate name as
 /// it builds the template's scopes, the others as its walk enters a node or, after a snippet's

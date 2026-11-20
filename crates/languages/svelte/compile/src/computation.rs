@@ -6,7 +6,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
 use rsvelte_svelte_semantic::{Analyzed, component_input};
 
-use crate::lower::CompileErrors;
+use crate::lower::{CompileErrors, UNSUPPORTED};
 
 #[derive(Debug)]
 pub struct Planned;
@@ -168,9 +168,6 @@ pub fn compile_errors(context: &DocumentContext<'_>, runes: bool) -> CompileErro
         .filter(|error| error.code != UNSUPPORTED);
     errors
 }
-
-/// The code of what this port refuses, which upstream compiles.
-const UNSUPPORTED: &str = "unsupported";
 
 /// The errors of [`Validated`] that upstream raises as it generates code, which
 /// `generate: false` skips.

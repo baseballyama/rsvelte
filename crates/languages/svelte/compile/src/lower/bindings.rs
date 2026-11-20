@@ -3,8 +3,8 @@
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 
-use super::special::invalid;
 use super::{Attribute, AttributeValue};
+use crate::lower::invalid;
 
 #[cfg(test)]
 mod tests;

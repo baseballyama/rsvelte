@@ -6,9 +6,8 @@ use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
 
-use super::super::special::error;
 use super::{CompileInput, Diagnostic, Resolution, Span};
-use crate::lower::NodeKind;
+use crate::lower::{NodeKind, error};
 
 /// Each duplicate with when upstream raises it, as it builds the scopes.
 pub(super) fn duplicates(input: &CompileInput<'_>, res: &Resolution) -> Vec<(Raised, Diagnostic)> {

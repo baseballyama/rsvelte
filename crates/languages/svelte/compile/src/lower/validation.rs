@@ -261,7 +261,7 @@ pub(super) fn check_analysis(
         .any(|(raised, _)| raised.section == Section::Template)
         .then(|| {
             let (script, template) = script_and_template_errors(input, res, custom_element);
-            if let Some(error) = template.filter(|error| error.code != "unsupported") {
+            if let Some(error) = template.filter(|error| error.code != crate::lower::UNSUPPORTED) {
                 errors.push(walk(Section::Template, error));
             }
             script
@@ -330,7 +330,7 @@ fn check_legacy_props(input: &CompileInput<'_>, res: &Resolution) -> Result<(), 
             .flat_map(|(_, references)| references.into_iter().map(|r| res.reference_span(r)))
             .min_by_key(|span| (!scripted(span.start), span.start));
         if let Some(span) = first {
-            return special::invalid(code, message, Span::new(span.start, span.end));
+            return crate::lower::invalid(code, message, Span::new(span.start, span.end));
         }
     }
     Ok(())
@@ -357,7 +357,7 @@ pub(super) fn uses_slots(res: &Resolution) -> bool {
 
 /// Upstream `state_invalid_placement`, which the rune walk and the markup walk both raise.
 fn state_invalid_placement<T>(rune: &str, span: Span) -> Result<T, Diagnostic> {
-    special::invalid(
+    crate::lower::invalid(
         "state_invalid_placement",
         &format!(
             "`{rune}(...)` can only be used as a variable declaration initializer, a class field \
@@ -422,13 +422,17 @@ fn typescript_invalid_feature(feature: Feature, span: Span) -> Diagnostic {
         Feature::ParameterProperty => "accessibility modifiers on constructor parameters",
         Feature::ImportEquals => {
             return Diagnostic::error(
-                "unsupported",
+                crate::lower::UNSUPPORTED,
                 "`import name = …` is not supported yet",
                 span,
             );
         }
         Feature::ExportAssignment => {
-            return Diagnostic::error("unsupported", "`export = …` is not supported yet", span);
+            return Diagnostic::error(
+                crate::lower::UNSUPPORTED,
+                "`export = …` is not supported yet",
+                span,
+            );
         }
     };
     Diagnostic::error(

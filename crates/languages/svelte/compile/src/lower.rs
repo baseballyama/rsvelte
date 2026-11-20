@@ -213,11 +213,27 @@ pub(crate) fn span_of(node: &impl GetSpan) -> Span {
     Span::new(span.start, span.end)
 }
 
+/// The code of what this port refuses, which upstream compiles.
+pub(crate) const UNSUPPORTED: &str = "unsupported";
+
 /// The diagnostic for input this compiler does not lower yet. `what` is a singular subject.
 fn unsupported<T>(what: &str, span: Span) -> Result<T, Diagnostic> {
     Err(Diagnostic::error(
-        "unsupported",
+        UNSUPPORTED,
         format!("{what} is not supported yet"),
         span,
     ))
+}
+
+/// An upstream error, whose message ends with the link to its documentation.
+pub(crate) fn invalid<T>(code: &'static str, message: &str, span: Span) -> Result<T, Diagnostic> {
+    Err(error(code, message, span))
+}
+
+pub(crate) fn error(code: &'static str, message: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        code,
+        format!("{message}\nhttps://svelte.dev/e/{code}"),
+        span,
+    )
 }

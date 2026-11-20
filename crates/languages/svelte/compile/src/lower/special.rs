@@ -3,7 +3,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
 use super::template::single_expression;
 use super::{
     AttributeValue, CompileInput, CompilerNodeIdentifier, CompilerSyntaxTree, Diagnostic, Element,
-    NodeKind, Span, unsupported,
+    NodeKind, Span, invalid, unsupported,
 };
 
 mod options;
@@ -237,18 +237,6 @@ fn no_children(
         );
     }
     Ok(())
-}
-
-pub(super) fn invalid<T>(code: &'static str, message: &str, span: Span) -> Result<T, Diagnostic> {
-    Err(error(code, message, span))
-}
-
-pub(super) fn error(code: &'static str, message: &str, span: Span) -> Diagnostic {
-    Diagnostic::error(
-        code,
-        format!("{message}\nhttps://svelte.dev/e/{code}"),
-        span,
-    )
 }
 
 #[derive(Clone, Copy)]

@@ -112,7 +112,7 @@ impl<'r> Names<'r> {
                     .is_some_and(|s| !top.contains(&scoping.symbol_scope_id(s)))
             });
             if let Some(&r) = scoped {
-                return super::special::invalid(
+                return crate::lower::invalid(
                     "store_invalid_scoped_subscription",
                     "Cannot subscribe to stores that are not declared at the top level of the \
                         component",
@@ -129,7 +129,7 @@ impl<'r> Names<'r> {
                 module.is_some_and(|m| m.start < start && start < m.end) && !res.calls_rune(r)
             });
             if let Some(&r) = in_module {
-                return super::special::invalid(
+                return crate::lower::invalid(
                     "store_invalid_subscription",
                     "Cannot reference store value inside `<script module>`",
                     span(r),
@@ -155,7 +155,7 @@ impl<'r> Names<'r> {
                     .find_binding(scoping.root_scope_id(), store)
                     .is_some()
             {
-                return super::special::invalid(
+                return crate::lower::invalid(
                     "store_invalid_subscription_module",
                     "Cannot reference store value outside a `.svelte` file",
                     span,
@@ -230,7 +230,7 @@ impl TemplateWalk {
 }
 
 fn global_reference_invalid(name: &str, span: Span) -> Result<(), Diagnostic> {
-    super::special::invalid(
+    crate::lower::invalid(
         "global_reference_invalid",
         &format!(
             "`{name}` is an illegal variable name. To reference a global variable called `{name}`, \

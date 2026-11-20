@@ -22,11 +22,11 @@ use rsvelte_svelte_semantic::typescript::without_typescript;
 use rsvelte_svelte_semantic::warnings::slot_name_error;
 pub(in crate::lower) use slot_snippets::slot_snippet_conflict;
 
-use super::super::special::invalid;
 use super::super::{
     AttributeValue, Children, CompileInput, CompilerNodeIdentifier, Diagnostic, Element, NodeKind,
     is_custom_element_node, is_directive,
 };
+use crate::lower::invalid;
 use crate::render_plan::is_template_whitespace;
 
 /// The nearest component, `<svelte:element>` or custom element above a node, which decides where a
@@ -151,7 +151,7 @@ pub(in crate::lower) fn unparenthesized_sequence(
                     && javascript.parentheses(span) == 0)
                     .then_some(span)
             })?;
-            let error = super::super::special::error(
+            let error = crate::lower::error(
                 "attribute_invalid_sequence_expression",
                 "Comma-separated expressions are not allowed as attribute/directive values in \
                     runes mode, unless wrapped in parentheses",

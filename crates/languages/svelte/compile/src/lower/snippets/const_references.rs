@@ -9,8 +9,8 @@ use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rsvelte_svelte_semantic::warnings::Raised;
 
 use super::super::paths::bound_names;
-use super::super::special::error;
 use super::{CompileInput, Diagnostic, ElementKind, NodeKind, Resolution, snippet_name, walk};
+use crate::lower::error;
 
 /// The first reference, in document order, from a snippet to a `{@const}` or `{let}` declared
 /// in the component's default content that the snippet is hoisted out of. Upstream checks this

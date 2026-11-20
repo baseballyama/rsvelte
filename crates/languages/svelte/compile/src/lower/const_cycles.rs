@@ -9,8 +9,8 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerNodeIdenti
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::paths::bound_names;
-use super::special::invalid;
 use super::{CompileInput, Diagnostic, NodeKind, Resolution};
+use crate::lower::invalid;
 
 /// Upstream raises this only outside runes mode, where it sorts the tags; in runes mode it keeps
 /// their order, and a tag that reads a later one throws when it runs.
