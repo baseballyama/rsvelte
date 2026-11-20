@@ -181,7 +181,7 @@ fn typescript_view(
         }
     };
     // Svelte's parser also rejects the template's JavaScript; svelte2tsx blanks the scripts first.
-    if let Some(error) = rsvelte_svelte_semantic::javascript_error(context)
+    if let Some(error) = rsvelte_svelte_semantic::javascript_error::of_document(context)
         && !rsvelte_svelte_syntax::parse::in_script_content(
             &context.document.text,
             error.span.start_offset,

@@ -30,7 +30,7 @@ mod updates;
 
 use exports::{state_exports, unused_exports};
 use found::{Found, VisitOrder};
-pub use ignore::{LEGACY_REPLACEMENTS, code_for_v5};
+pub use ignore::code_for_v5;
 pub use runes::dollar_name_errors;
 use runes::{custom_element, declaration_errors, runes};
 use selectors::unused_selectors;

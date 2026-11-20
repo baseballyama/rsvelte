@@ -20,7 +20,7 @@ use crate::fuzzymatch::fuzzymatch;
 use crate::resolve::{Roots, TemplateName, TemplateScope};
 
 /// Svelte 4's codes whose Svelte 5 code is not the same with `-` read as `_`.
-pub const LEGACY_REPLACEMENTS: &[(&str, &str)] = &[
+const LEGACY_REPLACEMENTS: &[(&str, &str)] = &[
     (
         "non-top-level-reactive-declaration",
         "reactive_declaration_invalid_placement",
