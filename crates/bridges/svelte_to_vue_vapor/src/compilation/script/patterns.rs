@@ -60,11 +60,10 @@ impl<'t, V: VisitMut<'t>> Lower<'_, 't, V> {
                 let a = a.unbox();
                 let mut fallback = a.right;
                 self.rw.visit_expression(&mut fallback);
-                let default = format!("{}default", markers::PATTERN_PREFIX);
-                let input = || b.id(&default);
+                let input = || b.id(markers::PATTERN_DEFAULT);
                 let test = b.binary(input(), BinaryOperator::StrictEquality, b.id("undefined"));
                 let result = b.conditional(test, fallback, input());
-                let select = b.arrow(b.parameters([default.as_str()]), result);
+                let select = b.arrow(b.parameters([markers::PATTERN_DEFAULT]), result);
                 let cell = self.intermediate(at, b.call(select, [value]));
                 self.pattern(a.left, cell);
             }
