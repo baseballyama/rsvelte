@@ -4,7 +4,7 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::interning::static_name;
 use rsvelte_lint_runner::configuration::{RuleEntryList, Rules};
 use rsvelte_plugin_interface::{CallError, Extension, FunctionReference, Settings};
-use rsvelte_typescript_semantic::globals::Declared;
+use rsvelte_typescript_semantic::globals::{Declared, Setting};
 use serde::Deserialize;
 use serde_json::value::RawValue;
 
@@ -38,32 +38,33 @@ struct LanguageOptions {
     globals: BTreeMap<String, GlobalSetting>,
 }
 
-/// A value of `languageOptions.globals`; every one but `"off"` declares the name.
+/// A value of `languageOptions.globals`.
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 enum GlobalSetting {
-    Flag(#[expect(dead_code, reason = "`true` and `false` both declare the name")] bool),
-    Access(Access),
-}
-
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-enum Access {
-    Readonly,
-    Readable,
-    Writable,
-    Writeable,
-    Off,
+    Flag(bool),
+    Named(String),
 }
 
 impl LanguageOptions {
-    fn declared(self) -> Declared {
-        Declared::new(
-            self.globals
-                .into_iter()
-                .filter(|(_, setting)| !matches!(setting, GlobalSetting::Access(Access::Off)))
-                .map(|(name, _)| name),
-        )
+    fn declared(self) -> Result<Declared, CallError> {
+        let settings = self
+            .globals
+            .into_iter()
+            .map(|(name, setting)| {
+                let setting = match setting {
+                    GlobalSetting::Flag(writable) => Setting::flag(writable),
+                    GlobalSetting::Named(value) => Setting::named(&value).ok_or_else(|| {
+                        CallError(format!(
+                            "svelte.lint: '{value}' is not a valid configuration for a global \
+                             (use 'readonly', 'writable', or 'off')"
+                        ))
+                    })?,
+                };
+                Ok((name, setting))
+            })
+            .collect::<Result<Vec<_>, CallError>>()?;
+        Ok(Declared::with_settings(settings))
     }
 }
 
@@ -85,7 +86,7 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
         plugins: functions,
         language,
     } = options.value;
-    let globals = language.declared();
+    let globals = language.declared()?;
     let Some(rules) = rules else {
         if !functions.is_empty() {
             return Err(CallError(

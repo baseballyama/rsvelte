@@ -1,7 +1,6 @@
 use oxc_ast::AstKind;
 use oxc_syntax::operator::UnaryOperator;
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_typescript_semantic::globals::library;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
@@ -55,13 +54,10 @@ impl SvelteRule for NoUndef {
             {
                 continue;
             }
-            let library = library(name);
             for &id in references {
                 let reference = scoping.get_reference(id);
                 let flags = reference.flags();
-                let reads_value = flags.is_value() || flags.is_value_as_type();
-                // A library name declares a type, and some of them a value too.
-                if library.is_some_and(|value| value || !reads_value) {
+                if !flags.is_value() && !flags.is_value_as_type() && globals.declares_type(name) {
                     continue;
                 }
                 // A function's own `arguments`, which eslint-scope declares in every function.
