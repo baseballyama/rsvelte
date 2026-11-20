@@ -192,6 +192,13 @@ pub(crate) fn template<'a>(
     ))
 }
 
+/// An empty string or template literal.
+pub(crate) fn is_empty_url(node: &Expression<'_>) -> bool {
+    string(node) == Some("")
+        || template(node)
+            .is_some_and(|(quasis, expressions)| expressions.is_empty() && quasis == [""])
+}
+
 /// The first expression of a template literal that starts with one (`${x}…`); `None` when it
 /// starts with text or has no expression.
 pub(crate) fn leading_expression<'a>(node: &'a Expression<'a>) -> Option<&'a Expression<'a>> {
