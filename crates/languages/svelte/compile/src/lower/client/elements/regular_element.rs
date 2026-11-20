@@ -3,7 +3,7 @@ use oxc_allocator::{CloneIn, GetAllocator};
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, ElementKind, Frag, Lists,
-    Memo, NodeKind, R, is_custom_element_node, is_directive, is_load_error_element,
+    Memo, NodeKind, R, is_directive, is_load_error_element,
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -24,7 +24,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         let mut lets = self.let_directives(identifier, el)?;
         l.lets.append(&mut lets);
-        let custom_element = is_custom_element_node(compiler_syntax_tree, self.source_text, el);
+        let custom_element = compiler_syntax_tree.is_custom_element(el, self.source_text);
         let is_markup = self.is_markup(identifier);
         let name = el.name.text(self.source_text);
         let tag = if is_markup {

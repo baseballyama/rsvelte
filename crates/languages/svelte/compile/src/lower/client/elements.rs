@@ -26,7 +26,10 @@ impl ClientCompilationContext<'_, '_> {
         if el.kind != super::ElementKind::Regular || self.an.dynamic[identifier] {
             return false;
         }
-        if super::is_custom_element_node(self.compiler_syntax_tree, self.source_text, el) {
+        if self
+            .compiler_syntax_tree
+            .is_custom_element(el, self.source_text)
+        {
             return false;
         }
         let tag = el.name.text(self.source_text);

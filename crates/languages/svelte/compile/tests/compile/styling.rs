@@ -4,29 +4,21 @@
 )]
 
 use rsvelte_svelte_compile::{OutputIdentity, stylesheet};
-use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
 
 fn scope_rules(markup: &str, rules: &str) -> String {
     let source = format!("{markup}<style>{rules}</style>");
-    let component = rsvelte_svelte_syntax::parse::parse(&source).expect("valid component");
-    let tree = compiler_syntax_tree::lower(&component, &source);
-    let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
-    let resolution = resolve::resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        component.module.as_ref().map(|s| s.program),
-        &tree,
-    );
-    let analysis = analyze::analyze(&input, &resolution);
-    stylesheet::scoped_stylesheet(
-        &input,
-        &analysis,
-        &OutputIdentity {
-            name: "Test".into(),
-            head_hash: None,
-            stylesheet_hash: Some("svelte-h".into()),
-        },
-    )
+    super::analyzed(&source, "test.svelte", |input, _, analysis| {
+        stylesheet::scoped_stylesheet(
+            &input.component,
+            analysis,
+            &OutputIdentity {
+                name: "Test".into(),
+                head_hash: None,
+                stylesheet_hash: Some("svelte-h".into()),
+            },
+        )
+    })
+    .expect("valid component")
     .expect("a stylesheet")
 }
 
@@ -476,19 +468,16 @@ fn class_candidates_scope_each_matching_element() {
         ("<p class:a={false}/><p class=other/>", [true, false]),
     ] {
         let source = format!("{markup}<style>.a{{color:red}}</style>");
-        let component = rsvelte_svelte_syntax::parse::parse(&source).expect("valid component");
-        let tree = compiler_syntax_tree::lower(&component, &source);
-        let input =
-            rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
-        let resolution = resolve::resolve(
-            &component.javascript,
-            component.instance.as_ref().map(|s| s.program),
-            component.module.as_ref().map(|s| s.program),
-            &tree,
-        );
-        let analysis = analyze::analyze(&input, &resolution);
-        let scoped: Vec<_> = tree.elements().map(|(id, _)| analysis.scoped[id]).collect();
-        assert_eq!(scoped, expected, "{markup}");
+        super::analyzed(&source, "test.svelte", |input, _, analysis| {
+            let scoped: Vec<_> = input
+                .component
+                .compiler_syntax_tree
+                .elements()
+                .map(|(id, _)| analysis.scoped[id])
+                .collect();
+            assert_eq!(scoped, expected, "{markup}");
+        })
+        .expect("valid component");
     }
 }
 
@@ -510,24 +499,21 @@ fn compound_classes_preserve_all_matching_elements() {
         ("<p {...attrs} class='common'/>", &[true][..]),
     ] {
         let source = format!("{markup}<style>.common.rare{{color:red}}</style>");
-        let component = rsvelte_svelte_syntax::parse::parse(&source).expect("valid component");
-        let tree = compiler_syntax_tree::lower(&component, &source);
-        let input =
-            rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
-        let resolution = resolve::resolve(
-            &component.javascript,
-            component.instance.as_ref().map(|s| s.program),
-            component.module.as_ref().map(|s| s.program),
-            &tree,
-        );
-        let analysis = analyze::analyze(&input, &resolution);
-        assert_eq!(
-            analysis.stylesheet_used[0],
-            expected.contains(&true),
-            "{markup}"
-        );
-        let scoped: Vec<_> = tree.elements().map(|(id, _)| analysis.scoped[id]).collect();
-        assert_eq!(scoped, expected, "{markup}");
+        super::analyzed(&source, "test.svelte", |input, _, analysis| {
+            assert_eq!(
+                analysis.stylesheet_used[0],
+                expected.contains(&true),
+                "{markup}"
+            );
+            let scoped: Vec<_> = input
+                .component
+                .compiler_syntax_tree
+                .elements()
+                .map(|(id, _)| analysis.scoped[id])
+                .collect();
+            assert_eq!(scoped, expected, "{markup}");
+        })
+        .expect("valid component");
     }
 }
 

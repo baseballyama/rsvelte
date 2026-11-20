@@ -13,8 +13,7 @@ use rsvelte_svelte_semantic::{Analyzed, Resolved};
 use rsvelte_typescript_compile::print;
 
 use crate::computation::Validated;
-use crate::lower::{self, Target};
-use crate::{Identified, Planned, ScopedStylesheet};
+use crate::{Identified, Planned, ScopedStylesheet, Target, lower};
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.compile",
@@ -78,31 +77,30 @@ impl Task for Compile {
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
         match compiled(context, self.target, false) {
-            Ok(compiled) => match context.get::<crate::warnings::Warned>() {
-                Ok(shown) => {
-                    out.file("js", compiled.javascript.out);
-                    // An empty stylesheet is no file, as the official output writes none.
-                    if let Some(stylesheet) = compiled.stylesheet.filter(|s| !s.is_empty()) {
-                        out.file("css", stylesheet.to_owned());
-                    }
-                    out.diagnostics.extend(shown.iter().cloned());
+            Ok(compiled) => {
+                out.file("js", compiled.javascript.out);
+                // An empty stylesheet is no file, as the official output writes none.
+                if let Some(stylesheet) = compiled.stylesheet.filter(|s| !s.is_empty()) {
+                    out.file("css", stylesheet.to_owned());
                 }
-                Err(error) => out.diagnostics.push(error.clone()),
-            },
+                out.diagnostics.extend(compiled.warnings.iter().cloned());
+            }
             Err(diagnostic) => out.diagnostics.push(diagnostic),
         }
     }
 }
 
-/// One target's output: the module, and the stylesheet when the component does not inject it.
+/// One target's output: the module, the stylesheet when the component does not inject it, and the
+/// warnings `compile` shows.
 pub(crate) struct Compiled<'a> {
     pub(crate) javascript: Emitter,
     pub(crate) stylesheet: Option<&'a str>,
+    pub(crate) warnings: &'a [Diagnostic],
 }
 
 /// # Errors
 ///
-/// What [`lower_document`] rejects.
+/// What [`lower_document`] rejects, then the error that stops the warnings.
 pub(crate) fn compiled<'a>(
     context: &'a DocumentContext<'_>,
     target: Target,
@@ -122,9 +120,14 @@ pub(crate) fn compiled<'a>(
     } else {
         context.get::<ScopedStylesheet>().as_deref()
     };
+    let warnings = context
+        .get::<crate::warnings::Warned>()
+        .as_ref()
+        .map_err(Clone::clone)?;
     Ok(Compiled {
         javascript,
         stylesheet,
+        warnings,
     })
 }
 
@@ -166,8 +169,9 @@ pub fn lower_document<'o>(
     let identity = context.get::<Identified>().as_ref().map_err(Clone::clone)?;
     let validated = context.get::<Validated>().as_ref().map_err(Clone::clone)?;
     let stylesheet = context.get::<ScopedStylesheet>();
-    lower_measured(
-        lower::Lowering {
+    let _p = measurement::phase(target.lower_phase());
+    lower::lower_with_facts(
+        lower::LoweringFacts {
             input: &input,
             res,
             an,
@@ -181,71 +185,25 @@ pub fn lower_document<'o>(
     )
 }
 
-/// The JavaScript module of one target, from any frontend's [`lower::CompileInput`], with the
+/// The JavaScript module of one target, from any frontend's [`crate::CompileInput`], with the
 /// default options.
 ///
 /// # Errors
 ///
 /// A [`Diagnostic`] for what the compiler rejects or the port does not handle yet.
-pub fn compile_input(
-    input: &lower::CompileInput<'_>,
+pub fn compile_to_javascript(
+    input: &crate::CompileInput<'_>,
     res: &rsvelte_svelte_semantic::resolve::Resolution,
     an: &rsvelte_svelte_semantic::analyze::Analysis,
     target: Target,
 ) -> Result<String, Diagnostic> {
-    let configuration = crate::Configuration::default();
-    let validated = lower::validate(input, res)?;
     let plan = crate::render_plan::RenderPlan::build(input);
-    let identity =
-        crate::OutputIdentity::build_with_configuration(&input.component, &configuration).map_err(
-            |error| {
-                Diagnostic::error(
-                    "svelte.compile.css-hash",
-                    error.to_string(),
-                    rsvelte_kernel::source::positions::Span::new(0, 0),
-                )
-            },
-        )?;
-    let stylesheet = if validated.embeds_stylesheet(target) {
-        crate::stylesheet::scoped_stylesheet_with_mode(
-            &input.component,
-            an,
-            &identity,
-            rsvelte_stylesheet_compile::scope::RenderMode::Minify,
-        )
-    } else {
-        None
-    };
-    compile_with_facts(
-        lower::Lowering {
-            input,
-            res,
-            an,
-            plan: &plan,
-            identity: &identity,
-            validated: &validated,
-            stylesheet: stylesheet.as_deref(),
-        },
-        target,
-    )
-}
-
-fn compile_with_facts(
-    facts: lower::Lowering<'_, '_>,
-    target: Target,
-) -> Result<String, Diagnostic> {
     rsvelte_typescript_tree::with_scratch_arena(|allocator| {
-        let module = lower_measured(facts, target, allocator)?;
+        let module = {
+            let _p = measurement::phase(target.lower_phase());
+            lower::lower_with_plan(input, res, an, target, &plan, allocator)?
+        };
         let _p = measurement::phase("js.print");
         Ok(print::print(&module))
     })
-}
-
-fn lower_measured<'o>(
-    facts: lower::Lowering<'_, 'o>,
-    target: Target,
-    allocator: &'o Allocator,
-) -> Result<Program<'o>, Diagnostic> {
-    let _p = measurement::phase(target.lower_phase());
-    lower::lower_with_facts(facts, target, allocator)
 }

@@ -4,15 +4,10 @@ use rsvelte_svelte_compile::Target;
 
 use super::{compile, compile_at};
 
-#[path = "errors/awaits.rs"]
 mod awaits;
-#[path = "errors/declarations.rs"]
 mod declarations;
-#[path = "errors/directives.rs"]
 mod directives;
-#[path = "errors/options.rs"]
 mod options;
-#[path = "errors/snippets.rs"]
 mod snippets;
 
 #[test]

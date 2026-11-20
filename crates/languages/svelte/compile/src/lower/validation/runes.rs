@@ -33,7 +33,7 @@ use super::state_invalid_placement;
 use crate::lower::class_fields::{ClassFields, StateField, class_fields, key_name, member_name};
 
 fn state_field_invalid_assignment<T>(span: Span) -> Result<T, Diagnostic> {
-    crate::lower::special::invalid(
+    crate::lower::invalid(
         "state_field_invalid_assignment",
         "Cannot assign to a state field before its declaration",
         span,
@@ -405,7 +405,7 @@ impl<'a> RuneWalk<'a> {
             && !self.res.is_store_subscription(&name.name)
         {
             // Upstream erases the types before it analyzes, so the name is the whole target.
-            return crate::lower::special::invalid(
+            return crate::lower::invalid(
                 "bind_invalid_value",
                 "Can only bind to state or props",
                 Span::new(name.span.start, name.span.end),
@@ -448,7 +448,7 @@ impl<'a> RuneWalk<'a> {
             && ((self.awaits == Awaits::Here && (place.rendering || in_derived()))
                 || in_bind_arrow())
         {
-            let error = crate::lower::special::error(
+            let error = crate::lower::error(
                 "experimental_async",
                 "Cannot use `await` in deriveds and template expressions, or at the top level of a \
                     component, unless the `experimental.async` compiler option is `true`",
@@ -477,7 +477,7 @@ impl<'a> RuneWalk<'a> {
             AstKind::LabeledStatement(statement)
                 if place.parent == Parent::InstanceBody && statement.label.name == "$" =>
             {
-                return crate::lower::special::invalid(
+                return crate::lower::invalid(
                     "legacy_reactive_statement_invalid",
                     "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead",
                     span_of(&kind),

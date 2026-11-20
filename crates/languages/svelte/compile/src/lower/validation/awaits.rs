@@ -124,7 +124,7 @@ impl<'a> Visit<'a> for Awaits {
         }
         if self.error.is_none() {
             let at = it.span.start;
-            self.error = Some(crate::lower::special::error(
+            self.error = Some(crate::lower::error(
                 "js_parse_error",
                 "Cannot use keyword 'await' outside an async function",
                 Span::new(at, at),

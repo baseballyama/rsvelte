@@ -3,7 +3,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::MetadataTag;
 
 use super::{Attribute, AttributeValue, ClientCompilationContext, Lists};
 use crate::lower::builder::Runtime;
-use crate::lower::special::{GlobalBinding, global_binding};
+use crate::lower::global_binding_table::GlobalBinding;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn global_binding(
@@ -18,7 +18,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             unreachable!("a binding")
         };
         let name = attribute.name.text(self.source_text);
-        let binding = global_binding(tag, name).expect("global bindings are validated");
+        let binding = GlobalBinding::of(tag, name).expect("global bindings are validated");
         if matches!(binding, GlobalBinding::Element) {
             let call = self.binding(attribute, attributes, "svelte:body", "$.document.body");
             lists.after.push(b.statement(call));

@@ -1,7 +1,6 @@
 use oxc_ast::ast::{Expression, ObjectPropertyKind};
 use rsvelte_kernel::index::TypedIndex;
-use rsvelte_svelte_compile::lower::{Parent, clean_nodes, template_end};
-use rsvelte_svelte_compile::render_plan::Namespace;
+use rsvelte_svelte_compile::render_plan::{Namespace, Parent, clean_nodes, template_end};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, CompilerNodeIdentifier, NodeKind,
 };

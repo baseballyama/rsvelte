@@ -2,7 +2,6 @@ use oxc_ast::ast::{Expression, ObjectPropertyKind};
 
 use super::escaped_text;
 use crate::lower::builder::Runtime;
-use crate::lower::is_custom_element_node;
 use crate::lower::server::{
     Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind, ServerCompilationContext,
     Template, capture_event, capture_load_events, event_attribute, is_behaviour,
@@ -140,7 +139,7 @@ impl ServerCompilationContext<'_, '_> {
     fn spread_flags(&self, identifier: CompilerNodeIdentifier, tag: &str) -> u32 {
         let tree = self.compiler_syntax_tree;
         let custom = matches!(&tree.node(identifier).kind,
-            NodeKind::Element(el) if is_custom_element_node(tree, self.source_text, el));
+            NodeKind::Element(el) if tree.is_custom_element(el, self.source_text));
         if self.plan.named(identifier) != crate::render_plan::Namespace::Html {
             ELEMENT_IS_NAMESPACED | ELEMENT_PRESERVE_ATTRIBUTE_CASE
         } else if custom {

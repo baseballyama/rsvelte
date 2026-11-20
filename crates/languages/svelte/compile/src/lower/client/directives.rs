@@ -5,7 +5,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{EachKey, Modifiers};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{Attribute, AttributeValue, ClientCompilationContext, Lists, NodeKind};
-use crate::lower::bindings::{Lowering, attribute_value, property_of};
+use crate::lower::bindings::{BindStrategy, attribute_value, property_of};
 use crate::lower::builder::Runtime;
 
 const TRANSITION_IN: u32 = 1;
@@ -137,7 +137,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         b.runtime("action", arguments)
     }
 
-    /// Upstream `BindDirective` (client, non-dev) for the bindings coverage admits.
+    /// Upstream `BindDirective` (client, non-dev) for the bindings the unsupported syntax check
+    /// admits.
     pub(super) fn binding(
         &self,
         attribute: &Attribute,
@@ -150,7 +151,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         let b = self.b;
         let name = attribute.name.text(self.source_text);
-        let property = property_of(name).expect("coverage admits known properties");
+        let property =
+            property_of(name).expect("the unsupported syntax check admits known properties");
         // Upstream writes the value unproxied only for a regular element.
         let (get, set) = self.binding_accessors(target, !tag.starts_with("svelte:"));
         // Upstream drops a setter that is the getter, as both are a prop's accessor.
@@ -164,24 +166,24 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             b.runtime(method, arguments)
         };
         let node = b.id(node);
-        match property.lowering {
-            Lowering::Event(event) => {
+        match property.strategy {
+            BindStrategy::Event(event) => {
                 let mut arguments = vec![b.string(name), b.string(event), node, set];
                 if property.bidirectional {
                     arguments.push(get);
                 }
                 b.runtime("bind_property", arguments)
             }
-            Lowering::Accessors(method) => accessors(method, vec![node]),
-            Lowering::Value if tag == "select" => accessors("bind_select_value", vec![node]),
-            Lowering::Value => accessors("bind_value", vec![node]),
-            Lowering::Setter(method) => b.runtime(method, [node, set]),
-            Lowering::Measured(method) => b.runtime(method, [node, b.string(name), set]),
-            Lowering::ContentEditable => {
+            BindStrategy::Accessors(method) => accessors(method, vec![node]),
+            BindStrategy::Value if tag == "select" => accessors("bind_select_value", vec![node]),
+            BindStrategy::Value => accessors("bind_value", vec![node]),
+            BindStrategy::Setter(method) => b.runtime(method, [node, set]),
+            BindStrategy::Measured(method) => b.runtime(method, [node, b.string(name), set]),
+            BindStrategy::ContentEditable => {
                 accessors("bind_content_editable", vec![b.string(name), node])
             }
-            Lowering::Group => self.bind_group(attribute, attributes, tag, node, get, set),
-            Lowering::This => unreachable!("lowered on its own"),
+            BindStrategy::Group => self.bind_group(attribute, attributes, tag, node, get, set),
+            BindStrategy::This => unreachable!("lowered on its own"),
         }
     }
 

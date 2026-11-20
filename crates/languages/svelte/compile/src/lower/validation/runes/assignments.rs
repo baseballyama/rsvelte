@@ -55,7 +55,7 @@ pub(super) fn check_assignment(
             "Cannot reassign or bind to snippet parameter".to_owned(),
         ),
     };
-    crate::lower::special::invalid(code, &message, span())
+    crate::lower::invalid(code, &message, span())
 }
 
 /// What makes the name `name` [`Fixed`]: an `{#each}` item or a snippet parameter only as the

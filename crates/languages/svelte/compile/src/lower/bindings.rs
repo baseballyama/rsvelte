@@ -3,15 +3,15 @@
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 
-use super::special::invalid;
 use super::{Attribute, AttributeValue};
+use crate::lower::invalid;
 
 #[cfg(test)]
 mod tests;
 
 /// How the client keeps a bound property in sync with its target.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum Lowering {
+pub(super) enum BindStrategy {
     /// `$.bind_property(name, event, node, set, get?)`; the getter only when bidirectional.
     Event(&'static str),
     /// `$.<runtime>(node, get, set)`.
@@ -29,7 +29,7 @@ pub(super) enum Lowering {
 }
 
 pub(super) struct Property {
-    pub lowering: Lowering,
+    pub strategy: BindStrategy,
     pub bidirectional: bool,
     /// The server renders nothing for it.
     pub client_only: bool,
@@ -38,9 +38,9 @@ pub(super) struct Property {
 const MEDIA: &[&str] = &["audio", "video"];
 const INPUT: &[&str] = &["input"];
 
-const fn property(lowering: Lowering, bidirectional: bool, client_only: bool) -> Property {
+const fn property(strategy: BindStrategy, bidirectional: bool, client_only: bool) -> Property {
     Property {
-        lowering,
+        strategy,
         bidirectional,
         client_only,
     }
@@ -258,7 +258,7 @@ fn invalid_target(name: &str, elements: &str, a: &Attribute) -> Result<(), Diagn
 
 /// The element property `name`, or `None` when no element takes it.
 pub(super) fn property_of(name: &str) -> Option<Property> {
-    use Lowering::{Accessors, ContentEditable, Event, Group, Measured, Setter, This, Value};
+    use BindStrategy::{Accessors, ContentEditable, Event, Group, Measured, Setter, This, Value};
     Some(match name {
         "currentTime" => property(Accessors("bind_current_time"), true, true),
         "duration" => property(Event("durationchange"), false, true),

@@ -5,8 +5,7 @@ use crate::lower::bindings::needs_special_value;
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, Memo,
-    NodeKind, R, event_attribute, is_behaviour, is_custom_element_node, is_directive,
-    normalize_attribute, unsupported,
+    NodeKind, R, event_attribute, is_behaviour, is_directive, normalize_attribute, unsupported,
 };
 use crate::lower::template::{can_use_literal, implicit_attributes, scoped_class};
 
@@ -121,7 +120,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     fn is_custom_element(&self, identifier: CompilerNodeIdentifier) -> bool {
         let tree = self.compiler_syntax_tree;
         matches!(&tree.node(identifier).kind,
-            NodeKind::Element(el) if is_custom_element_node(tree, self.source_text, el))
+            NodeKind::Element(el) if tree.is_custom_element(el, self.source_text))
     }
 
     /// Upstream puts an `is` whose value builds to a string literal in the template, where the

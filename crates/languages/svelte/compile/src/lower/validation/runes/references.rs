@@ -6,8 +6,7 @@ use oxc_ast::ast::IdentifierReference;
 use rsvelte_svelte_semantic::resolve::is_rune;
 
 use super::RuneWalk;
-use crate::lower::special::invalid;
-use crate::lower::{Diagnostic, Span, span_of};
+use crate::lower::{Diagnostic, Span, invalid, span_of};
 
 impl RuneWalk<'_> {
     /// `reference` is the node being entered; its ancestors are the walk's frames.
@@ -86,7 +85,7 @@ impl RuneWalk<'_> {
 fn invalid_name(name: &str, span: Span, known: bool) -> Result<(), Diagnostic> {
     if !known {
         return Err(Diagnostic::error(
-            "unsupported",
+            crate::lower::UNSUPPORTED,
             "an invalid rune name at the root of a template attribute",
             span,
         ));

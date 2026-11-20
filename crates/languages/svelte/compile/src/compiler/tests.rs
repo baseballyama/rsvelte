@@ -53,6 +53,37 @@ fn compile_gives_what_the_task_writes() {
 }
 
 #[test]
+fn compile_returns_the_warnings_the_task_reports() {
+    let source = "<img src=\"a.png\">";
+    let mut registry = Registry::new();
+    crate::register(&mut registry);
+    let document = registry.document("Image.svelte", source).expect("small");
+    let reported = run(
+        &registry,
+        &[document],
+        &RunOptions {
+            tasks: &["svelte.compile/client"],
+            sharing: Sharing::Shared,
+            threads: Some(1),
+        },
+    )
+    .expect("valid plugins")
+    .remove(0)
+    .outputs
+    .remove(0)
+    .1
+    .diagnostics;
+    let options = CompileOptions {
+        filename: "Image.svelte".to_owned(),
+        ..CompileOptions::default()
+    };
+    let warnings = compile(source, &options).expect("compiles").warnings;
+    let codes: Vec<_> = warnings.iter().map(|w| &*w.code).collect();
+    assert_eq!(codes, ["a11y_missing_attribute"]);
+    assert_eq!(format!("{warnings:?}"), format!("{reported:?}"));
+}
+
+#[test]
 fn the_filename_names_the_component_even_without_a_svelte_extension() {
     let named = |filename: &str| {
         let options = CompileOptions {

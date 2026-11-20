@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use oxc_ast::ast::{
     BindingIdentifier, ChainElement, Expression, IdentifierName, IdentifierReference,
 };
@@ -58,10 +60,15 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             &self.each_scopes,
             getter,
         );
-        let mut reads = self.reads.clone();
-        for &(symbol, _) in &names {
-            reads.insert(symbol, Read::Plain);
-        }
+        let reads = if names.is_empty() {
+            Cow::Borrowed(&self.reads)
+        } else {
+            let mut reads = self.reads.clone();
+            for &(symbol, _) in &names {
+                reads.insert(symbol, Read::Plain);
+            }
+            Cow::Owned(reads)
+        };
         let read = self.rewriter(true);
         let values: Vec<_> = (names.iter())
             .map(|&(symbol, name)| {
@@ -71,7 +78,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .collect();
         let ids = names.iter().map(|&(_, name)| name);
         let mut rewrite = ScriptRewrite {
-            template: Some(&reads),
+            template: Some(&*reads),
             ..self.rewriter(true)
         };
         let get = rewrite.expression(getter);

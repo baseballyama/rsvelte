@@ -1,5 +1,17 @@
-use rsvelte_svelte_compile::{CompileInput, Target, compile_input};
-use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_compile::{Target, compile_to_javascript};
+
+/// What the compiler gives `source` for `target`.
+#[expect(
+    clippy::unwrap_in_result,
+    reason = "a parse error fails the test instead of passing for a compile error"
+)]
+fn compile(source: &str, target: Target) -> Result<String, Diagnostic> {
+    super::analyzed(source, "test.svelte", |input, resolution, analysis| {
+        compile_to_javascript(&input, resolution, analysis, target)
+    })
+    .expect("valid syntax")
+}
 
 #[test]
 fn invalid_special_attributes_are_refused_on_both_targets() {
@@ -26,19 +38,8 @@ fn invalid_special_attributes_are_refused_on_both_targets() {
             "svelte_boundary_invalid_attribute_value",
         ),
     ] {
-        let component = rsvelte_svelte_syntax::parse::parse(source).expect("valid syntax");
-        let tree = compiler_syntax_tree::lower(&component, source);
-        let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "test.svelte");
-        let resolution = resolve::resolve(
-            &component.javascript,
-            component.instance.as_ref().map(|s| s.program),
-            component.module.as_ref().map(|s| s.program),
-            &tree,
-        );
-        let analysis = analyze::analyze(&input, &resolution);
         for target in [Target::Client, Target::Server] {
-            let error = compile_input(&CompileInput::from(input), &resolution, &analysis, target)
-                .expect_err("invalid attributes");
+            let error = compile(source, target).expect_err("invalid attributes");
             assert_eq!(error.code, code, "{source} on {target:?}");
         }
     }
@@ -176,19 +177,8 @@ fn runes_in_a_class_body_raise_upstream_errors_on_both_targets() {
 
 fn raises_on_both_targets(script: &str, code: &str) {
     let source = format!("<script>{script}</script>");
-    let component = rsvelte_svelte_syntax::parse::parse(&source).expect("valid syntax");
-    let tree = compiler_syntax_tree::lower(&component, &source);
-    let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
-    let resolution = resolve::resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        component.module.as_ref().map(|s| s.program),
-        &tree,
-    );
-    let analysis = analyze::analyze(&input, &resolution);
     for target in [Target::Client, Target::Server] {
-        let error = compile_input(&CompileInput::from(input), &resolution, &analysis, target)
-            .expect_err("a misplaced rune");
+        let error = compile(&source, target).expect_err("a misplaced rune");
         assert_eq!(error.code, code, "{script} on {target:?}");
     }
 }
@@ -198,47 +188,17 @@ fn a_leading_byte_order_mark_still_counts_in_line_one_columns() {
     // A known deviation: upstream strips the mark before it parses, so its line-one columns are
     // one less (official 1:4 here). The line index is shared by every task, so this pins it.
     let source = "\u{feff}<p>{await x}</p>";
-    let component = rsvelte_svelte_syntax::parse::parse(source).expect("valid syntax");
-    let tree = compiler_syntax_tree::lower(&component, source);
-    let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "test.svelte");
-    let resolution = resolve::resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        component.module.as_ref().map(|s| s.program),
-        &tree,
-    );
-    let analysis = analyze::analyze(&input, &resolution);
-    let error = compile_input(
-        &CompileInput::from(input),
-        &resolution,
-        &analysis,
-        Target::Client,
-    )
-    .expect_err("an await without async mode");
+    let error = compile(source, Target::Client).expect_err("an await without async mode");
     assert_eq!(error.code, "experimental_async");
     let start = rsvelte_kernel::source::positions::LineIndex::new(source)
         .line_column(error.span.start_offset);
     assert_eq!((start.line, start.column), (1, 5));
 }
 
-fn compiled(source: &str) -> Result<(), rsvelte_kernel::diagnostics::Diagnostic> {
-    let component = rsvelte_svelte_syntax::parse::parse(source)?;
-    let tree = compiler_syntax_tree::lower(&component, source);
-    let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "test.svelte");
-    let resolution = resolve::resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        component.module.as_ref().map(|s| s.program),
-        &tree,
-    );
-    let analysis = analyze::analyze(&input, &resolution);
-    compile_input(
-        &CompileInput::from(input),
-        &resolution,
-        &analysis,
-        Target::Client,
-    )
-    .map(|_| ())
+fn compiled(source: &str) -> Result<(), Diagnostic> {
+    super::analyzed(source, "test.svelte", |input, resolution, analysis| {
+        compile_to_javascript(&input, resolution, analysis, Target::Client).map(|_| ())
+    })?
 }
 
 /// Each span and message is the official compiler's.
@@ -365,25 +325,9 @@ fn a_directive_named_by_a_store_member_is_an_illegal_global() {
         ("<input bind:a-b />", Some("bind_invalid_name")),
     ] {
         let source = format!("{script}{markup}");
-        let component = rsvelte_svelte_syntax::parse::parse(&source).expect("valid syntax");
-        let tree = compiler_syntax_tree::lower(&component, &source);
-        let input =
-            rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
-        let resolution = resolve::resolve(
-            &component.javascript,
-            component.instance.as_ref().map(|s| s.program),
-            component.module.as_ref().map(|s| s.program),
-            &tree,
-        );
-        let analysis = analyze::analyze(&input, &resolution);
-        let error = compile_input(
-            &CompileInput::from(input),
-            &resolution,
-            &analysis,
-            Target::Client,
-        )
-        .err()
-        .map(|error| error.code);
+        let error = compile(&source, Target::Client)
+            .err()
+            .map(|error| error.code);
         assert_eq!(error.as_deref(), code, "{markup}");
     }
 }
@@ -393,22 +337,7 @@ fn a_bind_this_shorthand_compiles_on_the_server_and_is_refused_on_the_client() {
     // svelte 5.57.3 reads the name as an identifier `this`; its client then assigns to `this`.
     let source = "<script>let tag = $state('div');</script>\
                   <svelte:element this={tag} bind:this>x</svelte:element>";
-    let component = rsvelte_svelte_syntax::parse::parse(source).expect("valid syntax");
-    let tree = compiler_syntax_tree::lower(&component, source);
-    let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "test.svelte");
-    let resolution = resolve::resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        component.module.as_ref().map(|s| s.program),
-        &tree,
-    );
-    let analysis = analyze::analyze(&input, &resolution);
-    let input = CompileInput::from(input);
-    let code = |target| {
-        compile_input(&input, &resolution, &analysis, target)
-            .err()
-            .map(|error| error.code)
-    };
+    let code = |target| compile(source, target).err().map(|error| error.code);
     assert_eq!(code(Target::Server), None);
     assert_eq!(code(Target::Client).as_deref(), Some("unsupported"));
 }

@@ -4,7 +4,7 @@
 
 use rsvelte_svelte_compile::{CompileOptions, Target};
 
-const SOURCE: &str = include_str!("preserve_whitespace/App.svelte");
+const SOURCE: &str = include_str!("../preserve_whitespace/App.svelte");
 
 fn compile(generate: Target, preserve_whitespace: bool) -> String {
     let options = CompileOptions {
@@ -21,14 +21,14 @@ fn compile(generate: Target, preserve_whitespace: bool) -> String {
 
 #[test]
 fn client_keeps_template_whitespace() {
-    let expected = include_str!("preserve_whitespace/client.js");
+    let expected = include_str!("../preserve_whitespace/client.js");
     assert_eq!(compile(Target::Client, true), expected);
     assert_ne!(compile(Target::Client, false), expected);
 }
 
 #[test]
 fn server_keeps_template_whitespace() {
-    let expected = include_str!("preserve_whitespace/server.js");
+    let expected = include_str!("../preserve_whitespace/server.js");
     assert_eq!(compile(Target::Server, true), expected);
     assert_ne!(compile(Target::Server, false), expected);
 }

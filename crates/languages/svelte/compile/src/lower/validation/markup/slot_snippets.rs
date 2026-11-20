@@ -3,9 +3,9 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::ElementKind;
 
-use super::super::super::special::error;
 use super::super::{Resolution, uses_slots};
 use super::{AttributeValue, CompileInput, Diagnostic, NodeKind};
+use crate::lower::error;
 
 /// Upstream's `slot_snippet_conflict`, which it raises once its walk is done, when the component
 /// has a `{@render}` tag and reads `$$slots` or, unless it is a custom element, has a `<slot>`.

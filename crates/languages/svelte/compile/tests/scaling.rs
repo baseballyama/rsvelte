@@ -1,5 +1,9 @@
+#[path = "common/analyzed.rs"]
+mod common;
+
+use common::analyzed;
 use rsvelte_kernel::performance::measurement::{CountingAllocator, thread_allocations};
-use rsvelte_svelte_compile::{CompileInput, Target};
+use rsvelte_svelte_compile::Target;
 
 #[global_allocator]
 static ALLOCATOR: CountingAllocator = CountingAllocator;
@@ -8,23 +12,11 @@ static ALLOCATOR: CountingAllocator = CountingAllocator;
 fn allocations(script: &str) -> u64 {
     let source = format!("<script>{script}</script>");
     let (before, _) = thread_allocations();
-    let component = rsvelte_svelte_syntax::parse::parse(&source).expect("parses");
-    let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, &source);
-    let input = CompileInput::from(rsvelte_svelte_semantic::svelte_input(
-        &component,
-        &tree,
-        &source,
-        "App.svelte",
-    ));
-    let resolution = rsvelte_svelte_semantic::resolve::resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        component.module.as_ref().map(|s| s.program),
-        &tree,
-    );
-    let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
-    rsvelte_svelte_compile::compile_input(&input, &resolution, &analysis, Target::Client)
-        .expect("compiles");
+    analyzed(&source, "App.svelte", |input, resolution, analysis| {
+        rsvelte_svelte_compile::compile_to_javascript(&input, resolution, analysis, Target::Client)
+            .expect("compiles");
+    })
+    .expect("parses");
     thread_allocations().0 - before
 }
 
@@ -44,25 +36,18 @@ fn on_a_small_stack(source: &str, stage: Stage) {
 }
 
 fn stages(source: &str, stage: Stage) {
-    let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
-    let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
-    let input = CompileInput::from(rsvelte_svelte_semantic::svelte_input(
-        &component,
-        &tree,
-        source,
-        "App.svelte",
-    ));
-    let resolution = rsvelte_svelte_semantic::resolve::resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        component.module.as_ref().map(|s| s.program),
-        &tree,
-    );
-    let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
-    if stage == Stage::Compile {
-        rsvelte_svelte_compile::compile_input(&input, &resolution, &analysis, Target::Client)
+    analyzed(source, "App.svelte", |input, resolution, analysis| {
+        if stage == Stage::Compile {
+            rsvelte_svelte_compile::compile_to_javascript(
+                &input,
+                resolution,
+                analysis,
+                Target::Client,
+            )
             .expect("compiles");
-    }
+        }
+    })
+    .expect("parses");
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -108,6 +93,7 @@ fn a_call_chain_in_markup_is_judged_pure_once_per_link() {
         std::thread::Builder::new()
             .stack_size(1 << 30)
             .spawn_scoped(scope, || {
+                // Only the analysis is timed, so it cannot run inside `analyzed`.
                 let component = rsvelte_svelte_syntax::parse::parse(&source).expect("parses");
                 let tree =
                     rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, &source);
@@ -192,25 +178,18 @@ fn a_components_snippets_compile_in_time_linear_in_their_number() {
     let (short, long) = (markup(1500), markup(6000));
     // Only the compile is timed: the parser's own growth is not the compiler's.
     let time = |source: &str| {
-        let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
-        let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
-        let input = CompileInput::from(rsvelte_svelte_semantic::svelte_input(
-            &component,
-            &tree,
-            source,
-            "App.svelte",
-        ));
-        let resolution = rsvelte_svelte_semantic::resolve::resolve(
-            &component.javascript,
-            component.instance.as_ref().map(|s| s.program),
-            component.module.as_ref().map(|s| s.program),
-            &tree,
-        );
-        let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
-        let start = thread_time();
-        rsvelte_svelte_compile::compile_input(&input, &resolution, &analysis, Target::Client)
+        analyzed(source, "App.svelte", |input, resolution, analysis| {
+            let start = thread_time();
+            rsvelte_svelte_compile::compile_to_javascript(
+                &input,
+                resolution,
+                analysis,
+                Target::Client,
+            )
             .expect("compiles");
-        thread_time().saturating_sub(start)
+            thread_time().saturating_sub(start)
+        })
+        .expect("parses")
     };
     // Alternating the sizes lets both meet the same machine.
     let (mut short_time, mut long_time) = (std::time::Duration::MAX, std::time::Duration::MAX);

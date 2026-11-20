@@ -8,14 +8,14 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::bindings::{self, Lowering, attribute_value, property_of};
+use super::bindings::{self, BindStrategy, attribute_value, property_of};
 use super::javascript::member_root;
 use super::{
     Attribute, AttributeValue, BindingKind, CompileInput, CompilerSyntaxTree, Diagnostic, Element,
     NodeKind, Resolution, Target, unsupported,
 };
 
-pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
+pub(super) fn refuse(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
     let renders = tree
@@ -73,7 +73,10 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
 
 /// What one target does not lower. Upstream's client throws at a `let:` on an element that is
 /// not regular, a `<slot>` or `<svelte:fragment>`; its server ignores it.
-pub(super) fn check_for(input: &CompileInput<'_>, target: Target) -> Result<(), Diagnostic> {
+pub(super) fn refuse_for_target(
+    input: &CompileInput<'_>,
+    target: Target,
+) -> Result<(), Diagnostic> {
     if target == Target::Server {
         return Ok(());
     }
@@ -314,7 +317,7 @@ fn supported_binding(
     {
         return false;
     }
-    if p.lowering == Lowering::ContentEditable {
+    if p.strategy == BindStrategy::ContentEditable {
         let editable = attribute_value(source_text, attributes, "contenteditable");
         if !matches!(
             editable,

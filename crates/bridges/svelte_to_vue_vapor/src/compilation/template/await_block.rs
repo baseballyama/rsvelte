@@ -1,6 +1,6 @@
 use oxc_ast::ast::BinaryOperator;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_compile::lower::Parent;
+use rsvelte_svelte_compile::render_plan::Parent;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Await;
 use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 use rsvelte_vue_syntax::syntax_tree::DirectiveName;

@@ -88,6 +88,11 @@ Its limits:
 - This backend has no hardware cache-miss counters. Cache claims need the Cachegrind model above
   and a cycle measurement.
 
+## Compiler layout
+
+`cargo run -p rsvelte_svelte_compile --example layout` prints the sizes of the compiler tree's
+nodes and the render plan's items.
+
 ## Hardware and layout
 
 The Linux backend uses `perf stat` for cycles and instructions. It also counts L1 data loads and

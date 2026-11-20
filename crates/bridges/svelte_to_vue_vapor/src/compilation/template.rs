@@ -19,8 +19,8 @@ use oxc_semantic::SymbolId;
 use oxc_span::{GetSpan, GetSpanMut};
 use rsvelte_kernel::index::{IndexRange, TypedIndex};
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_compile::lower::{Parent, is_expression_async};
-use rsvelte_svelte_compile::render_plan::Namespace;
+use rsvelte_svelte_compile::lower::is_expression_async;
+use rsvelte_svelte_compile::render_plan::{Namespace, Parent};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, CompilerNodeIdentifier, ElementKind, NodeKind, Part,
 };

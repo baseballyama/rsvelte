@@ -3,8 +3,8 @@
 use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
 
-use super::super::super::special::invalid;
 use super::super::super::{Attribute, AttributeValue, CompileInput, Diagnostic, Element, NodeKind};
+use crate::lower::invalid;
 
 /// `<svelte:fragment>` takes attributes and `let:` directives, nothing else.
 pub(super) fn fragment(el: &Element, attributes: &[Attribute]) -> Result<(), Diagnostic> {

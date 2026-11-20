@@ -3,11 +3,11 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
 use rustc_hash::FxHashSet;
 
-use super::super::super::special::invalid;
 use super::super::super::{
     Attribute, AttributeValue, CompileInput, CompilerNodeIdentifier, Diagnostic, NodeKind,
     is_directive,
 };
+use crate::lower::invalid;
 use crate::render_plan::is_template_whitespace;
 
 /// `slot_attribute_invalid`, then for a child of `component`, `slot_attribute_duplicate` against

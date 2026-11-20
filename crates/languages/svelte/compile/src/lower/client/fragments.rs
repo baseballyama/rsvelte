@@ -244,11 +244,6 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             return b.member(b.id("$"), "comment");
         }
         let markup = tpl.markup();
-        let namespace = match namespace {
-            crate::render_plan::Namespace::Html => "html",
-            crate::render_plan::Namespace::Svg => "svg",
-            crate::render_plan::Namespace::Mathml => "mathml",
-        };
         let key = (namespace, flags, markup);
         if let Some(existing) = self.templates.get(&key) {
             return b.id(existing);
@@ -257,9 +252,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let flags_arg = (flags != 0).then(|| b.number(f64::from(flags)));
         let call = b.runtime_some(
             match namespace {
-                "svg" => "from_svg",
-                "mathml" => "from_mathml",
-                _ => "from_html",
+                crate::render_plan::Namespace::Html => "from_html",
+                crate::render_plan::Namespace::Svg => "from_svg",
+                crate::render_plan::Namespace::Mathml => "from_mathml",
             },
             vec![Some(t), flags_arg],
         );

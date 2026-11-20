@@ -2,8 +2,8 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_compile::RenderPlan;
-use rsvelte_svelte_compile::lower::{self, Item, Target, Text};
+use rsvelte_svelte_compile::render_plan::{Item, Text};
+use rsvelte_svelte_compile::{RenderPlan, Target, lower};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerSyntaxTree, NodeKind};
 
 fn text(plan: &RenderPlan, children: Children, source: &str, tree: &CompilerSyntaxTree) -> String {
@@ -185,7 +185,10 @@ fn both_targets_reuse_the_document_plan() {
     let mut registry = Registry::new();
     rsvelte_svelte_compile::register(&mut registry);
     let document = registry
-        .document("App.svelte", include_str!("preserve_whitespace/App.svelte"))
+        .document(
+            "App.svelte",
+            include_str!("../preserve_whitespace/App.svelte"),
+        )
         .expect("valid document");
     let context = DocumentContext::new(&document, registry.artifacts());
     let plan = context
@@ -224,38 +227,29 @@ fn both_targets_reuse_the_document_plan() {
 
 #[test]
 fn both_targets_keep_the_oracle_checked_whitespace_modules() {
-    let source = include_str!("preserve_whitespace/App.svelte");
-    let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
-    let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
-    let resolution = rsvelte_svelte_semantic::resolve::resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        component.module.as_ref().map(|s| s.program),
-        &tree,
-    );
-    let mut input = rsvelte_svelte_compile::CompileInput::from(
-        rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "App.svelte"),
-    );
-    input.preserve_whitespace = true;
-    let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
-    let plan = RenderPlan::build(&input);
-    for (target, expected) in [
-        (
-            Target::Client,
-            include_str!("preserve_whitespace/client.js"),
-        ),
-        (
-            Target::Server,
-            include_str!("preserve_whitespace/server.js"),
-        ),
-    ] {
-        let allocator = oxc_allocator::Allocator::default();
-        let module =
-            lower::lower_with_plan(&input, &resolution, &analysis, target, &plan, &allocator)
-                .expect("lowers");
-        let actual = rsvelte_typescript_compile::print::print(&module);
-        assert_eq!(actual, reprinted(expected), "{target:?}");
-    }
+    let source = include_str!("../preserve_whitespace/App.svelte");
+    super::analyzed(source, "App.svelte", |mut input, resolution, analysis| {
+        input.preserve_whitespace = true;
+        let plan = RenderPlan::build(&input);
+        for (target, expected) in [
+            (
+                Target::Client,
+                include_str!("../preserve_whitespace/client.js"),
+            ),
+            (
+                Target::Server,
+                include_str!("../preserve_whitespace/server.js"),
+            ),
+        ] {
+            let allocator = oxc_allocator::Allocator::default();
+            let module =
+                lower::lower_with_plan(&input, resolution, analysis, target, &plan, &allocator)
+                    .expect("lowers");
+            let actual = rsvelte_typescript_compile::print::print(&module);
+            assert_eq!(actual, reprinted(expected), "{target:?}");
+        }
+    })
+    .expect("parses");
 }
 
 const fn send_sync<T: Send + Sync>(_: &T) {}

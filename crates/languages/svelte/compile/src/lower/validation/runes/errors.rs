@@ -11,7 +11,9 @@ pub(in crate::lower) fn script_error(
     custom_element: bool,
 ) -> Option<(bool, Diagnostic)> {
     let walk = walk_scripts(input, res, Target::Client, custom_element, Awaits::Here);
-    let error = walk.error.filter(|error| error.code != "unsupported")?;
+    let error = walk
+        .error
+        .filter(|error| error.code != crate::lower::UNSUPPORTED)?;
     Some(in_module(input, error))
 }
 
@@ -33,7 +35,7 @@ pub(in crate::lower) fn script_and_template_errors(
 ) -> (Option<(bool, Diagnostic)>, Option<Diagnostic>) {
     let mut walk = walk_scripts(input, res, Target::Client, custom_element, Awaits::Here);
     match walk.error.take() {
-        Some(error) if error.code == "unsupported" => (None, None),
+        Some(error) if error.code == crate::lower::UNSUPPORTED => (None, None),
         Some(error) => (Some(in_module(input, error.clone())), Some(error)),
         None => (None, walk_template(input, walk).err()),
     }

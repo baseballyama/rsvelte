@@ -18,7 +18,7 @@ impl RuneWalk<'_> {
     ) -> Result<(), Diagnostic> {
         let spread = call.arguments.iter().any(Argument::is_spread);
         if rune != "$inspect" && spread {
-            return crate::lower::special::invalid(
+            return crate::lower::invalid(
                 "rune_invalid_spread",
                 &format!("`{rune}` cannot be called with a spread argument"),
                 span_of(call),
@@ -122,7 +122,7 @@ impl RuneWalk<'_> {
             },
             _ => return Ok(()),
         };
-        crate::lower::special::invalid(code, &message, span_of(call))
+        crate::lower::invalid(code, &message, span_of(call))
     }
 
     /// Keeps the first rune call this port does not lower, refused when the walk ends.
@@ -207,7 +207,7 @@ fn check_rune_arguments(
 ) -> Result<(), Diagnostic> {
     let expected = match rune {
         "$props" | "$props.id" | "$host" | "$effect.tracking" if count > 0 => {
-            return crate::lower::special::invalid(
+            return crate::lower::invalid(
                 "rune_invalid_arguments",
                 &format!("`{rune}` cannot be called with arguments"),
                 span_of(call),
@@ -225,7 +225,7 @@ fn check_rune_arguments(
         "$inspect" if count < 1 => "one or more arguments",
         _ => return Ok(()),
     };
-    crate::lower::special::invalid(
+    crate::lower::invalid(
         "rune_invalid_arguments_length",
         &format!("`{rune}` must be called with {expected}"),
         span_of(call),

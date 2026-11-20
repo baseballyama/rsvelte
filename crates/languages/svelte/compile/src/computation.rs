@@ -3,10 +3,9 @@
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext, Facet};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
 use rsvelte_svelte_semantic::{Analyzed, component_input};
 
-use crate::lower::CompileErrors;
+use crate::lower::{CompileErrors, UNSUPPORTED};
 
 #[derive(Debug)]
 pub struct Planned;
@@ -105,7 +104,7 @@ impl Facet for CompileConfiguration {
 pub(crate) struct Validated;
 
 impl Artifact for Validated {
-    type Output = Result<crate::lower::ValidatedOptions, Diagnostic>;
+    type Output = Result<crate::lower::Validation, Diagnostic>;
 
     const NAME: &'static str = "svelte.validate";
 
@@ -148,13 +147,8 @@ pub fn compile_errors(context: &DocumentContext<'_>, runes: bool) -> CompileErro
             };
         }
         Err(error) if lint_raises(error) => {
-            let raised = Raised {
-                phase: Phase::Parse,
-                section: Section::Template,
-                at: 0,
-            };
             return CompileErrors {
-                raised: vec![(raised, error.clone())],
+                raised: vec![(crate::lower::raised_in_parse(), error.clone())],
                 after_analysis: None,
             };
         }
@@ -168,9 +162,6 @@ pub fn compile_errors(context: &DocumentContext<'_>, runes: bool) -> CompileErro
         .filter(|error| error.code != UNSUPPORTED);
     errors
 }
-
-/// The code of what this port refuses, which upstream compiles.
-const UNSUPPORTED: &str = "unsupported";
 
 /// The errors of [`Validated`] that upstream raises as it generates code, which
 /// `generate: false` skips.

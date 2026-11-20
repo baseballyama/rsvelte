@@ -2,8 +2,8 @@
 
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
 
-use super::super::super::special::error;
 use super::{AttributeValue, CompileInput, Diagnostic, is_directive};
+use crate::lower::error;
 
 /// Upstream's `mixed_event_handler_syntaxes`, which it raises once its walk is done: the first
 /// `on:` directive of an element, when an element also has an `on…={…}` attribute.
