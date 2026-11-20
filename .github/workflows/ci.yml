@@ -161,7 +161,12 @@ jobs:
           path: ~/.cache/.wasm-pack
           key: wasm-pack-${{ runner.os }}-0.15.1-${{ hashFiles('Cargo.lock') }}
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run generate
+      # Nothing deploys from CI, so the figures' programs need not be optimized as a release is.
+      - env:
+          CARGO_PROFILE_RELEASE_LTO: false
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16
+          CARGO_PROFILE_RELEASE_DEBUG: false
+        run: pnpm run generate
       # test, check and build each start by generating; it is done, so they skip that and run at
       # once. SvelteKit's sync writes a file only when its content changes, so they share it.
       - run: |
