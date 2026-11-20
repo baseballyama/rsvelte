@@ -1,0 +1,10 @@
+- message: Do not use `addEventListener`. Use the `on` function from
+    `svelte/events` instead.
+  line: 2
+  column: 2
+  suggestions:
+    - desc: Use `on` from `svelte/events` instead
+      output: |
+        <script>
+        	on﻿(window, 'message', handler);
+        </script>
