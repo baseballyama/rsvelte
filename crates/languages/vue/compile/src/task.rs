@@ -2,7 +2,6 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
-use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_vue_semantic::{Lowered, Resolved};
@@ -64,11 +63,9 @@ impl Task for Compile {
                     out.file("css", stylesheet);
                 }
             }
-            Err(u) => out.diagnostics.push(Diagnostic::error(
-                "compile_unsupported",
-                format!("not supported yet: {}", u.what),
-                u.span(),
-            )),
+            Err(u) => out
+                .diagnostics
+                .push(u.diagnostic("compile_unsupported", None)),
         }
     }
 }
