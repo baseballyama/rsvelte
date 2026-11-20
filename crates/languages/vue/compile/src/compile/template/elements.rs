@@ -14,9 +14,15 @@ impl Transform<'_> {
         props
             .iter()
             .map(|p| match p {
-                Property::Static { name, value } => {
-                    PropertyView::Static(name.clone(), value.clone().unwrap_or_default())
-                }
+                Property::Static {
+                    name,
+                    value,
+                    identifier,
+                } => PropertyView::Static(
+                    name.clone(),
+                    value.clone().unwrap_or_default(),
+                    *identifier,
+                ),
                 Property::Dir {
                     name,
                     arg,
@@ -127,12 +133,13 @@ impl Transform<'_> {
         let mut has_ref = false;
         let mut should_use_block = false;
         for p in props {
+            let identifier = p.identifier();
             let (key, value) = match p {
-                PropertyView::Static(name, value) => {
+                PropertyView::Static(name, value, _) => {
                     let v = self.lit(Lit::String(value), CAN_STRINGIFY);
                     (name, v)
                 }
-                PropertyView::Dir(dir, arg, raw, exp, identifier) => {
+                PropertyView::Dir(dir, arg, raw, exp, _) => {
                     if dir == DirectiveName::Bind && arg == "key" {
                         should_use_block = true;
                     }
@@ -167,7 +174,10 @@ impl Transform<'_> {
             };
             // `dedupeProperties` merges repeated `on*`/`class`/`style`; nothing here repeats.
             if properties.iter().any(|(k, _)| *k == key) {
-                return Err(Unsupported::nowhere("a repeated attribute"));
+                return Err(Unsupported::at(
+                    "a repeated attribute",
+                    self.compiler_syntax_tree.props[identifier].span,
+                ));
             }
             properties.push((key, value));
         }

@@ -80,6 +80,7 @@ impl Transform<'_> {
                     Property::Static {
                         name: name.to_owned(),
                         value: value.as_ref().map(|v| v.text(self.source_text).to_owned()),
+                        identifier,
                     }
                 }
                 PropertyKind::Directive(d) => {

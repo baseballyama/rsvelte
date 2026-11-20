@@ -122,6 +122,7 @@ enum Property {
         name: String,
         /// `None` for a bare attribute.
         value: Option<String>,
+        identifier: PropertyIdentifier,
     },
     Dir {
         name: DirectiveName,
@@ -394,7 +395,7 @@ impl Transform<'_> {
 }
 
 enum PropertyView {
-    Static(String, String),
+    Static(String, String, PropertyIdentifier),
     Dir(
         DirectiveName,
         String,
@@ -402,6 +403,14 @@ enum PropertyView {
         Option<Exp>,
         PropertyIdentifier,
     ),
+}
+
+impl PropertyView {
+    const fn identifier(&self) -> PropertyIdentifier {
+        match self {
+            Self::Static(.., identifier) | Self::Dir(.., identifier) => *identifier,
+        }
+    }
 }
 
 struct VNodeArgs {

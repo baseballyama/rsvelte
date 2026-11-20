@@ -89,6 +89,7 @@ impl Transform<'_> {
                     Property::Static {
                         name,
                         value: Some(v),
+                        ..
                     } if name == "type" => Some(Some(v.as_str())),
                     Property::Dir {
                         name: DirectiveName::Bind,
