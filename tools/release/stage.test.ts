@@ -3,8 +3,17 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
-import { cargoVersion, COMMAND_PACKAGE, packageName, PLATFORMS, PROGRAMS, stage } from './stage.ts';
+import {
+	cargoVersion,
+	COMMAND_PACKAGE,
+	ESLINT_PLUGIN_PACKAGE,
+	packageName,
+	PLATFORMS,
+	PROGRAMS,
+	stage,
+} from './stage.ts';
 
 test('the version is the workspace package version, not a dependency version', () => {
 	const manifest = [
@@ -39,7 +48,7 @@ test(
 					fs.writeFileSync(file, '#!/bin/sh\necho "$0 $*"\nexit 3\n');
 				}
 			const order = stage(artifacts, path.join(root, 'out'), '1.2.3');
-			assert.equal(order.length, PLATFORMS.length + 1);
+			assert.equal(order.length, PLATFORMS.length + 2);
 			assert.equal(path.basename(order.at(-1)!), 'cli', 'the command package is published last');
 			const manifest = JSON.parse(
 				fs.readFileSync(path.join(order.at(-1)!, 'package.json'), 'utf8'),
@@ -88,3 +97,35 @@ test(
 		}
 	},
 );
+
+test('the staged eslint-plugin-rsvelte loads on its own and reports the release version', async () => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-stage-plugin-'));
+	try {
+		const artifacts = path.join(root, 'artifacts');
+		for (const platform of PLATFORMS)
+			for (const program of PROGRAMS) {
+				const file = path.join(
+					artifacts,
+					platform.target,
+					`${program}${platform.os === 'win32' ? '.exe' : ''}`,
+				);
+				fs.mkdirSync(path.dirname(file), { recursive: true });
+				fs.writeFileSync(file, '');
+			}
+		const order = stage(artifacts, path.join(root, 'out'), '1.2.3');
+		const directory = order.find((d) => path.basename(d) === 'eslint-plugin');
+		assert.ok(directory, 'the plugin package is staged');
+		const manifest = JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8'));
+		assert.equal(manifest.name, ESLINT_PLUGIN_PACKAGE);
+		assert.equal(manifest.private, undefined);
+		for (const file of manifest.files)
+			assert.ok(fs.existsSync(path.join(directory, file)), `${file} is staged`);
+		const { default: plugin } = await import(pathToFileURL(path.join(directory, 'index.js')).href);
+		assert.equal(plugin.meta.version, '1.2.3');
+		assert.ok(
+			plugin.configs.all.some((block: { rules: object }) => 'svelte/indent' in block.rules),
+		);
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});

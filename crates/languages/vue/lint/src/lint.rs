@@ -41,6 +41,11 @@ static RULES: &[&VueRule] = &[
     &VueNoUnusedVariables,
 ];
 
+/// Every rule's name.
+pub fn rule_names() -> impl Iterator<Item = &'static str> {
+    RULES.iter().map(|rule| Rule::identifier(*rule))
+}
+
 /// Every rule at its own severity.
 pub(crate) fn every_rule() -> Vec<Enabled> {
     all(RULES, Rule::severity)

@@ -45,6 +45,11 @@ type TypeScriptRule = dyn Rule<Semantic>;
 
 static RULES: &[&TypeScriptRule] = &[&NoUnusedVariables];
 
+/// Every rule's name.
+pub fn rule_names() -> impl Iterator<Item = &'static str> {
+    RULES.iter().map(|rule| Rule::identifier(*rule))
+}
+
 /// The rules a `rules` object turns on; every rule at its own severity without one.
 pub(crate) fn configure(
     rules: Option<RuleLevels>,

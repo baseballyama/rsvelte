@@ -14,6 +14,7 @@ pub use pattern::Pattern;
 pub mod project;
 pub mod rule;
 mod rules;
+pub use rules::reporting as reporting_rules;
 mod settings;
 pub mod svelte_config;
 pub use settings::{

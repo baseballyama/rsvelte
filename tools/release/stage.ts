@@ -27,6 +27,14 @@ const DESCRIPTION = 'Lint, format and type check Svelte and TypeScript, fast';
 /** The package people install; npm refuses `rsvelte` as too close to `svelte`. */
 export const COMMAND_PACKAGE = '@rsvelte/cli';
 
+/** Turns off in ESLint the rules `rsvelte lint` runs, so a project can run both. */
+export const ESLINT_PLUGIN_PACKAGE = 'eslint-plugin-rsvelte';
+
+const ESLINT_PLUGIN = path.join(ROOT, 'apps/eslint-plugin');
+
+/** What the plugin package holds; `apps/eslint-plugin` also has its tests and its workspace manifest. */
+export const ESLINT_PLUGIN_FILES = ['index.js', 'index.d.ts', 'rules.json'] as const;
+
 export const packageName = (platform: (typeof PLATFORMS)[number]) =>
 	`@rsvelte/cli-${platform.suffix}`;
 
@@ -40,7 +48,7 @@ export function cargoVersion(manifest: string): string {
 
 /**
  * Writes every package below `out`, and returns their directories in the order to publish them:
- * the platforms first, so the command package never names a package that is not there yet.
+ * the command package last, so it never names a package that is not there yet.
  */
 export function stage(artifacts: string, out: string, version: string): string[] {
 	fs.mkdirSync(out, { recursive: true });
@@ -54,6 +62,23 @@ export function stage(artifacts: string, out: string, version: string): string[]
 		fs.writeFileSync(path.join(directory, 'LICENSE'), license);
 	};
 	const order: string[] = [];
+	const eslintPlugin = path.join(out, 'eslint-plugin');
+	write(eslintPlugin, {
+		name: ESLINT_PLUGIN_PACKAGE,
+		version,
+		description: 'Turns off the ESLint rules that rsvelte lint runs',
+		keywords: ['eslint', 'eslintplugin', 'eslint-plugin', 'svelte', 'rsvelte'],
+		license: 'MIT',
+		repository: { ...REPOSITORY, directory: 'apps/eslint-plugin' },
+		type: 'module',
+		exports: { '.': { types: './index.d.ts', default: './index.js' } },
+		files: [...ESLINT_PLUGIN_FILES],
+		engines: { node: '>=18.18' },
+		peerDependencies: { eslint: '>=9' },
+	});
+	for (const file of [...ESLINT_PLUGIN_FILES, 'README.md'])
+		fs.copyFileSync(path.join(ESLINT_PLUGIN, file), path.join(eslintPlugin, file));
+	order.push(eslintPlugin);
 	for (const platform of PLATFORMS) {
 		const directory = path.join(out, `cli-${platform.suffix}`);
 		const extension = platform.os === 'win32' ? '.exe' : '';
