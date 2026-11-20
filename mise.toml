@@ -54,7 +54,7 @@ run = "node tools/performance/performance.ts cache-profile"
 
 [tasks."performance:hardware"]
 description = "Measure Linux hardware CPU and cache counters: <config.json> <report.json>"
-run = "node tools/performance/performance.ts linux-counters"
+run = "node tools/performance/performance.ts hardware-counters"
 
 [tasks."performance:test"]
 description = "Test the measurement tools and their defect controls"
