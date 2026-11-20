@@ -31,7 +31,6 @@
 
 mod commands;
 mod configuration;
-mod formatting;
 mod input;
 mod output;
 mod release;
