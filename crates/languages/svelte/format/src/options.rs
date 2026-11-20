@@ -7,6 +7,38 @@
 
 use serde::{Deserialize, Deserializer};
 
+/// The names [`Options`] takes, so that a host can tell an option the formatter prints from one it
+/// does not know.
+pub const NAMES: &[&str] = &[
+    "printWidth",
+    "tabWidth",
+    "useTabs",
+    "semi",
+    "singleQuote",
+    "jsxSingleQuote",
+    "quoteProps",
+    "trailingComma",
+    "bracketSpacing",
+    "objectWrap",
+    "bracketSameLine",
+    "arrowParens",
+    "htmlWhitespaceSensitivity",
+    "endOfLine",
+    "embeddedLanguageFormatting",
+    "singleAttributePerLine",
+    "proseWrap",
+    "requirePragma",
+    "insertPragma",
+    "checkIgnorePragma",
+    "rangeStart",
+    "rangeEnd",
+    "experimentalTernaries",
+    "experimentalOperatorPosition",
+    "svelteSortOrder",
+    "svelteAllowShorthand",
+    "svelteIndentScriptAndStyle",
+];
+
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields, default)]
 #[expect(

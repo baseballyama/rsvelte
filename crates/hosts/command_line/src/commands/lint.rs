@@ -20,7 +20,7 @@ pub(crate) const TASKS: &[&str] = &["svelte.lint/default", "ts.lint/default", "v
 
 /// Lints the files below `paths` and prints the problems. Exit code 1 means an error is left.
 pub(crate) fn lint(reg: &Registry, paths: &[&str], tasks: &[&str]) -> ExitCode {
-    let documents = match files::load(reg, paths, tasks, files::Skip::default()) {
+    let documents = match files::load(reg, paths, tasks, &[]) {
         Ok(documents) => documents,
         Err(e) => return usage(&e),
     };

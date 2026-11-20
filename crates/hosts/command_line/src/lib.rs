@@ -35,13 +35,14 @@ mod formatting;
 mod input;
 mod output;
 mod release;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use commands::corpus::corpus;
 use commands::run::{run_file, run_files, run_project};
 use commands::{benchmark, format, lint, performance};
 pub use release::release;
+use rsvelte_configuration_loading::LoadedConfiguration;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_plugin_interface::Extension;
 
@@ -175,7 +176,17 @@ fn configured_registry(
     installation: Installation,
 ) -> Result<(Registry, Vec<rsvelte_plugin_interface::Tool>), String> {
     let loaded = config.load().map_err(|error| error.to_string())?;
-    let functions: std::sync::Arc<dyn rsvelte_plugin_interface::FunctionResolver> = match &loaded {
+    install(loaded.as_ref(), overrides, installation)
+}
+
+/// [`configured_registry`] with the configuration already loaded, so that one configuration can
+/// install several registries.
+fn install(
+    loaded: Option<&(PathBuf, LoadedConfiguration)>,
+    overrides: &[(&str, &str)],
+    installation: Installation,
+) -> Result<(Registry, Vec<rsvelte_plugin_interface::Tool>), String> {
+    let functions: std::sync::Arc<dyn rsvelte_plugin_interface::FunctionResolver> = match loaded {
         Some((_, loaded)) => std::sync::Arc::clone(&loaded.functions),
         None => std::sync::Arc::new(rsvelte_plugin_interface::NoFunctions),
     };
@@ -186,9 +197,9 @@ fn configured_registry(
         .collect();
     if let Some((path, loaded)) = loaded {
         let base = path.parent().unwrap_or_else(|| Path::new(".")).to_owned();
-        for (plugin, options) in loaded.configuration.plugins {
+        for (plugin, options) in &loaded.configuration.plugins {
             given.push(plugin.clone());
-            settings.set(plugin, options, base.clone());
+            settings.set(plugin.clone(), options.clone(), base.clone());
         }
     }
     let here = std::env::current_dir().map_err(|e| format!("current directory: {e}"))?;
@@ -233,17 +244,25 @@ fn dispatch(
             if paths.is_empty() { &["."] } else { paths },
             if tasks.is_empty() { lint::TASKS } else { tasks },
         ),
-        ["format", paths @ ..] => format::format(
-            reg,
-            if paths.is_empty() { &["."] } else { paths },
-            if tasks.is_empty() {
+        ["format", paths @ ..] => {
+            let paths = if paths.is_empty() { &["."] } else { paths };
+            let tasks = if tasks.is_empty() {
                 format::TASKS
             } else {
                 tasks
-            },
-            check,
-            format::SKIP,
-        ),
+            };
+            match commands::files::load(reg, paths, tasks, format::IGNORE_FILES) {
+                Ok(documents) => format::format(
+                    &[format::Batch {
+                        reg,
+                        tasks,
+                        documents,
+                    }],
+                    check,
+                ),
+                Err(e) => usage(&e),
+            }
+        }
         ["check"] if !fix => run_project(
             reg,
             if tasks.is_empty() {

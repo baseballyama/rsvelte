@@ -1,13 +1,16 @@
 //! `rsvelte`, the command people install: `lint`, `format` and `typecheck` over the Svelte and
 //! TypeScript files of a project.
 
+use std::collections::BTreeMap;
+use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Arc;
 
 use rsvelte_plugin_interface::{Extension, Selection};
 
 use crate::commands::{files, format, lint, typecheck};
-use crate::formatting::{self, Formatting};
-use crate::{Installation, configuration, configured_registry, usage};
+use crate::formatting::{Refusal, Resolution, Resolved, Resolver};
+use crate::{Installation, configuration, configured_registry, install, usage};
 
 /// The plugins `rsvelte` installs, in installation order.
 static EXTENSIONS: &[&Extension] = &[
@@ -116,97 +119,142 @@ pub fn release() -> ExitCode {
     }
 }
 
-/// `rsvelte format`, with the options of the project's formatter configuration when it has one.
+/// `rsvelte format`, with each file's options resolved from the project's formatter
+/// configuration, for the plugins `rsvelte.config` does not configure.
 fn format_project(config: &configuration::Options, paths: &[&str], check: bool) -> ExitCode {
-    let formatting = match std::env::current_dir()
-        .map_err(|e| format!("current directory: {e}"))
-        .and_then(|here| formatting::find(&here))
-    {
-        Ok(formatting) => formatting,
-        Err(error) => return usage(&error),
-    };
-    // The TypeScript files are still formatted when the Svelte formatter cannot honor the options.
-    let svelte_refused = formatting.as_ref().and_then(|f| {
-        let options = serde_json::from_str(&f.svelte).ok()?;
-        rsvelte_svelte_format::unported(&options).map(|name| (name, f.source.clone()))
-    });
-    let tasks = if svelte_refused.is_some() {
-        &FORMAT[1..]
-    } else {
-        FORMAT
-    };
-    let defaults = formatting.as_ref().map_or_else(Vec::new, |f| {
-        vec![
-            ("svelte.format", f.svelte.clone()),
-            ("typescript.format", f.typescript.clone()),
-        ]
-    });
-    let installation = Installation {
-        extensions: EXTENSIONS,
-        selection: Selection::Named(tasks.iter().map(|&task| task.to_owned()).collect()),
-        defaults,
-    };
-    let (reg, _) = match configured_registry(config, &[], installation) {
-        Ok(configured) => configured,
-        Err(error) => {
-            return usage(&match &formatting {
-                Some(f) => format!("{error} (from {})", f.source.display()),
-                None => error,
-            });
-        }
-    };
-    let patterns = match formatting.as_ref().map(ignore_patterns).transpose() {
-        Ok(patterns) => patterns,
-        Err(error) => return usage(&error),
-    };
-    let skip = files::Skip {
-        patterns: patterns.as_ref(),
-        ..format::SKIP
-    };
-    let code = format::format(&reg, paths, tasks, check, skip);
-    match svelte_refused {
-        Some((name, source)) => refused_svelte(paths, skip, name, &source).unwrap_or(code),
-        None => code,
+    match format_resolved(config, paths, check) {
+        Ok(code) => code,
+        Err(error) => usage(&error),
     }
 }
 
-/// Says that the Svelte files below `paths` were left as they are, and fails, if there are any.
-fn refused_svelte(
+/// A plugin's options, as JSON, out of a file's resolved options.
+type OptionsOf = fn(&Resolved) -> String;
+
+/// The plugins `format` gives the resolved options, with the options each takes.
+const FORMAT_PLUGINS: &[(&str, OptionsOf)] = &[
+    ("svelte.format", Resolved::svelte),
+    ("typescript.format", Resolved::typescript),
+];
+
+fn format_resolved(
+    config: &configuration::Options,
     paths: &[&str],
-    skip: files::Skip<'_>,
-    name: &str,
-    source: &std::path::Path,
-) -> Option<ExitCode> {
-    let svelte = |path: &std::path::Path| path.extension().is_some_and(|e| e == "svelte");
-    let count = match files::find(paths, skip, &svelte) {
-        Ok(found) => found.len(),
-        Err(error) => return Some(usage(&error)),
+    check: bool,
+) -> Result<ExitCode, String> {
+    let loaded = config.load().map_err(|error| error.to_string())?;
+    let named = |plugin: &str| {
+        (loaded.as_ref()).is_some_and(|(_, l)| l.configuration.plugins.contains_key(plugin))
     };
-    (count > 0).then(|| {
-        eprintln!(
-            "rsvelte: {count} Svelte files were not formatted: the Svelte formatter does not print \
-             this `{name}` value of {} yet",
-            source.display()
-        );
+    let resolved_plugins: Vec<(&str, OptionsOf)> = (FORMAT_PLUGINS.iter())
+        .filter(|(plugin, _)| !named(plugin))
+        .copied()
+        .collect();
+    let installation = |tasks: &[&str], options: &Resolved| Installation {
+        extensions: EXTENSIONS,
+        selection: Selection::Named(tasks.iter().map(|&task| (*task).to_owned()).collect()),
+        defaults: (resolved_plugins.iter())
+            .map(|&(plugin, options_of)| (plugin, options_of(options)))
+            .collect(),
+    };
+    let (selector, _) = install(
+        loaded.as_ref(),
+        &[],
+        installation(FORMAT, &Resolved::default()),
+    )?;
+    let here = std::env::current_dir().map_err(|e| format!("current directory: {e}"))?;
+    let resolver = Arc::new(Resolver::new(here, !resolved_plugins.is_empty()));
+    let prune: Arc<dyn files::Prune> = Arc::<Resolver>::clone(&resolver);
+    let walk = files::Walk {
+        ignore_files: format::IGNORE_FILES,
+        prune: Some(prune),
+    };
+    let found = files::find(paths, &walk, &|path| {
+        files::applies(&selector, FORMAT, path)
+    })?;
+    let mut groups: BTreeMap<Resolved, Vec<PathBuf>> = BTreeMap::new();
+    for file in found {
+        if let Resolution::Formatted(options) = resolver.resolve(&file) {
+            groups.entry(options).or_default().push(file);
+        }
+    }
+    for warning in resolver.warnings() {
+        eprintln!("rsvelte: {warning}");
+    }
+    // Every group is installed, and so refused, before any file is formatted.
+    let mut installed = Vec::new();
+    let mut left = Vec::new();
+    for (options, files) in groups {
+        let refused = refusal(&options, &resolved_plugins)?;
+        let tasks = if refused.is_some() {
+            &FORMAT[1..]
+        } else {
+            FORMAT
+        };
+        let (reg, _) = install(loaded.as_ref(), &[], installation(tasks, &options))
+            .map_err(|error| format!("{error} (from {})", sources(&options)))?;
+        let (formatted, svelte): (Vec<PathBuf>, Vec<PathBuf>) = files
+            .into_iter()
+            .partition(|file| files::applies(&reg, tasks, file));
+        if let Some(refused) = refused
+            && !svelte.is_empty()
+        {
+            left.push((svelte.len(), refused));
+        }
+        installed.push((reg, tasks, formatted));
+    }
+    let mut batches = Vec::new();
+    for (reg, tasks, formatted) in &installed {
+        let documents = (formatted.iter())
+            .map(|file| files::read(reg, file.clone()))
+            .collect::<Result<_, _>>()?;
+        batches.push(format::Batch {
+            reg,
+            tasks,
+            documents,
+        });
+    }
+    let code = format::format(&batches, check);
+    for (count, refusal) in &left {
+        eprintln!("rsvelte: {count} Svelte files were not formatted: {refusal}");
+    }
+    Ok(if left.is_empty() {
+        code
+    } else {
         ExitCode::from(2)
     })
 }
 
-/// The configuration's `ignorePatterns`, rooted at its directory.
-fn ignore_patterns(formatting: &Formatting) -> Result<ignore::gitignore::Gitignore, String> {
-    let root = formatting
-        .source
-        .parent()
-        .unwrap_or_else(|| std::path::Path::new("."));
-    let mut builder = ignore::gitignore::GitignoreBuilder::new(root);
-    for pattern in &formatting.ignore_patterns {
-        builder
-            .add_line(None, pattern)
-            .map_err(|e| format!("{}: {e}", formatting.source.display()))?;
+/// What a plugin that takes the resolved options cannot format with them: the TypeScript
+/// formatter's refusal refuses the run, and the Svelte formatter's, returned, leaves the Svelte
+/// files. A refusal of the sources is both formatters'.
+fn refusal(options: &Resolved, plugins: &[(&str, OptionsOf)]) -> Result<Option<Refusal>, String> {
+    let resolves = |plugin: &str| plugins.iter().any(|&(p, _)| p == plugin);
+    let refusal = |unprinted: Option<&str>, formatter: &str| {
+        (options.refused().cloned())
+            .or_else(|| unprinted.map(|name| options.refusal(name, formatter)))
+    };
+    if resolves("typescript.format") {
+        let typescript =
+            serde_json::from_str::<rsvelte_typescript_format::Options>(&options.typescript());
+        let unprinted = typescript.ok().and_then(|o| o.formatter().err());
+        if let Some(refused) = refusal(unprinted, "TypeScript") {
+            return Err(refused.to_string());
+        }
     }
-    builder
-        .build()
-        .map_err(|e| format!("{}: {e}", formatting.source.display()))
+    if !resolves("svelte.format") {
+        return Ok(None);
+    }
+    let svelte = serde_json::from_str(&options.svelte()).ok();
+    Ok(refusal(
+        svelte.as_ref().and_then(rsvelte_svelte_format::unported),
+        "Svelte",
+    ))
+}
+
+fn sources(options: &Resolved) -> String {
+    let sources: Vec<String> = options.sources().iter().map(ToString::to_string).collect();
+    sources.join(", ")
 }
 
 #[cfg(test)]

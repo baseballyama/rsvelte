@@ -85,3 +85,12 @@ fn a_whole_number_may_be_written_with_a_fraction_of_zero() {
     parse(r#"{"tabWidth": 2.5}"#).expect_err("not whole");
     parse(r#"{"tabWidth": -1}"#).expect_err("negative");
 }
+
+#[test]
+fn names_lists_every_option() {
+    let error = serde_json::from_str::<Options>(r#"{"x": 1}"#).expect_err("unknown");
+    let error = error.to_string();
+    let (_, expected) = error.split_once("expected one of ").expect("the fields");
+    let fields: Vec<&str> = expected.split('`').skip(1).step_by(2).collect();
+    assert_eq!(fields, NAMES);
+}
