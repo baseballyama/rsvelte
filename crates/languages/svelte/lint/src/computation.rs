@@ -38,7 +38,7 @@ impl Facet for LintConfiguration {
 pub(crate) struct Linted<'a> {
     context: &'a DocumentContext<'a>,
     pub(crate) component: &'a Component,
-    as_typescript: bool,
+    compiler_rejected: bool,
 }
 
 impl<'a> Linted<'a> {
@@ -46,21 +46,21 @@ impl<'a> Linted<'a> {
     ///
     /// The component does not parse as TypeScript either.
     pub(crate) fn of(context: &'a DocumentContext<'a>) -> Result<Self, &'a Diagnostic> {
-        let (component, as_typescript) = match context.get::<Parsed>() {
+        let (component, compiler_rejected) = match context.get::<Parsed>() {
             Ok(component) => (component, false),
             Err(_) => (read_as_svelte_eslint_parser(context)?, true),
         };
         Ok(Self {
             context,
             component,
-            as_typescript,
+            compiler_rejected,
         })
     }
 
     /// The template as the compiler reads it, computed on first request.
     pub(crate) fn lowered(self) -> &'a CompilerSyntaxTree {
-        let lowered = if self.as_typescript {
-            self.context.get::<LoweredAsTypeScript>()
+        let lowered = if self.compiler_rejected {
+            self.context.get::<LoweredAsSvelteEslintParser>()
         } else {
             self.context.get::<Lowered>()
         };
@@ -69,8 +69,8 @@ impl<'a> Linted<'a> {
 
     /// The scopes with the template's bindings, computed on first request.
     pub(crate) fn resolution(self) -> &'a Resolution {
-        let resolution = if self.as_typescript {
-            self.context.get::<ResolvedAsTypeScript>()
+        let resolution = if self.compiler_rejected {
+            self.context.get::<ResolvedAsSvelteEslintParser>()
         } else {
             self.context.get::<Resolved>()
         };
@@ -113,12 +113,12 @@ pub(crate) fn read_as_svelte_eslint_parser<'a>(
     }
 }
 
-/// [`Lowered`] of [`ParsedAsSvelteEslintParser`], which only lint reads.
+/// [`Lowered`] of the component [`read_as_svelte_eslint_parser`] reads, which only lint reads.
 #[derive(Debug)]
-pub(crate) struct LoweredAsTypeScript;
+pub(crate) struct LoweredAsSvelteEslintParser;
 
-impl Artifact for LoweredAsTypeScript {
-    /// `None` when the component does not parse as TypeScript.
+impl Artifact for LoweredAsSvelteEslintParser {
+    /// `None` when svelte-eslint-parser's reading does not parse either.
     type Output = Option<CompilerSyntaxTree>;
 
     const NAME: &'static str = "svelte.lint.compiler_syntax_tree_as_typescript";
@@ -132,19 +132,19 @@ impl Artifact for LoweredAsTypeScript {
     }
 }
 
-/// [`Resolved`] of [`ParsedAsSvelteEslintParser`], which only lint reads.
+/// [`Resolved`] of the component [`read_as_svelte_eslint_parser`] reads, which only lint reads.
 #[derive(Debug)]
-pub(crate) struct ResolvedAsTypeScript;
+pub(crate) struct ResolvedAsSvelteEslintParser;
 
-impl Artifact for ResolvedAsTypeScript {
-    /// `None` when the component does not parse as TypeScript.
+impl Artifact for ResolvedAsSvelteEslintParser {
+    /// `None` when svelte-eslint-parser's reading does not parse either.
     type Output = Option<Resolution>;
 
     const NAME: &'static str = "svelte.lint.resolve_as_typescript";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let component = read_as_svelte_eslint_parser(context).ok()?;
-        let lowered = context.get::<LoweredAsTypeScript>().as_ref()?;
+        let lowered = context.get::<LoweredAsSvelteEslintParser>().as_ref()?;
         Some(rsvelte_svelte_semantic::resolve_component(
             component, lowered,
         ))

@@ -13,9 +13,10 @@ use rsvelte_svelte_syntax::syntax_tree::Component;
 
 use crate::Configuration;
 use crate::computation::{
-    ConditionTypes, LegacyReactivity, LintConfiguration, LoweredAsTypeScript, ModuleAsTypeScript,
-    ModuleSemantic, NativeConditionTypes, ParsedAsSvelteEslintParser, PostcssConfigurationOnDisk,
-    ResolvedAsTypeScript, SameNamedFileOnDisk, read_as_svelte_eslint_parser,
+    ConditionTypes, LegacyReactivity, LintConfiguration, LoweredAsSvelteEslintParser,
+    ModuleAsTypeScript, ModuleSemantic, NativeConditionTypes, ParsedAsSvelteEslintParser,
+    PostcssConfigurationOnDisk, ResolvedAsSvelteEslintParser, SameNamedFileOnDisk,
+    read_as_svelte_eslint_parser,
 };
 use crate::rules::shared::style_attribute::InlineStyles;
 use crate::rules::shared::style_sheet::{LintStyleSheet, StyleSheetVerdict};
@@ -54,8 +55,8 @@ pub fn register_artifacts(registry: &mut Registry) {
         .artifact::<StyleSheetVerdict>()
         .artifact::<LintStyleSheet>()
         .artifact::<ParsedAsSvelteEslintParser>()
-        .artifact::<LoweredAsTypeScript>()
-        .artifact::<ResolvedAsTypeScript>()
+        .artifact::<LoweredAsSvelteEslintParser>()
+        .artifact::<ResolvedAsSvelteEslintParser>()
         .artifact::<NativeConditionTypes>()
         .artifact::<LegacyReactivity>()
         .artifact::<SameNamedFileOnDisk>()

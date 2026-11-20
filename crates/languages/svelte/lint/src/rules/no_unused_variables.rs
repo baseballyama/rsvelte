@@ -75,7 +75,7 @@ fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
 /// parameter pattern, whose defaults assign the names.
 fn defaulted_let_starts(file: &File<'_>) -> FxHashSet<u32> {
     let mut starts = FxHashSet::default();
-    let Some(tree) = file.normalized() else {
+    let Some(tree) = file.lowered() else {
         return starts;
     };
     for attribute in &tree.attributes {
@@ -162,7 +162,7 @@ fn updates_itself(nodes: &AstNodes<'_>, identifier: NodeId) -> bool {
 /// The scope of each snippet's parameters and body, where `svelte-eslint-parser`'s function for
 /// it makes a reference to it a self-reference.
 fn snippet_bodies(file: &File<'_>) -> FxHashMap<SymbolId, ScopeId> {
-    let (Some(tree), Some(resolution)) = (file.normalized(), file.resolution()) else {
+    let (Some(tree), Some(resolution)) = (file.lowered(), file.resolution()) else {
         return FxHashMap::default();
     };
     tree.nodes
@@ -306,7 +306,7 @@ fn subscribed_stores(
 /// A `{#snippet}` directly inside a component, `<svelte:component>` or `<svelte:boundary>` is a
 /// prop of it.
 fn component_snippets(file: &File<'_>, out: &mut FxHashSet<SymbolId>) {
-    let (Some(tree), Some(resolution)) = (file.normalized(), file.resolution()) else {
+    let (Some(tree), Some(resolution)) = (file.lowered(), file.resolution()) else {
         return;
     };
     let source = file.source();
@@ -352,7 +352,7 @@ fn shared_names(file: &File<'_>, out: &mut FxHashSet<SymbolId>) {
     if module != instance {
         merge(module, Some(instance));
     }
-    let Some(tree) = file.normalized() else {
+    let Some(tree) = file.lowered() else {
         return;
     };
     let root = fragment(tree.root);

@@ -43,7 +43,7 @@ impl<'a> TopLevelNames<'a> {
     pub(crate) fn new(file: &File<'a>) -> Option<Self> {
         let resolution = file.resolution()?;
         let scoping = resolution.scoping();
-        let tree = file.normalized();
+        let tree = file.lowered();
         // The root fragment's names are top-level names to `svelte-eslint-parser`.
         let root =
             tree.and_then(|tree| resolution.template_scope(TemplateScope::Fragment(tree.root)));

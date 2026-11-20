@@ -159,7 +159,7 @@ impl<'a> File<'a> {
 
     /// The component's compiler tree; `None` for a module.
     #[must_use]
-    pub fn normalized(&self) -> Option<&'a CompilerSyntaxTree> {
+    pub fn lowered(&self) -> Option<&'a CompilerSyntaxTree> {
         match self.parsed {
             Source::Component(linted) => Some(linted.lowered()),
             Source::Module(_) => None,

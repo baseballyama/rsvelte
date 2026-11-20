@@ -25,7 +25,7 @@ impl SvelteRule for ValidEachKey {
 
 fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     let component = file.component().expect("a component rule");
-    let tree = file.normalized().expect("a component rule");
+    let tree = file.lowered().expect("a component rule");
     let resolution = file.resolution().expect("a component rule");
     let javascript = &component.javascript;
     for node in &tree.nodes {

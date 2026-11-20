@@ -124,7 +124,7 @@
 
 <Code
 	item={data.code.eachKey}
-	mark={['file.component()', 'file.normalized()', 'file.resolution()']}
+	mark={['file.component()', 'file.lowered()', 'file.resolution()']}
 />
 
 <div class="prose-learn">
