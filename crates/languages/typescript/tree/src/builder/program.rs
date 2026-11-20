@@ -4,12 +4,12 @@ use oxc_parser::config::TokensParserConfig;
 use oxc_span::SourceType;
 use rsvelte_kernel::source::positions::Span;
 
-use super::{Builder, Part, parentheses};
+use super::{Part, TreeBuilder, parentheses};
 use crate::ProgramIdentifier;
 use crate::acorn_grammar::{rejection, whitespace};
 use crate::syntax_error::{SyntaxError, acorn, syntax_error, typescript_eslint_at};
 
-impl<'a> Builder<'a> {
+impl<'a> TreeBuilder<'a> {
     /// Parses `range` of the document as a program, such as the body of a `<script>` element.
     ///
     /// # Errors
@@ -134,7 +134,7 @@ pub struct Rejected {
     pub recovered: Option<ProgramIdentifier>,
 }
 
-/// [`Builder::read_program`]'s rejection.
+/// [`TreeBuilder::read_program`]'s rejection.
 struct Read {
     error: SyntaxError,
     diagnostics: Diagnostics,
