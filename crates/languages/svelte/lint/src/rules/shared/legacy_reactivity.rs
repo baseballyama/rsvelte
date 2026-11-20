@@ -1,12 +1,17 @@
 //! What the rules on legacy reactivity share: its facts, and how the template uses expressions.
+//!
+//! A `$:` assignment declares a name nothing else declares, and `$name` subscribes to the store
+//! `name`; upstream's analysis gives them `legacy_reactive` and `store_sub` bindings.
 
 use oxc_ast::AstKind;
-use oxc_ast::ast::Expression;
-use oxc_semantic::NodeId;
+use oxc_ast::ast::{Expression, Statement};
+use oxc_semantic::{NodeId, ScopeId, SymbolId};
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_semantic::legacy::Legacy;
+use rsvelte_svelte_semantic::legacy::{reactive_assignments, reactive_body};
+use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part};
 use rsvelte_typescript_semantic::semantic::Semantic;
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 use rustc_hash::FxHashMap;
 
 use crate::computation::LegacyReactivity;
@@ -65,3 +70,150 @@ pub(crate) fn property_name(member: AstKind<'_>) -> Option<&str> {
         _ => None,
     }
 }
+
+/// A top-level variable: one a script declares, or one a `$:` assignment declares.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum Variable {
+    Declared(SymbolId),
+    /// An index into [`Legacy::implicit`].
+    Implicit(u32),
+}
+
+/// What a reference refers to among the top-level variables.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct TopLevel {
+    pub(crate) variable: Variable,
+    /// `$name` reads the store `name`.
+    pub(crate) store: bool,
+}
+
+/// A statement of a script, by its position in the program's body.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct StatementPosition {
+    pub(crate) program: ProgramIdentifier,
+    pub(crate) index: u32,
+}
+
+impl StatementPosition {
+    #[must_use]
+    pub(crate) fn get(self, tree: &Tree) -> &Statement<'_> {
+        &tree.get_program(self.program).body[self.index as usize]
+    }
+}
+
+/// A variable a `$:` assignment declares.
+#[derive(Clone, Debug)]
+pub(crate) struct Implicit {
+    pub(crate) name: Box<str>,
+    /// The first assigned identifier.
+    pub(crate) identifier: oxc_span::Span,
+    /// The first `$:` statement that assigns it.
+    pub(crate) statement: StatementPosition,
+}
+
+#[derive(Debug)]
+pub(crate) struct Legacy {
+    pub(crate) implicit: Vec<Implicit>,
+    /// Per reference of the analysis (indexed by its id), the top-level variable it refers to.
+    pub(crate) references: Vec<Option<TopLevel>>,
+}
+
+impl Legacy {
+    /// The facts of the `programs` (module script first, then instance) that `res` resolved.
+    ///
+    /// # Panics
+    ///
+    /// When a program has `u32::MAX` statements or more.
+    #[must_use]
+    pub(crate) fn new(res: &Resolution, programs: &[ProgramIdentifier]) -> Self {
+        let tree = res.tree();
+        let mut reactive_statements = Vec::new();
+        for &program in programs {
+            let body = &tree.get_program(program).body;
+            reactive_statements.extend(
+                body.iter()
+                    .enumerate()
+                    .filter(|(_, statement)| reactive_body(statement).is_some())
+                    .map(|(index, _)| StatementPosition {
+                        program,
+                        index: u32::try_from(index)
+                            .expect("a program has fewer than u32::MAX statements"),
+                    }),
+            );
+        }
+        let mut implicit = Vec::new();
+        let mut by_name: FxHashMap<&str, u32> = FxHashMap::default();
+        for &position in &reactive_statements {
+            let Some(body) = reactive_body(position.get(tree)) else {
+                continue;
+            };
+            reactive_assignments(body, &mut |identifier| {
+                if res.symbol(identifier).is_some() {
+                    return;
+                }
+                let name = identifier.name.as_str();
+                by_name.entry(name).or_insert_with(|| {
+                    implicit.push(Implicit {
+                        name: name.into(),
+                        identifier: identifier.span,
+                        statement: position,
+                    });
+                    u32::try_from(implicit.len() - 1).expect("fewer than u32::MAX names")
+                });
+            });
+        }
+        let scoping = res.scoping();
+        let is_top = |symbol: SymbolId| is_top_level(res, scoping.symbol_scope_id(symbol));
+        let top_level = |name: &str| -> Option<Variable> {
+            if let Some(&index) = by_name.get(name) {
+                return Some(Variable::Implicit(index));
+            }
+            let symbol = scoping.find_binding(res.instance_scope(), name.into())?;
+            is_top(symbol).then_some(Variable::Declared(symbol))
+        };
+        let mut references = vec![None; scoping.references_len()];
+        for symbol in scoping.symbol_ids() {
+            let top = is_top(symbol).then_some(TopLevel {
+                variable: Variable::Declared(symbol),
+                store: false,
+            });
+            for &reference in scoping.get_resolved_reference_ids(symbol) {
+                references[reference.index()] = top;
+            }
+        }
+        for (name, ids) in scoping.root_unresolved_references() {
+            let name = name.as_str();
+            let top = if let Some(&variable) = by_name.get(name) {
+                Some(TopLevel {
+                    variable: Variable::Implicit(variable),
+                    store: false,
+                })
+            } else {
+                name.strip_prefix('$')
+                    .filter(|store| !store.starts_with('$'))
+                    .and_then(|store| {
+                        Some(TopLevel {
+                            variable: top_level(store)?,
+                            store: true,
+                        })
+                    })
+            };
+            for &reference in ids {
+                references[reference.index()] = top;
+            }
+        }
+        Self {
+            implicit,
+            references,
+        }
+    }
+}
+
+/// The instance script's scope or the module script's, which encloses it.
+#[must_use]
+pub(crate) fn is_top_level(res: &Resolution, scope: ScopeId) -> bool {
+    scope == res.instance_scope() || scope == res.scoping().root_scope_id()
+}
+
+#[cfg(test)]
+mod tests;

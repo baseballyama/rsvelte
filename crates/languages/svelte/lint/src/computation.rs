@@ -5,7 +5,6 @@ use rsvelte_kernel::computation::database::{Artifact, DocumentContext, Facet};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
-use rsvelte_svelte_semantic::legacy::Legacy;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_semantic::{Lowered, Resolved};
 use rsvelte_svelte_syntax::syntax_tree::Component;
@@ -16,6 +15,7 @@ use rsvelte_typescript_tree::{
 };
 
 use crate::project::SvelteKitProject;
+use crate::rules::shared::legacy_reactivity::Legacy;
 use crate::types::TypeFacts;
 use crate::{Configuration, SvelteConfig};
 
