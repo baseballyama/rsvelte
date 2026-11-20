@@ -90,13 +90,19 @@ fn collect(
         files.push(path.to_owned());
         return Ok(());
     }
+    let here = std::env::current_dir().map_err(|e| format!("current directory: {e}"))?;
+    // Inside a repository, `.gitignore` files and excludes count up to the repository root, as
+    // oxfmt and git read them. Outside one, every `.gitignore` still counts.
+    let root = std::fs::canonicalize(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let in_repository = root
+        .ancestors()
+        .any(|directory| directory.join(".git").exists() || directory.join(".jj").exists());
     let mut walk = ignore::WalkBuilder::new(path);
-    // Dotfiles are source too; a project without git still means its `.gitignore`.
-    walk.hidden(false).require_git(false);
+    // Dotfiles are source too.
+    walk.hidden(false).require_git(in_repository);
     for name in skip.files {
         walk.add_custom_ignore_filename(name);
     }
-    let here = std::env::current_dir().map_err(|e| format!("current directory: {e}"))?;
     let patterns = skip.patterns.cloned();
     walk.filter_entry(move |entry| {
         if matches!(entry.file_name().to_str(), Some("node_modules" | ".git")) {
