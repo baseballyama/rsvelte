@@ -24,7 +24,7 @@ use rsvelte_svelte_compile::render_plan::{Namespace, Parent};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, CompilerNodeIdentifier, ElementKind, NodeKind, Part,
 };
-use rsvelte_svelte_semantic::evaluate::{Evaluation, Evaluator, Value};
+use rsvelte_svelte_semantic::evaluate::{Evaluation, Evaluator};
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_typescript_compile::build::{Builder, sanitize_template_string};
@@ -65,9 +65,6 @@ pub(crate) struct CustomElementValues {
     pub props: Option<ExpressionIdentifier>,
     pub extend: Option<ExpressionIdentifier>,
 }
-
-/// Svelte's passive events: a listener for them cannot prevent the default.
-const PASSIVE_EVENTS: &[&str] = &["touchstart", "touchmove"];
 
 /// Builds the Vue HIR, and the snippet declarations the setup program needs.
 ///
@@ -180,13 +177,6 @@ struct Template<'i, 'r, 't> {
     namespaces: FxHashMap<vue::CompilerNodeIdentifier, Namespace>,
     /// What the setup program declares for the template: snippet names and attachment keys.
     declarations: Vec<Statement<'t>>,
-}
-
-fn known_string(v: &Value) -> String {
-    match v {
-        Value::Null | Value::Undefined => String::new(),
-        v => v.to_javascript_string(),
-    }
 }
 
 impl<'i, 't> Template<'i, '_, 't> {
@@ -322,7 +312,7 @@ impl<'i, 't> Template<'i, '_, 't> {
                 Part::Expression { expression, .. } => {
                     let evaluated = self.evaluate(expression);
                     if evaluated.is_known {
-                        text.push_str(&known_string(&evaluated.value));
+                        text.push_str(&evaluated.value.to_template_string());
                         continue;
                     }
                     quasis.push(sanitize_template_string(&text).into_owned());

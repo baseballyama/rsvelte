@@ -48,14 +48,6 @@ const BLOCK_CLOSE: &str = "<!--]-->";
 const EMPTY_COMMENT: &str = "<!---->";
 
 /// `String(value ?? '')` for a known value.
-fn known_string(v: &rsvelte_svelte_semantic::evaluate::Value) -> String {
-    match v {
-        rsvelte_svelte_semantic::evaluate::Value::Null
-        | rsvelte_svelte_semantic::evaluate::Value::Undefined => String::new(),
-        v => v.to_javascript_string(),
-    }
-}
-
 struct ServerCompilationContext<'c, 'o> {
     b: &'c Builder<'o>,
     javascript: &'o Tree,

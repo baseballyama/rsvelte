@@ -76,6 +76,15 @@ impl Value {
         }
     }
 
+    /// `String(value ?? '')` for a known value: what a template prints.
+    #[must_use]
+    pub fn to_template_string(&self) -> String {
+        match self {
+            Self::Null | Self::Undefined => String::new(),
+            value => value.to_javascript_string(),
+        }
+    }
+
     pub(super) fn to_number(&self) -> f64 {
         match self {
             Self::Number(n) => *n,
