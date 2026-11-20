@@ -1,16 +1,15 @@
-// `oracle.ts <rules.txt> <inputs.txt> <rounds>`: ESLint with eslint-plugin-svelte, every rule in
+// `eslint.ts <rules.txt> <inputs.txt> <rounds>`: ESLint with eslint-plugin-svelte, every rule in
 // rules.txt on with its default options, over every input for `rounds` rounds. It prints the same
 // summary fields as the Rust workload.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { svelteLanguageOptions } from '../../../oracle/lint-cases.ts';
 
 const root = path.resolve(import.meta.dirname, '../../../..');
 const require = createRequire(path.join(root, 'tools/oracle/package.json'));
 const { Linter } = require('eslint');
 export const plugin = require('eslint-plugin-svelte').default;
-const svelteParser = require('svelte-eslint-parser');
-const globals = require('globals');
 
 const lines = (file: string) =>
 	fs
@@ -18,20 +17,16 @@ const lines = (file: string) =>
 		.split('\n')
 		.filter((line) => line !== '');
 
-// The configuration `oracle lint-cases` gives the lint crate's own cases.
+const languageOptions = svelteLanguageOptions(require);
+
+// Every rule on, with the language options `oracle lint-cases` gives the lint crate's own cases.
 export function configuration(rules: string[]): object[] {
 	return [
 		{
 			files: ['**'],
 			plugins: { svelte: plugin },
 			rules: Object.fromEntries(rules.map((rule) => [rule, 'error'])),
-			languageOptions: {
-				globals: globals.browser,
-				ecmaVersion: 'latest',
-				sourceType: 'module',
-				parser: svelteParser,
-				parserOptions: { parser: { ts: '@typescript-eslint/parser', js: 'espree' } },
-			},
+			languageOptions,
 		},
 	];
 }
