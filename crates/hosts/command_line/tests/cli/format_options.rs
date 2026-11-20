@@ -428,3 +428,58 @@ fn format_loads_the_value_a_configuration_leaves_after_editorconfig() {
         assert_eq!(read, expected, "{cell}");
     }
 }
+
+#[test]
+fn format_names_the_editorconfig_property_it_refuses() {
+    let source = "function f() {\nreturn 1\n}\n";
+    for (configuration, properties, reason) in [
+        (
+            ".oxfmtrc.json",
+            "indent_size = 30",
+            "oxfmt does not load this `indent_size` value",
+        ),
+        (
+            ".oxfmtrc.json",
+            "tab_width = 25",
+            "oxfmt does not load this `tab_width` value",
+        ),
+        (
+            ".oxfmtrc.json",
+            "max_line_length = 0",
+            "oxfmt does not load this `max_line_length` value",
+        ),
+        (
+            ".prettierrc",
+            "max_line_length = off",
+            "rsvelte does not print this `max_line_length` value yet",
+        ),
+        (
+            ".prettierrc",
+            "indent_size = 30",
+            "rsvelte does not print this `indent_size` value yet",
+        ),
+        (
+            ".prettierrc",
+            "indent_style = space\nindent_size = tab\ntab_width = 30",
+            "rsvelte does not print this `tab_width` value yet",
+        ),
+    ] {
+        let project = Project::new(&[
+            (".git/HEAD", "ref: refs/heads/main\n"),
+            (configuration, "{}"),
+            (
+                ".editorconfig",
+                &format!("root = true\n[*]\n{properties}\n"),
+            ),
+            ("a.ts", source),
+        ]);
+        let output = project.rsvelte(&["format"]);
+        let stderr = text(&output.stderr);
+        assert_eq!(output.status.code(), Some(2), "{properties}: {stderr}");
+        let editorconfig = project.0.join(".editorconfig");
+        let expected = format!("{}: {reason}", editorconfig.display());
+        assert!(stderr.contains(&expected), "{properties}: {stderr}");
+        let read = std::fs::read_to_string(project.0.join("a.ts")).expect("file");
+        assert_eq!(read, source, "{properties}");
+    }
+}

@@ -230,8 +230,8 @@ impl Resolver {
             ),
         };
         let outermost_first = editorconfigs.iter().rev().map(AsRef::as_ref);
-        for (name, value, at) in editorconfig::options(reading, outermost_first, &file) {
-            give(name, name, value, Origin::File(at));
+        for (name, value, written) in editorconfig::options(reading, outermost_first, &file) {
+            give(name, written.key, value, Origin::File(written.file));
         }
         if let Some(configuration) = &configuration {
             let source = || Origin::File(Arc::clone(&configuration.source));
