@@ -15,11 +15,12 @@ use rsvelte_vue_semantic::resolve::Resolution;
 /// The component as the Svelte compiler reads it: a runes instance program and a Svelte HIR, in a
 /// tree of their own over the `.vue` document's text.
 #[derive(Debug)]
-pub struct Translation {
+pub(crate) struct Translation {
     /// The instance program and every expression the HIR names.
-    pub javascript: Tree,
-    pub program: ProgramIdentifier,
-    pub compiler_syntax_tree: rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree,
+    pub(crate) javascript: Tree,
+    pub(crate) program: ProgramIdentifier,
+    pub(crate) compiler_syntax_tree:
+        rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree,
 }
 
 impl Translation {

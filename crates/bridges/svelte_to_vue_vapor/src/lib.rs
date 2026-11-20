@@ -15,7 +15,7 @@
 
 pub(crate) mod compilation;
 pub(crate) mod computation;
-pub use computation::{Checked, Compile, PLUGIN, register};
+pub use computation::register;
 
 /// Takes no options.
 pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_interface::Extension {
@@ -25,6 +25,3 @@ pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_inter
         Ok(())
     },
 };
-
-/// What the check artifact keeps of a component script.
-pub use compilation::script::Plan;

@@ -20,7 +20,7 @@ use crate::compilation::{R, span_of, unsupported};
 
 /// What `plan` found: the script's runes and the names the template needs.
 #[derive(Debug, Default)]
-pub struct Plan {
+pub(crate) struct Plan {
     constructors: constructors::Plan,
     pub(super) module_exports: FxHashMap<SymbolId, String>,
     pub(super) core_patterns: bool,
@@ -38,7 +38,7 @@ pub struct Plan {
     pub(crate) namespaces: Option<rsvelte_svelte_compile::render_plan::Namespaces>,
     pub(super) props_id: Option<SymbolId>,
     /// `...rest` in `$props()`: read through Vue's `useAttrs()`.
-    pub rest: Option<SymbolId>,
+    pub(crate) rest: Option<SymbolId>,
     pub(super) auxiliary: FxHashMap<&'static str, Span>,
 }
 

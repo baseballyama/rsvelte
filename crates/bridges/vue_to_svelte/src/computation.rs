@@ -9,7 +9,7 @@ use rsvelte_kernel::source::document::Document;
 use rsvelte_svelte_compile::Target;
 
 /// One of the two targets, as a type, so each gets its own chain of artifacts.
-pub trait Side: Send + Sync + 'static {
+pub(crate) trait Side: Send + Sync + 'static {
     const TARGET: Target;
     const TASK: &'static str;
     const TRANSLATED: &'static str;
@@ -18,7 +18,7 @@ pub trait Side: Send + Sync + 'static {
 }
 
 #[derive(Debug)]
-pub struct Client;
+pub(crate) struct Client;
 
 impl Side for Client {
     const ANALYZED: &'static str = "svue.analyze.client";
@@ -29,7 +29,7 @@ impl Side for Client {
 }
 
 #[derive(Debug)]
-pub struct Server;
+pub(crate) struct Server;
 
 impl Side for Server {
     const ANALYZED: &'static str = "svue.analyze.server";
@@ -42,7 +42,7 @@ impl Side for Server {
 /// The translation, or why there is none; `None` when the document did not parse (the error is
 /// on [`rsvelte_vue_syntax::Parsed`]).
 #[derive(Debug)]
-pub struct Translated<S>(PhantomData<S>);
+pub(crate) struct Translated<S>(PhantomData<S>);
 
 impl<S: Side> Artifact for Translated<S> {
     type Output = Option<Result<Translation, Diagnostic>>;
@@ -65,7 +65,7 @@ impl<S: Side> Artifact for Translated<S> {
 
 /// Svelte's name resolution over the translation.
 #[derive(Debug)]
-pub struct Resolved<S>(PhantomData<S>);
+pub(crate) struct Resolved<S>(PhantomData<S>);
 
 impl<S: Side> Artifact for Resolved<S> {
     type Output = Option<rsvelte_svelte_semantic::resolve::Resolution>;
@@ -85,7 +85,7 @@ impl<S: Side> Artifact for Resolved<S> {
 
 /// Svelte's analysis over the translation.
 #[derive(Debug)]
-pub struct Analyzed<S>(PhantomData<S>);
+pub(crate) struct Analyzed<S>(PhantomData<S>);
 
 impl<S: Side> Artifact for Analyzed<S> {
     type Output = Option<rsvelte_svelte_semantic::analyze::Analysis>;
@@ -103,7 +103,7 @@ impl<S: Side> Artifact for Analyzed<S> {
     }
 }
 
-pub static PLUGIN: Plugin = Plugin {
+pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "svue",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
@@ -129,7 +129,7 @@ pub fn register(reg: &mut Registry) {
 
 /// The module `svelte/compiler` would emit for the translation, for one target.
 #[derive(Debug)]
-pub struct Compile<S>(PhantomData<S>);
+pub(crate) struct Compile<S>(PhantomData<S>);
 
 impl<S: Side> Task for Compile<S> {
     fn identifier(&self) -> &'static str {
