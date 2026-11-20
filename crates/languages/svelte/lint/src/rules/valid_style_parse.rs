@@ -1,6 +1,6 @@
 use rsvelte_lint_runner::rule::Reporter;
 
-use super::style_sheet::{StyleVerdict, verdict};
+use super::shared::style_sheet::{StyleVerdict, verdict};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

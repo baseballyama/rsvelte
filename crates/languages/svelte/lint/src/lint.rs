@@ -4,9 +4,9 @@ use rsvelte_kernel::source::positions::{LineBreaks, Span};
 use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::findings::Findings;
 
+use crate::Configuration;
 use crate::rule::File;
 use crate::rules::{comment_directive, system};
-use crate::{Configuration, directives};
 
 /// The findings of `configuration`'s rules on a component or a module, in `ESLint`'s order, less
 /// those directive comments turn off.
@@ -39,7 +39,7 @@ pub(crate) fn check(
     // Directive lines are `ESLint`'s, which any ECMAScript line terminator ends.
     let lines = || file.context.lines(LineBreaks::Ecmascript);
     let on = |name: &str| rules.running(configuration, file).any(|r| r.name == name);
-    let unused = directives::apply_javascript(&mut findings, &comments, source, &lines, on);
+    let unused = javascript::apply(&mut findings, &comments, source, &lines, on);
     // The processor keeps a report without a rule, so the unused reports join after it.
     let add_unused = |mut findings: Vec<Finding>| {
         if !unused.is_empty() {
@@ -53,7 +53,7 @@ pub(crate) fn check(
     };
     // Upstream's processor applies the plugin's directives after `ESLint`'s, in rule order.
     if on(comment_directive::RULE.name) {
-        directives::template(component, source, lines()).apply(
+        processor::template(component, source, lines()).apply(
             &mut findings,
             lines(),
             Some(comment_directive::RULE.name),
@@ -62,7 +62,7 @@ pub(crate) fn check(
     if on(system::RULE.name) {
         let patterns = configuration.settings().ignored_rules();
         if !patterns.is_empty() {
-            directives::ignored_in_template(component, patterns, lines()).apply(
+            processor::ignored_in_template(component, patterns, lines()).apply(
                 &mut findings,
                 lines(),
                 None,
@@ -87,7 +87,9 @@ fn comments(file: &File<'_>) -> Vec<Span> {
 }
 
 mod configuration_comments;
+pub(crate) mod directive_comments;
 pub(crate) use configuration_comments::FileRules;
+use directive_comments::{javascript, processor};
 
 #[cfg(test)]
 mod tests;

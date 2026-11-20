@@ -8,6 +8,7 @@ use oxc_span::{GetSpan, Span as OxcSpan};
 use super::{Script, parameter_spans};
 use crate::rules::indent::layout::Item;
 use crate::rules::indent::tokens::Token;
+use crate::rules::shared::nodes::from_oxc;
 
 /// How a signature starts, which decides what its parameters and return type follow.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -303,7 +304,7 @@ impl<'a> Script<'_, 'a> {
     ) {
         let tokens = self.tokens();
         let inner = [constraint, default];
-        let mut all = tokens.within(super::span(node));
+        let mut all = tokens.within(from_oxc(node));
         let Some(first) = all.next() else {
             return;
         };
@@ -445,7 +446,7 @@ impl<'a> Script<'_, 'a> {
         let first = self.first(node);
         let tokens = self.tokens();
         let parts: Vec<Token> = tokens
-            .within(super::span(node))
+            .within(from_oxc(node))
             .filter(|&t| tokens.is_template(t))
             .collect();
         // The token after each part but the last.

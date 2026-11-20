@@ -3,8 +3,8 @@ use oxc_ast::ast::{Argument, CallExpression, Expression, FormalParameters, State
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::nodes::{is_named, only_statement, span, text};
-use super::runes::runes_or_undetermined;
+use super::shared::nodes::{is_named, only_statement, span, text};
+use super::shared::runes::runes_or_undetermined;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

@@ -18,8 +18,8 @@ use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_semantic::static_value::{StaticValues, Value};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::nodes::span;
-use super::runes::is_svelte_file;
+use super::shared::nodes::span;
+use super::shared::runes::is_svelte_file;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

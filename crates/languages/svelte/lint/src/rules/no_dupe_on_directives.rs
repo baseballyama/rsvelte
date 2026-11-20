@@ -1,7 +1,7 @@
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_syntax::syntax_tree::AttributeKind;
 
-use super::duplicate_directives::report_duplicates;
+use super::shared::duplicate_directives::report_duplicates;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

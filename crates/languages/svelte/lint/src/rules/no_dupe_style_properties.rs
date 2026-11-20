@@ -3,7 +3,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::style_attribute::property_sets;
+use super::shared::style_attribute::property_sets;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

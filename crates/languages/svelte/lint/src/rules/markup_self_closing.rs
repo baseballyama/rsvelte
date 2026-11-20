@@ -1,4 +1,4 @@
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace as is_javascript_whitespace;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
@@ -109,7 +109,7 @@ impl SvelteRule for MarkupSelfClosing {
                 // The decoded text, as `svelte-eslint-parser`'s `value` is.
                 TemplateNode::Text { span } => decode_text(span.text(source))
                     .chars()
-                    .all(is_javascript_whitespace),
+                    .all(is_ecmascript_whitespace),
                 _ => false,
             });
             if !empty {

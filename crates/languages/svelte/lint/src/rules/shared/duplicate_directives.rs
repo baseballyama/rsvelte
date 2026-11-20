@@ -15,7 +15,7 @@ mod tests;
 /// Reports every directive that `key` selects and another directive of its start tag repeats.
 /// `key` gives a directive's key text, or `None` for an attribute that is not one;
 /// `message(key, line)` names the key and the line of the first other copy.
-pub(super) fn report_duplicates<'s>(
+pub(crate) fn report_duplicates<'s>(
     component: &Component,
     source: &'s str,
     reporter: &mut Reporter<'_>,

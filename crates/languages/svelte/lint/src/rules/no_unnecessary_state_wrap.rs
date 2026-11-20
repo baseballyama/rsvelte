@@ -7,9 +7,8 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_semantic::reference_tracker::import_references;
 use serde::Deserialize;
 
-use super::node_span;
-use super::nodes::is_named;
-use super::runes::runes_or_undetermined;
+use super::shared::nodes::{from_oxc, is_named};
+use super::shared::runes::runes_or_undetermined;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -69,11 +68,11 @@ impl SvelteRule for NoUnnecessaryStateWrap {
             reporter.report(
                 Report::range(
                     format!("{class} is already reactive, $state wrapping is unnecessary."),
-                    node_span(argument),
+                    from_oxc(argument),
                 )
                 .suggest(Suggestion {
                     message: "Remove unnecessary $state wrapping".to_owned(),
-                    fix: Fix::replace(node_span(call), node_span(argument).text(source)),
+                    fix: Fix::replace(from_oxc(call), from_oxc(argument).text(source)),
                 }),
             );
         };

@@ -52,7 +52,7 @@ impl Artifact for StyleSheetVerdict {
     }
 }
 
-pub(super) fn verdict<'a>(file: &File<'a>) -> &'a StyleVerdict {
+pub(crate) fn verdict<'a>(file: &File<'a>) -> &'a StyleVerdict {
     file.context.get::<StyleSheetVerdict>()
 }
 
@@ -89,7 +89,7 @@ impl Artifact for LintStyleSheet {
 }
 
 /// The style sheet that the rules which read selectors see, once `PostCSS` reads the element.
-pub(super) fn sheet<'a>(file: &File<'a>) -> Option<&'a StyleSheet> {
+pub(crate) fn sheet<'a>(file: &File<'a>) -> Option<&'a StyleSheet> {
     if !matches!(verdict(file), StyleVerdict::Parsed) {
         return None;
     }

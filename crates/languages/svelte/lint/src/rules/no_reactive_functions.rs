@@ -4,8 +4,8 @@ use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TokenType;
 
-use super::nodes::span;
-use super::reactive_statements::{between, reactive_statements};
+use super::shared::nodes::span;
+use super::shared::reactive_statements::{between, reactive_statements};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

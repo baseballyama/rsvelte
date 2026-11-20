@@ -6,8 +6,8 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{Visit, walk};
 use rsvelte_lint_runner::rule::Reporter;
 
-use super::kit_route::{RouteFile, route_file};
-use super::nodes::{is_named, span};
+use super::shared::kit_route::{RouteFile, route_file};
+use super::shared::nodes::{is_named, span};
 use crate::LintSettings;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 

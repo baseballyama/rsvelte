@@ -10,7 +10,7 @@ use crate::rule::File;
 mod tests;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(super) enum RouteFile {
+pub(crate) enum RouteFile {
     Page,
     Layout,
     Error,
@@ -19,7 +19,7 @@ pub(super) enum RouteFile {
 /// The route component `file` is: a `+page.svelte`, `+layout.svelte` or `+error.svelte` under the
 /// routes directory of `settings` and the file's `svelte.config.js`. Without the host's
 /// `svelte.config.js`, the rule fails instead of guessing the routes directory.
-pub(super) fn route_file(
+pub(crate) fn route_file(
     settings: &LintSettings,
     file: &File<'_>,
     reporter: &mut Reporter<'_>,
@@ -51,11 +51,11 @@ pub(super) fn route_file(
 }
 
 /// The versions of `SvelteKit` that have `$app/paths`' `base` (`svelteKitVersions`).
-pub(super) const BASE_VERSIONS: &[&str] = &["1.0.0-next", "1", "2"];
+pub(crate) const BASE_VERSIONS: &[&str] = &["1.0.0-next", "1", "2"];
 
 /// Whether the document is in a project of one of `versions` of `SvelteKit`. Without the host's
 /// facts, the rule fails instead of guessing.
-pub(super) fn runs_for(file: &File<'_>, reporter: &mut Reporter<'_>, versions: &[&str]) -> bool {
+pub(crate) fn runs_for(file: &File<'_>, reporter: &mut Reporter<'_>, versions: &[&str]) -> bool {
     let Some(project) = file.svelte_kit() else {
         reporter.fail("no host provides the document's SvelteKit project");
         return false;

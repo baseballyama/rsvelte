@@ -1,5 +1,5 @@
 use oxc_parser::Kind;
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace as is_javascript_whitespace;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::{LineBreaks, Span};
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
@@ -76,10 +76,10 @@ impl SvelteRule for NoTrailingSpaces {
                 span.start_offset += '\u{feff}'.len_utf8() as u32;
             }
             let text = span.text(source);
-            if ignored || (self.0.skip_blank_lines && text.chars().all(is_javascript_whitespace)) {
+            if ignored || (self.0.skip_blank_lines && text.chars().all(is_ecmascript_whitespace)) {
                 continue;
             }
-            let trimmed = text.trim_end_matches(is_javascript_whitespace);
+            let trimmed = text.trim_end_matches(is_ecmascript_whitespace);
             if trimmed.len() == text.len() {
                 continue;
             }

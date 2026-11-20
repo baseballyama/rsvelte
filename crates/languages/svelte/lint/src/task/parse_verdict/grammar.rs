@@ -9,7 +9,7 @@ use rsvelte_typescript_tree::ProgramIdentifier;
 
 /// The scripts of `component`.
 pub(super) fn scripts(component: &Component) -> impl Iterator<Item = ProgramIdentifier> {
-    (component.module.iter().chain(&component.instance)).map(|script| script.program)
+    component.scripts().map(|script| script.program)
 }
 
 /// What tsc's scanner rejects first in the scripts that oxc and Svelte's parser read, as

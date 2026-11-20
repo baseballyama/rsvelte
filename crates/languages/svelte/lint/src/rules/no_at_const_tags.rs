@@ -4,8 +4,8 @@ use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{TemplateNode, TokenType};
 
-use super::nodes;
-use super::runes::runes;
+use super::shared::nodes;
+use super::shared::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
