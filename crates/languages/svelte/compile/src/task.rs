@@ -193,49 +193,12 @@ pub fn compile_input(
     an: &rsvelte_svelte_semantic::analyze::Analysis,
     target: Target,
 ) -> Result<String, Diagnostic> {
-    let configuration = crate::Configuration::default();
-    let validated = lower::validate(input, res)?;
     let plan = crate::render_plan::RenderPlan::build(input);
-    let identity =
-        crate::OutputIdentity::build_with_configuration(&input.component, &configuration).map_err(
-            |error| {
-                Diagnostic::error(
-                    "svelte.compile.css-hash",
-                    error.to_string(),
-                    rsvelte_kernel::source::positions::Span::new(0, 0),
-                )
-            },
-        )?;
-    let stylesheet = if validated.embeds_stylesheet(target) {
-        crate::stylesheet::scoped_stylesheet_with_mode(
-            &input.component,
-            an,
-            &identity,
-            rsvelte_stylesheet_compile::scope::RenderMode::Minify,
-        )
-    } else {
-        None
-    };
-    compile_with_facts(
-        lower::Lowering {
-            input,
-            res,
-            an,
-            plan: &plan,
-            identity: &identity,
-            validated: &validated,
-            stylesheet: stylesheet.as_deref(),
-        },
-        target,
-    )
-}
-
-fn compile_with_facts(
-    facts: lower::Lowering<'_, '_>,
-    target: Target,
-) -> Result<String, Diagnostic> {
     rsvelte_typescript_tree::with_scratch_arena(|allocator| {
-        let module = lower_measured(facts, target, allocator)?;
+        let module = {
+            let _p = measurement::phase(target.lower_phase());
+            lower::lower_with_plan(input, res, an, target, &plan, allocator)?
+        };
         let _p = measurement::phase("js.print");
         Ok(print::print(&module))
     })
