@@ -47,7 +47,6 @@ impl SvelteRule for NoUndef {
         for (name, references) in scoping.root_unresolved_references() {
             let name = name.as_str();
             if is_svelte_global(name, runes)
-                || globals.declares(name)
                 || top_level.stores(name, runes).next().is_some()
                 || top_level.binding(name).is_some()
                 || reactive.contains(name)
@@ -56,8 +55,7 @@ impl SvelteRule for NoUndef {
             }
             for &id in references {
                 let reference = scoping.get_reference(id);
-                let flags = reference.flags();
-                if !flags.is_value() && !flags.is_value_as_type() && globals.declares_type(name) {
+                if globals.resolves(name, reference.flags()) {
                     continue;
                 }
                 // A function's own `arguments`, which eslint-scope declares in every function.

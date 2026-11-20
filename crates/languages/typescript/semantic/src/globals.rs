@@ -1,5 +1,6 @@
 //! The global variables `ESLint` declares: the language's builtins and the browser's.
 
+use oxc_semantic::ReferenceFlags;
 use rustc_hash::FxHashMap;
 
 /// Where a global variable comes from.
@@ -32,8 +33,7 @@ pub fn global(name: &str) -> Option<Global> {
 /// Whether typescript-eslint declares `name` from the TypeScript library a parse without a
 /// program reads (`lib: ['esnext']`): `Some(true)` for a value and a type, `Some(false)` for a
 /// type only.
-#[must_use]
-pub fn library(name: &str) -> Option<bool> {
+fn library(name: &str) -> Option<bool> {
     LIBRARY
         .binary_search_by(|(row, _)| row.cmp(&name))
         .ok()
@@ -140,11 +140,12 @@ impl Declared {
         set || library(name) == Some(true)
     }
 
-    /// Whether a type reference to `name` resolves: a global variable, or any name of the
-    /// TypeScript library.
+    /// Whether a reference with `flags` to a `name` no scope declares resolves: to a global
+    /// variable, or for a type reference, also to any type of the TypeScript library.
     #[must_use]
-    pub fn declares_type(&self, name: &str) -> bool {
-        self.declares(name) || library(name).is_some()
+    pub fn resolves(&self, name: &str, flags: ReferenceFlags) -> bool {
+        let type_only = !flags.is_value() && !flags.is_value_as_type();
+        self.declares(name) || type_only && library(name).is_some()
     }
 }
 
