@@ -4,14 +4,15 @@
 without a type checker or Node. The output uses `.ts`, so angle-bracket type assertions stay
 valid. Template checks need no JSX: elements become typed calls to `svelteHTML.createElement`.
 
-| API                                               | Result                                                                         |
-| ------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `lower(&Component, source)`                       | An immutable projection AST                                                    |
-| `emit(&SyntaxTree, source)`                       | TypeScript text and byte-range source mappings                                 |
-| `DECLARATIONS`                                    | Filename and text of the projection helpers' type declarations                 |
-| `SHIMS`                                           | The same without the element types, beside svelte's `svelte-html.d.ts`         |
-| `register(&mut Registry)`                         | `svelte.typescript_projection/default`, plus cached AST and emission artifacts |
-| `content_mapper::write_transform(source, output)` | A native TypeScript content mapper transform result                            |
+| API                                                     | Result                                                                         |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `lower(&Component, source, path, resolution)`           | An immutable projection AST                                                    |
+| `lower_alone(&Component, source, path)`                 | The same, resolving the component's names itself                               |
+| `emit(&SyntaxTree, source, path)`                       | TypeScript text and byte-range source mappings                                 |
+| `DECLARATIONS`                                          | Filename and text of the projection helpers' type declarations                 |
+| `SHIMS`                                                 | The same without the element types, beside svelte's `svelte-html.d.ts`         |
+| `register(&mut Registry)`                               | `svelte.typescript_projection/default`, plus cached AST and emission artifacts |
+| `content_mapper::write_transform(path, source, output)` | A native TypeScript content mapper transform result                            |
 
 ## How it builds the projection
 
@@ -29,10 +30,9 @@ and share the parser artifacts when you compose tasks.
 
 The design follows the separate AST construction and printing steps of the
 [TypeScript compiler API](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API).
-Each file has flat node and child vectors with `u32` IDs. A per-node side table records the
-TypeScript expression suffixes once, so the lowering does not search all suffixes for every
-expression. The projection shares the parser artifact with the compiler and needs no
-semantic-analysis crate. Node, child and scratch buffers come from the kernel's bounded
+Each file has flat node and child vectors with `u32` IDs. The projection shares the parser
+artifact with the compiler and reads name resolution from `rsvelte_svelte_semantic`, only for
+the constructs that need it. Node, child and scratch buffers come from the kernel's bounded
 per-thread pool.
 
 ## Use it with native TypeScript
