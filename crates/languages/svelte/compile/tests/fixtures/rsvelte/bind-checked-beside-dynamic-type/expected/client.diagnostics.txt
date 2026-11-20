@@ -1,0 +1,2 @@
+error attribute_invalid_type 6:8-6:17 'type' attribute must be a static text value if input uses two-way binding
+    https://svelte.dev/e/attribute_invalid_type
