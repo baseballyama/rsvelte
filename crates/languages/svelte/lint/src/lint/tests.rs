@@ -1,10 +1,10 @@
+use oxc_ast::{Comment, CommentKind};
 use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::{Document, DocumentError};
 use rsvelte_kernel::source::positions::Span;
 
 use super::*;
-use crate::rule::JavaScriptComment;
 
 /// Lints one source, as `ESLint`'s `Linter.verify(code, config, filename)` does with
 /// `eslint-plugin-svelte`. `filename` is where rules that look at the path read it.
@@ -31,15 +31,14 @@ pub(super) fn verify(
 }
 
 /// `text` as one whole JavaScript comment, `//` or `/* */`.
-pub(super) fn comment(text: &str) -> JavaScriptComment {
+pub(super) fn comment(text: &str) -> Comment {
     let end = u32::try_from(text.len()).expect("short");
-    let block = text.starts_with("/*");
-    let value = Span::new(2, if block { end - 2 } else { end });
-    JavaScriptComment {
-        span: Span::new(0, end),
-        value,
-        block,
-    }
+    let kind = if text.starts_with("/*") {
+        CommentKind::SingleLineBlock
+    } else {
+        CommentKind::Line
+    };
+    Comment::new(0, end, kind)
 }
 
 const SOURCE: &str = "<script>let unused = 1;</script>\n<button>x</button>\n";

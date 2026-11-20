@@ -69,14 +69,14 @@ impl SvelteRule for NoAddEventListener {
 fn next_token(file: &File<'_>, mut at: u32) -> Option<Span> {
     let source = file.source();
     let comments = file.comments();
-    let mut comment = comments.partition_point(|c| c.span.start_offset < at);
+    let mut comment = comments.partition_point(|c| c.span.start < at);
     loop {
         let rest = source.get(at as usize..)?;
         let trimmed = rest.trim_start_matches(is_ecmascript_whitespace);
         at += u32::try_from(rest.len() - trimmed.len()).ok()?;
         match comments.get(comment) {
-            Some(c) if c.span.start_offset == at => {
-                at = c.span.end_offset;
+            Some(c) if c.span.start == at => {
+                at = c.span.end;
                 comment += 1;
             }
             _ => {

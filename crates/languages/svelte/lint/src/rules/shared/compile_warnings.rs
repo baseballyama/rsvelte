@@ -47,7 +47,11 @@ pub(crate) fn ignores(file: &File<'_>) -> Ignores {
     let mut out = Ignores::default();
     let source = file.source();
     for comment in file.comments() {
-        read(comment.value, comment.span, source, &mut out);
+        let (value, comment) = (
+            document_span(comment.content_span()),
+            document_span(comment.span),
+        );
+        read(value, comment, source, &mut out);
     }
     for node in file.component().into_iter().flat_map(|c| &c.nodes) {
         if let TemplateNode::Comment { span, data } = *node {

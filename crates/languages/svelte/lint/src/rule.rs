@@ -2,11 +2,11 @@
 
 use std::sync::OnceLock;
 
+use oxc_ast::Comment;
 use oxc_semantic::AstNodes;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Contribution;
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::Warned;
 use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
@@ -15,7 +15,7 @@ use rsvelte_svelte_semantic::warnings::CompileWarnings;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_semantic::globals::Declared;
 use rsvelte_typescript_semantic::semantic::Semantic;
-use rsvelte_typescript_tree::{ProgramIdentifier, Script, Tree, document_span};
+use rsvelte_typescript_tree::{ProgramIdentifier, Script, Tree};
 
 use crate::computation::{ConditionTypes, Linted, ModuleSemantic, NativeConditionTypes};
 use crate::project::{SvelteConfiguration, SvelteKit, SvelteKitProject};
@@ -79,20 +79,10 @@ pub struct File<'a> {
     pub context: &'a DocumentContext<'a>,
     parsed: Source<'a>,
     configured_globals: &'a Declared,
-    comments: OnceLock<Vec<JavaScriptComment>>,
+    /// Every JavaScript comment of the document, in document order.
+    comments: Vec<&'a Comment>,
     /// The configuration's globals as the comments set them, or `None` when no comment sets one.
     globals: OnceLock<Option<Declared>>,
-}
-
-/// A JavaScript comment as the parser read it.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct JavaScriptComment {
-    /// The whole comment, delimiters included.
-    pub(crate) span: Span,
-    /// The text between the delimiters.
-    pub(crate) value: Span,
-    /// A `/* */` comment, not a `//` one.
-    pub(crate) block: bool,
 }
 
 #[derive(Debug)]
@@ -117,13 +107,24 @@ impl<'a> File<'a> {
         } else {
             Source::Module(crate::computation::module(context).map_err(Clone::clone)?)
         };
-        Ok(Self {
+        let mut file = Self {
             context,
             parsed,
             configured_globals: globals,
-            comments: OnceLock::new(),
+            comments: Vec::new(),
             globals: OnceLock::new(),
-        })
+        };
+        // Every run reads the configuration comments, so the list is never left unused.
+        let tree = file.javascript();
+        file.comments = file
+            .programs()
+            .into_iter()
+            .flat_map(|program| &tree.get_program(program).comments)
+            .chain(tree.comments())
+            .collect();
+        file.comments
+            .sort_unstable_by_key(|comment| comment.span.start);
+        Ok(file)
     }
 
     /// The global variables: the configuration's, as the document's `/* global */` comments set
@@ -143,23 +144,8 @@ impl<'a> File<'a> {
     /// Every JavaScript comment of the document, the scripts' and the template's, in document
     /// order: what `ESLint` reads directive comments from.
     #[must_use]
-    pub(crate) fn comments(&self) -> &[JavaScriptComment] {
-        self.comments.get_or_init(|| {
-            let tree = self.javascript();
-            let mut out: Vec<JavaScriptComment> = self
-                .programs()
-                .into_iter()
-                .flat_map(|program| &tree.get_program(program).comments)
-                .chain(tree.comments())
-                .map(|comment| JavaScriptComment {
-                    span: document_span(comment.span),
-                    value: document_span(comment.content_span()),
-                    block: comment.is_block(),
-                })
-                .collect();
-            out.sort_unstable_by_key(|comment| comment.span.start_offset);
-            out
-        })
+    pub(crate) fn comments(&self) -> &[&'a Comment] {
+        &self.comments
     }
 
     #[must_use]

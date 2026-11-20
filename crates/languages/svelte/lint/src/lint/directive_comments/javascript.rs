@@ -1,13 +1,14 @@
 //! `ESLint`'s own directive comments, in JavaScript comments.
 
+use oxc_ast::Comment as OxcComment;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_lint_runner::finding::{Finding, Fix, UNUSED_DIRECTIVE};
+use rsvelte_typescript_tree::document_span;
 use rustc_hash::FxHashMap;
 
 use super::{Kind, justification_start};
-use crate::rule::JavaScriptComment;
 
 /// One rule name of a directive comment, or every rule (`None`), at `ESLint`'s position: a line
 /// and a 1-based column, where column 0 comes before the line's first finding.
@@ -35,7 +36,7 @@ struct Comment<'a> {
 /// what it can tell: a rule name that `running` says runs, whose findings are all here.
 pub(crate) fn apply<'l>(
     findings: &mut Vec<Finding>,
-    comments: &[JavaScriptComment],
+    comments: &[&OxcComment],
     source: &str,
     lines: &dyn Fn() -> &'l LineIndex,
     running: impl Fn(&str) -> bool,
@@ -43,10 +44,13 @@ pub(crate) fn apply<'l>(
     let mut parsed: Vec<Comment<'_>> = Vec::new();
     let mut blocks: Vec<Applied> = Vec::new();
     let mut line_directives: Vec<Applied> = Vec::new();
-    for &JavaScriptComment { span, value, block } in comments {
-        let Some((kind, rules, list)) = javascript_directive(value.text(source)) else {
+    for &comment in comments {
+        let span = document_span(comment.span);
+        let value = document_span(comment.content_span()).text(source);
+        let Some((kind, rules, list)) = javascript_directive(value) else {
             continue;
         };
+        let block = comment.is_block();
         let start = lines().line_column(span.start_offset);
         let line = match kind {
             Kind::Disable | Kind::Enable if block => None,

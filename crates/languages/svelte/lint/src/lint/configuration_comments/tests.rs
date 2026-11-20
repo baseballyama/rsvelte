@@ -4,7 +4,7 @@ use super::*;
 use crate::lint::tests::{comment, verify};
 
 fn read(text: &str) -> Vec<String> {
-    settings(&[comment(text)], text)
+    settings(&[&comment(text)], text)
         .into_iter()
         .map(|(name, setting)| match setting {
             Setting::Off => format!("{name} off"),
