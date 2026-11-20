@@ -19,7 +19,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { parseArgs } from 'node:util';
+import { parseArgs, stripVTControlCharacters } from 'node:util';
 
 interface Phase {
 	calls: number;
@@ -126,14 +126,28 @@ export async function main(args: string[]): Promise<void> {
 	async function build(flavour: 'metrics' | 'plain', directory: string): Promise<string> {
 		const dir = path.join(ROOT, 'target', `performance-${flavour}`);
 		const features = flavour === 'metrics' ? ['--features', 'metrics'] : [];
-		await start(
+		// Each binary of the package has its own LTO link, and only rsvelte-dev is measured.
+		const stderr = await start(
 			'cargo',
-			['build', '--release', '--offline', '-p', 'rsvelte_command_line', ...features],
+			[
+				'build',
+				'--release',
+				'--offline',
+				'-p',
+				'rsvelte_command_line',
+				'--bin',
+				'rsvelte-dev',
+				...features,
+			],
 			{
 				...process.env,
 				CARGO_TARGET_DIR: dir,
 			},
 		);
+		// Crates the cache did not restore, so a slow build can be told apart from a cold cache. CI
+		// colours cargo's output, and a colour code sits between `Compiling` and its space.
+		const compiled = stripVTControlCharacters(stderr).match(/^\s*Compiling /gm)?.length ?? 0;
+		console.error(`  ${flavour}: ${compiled} crates compiled`);
 		fs.mkdirSync(path.join(directory, flavour));
 		const copy = path.join(directory, flavour, 'rsvelte-dev');
 		fs.copyFileSync(path.join(dir, 'release', 'rsvelte-dev'), copy);
