@@ -10,6 +10,7 @@ use rsvelte_svelte_semantic::warnings::{CompileWarnings, code_for_v5};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
 use rsvelte_typescript_tree::{ProgramIdentifier, document_span};
 
+use super::markup::lang_attribute;
 use crate::project::{PostcssConfiguration, PostcssConfigurationOnDisk};
 use crate::rule::File;
 use crate::settings::ExperimentalAsync;
@@ -314,10 +315,8 @@ fn is_stylesheet(
     source: &str,
     postcss: impl FnOnce() -> bool,
 ) -> bool {
-    attributes
-        .iter()
-        .find(|(name, _)| name.text(source) == "lang")
-        .and_then(|(_, value)| *value)
+    lang_attribute(attributes, source)
+        .and_then(|&(_, value)| value)
         .is_none_or(|value| {
             let lang = value.text(source).to_ascii_lowercase();
             lang == "css" || (matches!(lang.as_str(), "postcss" | "pcss") && postcss())
