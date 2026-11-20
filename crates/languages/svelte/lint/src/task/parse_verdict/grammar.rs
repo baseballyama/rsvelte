@@ -7,8 +7,8 @@ use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_tree::ProgramIdentifier;
 
-/// The scripts of `component`.
-pub(super) fn scripts(component: &Component) -> impl Iterator<Item = ProgramIdentifier> {
+/// The programs of `component`: `<script module>`, then `<script>`.
+pub(super) fn programs(component: &Component) -> impl Iterator<Item = ProgramIdentifier> {
     component.scripts().map(|script| script.program)
 }
 
@@ -17,7 +17,7 @@ pub(super) fn scripts(component: &Component) -> impl Iterator<Item = ProgramIden
 pub(super) fn scanner_rejection(component: &Component) -> Option<(String, u32)> {
     let tree = &component.javascript;
     let mut scanner = Scanner { first: None };
-    for program in scripts(component) {
+    for program in programs(component) {
         scanner.visit_program(tree.get_program(program));
     }
     scanner.first
@@ -107,7 +107,7 @@ impl<'a> Visit<'a> for Scanner {
 pub(super) fn optional_private_name(component: &Component) -> Option<u32> {
     let tree = &component.javascript;
     let mut found = OptionalPrivateName { first: None };
-    for program in scripts(component) {
+    for program in programs(component) {
         let program = tree.get_program(program);
         let text = program.span.source_text(program.source_text);
         if text.contains("?.") && text.contains('#') {
