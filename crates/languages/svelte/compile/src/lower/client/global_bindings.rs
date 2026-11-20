@@ -3,7 +3,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::MetadataTag;
 
 use super::{Attribute, AttributeValue, ClientCompilationContext, Lists};
 use crate::lower::builder::Runtime;
-use crate::lower::special::{GlobalBinding, global_binding};
+use crate::lower::global_bindings::{GlobalBinding, global_binding};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn global_binding(

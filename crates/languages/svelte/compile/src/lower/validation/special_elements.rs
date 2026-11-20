@@ -1,7 +1,8 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
 
-use super::template::single_expression;
-use super::{
+use crate::lower::global_bindings::global_binding;
+use crate::lower::template::single_expression;
+use crate::lower::{
     AttributeValue, CompileInput, CompilerNodeIdentifier, CompilerSyntaxTree, Diagnostic, Element,
     NodeKind, Span, invalid, unsupported,
 };
@@ -11,12 +12,12 @@ mod options;
 /// What `<svelte:options>` asks of the output.
 #[derive(Default)]
 pub(super) struct SvelteOptions {
-    pub(super) custom_element: Option<super::custom_element::CustomElement>,
+    pub(super) custom_element: Option<crate::lower::custom_element::CustomElement>,
     /// `css="injected"`: the component adds its stylesheet when it renders.
     pub(super) stylesheet_injected: bool,
 }
 
-pub(super) fn validate(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagnostic> {
+pub(super) fn read_svelte_options(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     // The parser has checked the placement and the options, as upstream's does.
     let mut options = SvelteOptions::default();
@@ -61,7 +62,7 @@ pub(super) fn validate(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagno
 /// # Errors
 ///
 /// That error.
-pub(super) fn analysis(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
+pub(super) fn special_element_error(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
     for (identifier, element) in tree.elements() {
@@ -102,7 +103,7 @@ pub(super) fn analysis(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
                     if !matches!(
                         attribute.name.text(source),
                         "onerror" | "failed" | "pending"
-                    ) || super::template::is_directive(&attribute.value)
+                    ) || crate::lower::template::is_directive(&attribute.value)
                     {
                         return invalid(
                             "svelte_boundary_invalid_attribute",
@@ -173,7 +174,7 @@ fn validate_dynamic_component(
 fn validate_globals(
     source: &str,
     tag: MetadataTag,
-    attributes: &[super::Attribute],
+    attributes: &[crate::lower::Attribute],
 ) -> Result<(), Diagnostic> {
     let host = match tag {
         MetadataTag::Window => "svelte:window",
@@ -190,7 +191,7 @@ fn validate_globals(
                 | AttributeValue::Interpolated(_)
         );
         if matches!(attribute.value, AttributeValue::Spread(_))
-            || (plain && super::event_attribute(source, attribute).is_none())
+            || (plain && crate::lower::event_attribute(source, attribute).is_none())
         {
             if tag == MetadataTag::Body {
                 return invalid(
@@ -211,7 +212,7 @@ fn validate_globals(
         if let AttributeValue::Bind(_) = attribute.value
             && global_binding(tag, attribute.name.text(source)).is_none()
         {
-            super::bindings::check_binding(source, host, attributes, attribute)?;
+            crate::lower::bindings::check_binding(source, host, attributes, attribute)?;
             return unsupported("this global binding", attribute.span);
         }
     }
@@ -237,54 +238,4 @@ fn no_children(
         );
     }
     Ok(())
-}
-
-#[derive(Clone, Copy)]
-pub(super) enum GlobalBinding {
-    This,
-    Size,
-    Scroll(&'static str),
-    Online,
-    ActiveElement,
-    Focused,
-    Property(&'static str),
-    /// A binding `<svelte:body>` shares with an element.
-    Element,
-}
-
-pub(super) fn global_binding(tag: MetadataTag, property: &str) -> Option<GlobalBinding> {
-    match (tag, property) {
-        (_, "this") => Some(GlobalBinding::This),
-        (MetadataTag::Window, "innerWidth" | "innerHeight" | "outerWidth" | "outerHeight") => {
-            Some(GlobalBinding::Size)
-        }
-        (MetadataTag::Window, "scrollX") => Some(GlobalBinding::Scroll("x")),
-        (MetadataTag::Window, "scrollY") => Some(GlobalBinding::Scroll("y")),
-        (MetadataTag::Window, "online") => Some(GlobalBinding::Online),
-        (MetadataTag::Window, "devicePixelRatio") => Some(GlobalBinding::Property("resize")),
-        (MetadataTag::Document, "activeElement") => Some(GlobalBinding::ActiveElement),
-        (MetadataTag::Window | MetadataTag::Document, "focused") => Some(GlobalBinding::Focused),
-        (
-            MetadataTag::Body,
-            "focused"
-            | "clientWidth"
-            | "clientHeight"
-            | "offsetWidth"
-            | "offsetHeight"
-            | "contentRect"
-            | "contentBoxSize"
-            | "borderBoxSize"
-            | "devicePixelContentBoxSize",
-        ) => Some(GlobalBinding::Element),
-        (MetadataTag::Document, "fullscreenElement") => {
-            Some(GlobalBinding::Property("fullscreenchange"))
-        }
-        (MetadataTag::Document, "pointerLockElement") => {
-            Some(GlobalBinding::Property("pointerlockchange"))
-        }
-        (MetadataTag::Document, "visibilityState") => {
-            Some(GlobalBinding::Property("visibilitychange"))
-        }
-        _ => None,
-    }
 }

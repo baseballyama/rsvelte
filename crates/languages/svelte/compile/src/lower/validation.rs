@@ -7,6 +7,7 @@ mod awaits;
 mod declarations;
 pub(super) mod markup;
 mod runes;
+mod special_elements;
 
 pub(super) use awaits::check as check_awaits;
 pub(in crate::lower) use markup::each_key;
@@ -15,7 +16,7 @@ pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, s
 
 use super::{
     CompileInput, Diagnostic, Resolution, Span, Target, const_cycles, coverage, custom_element,
-    rest_reads, script, snippets, special, stores,
+    rest_reads, script, snippets, stores,
 };
 
 /// An error upstream raises as it parses, before any other.
@@ -102,10 +103,10 @@ pub(crate) fn validate_unit(
     if res.awaits() {
         check_awaits(input)?;
     }
-    let special::SvelteOptions {
+    let special_elements::SvelteOptions {
         custom_element,
         stylesheet_injected,
-    } = special::validate(input)?;
+    } = special_elements::read_svelte_options(input)?;
     let typescript = unit == Unit::Component && has_typescript_feature(input);
     // Upstream erases the types right after it parses, before it analyzes.
     if typescript {
@@ -188,7 +189,11 @@ pub(crate) fn mode_independent_errors(input: &CompileInput<'_>, res: &Resolution
     } else {
         raised.extend(check_awaits(input).err().map(parse));
     }
-    raised.extend(special::validate(input).err().map(parse));
+    raised.extend(
+        special_elements::read_svelte_options(input)
+            .err()
+            .map(parse),
+    );
     raised.extend(template_error(input).map(|(at, error)| (walk(at), error)));
     CompileErrors {
         raised,
@@ -289,7 +294,7 @@ pub(super) fn check_analysis(
 /// with where the walk raises it.
 pub(super) fn template_error(input: &CompileInput<'_>) -> Option<(u32, Diagnostic)> {
     [
-        special::analysis(input).map_err(|e| (e.span.start_offset, e)),
+        special_elements::special_element_error(input).map_err(|e| (e.span.start_offset, e)),
         markup::check(input),
     ]
     .into_iter()
