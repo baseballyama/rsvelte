@@ -27,11 +27,6 @@ pub(crate) fn unsupported(what: impl std::fmt::Display, span: Span) -> Diagnosti
     )
 }
 
-/// A document span on an output node, which the source map points back to.
-pub(crate) const fn output_span(span: Span) -> oxc_span::Span {
-    oxc_span::Span::new(span.start_offset, span.end_offset)
-}
-
 /// The component as the Svelte compiler reads it: a runes instance program and a Svelte HIR, in a
 /// tree of their own over the `.vue` document's text.
 #[derive(Debug)]

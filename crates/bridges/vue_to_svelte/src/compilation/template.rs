@@ -27,6 +27,11 @@ pub(crate) struct Built<'a> {
     pub(crate) hoisted: Vec<Statement<'a>>,
 }
 
+/// A document span on an output node, which the source map points back to.
+const fn output_span(span: Span) -> oxc_span::Span {
+    oxc_span::Span::new(span.start_offset, span.end_offset)
+}
+
 /// runtime-core `getChildRoot` / `filterSingleRoot` in development: the elements that receive the
 /// attributes that fall through, when the template renders a single element root (one element,
 /// or one `v-if` chain of elements). Comments do not count.

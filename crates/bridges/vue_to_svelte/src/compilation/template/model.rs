@@ -8,10 +8,10 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 use rsvelte_typescript_tree::{ExpressionIdentifier, document_span, node_span};
 use rsvelte_vue_semantic::compiler_syntax_tree::{Directive, Property};
 
-use super::{Template, expression_of, vmodel};
+use super::{Template, expression_of, output_span, vmodel};
 use crate::compilation::info::{Class, Declared};
 use crate::compilation::names::Helper;
-use crate::compilation::{R, output_span, unsupported};
+use crate::compilation::{R, unsupported};
 
 /// An attribute waiting for the element it goes on.
 type Pending = Box<dyn FnOnce(SvelteNodeIdentifier, &Property) -> Attribute>;
