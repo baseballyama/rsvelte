@@ -6,7 +6,7 @@ use std::process::ExitCode;
 
 use ignore::gitignore::Gitignore;
 use rsvelte_kernel::computation::pipeline::{self, DocumentResult, RunOptions, Sharing};
-use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::computation::registry::{Project, Registry};
 use rsvelte_kernel::source::document::Document;
 
 use crate::usage;
@@ -63,6 +63,21 @@ pub(crate) fn document(reg: &Registry, file: PathBuf, text: String) -> Result<Do
         .document(file.to_string_lossy().into_owned(), text)
         .map_err(|e| format!("{}: {e:?}", file.display()))?;
     Ok(document.read_from(file))
+}
+
+/// The documents of every file of `project`, each with the text the project reads it with.
+pub(crate) fn project_documents(
+    reg: &Registry,
+    project: &Project,
+) -> Result<Vec<Document>, String> {
+    (project.files.iter())
+        .map(|file| {
+            let text = project
+                .text(file)
+                .map_err(|e| format!("{}: {e}", file.display()))?;
+            document(reg, file.clone(), text)
+        })
+        .collect()
 }
 
 /// Runs `tasks` over `documents` in one run, with the exit code of its error.

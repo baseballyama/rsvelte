@@ -91,13 +91,14 @@ impl Tsc {
             .map(|i| req.checked_path(&root, i))
             .collect();
         let overlay = root.join(OVERLAY);
-        let mut layer = Layer::default();
+        let mut layer = Layer {
+            files: req.env.replaced.iter().cloned().collect(),
+            links: Vec::new(),
+        };
+        // A replaced file that is a document already has the replaced text.
         for (i, path) in paths.iter().enumerate() {
             layer.files.insert(path.clone(), req.text(i).to_owned());
         }
-        // A file the language replaces, such as svelte's types, is read replaced also when it is
-        // a document of the run, as a declaration is without `skipLibCheck`.
-        layer.files.extend(req.env.replaced.iter().cloned());
         layer.files.extend(
             req.stand_ins(&root)
                 .map(|(path, text)| (path, text.to_owned())),

@@ -29,17 +29,10 @@ pub(crate) fn typecheck(reg: &Registry, tasks: &[&str]) -> ExitCode {
             Err(e) => usage(&e),
         };
     }
-    let mut documents = Vec::new();
-    for file in project.files {
-        let text = match std::fs::read_to_string(&file) {
-            Ok(text) => text,
-            Err(e) => return usage(&format!("{}: {e}", file.display())),
-        };
-        match files::document(reg, file, text) {
-            Ok(document) => documents.push(document),
-            Err(e) => return usage(&e),
-        }
-    }
+    let documents = match files::project_documents(reg, &project) {
+        Ok(documents) => documents,
+        Err(e) => return usage(&e),
+    };
     let results = match files::run(reg, &documents, tasks) {
         Ok(results) => results,
         Err(code) => return code,

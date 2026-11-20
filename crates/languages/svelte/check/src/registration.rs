@@ -50,16 +50,19 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         stand_in: Some(rsvelte_svelte_typescript_projection::STAND_IN),
         imported: Some(is_script),
     });
-    if let Some(check) = &config.check {
-        reg.contribute::<MappedLanguages>(MappedLanguage {
-            extension: ".svelte",
-            content_mapper: check.content_mapper.clone(),
-        });
-    }
     let env = config
         .check
         .as_ref()
         .map(|c| typescript_env(&c.svelte, &c.content_mapper).map(Arc::new));
+    if let Some(check) = &config.check {
+        reg.contribute::<MappedLanguages>(MappedLanguage {
+            extension: ".svelte",
+            content_mapper: check.content_mapper.clone(),
+            replaced: (env.iter().flatten())
+                .flat_map(|env| env.replaced.iter().cloned())
+                .collect(),
+        });
+    }
     reg.provide::<TypeScriptView>("svelte", rsvelte_svelte_syntax::matches, move |context| {
         typescript_view(context, env.as_ref())
     });

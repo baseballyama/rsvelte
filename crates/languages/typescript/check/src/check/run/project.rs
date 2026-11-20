@@ -99,7 +99,17 @@ fn root_files(
         Vec::new()
     };
     session.release(project.snapshot)?;
-    Ok(Project { files, problems })
+    let replaced = (languages.iter())
+        .flat_map(|language| &language.replaced)
+        .filter_map(|(path, text)| Some((std::fs::canonicalize(path).ok()?, text)))
+        .filter(|(path, _)| files.contains(path))
+        .map(|(path, text)| (path, text.clone()))
+        .collect();
+    Ok(Project {
+        files,
+        replaced,
+        problems,
+    })
 }
 
 /// How svelte-check (`language-server/src/svelte-check.ts`) tells which files of the program to

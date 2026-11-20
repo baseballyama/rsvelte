@@ -5,6 +5,7 @@ use rsvelte_corpus::task_files::diagnostics_json;
 use rsvelte_kernel::computation::pipeline::DocumentResult;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::{Severity, apply_fixes};
+use rsvelte_kernel::source::document::Document;
 
 use super::{files, typecheck};
 use crate::usage;
@@ -84,11 +85,10 @@ pub(crate) fn run_project(reg: &Registry, tasks: &[&str]) -> ExitCode {
             Err(e) => usage(&e),
         };
     }
-    let names: Vec<String> = (project.files.iter())
-        .map(|file| file.to_string_lossy().into_owned())
-        .collect();
-    let names: Vec<&str> = names.iter().map(String::as_str).collect();
-    run_files(reg, &names, tasks)
+    match files::project_documents(reg, &project) {
+        Ok(documents) => run_documents(reg, &documents, tasks),
+        Err(e) => usage(&e),
+    }
 }
 
 /// Runs `tasks` on every file of `files` in one run, so a project task such as a type check sees
@@ -105,7 +105,12 @@ pub(crate) fn run_files(reg: &Registry, files: &[&str], tasks: &[&str]) -> ExitC
             Err(e) => return usage(&e),
         }
     }
-    let results = match files::run(reg, &documents, tasks) {
+    run_documents(reg, &documents, tasks)
+}
+
+/// Runs `tasks` on `documents` in one run and prints each output under its document.
+fn run_documents(reg: &Registry, documents: &[Document], tasks: &[&str]) -> ExitCode {
+    let results = match files::run(reg, documents, tasks) {
         Ok(results) => results,
         Err(code) => return code,
     };

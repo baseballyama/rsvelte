@@ -321,6 +321,9 @@ pub struct MappedLanguage {
     pub extension: &'static str,
     /// The executable that serves the language's projections.
     pub content_mapper: PathBuf,
+    /// The language's [`TypeScriptEnv::replaced`]: a project file among them is a document of
+    /// the replaced text.
+    pub replaced: Vec<(PathBuf, String)>,
 }
 
 /// A document the run does not check but other documents may import.

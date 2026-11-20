@@ -351,44 +351,77 @@ fn typecheck_reports_every_file_of_the_program_that_svelte_check_reports() {
 }
 
 /// Without `skipLibCheck` svelte's types are a file the check reports and a file the check
-/// replaces; svelte-check 4.7.8 finds no error.
+/// replaces, whose blanked `declare module '*.svelte'` spans eight lines. svelte-check 4.7.8
+/// finds no error, and with `lib` `es5` two at lines of the replaced text.
 #[cfg(unix)]
 #[test]
-fn typecheck_reads_a_replaced_package_file_once_when_it_reports_it() {
+fn typecheck_reads_a_replaced_package_file_as_one_text() {
     let packages = NodePackages::locate();
+    let types = packages.package("svelte").join("types/index.d.ts");
     let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
-    let project = Project::new(
-        "typecheck-replaced",
-        &[
-            ("rsvelte.config.json", &config),
-            (
-                "tsconfig.json",
-                r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
-"target":"esnext","types":[],"skipLibCheck":false},"include":["src"]}"#,
-            ),
-            (
-                "src/App.svelte",
-                "<script lang=\"ts\">\n\timport type { Snippet } from \"svelte\";\n\
-                 \tlet { children }: { children?: Snippet } = $props();\n</script>\n\
-                 {@render children?.()}\n",
-            ),
-        ],
-    );
-    std::fs::create_dir_all(project.0.join("node_modules")).expect("node_modules");
-    std::os::unix::fs::symlink(
-        packages.package("svelte"),
-        project.0.join("node_modules/svelte"),
-    )
-    .expect("link");
-    let output = project.rsvelte(&["typecheck"]);
-    assert_eq!(
+    let es5 = |name: &str, line: u32| {
+        format!(
+            "{}({line},5): error TS2583: Cannot find name '{name}'. Do you need to change your \
+             target library? Try changing the 'lib' compiler option to 'es2020' or later.\n",
+            types.strip_prefix("/").expect("an absolute path").display()
+        )
+    };
+    let cases = [
+        (r#""esnext""#, Some(0), String::new()),
         (
-            output.status.code(),
-            text(&output.stdout),
-            text(&output.stderr)
+            r#""es5""#,
+            Some(1),
+            format!(
+                "{}{}\nFound 2 errors in 1 file.\n",
+                es5("BigInt64Array", 3349),
+                es5("BigUint64Array", 3350)
+            ),
         ),
-        (Some(0), String::new(), String::new())
-    );
+    ];
+    for (lib, code, expected) in cases {
+        let project = Project::new(
+            "typecheck-replaced",
+            &[
+                (
+                    "tsconfig.json",
+                    &format!(
+                        r#"{{"compilerOptions":{{"strict":true,"module":"esnext",
+"moduleResolution":"bundler","target":"esnext","lib":[{lib}],"types":[],"skipLibCheck":false}},
+"include":["src"]}}"#
+                    ),
+                ),
+                (
+                    "src/App.svelte",
+                    "<script lang=\"ts\">\n\timport type { Snippet } from \"svelte\";\n\
+                     \tlet { children }: { children?: Snippet } = $props();\n</script>\n\
+                     {@render children?.()}\n",
+                ),
+            ],
+        );
+        std::fs::create_dir_all(project.0.join("node_modules")).expect("node_modules");
+        std::os::unix::fs::symlink(
+            packages.package("svelte"),
+            project.0.join("node_modules/svelte"),
+        )
+        .expect("link");
+        // Run from `/`, the report names the package's file by its whole path.
+        let mut config: serde_json::Value = serde_json::from_str(&config).expect("config");
+        config["plugins"]["typescript.check"]["tsconfig"] =
+            serde_json::json!(project.0.join("tsconfig.json"));
+        let config_path = project.0.join("rsvelte.config.json");
+        std::fs::write(&config_path, config.to_string()).expect("config");
+        let config_path = config_path.display().to_string();
+        let output = project.rsvelte_in("/", &["typecheck", "--config", &config_path]);
+        assert_eq!(
+            (
+                output.status.code(),
+                text(&output.stdout),
+                text(&output.stderr)
+            ),
+            (code, expected, String::new()),
+            "lib {lib}"
+        );
+    }
 }
 
 #[test]

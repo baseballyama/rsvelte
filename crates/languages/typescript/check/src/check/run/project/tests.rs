@@ -10,6 +10,7 @@ fn a_file_is_reported_as_svelte_check_reports_it() {
     let languages = [MappedLanguage {
         extension: ".svelte",
         content_mapper: "/mapper".into(),
+        replaced: Vec::new(),
     }];
     // (file, reported without skipLibCheck, reported with it)
     let cases = [

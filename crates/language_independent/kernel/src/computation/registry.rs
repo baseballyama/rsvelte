@@ -39,9 +39,26 @@ pub type ProjectFilesFn = Box<dyn Fn(&Registry) -> Result<Project, String> + Sen
 #[derive(Debug, Default)]
 pub struct Project {
     pub files: Vec<std::path::PathBuf>,
+    /// Files among `files` that the project's own tool reads with this text instead of the
+    /// disk's, such as a package's types it rewrites. A host reads every file through
+    /// [`Project::text`], so the document, its positions and the check have one text.
+    pub replaced: std::collections::BTreeMap<std::path::PathBuf, String>,
     /// Errors in the configuration, each in the file that has it, such as a `tsconfig.json`. The
     /// project's own tool reports only these when there are any, instead of checking the files.
     pub problems: Vec<(std::path::PathBuf, Diagnostic)>,
+}
+
+impl Project {
+    /// The text the project reads `file` with.
+    ///
+    /// # Errors
+    ///
+    /// `file` is not replaced and cannot be read.
+    pub fn text(&self, file: &std::path::Path) -> std::io::Result<String> {
+        self.replaced
+            .get(file)
+            .map_or_else(|| std::fs::read_to_string(file), |text| Ok(text.clone()))
+    }
 }
 
 impl Contribution for ProjectFiles {
@@ -131,6 +148,7 @@ impl Registry {
                     project.files.push(file);
                 }
             }
+            project.replaced.extend(own.replaced);
             project.problems.extend(own.problems);
         }
         if !named {
