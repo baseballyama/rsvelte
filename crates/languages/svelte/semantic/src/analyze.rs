@@ -17,6 +17,7 @@ mod evaluation;
 mod metadata;
 mod stylesheet;
 
+pub use dynamic::cannot_be_set_statically;
 use evaluation::BindingValues;
 use metadata::MetadataWalker;
 

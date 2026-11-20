@@ -9,7 +9,6 @@ pub mod input;
 pub mod javascript_error;
 pub mod legacy;
 pub mod resolve;
-pub mod template;
 pub mod typescript;
 pub mod warnings;
 

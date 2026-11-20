@@ -40,18 +40,18 @@ use oxc_span::{GetSpan, SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::analyze::Analysis;
+pub(crate) use rsvelte_svelte_semantic::analyze::cannot_be_set_statically;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
     ElementKind, NodeKind,
 };
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
-pub(crate) use rsvelte_svelte_semantic::template::{cannot_be_set_statically, needs_clsx};
 use rustc_hash::{FxHashMap, FxHashSet};
 pub use script::is_expression_async;
 pub use template::{DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select};
 use template::{
     event_attribute, has_dependency, is_behaviour, is_directive, is_dom_property,
-    is_load_error_element, synthetic_value,
+    is_load_error_element, needs_clsx, synthetic_value,
 };
 pub use validation::CompileErrors;
 pub(crate) use validation::{

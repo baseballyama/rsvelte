@@ -6,7 +6,6 @@ mod expressions;
 mod globals;
 mod membership;
 mod operators;
-mod template;
 mod value;
 mod values;
 

@@ -105,17 +105,17 @@ fn attribute_is_dynamic(
 ) -> bool {
     let attribute = a.name.text(source_text);
     match &a.value {
-        AttributeValue::Boolean => crate::template::cannot_be_set_statically(attribute),
+        AttributeValue::Boolean => cannot_be_set_statically(attribute),
         AttributeValue::Static(_) => {
             attribute == "value" && el.name.text(source_text) == "option"
-                || crate::template::cannot_be_set_statically(attribute)
+                || cannot_be_set_statically(attribute)
         }
         AttributeValue::Interpolated(parts) => {
             parts
                 .iter()
                 .any(|part| matches!(part, Part::Expression { .. }))
                 || attribute == "value" && el.name.text(source_text) == "option"
-                || crate::template::cannot_be_set_statically(attribute)
+                || cannot_be_set_statically(attribute)
         }
         AttributeValue::Expression { .. }
         | AttributeValue::Shorthand(_)
@@ -134,4 +134,13 @@ fn attribute_is_dynamic(
         }),
         AttributeValue::Let(_) => false,
     }
+}
+
+/// Upstream `cannot_be_set_statically`.
+#[must_use]
+pub fn cannot_be_set_statically(name: &str) -> bool {
+    matches!(
+        name,
+        "autofocus" | "muted" | "defaultValue" | "defaultChecked"
+    )
 }
