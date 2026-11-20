@@ -64,18 +64,6 @@ use validation::{check_runes, uses_slots};
 use crate::input::{CompileInput, Target};
 use crate::render_plan::{Item, RenderPlan};
 
-/// # Errors
-/// Returns the first diagnostic from validation or target lowering.
-pub fn lower<'o>(
-    input: &CompileInput<'o>,
-    res: &Resolution,
-    an: &Analysis,
-    target: Target,
-    allocator: &'o Allocator,
-) -> Result<Program<'o>, Diagnostic> {
-    lower_with_plan(input, res, an, target, &RenderPlan::build(input), allocator)
-}
-
 /// `plan` must be built from this input and its whitespace option.
 ///
 /// # Errors
