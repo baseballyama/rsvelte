@@ -16,10 +16,10 @@ use rsvelte_svelte_semantic::resolve::{RUNE_ROOTS, Resolution};
 use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::legacy_reactivity::{expression_node, legacy, property_name};
-use super::nodes::span;
-use super::runes::runes_mode;
-use super::svelte_store::is_value;
+use super::shared::legacy_reactivity::{expression_node, legacy, property_name};
+use super::shared::nodes::span;
+use super::shared::runes::runes_mode;
+use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

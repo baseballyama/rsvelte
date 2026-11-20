@@ -8,7 +8,7 @@ use oxc_span::{GetSpan, Span as OxcSpan};
 use super::Script;
 use crate::rules::indent::layout::Item;
 use crate::rules::indent::tokens::Token;
-use crate::rules::nodes::from_oxc;
+use crate::rules::shared::nodes::from_oxc;
 
 impl<'a> Script<'_, 'a> {
     pub(super) fn lay_out_typescript(&mut self, kind: AstKind<'a>, first: Option<Token>) {

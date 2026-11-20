@@ -9,10 +9,10 @@ use rsvelte_svelte_semantic::legacy::{Variable, reactive_body};
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
-use super::legacy_reactivity::{bindings, expression_node, legacy, property_name};
-use super::nodes::span;
-use super::runes::runes_mode;
-use super::svelte_store::is_value;
+use super::shared::legacy_reactivity::{bindings, expression_node, legacy, property_name};
+use super::shared::nodes::span;
+use super::shared::runes::runes_mode;
+use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

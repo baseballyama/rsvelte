@@ -7,8 +7,8 @@ use rsvelte_typescript_semantic::reference_tracker::{global_references, property
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rustc_hash::FxHashMap;
 
-use super::nodes::from_oxc;
-use super::runes::is_svelte_file;
+use super::shared::nodes::from_oxc;
+use super::shared::runes::is_svelte_file;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

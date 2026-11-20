@@ -1,8 +1,8 @@
 use oxc_ast::AstKind;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::nodes::from_oxc;
-use super::runes::runes;
+use super::shared::nodes::from_oxc;
+use super::shared::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

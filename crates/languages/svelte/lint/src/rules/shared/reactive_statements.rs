@@ -22,7 +22,7 @@ fn programs(component: &Component) -> impl Iterator<Item = ProgramIdentifier> + 
 
 /// The top-level `$:` statements with their bodies, in source order; none in runes mode, where
 /// upstream's rules on them do not run.
-pub(super) fn reactive_statements<'a>(
+pub(crate) fn reactive_statements<'a>(
     file: &File<'_>,
     component: &'a Component,
 ) -> impl Iterator<Item = (&'a Statement<'a>, &'a Statement<'a>)> + 'a {
@@ -38,7 +38,7 @@ pub(super) fn reactive_statements<'a>(
 
 /// The `items`, keyed by start offset, grouped by the statement each starts in, for statements
 /// in source order that do not overlap.
-pub(super) fn by_statement<T>(statements: &[Span], mut items: Vec<(u32, T)>) -> Vec<Vec<T>> {
+pub(crate) fn by_statement<T>(statements: &[Span], mut items: Vec<(u32, T)>) -> Vec<Vec<T>> {
     items.sort_by_key(|&(start, _)| start);
     let mut items = items.into_iter().peekable();
     statements
@@ -58,7 +58,7 @@ pub(super) fn by_statement<T>(statements: &[Span], mut items: Vec<(u32, T)>) -> 
 }
 
 /// The tokens, trivia included, from the one at `start` to those that end by `end`.
-pub(super) fn between(
+pub(crate) fn between(
     tokens: &Tokens<TokenType>,
     start: u32,
     end: u32,

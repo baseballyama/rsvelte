@@ -8,7 +8,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
 };
 use serde::Deserialize;
 
-use super::markup::{Attributes, part_span, quote_before, start_tags};
+use super::shared::markup::{Attributes, part_span, quote_before, start_tags};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

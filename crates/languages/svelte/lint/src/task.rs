@@ -17,8 +17,8 @@ use crate::computation::{
     ModuleSemantic, NativeConditionTypes, ParsedAsSvelteEslintParser, PostcssConfigurationOnDisk,
     ResolvedAsTypeScript, SameNamedFileOnDisk, read_as_svelte_eslint_parser,
 };
-use crate::rules::style_attribute::InlineStyles;
-use crate::rules::style_sheet::{LintStyleSheet, StyleSheetVerdict};
+use crate::rules::shared::style_attribute::InlineStyles;
+use crate::rules::shared::style_sheet::{LintStyleSheet, StyleSheetVerdict};
 use crate::types::TypeFacts;
 
 pub static PLUGIN: Plugin = Plugin {

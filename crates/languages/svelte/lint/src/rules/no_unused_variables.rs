@@ -11,10 +11,10 @@ use rsvelte_svelte_semantic::legacy::{TopLevel, Variable};
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::legacy_reactivity::legacy;
-use super::nodes;
-use super::runes::runes;
-use super::svelte_names::{TopLevelNames, has_reactive_statement};
+use super::shared::legacy_reactivity::legacy;
+use super::shared::nodes;
+use super::shared::runes::runes;
+use super::shared::svelte_names::{TopLevelNames, has_reactive_statement};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 #[cfg(test)]

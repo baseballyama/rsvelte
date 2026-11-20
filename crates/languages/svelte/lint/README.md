@@ -21,7 +21,8 @@ crate does not depend on `rsvelte_typescript_check` and does not start tsgo.
 | `svelte/valid-each-key`                              | HIR and resolution        |
 | `no-unused-vars`                                     | Resolution and JS parents |
 
-Rules live in `src/rules/<rule>.rs`. `lint.rs` is the library entry point. `configuration.rs`
+Rules live in `src/rules/<rule>.rs`; helpers that several rules share live in
+`src/rules/shared/`. `lint.rs` is the library entry point. `configuration.rs`
 selects rules, severity and options, and `task.rs` adapts the library to the registry and JSON
 output. The crate caches facts once per document.
 

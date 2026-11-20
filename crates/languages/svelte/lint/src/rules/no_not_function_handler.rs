@@ -3,9 +3,9 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Part, TemplateNode};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::constant_string::root;
-use super::markup::{is_attribute, parts};
-use super::nodes;
+use super::shared::constant_string::root;
+use super::shared::markup::{is_attribute, parts};
+use super::shared::nodes;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

@@ -32,7 +32,7 @@ impl Artifact for InlineStyles {
 }
 
 /// Whether `attribute` is a `style="…"` or `style={…}` attribute.
-pub(super) fn is_style(attribute: &Attribute, source: &str) -> bool {
+pub(crate) fn is_style(attribute: &Attribute, source: &str) -> bool {
     attribute.kind == AttributeKind::Attribute
         && !attribute.shorthand
         && attribute.name.text(source) == "style"
@@ -41,7 +41,7 @@ pub(super) fn is_style(attribute: &Attribute, source: &str) -> bool {
 /// The inline style of the `style` attribute at `index` in [`Component::attributes`]; `None` when
 /// it has no value or holds what upstream does not convert (a rule, an at-rule, a hole in a
 /// comment).
-pub(super) fn inline_style<'a>(file: &File<'a>, index: usize) -> Option<&'a [InlineNode]> {
+pub(crate) fn inline_style<'a>(file: &File<'a>, index: usize) -> Option<&'a [InlineNode]> {
     let styles = file.context.get::<InlineStyles>();
     let at = styles
         .binary_search_by_key(&(index as u32), |(attribute, _)| *attribute)
@@ -79,7 +79,7 @@ fn inline_styles(component: &Component, source: &str) -> Vec<(u32, Option<Box<[I
 }
 
 /// The expression of hole `index` of a `style` attribute: its `index`th expression part.
-pub(super) fn expression_of_hole(
+pub(crate) fn expression_of_hole(
     component: &Component,
     attribute: &Attribute,
     index: u32,
@@ -116,7 +116,7 @@ fn literals<'e>(expression: &'e Expression<'e>, out: &mut Vec<&'e Expression<'e>
 }
 
 /// The inline style a string or template literal holds; a template's expressions are holes.
-pub(super) fn literal_style(source: &str, literal: &Expression<'_>) -> Option<Vec<InlineNode>> {
+pub(crate) fn literal_style(source: &str, literal: &Expression<'_>) -> Option<Vec<InlineNode>> {
     let span = nodes::span(literal);
     let content = Span::new(span.start_offset + 1, span.end_offset - 1);
     let holes: Vec<Span> = match literal {
@@ -137,11 +137,11 @@ pub(super) fn literal_style(source: &str, literal: &Expression<'_>) -> Option<Ve
 }
 
 /// A declared property: its name and where it is.
-pub(super) type Property<'a> = (&'a str, Span);
+pub(crate) type Property<'a> = (&'a str, Span);
 
 /// The properties a start tag declares, in sets: one per `style:` directive and per declaration,
 /// and one for each expression of a `style` attribute (what all its literals declare).
-pub(super) fn property_sets<'a>(
+pub(crate) fn property_sets<'a>(
     file: &File<'a>,
     attributes: rsvelte_svelte_syntax::syntax_tree::Range,
     mut visit: impl FnMut(&[Property<'a>]),

@@ -12,10 +12,10 @@ use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::legacy_reactivity::{bindings, expression_node, legacy};
-use super::nodes::span;
-use super::reactive_statements::{by_statement, reactive_statements};
-use super::svelte_store::is_value;
+use super::shared::legacy_reactivity::{bindings, expression_node, legacy};
+use super::shared::nodes::span;
+use super::shared::reactive_statements::{by_statement, reactive_statements};
+use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

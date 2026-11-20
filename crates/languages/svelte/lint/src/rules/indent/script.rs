@@ -10,7 +10,7 @@ use oxc_span::{GetSpan, Span as OxcSpan};
 
 use super::layout::{Item, Layout};
 use super::tokens::{Token, Tokens};
-use crate::rules::nodes::from_oxc;
+use crate::rules::shared::nodes::from_oxc;
 
 pub(super) struct Script<'s, 'a> {
     pub layout: &'s mut Layout<'a>,

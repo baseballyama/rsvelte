@@ -7,9 +7,11 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType, decode_attribute, decode_text};
 use serde::Deserialize;
 
-use super::markup::{Holder, Mustache, for_each_mustache, has_comment, part_span, parts, quote};
-use super::nodes;
-use super::string_escape::has_useful_escape;
+use super::shared::markup::{
+    Holder, Mustache, for_each_mustache, has_comment, part_span, parts, quote,
+};
+use super::shared::nodes;
+use super::shared::string_escape::has_useful_escape;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

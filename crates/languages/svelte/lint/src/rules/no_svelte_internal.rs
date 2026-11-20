@@ -3,7 +3,7 @@ use oxc_ast::ast::Expression;
 use oxc_span::GetSpan;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::nodes::from_oxc;
+use super::shared::nodes::from_oxc;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

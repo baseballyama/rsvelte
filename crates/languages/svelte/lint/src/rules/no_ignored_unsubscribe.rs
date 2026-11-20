@@ -2,7 +2,7 @@ use oxc_ast::AstKind;
 use oxc_ast::ast::Expression;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::nodes::span;
+use super::shared::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 #[cfg(test)]

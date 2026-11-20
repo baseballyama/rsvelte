@@ -14,11 +14,11 @@ use rsvelte_svelte_syntax::syntax_tree::{
 use rsvelte_typescript_tree::Tree;
 use rustc_hash::FxHashMap;
 
-use super::kit_navigation::{
+use super::shared::kit_navigation::{
     Navigation, Options, Script, first_argument, first_part, has_scheme, links, string, template,
 };
-use super::kit_route::runs_for;
-use super::nodes::span;
+use super::shared::kit_route::runs_for;
+use super::shared::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 #[cfg(test)]

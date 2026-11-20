@@ -119,7 +119,7 @@ impl Template<'_, '_> {
                     {
                         self.script
                             .layout
-                            .ignore(crate::rules::nodes::from_oxc(pair.span));
+                            .ignore(crate::rules::shared::nodes::from_oxc(pair.span));
                         continue;
                     }
                     if matches!(

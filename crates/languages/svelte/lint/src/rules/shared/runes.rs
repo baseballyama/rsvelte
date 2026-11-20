@@ -18,7 +18,7 @@ use crate::rule::File;
 /// then a static `compilerOptions.runes` of `svelte.config.js`, or else whether an identifier in a
 /// script or the template names a rune (`hasRunesSymbol`, whose `runeSymbols` are
 /// [`RUNE_ROOTS`]).
-pub(super) fn runes_mode(file: &File<'_>, component: &Component) -> bool {
+pub(crate) fn runes_mode(file: &File<'_>, component: &Component) -> bool {
     let source = file.source();
     if let Some(runes) = svelte_options_runes(component, source) {
         return runes;
@@ -126,7 +126,7 @@ fn svelte_options_runes(component: &Component, source: &str) -> Option<bool> {
 
 /// [`runes_mode`] of a component; a `.svelte.js` or `.svelte.ts` module is always in runes mode,
 /// and any other module has no mode (`None`).
-pub(super) fn runes(file: &File<'_>) -> Option<bool> {
+pub(crate) fn runes(file: &File<'_>) -> Option<bool> {
     file.component().map_or_else(
         || is_svelte_file(file).then_some(true),
         |component| Some(runes_mode(file, component)),
@@ -134,13 +134,13 @@ pub(super) fn runes(file: &File<'_>) -> Option<bool> {
 }
 
 /// A rule's `svelteFileTypes: ['.svelte', '.svelte.[js|ts]']` condition.
-pub(super) fn is_svelte_file(file: &File<'_>) -> bool {
+pub(crate) fn is_svelte_file(file: &File<'_>) -> bool {
     let path = file.path();
     file.is_component() || path.ends_with(".svelte.js") || path.ends_with(".svelte.ts")
 }
 
 /// A rule's `runes: [true, 'undetermined']` condition.
-pub(super) fn runes_or_undetermined(file: &File<'_>) -> bool {
+pub(crate) fn runes_or_undetermined(file: &File<'_>) -> bool {
     runes(file) == Some(true)
 }
 

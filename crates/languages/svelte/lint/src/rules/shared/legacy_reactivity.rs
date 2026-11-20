@@ -13,18 +13,18 @@ use crate::computation::LegacyReactivity;
 use crate::rule::File;
 
 /// The component's legacy reactivity facts.
-pub(super) fn legacy<'a>(file: &File<'a>) -> &'a Legacy {
+pub(crate) fn legacy<'a>(file: &File<'a>) -> &'a Legacy {
     file.context.get::<LegacyReactivity>()
 }
 
 /// The node by which the analysis knows `expression`. Valid once the document is analyzed
 /// (`File::semantic`): before that, the id is the parser's own numbering.
-pub(super) fn expression_node(expression: &Expression<'_>) -> NodeId {
+pub(crate) fn expression_node(expression: &Expression<'_>) -> NodeId {
     AstKind::from_expression(expression).node_id()
 }
 
 /// The expression of each `bind:` directive, written out or shorthand, with the directive's span.
-pub(super) fn bindings(file: &File<'_>) -> FxHashMap<NodeId, Span> {
+pub(crate) fn bindings(file: &File<'_>) -> FxHashMap<NodeId, Span> {
     let component = file.component().expect("a component's bindings");
     // Analyzed first, so that the ids are the analysis's.
     let _analyzed: &Semantic = file.semantic();
@@ -50,7 +50,7 @@ pub(super) fn bindings(file: &File<'_>) -> FxHashMap<NodeId, Span> {
 
 /// `getPropertyName`: a member's static property name. A private name has none, since `#name`
 /// never equals a public name.
-pub(super) fn property_name(member: AstKind<'_>) -> Option<&str> {
+pub(crate) fn property_name(member: AstKind<'_>) -> Option<&str> {
     match member {
         AstKind::StaticMemberExpression(member) => Some(member.property.name.as_str()),
         AstKind::ComputedMemberExpression(member) => match &member.expression {

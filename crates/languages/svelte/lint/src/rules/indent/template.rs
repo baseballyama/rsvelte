@@ -14,7 +14,7 @@ use rsvelte_typescript_tree::{ExpressionIdentifier, PatternIdentifier, Tree};
 use super::layout::Item;
 use super::script::{self, Script};
 use super::tokens::{Token, Tokens};
-use crate::rules::nodes::from_oxc;
+use crate::rules::shared::nodes::from_oxc;
 
 pub(super) struct Template<'s, 'a> {
     pub script: Script<'s, 'a>,

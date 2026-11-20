@@ -17,20 +17,20 @@ use crate::{LintSettings, settings};
 
 /// One code of a `svelte-ignore` comment.
 #[derive(Debug)]
-pub(super) struct IgnoreItem {
+pub(crate) struct IgnoreItem {
     /// As written.
-    pub(super) code: Span,
+    pub(crate) code: Span,
     /// The code Svelte 5 knows it by: upstream's `codeForV5`.
-    pub(super) code_for_v5: String,
+    pub(crate) code_for_v5: String,
     /// The whole comment.
-    pub(super) comment: Span,
+    pub(crate) comment: Span,
 }
 
 /// The `svelte-ignore` comments: their codes, and the comments that name none.
 #[derive(Debug, Default)]
-pub(super) struct Ignores {
-    pub(super) items: Vec<IgnoreItem>,
-    pub(super) missing_code: Vec<Span>,
+pub(crate) struct Ignores {
+    pub(crate) items: Vec<IgnoreItem>,
+    pub(crate) missing_code: Vec<Span>,
 }
 
 const STYLESHEET_CODES: &[&str] = &[
@@ -41,7 +41,7 @@ const STYLESHEET_CODES: &[&str] = &[
 ];
 
 /// `getSvelteIgnoreItems`: JavaScript comments, then template comments.
-pub(super) fn ignores(component: &Component, source: &str) -> Ignores {
+pub(crate) fn ignores(component: &Component, source: &str) -> Ignores {
     let mut out = Ignores::default();
     let tree = &component.javascript;
     let scripts = component.module.iter().chain(&component.instance);
@@ -148,23 +148,23 @@ impl IgnoreItem {
 }
 
 /// The compiler's result once `svelte-ignore` comments are applied.
-pub(super) struct Applied<'a> {
-    pub(super) warnings: Vec<&'a Diagnostic>,
+pub(crate) struct Applied<'a> {
+    pub(crate) warnings: Vec<&'a Diagnostic>,
     /// The first analysis error; then there are no warnings.
-    pub(super) error: Option<Diagnostic>,
+    pub(crate) error: Option<Diagnostic>,
     /// Per [`Ignores::items`], whether it ignored a warning.
-    pub(super) used: Vec<bool>,
+    pub(crate) used: Vec<bool>,
 }
 
 /// Whether upstream transforms a style in `postcss`: `settings.svelte.compileOptions.postcss` is
 /// not `false`, and a `PostCSS` configuration is found.
 #[derive(Clone, Copy, Debug)]
-pub(super) struct Postcss {
+pub(crate) struct Postcss {
     allowed: bool,
 }
 
 impl Postcss {
-    pub(super) fn new(settings: &LintSettings) -> Self {
+    pub(crate) fn new(settings: &LintSettings) -> Self {
         let disabled = matches!(
             settings
                 .compile_options
@@ -186,7 +186,7 @@ impl Postcss {
 }
 
 /// Upstream's `processIgnore`, over the warnings of a style in CSS only.
-pub(super) fn apply<'a>(
+pub(crate) fn apply<'a>(
     file: &File<'a>,
     compile: &'a CompileWarnings,
     ignores: &Ignores,
@@ -481,7 +481,7 @@ impl Targets<'_> {
 
 /// Whether a warning code is one the compiler warnings check, so an ignore of it that ignored
 /// nothing is unused; a Svelte code they do not check cannot be told apart.
-pub(super) fn decidable(item: &IgnoreItem, source: &str) -> bool {
+pub(crate) fn decidable(item: &IgnoreItem, source: &str) -> bool {
     let named = |codes: &[&str]| {
         codes.contains(&item.code.text(source)) || codes.contains(&item.code_for_v5.as_str())
     };

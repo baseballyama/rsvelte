@@ -8,8 +8,8 @@ use rsvelte_typescript_lint::{PreferConstOptions, ProgramStatements};
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
-use super::nodes::is_named;
-use super::runes::runes;
+use super::shared::nodes::is_named;
+use super::shared::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 /// `ESLint`'s core rule, which leaves alone a declaration initialised by an excluded rune.

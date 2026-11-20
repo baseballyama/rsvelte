@@ -6,8 +6,8 @@ use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, Te
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
-use super::element_kind::{ElementKind, element_kind};
-use super::style_sheet::{StyleVerdict, verdict};
+use super::shared::element_kind::{ElementKind, element_kind};
+use super::shared::style_sheet::{StyleVerdict, verdict};
 use crate::Pattern;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -50,7 +50,7 @@ impl SvelteRule for NoUnusedClassName {
             StyleVerdict::NoStyle => {}
             StyleVerdict::Parsed => {
                 // `PostCSS` reads a sheet rsvelte's parser does not: its classes are unknown.
-                let Some(sheet) = super::style_sheet::sheet(file) else {
+                let Some(sheet) = super::shared::style_sheet::sheet(file) else {
                     return;
                 };
                 for rule in &sheet.rules {

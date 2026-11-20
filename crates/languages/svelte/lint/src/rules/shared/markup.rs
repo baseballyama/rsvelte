@@ -12,13 +12,13 @@ use rsvelte_svelte_syntax::syntax_tree::{
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 /// `kind: "html"`: neither a component nor a `svelte:` element.
-pub(super) fn is_markup(name: &str) -> bool {
+pub(crate) fn is_markup(name: &str) -> bool {
     !name.starts_with("svelte:") && !is_component_name(name)
 }
 
 /// A `SvelteAttribute`: `a`, `a="…"` or `a={…}`. Not `{a}`, and not a
 /// [special `this`](is_special_this).
-pub(super) fn is_attribute(
+pub(crate) fn is_attribute(
     component: &Component,
     source: &str,
     element: &str,
@@ -32,7 +32,7 @@ pub(super) fn is_attribute(
 /// Whether `svelte-eslint-parser` reads `attribute` of the element named `element` as a special
 /// directive rather than an attribute: `this={…}`, quoted or not, on `<svelte:element>` or
 /// `<svelte:component>`.
-pub(super) fn is_special_this(
+pub(crate) fn is_special_this(
     component: &Component,
     source: &str,
     element: &str,
@@ -46,7 +46,7 @@ pub(super) fn is_special_this(
 }
 
 /// The value's parts; none for a value-less attribute.
-pub(super) fn parts<'a>(component: &'a Component, attribute: &Attribute) -> &'a [Part] {
+pub(crate) fn parts<'a>(component: &'a Component, attribute: &Attribute) -> &'a [Part] {
     match attribute.value {
         AttributeValue::Parts(parts) => component.parts(parts),
         AttributeValue::True => &[],
@@ -54,14 +54,14 @@ pub(super) fn parts<'a>(component: &'a Component, attribute: &Attribute) -> &'a 
 }
 
 /// A part's span.
-pub(super) const fn part_span(part: &Part) -> Span {
+pub(crate) const fn part_span(part: &Part) -> Span {
     match *part {
         Part::Text(span) | Part::Expression { span, .. } => span,
     }
 }
 
 /// The quote token that ends at `offset`: the opening quote of a value that starts there.
-pub(super) fn quote_before(tokens: &Tokens<TokenType>, offset: u32) -> Option<&Token<TokenType>> {
+pub(crate) fn quote_before(tokens: &Tokens<TokenType>, offset: u32) -> Option<&Token<TokenType>> {
     tokens.until_offset(offset).last().filter(|token| {
         matches!(token.kind, TokenType::DoubleQuote | TokenType::SingleQuote)
             && token.span.end_offset == offset
@@ -81,7 +81,7 @@ fn opening_quote<'a>(
 }
 
 /// The quote around a written value: `"` or `'`.
-pub(super) fn quote<'s>(
+pub(crate) fn quote<'s>(
     component: &Component,
     source: &'s str,
     attribute: &Attribute,
@@ -91,7 +91,7 @@ pub(super) fn quote<'s>(
 
 /// From the opening quote, or the first part of an unquoted value, to the end of the attribute;
 /// `None` without `= value`.
-pub(super) fn value_span(component: &Component, attribute: &Attribute) -> Option<Span> {
+pub(crate) fn value_span(component: &Component, attribute: &Attribute) -> Option<Span> {
     if attribute.shorthand {
         return None;
     }
@@ -105,7 +105,7 @@ pub(super) fn value_span(component: &Component, attribute: &Attribute) -> Option
 }
 
 /// Whether a JavaScript comment starts inside `span`.
-pub(super) fn has_comment(component: &Component, span: Span) -> bool {
+pub(crate) fn has_comment(component: &Component, span: Span) -> bool {
     component
         .tokens
         .within(span)
@@ -115,7 +115,7 @@ pub(super) fn has_comment(component: &Component, span: Span) -> bool {
 
 /// What holds a mustache tag.
 #[derive(Clone, Copy)]
-pub(super) enum Holder<'a> {
+pub(crate) enum Holder<'a> {
     /// `{expression}` in the template.
     Text,
     /// `{@html expression}`.
@@ -128,14 +128,14 @@ pub(super) enum Holder<'a> {
 
 /// A `SvelteMustacheTag`: its expression, its span (braces included) and what holds it.
 #[derive(Clone, Copy)]
-pub(super) struct Mustache<'a> {
+pub(crate) struct Mustache<'a> {
     pub expression: ExpressionIdentifier,
     pub span: Span,
     pub holder: Holder<'a>,
 }
 
 /// Calls `f` on each mustache tag of the component.
-pub(super) fn for_each_mustache<'a>(
+pub(crate) fn for_each_mustache<'a>(
     component: &'a Component,
     source: &str,
     mut f: impl FnMut(Mustache<'a>),
@@ -181,14 +181,14 @@ pub(super) fn for_each_mustache<'a>(
 }
 
 /// `<name …>` or `<name … />`.
-pub(super) struct StartTag<'a> {
-    pub(super) span: Span,
-    pub(super) name: Span,
-    pub(super) self_closing: bool,
-    pub(super) attributes: Attributes<'a>,
+pub(crate) struct StartTag<'a> {
+    pub(crate) span: Span,
+    pub(crate) name: Span,
+    pub(crate) self_closing: bool,
+    pub(crate) attributes: Attributes<'a>,
 }
 
-pub(super) enum Attributes<'a> {
+pub(crate) enum Attributes<'a> {
     Template(&'a [Attribute]),
     /// A `<script>` or `<style>` tag's: name and unquoted value.
     Raw(&'a [TagAttributes]),
@@ -196,16 +196,16 @@ pub(super) enum Attributes<'a> {
 
 /// One attribute as layout sees it.
 #[derive(Clone, Copy)]
-pub(super) struct TagAttribute<'a> {
-    pub(super) span: Span,
+pub(crate) struct TagAttribute<'a> {
+    pub(crate) span: Span,
     /// The name as written; the whole attribute for a spread or an `{@attach}`.
-    pub(super) key: Span,
+    pub(crate) key: Span,
     /// `None` for an attribute of `<script>` or `<style>`.
-    pub(super) template: Option<&'a Attribute>,
+    pub(crate) template: Option<&'a Attribute>,
 }
 
 impl<'a> StartTag<'a> {
-    pub(super) fn attributes(
+    pub(crate) fn attributes(
         &self,
         tokens: &'a Tokens<TokenType>,
     ) -> impl DoubleEndedIterator<Item = TagAttribute<'a>> + 'a {
@@ -240,7 +240,7 @@ impl<'a> StartTag<'a> {
 }
 
 /// Every start tag, in no particular order.
-pub(super) fn start_tags(component: &Component) -> impl Iterator<Item = StartTag<'_>> {
+pub(crate) fn start_tags(component: &Component) -> impl Iterator<Item = StartTag<'_>> {
     let elements = component.nodes.iter().filter_map(|node| {
         let TemplateNode::Element {
             name,
@@ -284,7 +284,7 @@ pub(super) fn start_tags(component: &Component) -> impl Iterator<Item = StartTag
 }
 
 /// Every end tag `</name>`, in document order. A `</style` that no `>` follows ends at its name.
-pub(super) fn end_tags(tokens: &Tokens<TokenType>) -> impl Iterator<Item = Span> + '_ {
+pub(crate) fn end_tags(tokens: &Tokens<TokenType>) -> impl Iterator<Item = Span> + '_ {
     let all = tokens.from_offset(0);
     all.iter()
         .enumerate()
@@ -301,7 +301,7 @@ pub(super) fn end_tags(tokens: &Tokens<TokenType>) -> impl Iterator<Item = Span>
 }
 
 /// The last token of a tag: `>` or `/>`.
-pub(super) fn closing_token(tokens: &Tokens<TokenType>, tag: Span) -> &Token<TokenType> {
+pub(crate) fn closing_token(tokens: &Tokens<TokenType>, tag: Span) -> &Token<TokenType> {
     tokens
         .until_offset(tag.end_offset)
         .last()
@@ -309,7 +309,7 @@ pub(super) fn closing_token(tokens: &Tokens<TokenType>, tag: Span) -> &Token<Tok
 }
 
 /// The whitespace that ends at `offset`, empty at `offset` when there is none.
-pub(super) fn whitespace_before(tokens: &Tokens<TokenType>, offset: u32) -> Span {
+pub(crate) fn whitespace_before(tokens: &Tokens<TokenType>, offset: u32) -> Span {
     let start = tokens
         .until_offset(offset)
         .iter()
@@ -321,7 +321,7 @@ pub(super) fn whitespace_before(tokens: &Tokens<TokenType>, offset: u32) -> Span
 }
 
 /// The whitespace that starts at `offset`, empty at `offset` when there is none.
-pub(super) fn whitespace_after(tokens: &Tokens<TokenType>, offset: u32) -> Span {
+pub(crate) fn whitespace_after(tokens: &Tokens<TokenType>, offset: u32) -> Span {
     let end = tokens
         .from_offset(offset)
         .iter()

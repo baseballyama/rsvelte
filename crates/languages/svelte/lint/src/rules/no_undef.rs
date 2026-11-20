@@ -5,8 +5,8 @@ use rsvelte_typescript_semantic::globals::library;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
-use super::runes::runes;
-use super::svelte_names::{TopLevelNames, is_svelte_global, reactive_names};
+use super::shared::runes::runes;
+use super::shared::svelte_names::{TopLevelNames, is_svelte_global, reactive_names};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 #[cfg(test)]
@@ -82,7 +82,7 @@ impl SvelteRule for NoUndef {
                 }
                 reporter.range(
                     format!("'{name}' is not defined."),
-                    super::nodes::from_oxc(resolution.reference_span(id)),
+                    super::shared::nodes::from_oxc(resolution.reference_span(id)),
                 );
             }
         }

@@ -7,8 +7,8 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_semantic::reference_tracker::import_references;
 use serde::Deserialize;
 
-use super::nodes::{from_oxc, is_named};
-use super::runes::runes_or_undetermined;
+use super::shared::nodes::{from_oxc, is_named};
+use super::shared::runes::runes_or_undetermined;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

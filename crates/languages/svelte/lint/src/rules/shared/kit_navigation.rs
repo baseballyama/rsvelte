@@ -24,34 +24,34 @@ use crate::rule::File;
     clippy::struct_excessive_bools,
     reason = "the options as `ESLint` takes them"
 )]
-pub(super) struct Options {
+pub(crate) struct Options {
     #[serde(default)]
-    pub(super) ignore_goto: bool,
+    pub(crate) ignore_goto: bool,
     #[serde(default)]
-    pub(super) ignore_links: bool,
+    pub(crate) ignore_links: bool,
     #[serde(default)]
-    pub(super) ignore_push_state: bool,
+    pub(crate) ignore_push_state: bool,
     #[serde(default)]
-    pub(super) ignore_replace_state: bool,
+    pub(crate) ignore_replace_state: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(super) enum Navigation {
+pub(crate) enum Navigation {
     Goto,
     PushState,
     ReplaceState,
 }
 
 /// The document's JavaScript, its scopes and its text.
-pub(super) struct Script<'a> {
-    pub(super) tree: &'a Tree,
+pub(crate) struct Script<'a> {
+    pub(crate) tree: &'a Tree,
     semantic: &'a Semantic,
-    pub(super) source: &'a str,
+    pub(crate) source: &'a str,
     programs: Vec<ProgramIdentifier>,
 }
 
 impl<'a> Script<'a> {
-    pub(super) fn new(file: &File<'a>) -> Self {
+    pub(crate) fn new(file: &File<'a>) -> Self {
         Self {
             tree: file.javascript(),
             semantic: file.semantic(),
@@ -61,7 +61,7 @@ impl<'a> Script<'a> {
     }
 
     /// The calls of `goto`, `pushState` and `replaceState` of `$app/navigation`.
-    pub(super) fn navigation_calls(&self) -> Vec<(Navigation, &'a CallExpression<'a>)> {
+    pub(crate) fn navigation_calls(&self) -> Vec<(Navigation, &'a CallExpression<'a>)> {
         let nodes = self.semantic.nodes();
         self.imports("$app/navigation", &["goto", "pushState", "replaceState"])
             .into_iter()
@@ -81,7 +81,7 @@ impl<'a> Script<'a> {
 
     /// The expressions that read `exports` of `$app/paths`, sorted for a binary search: the
     /// tracker's, and the reads of a variable destructured from the module's namespace.
-    pub(super) fn path_reads(&self, exports: &[&str]) -> Vec<NodeId> {
+    pub(crate) fn path_reads(&self, exports: &[&str]) -> Vec<NodeId> {
         let scoping = self.semantic.scoping();
         let nodes = self.semantic.nodes();
         let mut reads = Vec::new();
@@ -136,14 +136,14 @@ impl<'a> Script<'a> {
         import_references(self.semantic, &self.programs, specifier, exports)
     }
 
-    pub(super) fn symbol(&self, identifier: &IdentifierReference<'_>) -> Option<SymbolId> {
+    pub(crate) fn symbol(&self, identifier: &IdentifierReference<'_>) -> Option<SymbolId> {
         let reference = identifier.reference_id.get()?;
         self.semantic.scoping().get_reference(reference).symbol_id()
     }
 
     /// `const name = initializer` for an identifier that reads such a constant (or variable):
     /// its symbol and the initializer. A destructured name has none.
-    pub(super) fn initializer(
+    pub(crate) fn initializer(
         &self,
         identifier: &IdentifierReference<'_>,
     ) -> Option<(SymbolId, &'a Expression<'a>)> {
@@ -164,11 +164,11 @@ impl<'a> Script<'a> {
 }
 
 /// The call's first argument, if any; a spread is no expression.
-pub(super) fn first_argument<'a>(call: &'a CallExpression<'a>) -> Option<&'a Argument<'a>> {
+pub(crate) fn first_argument<'a>(call: &'a CallExpression<'a>) -> Option<&'a Argument<'a>> {
     call.arguments.first()
 }
 
-pub(super) fn string<'a>(node: &Expression<'a>) -> Option<&'a str> {
+pub(crate) fn string<'a>(node: &Expression<'a>) -> Option<&'a str> {
     match node {
         Expression::StringLiteral(string) => string.value.as_str(),
         _ => None,
@@ -176,7 +176,7 @@ pub(super) fn string<'a>(node: &Expression<'a>) -> Option<&'a str> {
 }
 
 /// A template literal's quasis (raw) and expressions.
-pub(super) fn template<'a>(
+pub(crate) fn template<'a>(
     node: &'a Expression<'a>,
 ) -> Option<(Vec<&'a str>, &'a [Expression<'a>])> {
     let Expression::TemplateLiteral(template) = node else {
@@ -194,7 +194,7 @@ pub(super) fn template<'a>(
 
 /// The first expression of a template literal that starts with one (`${x}…`); `None` when it
 /// starts with text or has no expression.
-pub(super) fn leading_expression<'a>(node: &'a Expression<'a>) -> Option<&'a Expression<'a>> {
+pub(crate) fn leading_expression<'a>(node: &'a Expression<'a>) -> Option<&'a Expression<'a>> {
     let (quasis, expressions) = template(node)?;
     if quasis.first().is_some_and(|quasi| !quasi.is_empty()) {
         return None;
@@ -203,13 +203,13 @@ pub(super) fn leading_expression<'a>(node: &'a Expression<'a>) -> Option<&'a Exp
 }
 
 /// The `href` of an `<a>`, with the element's attributes.
-pub(super) struct Link<'a> {
-    pub(super) href: &'a Attribute,
-    pub(super) attributes: &'a [Attribute],
+pub(crate) struct Link<'a> {
+    pub(crate) href: &'a Attribute,
+    pub(crate) attributes: &'a [Attribute],
 }
 
 /// Each `href` attribute of an `<a>` element, in document order.
-pub(super) fn links<'a>(
+pub(crate) fn links<'a>(
     component: &'a Component,
     source: &'a str,
 ) -> impl Iterator<Item = Link<'a>> {
@@ -231,7 +231,7 @@ pub(super) fn links<'a>(
 
 /// The first chunk of an attribute's value, as `svelte-eslint-parser` gives `value[0]`: it gives
 /// no chunk for `href=""`.
-pub(super) fn first_part<'a>(component: &'a Component, attribute: &Attribute) -> Option<&'a Part> {
+pub(crate) fn first_part<'a>(component: &'a Component, attribute: &Attribute) -> Option<&'a Part> {
     match attribute.value {
         AttributeValue::Parts(parts) => component
             .parts(parts)
@@ -242,7 +242,7 @@ pub(super) fn first_part<'a>(component: &'a Component, attribute: &Attribute) ->
 }
 
 /// `^[+a-z]*:`, case-insensitively: a URL with a scheme.
-pub(super) fn has_scheme(url: &str) -> bool {
+pub(crate) fn has_scheme(url: &str) -> bool {
     let rest = url.trim_start_matches(|c: char| c == '+' || c.is_ascii_alphabetic());
     rest.starts_with(':')
 }

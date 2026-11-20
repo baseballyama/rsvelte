@@ -13,8 +13,8 @@ use rsvelte_typescript_tree::Tree;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
-use super::element_kind::is_markup_like;
-use super::nodes;
+use super::shared::element_kind::is_markup_like;
+use super::shared::nodes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

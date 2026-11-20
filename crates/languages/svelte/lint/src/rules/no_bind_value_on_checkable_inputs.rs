@@ -5,7 +5,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
 };
 use rsvelte_typescript_semantic::static_value::{StaticValues, Value};
 
-use super::markup::{is_attribute, parts};
+use super::shared::markup::{is_attribute, parts};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

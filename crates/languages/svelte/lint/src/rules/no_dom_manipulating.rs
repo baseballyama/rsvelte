@@ -8,10 +8,10 @@ use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, Te
 use rsvelte_typescript_semantic::static_value::StaticValues;
 use rustc_hash::FxHashSet;
 
-use super::element_kind::is_markup_element;
-use super::legacy_reactivity::{expression_node, legacy, property_name};
-use super::nodes::span;
-use super::svelte_store::is_value;
+use super::shared::element_kind::is_markup_element;
+use super::shared::legacy_reactivity::{expression_node, legacy, property_name};
+use super::shared::nodes::span;
+use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 #[cfg(test)]

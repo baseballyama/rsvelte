@@ -2,7 +2,7 @@ use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 
 /// `svelte-eslint-parser`'s element kinds.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(super) enum ElementKind {
+pub(crate) enum ElementKind {
     Markup,
     Component,
     /// `<svelte:…>`.
@@ -10,7 +10,7 @@ pub(super) enum ElementKind {
 }
 
 /// The kind of an element; `None` for other nodes.
-pub(super) fn element_kind(node: &TemplateNode, source: &str) -> Option<ElementKind> {
+pub(crate) fn element_kind(node: &TemplateNode, source: &str) -> Option<ElementKind> {
     let TemplateNode::Element {
         name, component, ..
     } = node
@@ -27,7 +27,7 @@ pub(super) fn element_kind(node: &TemplateNode, source: &str) -> Option<ElementK
 }
 
 /// An HTML element or `<svelte:element>`, whose `class` and `style` set the element's.
-pub(super) fn is_markup_like(node: &TemplateNode, source: &str) -> bool {
+pub(crate) fn is_markup_like(node: &TemplateNode, source: &str) -> bool {
     match (element_kind(node, source), node) {
         (Some(ElementKind::Markup), _) => true,
         (Some(ElementKind::Special), TemplateNode::Element { name, .. }) => {
@@ -39,7 +39,7 @@ pub(super) fn is_markup_like(node: &TemplateNode, source: &str) -> bool {
 
 /// Whether an element named `name` is an HTML element, `<svelte:element>` included, rather than a
 /// component or another special element.
-pub(super) fn is_markup_element(name: &str) -> bool {
+pub(crate) fn is_markup_element(name: &str) -> bool {
     name == "svelte:element"
         || !(name.starts_with("svelte:")
             || name.contains('.')

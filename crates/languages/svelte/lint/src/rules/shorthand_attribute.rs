@@ -4,8 +4,8 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Component, Part, TemplateNode, TokenType};
 use serde::Deserialize;
 
-use super::markup::{is_attribute, parts};
-use super::nodes;
+use super::shared::markup::{is_attribute, parts};
+use super::shared::nodes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
