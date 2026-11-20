@@ -136,15 +136,18 @@ impl Registry {
     ///
     /// `file` cannot be read.
     pub fn read(&self, file: &std::path::Path, tasks: &[&str]) -> std::io::Result<String> {
+        let mut replaced = (self.contributions::<ReplacedFiles>().iter())
+            .filter(|replaced| replaced.tasks.iter().any(|task| tasks.contains(task)))
+            .peekable();
+        // Only a file the tasks may read replaced needs its real path.
+        if replaced.peek().is_none() {
+            return std::fs::read_to_string(file);
+        }
         let real = std::fs::canonicalize(file)?;
-        (self.contributions::<ReplacedFiles>().iter())
-            .find(|replaced| {
-                replaced.path == real && replaced.tasks.iter().any(|task| tasks.contains(task))
-            })
-            .map_or_else(
-                || std::fs::read_to_string(file),
-                |replaced| Ok(replaced.text.clone()),
-            )
+        replaced.find(|replaced| replaced.path == real).map_or_else(
+            || std::fs::read_to_string(file),
+            |replaced| Ok(replaced.text.clone()),
+        )
     }
 
     /// The files of the project that the tasks among `tasks` check, each once, in the order the
