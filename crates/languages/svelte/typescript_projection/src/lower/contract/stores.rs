@@ -5,8 +5,9 @@ use oxc_ast::AstKind;
 use oxc_ast::ast::Statement;
 use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_typescript_tree::document_span;
 
-use super::super::{Buffer, Builder, Node, Span, span};
+use super::super::{Buffer, Builder, Node, Span};
 use super::Edit;
 
 /// Where svelte2tsx declares a store subscription.
@@ -67,9 +68,9 @@ pub fn store_reads(resolution: &Resolution) -> Vec<(Span, Vec<Span>)> {
             let reads = (scoping.root_unresolved_references().get(name).into_iter())
                 .flatten()
                 .chain(declared)
-                .map(|&reference| span(resolution.reference_span(reference)))
+                .map(|&reference| document_span(resolution.reference_span(reference)))
                 .collect();
-            (span(scoping.symbol_span(symbol)), reads)
+            (document_span(scoping.symbol_span(symbol)), reads)
         })
         .collect()
 }
@@ -158,7 +159,7 @@ impl Builder<'_> {
                 } else {
                     StoreAt::After(statement_end(store)?)
                 };
-                Some((at, span(store)))
+                Some((at, document_span(store)))
             })
             .collect();
         out.sort_unstable_by_key(|&(_, store)| store.start_offset);

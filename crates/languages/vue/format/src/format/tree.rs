@@ -1,6 +1,8 @@
+use rsvelte_kernel::index::{IndexRange, IndexVector};
+
 use super::{
-    Attributes, Cow, Embed, Kind2, LineIndex, Node, R, ROOT, SingleFileComponent, Span,
-    TagAttributes, TemplateNode, TemplateNodeIdentifier, Tree, Unsupported, only_ws,
+    Attributes, Cow, Embed, LineIndex, Node, NodeIdentifier, NodeKind, R, SingleFileComponent,
+    Span, TagAttributes, TemplateNode, TemplateNodeIdentifier, Tree, Unsupported, only_ws,
 };
 
 /// Elements whose `white-space` is not `normal` (`CSS_WHITE_SPACE_TAGS`) or whose attributes
@@ -24,19 +26,19 @@ impl<'a> Tree<'a> {
         // The parser has read the document, so its offsets fit in `u32`.
         let len = source_text.len() as u32;
         let mut t = Tree {
-            n: vec![Node::new(Kind2::Root, usize::MAX, Span::new(0, len))],
+            n: IndexVector::from(vec![Node::new(NodeKind::Root, None, Span::new(0, len))]),
             lines,
             source_text,
         };
-        let mut blocks: Vec<(Span, usize)> = Vec::new();
+        let mut blocks: Vec<(Span, NodeIdentifier)> = Vec::new();
         if let Some(tpl) = &c.template {
             let identifier = t.push(
-                Kind2::Element {
+                NodeKind::Element {
                     name: "template",
                     attributes: Attributes::Block(&tpl.attributes),
                     embed: Embed::None,
                 },
-                ROOT,
+                NodeIdentifier::ROOT,
                 tpl.span,
             );
             t.n[identifier].open_end = tpl.content.start_offset;
@@ -93,7 +95,7 @@ impl<'a> Tree<'a> {
         {
             t.n[last].has.trailing = true;
         }
-        t.n[ROOT].children = blocks.iter().map(|b| b.1).collect();
+        t.n[NodeIdentifier::ROOT].children = blocks.iter().map(|b| b.1).collect();
         t.extract_whitespace();
         t.link();
         t.display_and_closing();
@@ -103,9 +105,26 @@ impl<'a> Tree<'a> {
         Ok(t)
     }
 
-    pub(super) fn push(&mut self, kind: Kind2<'a>, parent: usize, span: Span) -> usize {
-        self.n.push(Node::new(kind, parent, span));
-        self.n.len() - 1
+    pub(super) fn push(
+        &mut self,
+        kind: NodeKind<'a>,
+        parent: NodeIdentifier,
+        span: Span,
+    ) -> NodeIdentifier {
+        self.n.push(Node::new(kind, Some(parent), span))
+    }
+
+    pub(super) fn parent(&self, i: NodeIdentifier) -> NodeIdentifier {
+        self.n[i].parent.expect("only the root has no parent")
+    }
+
+    pub(super) fn is_top_level(&self, i: NodeIdentifier) -> bool {
+        self.n[i].parent == Some(NodeIdentifier::ROOT)
+    }
+
+    /// Every node, the root first; it does not borrow the tree, so a loop can change nodes.
+    pub(super) fn identifiers(&self) -> impl Iterator<Item = NodeIdentifier> + use<> {
+        IndexRange::new(NodeIdentifier::ROOT, self.n.next_identifier()).iter()
     }
 
     /// A `<script>` or `<style>` block: one raw text child, or none when only whitespace.
@@ -116,14 +135,14 @@ impl<'a> Tree<'a> {
         embed: Embed,
         span: Span,
         content: Span,
-    ) -> usize {
+    ) -> NodeIdentifier {
         let identifier = self.push(
-            Kind2::Element {
+            NodeKind::Element {
                 name,
                 attributes: Attributes::Block(attributes),
                 embed,
             },
-            ROOT,
+            NodeIdentifier::ROOT,
             span,
         );
         self.n[identifier].open_end = content.start_offset;
@@ -132,7 +151,7 @@ impl<'a> Tree<'a> {
         if only_ws(text) {
             self.n[identifier].has.dangling = !text.is_empty();
         } else {
-            let t = self.push(Kind2::Text(Cow::Borrowed(text)), identifier, content);
+            let t = self.push(NodeKind::Text(Cow::Borrowed(text)), identifier, content);
             self.n[identifier].children = vec![t];
         }
         identifier
@@ -141,14 +160,14 @@ impl<'a> Tree<'a> {
     pub(super) fn template_nodes(
         &mut self,
         c: &'a SingleFileComponent,
-        parent: usize,
+        parent: NodeIdentifier,
         children: &[TemplateNodeIdentifier],
-    ) -> R<Vec<usize>> {
+    ) -> R<Vec<NodeIdentifier>> {
         let mut out = Vec::with_capacity(children.len());
         for &k in children {
             let identifier = match *c.node(k) {
                 TemplateNode::Text { span } => self.push(
-                    Kind2::Text(Cow::Borrowed(span.text(self.source_text))),
+                    NodeKind::Text(Cow::Borrowed(span.text(self.source_text))),
                     parent,
                     span,
                 ),
@@ -156,7 +175,7 @@ impl<'a> Tree<'a> {
                     return Err(Unsupported::at("a template comment", span));
                 }
                 TemplateNode::Interpolation { span, .. } => {
-                    self.push(Kind2::Interpolation(span), parent, span)
+                    self.push(NodeKind::Interpolation(span), parent, span)
                 }
                 TemplateNode::Element {
                     name,
@@ -175,7 +194,7 @@ impl<'a> Tree<'a> {
                     }
                     let attributes = c.attributes(attributes);
                     let identifier = self.push(
-                        Kind2::Element {
+                        NodeKind::Element {
                             name: tag,
                             attributes: Attributes::Template(attributes),
                             embed: Embed::None,
@@ -206,33 +225,33 @@ impl<'a> Tree<'a> {
     }
 
     pub(super) fn link(&mut self) {
-        for i in 0..self.n.len() {
+        for i in self.identifiers() {
             let children = self.n[i].children.clone();
             for (j, &k) in children.iter().enumerate() {
-                self.n[k].parent = i;
+                self.n[k].parent = Some(i);
                 self.n[k].prev = j.checked_sub(1).map(|p| children[p]);
                 self.n[k].next = children.get(j + 1).copied();
             }
         }
     }
 
-    pub(super) fn is_element(&self, i: usize) -> bool {
-        matches!(self.n[i].kind, Kind2::Element { .. })
+    pub(super) fn is_element(&self, i: NodeIdentifier) -> bool {
+        matches!(self.n[i].kind, NodeKind::Element { .. })
     }
 
-    pub(super) fn name(&self, i: usize) -> Option<&'a str> {
+    pub(super) fn name(&self, i: NodeIdentifier) -> Option<&'a str> {
         match self.n[i].kind {
-            Kind2::Element { name, .. } => Some(name),
+            NodeKind::Element { name, .. } => Some(name),
             _ => None,
         }
     }
 
     /// `isScriptLikeTag`.
-    pub(super) fn is_script_like(&self, i: usize) -> bool {
+    pub(super) fn is_script_like(&self, i: NodeIdentifier) -> bool {
         matches!(self.name(i), Some("script" | "style"))
     }
 
-    pub(super) fn is_text(&self, i: usize) -> bool {
-        matches!(self.n[i].kind, Kind2::Text(_))
+    pub(super) fn is_text(&self, i: NodeIdentifier) -> bool {
+        matches!(self.n[i].kind, NodeKind::Text(_))
     }
 }

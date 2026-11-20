@@ -55,43 +55,35 @@ pub(super) fn warnings(
             ),
         );
     }
-    for &child in component.children(component.root) {
-        let TemplateNode::Element {
-            name, attributes, ..
-        } = *component.node(child)
-        else {
+    let Some((attributes, _)) = component.svelte_options(source) else {
+        return;
+    };
+    for attribute in attributes {
+        if attribute.kind != AttributeKind::Attribute {
             continue;
+        }
+        let found_one = match attribute.name.text(source) {
+            "accessors" if runes => warning(
+                "options_deprecated_accessors",
+                "The `accessors` option has been deprecated. It will have no effect in runes \
+                    mode",
+                attribute.span,
+            ),
+            "customElement" if !options.custom_element => warning(
+                "options_missing_custom_element",
+                "The `customElement` option is used when generating a custom element. Did you \
+                    forget the `customElement: true` compile option?",
+                attribute.span,
+            ),
+            "immutable" if runes => warning(
+                "options_deprecated_immutable",
+                "The `immutable` option has been deprecated. It will have no effect in runes \
+                    mode",
+                attribute.span,
+            ),
+            _ => continue,
         };
-        if name.text(source) != "svelte:options" {
-            continue;
-        }
-        for attribute in component.attributes(attributes) {
-            if attribute.kind != AttributeKind::Attribute {
-                continue;
-            }
-            let found_one = match attribute.name.text(source) {
-                "accessors" if runes => warning(
-                    "options_deprecated_accessors",
-                    "The `accessors` option has been deprecated. It will have no effect in runes \
-                        mode",
-                    attribute.span,
-                ),
-                "customElement" if !options.custom_element => warning(
-                    "options_missing_custom_element",
-                    "The `customElement` option is used when generating a custom element. Did you \
-                        forget the `customElement: true` compile option?",
-                    attribute.span,
-                ),
-                "immutable" if runes => warning(
-                    "options_deprecated_immutable",
-                    "The `immutable` option has been deprecated. It will have no effect in runes \
-                        mode",
-                    attribute.span,
-                ),
-                _ => continue,
-            };
-            found.push(Stage::Setup, 2, found_one);
-        }
+        found.push(Stage::Setup, 2, found_one);
     }
 }
 

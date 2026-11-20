@@ -23,7 +23,7 @@ impl Builder<'_> {
         let arguments = self.tree.list(&[component]);
         let mut callee = self.tree.push(Node::Call { callee, arguments });
         let named = (snippets.len != 0 || name_it).then(|| {
-            let name = self.component_name();
+            let name = self.component_instance_name();
             let value = callee;
             self.scratch
                 .push(self.tree.push(Node::Const { name, value }));
@@ -195,7 +195,7 @@ impl Builder<'_> {
         };
         self.slot_elements.push(attributes);
         let mut callee = self.tree.push(Node::Identifier("__rsvelte_slots"));
-        if self.declares("$$Slots") {
+        if self.declares_slots() {
             let slots = self.tree.push(Node::Identifier("$$Slots"));
             let arguments = self.tree.list(&[slots]);
             callee = self.tree.push(Node::TypeArguments { callee, arguments });

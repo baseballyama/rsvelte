@@ -9,12 +9,12 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::SymbolFlags;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Component, Part, TemplateNode};
-use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
+use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Component, Part};
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree, document_span};
 use rustc_hash::FxHashSet;
 
 use super::found::{Found, Stage};
-use super::{Phase, Raised, Section, error, span, warning};
+use super::{Phase, Raised, Section, error, warning};
 use crate::resolve::{Resolution, is_rune};
 
 /// Svelte's runes mode: `<svelte:options runes>`, or else a top-level `await` or a reference to
@@ -26,8 +26,8 @@ pub(super) fn runes(
     awaits: &[Span],
     forced: Option<bool>,
 ) -> bool {
-    if let Some(value) = svelte_option(component, source, "runes") {
-        return match value {
+    if let Some(attribute) = component.svelte_option(source, "runes") {
+        return match attribute.value {
             AttributeValue::True => true,
             AttributeValue::Parts(parts) => !matches!(
                 component.parts(parts),
@@ -48,35 +48,6 @@ pub(super) fn runes(
     resolution
         .unresolved_names()
         .any(|name| is_rune(name) && !resolution.is_store_subscription(name))
-}
-
-/// The value of attribute `name` of `<svelte:options>`.
-pub(crate) fn svelte_option(
-    component: &Component,
-    source: &str,
-    name: &str,
-) -> Option<AttributeValue> {
-    component
-        .children(component.root)
-        .iter()
-        .find_map(|&child| {
-            let TemplateNode::Element {
-                name: tag,
-                attributes,
-                ..
-            } = *component.node(child)
-            else {
-                return None;
-            };
-            if tag.text(source) != "svelte:options" {
-                return None;
-            }
-            component
-                .attributes(attributes)
-                .iter()
-                .find(|a| a.name.text(source) == name)
-                .map(|a| a.value)
-        })
 }
 
 /// `dollar_prefix_invalid` and `dollar_binding_invalid`, with where the compiler raises each.
@@ -133,7 +104,7 @@ pub fn dollar_name_errors(
         if is_parameter {
             continue;
         }
-        let at = span(scoping.symbol_span(symbol));
+        let at = document_span(scoping.symbol_span(symbol));
         let section = if holds(module, at.start_offset) {
             Section::Module
         } else if holds(instance, at.start_offset) {
@@ -267,7 +238,7 @@ fn module_import_conflicts(
                 .id
                 .any_binding_identifiers(&mut |id| imported(id.name.as_str()));
             if conflicts {
-                let at = span(oxc_span::GetSpan::span(&declarator.id));
+                let at = document_span(oxc_span::GetSpan::span(&declarator.id));
                 let raised = Raised {
                     phase: Phase::Walk,
                     section: Section::Instance,
@@ -323,7 +294,7 @@ fn rune_placement(
                 && exported
                 && declaration.kind == VariableDeclarationKind::Let
             {
-                let at = span(oxc_span::GetSpan::span(statement));
+                let at = document_span(oxc_span::GetSpan::span(statement));
                 let found = error(
                     "legacy_export_invalid",
                     "Cannot use `export let` in runes mode — use `$props()` instead",
@@ -334,7 +305,7 @@ fn rune_placement(
             }
         }
         for (i, call) in props_calls(resolution, program).into_iter().enumerate() {
-            let at = span(call);
+            let at = document_span(call);
             if i > 0 {
                 let found = error(
                     "props_duplicate",
@@ -377,7 +348,7 @@ fn legacy_rune_calls(
                 && (self.resolution.symbol(callee).is_some()
                     || !self.resolution.is_store_subscription(name))
             {
-                let at = span(call.span);
+                let at = document_span(call.span);
                 let raised = Raised {
                     phase: Phase::Walk,
                     section: self.section,
@@ -448,11 +419,11 @@ pub(super) fn custom_element(
     source: &str,
     out: &mut Found,
 ) {
-    let Some(custom) = svelte_option(component, source, "customElement") else {
+    let Some(custom) = component.svelte_option(source, "customElement") else {
         return;
     };
     let javascript = &component.javascript;
-    let names_props = match custom {
+    let names_props = match custom.value {
         AttributeValue::Parts(parts) => match component.parts(parts) {
             [Part::Expression { expression, .. }] => match javascript.get_expression(*expression) {
                 Expression::ObjectExpression(object) => object.properties.iter().any(|p| {
@@ -504,7 +475,7 @@ pub(super) fn custom_element(
                         that Svelte can't infer what properties to expose when creating a custom \
                         element. Consider destructuring all the props or explicitly specifying the \
                         `customElement.props` option.",
-                    span(at),
+                    document_span(at),
                 ));
             }
         }

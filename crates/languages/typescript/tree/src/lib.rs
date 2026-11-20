@@ -18,7 +18,7 @@ use rsvelte_kernel::source::document::Document;
 
 mod acorn_grammar;
 mod builder;
-pub use builder::{Builder, Recorded, RecordedPart, Rejected};
+pub use builder::{Recorded, RecordedPart, Rejected, TreeBuilder};
 mod syntax_error;
 pub use syntax_error::{
     Acorn, Locator, Reader, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, analysis_error,
@@ -164,27 +164,27 @@ macro_rules! identifier {
 }
 
 identifier!(
-    /// A program parsed by [`Builder::program`].
+    /// A program parsed by [`TreeBuilder::program`].
     ProgramIdentifier
 );
 identifier!(
-    /// An expression a [`Builder`] keeps.
+    /// An expression a [`TreeBuilder`] keeps.
     ExpressionIdentifier
 );
 identifier!(
-    /// A binding pattern with its type annotation, parsed by [`Builder::pattern`].
+    /// A binding pattern with its type annotation, parsed by [`TreeBuilder::pattern`].
     PatternIdentifier
 );
 identifier!(
-    /// A parameter list parsed by [`Builder::parameters`].
+    /// A parameter list parsed by [`TreeBuilder::parameters`].
     ParametersIdentifier
 );
 identifier!(
-    /// A variable declaration kept by [`Builder::keep_declaration`].
+    /// A variable declaration kept by [`TreeBuilder::keep_declaration`].
     DeclarationIdentifier
 );
 identifier!(
-    /// A type parameter list parsed by [`Builder::type_parameters`].
+    /// A type parameter list parsed by [`TreeBuilder::type_parameters`].
     TypeParametersIdentifier
 );
 
@@ -200,11 +200,11 @@ impl Tree {
     )]
     pub fn build<T>(
         source_text: &str,
-        parse: impl for<'a> FnOnce(&mut Builder<'a>) -> Result<T, Diagnostic>,
+        parse: impl for<'a> FnOnce(&mut TreeBuilder<'a>) -> Result<T, Diagnostic>,
     ) -> Result<(Self, T), Diagnostic> {
         let mut output = None;
         let cell = Cell::try_new_or_recover(scratch::TREES.take(), |allocator| {
-            let mut builder = Builder::new(allocator, allocator.alloc_str(source_text));
+            let mut builder = TreeBuilder::new(allocator, allocator.alloc_str(source_text));
             output = Some(parse(&mut builder)?);
             Ok::<_, Diagnostic>(builder.finish())
         })
@@ -377,6 +377,12 @@ impl Tree {
 
 mod computation;
 pub use computation::{PLUGIN, Parsed, Script, is_jsx, is_typescript, matches, register};
+
+/// The document span of an oxc node, whose offsets are already the document's.
+#[must_use]
+pub const fn document_span(span: oxc_span::Span) -> rsvelte_kernel::source::positions::Span {
+    rsvelte_kernel::source::positions::Span::new(span.start, span.end)
+}
 
 /// Upstream's `regex_is_valid_identifier` and `regex_valid_identifier`, both
 /// `/^[a-zA-Z_$][a-zA-Z_$0-9]*$/`: an ASCII-only name that can follow a `.`.

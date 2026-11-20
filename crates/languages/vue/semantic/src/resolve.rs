@@ -18,9 +18,9 @@ use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 use rsvelte_vue_syntax::syntax_tree::{
     AttributeKind, DirectiveName, SingleFileComponent, TemplateNode, TemplateNodeIdentifier,
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::compiler_syntax_tree::{CompilerNodeIdentifier, CompilerSyntaxTree};
+use crate::compiler_syntax_tree::CompilerSyntaxTree;
 
 mod host;
 
@@ -65,8 +65,8 @@ pub struct Resolution {
     /// compileScript's `bindingMetadata`: by name, as the template compiler looks names up.
     bindings: FxHashMap<Box<str>, BindingType>,
     define_props: Option<DefinePropsAt>,
-    /// The scope each `v-for` element opens for its aliases.
-    for_scopes: FxHashMap<CompilerNodeIdentifier, ScopeId>,
+    /// The scopes `v-for` elements open for their aliases.
+    alias_scopes: FxHashSet<ScopeId>,
 }
 
 impl Resolution {
@@ -106,13 +106,7 @@ impl Resolution {
     #[must_use]
     pub fn is_alias(&self, symbol: SymbolId) -> bool {
         let scope = self.scoping().symbol_scope_id(symbol);
-        self.for_scopes.values().any(|&s| s == scope)
-    }
-
-    /// The scope a `v-for` element opens, which its aliases are declared in.
-    #[must_use]
-    pub fn for_scope(&self, element: CompilerNodeIdentifier) -> Option<ScopeId> {
-        self.for_scopes.get(&element).copied()
+        self.alias_scopes.contains(&scope)
     }
 
     #[must_use]
@@ -156,17 +150,17 @@ pub fn resolve(
     module: Option<ProgramIdentifier>,
     compiler_syntax_tree: Option<&CompilerSyntaxTree>,
 ) -> Resolution {
-    let mut for_scopes = FxHashMap::default();
+    let mut alias_scopes = FxHashSet::default();
     let semantic = Semantic::build(tree.clone(), |tree, builder| {
         let host = host::TemplateHost {
             tree,
             compiler_syntax_tree,
             nested_setup: module.map(|_| tree.get_program(program)),
-            for_scopes: RefCell::new(FxHashMap::default()),
+            alias_scopes: RefCell::new(FxHashSet::default()),
         };
         let root = tree.get_program(module.unwrap_or(program));
         let built = builder.build_with_host(root, &host);
-        for_scopes = host.for_scopes.take();
+        alias_scopes = host.alias_scopes.take();
         built
     });
     let setup = semantic.tree().get_program(program);
@@ -181,7 +175,7 @@ pub fn resolve(
         root_scope,
         bindings,
         define_props,
-        for_scopes,
+        alias_scopes,
     }
 }
 

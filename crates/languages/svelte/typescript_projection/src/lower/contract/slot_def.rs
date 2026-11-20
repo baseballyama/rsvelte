@@ -7,8 +7,9 @@ use oxc_span::GetSpan;
 use oxc_syntax::identifier::is_identifier_name;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range};
+use rsvelte_typescript_tree::document_span;
 
-use super::super::{Builder, Node, NodeIdentifier, Span, span};
+use super::super::{Builder, Node, NodeIdentifier, Span};
 
 /// A slot's name, as text and as a node, and its properties: each name with the property.
 type Slot<'a> = (&'a str, NodeIdentifier, Vec<(&'a str, NodeIdentifier)>);
@@ -119,7 +120,7 @@ impl<'s> Builder<'s> {
                         self.tree.push(Node::Identifier("__rsvelte_untyped_prop()"))
                     } else {
                         self.tree
-                            .push(Node::UnmappedSource(span(expression.span())))
+                            .push(Node::UnmappedSource(document_span(expression.span())))
                     }
                 }
                 // svelte2tsx types text, or text with expressions, as a string.

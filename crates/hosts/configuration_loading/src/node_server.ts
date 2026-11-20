@@ -70,6 +70,7 @@ for await (const line of createInterface({ input: process.stdin, crlfDelay: Infi
 			if (
 				!loaded ||
 				!fn ||
+				typeof request.version !== 'number' ||
 				!Number.isInteger(request.version) ||
 				request.version < 0 ||
 				request.version > 0xffffffff

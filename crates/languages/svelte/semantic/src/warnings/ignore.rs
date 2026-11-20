@@ -11,16 +11,17 @@ use rsvelte_kernel::source::tokens::{TokenKind, Tokens};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode, TokenType};
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier, Tree,
+    document_span,
 };
 
 use super::found::{Found, Stage};
-use super::{CompileWarnings, Scripts, Section, span as document_span, warning};
+use super::{CompileWarnings, Scripts, Section, warning};
 use crate::compiler_syntax_tree::CompilerSyntaxTree;
 use crate::fuzzymatch::fuzzymatch;
 use crate::resolve::{Roots, TemplateName, TemplateScope};
 
 /// Svelte 4's codes whose Svelte 5 code is not the same with `-` read as `_`.
-pub const LEGACY_REPLACEMENTS: &[(&str, &str)] = &[
+const LEGACY_REPLACEMENTS: &[(&str, &str)] = &[
     (
         "non-top-level-reactive-declaration",
         "reactive_declaration_invalid_placement",

@@ -10,6 +10,8 @@ Checks the repository's layout:
 - Module files (`modules.test.ts`): no file only lists child modules. Its parent declares such a
   module inline. No file writes its tests inline; they sit in `tests.rs`.
   No parent defines an item that it never uses and that one child alone uses.
+- Tools (`tools.test.ts`): each tool under `tools/` follows the layout in
+  [tools/README.md](../README.md).
 
 ```sh
 mise run structure

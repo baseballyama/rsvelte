@@ -1,6 +1,6 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::shared::compile_warnings::{Postcss, apply, decidable, ignores};
+use super::shared::compile_warnings::{Postcss, compile, decidable, ignores};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 #[cfg(test)]
@@ -38,16 +38,12 @@ impl SvelteRule for NoUnusedSvelteIgnore {
         if ignores.items.is_empty() {
             return;
         }
-        // A compile that stops while parsing uses no comment.
-        let Some(Ok(compile)) = file.compile_warnings() else {
-            return;
-        };
-        let experimental_async = match file.svelte_config() {
+        let applied = match compile(file, &ignores, self.postcss) {
+            None => return,
             Some(Err(why)) => return reporter.fail(why),
-            Some(Ok(config)) => config.experimental_async,
-            None => false,
+            Some(Ok(compiled)) => compiled.applied,
         };
-        let applied = apply(file, compile, &ignores, experimental_async, self.postcss);
+        // A compile that fails uses no comment.
         if applied.error.is_some() {
             return;
         }

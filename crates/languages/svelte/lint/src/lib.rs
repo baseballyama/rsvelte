@@ -7,6 +7,7 @@ pub mod computation;
 mod configuration;
 pub use configuration::{Configuration, ConfiguredRule, definition};
 mod extension;
+mod global_comments;
 pub use extension::EXTENSION;
 pub mod host_rule;
 mod pattern;
@@ -17,7 +18,8 @@ mod rules;
 mod settings;
 pub mod svelte_config;
 pub use settings::{
-    CompileOptions, Kit, KitFiles, LintSettings, Postcss, SvelteConfig, Warning, WarningHandler,
+    CompileOptions, ExperimentalAsync, Kit, KitFiles, LintSettings, Postcss, SvelteConfig, Warning,
+    WarningHandler,
 };
 mod task;
 mod words;

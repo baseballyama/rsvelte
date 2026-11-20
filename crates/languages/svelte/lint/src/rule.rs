@@ -1,9 +1,12 @@
 //! What a rule implements, built in or from a plugin.
 
+use std::sync::OnceLock;
+
 use oxc_semantic::AstNodes;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Contribution;
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::Warned;
 use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
@@ -77,7 +80,10 @@ pub type RuleOptions<'a> = rsvelte_lint_runner::catalog::RuleOptions<'a, LintSet
 pub struct File<'a> {
     pub context: &'a DocumentContext<'a>,
     parsed: Source<'a>,
-    globals: &'a Declared,
+    configured_globals: &'a Declared,
+    comments: OnceLock<Vec<Span>>,
+    /// The configuration's globals as the comments set them, or `None` when no comment sets one.
+    globals: OnceLock<Option<Declared>>,
 }
 
 #[derive(Debug)]
@@ -105,14 +111,41 @@ impl<'a> File<'a> {
         Ok(Self {
             context,
             parsed,
-            globals,
+            configured_globals: globals,
+            comments: OnceLock::new(),
+            globals: OnceLock::new(),
         })
     }
 
-    /// The global variables that the configuration declares.
+    /// The global variables: the configuration's, as the document's `/* global */` comments set
+    /// them.
     #[must_use]
-    pub const fn globals(&self) -> &'a Declared {
+    pub fn globals(&self) -> &Declared {
         self.globals
+            .get_or_init(|| {
+                let settings = crate::global_comments::settings(self.comments(), self.source());
+                (!settings.is_empty()).then(|| self.configured_globals.overridden(settings))
+            })
+            .as_ref()
+            .unwrap_or(self.configured_globals)
+    }
+
+    /// Every JavaScript comment of the document, the scripts' and the template's, in document
+    /// order: what `ESLint` reads directive comments from.
+    #[must_use]
+    pub fn comments(&self) -> &[Span] {
+        self.comments.get_or_init(|| {
+            let tree = self.javascript();
+            let mut out: Vec<Span> = self
+                .programs()
+                .into_iter()
+                .flat_map(|program| &tree.get_program(program).comments)
+                .chain(tree.comments())
+                .map(|comment| Span::new(comment.span.start, comment.span.end))
+                .collect();
+            out.sort_unstable_by_key(|comment| comment.start_offset);
+            out
+        })
     }
 
     #[must_use]

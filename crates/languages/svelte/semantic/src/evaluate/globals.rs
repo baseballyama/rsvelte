@@ -1,4 +1,6 @@
-use super::{Value, pow, to_int32};
+use rsvelte_typescript_semantic::number::{exponentiate, to_int32};
+
+use super::Value;
 
 #[cfg(test)]
 mod tests;
@@ -103,7 +105,7 @@ fn function(path: (&str, Option<&str>)) -> Option<Global> {
         ("Math", Some("tan")) => |a| math1(a, f64::tan),
         ("Math", Some("exp")) => |a| math1(a, f64::exp),
         ("Math", Some("log")) => |a| math1(a, f64::ln),
-        ("Math", Some("pow")) => |a| Value::Number(pow(num_arg(a, 0), num_arg(a, 1))),
+        ("Math", Some("pow")) => |a| Value::Number(exponentiate(num_arg(a, 0), num_arg(a, 1))),
         ("Math", Some("sqrt")) => |a| math1(a, f64::sqrt),
         ("Math", Some("clz32")) => |a| {
             Value::Number(f64::from(

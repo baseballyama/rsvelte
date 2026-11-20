@@ -1,7 +1,7 @@
 import { Linter } from 'eslint';
 import sveltePlugin from 'eslint-plugin-svelte';
 import * as tsParser from '@typescript-eslint/parser';
-import { CORE_RECOMMENDED, declaredGlobals, enabledRules, lintArtifacts } from './lint-shared.ts';
+import { CORE_RECOMMENDED, declaredGlobals, enabledRules, lintArtifacts } from './eslint.ts';
 import type { Task } from '../types.ts';
 
 // Every plugin rule, so expected output does not depend on which rules rsvelte has ported: the

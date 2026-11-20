@@ -6,9 +6,9 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier, Tree,
+    document_span,
 };
 
-use super::span;
 use crate::compiler_syntax_tree::CompilerSyntaxTree;
 use crate::resolve::{Resolution, Roots, TemplateName, TemplateScope};
 
@@ -44,7 +44,7 @@ pub(super) fn suspending_awaits(
                     if (self.top && self.functions == 0)
                         || self.deriveds.last() == Some(&self.functions) =>
                 {
-                    self.out.push(span(e.span));
+                    self.out.push(document_span(e.span));
                 }
                 _ => {}
             }

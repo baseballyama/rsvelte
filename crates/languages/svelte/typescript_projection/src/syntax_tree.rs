@@ -14,9 +14,6 @@ pub enum Node {
     ProgramParts {
         parts: Range,
     },
-    SourceCopy {
-        span: Span,
-    },
     GeneratedIdentifier {
         prefix: NodeIdentifier,
         index: u32,
@@ -218,6 +215,11 @@ pub enum Node {
         body: Range,
     },
 }
+
+// Pinned so a change to a node's layout is a decision: the tree holds one `Node` per generated
+// or copied part of every component.
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(size_of::<Node>() == 40, "`Node` is 40 bytes");
 
 /// A generic component's type parameters, without their angle brackets.
 #[derive(Clone, Copy, Debug)]

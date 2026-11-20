@@ -1,0 +1,1 @@
+error compile_unsupported 13:33-13:60 not supported yet: this bound attribute

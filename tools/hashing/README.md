@@ -36,7 +36,7 @@ change, then run:
 mise exec -- node tools/hashing/hashing.ts integration <before binary> <after binary> tools/hashing/generated/integration
 ```
 
-The integration driver measures the crate's Vue fixture inputs in twelve rounds. In each group
-of four rounds, the first and last run the before binary first; the middle two run it second. It
-checks that every task runs, and it measures the official Vue task over the same inputs. It
-records the binary hashes and every timing round.
+The integration driver measures the Vue compiler's fixture inputs that compile without
+diagnostics, in twelve rounds. In each group of four rounds, the first and last run the before
+binary first; the middle two run it second. It checks that every task runs, and it measures the
+official Vue task over the same inputs. It records the binary hashes and every timing round.

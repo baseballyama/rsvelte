@@ -1,16 +1,16 @@
 // performance <command> [options]
 //
 //   ratchet [--update] [--instructions] [--json <file>]   the allocation (and instruction) ratchet
-//   linux [--update]                                      the ratchet with instruction counts, in linux.Dockerfile
+//   ratchet-linux [--update]                              the ratchet with instruction counts, in ratchet-linux.Dockerfile
 //   cache-profile <config.json> <report.json>             cachegrind's cache and branch profile
-//   linux-counters <config.json> <report.json>            Linux hardware counters through perf stat
+//   hardware-counters <config.json> <report.json>         Linux hardware counters through perf stat
 //   macos-cycles <config.json> <report.json> [--max-load <n>] [--allow-busy]
 //                                                         macOS CPU cycles and instructions
 const commands: Record<string, () => Promise<{ main(args: string[]): Promise<void> }>> = {
 	ratchet: () => import('./ratchet.ts'),
-	linux: () => import('./linux.ts'),
+	'ratchet-linux': () => import('./ratchet-linux.ts'),
 	'cache-profile': () => import('./cache-profile.ts'),
-	'linux-counters': () => import('./linux-counters.ts'),
+	'hardware-counters': () => import('./hardware-counters.ts'),
 	'macos-cycles': () => import('./macos-cycles.ts'),
 };
 

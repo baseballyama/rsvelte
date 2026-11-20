@@ -15,7 +15,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
 use rsvelte_markup_syntax::is_void;
 use rsvelte_markup_syntax::script_language::parse_guessing_typescript;
-use rsvelte_typescript_tree::{Builder, ExpressionIdentifier, ProgramIdentifier, Tree};
+use rsvelte_typescript_tree::{ExpressionIdentifier, ProgramIdentifier, Tree, TreeBuilder};
 
 use crate::syntax_tree::{
     Attribute, AttributeKind, Directive, DirectiveExpression, DirectiveName, LoopExpression, Range,
@@ -106,7 +106,7 @@ struct P<'a, 'b> {
     source_text: &'a str,
     b: &'b [u8],
     position: usize,
-    builder: &'b mut Builder<'a>,
+    builder: &'b mut TreeBuilder<'a>,
     c: Markup,
     /// The language the script's `lang` gives the component, once the script is read.
     lang_read: Option<bool>,

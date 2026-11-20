@@ -490,6 +490,35 @@ impl Component {
         r.get(&self.attributes)
     }
 
+    /// The attributes and children of `<svelte:options>`, which the parser allows only once and
+    /// only among the root's children.
+    #[must_use]
+    pub fn svelte_options(
+        &self,
+        source: &str,
+    ) -> Option<(&[Attribute], &[TemplateNodeIdentifier])> {
+        self.children(self.root)
+            .iter()
+            .find_map(|&node| match *self.node(node) {
+                TemplateNode::Element {
+                    name,
+                    attributes,
+                    children,
+                    ..
+                } if name.text(source) == "svelte:options" => {
+                    Some((self.attributes(attributes), self.children(children)))
+                }
+                _ => None,
+            })
+    }
+
+    /// The attribute `name` of `<svelte:options>`.
+    #[must_use]
+    pub fn svelte_option(&self, source: &str, name: &str) -> Option<&Attribute> {
+        let (attributes, _) = self.svelte_options(source)?;
+        attributes.iter().find(|a| a.name.text(source) == name)
+    }
+
     #[must_use]
     pub fn parts(&self, r: Range) -> &[Part] {
         r.get(&self.parts)

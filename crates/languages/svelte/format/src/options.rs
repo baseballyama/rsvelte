@@ -5,6 +5,10 @@
 //! `plugins`, `filepath`, `cursorOffset`), the other languages' options (`vueIndentScriptAndStyle`,
 //! the Pug plugin's `pugTabWidth`) and `svelte5CompilerPath` are not options here.
 
+pub use rsvelte_typescript_format::options::{
+    ArrowParens, EmbeddedLanguageFormatting, EndOfLine, ObjectWrap, OperatorPosition, QuoteProps,
+    TrailingComma,
+};
 use serde::{Deserialize, Deserializer};
 
 /// The names [`Options`] takes, so that a host can tell an option the formatter prints from one it
@@ -140,36 +144,6 @@ fn whole_or_null<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<us
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum QuoteProps {
-    AsNeeded,
-    Consistent,
-    Preserve,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum TrailingComma {
-    All,
-    Es5,
-    None,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ObjectWrap {
-    Preserve,
-    Collapse,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ArrowParens {
-    Always,
-    Avoid,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum WhitespaceSensitivity {
     /// Prettier's `css`: as each element's CSS `display` makes its whitespace significant.
@@ -181,33 +155,10 @@ pub enum WhitespaceSensitivity {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum EndOfLine {
-    Lf,
-    Crlf,
-    Cr,
-    Auto,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum EmbeddedLanguageFormatting {
-    Auto,
-    Off,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
 pub enum ProseWrap {
     Always,
     Never,
     Preserve,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum OperatorPosition {
-    Start,
-    End,
 }
 
 /// The top-level parts of a component.
@@ -262,6 +213,67 @@ impl TryFrom<String> for SortOrder {
         }
         Ok(Self(Some(parts)))
     }
+}
+
+/// The first option whose value this port does not print yet. The pattern names every field, so
+/// a new option does not compile until it is decided here.
+#[must_use]
+#[expect(
+    clippy::unneeded_field_pattern,
+    reason = "`..` would let a new option through unchecked"
+)]
+pub fn unported(o: &Options) -> Option<&'static str> {
+    let Options {
+        print_width: _,
+        tab_width: _,
+        use_tabs: _,
+        semi,
+        single_quote,
+        jsx_single_quote: _,
+        quote_props,
+        trailing_comma,
+        bracket_spacing,
+        object_wrap,
+        bracket_same_line: _,
+        arrow_parens,
+        markup_whitespace_sensitivity: _,
+        end_of_line: _,
+        embedded_language_formatting: _,
+        single_attribute_per_line: _,
+        prose_wrap: _,
+        require_pragma: _,
+        insert_pragma: _,
+        check_ignore_pragma: _,
+        range_start,
+        range_end,
+        experimental_ternaries,
+        experimental_operator_position,
+        svelte_sort_order: _,
+        svelte_allow_shorthand: _,
+        svelte_indent_script_and_style: _,
+    } = o;
+    let d = Options::default();
+    [
+        ("semi", *semi != d.semi),
+        ("singleQuote", *single_quote != d.single_quote),
+        ("quoteProps", *quote_props != d.quote_props),
+        ("trailingComma", *trailing_comma != d.trailing_comma),
+        ("bracketSpacing", *bracket_spacing != d.bracket_spacing),
+        ("objectWrap", *object_wrap != d.object_wrap),
+        ("arrowParens", *arrow_parens != d.arrow_parens),
+        ("rangeStart", *range_start != d.range_start),
+        ("rangeEnd", *range_end != d.range_end),
+        (
+            "experimentalTernaries",
+            *experimental_ternaries != d.experimental_ternaries,
+        ),
+        (
+            "experimentalOperatorPosition",
+            *experimental_operator_position != d.experimental_operator_position,
+        ),
+    ]
+    .into_iter()
+    .find_map(|(name, differs)| differs.then_some(name))
 }
 
 #[cfg(test)]

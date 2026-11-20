@@ -20,7 +20,7 @@ artifact's `Debug`.
 
 The command line is two programs. `rsvelte`, which a [release](../../tools/release/README.md)
 publishes to npm, runs `lint`, `format` and `typecheck` over Svelte and TypeScript files; its
-[README](../../tools/release/npm-readme.md) is the user guide. `rsvelte-dev` runs every task of
+[README](../../apps/cli/README.md) is the user guide. `rsvelte-dev` runs every task of
 every language, and the development commands below. Run these examples from the repository root
 with the pinned Rust toolchain:
 
@@ -96,7 +96,7 @@ Build the bindings with `pnpm run generate` from `apps/site/`. See
 generated module before you call its functions:
 
 ```js
-import init, { runPipeline } from './rsvelte_kernel_browser.js';
+import init, { runPipeline } from './rsvelte_browser.js';
 
 await init();
 const result = JSON.parse(

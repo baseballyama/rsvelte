@@ -1,4 +1,5 @@
 use super::parse;
+use crate::ExperimentalAsync;
 
 /// `kit.files.routes`, `kit: {}` for a `kit` without it, or `none` without a static `kit`.
 fn routes(source: &str) -> String {
@@ -82,4 +83,47 @@ fn compiler_options_runes_is_read_when_static() {
     );
     assert_eq!(runes("export default { compilerOptions: options };"), None);
     assert_eq!(runes("export default {};"), None);
+}
+
+/// What `compilerOptions.experimental.async: <value>` reads as.
+fn experimental_async(value: &str) -> ExperimentalAsync {
+    let config = parse(&format!(
+        "const config = {{ compilerOptions: {{ experimental: {{ async: {value} }} }} }}; \
+         export default config;"
+    ))
+    .expect("the configuration parses");
+    config.experimental_async
+}
+
+/// `ESLint` 10.14.0 + eslint-plugin-svelte 3.23.1 with `svelteConfig` set to each value: `true`
+/// compiles with async, `false` and `undefined` without, and any other value fails at 1:1 with
+/// `options_invalid_value`.
+#[test]
+fn compiler_options_experimental_async_must_be_a_boolean() {
+    assert_eq!(experimental_async("true"), ExperimentalAsync::On);
+    assert_eq!(experimental_async("false"), ExperimentalAsync::Off);
+    assert_eq!(experimental_async("undefined"), ExperimentalAsync::Off);
+    for invalid in ["1", "0", "'yes'", "null", "{}"] {
+        assert_eq!(
+            experimental_async(invalid),
+            ExperimentalAsync::Invalid,
+            "{invalid}"
+        );
+    }
+    assert_eq!(
+        experimental_async("process.env.ASYNC"),
+        ExperimentalAsync::Off
+    );
+    let unset = |source: &str| {
+        let config = parse(source).expect("the configuration parses");
+        config.experimental_async
+    };
+    assert_eq!(
+        unset("export default { compilerOptions: { experimental: makeExperimental() } };"),
+        ExperimentalAsync::Off
+    );
+    assert_eq!(
+        unset("export default { compilerOptions: { runes: true } };"),
+        ExperimentalAsync::Off
+    );
 }

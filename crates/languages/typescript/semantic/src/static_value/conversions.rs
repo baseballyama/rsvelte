@@ -1,9 +1,7 @@
 //! JavaScript's type conversions: `ToBoolean`, `ToString`, `ToNumber` and their kin.
 
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
-
 use super::{Global, Value};
-use crate::number::number;
+use crate::number::{self, number, string_to_number};
 
 pub(super) const fn is_nullish(value: &Value) -> bool {
     matches!(value, Value::Undefined | Value::Null)
@@ -79,62 +77,8 @@ pub(super) fn to_number(value: &Value) -> Option<f64> {
     })
 }
 
-/// `StringToNumber`: JavaScript's numeric string grammar, not Rust's.
-pub(super) fn string_to_number(s: &str) -> f64 {
-    let s = s.trim_matches(is_ecmascript_whitespace);
-    if s.is_empty() {
-        return 0.0;
-    }
-    let (sign, unsigned) = match s.as_bytes()[0] {
-        b'+' => (1.0, &s[1..]),
-        b'-' => (-1.0, &s[1..]),
-        _ => (1.0, s),
-    };
-    if unsigned == "Infinity" {
-        return sign * f64::INFINITY;
-    }
-    for (prefix, radix) in [("0x", 16), ("0o", 8), ("0b", 2)] {
-        if s.len() > 2 && s.as_bytes()[..2].eq_ignore_ascii_case(prefix.as_bytes()) {
-            return s[2..]
-                .chars()
-                .try_fold(0.0, |acc: f64, c| {
-                    c.to_digit(radix)
-                        .map(|d| acc.mul_add(f64::from(radix), f64::from(d)))
-                })
-                .unwrap_or(f64::NAN);
-        }
-    }
-    let (mantissa, exponent) = unsigned.find(['e', 'E']).map_or((unsigned, None), |at| {
-        (&unsigned[..at], Some(&unsigned[at + 1..]))
-    });
-    let digits = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
-    let mantissa_ok = match mantissa.split_once('.') {
-        Some((whole, fraction)) => {
-            (digits(whole) || whole.is_empty())
-                && (digits(fraction) || fraction.is_empty())
-                && !(whole.is_empty() && fraction.is_empty())
-        }
-        None => digits(mantissa),
-    };
-    let exponent_ok = exponent.is_none_or(|e| digits(e.strip_prefix(['+', '-']).unwrap_or(e)));
-    if !(mantissa_ok && exponent_ok) {
-        return f64::NAN;
-    }
-    unsigned.parse::<f64>().map_or(f64::NAN, |v| sign * v)
-}
-
-#[expect(
-    clippy::cast_possible_truncation,
-    clippy::cast_possible_wrap,
-    clippy::cast_sign_loss,
-    reason = "ToInt32 reduces modulo 2^32 first and reads the 32 bits as signed"
-)]
 pub(super) fn to_int32(value: &Value) -> Option<i32> {
-    let n = to_number(value)?;
-    if !n.is_finite() {
-        return Some(0);
-    }
-    Some(n.trunc().rem_euclid(4_294_967_296.0) as u32 as i32)
+    to_number(value).map(number::to_int32)
 }
 
 #[expect(clippy::cast_sign_loss, reason = "the same 32 bits read as unsigned")]

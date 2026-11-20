@@ -122,12 +122,12 @@ impl Builder<'_> {
     }
 
     /// The generated name of a component whose snippets' names are declared from its props.
-    pub(super) fn component_name(&mut self) -> NodeIdentifier {
-        if let Some(name) = self.component_name {
+    pub(super) fn component_instance_name(&mut self) -> NodeIdentifier {
+        if let Some(name) = self.component_instance_name {
             return name;
         }
         let name = self.unused_name("__rsvelte_component_");
-        self.component_name = Some(name);
+        self.component_instance_name = Some(name);
         name
     }
 

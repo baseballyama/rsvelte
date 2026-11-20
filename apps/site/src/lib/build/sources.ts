@@ -75,7 +75,7 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 			],
 		],
 		['svelte/compile', 'languages/svelte/compile/src', ['task', 'computation']],
-		['svelte/check', 'languages/svelte/check/src', ['registration']],
+		['svelte/check', 'languages/svelte/check/src', ['registration', 'registration/view']],
 		[
 			'svelte/typescript_projection',
 			'languages/svelte/typescript_projection/src',

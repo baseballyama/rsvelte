@@ -27,6 +27,7 @@ rsvelte_stylesheet_syntax.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_document_printer.workspace = true
 rsvelte_svelte_semantic.workspace = true
+rsvelte_typescript_format.workspace = true
 rsvelte_typescript_tree.workspace = true
 serde.workspace = true
 

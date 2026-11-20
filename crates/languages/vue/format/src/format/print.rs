@@ -1,13 +1,13 @@
-use super::{Embed, Kind2, LayoutInstructionIdentifier, Printer, R, ROOT};
+//! prettier's `printer-html.js` and `print/element.js`.
+
+use super::{Embed, LayoutInstructionIdentifier, NodeIdentifier, NodeKind, Printer, R};
 
 impl Printer<'_, '_, '_> {
-    // ---- printer-html.js, print/element.js -------------------------------------------
-
-    pub(super) fn print(&mut self, i: usize) -> R<LayoutInstructionIdentifier> {
+    pub(super) fn print(&mut self, i: NodeIdentifier) -> R<LayoutInstructionIdentifier> {
         match &self.n(i).kind {
-            Kind2::Element { .. } => self.element(i),
-            Kind2::Text(_) => self.text(i),
-            &Kind2::Interpolation(span) => {
+            NodeKind::Element { .. } => self.element(i),
+            NodeKind::Text(_) => self.text(i),
+            &NodeKind::Interpolation(span) => {
                 let start = self.opening_tag_start(i);
                 let expression = self.interpolation(span)?;
                 let l = self.d().line();
@@ -25,13 +25,13 @@ impl Printer<'_, '_, '_> {
                 let end = self.closing_tag_end(i);
                 Ok(self.cat(&[start, indentation, after, end]))
             }
-            Kind2::Root => unreachable!("the root is printed by `format`"),
+            NodeKind::Root => unreachable!("the root is printed by `format`"),
         }
     }
 
-    pub(super) fn text(&mut self, i: usize) -> R<LayoutInstructionIdentifier> {
-        let parent = self.n(i).parent;
-        if let Kind2::Element { embed, .. } = self.n(parent).kind
+    pub(super) fn text(&mut self, i: NodeIdentifier) -> R<LayoutInstructionIdentifier> {
+        let parent = self.t.parent(i);
+        if let NodeKind::Element { embed, .. } = self.n(parent).kind
             && embed != Embed::None
         {
             let body = self.embedded(embed)?;
@@ -40,7 +40,7 @@ impl Printer<'_, '_, '_> {
             let suffix = self.closing_tag_suffix(i);
             return Ok(self.cat(&[bp, prefix, body, suffix]));
         }
-        let Kind2::Text(value) = &self.n(i).kind else {
+        let NodeKind::Text(value) = &self.n(i).kind else {
             unreachable!("a text node")
         };
         let words: Vec<String> = value.split_ascii_whitespace().map(str::to_owned).collect();
@@ -69,12 +69,12 @@ impl Printer<'_, '_, '_> {
     }
 
     /// `printElement`.
-    pub(super) fn element(&mut self, i: usize) -> R<LayoutInstructionIdentifier> {
+    pub(super) fn element(&mut self, i: NodeIdentifier) -> R<LayoutInstructionIdentifier> {
         let n = self.n(i);
         let children = n.children.clone();
         let should_hug = children.len() == 1 && {
             let f = self.n(children[0]);
-            matches!(f.kind, Kind2::Interpolation(_))
+            matches!(f.kind, NodeKind::Interpolation(_))
                 && f.sensitive.leading
                 && !f.has.leading
                 && f.sensitive.trailing
@@ -110,7 +110,7 @@ impl Printer<'_, '_, '_> {
         let body = self.cat(&body);
         let body = if should_hug {
             self.d().indent_if_break(body, gid)
-        } else if self.t.is_script_like(i) && self.n(i).parent == ROOT {
+        } else if self.t.is_script_like(i) && self.t.is_top_level(i) {
             body
         } else {
             self.d().indent(body)

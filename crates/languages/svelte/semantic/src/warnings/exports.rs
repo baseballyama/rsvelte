@@ -7,10 +7,11 @@ use oxc_semantic::{ReferenceId, SymbolId};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Component, TemplateNode};
+use rsvelte_typescript_tree::document_span;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::found::{Found, Stage};
-use super::{Phase, Raised, Section, error, span, warning};
+use super::{Phase, Raised, Section, error, warning};
 use crate::resolve::Resolution;
 
 /// `export_let_unused`: in legacy mode, an `export let` nothing reads or writes.
@@ -113,7 +114,7 @@ pub(super) fn unused_exports(
                         "Component has unused export property '{text}'. If it is for external \
                         reference only, please consider using `export const {text}`"
                     ),
-                    span(name),
+                    document_span(name),
                 ),
             );
         }
@@ -199,7 +200,7 @@ pub(super) fn state_exports(
                 function returning the state value or only mutate the state value's properties";
             out.push((
                 raised,
-                error("state_invalid_export", message, span(export.span)),
+                error("state_invalid_export", message, document_span(export.span)),
             ));
         }
     }

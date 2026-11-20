@@ -30,7 +30,7 @@ use rsvelte_vue_syntax::syntax_tree::{
 #[derive(Debug)]
 pub(crate) enum Projection {
     /// Not type-checked: a `<script setup>` without `lang="ts"` makes the virtual file JavaScript,
-    /// and vue-tsc reports no semantic diagnostics for it (`checkJavaScript` is offset).
+    /// and vue-tsc reports no semantic diagnostics for it (`checkJs` is off).
     JavaScript,
     TypeScript(Emitter),
 }

@@ -1,0 +1,4 @@
+{
+	"extends": "./tsconfig.base.json",
+	"include": ["crates/hosts/configuration_loading/src/*.ts", ".claude/skills/**/*.ts"]
+}

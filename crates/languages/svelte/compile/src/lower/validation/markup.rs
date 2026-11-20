@@ -11,13 +11,12 @@ use rustc_hash::FxHashSet;
 
 mod handlers;
 mod lets;
-mod placement;
 mod slot_snippets;
 mod slots;
 mod transitions;
 
 pub(in crate::lower) use handlers::mixed_syntaxes;
-use placement::Ancestors;
+use rsvelte_svelte_semantic::markup_tree::{Ancestors, invalid_with_parent};
 use rsvelte_svelte_semantic::typescript::without_typescript;
 use rsvelte_svelte_semantic::warnings::slot_name_error;
 pub(in crate::lower) use slot_snippets::slot_snippet_conflict;
@@ -83,7 +82,7 @@ fn walk<'a>(
         };
         if text
             && let Some(parent) = placement.parent
-            && let Some(message) = placement::invalid_with_parent("#text", parent)
+            && let Some(message) = invalid_with_parent("#text", parent)
         {
             return node_invalid_placement(&message, node.span).map_err(here);
         }
@@ -207,7 +206,7 @@ fn element_placement<'a>(
     let name = el.name.text(input.component.source_text);
     if let Some(parent) = placement.parent {
         // Past a block upstream only warns, and every later message is a warning too.
-        let message = placement::invalid_with_parent(name, parent).map_or_else(
+        let message = invalid_with_parent(name, parent).map_or_else(
             || placement.ancestors.invalid(name),
             |message| (!placement.crossed_block).then_some(message),
         );

@@ -1,10 +1,9 @@
 //! Svelte format.
 
-pub(crate) mod format;
-pub use format::unported;
+pub(crate) mod printer;
 
 pub mod options;
-pub use options::Options;
+pub use options::{Options, unported};
 
 mod task;
 pub use task::{Format, PLUGIN, format, register, register_with_options};

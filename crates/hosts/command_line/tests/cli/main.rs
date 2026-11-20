@@ -1,0 +1,70 @@
+//! The crate's integration tests, in one binary. `fixtures` and `corpus` keep their own, because
+//! each has its own harness.
+
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+mod arguments;
+mod configuration;
+mod documents;
+mod format;
+mod lint;
+mod lint_globals;
+mod project_check;
+mod release;
+mod svelte_kit;
+mod tool_plugins;
+mod unit_names;
+
+/// `rsvelte-dev`, to be run in `directory`.
+fn rsvelte_dev(directory: impl AsRef<Path>) -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"));
+    command.current_dir(directory);
+    command
+}
+
+/// A directory of its own below the temporary directory, holding `files`, removed when dropped.
+struct Scratch(PathBuf);
+
+impl Scratch {
+    fn new(files: &[(&str, &str)]) -> Self {
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "rsvelte-cli-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        drop(std::fs::remove_dir_all(&root));
+        std::fs::create_dir_all(&root).expect("test directory");
+        for (file, text) in files {
+            let path = root.join(file);
+            std::fs::create_dir_all(path.parent().expect("a file has a directory"))
+                .expect("test directory");
+            std::fs::write(path, text).expect("test file");
+        }
+        // The temporary directory can be a symbolic link, and the commands print resolved paths.
+        Self(std::fs::canonicalize(&root).expect("test directory"))
+    }
+}
+
+impl std::ops::Deref for Scratch {
+    type Target = Path;
+
+    fn deref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl AsRef<Path> for Scratch {
+    fn as_ref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        // A panic here, while a failed test unwinds, would abort every test of the binary.
+        drop(std::fs::remove_dir_all(&self.0));
+    }
+}

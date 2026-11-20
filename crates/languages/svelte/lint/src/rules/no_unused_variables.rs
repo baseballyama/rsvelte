@@ -7,11 +7,10 @@ use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{AttributeValue, ElementKind, NodeKind};
-use rsvelte_svelte_semantic::legacy::{TopLevel, Variable};
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::shared::legacy_reactivity::legacy;
+use super::shared::legacy_reactivity::{TopLevel, Variable, legacy};
 use super::shared::nodes;
 use super::shared::runes::runes;
 use super::shared::svelte_names::{TopLevelNames, has_reactive_statement};

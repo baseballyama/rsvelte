@@ -177,6 +177,7 @@
 	</p>
 </div>
 
+<Code item={data.code.offGuard} />
 <Code item={data.code.off} />
 
 <div class="prose-learn">

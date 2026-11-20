@@ -8,8 +8,9 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::GetSpan;
+use rsvelte_typescript_tree::document_span;
 
-use super::{Span, span};
+use super::Span;
 
 /// What moves before the render function, in svelte2tsx's order.
 pub(super) enum Hoisted {
@@ -75,7 +76,7 @@ pub(super) fn hoisted<'a>(
                 .iter()
                 .chain(&dependencies.values)
                 .all(|d| !analysis.disallowed_types.contains(d) && analysis.allowed(d));
-            (all, hoistable, Some(span(annotation.span())))
+            (all, hoistable, Some(document_span(annotation.span())))
         }
     };
     if !props_hoistable {
@@ -172,7 +173,7 @@ impl<'a> Analysis<'a> {
             self.disallowed_types.push(name);
             return;
         }
-        let statement = span(statement.span());
+        let statement = document_span(statement.span());
         // A second declaration replaces the first in its place, as a `Map`'s `set` does.
         match self.declared.iter_mut().find(|d| d.name == name) {
             Some(declared) => {

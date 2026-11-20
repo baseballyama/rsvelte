@@ -138,13 +138,23 @@ const INHERITED: &[&str] = &[
     "__lookupSetter__",
 ];
 
+/// Where the binding `name` is valid, or `None` when upstream's `name in binding_properties`
+/// fails. That test also finds what every object inherits, a property with no element rules.
+fn hosts_of(name: &str) -> Option<Hosts> {
+    match BINDINGS.iter().find(|&&(n, _)| n == name) {
+        Some(&(_, hosts)) => Some(hosts),
+        None => INHERITED.contains(&name).then_some(Hosts::Any),
+    }
+}
+
 /// Upstream `BindDirective`'s checks of the binding `a` against `host`, the tag as written.
 ///
 /// # Errors
 ///
 /// `bind_invalid_name` for a name no binding has or one `host` does not take,
-/// `bind_invalid_target` for an element the binding does not fit, and
-/// `attribute_invalid_multiple` for a `<select>` whose `multiple` is not static.
+/// `bind_invalid_target` for an element the binding does not fit, `attribute_invalid_type` for
+/// an `<input>` whose `type` is not text, and `attribute_invalid_multiple` for a `<select>`
+/// whose `multiple` is not static.
 pub(super) fn check_binding(
     source_text: &str,
     host: &str,
@@ -156,10 +166,7 @@ pub(super) fn check_binding(
         let message = format!("`bind:{name}` is not a valid binding{explanation}");
         invalid("bind_invalid_name", &message, a.span)
     };
-    let Some(&(_, hosts)) = BINDINGS.iter().find(|&&(n, _)| n == name) else {
-        if INHERITED.contains(&name) {
-            return Ok(());
-        }
+    let Some(hosts) = hosts_of(name) else {
         let names: Vec<&str> = BINDINGS.iter().map(|&(n, _)| n).collect();
         if let Some(near) = rsvelte_svelte_semantic::fuzzymatch::fuzzymatch(name, &names)
             && BINDINGS.iter().any(|&(n, h)| {
@@ -217,8 +224,9 @@ pub(super) fn check_binding(
     Ok(())
 }
 
-/// Upstream's `bind_invalid_target` for `bind:checked` and `bind:files` on an `<input>` whose
-/// `type` is text; a `type` not written as text is `attribute_invalid_type` instead.
+/// Upstream's checks of a binding on an `<input>` against its `type`: one not written as text
+/// is `attribute_invalid_type`, unless an expression beside `bind:value`; one written as text
+/// decides whether `bind:checked` and `bind:files` fit.
 fn check_input(
     source_text: &str,
     host: &str,
@@ -226,13 +234,27 @@ fn check_input(
     a: &Attribute,
     name: &str,
 ) -> Result<(), Diagnostic> {
-    if host != "input" || !matches!(name, "checked" | "files") {
+    if host != "input" || name == "this" {
         return Ok(());
     }
-    let ty = match attribute_value(source_text, attributes, "type") {
+    let ty = (attributes.iter())
+        .find(|o| !super::is_directive(&o.value) && o.name.text(source_text) == "type");
+    let ty = match ty {
         None => None,
-        Some(AttributeValue::Static(ty)) => Some(&**ty),
-        Some(_) => return Ok(()),
+        Some(Attribute {
+            value: AttributeValue::Static(ty),
+            ..
+        }) => Some(&**ty),
+        Some(ty) if name == "value" && !matches!(ty.value, AttributeValue::Boolean) => {
+            return Ok(());
+        }
+        Some(ty) => {
+            return invalid(
+                "attribute_invalid_type",
+                "'type' attribute must be a static text value if input uses two-way binding",
+                ty.span,
+            );
+        }
     };
     if name == "checked" && ty != Some("checkbox") {
         let radio = if ty == Some("radio") {

@@ -191,8 +191,7 @@ impl<'a> Parser<'a, '_> {
         let expression = self.each_expression()?;
         self.skip_ws();
         let mut context = None;
-        if self.at_word("as") {
-            self.eat_token(TokenType::BlockKeyword, 2);
+        if self.eat_word(TokenType::BlockKeyword, "as") {
             self.require_ws()?;
             context = Some(self.pattern()?);
             self.skip_ws();
@@ -279,11 +278,7 @@ impl<'a> Parser<'a, '_> {
         };
         // The expression ends after its trailing comments, and upstream skips whitespace before
         // it looks for `as`.
-        let after_expression = self.position;
-        self.position += super::whitespace::whitespace_len(self.rest());
-        let keyword = self.at_word("as");
-        self.position = after_expression;
-        if keyword {
+        if super::whitespace::trim_whitespace_start(self.rest()).starts_with("as") {
             return Ok(self.builder.keep_expression(expression));
         }
         let (first, sequence) = match &expression {
@@ -379,12 +374,10 @@ impl<'a> Parser<'a, '_> {
         self.skip_ws();
         let (mut value, mut error) = (None, None);
         let (mut pending, mut then, mut catch) = (Range::ABSENT, Range::ABSENT, Range::ABSENT);
-        let first = if self.at_word("then") {
-            self.eat_token(TokenType::BlockKeyword, "then".len());
+        let first = if self.eat_word(TokenType::BlockKeyword, "then") {
             value = self.optional_pattern()?;
             1
-        } else if self.at_word("catch") {
-            self.eat_token(TokenType::BlockKeyword, "catch".len());
+        } else if self.eat_word(TokenType::BlockKeyword, "catch") {
             error = self.optional_pattern()?;
             2
         } else {

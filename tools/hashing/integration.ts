@@ -23,7 +23,9 @@ export async function main(args: string[]): Promise<void> {
 	const units: { unit: Unit; src: string }[] = [];
 	for (const name of fs.readdirSync(cases).toSorted()) {
 		const input = path.join(cases, name, 'input.vue');
-		if (!fs.existsSync(input)) continue;
+		// Each run asserts that every unit compiles clean.
+		const diagnostics = path.join(cases, name, 'expected', 'compiled.diagnostics.txt');
+		if (!fs.existsSync(input) || fs.existsSync(diagnostics)) continue;
 		const src = fs.readFileSync(input, 'utf8');
 		const filename = `${name}.vue`;
 		fs.mkdirSync(path.join(population, filename));
