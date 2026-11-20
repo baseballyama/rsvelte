@@ -1,4 +1,5 @@
 use oxc_span::GetSpan;
+use rsvelte_svelte_semantic::compiler_syntax_tree::EachKey;
 
 use super::{
     AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, DirectiveExpression,
@@ -64,7 +65,7 @@ impl Template<'_, '_, '_> {
             lead.push(self.directive_with(DirectiveName::If, Some(length), node.span));
         }
         lead.push(self.loop_directive(parameters, source, node.span));
-        if let Some(key) = each.key.filter(|_| each.keyed(javascript)) {
+        if let Ok(EachKey::Keyed { key, .. }) | Err(key) = each.key(javascript) {
             let span = span_of(self.source(key).span());
             let value = self.template_expression(key);
             lead.push(self.bound("$$key", span, value, span));
