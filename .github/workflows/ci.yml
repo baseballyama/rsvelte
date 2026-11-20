@@ -173,6 +173,14 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     steps:
+      # Only the ratchet uses valgrind, so it installs while the next steps and the build run. The
+      # image's package lists usually still name it; updating them took 15 seconds.
+      - run: |
+          (
+            install() { sudo apt-get install -y --no-install-recommends valgrind; }
+            if install || { sudo apt-get update && install; }; then status=0; else status=1; fi
+            echo "$status" > "$RUNNER_TEMP/valgrind.status"
+          ) > "$RUNNER_TEMP/valgrind.log" 2>&1 &
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -180,15 +188,13 @@ jobs:
         with:
           node-version: 26.13.0
           package-manager-cache: false
-      # The image's package lists usually still name valgrind; updating them took 15 seconds.
-      - run: |
-          if ! sudo apt-get install -y --no-install-recommends valgrind; then
-            sudo apt-get update
-            sudo apt-get install -y --no-install-recommends valgrind
-          fi
       - run: node --test 'tools/performance/*.test.ts' 'tools/performance/*/*.test.ts'
       - uses: ./.github/actions/rust
       - run: cargo fetch --locked
+      - run: |
+          until [ -s "$RUNNER_TEMP/valgrind.status" ]; do sleep 1; done
+          cat "$RUNNER_TEMP/valgrind.log"
+          exit "$(cat "$RUNNER_TEMP/valgrind.status")"
       - run: node tools/performance/performance.ts ratchet --instructions --json performance-report.json
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
