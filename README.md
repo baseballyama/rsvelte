@@ -15,7 +15,7 @@ npx @rsvelte/cli format --check
 npx @rsvelte/cli typecheck
 ```
 
-[The package's README](tools/release/npm-readme.md) is the user guide.
+[The package's README](apps/cli/README.md) is the user guide.
 
 rsvelte supports Svelte 5 components in runes mode only. It does not support Svelte 4 projects
 or components in legacy mode, such as those that use `export let` or `$:`. On them, `typecheck`
@@ -31,6 +31,7 @@ legacy components. For Svelte 4, use the official tools.
 | [`examples/`](examples/)            | Code the site's guides quote; it builds and is tested with the workspace      |
 | [`corpus/`](corpus/README.md)       | Real files from open-source projects, and the official tools' output for them |
 | [`tools/`](tools/README.md)         | TypeScript tools: the fixture runner, the performance gate, …                 |
+| [`apps/cli/`](apps/cli/README.md)   | The `@rsvelte/cli` npm package: its user guide, command and changelog         |
 | [`apps/site/`](apps/site/README.md) | The project site, built with SvelteKit                                        |
 
 ## How it works
