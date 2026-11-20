@@ -137,7 +137,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         b.runtime("action", arguments)
     }
 
-    /// Upstream `BindDirective` (client, non-dev) for the bindings coverage admits.
+    /// Upstream `BindDirective` (client, non-dev) for the bindings the unsupported syntax check
+    /// admits.
     pub(super) fn binding(
         &self,
         attribute: &Attribute,
@@ -150,7 +151,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         let b = self.b;
         let name = attribute.name.text(self.source_text);
-        let property = property_of(name).expect("coverage admits known properties");
+        let property =
+            property_of(name).expect("the unsupported syntax check admits known properties");
         // Upstream writes the value unproxied only for a regular element.
         let (get, set) = self.binding_accessors(target, !tag.starts_with("svelte:"));
         // Upstream drops a setter that is the getter, as both are a prop's accessor.

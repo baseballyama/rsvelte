@@ -15,8 +15,8 @@ use runes::script_and_template_errors;
 pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, script_error};
 
 use super::{
-    CompileInput, Diagnostic, Resolution, Span, Target, const_cycles, coverage, custom_element,
-    rest_reads, script, snippets, stores,
+    CompileInput, Diagnostic, Resolution, Span, Target, const_cycles, custom_element, rest_reads,
+    script, snippets, stores, unsupported_syntax,
 };
 
 /// An error upstream raises as it parses, before any other.
@@ -127,7 +127,7 @@ pub(crate) fn validate_unit(
     } else {
         Ok(())
     })
-    .and_then(|()| coverage::check(input, res));
+    .and_then(|()| unsupported_syntax::refuse(input, res));
     if let Err(refusal) = refused {
         let script = script_error(input, res, custom_element.is_some());
         return Err(script.map_or(refusal, |(_, error)| error));

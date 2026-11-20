@@ -15,7 +15,7 @@ use super::{
     NodeKind, Resolution, Target, unsupported,
 };
 
-pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
+pub(super) fn refuse(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
     let renders = tree
@@ -73,7 +73,10 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
 
 /// What one target does not lower. Upstream's client throws at a `let:` on an element that is
 /// not regular, a `<slot>` or `<svelte:fragment>`; its server ignores it.
-pub(super) fn check_for(input: &CompileInput<'_>, target: Target) -> Result<(), Diagnostic> {
+pub(super) fn refuse_for_target(
+    input: &CompileInput<'_>,
+    target: Target,
+) -> Result<(), Diagnostic> {
     if target == Target::Server {
         return Ok(());
     }

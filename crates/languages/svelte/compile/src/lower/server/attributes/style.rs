@@ -51,7 +51,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             &StyleValue::Expression { expression, .. } => self.expression(expression),
             StyleValue::Interpolated(parts) => self.interpolated(parts, true),
             StyleValue::Empty => {
-                unreachable!("coverage refuses a `style:` directive without a value")
+                unreachable!(
+                    "the unsupported syntax check refuses a `style:` directive without a value"
+                )
             }
         }
     }

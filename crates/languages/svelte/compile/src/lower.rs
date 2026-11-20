@@ -11,7 +11,6 @@ mod class_fields;
 mod client;
 mod component;
 mod const_cycles;
-mod coverage;
 mod custom_element;
 mod debug_tag;
 mod derived;
@@ -29,6 +28,7 @@ mod slot_element;
 mod snippets;
 mod stores;
 mod template;
+mod unsupported_syntax;
 mod validation;
 
 pub(crate) use builder::Builder;

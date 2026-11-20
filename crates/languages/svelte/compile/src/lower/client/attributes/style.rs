@@ -113,7 +113,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 self.template_chunk(&items, memo, false)
             }
             StyleValue::Empty => unreachable!(
-                "coverage refuses a `style:` directive without a \
+                "the unsupported syntax check refuses a `style:` directive without a \
                 value"
             ),
         }
