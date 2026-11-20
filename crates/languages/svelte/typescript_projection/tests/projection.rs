@@ -230,7 +230,7 @@ fn template_nodes(tree: &SyntaxTree) -> &[NodeIdentifier] {
         };
         for &identifier in tree.children(body) {
             if let Node::Statement(value) = tree.node(identifier)
-                && let Node::Template(body) = tree.node(value)
+                && let Node::Template { body, .. } = tree.node(value)
             {
                 return tree.children(body);
             }

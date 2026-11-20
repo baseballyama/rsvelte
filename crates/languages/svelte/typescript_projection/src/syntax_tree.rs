@@ -8,11 +8,14 @@ pub struct NodeIdentifier(pub u32);
 #[derive(Clone, Copy, Debug)]
 pub enum Node {
     Source(SourceExpression),
+    /// A script copied as it is, ended by a `;` at [`crate::cut_short_at`] when there is one.
     Program {
         span: Span,
+        end_tag: Option<Span>,
     },
     ProgramParts {
         parts: Range,
+        end_tag: Option<Span>,
     },
     GeneratedIdentifier {
         prefix: NodeIdentifier,
@@ -213,8 +216,12 @@ pub enum Node {
         body: Range,
         catch: Range,
     },
-    /// The template's function, which is `async` as svelte2tsx's render function is.
-    Template(Range),
+    /// The template's function, which is `async` as svelte2tsx's render function is, its head
+    /// at the instance script's [`crate::cut_short_at`] when there is one.
+    Template {
+        body: Range,
+        head: Option<Span>,
+    },
     /// Statements on lines of their own inside a script.
     Statements(Range),
     /// A `{#snippet}` outside a component's children, as svelte2tsx's `const` of an arrow.

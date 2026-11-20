@@ -113,9 +113,9 @@ impl Printer<'_> {
 
     fn node(&mut self, identifier: NodeIdentifier) {
         match self.tree.node(identifier) {
-            Node::Program { span, .. } => {
+            Node::Program { span, end_tag } => {
                 self.output.copy(self.source, span);
-                self.program_end();
+                self.program_end(end_tag);
             }
             Node::Source(expression) => self.source_expression(expression),
             Node::Expression(value) => {
@@ -205,7 +205,7 @@ impl Printer<'_> {
             | Node::Await(_)
             | Node::Index { .. }
             | Node::Try { .. }
-            | Node::Template(_)) => self.template_part(node),
+            | Node::Template { .. }) => self.template_part(node),
             Node::Boolean => self.output.push("true"),
             Node::String { parts, template } => self.string(parts, template),
             Node::Text(_) => unreachable!("text is printed only inside a string literal"),
@@ -226,8 +226,10 @@ impl Printer<'_> {
         self.output.push(&self.default_export);
     }
 
-    fn program_end(&mut self) {
-        self.output.push("\n;\n\n");
+    fn program_end(&mut self, end_tag: Option<Span>) {
+        self.output.push("\n");
+        self.output.atom_at(";", end_tag);
+        self.output.push("\n\n");
     }
 
     fn separated(&mut self, parts: Range, separator: &str) {
@@ -283,8 +285,9 @@ impl Printer<'_> {
                     self.body(body);
                     self.output.push("}");
                 }
-                Node::Template(body) => {
-                    self.output.push("async () => {\n");
+                Node::Template { body, head } => {
+                    self.output.atom_at("async () => {", head);
+                    self.output.push("\n");
                     self.body(body);
                     self.output.push("}");
                 }
@@ -328,19 +331,15 @@ impl Printer<'_> {
     /// The object of `properties`, whose braces map to `at`'s spans, so that a finding on all of
     /// it does.
     fn object(&mut self, properties: Range, at: Option<(Span, Option<Span>)>) {
-        let brace = |output: &mut Emitter, text: &str, at: Option<Span>| match at {
-            Some(at) => output.atom(text, at),
-            None => output.push(text),
-        };
         let (open, close) = at.map_or((None, None), |(open, close)| (Some(open), close));
         if self.tree.children(properties).is_empty() {
-            brace(&mut self.output, "{", open);
-            brace(&mut self.output, "}", close.or(open));
+            self.output.atom_at("{", open);
+            self.output.atom_at("}", close.or(open));
         } else {
-            brace(&mut self.output, "{", open);
+            self.output.atom_at("{", open);
             self.output.push("\n");
             self.body(properties);
-            brace(&mut self.output, "}", close);
+            self.output.atom_at("}", close);
         }
     }
 
