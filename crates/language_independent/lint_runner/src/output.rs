@@ -42,7 +42,8 @@ impl<'a> Positions<'a> {
     }
 
     /// The 1-based line and 0-based UTF-16 column of a byte offset.
-    fn at(self, offset: u32) -> (u32, u32) {
+    #[must_use]
+    pub fn at(self, offset: u32) -> (u32, u32) {
         let at = (self.lines)().line_column(offset);
         let column = if self.byte_order_mark && at.line == 1 {
             at.column.saturating_sub(1)

@@ -9,8 +9,9 @@ use rsvelte_kernel::computation::pipeline::DocumentResult;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
 use rsvelte_kernel::source::document::Document;
-use rsvelte_kernel::source::positions::LineIndex;
+use rsvelte_kernel::source::positions::{LineBreaks, LineIndex};
 use rsvelte_lint_runner::finding::UNUSED_DIRECTIVE;
+use rsvelte_lint_runner::output::Positions;
 
 use super::files;
 use crate::usage;
@@ -70,13 +71,15 @@ fn report(documents: &[Document], results: &[DocumentResult], colors: bool) -> (
                 _ => {}
             }
         }
-        let lines = LineIndex::new(&document.text);
+        let index = LineIndex::with_breaks(&document.text, LineBreaks::Ecmascript);
+        let lines = || &index;
+        let positions = Positions::new(&lines, &document.text);
         let rows: Vec<[String; 5]> = (problems.iter())
             .map(|&(d, _)| {
-                let at = lines.line_column(d.span.start_offset);
+                let (line, column) = positions.at(d.span.start_offset);
                 [
-                    at.line.to_string(),
-                    (at.column + 1).to_string(),
+                    line.to_string(),
+                    (column + 1).to_string(),
                     d.severity.as_str().to_owned(),
                     shown_message(&d.message),
                     // An unused directive names no rule.

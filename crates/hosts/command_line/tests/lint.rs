@@ -117,3 +117,33 @@ fn lint_prints_an_unused_directive_without_a_rule_and_counts_it_fixable() {
         "{stdout}"
     );
 }
+
+#[test]
+fn lint_counts_lines_and_columns_as_eslint_does() {
+    let project = Project::new();
+    // Each expected row is what `eslint --format stylish` prints for the same file.
+    for (name, text, rows) in [
+        (
+            "Bom.svelte",
+            "\u{feff}<script>let unused = 1;</script>\n",
+            &["1:13  error"][..],
+        ),
+        (
+            "Cr.svelte",
+            "<script>\r  let unused = 1;\r</script>\r",
+            &["2:7  error"][..],
+        ),
+        (
+            "Separator.svelte",
+            "<script>\n  const s = '\u{2028}';\n  let unused = 1;\n</script>\n",
+            &["2:9  error", "4:7  error"][..],
+        ),
+    ] {
+        std::fs::write(project.0.join("src").join(name), text).expect("file");
+        let output = project.lint(&[&format!("src/{name}")]);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for row in rows {
+            assert!(stdout.contains(&format!("\n  {row}  ")), "{name}: {stdout}");
+        }
+    }
+}
