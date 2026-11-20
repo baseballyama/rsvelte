@@ -34,7 +34,6 @@ export const load = () => ({
 			'svelte/semantic/compiler_syntax_tree/builder/CompilerSyntaxTreeBuilder::element_kind',
 		list: 'svelte/semantic/compiler_syntax_tree/lower/SurfaceBuilder::list',
 		compilerSyntaxTreeBuilder: 'svelte/semantic/compiler_syntax_tree/CompilerSyntaxTreeBuilder',
-		compileInputType: 'svelte/semantic/input/ComponentInput::new',
 		svueRegister: 'svue/computation/register',
 		svueTranslated: 'svue/computation/impl Artifact for Translated',
 		svueInput: 'svue/compilation/Translation::compile_input',

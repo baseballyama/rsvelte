@@ -53,7 +53,6 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 			'languages/svelte/semantic/src',
 			[
 				'computation',
-				'input',
 				'resolve',
 				'compiler_syntax_tree',
 				'compiler_syntax_tree/attributes',
