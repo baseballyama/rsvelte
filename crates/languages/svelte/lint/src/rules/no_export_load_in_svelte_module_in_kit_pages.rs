@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use oxc_ast::ast::{BindingIdentifier, BindingPattern, Declaration, Statement};
 use rsvelte_lint_runner::rule::Reporter;
+use rsvelte_typescript_tree::node_span;
 
 use super::shared::kit_route::route_file;
-use super::shared::nodes::span;
 use crate::LintSettings;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -63,7 +63,7 @@ fn report_load(identifier: &BindingIdentifier<'_>, reporter: &mut Reporter<'_>) 
     if identifier.name == "load" {
         reporter.range(
             "disallow exporting load functions in `*.svelte` module in SvelteKit page components.",
-            span(identifier),
+            node_span(identifier),
         );
     }
 }

@@ -5,9 +5,10 @@ use oxc_span::GetSpan;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_semantic::reference_tracker::import_references;
+use rsvelte_typescript_tree::document_span;
 use serde::Deserialize;
 
-use super::shared::nodes::{from_oxc, is_named};
+use super::shared::nodes::is_named;
 use super::shared::runes::runes_or_undetermined;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -68,11 +69,11 @@ impl SvelteRule for NoUnnecessaryStateWrap {
             reporter.report(
                 Report::range(
                     format!("{class} is already reactive, $state wrapping is unnecessary."),
-                    from_oxc(argument),
+                    document_span(argument),
                 )
                 .suggest(Suggestion {
                     message: "Remove unnecessary $state wrapping".to_owned(),
-                    fix: Fix::replace(from_oxc(call), from_oxc(argument).text(source)),
+                    fix: Fix::replace(document_span(call), document_span(argument).text(source)),
                 }),
             );
         };

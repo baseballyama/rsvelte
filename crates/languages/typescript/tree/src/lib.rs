@@ -29,24 +29,7 @@ pub use syntax_error::{
 pub mod scratch;
 pub use scratch::with_scratch_arena;
 
-mod cell {
-    #![allow(
-        clippy::mem_forget,
-        reason = "self_cell's expansion forgets its guard on purpose"
-    )]
-
-    use oxc_allocator::Allocator;
-
-    use super::Trees;
-
-    self_cell::self_cell!(
-        pub(super) struct Cell {
-            owner: Allocator,
-            #[covariant]
-            dependent: Trees,
-        }
-    );
-}
+mod cell;
 
 use cell::Cell;
 
@@ -382,6 +365,12 @@ pub use computation::{PLUGIN, Parsed, Script, is_jsx, is_typescript, matches, re
 #[must_use]
 pub const fn document_span(span: oxc_span::Span) -> rsvelte_kernel::source::positions::Span {
     rsvelte_kernel::source::positions::Span::new(span.start, span.end)
+}
+
+/// The document span of an oxc node.
+#[must_use]
+pub fn node_span(node: &impl oxc_span::GetSpan) -> rsvelte_kernel::source::positions::Span {
+    document_span(node.span())
 }
 
 /// Upstream's `regex_is_valid_identifier` and `regex_valid_identifier`, both

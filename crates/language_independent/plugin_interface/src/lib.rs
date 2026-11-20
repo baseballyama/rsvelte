@@ -15,7 +15,7 @@ pub use functions::{
     TextFunction,
 };
 pub use options::PluginOptions;
-pub use program::{installed_bin, installed_package, program_path};
+pub use program::{installed_bin, installed_package, installed_version, program_path};
 pub use selection::{Selection, TaskKind};
 pub use settings::Settings;
 pub use tools::Tool;

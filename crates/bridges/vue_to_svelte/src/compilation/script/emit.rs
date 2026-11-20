@@ -6,14 +6,13 @@ use oxc_ast::ast::{
 use oxc_span::{GetSpan, SPAN};
 use rsvelte_typescript_compile::build::Builder;
 use rsvelte_typescript_compile::strip::is_type_only;
+use rsvelte_typescript_tree::{document_span, node_span};
 use rsvelte_vue_semantic::resolve::unwrap_typescript;
 use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
 use rustc_hash::FxHashMap;
 
 use super::{fresh, vue_call};
-use crate::compilation::context::{
-    Class, Helper, Info, Names, Prop, R, Rewriter, span_of, unsupported,
-};
+use crate::compilation::context::{Class, Helper, Info, Names, Prop, R, Rewriter, unsupported};
 
 /// The instance script.
 ///
@@ -42,7 +41,7 @@ pub(crate) fn emit<'a>(
                 {
                     return Err(unsupported(
                         "`defineProps` declared beside other variables",
-                        span_of(d.span),
+                        document_span(d.span),
                     ));
                 }
             }
@@ -105,7 +104,7 @@ fn lower_declarator<'a>(
         _ => {
             return Err(unsupported(
                 "more than one argument",
-                span_of(initializer.span()),
+                node_span(initializer),
             ));
         }
     };
@@ -118,7 +117,7 @@ fn lower_declarator<'a>(
                 return Err(unsupported(
                     "`ref` of a value created elsewhere (Vue's `reactive` and Svelte's `$state` \
                      proxy different objects; only literals and primitive props are translated)",
-                    span_of(a.span()),
+                    node_span(a),
                 ));
             }
             ("$state", value)
@@ -135,7 +134,7 @@ fn lower_declarator<'a>(
             _ => {
                 return Err(unsupported(
                     "`reactive` of anything but an object or array literal",
-                    span_of(initializer.span()),
+                    node_span(initializer),
                 ));
             }
         },
@@ -144,7 +143,7 @@ fn lower_declarator<'a>(
             _ => {
                 return Err(unsupported(
                     "`computed` of anything but a getter function without parameters",
-                    span_of(initializer.span()),
+                    node_span(initializer),
                 ));
             }
         },
@@ -205,7 +204,7 @@ fn on_mounted<'a>(
     let Some(hook) = hook else {
         return Err(unsupported(
             "`onMounted` with anything but a function literal",
-            span_of(call.span),
+            document_span(call.span),
         ));
     };
     let hook = rewriter.expression(hook)?;

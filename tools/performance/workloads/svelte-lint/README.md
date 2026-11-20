@@ -4,7 +4,7 @@ This package is separate from the workspace, so it builds the production lint cr
 tracing. It lints the same files with the same rules in two arms:
 
 - `rsvelte`: `lint-workload lint`, the lint crate with the project facts read from the files;
-- `eslint`: `oracle.ts`, ESLint with eslint-plugin-svelte and svelte-eslint-parser, configured as
+- `eslint`: `eslint.ts`, ESLint with eslint-plugin-svelte and svelte-eslint-parser, configured as
   `oracle lint-cases` configures them.
 
 Every rule runs with its default options. `prepare.ts` takes every eslint-plugin-svelte rule but the

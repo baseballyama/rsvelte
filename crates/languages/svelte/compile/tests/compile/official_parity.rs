@@ -564,7 +564,7 @@ fn a_number_props_key_reads_the_prop_its_string_names() {
         $props();</script>{a}{b}{c}{d}{e}{rest}";
     let client = squashed(source, Target::Client);
     for expected in [
-        r#"newSet(["$$slots","$$events","$$legacy","0","16","1.5","x-y","e"])"#,
+        r#"newSet(["$$slots","$$events","$$legacy",0,16,1.5,"x-y","e"])"#,
         "letc=$.prop($$props,1.5,3,1)",
         r#"${$$props["0"]??""}${$$props["16"]??""}${c()??""}${$$props["x-y"]??""}${$$props.e??""}"#,
     ] {

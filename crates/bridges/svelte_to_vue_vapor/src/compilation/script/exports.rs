@@ -1,7 +1,8 @@
 use oxc_ast::ast::{Declaration, ExportDeclaration, VariableDeclarationKind};
 use oxc_semantic::SymbolId;
+use rsvelte_typescript_tree::document_span;
 
-use crate::compilation::{R, span_of, unsupported};
+use crate::compilation::{R, unsupported};
 
 /// The names `export const`, `export function` and `export class` expose on the component.
 pub(super) fn collect(e: &ExportDeclaration<'_>, names: &mut Vec<SymbolId>) -> R<()> {
@@ -23,7 +24,7 @@ pub(super) fn collect(e: &ExportDeclaration<'_>, names: &mut Vec<SymbolId>) -> R
             names.push(symbol(c.id.as_ref().expect("checked")));
         }
         _ => {
-            return Err(unsupported("this component export", span_of(e.span)));
+            return Err(unsupported("this component export", document_span(e.span)));
         }
     }
     Ok(())

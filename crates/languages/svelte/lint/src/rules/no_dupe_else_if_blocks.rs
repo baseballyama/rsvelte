@@ -4,9 +4,9 @@ use oxc_ast::ast::Expression;
 use oxc_syntax::operator::LogicalOperator;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode, TemplateNodeIdentifier};
+use rsvelte_typescript_tree::node_span;
 
 use super::shared::expressions::equal_tokens;
-use super::shared::nodes;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -61,7 +61,7 @@ impl SvelteRule for NoDupeElseIfBlocks {
                             "This branch can never execute. Its condition is a duplicate or \
                                  covered by previous conditions in the `{#if}` / `{:else if}` \
                                  chain.",
-                            nodes::span(*condition),
+                            node_span(*condition),
                         ));
                         break 'chain;
                     }
@@ -151,6 +151,6 @@ impl Compare<'_> {
             return (self.equal(left_a, left_b) && self.equal(right_a, right_b))
                 || (self.equal(left_a, right_b) && self.equal(right_a, left_b));
         }
-        equal_tokens(self.component, self.source, nodes::span(a), nodes::span(b))
+        equal_tokens(self.component, self.source, node_span(a), node_span(b))
     }
 }

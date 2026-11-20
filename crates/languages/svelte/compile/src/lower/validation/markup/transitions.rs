@@ -32,13 +32,13 @@ pub(super) fn check(attributes: &[Attribute]) -> Result<(), Diagnostic> {
             return if a_kind == b_kind {
                 invalid(
                     "transition_duplicate",
-                    &format!("Cannot use multiple `{a_kind}:` directives on a single element"),
+                    format!("Cannot use multiple `{a_kind}:` directives on a single element"),
                     a.span,
                 )
             } else {
                 invalid(
                     "transition_conflict",
-                    &format!("Cannot use `{a_kind}:` alongside existing `{b_kind}:` directive"),
+                    format!("Cannot use `{a_kind}:` alongside existing `{b_kind}:` directive"),
                     a.span,
                 )
             };

@@ -16,24 +16,7 @@ thread_local! {
 /// The arenas of [`Scoping`]s, which are smaller than the trees they analyze.
 static SCOPINGS: Pool = Pool::new(&SCOPING_ARENAS);
 
-mod cell {
-    #![allow(
-        clippy::mem_forget,
-        reason = "self_cell's expansion forgets its guard on purpose"
-    )]
-
-    use rsvelte_typescript_tree::Tree;
-
-    use super::Analyzed;
-
-    self_cell::self_cell!(
-        pub(super) struct Cell {
-            owner: Tree,
-            #[covariant]
-            dependent: Analyzed,
-        }
-    );
-}
+mod cell;
 
 struct Analyzed<'a> {
     /// `None` only while [`Semantic`] drops, which takes it to give its scoping arena back.

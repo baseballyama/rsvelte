@@ -8,7 +8,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::bindings::{self, BindStrategy, attribute_value, property_of};
+use super::bindings::property_of;
 use super::global_binding_table::GlobalBinding;
 use super::javascript::member_root;
 use super::{
@@ -277,8 +277,7 @@ fn rejected(input: &CompileInput<'_>, res: &Resolution, target: ExpressionIdenti
     super::validation::rejects_binding(res, input.component.javascript.get_expression(target))
 }
 
-/// A supported property on a supported element, as upstream's `binding_properties` names it,
-/// with no `value` or `checked` attribute or `group` beside it.
+/// A binding validation accepted, with no `value` or `checked` attribute or `group` beside it.
 fn check_element_binding(
     input: &CompileInput<'_>,
     res: &Resolution,
@@ -291,9 +290,6 @@ fn check_element_binding(
     let property = a.name.text(source_text);
     if property == "this" {
         return check_target(input, res, a, target);
-    }
-    if !supported_binding(source_text, tag, attributes, a) {
-        return unsupported(&format!("`bind:{property}` on this `<{tag}>`"), a.span);
     }
     // A group or a checkbox keeps its `value` apart, as `__value`.
     let keeps_value = matches!(property, "group" | "checked");
@@ -327,28 +323,4 @@ fn check_element_binding(
         }
     }
     check_target(input, res, a, target)
-}
-
-/// A `bind:` property that upstream's `BindDirective` analysis accepts on `tag`, past the
-/// `bind_invalid_target` the template walk raises; this port raises none of the other errors.
-fn supported_binding(
-    source_text: &str,
-    tag: &str,
-    attributes: &[Attribute],
-    a: &Attribute,
-) -> bool {
-    let property = a.name.text(source_text);
-    if bindings::check_binding(source_text, tag, attributes, a).is_err() {
-        return false;
-    }
-    if property_of(property).is_some_and(|p| p.strategy == BindStrategy::ContentEditable) {
-        let editable = attribute_value(source_text, attributes, "contenteditable");
-        if !matches!(
-            editable,
-            Some(AttributeValue::Boolean | AttributeValue::Static(_))
-        ) {
-            return false;
-        }
-    }
-    true
 }

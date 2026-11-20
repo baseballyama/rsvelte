@@ -39,14 +39,9 @@ impl Artifact for ProjectionTree {
             &resolution,
         )
         .map_err(|refusal| match refusal {
-            Refusal::Unsupported(unsupported) => Diagnostic::error(
-                "check_unsupported",
-                format!(
-                    "not supported by the type-check projection yet: {}",
-                    unsupported.what
-                ),
-                unsupported.span(),
-            ),
+            Refusal::Unsupported(unsupported) => {
+                unsupported.diagnostic("check_unsupported", Some("the type-check projection"))
+            }
             Refusal::Thrown { message, span } => Diagnostic::error(THROWN, message, span),
         })
     }

@@ -3,8 +3,8 @@ use oxc_ast::ast::{
 };
 use rsvelte_lint_runner::finding::Suggestion;
 use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_typescript_tree::node_span;
 
-use super::shared::nodes::span;
 use super::shared::svelte_store::{Function, Scopes, rename, store_calls};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -100,12 +100,12 @@ fn check(
     }
     let mut report = Report::range(
         format!("The argument name should be '{expected}'."),
-        span(output),
+        node_span(output),
     );
     if let Ok(symbol) = scopes.replaceable(file, function, Some(actual), &expected) {
         report = report.suggest(Suggestion {
             message: format!("Rename the parameter from {actual} to {expected}."),
-            fix: rename(file, span(output), symbol, &expected),
+            fix: rename(file, node_span(output), symbol, &expected),
         });
     }
     reporter.report(report);

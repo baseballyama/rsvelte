@@ -9,7 +9,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { configuration, linter, plugin, type Message } from './oracle.ts';
+import { configuration, linter, plugin, type Message } from './eslint.ts';
 
 const root = path.resolve(import.meta.dirname, '../../../..');
 const [binary, outputDirectory, ...sources] = process.argv.slice(2);
@@ -75,7 +75,7 @@ const implemented = execFileSync(workload, ['rules', candidatesFile], { encoding
 const rulesFile = path.join(output, 'rules.txt');
 fs.writeFileSync(rulesFile, implemented);
 const ruleCount = implemented.split('\n').filter(Boolean).length;
-const oracle = path.join(import.meta.dirname, 'oracle.ts');
+const eslint = path.join(import.meta.dirname, 'eslint.ts');
 for (const [name, files] of Object.entries(populations)) {
 	const inputs = path.join(output, `${name}.txt`);
 	const rounds = 3;
@@ -84,7 +84,7 @@ for (const [name, files] of Object.entries(populations)) {
 		repetitions: 5,
 		arms: [
 			{ name: 'rsvelte', command: [workload, 'lint', rulesFile, inputs, String(rounds)] },
-			{ name: 'eslint', command: [process.execPath, oracle, rulesFile, inputs, String(rounds)] },
+			{ name: 'eslint', command: [process.execPath, eslint, rulesFile, inputs, String(rounds)] },
 		],
 		expect_stdout: { documents: files.length, rules: ruleCount, rounds },
 		minimum_output_bytes: 1,

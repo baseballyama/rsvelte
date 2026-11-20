@@ -24,11 +24,6 @@ pub(crate) fn unsupported(what: impl std::fmt::Display, span: Span) -> Diagnosti
     )
 }
 
-/// A span of the Vue tree, which is the document's, as the kernel holds it.
-pub(crate) const fn span_of(span: oxc_span::Span) -> Span {
-    Span::new(span.start, span.end)
-}
-
 /// A document span on an output node, which the source map points back to.
 pub(crate) const fn output_span(span: Span) -> oxc_span::Span {
     oxc_span::Span::new(span.start_offset, span.end_offset)

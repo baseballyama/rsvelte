@@ -366,14 +366,17 @@ fn find_exports<'p, 'a>(program: &'p Program<'a>) -> Vec<Export<'p, 'a>> {
             {
                 let declarator = &declaration.declarations[0];
                 let satisfies = matches!(
-                    declarator.init.as_ref().map(without_parentheses),
+                    declarator
+                        .init
+                        .as_ref()
+                        .map(Expression::without_parentheses),
                     Some(Expression::TSSatisfiesExpression(_))
                 );
                 let typed = declarator.type_annotation.is_some() || satisfies;
                 let function = declarator.init.as_ref().and_then(|init| {
-                    let inner = match without_parentheses(init) {
+                    let inner = match init.without_parentheses() {
                         Expression::TSSatisfiesExpression(satisfies) => {
-                            without_parentheses(&satisfies.expression)
+                            satisfies.expression.without_parentheses()
                         }
                         other => other,
                     };
@@ -401,11 +404,4 @@ fn find_exports<'p, 'a>(program: &'p Program<'a>) -> Vec<Export<'p, 'a>> {
         }
     }
     exports
-}
-
-fn without_parentheses<'p, 'a>(expression: &'p Expression<'a>) -> &'p Expression<'a> {
-    match expression {
-        Expression::ParenthesizedExpression(inner) => without_parentheses(&inner.expression),
-        other => other,
-    }
 }

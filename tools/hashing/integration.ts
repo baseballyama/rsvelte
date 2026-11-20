@@ -40,7 +40,7 @@ export async function main(args: string[]): Promise<void> {
 				ext: '.vue',
 				src,
 				mode: '',
-				fixture: {},
+				table: {},
 			},
 		});
 	}

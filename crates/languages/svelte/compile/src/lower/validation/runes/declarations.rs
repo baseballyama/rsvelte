@@ -4,8 +4,9 @@ use oxc_ast::ast::{
     BindingPattern, ImportDeclaration, ImportDeclarationSpecifier, ModuleExportName,
     VariableDeclarator,
 };
+use rsvelte_typescript_tree::node_span;
 
-use crate::lower::{Diagnostic, span_of};
+use crate::lower::Diagnostic;
 
 /// Upstream's `ImportDeclaration` checks in runes mode.
 pub(super) fn imports(import: &ImportDeclaration<'_>) -> Result<(), Diagnostic> {
@@ -33,7 +34,7 @@ pub(super) fn imports(import: &ImportDeclaration<'_>) -> Result<(), Diagnostic> 
                 is subject to change without notice. If you're importing from `svelte/internal/*` \
                 to work around a limitation of Svelte, please open an issue at \
                 https://github.com/sveltejs/svelte and explain your use case",
-            span_of(import),
+            node_span(import),
         );
     }
     if *source != "svelte" {
@@ -46,8 +47,8 @@ pub(super) fn imports(import: &ImportDeclaration<'_>) -> Result<(), Diagnostic> 
         {
             return crate::lower::invalid(
                 "runes_mode_invalid_import",
-                &format!("{} cannot be used in runes mode", imported.name),
-                span_of(&**specifier),
+                format!("{} cannot be used in runes mode", imported.name),
+                node_span(&**specifier),
             );
         }
     }
@@ -64,7 +65,7 @@ pub(super) fn check_props_pattern(declarator: &VariableDeclarator<'_>) -> Result
             return crate::lower::invalid(
                 "props_invalid_identifier",
                 "`$props()` can only be used with an object destructuring pattern",
-                span_of(declarator),
+                node_span(declarator),
             );
         }
     };
@@ -77,7 +78,7 @@ pub(super) fn check_props_pattern(declarator: &VariableDeclarator<'_>) -> Result
             return crate::lower::invalid(
                 "props_invalid_pattern",
                 "`$props()` assignment must not contain nested properties or computed keys",
-                span_of(property),
+                node_span(property),
             );
         }
     }

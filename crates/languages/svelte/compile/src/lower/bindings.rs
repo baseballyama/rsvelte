@@ -153,8 +153,10 @@ fn hosts_of(name: &str) -> Option<Hosts> {
 ///
 /// `bind_invalid_name` for a name no binding has or one `host` does not take,
 /// `bind_invalid_target` for an element the binding does not fit, `attribute_invalid_type` for
-/// an `<input>` whose `type` is not text, and `attribute_invalid_multiple` for a `<select>`
-/// whose `multiple` is not static.
+/// an `<input>` whose `type` is not text, `attribute_invalid_multiple` for a `<select>` whose
+/// `multiple` is not static, and `attribute_contenteditable_missing` or
+/// `attribute_contenteditable_dynamic` for a content binding without a static
+/// `contenteditable`.
 pub(super) fn check_binding(
     source_text: &str,
     host: &str,
@@ -221,6 +223,34 @@ pub(super) fn check_binding(
             a,
         );
     }
+    if property_of(name).is_some_and(|p| p.strategy == BindStrategy::ContentEditable) {
+        let editable = (attributes.iter()).find(|o| {
+            !super::is_directive(&o.value) && o.name.text(source_text) == "contenteditable"
+        });
+        match editable {
+            None => {
+                return invalid(
+                    "attribute_contenteditable_missing",
+                    "'contenteditable' attribute is required for textContent, innerHTML and \
+                     innerText two-way bindings",
+                    a.span,
+                );
+            }
+            Some(editable)
+                if !matches!(
+                    editable.value,
+                    AttributeValue::Boolean | AttributeValue::Static(_)
+                ) =>
+            {
+                return invalid(
+                    "attribute_contenteditable_dynamic",
+                    "'contenteditable' attribute cannot be dynamic if element uses two-way binding",
+                    editable.span,
+                );
+            }
+            Some(_) => {}
+        }
+    }
     Ok(())
 }
 
@@ -273,7 +303,7 @@ fn check_input(
 fn invalid_target(name: &str, elements: &str, a: &Attribute) -> Result<(), Diagnostic> {
     invalid(
         "bind_invalid_target",
-        &format!("`bind:{name}` can only be used with {elements}"),
+        format!("`bind:{name}` can only be used with {elements}"),
         a.span,
     )
 }

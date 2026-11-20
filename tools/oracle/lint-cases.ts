@@ -55,6 +55,16 @@ function inputs(directory: string): string[] {
 // What eslint-plugin-svelte's configs give svelte-eslint-parser: components and runes modules.
 const svelteFile = (input: string) => /\.svelte(?:\.[jt]s)?$/u.test(input);
 
+/** The language options of a Svelte file, with the packages `require` resolves. */
+export const svelteLanguageOptions = (require: NodeJS.Require) =>
+	({
+		globals: require('globals').browser,
+		ecmaVersion: 'latest',
+		sourceType: 'module',
+		parser: require('svelte-eslint-parser'),
+		parserOptions: { parser: { ts: '@typescript-eslint/parser', js: 'espree' } },
+	}) satisfies LinterType.LanguageOptions;
+
 function options(input: string): unknown[] {
 	const file = [sibling(input, 'config.json'), path.join(path.dirname(input), '_config.json')].find(
 		(f) => fs.existsSync(f),
@@ -108,7 +118,6 @@ export async function main(args: string[]): Promise<void> {
 	const require = createRequire(path.join(import.meta.dirname, 'package.json'));
 	const { Linter } = require('eslint') as typeof import('eslint');
 	const plugin = require('eslint-plugin-svelte').default;
-	const svelteParser = require('svelte-eslint-parser');
 	const typescriptParser = require('@typescript-eslint/parser');
 	const globals = require('globals');
 	const yaml = require('yaml');
@@ -178,13 +187,7 @@ export async function main(args: string[]): Promise<void> {
 							// A plain module keeps ESLint's own source type for its extension (`**/*.cjs` is
 							// CommonJS), as in a project that uses eslint-plugin-svelte's configs.
 							languageOptions: svelteFile(input)
-								? {
-										globals: globals.browser,
-										ecmaVersion: 'latest',
-										sourceType: 'module',
-										parser: svelteParser,
-										parserOptions: { parser: { ts: '@typescript-eslint/parser', js: 'espree' } },
-									}
+								? svelteLanguageOptions(require)
 								: {
 										globals: globals.browser,
 										ecmaVersion: 'latest',

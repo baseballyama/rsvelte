@@ -2,6 +2,7 @@
 
 pub mod names;
 pub mod parse;
+pub mod svelte_diagnostics;
 pub mod syntax_tree;
 
 mod computation;

@@ -16,7 +16,7 @@ use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, document_span, node_span};
 use rsvelte_vue_semantic::expressions::{
     Identifier, Parent, camelize, can_prefix, collect_identifiers, collect_pattern_identifiers,
     is_simple_identifier, to_handler_key,
@@ -190,11 +190,11 @@ impl<'a> Projector<'a> {
                             }
                             let mut identifiers = Vec::new();
                             collect_pattern_identifiers(&param.pattern, &mut identifiers);
-                            self.prefixed(identifiers, document_span(param.pattern.span()), false);
+                            self.prefixed(identifiers, node_span(&param.pattern), false);
                         }
                         self.e.push("] of __VLS_vFor((");
                         let source = javascript.get_expression(f.source);
-                        self.expression(f.source, document_span(source.span()), false);
+                        self.expression(f.source, node_span(source), false);
                         self.e.push(")!)) {\n");
                     }
                     (None, None) => self.chain_open = false,
@@ -421,8 +421,4 @@ impl<'a> Projector<'a> {
             self.e.copy(self.source_text, span);
         }
     }
-}
-
-const fn document_span(span: oxc_span::Span) -> Span {
-    Span::new(span.start, span.end)
 }

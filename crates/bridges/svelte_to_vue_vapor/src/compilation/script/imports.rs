@@ -1,8 +1,8 @@
 use oxc_ast::ast::{ImportDeclarationSpecifier, ModuleExportName, StringLiteral};
-use oxc_span::GetSpan;
+use rsvelte_typescript_tree::node_span;
 
 use super::Plan;
-use crate::compilation::{R, span_of, unsupported};
+use crate::compilation::{R, unsupported};
 
 pub(super) fn collect(
     source: &StringLiteral<'_>,
@@ -19,7 +19,7 @@ pub(super) fn collect(
         let ImportDeclarationSpecifier::ImportSpecifier(s) = specifier else {
             return Err(unsupported(
                 "a default or namespace import from Svelte",
-                span_of(specifier.span()),
+                node_span(specifier),
             ));
         };
         let imported = match &s.imported {
@@ -35,10 +35,7 @@ pub(super) fn collect(
             (Some("svelte/attachments"), Some("createAttachmentKey")) => "createAttachmentKey",
             (Some("svelte/attachments"), Some("fromAction")) => "fromAction",
             _ => {
-                return Err(unsupported(
-                    "this import from Svelte",
-                    span_of(specifier.span()),
-                ));
+                return Err(unsupported("this import from Svelte", node_span(specifier)));
             }
         };
         target.push((

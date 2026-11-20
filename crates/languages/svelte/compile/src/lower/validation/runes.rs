@@ -11,10 +11,10 @@ use rsvelte_kernel::performance::stack::grow;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, ElementKind, MetadataTag, NodeKind,
 };
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, document_span, node_span};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::lower::{CompileInput, Diagnostic, Resolution, Span, Target, span_of};
+use crate::lower::{CompileInput, Diagnostic, Resolution, Span, Target};
 
 mod assignments;
 mod calls;
@@ -408,7 +408,7 @@ impl<'a> RuneWalk<'a> {
             return crate::lower::invalid(
                 "bind_invalid_value",
                 "Can only bind to state or props",
-                Span::new(name.span.start, name.span.end),
+                document_span(name.span),
             );
         }
         Ok(())
@@ -452,7 +452,7 @@ impl<'a> RuneWalk<'a> {
                 "experimental_async",
                 "Cannot use `await` in deriveds and template expressions, or at the top level of a \
                     component, unless the `experimental.async` compiler option is `true`",
-                span_of(&kind),
+                node_span(&kind),
             );
             // Upstream's analysis does not see a `for await`, so its later errors come first.
             if matches!(kind, AstKind::ForOfStatement(_)) {
@@ -480,7 +480,7 @@ impl<'a> RuneWalk<'a> {
                 return crate::lower::invalid(
                     "legacy_reactive_statement_invalid",
                     "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead",
-                    span_of(&kind),
+                    node_span(&kind),
                 );
             }
             AstKind::ImportDeclaration(import) => imports(import)?,
@@ -504,13 +504,13 @@ impl<'a> RuneWalk<'a> {
             }
             AstKind::UpdateExpression(update) => {
                 check_assignment(fixed_simple(res, &update.argument, true), false, || {
-                    span_of(update)
+                    node_span(update)
                 })?;
                 self.check_field_assignment(update.argument.as_member_expression(), update.span)?;
             }
             AstKind::AssignmentExpression(assign) => {
                 check_assignment(fixed_target(res, &assign.left, true), false, || {
-                    span_of(assign)
+                    node_span(assign)
                 })?;
                 self.check_field_assignment(assign.left.as_member_expression(), assign.span)?;
                 // Only a script's rewrite has the names its `$$array`s take.
@@ -524,18 +524,18 @@ impl<'a> RuneWalk<'a> {
                         | AssignmentTarget::ObjectAssignmentTarget(_)
                 ) && !scripted
                 {
-                    self.check_pattern_assignment(span_of(assign), &assign.left, self.target)?;
+                    self.check_pattern_assignment(node_span(assign), &assign.left, self.target)?;
                 }
             }
             AstKind::PropertyDefinition(p) if p.value.is_some() => {
                 let field = key_name(&p.key).and_then(|name| self.declared_later(&name, p.span));
                 if field.is_some() {
-                    return state_field_invalid_assignment(span_of(p));
+                    return state_field_invalid_assignment(node_span(p));
                 }
             }
             // Upstream prints any non-plain head as invalid JavaScript, on the server too.
-            AstKind::ForInStatement(f) => self.check_head(span_of(f), &f.left)?,
-            AstKind::ForOfStatement(f) => self.check_head(span_of(f), &f.left)?,
+            AstKind::ForInStatement(f) => self.check_head(node_span(f), &f.left)?,
+            AstKind::ForOfStatement(f) => self.check_head(node_span(f), &f.left)?,
             _ => {}
         }
         Ok(None)
@@ -576,7 +576,7 @@ impl<'a> RuneWalk<'a> {
                 AstKind::MethodDefinition(m) if m.kind == MethodDefinitionKind::Constructor)
         });
         if field.constructor && in_constructor {
-            return state_field_invalid_assignment(Span::new(at.start, at.end));
+            return state_field_invalid_assignment(document_span(at));
         }
         Ok(())
     }

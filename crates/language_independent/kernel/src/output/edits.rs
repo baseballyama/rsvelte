@@ -21,11 +21,6 @@ impl<T: AsRef<str>> TextEdits<T> {
             .push((span.start_offset, span.end_offset, text.into()));
     }
 
-    #[must_use]
-    pub fn apply(self, source_text: &str) -> String {
-        self.apply_in(source_text, Span::new(0, source_text.len() as u32))
-    }
-
     /// Applies the edits and returns only `range` of the result. Inserts at the same offset keep
     /// the order they were added in.
     ///

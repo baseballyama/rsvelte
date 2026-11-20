@@ -4,6 +4,7 @@ use rsvelte_svelte_compile::render_plan::{Item, Namespace, Parent};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind, Part,
 };
+use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 use rsvelte_vue_semantic::compiler_syntax_tree::Name;
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
@@ -172,7 +173,7 @@ impl<'t> Template<'_, '_, 't> {
                     data: rsvelte_svelte_compile::render_plan::Text::transformed(
                         span,
                         source_text,
-                        rsvelte_svelte_syntax::syntax_tree::decode_attribute,
+                        decode_attribute,
                     ),
                     raw: rsvelte_svelte_compile::render_plan::Text::Source(span),
                 },

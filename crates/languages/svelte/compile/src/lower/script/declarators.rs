@@ -1,6 +1,7 @@
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn};
 use oxc_ast::ast::{BindingPattern, Expression, VariableDeclaration, VariableDeclarator};
 use oxc_ast_visit::{VisitMut, walk_mut};
+use rsvelte_typescript_tree::node_span;
 
 use super::super::derived::{Created, callback, keeps_callee};
 use super::super::javascript::without_typescript;
@@ -41,8 +42,7 @@ pub(super) fn lower_value_declarator<'o>(
     // What the value is decided on is the argument as written, before the rewrite reads it.
     let argument = argument.map(Expression::get_inner_expression);
     let proxy = rune == "$state" && argument.is_some_and(|a| should_proxy_read(rw.res, a));
-    let keeps = rune == "$derived"
-        && keeps_callee(rw.res, argument, Created::Script(super::super::span_of(d)));
+    let keeps = rune == "$derived" && keeps_callee(rw.res, argument, Created::Script(node_span(d)));
     let mut value = rune_argument(rw, d);
     rw.visit_expression(&mut value);
     walk_mut::walk_binding_pattern(rw, &mut d.id);
@@ -237,7 +237,7 @@ pub(super) fn lower_destructured_derived<'o>(
         let name = names.generate("$$d");
         let value = rw.expression(argument);
         let value = if rune == "$derived" {
-            let created = Created::Script(super::super::span_of(d));
+            let created = Created::Script(node_span(d));
             callback(b, rw.res, Some(argument), value, created)
         } else {
             value

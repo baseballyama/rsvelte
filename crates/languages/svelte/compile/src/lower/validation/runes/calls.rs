@@ -2,9 +2,10 @@
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::{Argument, CallExpression, Expression};
+use rsvelte_typescript_tree::node_span;
 
 use super::{Body, Parent, Place, RuneWalk, state_invalid_placement};
-use crate::lower::{Diagnostic, Target, span_of, unsupported};
+use crate::lower::{Diagnostic, Target, unsupported};
 
 impl RuneWalk<'_> {
     /// Upstream's `CallExpression` checks for a rune call, then whether this port lowers it.
@@ -20,8 +21,8 @@ impl RuneWalk<'_> {
         if rune != "$inspect" && spread {
             return crate::lower::invalid(
                 "rune_invalid_spread",
-                &format!("`{rune}` cannot be called with a spread argument"),
-                span_of(call),
+                format!("`{rune}` cannot be called with a spread argument"),
+                node_span(call),
             );
         }
         let count = call.arguments.len();
@@ -93,7 +94,7 @@ impl RuneWalk<'_> {
                     Parent::Initializer { .. } | Parent::ClassField | Parent::ConstructorAssignment
                 ) || self.in_const_tag() && self.frames.len() == 2 =>
             {
-                return state_invalid_placement(rune, span_of(call));
+                return state_invalid_placement(rune, node_span(call));
             }
             "$effect" | "$effect.pre"
                 if !matches!(parent, Parent::Statement(_) | Parent::LoneExpression) =>
@@ -122,7 +123,7 @@ impl RuneWalk<'_> {
             },
             _ => return Ok(()),
         };
-        crate::lower::invalid(code, &message, span_of(call))
+        crate::lower::invalid(code, &message, node_span(call))
     }
 
     /// Keeps the first rune call this port does not lower, refused when the walk ends.
@@ -195,7 +196,7 @@ impl RuneWalk<'_> {
         } else {
             format!("`{rune}`")
         };
-        self.refused = unsupported::<()>(&what, span_of(call)).err();
+        self.refused = unsupported::<()>(&what, node_span(call)).err();
     }
 }
 
@@ -209,8 +210,8 @@ fn check_rune_arguments(
         "$props" | "$props.id" | "$host" | "$effect.tracking" if count > 0 => {
             return crate::lower::invalid(
                 "rune_invalid_arguments",
-                &format!("`{rune}` cannot be called with arguments"),
-                span_of(call),
+                format!("`{rune}` cannot be called with arguments"),
+                node_span(call),
             );
         }
         "$derived" | "$derived.by" | "$effect" | "$effect.pre" | "$effect.root"
@@ -227,7 +228,7 @@ fn check_rune_arguments(
     };
     crate::lower::invalid(
         "rune_invalid_arguments_length",
-        &format!("`{rune}` must be called with {expected}"),
-        span_of(call),
+        format!("`{rune}` must be called with {expected}"),
+        node_span(call),
     )
 }

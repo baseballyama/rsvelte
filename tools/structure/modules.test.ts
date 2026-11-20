@@ -3,29 +3,14 @@
 // so a file's line count and diff are its code alone. A parent keeps no item that one child
 // alone uses.
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { test } from 'node:test';
+import { workingTreeFiles } from './check.ts';
 
 const root = resolve(import.meta.dirname, '../..');
 
-/** Tracked and new Rust files. */
-function rustFiles(): string[] {
-	const git = { cwd: root, encoding: 'utf8', maxBuffer: Infinity } as const;
-	const list = (args: string[]) =>
-		execFileSync(
-			'git',
-			['ls-files', '-z', ...args, '--', 'crates', 'examples', 'tools', 'apps'],
-			git,
-		)
-			.split('\0')
-			.filter(Boolean);
-	const deleted = new Set(list(['--deleted']));
-	return list(['--cached', '--others', '--exclude-standard']).filter(
-		(file) => !deleted.has(file) && file.endsWith('.rs'),
-	);
-}
+const rustFiles = () => workingTreeFiles(root).filter((file) => file.endsWith('.rs'));
 
 /** Files under a `src/` directory, without crate roots. */
 function moduleFiles(files: string[]): string[] {

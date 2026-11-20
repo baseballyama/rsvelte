@@ -5,7 +5,7 @@ use rsvelte_kernel::computation::plugins::Plugin;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_plugin_interface::installed_package;
+use rsvelte_plugin_interface::installed_version;
 use rsvelte_typescript_tree::{Parsed, is_typescript, matches};
 
 use crate::{CheckedDocument, TypeScriptDocument, TypeScriptEnv, TypeScriptView, kit};
@@ -82,13 +82,8 @@ fn next_character_end(source: &str, at: u32) -> u32 {
 fn hooks_module(path: &Path) -> &'static str {
     let version = path
         .parent()
-        .and_then(|directory| installed_package("@sveltejs/kit", directory).ok().flatten())
-        .and_then(|package| std::fs::read(package.join("package.json")).ok())
-        .and_then(|manifest| serde_json::from_slice::<serde_json::Value>(&manifest).ok())
-        .and_then(|manifest| {
-            let version = manifest["version"].as_str()?;
-            version.split('.').next()?.parse::<u32>().ok()
-        });
+        .and_then(|directory| installed_version("@sveltejs/kit", directory).ok().flatten())
+        .and_then(|version| version.split('.').next()?.parse::<u32>().ok());
     match version {
         Some(major) if major >= 3 => "@sveltejs/kit/hooks",
         _ => "@sveltejs/kit",
