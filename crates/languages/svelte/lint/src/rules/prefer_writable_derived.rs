@@ -8,7 +8,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_tree::node_span;
 
 use super::shared::nodes::{is_named, only_statement, text};
-use super::shared::runes::runes_or_undetermined;
+use super::shared::runes::in_runes_mode;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -22,7 +22,7 @@ struct PreferWritableDerived;
 
 impl SvelteRule for PreferWritableDerived {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        if !runes_or_undetermined(file) {
+        if !in_runes_mode(file) {
             return;
         }
         let source = file.source();
