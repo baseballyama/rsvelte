@@ -11,7 +11,7 @@ use rsvelte_typescript_semantic::reference_tracker::{global_references, import_r
 use rsvelte_typescript_tree::node_span;
 use rustc_hash::FxHashSet;
 
-use super::shared::legacy_reactivity::{expression_node, legacy};
+use super::shared::legacy_reactivity::legacy;
 use super::shared::reactive_statements::{by_statement, reactive_statements};
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
@@ -140,7 +140,7 @@ impl Body<'_> {
     fn node(self) -> NodeId {
         match self {
             Self::Block(body) => body.node_id(),
-            Self::Expression(expression) => expression_node(expression),
+            Self::Expression(expression) => expression.node_id(),
         }
     }
 }

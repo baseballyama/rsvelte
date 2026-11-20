@@ -3,8 +3,7 @@
 //! A `$:` assignment declares a name nothing else declares, and `$name` subscribes to the store
 //! `name`; upstream's analysis gives them `legacy_reactive` and `store_sub` bindings.
 
-use oxc_ast::AstKind;
-use oxc_ast::ast::{Expression, Statement};
+use oxc_ast::ast::Statement;
 use oxc_semantic::{NodeId, ScopeId, SymbolId};
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::source::positions::Span;
@@ -42,12 +41,6 @@ pub(crate) fn legacy<'a>(file: &File<'a>) -> &'a Legacy {
     file.context.get::<LegacyReactivity>()
 }
 
-/// The node by which the analysis knows `expression`. Valid once the document is analyzed
-/// (`File::semantic`): before that, the id is the parser's own numbering.
-pub(crate) fn expression_node(expression: &Expression<'_>) -> NodeId {
-    AstKind::from_expression(expression).node_id()
-}
-
 /// The expression of each `bind:` directive, written out or shorthand, with the directive's span.
 pub(crate) fn bindings(file: &File<'_>) -> FxHashMap<NodeId, Span> {
     let component = file.component().expect("a component's bindings");
@@ -64,31 +57,13 @@ pub(crate) fn bindings(file: &File<'_>) -> FxHashMap<NodeId, Span> {
             };
             match component.parts(parts) {
                 [Part::Expression { expression, .. }] => Some((
-                    expression_node(javascript.get_expression(*expression)),
+                    javascript.get_expression(*expression).node_id(),
                     attribute.span,
                 )),
                 _ => None,
             }
         })
         .collect()
-}
-
-/// `getPropertyName`: a member's static property name. A private name has none, since `#name`
-/// never equals a public name.
-pub(crate) fn property_name(member: AstKind<'_>) -> Option<&str> {
-    match member {
-        AstKind::StaticMemberExpression(member) => Some(member.property.name.as_str()),
-        AstKind::ComputedMemberExpression(member) => match &member.expression {
-            Expression::StringLiteral(string) => string.value.as_str(),
-            // The raw text, escapes unprocessed.
-            Expression::TemplateLiteral(template) if template.expressions.is_empty() => template
-                .quasis
-                .first()
-                .map(|quasi| quasi.value.raw.as_str()),
-            _ => None,
-        },
-        _ => None,
-    }
 }
 
 /// A top-level variable: one a script declares, or one a `$:` assignment declares.

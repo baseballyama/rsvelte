@@ -12,7 +12,7 @@ use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode};
 use rsvelte_typescript_tree::node_span;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::shared::legacy_reactivity::{Legacy, Variable, bindings, expression_node, legacy};
+use super::shared::legacy_reactivity::{Legacy, Variable, bindings, legacy};
 use super::shared::reactive_statements::{by_statement, reactive_statements};
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
@@ -148,7 +148,7 @@ impl<'a> Checker<'a> {
                     context: Some(context),
                     ..
                 } => Some((
-                    expression_node(javascript.get_expression(expression)),
+                    javascript.get_expression(expression).node_id(),
                     javascript.get_pattern(context),
                 )),
                 _ => None,
@@ -247,7 +247,7 @@ impl<'a> Checker<'a> {
         let nodes = self.resolution.semantic().nodes();
         let parent = nodes.parent_id(expression);
         let at = nodes.kind(expression).span();
-        let is_expression = |e: &Expression<'_>| expression_node(e) == expression;
+        let is_expression = |e: &Expression<'_>| e.node_id() == expression;
         match nodes.kind(parent) {
             // A template expression, whose parent upstream is its directive or block.
             AstKind::Program(_) if parent != expression => {
