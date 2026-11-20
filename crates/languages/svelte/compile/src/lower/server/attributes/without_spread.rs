@@ -51,7 +51,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             let raw_name = a.name.text(self.source_text);
             match a.value {
                 AttributeValue::Bind(_) => {
-                    if let Some(call) = self.binding(tag, list, a) {
+                    if let Some(call) = self.binding(identifier, tag, list, a) {
                         template.expression(call);
                     }
                     continue;
@@ -72,11 +72,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 _ if raw_name == "value" && tag == "textarea" => continue,
                 _ => {}
             }
-            let name = if self.plan.named(identifier) == crate::render_plan::Namespace::Html {
-                raw_name.to_lowercase()
-            } else {
-                raw_name.to_owned()
-            };
+            let name = self.attribute_name(identifier, raw_name);
             let trim = matches!(name.as_str(), "class" | "style");
             let literal = match &a.value {
                 AttributeValue::Boolean => Some(None),

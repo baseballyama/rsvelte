@@ -1,0 +1,1 @@
+error unsupported 5:16-5:36 this global binding is not supported yet
