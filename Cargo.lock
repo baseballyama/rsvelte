@@ -1255,6 +1255,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_browser"
+version = "0.2.2"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_plugin_interface",
+ "rsvelte_svelte_check",
+ "rsvelte_svelte_compile",
+ "rsvelte_svelte_format",
+ "rsvelte_svelte_lint",
+ "rsvelte_svelte_to_vue_vapor",
+ "rsvelte_typescript_compile",
+ "rsvelte_typescript_format",
+ "rsvelte_typescript_lint",
+ "rsvelte_vue_check",
+ "rsvelte_vue_compile",
+ "rsvelte_vue_format",
+ "rsvelte_vue_lint",
+ "rsvelte_vue_to_svelte",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "rsvelte_command_line"
 version = "0.2.2"
 dependencies = [
@@ -1301,7 +1323,6 @@ dependencies = [
 name = "rsvelte_configuration_loading"
 version = "0.2.2"
 dependencies = [
- "rsvelte_kernel",
  "rsvelte_plugin_interface",
  "serde",
  "serde_json",
@@ -1351,28 +1372,6 @@ dependencies = [
  "rustc-hash",
  "semver",
  "stacker",
-]
-
-[[package]]
-name = "rsvelte_kernel_browser"
-version = "0.2.2"
-dependencies = [
- "rsvelte_kernel",
- "rsvelte_plugin_interface",
- "rsvelte_svelte_check",
- "rsvelte_svelte_compile",
- "rsvelte_svelte_format",
- "rsvelte_svelte_lint",
- "rsvelte_svelte_to_vue_vapor",
- "rsvelte_typescript_compile",
- "rsvelte_typescript_format",
- "rsvelte_typescript_lint",
- "rsvelte_vue_check",
- "rsvelte_vue_compile",
- "rsvelte_vue_format",
- "rsvelte_vue_lint",
- "rsvelte_vue_to_svelte",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -1497,6 +1496,7 @@ dependencies = [
  "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
+ "rsvelte_typescript_format",
  "rsvelte_typescript_tree",
  "serde",
  "serde_json",

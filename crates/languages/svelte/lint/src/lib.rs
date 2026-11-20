@@ -7,6 +7,7 @@ pub mod computation;
 mod configuration;
 pub use configuration::{Configuration, ConfiguredRule, definition};
 mod extension;
+mod global_comments;
 pub use extension::EXTENSION;
 pub mod host_rule;
 mod pattern;

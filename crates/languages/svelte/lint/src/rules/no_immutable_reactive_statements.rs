@@ -7,12 +7,11 @@ use oxc_span::GetSpan;
 use oxc_syntax::operator::{AssignmentOperator, UnaryOperator};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte_semantic::legacy::{Legacy, Variable};
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::shared::legacy_reactivity::{bindings, expression_node, legacy};
+use super::shared::legacy_reactivity::{Legacy, Variable, bindings, expression_node, legacy};
 use super::shared::nodes::span;
 use super::shared::reactive_statements::{by_statement, reactive_statements};
 use super::shared::svelte_store::is_value;

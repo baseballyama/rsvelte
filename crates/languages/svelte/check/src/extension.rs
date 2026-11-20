@@ -6,14 +6,13 @@ use rsvelte_plugin_interface::{
 };
 use serde::Deserialize;
 
+use crate::registration::TASK;
 use crate::{Configuration, TypeCheckConfiguration};
 
 pub static EXTENSION: Extension = Extension {
     identifier: "svelte.check",
     install,
 };
-
-pub(crate) const TASK: &str = "svelte.check/default";
 
 /// The content mapper that projects every component, including one a package ships.
 const MAPPER: &str = "rsvelte-svelte-content-mapper";

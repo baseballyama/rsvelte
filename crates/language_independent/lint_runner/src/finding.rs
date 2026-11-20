@@ -7,6 +7,9 @@ use rsvelte_kernel::source::positions::Span;
 /// The code of `ESLint`'s own report of an unused directive comment, which names no rule.
 pub const UNUSED_DIRECTIVE: &str = "unused-disable-directive";
 
+/// The code of the one finding of a document that does not parse, which names no rule.
+pub const PARSE_ERROR: &str = "parse_error";
+
 #[derive(Clone, Debug)]
 pub struct Finding {
     pub diagnostic: Diagnostic,

@@ -5,9 +5,10 @@ use oxc_ast::ast::{Program, TSTypeAssertion};
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_tree::document_span;
 
+use super::Builder;
 use super::contract::Edit;
-use super::{Builder, span};
 use crate::syntax_tree::{Node, NodeIdentifier};
 
 /// An assertion's whole span, its type's and its expression's, without the expression's
@@ -23,9 +24,9 @@ impl Builder<'_> {
             fn visit_ts_type_assertion(&mut self, it: &TSTypeAssertion<'a>) {
                 walk::walk_ts_type_assertion(self, it);
                 self.0.push((
-                    span(it.span),
-                    span(it.type_annotation.span()),
-                    span(it.expression.span()),
+                    document_span(it.span),
+                    document_span(it.type_annotation.span()),
+                    document_span(it.expression.span()),
                 ));
             }
         }
@@ -71,25 +72,8 @@ impl Builder<'_> {
         written: Span,
         inner: &[(Span, NodeIdentifier)],
     ) -> NodeIdentifier {
-        let start = self.scratch.len();
-        let mut cursor = expression.start_offset;
-        for &(at, node) in inner {
-            if cursor < at.start_offset {
-                let copy = Node::SourceCopy {
-                    span: Span::new(cursor, at.start_offset),
-                };
-                self.scratch.push(self.tree.push(copy));
-            }
-            self.scratch.push(node);
-            cursor = at.end_offset;
-        }
-        if cursor < expression.end_offset {
-            let copy = Node::SourceCopy {
-                span: Span::new(cursor, expression.end_offset),
-            };
-            self.scratch.push(self.tree.push(copy));
-        }
-        let parts = self.finish_list(start);
+        let holes = inner.iter().map(|&(at, node)| (at, Some(node)));
+        let parts = self.spliced(expression, holes);
         self.tree.push(Node::AsType { parts, written })
     }
 }

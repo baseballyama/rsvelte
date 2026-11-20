@@ -15,12 +15,13 @@ use oxc_semantic::{ScopeId, SymbolFlags, SymbolId};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
+    document_span,
 };
 use rustc_hash::FxHashMap;
 
 use super::found::{Found, Stage};
 use super::template::{bidirectional, bidirectional_runs};
-use super::{Options, Scripts, Section, span, warning};
+use super::{Options, Scripts, Section, warning};
 use crate::compiler_syntax_tree::CompilerSyntaxTree;
 use crate::resolve::{BindingKind, Resolution, Roots, TemplateName, TemplateScope, is_rune};
 
@@ -147,7 +148,7 @@ impl Walk<'_> {
     /// escape that spells a control character counts.
     fn string(&mut self, text: &str, at: oxc_span::Span) {
         if bidirectional_runs(text).next().is_some() {
-            self.warn(at.start, bidirectional(span(at)));
+            self.warn(at.start, bidirectional(document_span(at)));
         }
     }
 
@@ -221,7 +222,7 @@ impl Walk<'_> {
         );
         self.warn(
             at.start,
-            warning("state_referenced_locally", &message, span(at)),
+            warning("state_referenced_locally", &message, document_span(at)),
         );
     }
 
@@ -260,7 +261,11 @@ impl Walk<'_> {
             );
             self.conflicts.push((
                 order,
-                warning("store_rune_conflict", &message, span(identifier.span)),
+                warning(
+                    "store_rune_conflict",
+                    &message,
+                    document_span(identifier.span),
+                ),
             ));
         }
     }
@@ -312,7 +317,7 @@ impl Walk<'_> {
                     "legacy_component_creation",
                     "Svelte 5 components are no longer classes. Instantiate them using `mount` or \
                     `hydrate` (imported from 'svelte') instead.",
-                    span(new.span),
+                    document_span(new.span),
                 ),
             );
         }
@@ -395,7 +400,7 @@ impl<'a> Visit<'a> for Walk<'_> {
                         warning(
                             "perf_avoid_nested_class",
                             "Avoid declaring classes below the top level scope",
-                            span(at),
+                            document_span(at),
                         ),
                     );
                 }
@@ -409,7 +414,7 @@ impl<'a> Visit<'a> for Walk<'_> {
                         warning(
                             "perf_avoid_inline_class",
                             "Avoid 'new class' — instead, declare the class at the top level scope",
-                            span(at),
+                            document_span(at),
                         ),
                     );
                 }
@@ -427,7 +432,7 @@ impl<'a> Visit<'a> for Walk<'_> {
                             "reactive_declaration_invalid_placement",
                             "Reactive declarations only exist at the top level of the instance \
                                 script",
-                            span(at),
+                            document_span(at),
                         ),
                     );
                 }

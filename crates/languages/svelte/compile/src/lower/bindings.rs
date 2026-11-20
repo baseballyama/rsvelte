@@ -152,8 +152,9 @@ fn hosts_of(name: &str) -> Option<Hosts> {
 /// # Errors
 ///
 /// `bind_invalid_name` for a name no binding has or one `host` does not take,
-/// `bind_invalid_target` for an element the binding does not fit, and
-/// `attribute_invalid_multiple` for a `<select>` whose `multiple` is not static.
+/// `bind_invalid_target` for an element the binding does not fit, `attribute_invalid_type` for
+/// an `<input>` whose `type` is not text, and `attribute_invalid_multiple` for a `<select>`
+/// whose `multiple` is not static.
 pub(super) fn check_binding(
     source_text: &str,
     host: &str,
@@ -223,8 +224,9 @@ pub(super) fn check_binding(
     Ok(())
 }
 
-/// Upstream's `bind_invalid_target` for `bind:checked` and `bind:files` on an `<input>` whose
-/// `type` is text; a `type` not written as text is `attribute_invalid_type` instead.
+/// Upstream's checks of a binding on an `<input>` against its `type`: one not written as text
+/// is `attribute_invalid_type`, unless an expression beside `bind:value`; one written as text
+/// decides whether `bind:checked` and `bind:files` fit.
 fn check_input(
     source_text: &str,
     host: &str,
@@ -232,13 +234,27 @@ fn check_input(
     a: &Attribute,
     name: &str,
 ) -> Result<(), Diagnostic> {
-    if host != "input" || !matches!(name, "checked" | "files") {
+    if host != "input" || name == "this" {
         return Ok(());
     }
-    let ty = match attribute_value(source_text, attributes, "type") {
+    let ty = (attributes.iter())
+        .find(|o| !super::is_directive(&o.value) && o.name.text(source_text) == "type");
+    let ty = match ty {
         None => None,
-        Some(AttributeValue::Static(ty)) => Some(&**ty),
-        Some(_) => return Ok(()),
+        Some(Attribute {
+            value: AttributeValue::Static(ty),
+            ..
+        }) => Some(&**ty),
+        Some(ty) if name == "value" && !matches!(ty.value, AttributeValue::Boolean) => {
+            return Ok(());
+        }
+        Some(ty) => {
+            return invalid(
+                "attribute_invalid_type",
+                "'type' attribute must be a static text value if input uses two-way binding",
+                ty.span,
+            );
+        }
     };
     if name == "checked" && ty != Some("checkbox") {
         let radio = if ty == Some("radio") {

@@ -29,7 +29,7 @@ pub(super) fn parse_verdict<'a>(context: &'a DocumentContext<'_>) -> Verdict<'a>
     let (error, component) = match context.get::<rsvelte_svelte_syntax::Parsed>() {
         Err(error) => (error, None),
         Ok(component) => {
-            javascript_error = rsvelte_svelte_semantic::javascript_error(context);
+            javascript_error = rsvelte_svelte_semantic::javascript_error::of_document(context);
             match &javascript_error {
                 Some(error) => (error, Some(component)),
                 None => return unchecked_verdict(component),

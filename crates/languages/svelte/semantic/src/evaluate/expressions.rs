@@ -1,9 +1,8 @@
-use oxc_ast::ast::{Expression, LogicalExpression, UnaryExpression};
+use oxc_ast::ast::{Expression, LogicalExpression, TemplateElement, UnaryExpression};
 use oxc_syntax::operator::{BinaryOperator, LogicalOperator, UnaryOperator};
 
 use super::globals::{Global, global};
 use super::operators::{binary, unary};
-use super::template::cooked;
 use super::{Evaluator, Value, Values, add, bigint};
 
 impl Evaluator<'_> {
@@ -169,4 +168,11 @@ impl Evaluator<'_> {
             UnaryOperator::Void => add(values, Value::Undefined),
         }
     }
+}
+
+/// The cooked text of a template literal's quasi; `None` when it holds a lone surrogate, which is
+/// no Rust string.
+fn cooked(quasi: &TemplateElement<'_>) -> Option<String> {
+    let cooked = quasi.value.cooked?;
+    cooked.as_str().map(str::to_owned)
 }

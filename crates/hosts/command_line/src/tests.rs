@@ -56,7 +56,7 @@ fn plugin_tasks_and_type_views_select_their_own_documents() {
                 "svelte.compile.warnings",
                 "svelte.format/default",
                 "svelte.lint/default",
-                "svelte.typescript_projection/default",
+                rsvelte_svelte_typescript_projection::TASK,
                 "vuelte.compile/client",
                 "vuelte.compile/server",
             ],

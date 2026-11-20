@@ -273,6 +273,7 @@ fn a_tree_the_browser_would_repair_raises_node_invalid_placement() {
         "<p><span>{#if x}<div>a</div>{/if}</span></p>",
         "<dl><dt><dl><dt>a</dt></dl></dt></dl>",
         "<dt><my-el><dd>a</dd></my-el></dt>",
+        "<dt><dl><dd>a</dd></dl></dt>",
         "<dt><dl><span><dd>a</dd></span></dl></dt>",
         "<a><svelte:element this=\"b\"><a>x</a></svelte:element></a>",
         "<table> </table>",

@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Ok(tree) => {
                         let projection =
                             rsvelte_svelte_typescript_projection::emit(&tree, &source, "");
-                        rsvelte_svelte_typescript_projection::content_mapper::write_mappings(
+                        rsvelte_typescript_content_mapper::write_mappings(
                             &projection.mappings,
                             &projection.atoms,
                             &mut record,

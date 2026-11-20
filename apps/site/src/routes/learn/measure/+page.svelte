@@ -244,13 +244,13 @@
 		計数を意図して動かした変更は、同じコミットで基準値を書き換えます。割り当ては <code
 			>mise run performance:update</code
 		>
-		で更新します。命令数は <code>node tools/performance/performance.ts linux --update</code>
+		で更新します。命令数は <code>node tools/performance/performance.ts ratchet-linux --update</code>
 		で更新します。このコマンドは自動検査と同じ Docker 環境で測り、結果を基準値に書き戻します。
 	</p>
 	<p>
-		<code>performance.ts linux</code>（実装は
-		<code>linux.ts</code
-		>）は、ステージしたソースとテスト用の入力と期待値のスナップショットを測ります。次のコミットに入るものを、自動検査のクリーンなチェックアウトと同じ形で測るためです。作業ツリーを測ると、手元の実行が各検証例の横に残した
+		<code>performance.ts ratchet-linux</code> の実装は
+		<code>ratchet-linux.ts</code>
+		です。このコマンドは、ステージしたソースとテスト用の入力と期待値のスナップショットを測ります。次のコミットに入るものを、自動検査のクリーンなチェックアウトと同じ形で測るためです。作業ツリーを測ると、手元の実行が各検証例の横に残した
 		<code>actual/</code> まで読み込みで数えてしまいます。実際に、読み込みの命令数が手元では 345,677,577、クリーンなチェックアウトでは
 		292,546,145 と食い違ったことがあります。
 	</p>
@@ -501,8 +501,8 @@ mise run performance
 mise run performance:update
 
 # 命令数（CI と同じ arm64 Linux のコンテナで）
-node tools/performance/performance.ts linux
-node tools/performance/performance.ts linux --update
+node tools/performance/performance.ts ratchet-linux
+node tools/performance/performance.ts ratchet-linux --update
 
 # 実行時間のベンチマーク
 cargo build --release -p rsvelte_command_line --features metrics

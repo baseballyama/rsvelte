@@ -7,17 +7,20 @@ test('the sources of the programs ship, their tests and docs do not', () => {
 		'crates/languages/typescript/check/src/kit.rs',
 		'crates/languages/typescript/check/Cargo.toml',
 		'crates/languages/svelte/typescript_projection/projection.d.ts',
-		'tools/release/launcher.js',
+		'apps/cli/launcher.js',
+		'apps/cli/README.md',
 	])
 		assert.equal(ships(file), true, file);
 	for (const file of [
 		'crates/languages/typescript/check/src/kit/tests.rs',
-		'crates/hosts/command_line/tests/project_check.rs',
+		'crates/hosts/command_line/tests/cli/project_check.rs',
 		'crates/languages/svelte/check/tests/fixtures/a/input.svelte',
 		'crates/languages/css/syntax/examples/parse.rs',
 		'crates/hosts/README.md',
 		'Cargo.lock',
 		'tools/release/stage.ts',
+		'apps/cli/package.json',
+		'apps/cli/CHANGELOG.md',
 		'corpus/svelte/a/input.svelte',
 	])
 		assert.equal(ships(file), false, file);

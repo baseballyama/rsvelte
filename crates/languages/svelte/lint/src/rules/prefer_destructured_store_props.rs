@@ -11,12 +11,13 @@ use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::tokens::TokenIdentifier;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte_semantic::legacy::{Variable, is_top_level};
 use rsvelte_svelte_semantic::resolve::{RUNE_ROOTS, Resolution};
 use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::shared::legacy_reactivity::{expression_node, legacy, property_name};
+use super::shared::legacy_reactivity::{
+    Variable, expression_node, is_top_level, legacy, property_name,
+};
 use super::shared::nodes::span;
 use super::shared::runes::runes_mode;
 use super::shared::svelte_store::is_value;

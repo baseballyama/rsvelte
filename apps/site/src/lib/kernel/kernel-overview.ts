@@ -57,7 +57,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/layers',
 		source: {
 			path: 'crates/languages/svelte/semantic/src/computation.rs',
-			line: 160,
+			line: 149,
 			text: 'reg.artifact::<Resolved>()',
 		},
 		box: { x: 32, y: 262, w: 188, h: height },
@@ -71,7 +71,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/database#facet',
 		source: {
 			path: 'crates/languages/svelte/check/src/registration.rs',
-			line: 46,
+			line: 34,
 			text: 'reg.finish_task(Check {',
 		},
 		box: { x: 32, y: 362, w: 188, h: height },
@@ -99,7 +99,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel#modules',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/registry.rs',
-			line: 96,
+			line: 100,
 			text: 'pub fn validate_plugins(&self) -> Result<(), PluginError> {',
 		},
 		box: { x: right, y: 60, w: width, h: height },
@@ -290,6 +290,12 @@ export const sharedParts: SharedPart[] = [
 		module: 'kernel/performance/buffer_pool',
 		href: '/learn/kernel/buffer-pool',
 	},
+	{
+		id: 'parallel',
+		label: '並列処理',
+		module: 'kernel/performance/parallel',
+		href: '/learn/kernel#modules',
+	},
 ];
 
 const pipeline = 'crates/language_independent/kernel/src/computation/pipeline.rs';
@@ -305,7 +311,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [134, 82],
 		source: {
 			path: 'crates/languages/svelte/semantic/src/computation.rs',
-			line: 157,
+			line: 146,
 			text: 'pub fn register(reg: &mut Registry) {',
 		},
 	},
@@ -375,7 +381,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [226, 246],
 		source: {
 			path: 'crates/languages/svelte/lint/src/computation.rs',
-			line: 65,
+			line: 62,
 			text: 'self.context.get::<Lowered>()',
 		},
 	},

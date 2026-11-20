@@ -4,7 +4,7 @@ import { taskById } from './tasks.ts';
 import { allUnits, applies, unitKey, writes } from './manifest.ts';
 import type { Entry } from './pack.ts';
 import { parseJs } from './canonical.ts';
-import { machineFailure } from './infrastructure.ts';
+import { machineFailure } from './machine-failures.ts';
 import type { Artifact } from './types.ts';
 
 export interface Job {

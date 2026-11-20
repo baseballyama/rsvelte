@@ -7,7 +7,6 @@ use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::DeclarationIdentifier;
 
-use super::identifier::is_identifier_continue;
 use super::javascript::javascript_failure;
 use super::{ParseResult, Parser};
 use crate::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
@@ -38,14 +37,7 @@ impl Parser<'_, '_> {
 
     fn declaration(&mut self) -> ParseResult<Option<DeclarationIdentifier>> {
         let rest = self.rest();
-        // Upstream's `/(?:var|interface|enum)\b/y`, whose `\b` is an ASCII word boundary.
-        if let Some(word) = ["var", "interface", "enum"].into_iter().find(|w| {
-            rest.starts_with(w)
-                && !rest
-                    .as_bytes()
-                    .get(w.len())
-                    .is_some_and(|&b| b.is_ascii_alphanumeric() || b == b'_')
-        }) {
+        if let Some(word) = leading_word(rest, ["var", "interface", "enum"]) {
             let at = self.position as u32;
             return Self::err_at(
                 Span::new(at, at + word.len() as u32),
@@ -54,14 +46,7 @@ impl Parser<'_, '_> {
             );
         }
         // `type` names a value too, so upstream parses it and keeps what is an expression.
-        let keyword = ["let", "const", "type"].into_iter().find(|k| {
-            rest.starts_with(k)
-                && !rest[k.len()..]
-                    .chars()
-                    .next()
-                    .is_some_and(is_identifier_continue)
-        });
-        let Some(keyword) = keyword else {
+        let Some(keyword) = leading_word(rest, ["let", "const", "type"]) else {
             return Ok(None);
         };
         let start_offset = self.position as u32;
@@ -225,3 +210,16 @@ impl Parser<'_, '_> {
         Ok(self.push_node(TemplateNode::Const { declaration, span }))
     }
 }
+
+/// Upstream's `/(?:…)\b/y`: the one of `words` that `rest` starts with, where a word ends as
+/// JavaScript's `\b` ends it, before anything but an ASCII letter, digit or `_`.
+fn leading_word<'w, const N: usize>(rest: &str, words: [&'w str; N]) -> Option<&'w str> {
+    words.into_iter().find(|word| {
+        rest.starts_with(word)
+            && !(rest.as_bytes().get(word.len()))
+                .is_some_and(|&b| b.is_ascii_alphanumeric() || b == b'_')
+    })
+}
+
+#[cfg(test)]
+mod tests;

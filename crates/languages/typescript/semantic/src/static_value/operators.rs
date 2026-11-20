@@ -6,6 +6,7 @@ use super::Value;
 use super::conversions::{
     to_int32, to_number, to_primitive, to_string, to_uint32, truthy, type_of,
 };
+use crate::number::exponentiate;
 
 pub(super) fn unary(operator: UnaryOperator, value: &Value) -> Option<Value> {
     Some(match operator {
@@ -45,7 +46,7 @@ pub(super) fn binary(operator: BinaryOperator, left: &Value, right: &Value) -> O
         B::Multiplication => numbers().map(|(a, b)| Value::Number(a * b))?,
         B::Division => numbers().map(|(a, b)| Value::Number(a / b))?,
         B::Remainder => numbers().map(|(a, b)| Value::Number(a % b))?,
-        B::Exponential => numbers().map(|(a, b)| Value::Number(power(a, b)))?,
+        B::Exponential => numbers().map(|(a, b)| Value::Number(exponentiate(a, b)))?,
         B::BitwiseOR => Value::Number(f64::from(to_int32(left)? | to_int32(right)?)),
         B::BitwiseXOR => Value::Number(f64::from(to_int32(left)? ^ to_int32(right)?)),
         B::BitwiseAnd => Value::Number(f64::from(to_int32(left)? & to_int32(right)?)),
@@ -58,16 +59,6 @@ pub(super) fn binary(operator: BinaryOperator, left: &Value, right: &Value) -> O
         }
         B::In | B::Instanceof => return None,
     })
-}
-
-/// `**`, where `1 ** NaN` and `1 ** Infinity` are `NaN`, unlike `powf`.
-#[expect(clippy::float_cmp, reason = "exactly one")]
-pub(super) fn power(base: f64, exponent: f64) -> f64 {
-    if exponent.is_nan() || (base.abs() == 1.0 && exponent.is_infinite()) {
-        f64::NAN
-    } else {
-        base.powf(exponent)
-    }
 }
 
 /// The outcome of `IsLessThan`.

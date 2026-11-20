@@ -1,8 +1,11 @@
 //! The JavaScript errors acorn throws while upstream parses a component.
 
+use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_typescript_tree::{Acorn, SyntaxError};
 
+use crate::component_input;
+use crate::computation::Resolved;
 use crate::input::ComponentInput;
 use crate::resolve::Resolution;
 
@@ -32,6 +35,15 @@ fn first_and_whether_redeclared(res: &Resolution) -> Option<(SyntaxError, bool)>
     .into_iter()
     .flatten()
     .min_by_key(|(error, _)| error.acorn_at())
+}
+
+/// The first JavaScript syntax error that upstream's parser raises in the component, as Svelte
+/// reports it: in the scripts or in the template's expressions, whichever comes first.
+#[must_use]
+pub fn of_document(context: &DocumentContext<'_>) -> Option<Diagnostic> {
+    let input = component_input(context)?;
+    let res = context.get::<Resolved>().as_ref()?;
+    parse_error(&input, res)
 }
 
 /// The [`first`] error that upstream raises as it parses, as Svelte reports it. A name the

@@ -101,14 +101,8 @@ pub(crate) fn performance(
     };
     let m = measure(reg, &docs, tasks, options.rounds);
     let report = report(&m, &docs, skipped, tasks, options);
-    match &options.json {
-        Some(path) => {
-            if let Err(e) = std::fs::write(path, &report) {
-                eprintln!("rsvelte-dev performance: {}: {e}", path.display());
-                return ExitCode::FAILURE;
-            }
-        }
-        None => print!("{report}"),
+    if !super::write_report("performance", options.json.as_deref(), &report) {
+        return ExitCode::FAILURE;
     }
     if measurement::ENABLED && options.rounds > 0 && !m.warm {
         eprintln!(
@@ -159,7 +153,7 @@ fn measure(reg: &Registry, docs: &[Document], tasks: &[&str], rounds: usize) -> 
         measurement::reset();
         measurement::track_global(true);
         let round_counted = Counted::default();
-        // `main` has checked the task identifiers.
+        // `development` has checked the task identifiers.
         pipeline::run_each(reg, docs, &run, &|i, result| round_counted.add(i, result))
             .expect("known task ids");
         measurement::track_global(false);
@@ -240,18 +234,12 @@ fn report(
         .key("output_bytes")
         .write_number(m.output_bytes)
         .key("diagnostics")
-        .write_number(m.diagnostics)
-        .key("panicked")
-        .begin_array();
-    for (path, message) in &m.panicked {
-        w.begin_object()
-            .key("path")
-            .write_string(path)
-            .key("panic")
-            .write_string(message)
-            .end_object();
-    }
-    w.end_array().key("tasks").begin_array();
+        .write_number(m.diagnostics);
+    super::write_panicked(
+        (m.panicked.iter()).map(|(path, message)| (path.as_str(), message.as_str())),
+        &mut w,
+    );
+    w.key("tasks").begin_array();
     for t in tasks {
         w.write_string(t);
     }

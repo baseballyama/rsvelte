@@ -3,13 +3,12 @@ use oxc_ast::ast::Expression;
 use oxc_semantic::{NodeId, ReferenceId};
 use oxc_span::GetSpan;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte_semantic::legacy::Variable;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, TemplateNode};
 use rsvelte_typescript_semantic::static_value::StaticValues;
 use rustc_hash::FxHashSet;
 
 use super::shared::element_kind::is_markup_element;
-use super::shared::legacy_reactivity::{expression_node, legacy, property_name};
+use super::shared::legacy_reactivity::{Variable, expression_node, legacy, property_name};
 use super::shared::nodes::span;
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};

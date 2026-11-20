@@ -1,3 +1,5 @@
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+
 /// # Panics
 ///
 /// Never: Rust's exponential formatting of a finite `f64` always has an integer exponent.
@@ -44,3 +46,99 @@ pub fn number(v: f64) -> String {
         format!("{}{rest}e{sign}{}", &digits[..1], (n - 1).abs())
     }
 }
+
+/// `StringToNumber`: JavaScript's numeric string grammar, not Rust's.
+#[must_use]
+pub fn string_to_number(s: &str) -> f64 {
+    let s = s.trim_matches(is_ecmascript_whitespace);
+    if s.is_empty() {
+        return 0.0;
+    }
+    let (sign, unsigned) = match s.as_bytes()[0] {
+        b'+' => (1.0, &s[1..]),
+        b'-' => (-1.0, &s[1..]),
+        _ => (1.0, s),
+    };
+    if unsigned == "Infinity" {
+        return sign * f64::INFINITY;
+    }
+    for (prefix, radix) in [("0x", 16), ("0o", 8), ("0b", 2)] {
+        if s.len() > 2 && s.as_bytes()[..2].eq_ignore_ascii_case(prefix.as_bytes()) {
+            return radix_digits(&s[2..], radix);
+        }
+    }
+    let (mantissa, exponent) = unsigned.find(['e', 'E']).map_or((unsigned, None), |at| {
+        (&unsigned[..at], Some(&unsigned[at + 1..]))
+    });
+    let digits = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
+    let mantissa_ok = match mantissa.split_once('.') {
+        Some((whole, fraction)) => {
+            (digits(whole) || whole.is_empty())
+                && (digits(fraction) || fraction.is_empty())
+                && !(whole.is_empty() && fraction.is_empty())
+        }
+        None => digits(mantissa),
+    };
+    let exponent_ok = exponent.is_none_or(|e| digits(e.strip_prefix(['+', '-']).unwrap_or(e)));
+    if !(mantissa_ok && exponent_ok) {
+        return f64::NAN;
+    }
+    unsigned.parse::<f64>().map_or(f64::NAN, |v| sign * v)
+}
+
+/// The digits of a binary, octal or hexadecimal literal, rounded once as the spec rounds their
+/// exact value: the leading 61 or more bits, and whether any bit below them is set.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "u64 to f64 rounds to nearest; the sticky bit makes that the exact value's rounding"
+)]
+fn radix_digits(digits: &str, radix: u32) -> f64 {
+    if digits.is_empty() {
+        return f64::NAN;
+    }
+    let bits = radix.trailing_zeros();
+    let (mut leading, mut shift, mut sticky) = (0_u64, 0_i32, false);
+    for c in digits.chars() {
+        let Some(digit) = c.to_digit(radix) else {
+            return f64::NAN;
+        };
+        if leading >> (64 - bits) == 0 {
+            leading = (leading << bits) | u64::from(digit);
+        } else {
+            shift = shift.saturating_add(bits.cast_signed());
+            sticky |= digit != 0;
+        }
+    }
+    (leading | u64::from(sticky)) as f64 * 2_f64.powi(shift)
+}
+
+/// `ToInt32` of a number.
+#[must_use]
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    reason = "ToInt32 reduces modulo 2^32 first and reads the 32 bits as signed"
+)]
+pub fn to_int32(n: f64) -> i32 {
+    if !n.is_finite() {
+        return 0;
+    }
+    n.trunc().rem_euclid(4_294_967_296.0) as u32 as i32
+}
+
+/// `Number::exponentiate`: unlike `powf`, a NaN exponent and `±1 ** ±Infinity` are NaN.
+#[must_use]
+#[expect(
+    clippy::float_cmp,
+    reason = "only exactly one is the case JavaScript differs on"
+)]
+pub fn exponentiate(base: f64, exponent: f64) -> f64 {
+    if exponent.is_nan() || (exponent.is_infinite() && base.abs() == 1.0) {
+        return f64::NAN;
+    }
+    base.powf(exponent)
+}
+
+#[cfg(test)]
+mod tests;

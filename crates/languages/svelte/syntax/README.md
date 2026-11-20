@@ -6,8 +6,10 @@ their language parsers.
 
 | Module under `src/parse/`             | Owns                                                           |
 | ------------------------------------- | -------------------------------------------------------------- |
-| `fragment`, `html`                    | Children, text, comments, and implicit HTML closing rules      |
+| `fragment`                            | Children, text, and comments                                   |
+| `element_rules`                       | Implicit HTML closing rules and void elements                  |
 | `element`                             | Element names and child modes, including raw text and textarea |
+| `options`                             | `<svelte:options>` validation                                  |
 | `attribute`, `sequence`, `directive`  | Attribute names, value parts, and directive targets            |
 | `tag`, `block`, `snippet`             | Expression tags, block branches, and snippet parameters        |
 | `token`                               | Lossless token recording and embedded JavaScript regions       |
@@ -15,7 +17,8 @@ their language parsers.
 | `whitespace`                          | ASCII whitespace scans shared by parsing and lookahead         |
 | `javascript`, `pattern`, `identifier` | Embedded JavaScript, binding patterns, and identifier lexing   |
 
-Shared parser state stays in `parse.rs`. Implementation modules are private.
+Shared parser state stays in `parse.rs`. The modules are private; `parse.rs` reexports what
+other crates use from them.
 Text searches stop at ASCII delimiters, which are UTF-8 boundaries. Expressions
 still end where the JavaScript parser ends them.
 

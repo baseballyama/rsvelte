@@ -5,11 +5,13 @@ use oxc_span::GetSpan;
 use oxc_syntax::operator::{AssignmentOperator, UnaryOperator};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte_semantic::legacy::{Variable, reactive_body};
+use rsvelte_svelte_semantic::legacy::reactive_body;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
-use super::shared::legacy_reactivity::{bindings, expression_node, legacy, property_name};
+use super::shared::legacy_reactivity::{
+    Variable, bindings, expression_node, legacy, property_name,
+};
 use super::shared::nodes::span;
 use super::shared::runes::runes_mode;
 use super::shared::svelte_store::is_value;
