@@ -1,16 +1,14 @@
-# Compares main's lint (`rsvelte_lint`) with this branch's (`rsvelte_svelte_lint`) on every Svelte
-# component of the corpus; tools/performance/workloads/lint-versus-main/README.md says what each
-# job measures. The report is the run's summary and the `lint-versus-main-report` artifact.
+# Compares the old port's lint (`rsvelte_lint`) with this branch's (`rsvelte_svelte_lint`) on every
+# Svelte component of the corpus; tools/performance/workloads/lint-versus-main/README.md says what
+# each job measures. The report is the run's summary and the `lint-versus-main-report` artifact.
 name: Lint versus main
 
 on:
-  push:
-    branches: [perf/lint-main-vs-experimental]
   workflow_dispatch:
     inputs:
       main:
-        description: The main revision to compare with
-        default: main
+        description: The old port's revision to compare with (the last one before the rewrite replaced main)
+        default: 202af6f2aad5042961fdc94b1ec92708243145e8
 
 permissions:
   contents: read
@@ -38,7 +36,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          ref: ${{ inputs.main || 'main' }}
+          ref: ${{ inputs.main }}
           path: .main
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:

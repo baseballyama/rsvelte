@@ -24,7 +24,8 @@ and writes one report.
 - Every task but the type check samples the components from real projects: `--every 8` takes
   one in eight, so the official tools' rounds stay short.
 
-It needs a checkout of `main` and these tools:
+It needs a checkout of the old port, `202af6f2aa`, the last revision before this rewrite replaced
+`main`, and these tools:
 
 - Rust (`rust-toolchain.toml`)
 - Node, with `pnpm install` in this tree
@@ -32,7 +33,7 @@ It needs a checkout of `main` and these tools:
 - Python 3 with `venv`
 
 ```sh
-git worktree add --detach ../main origin/main
+git worktree add --detach ../main 202af6f2aa
 node tools/performance/workloads/tasks-versus-main/run.ts --main ../main --work <directory>
 ```
 

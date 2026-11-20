@@ -1,7 +1,8 @@
 # Lint versus main
 
-Compares the lint crate of `main` (`rsvelte_lint`) with this branch's (`rsvelte_svelte_lint`) on
-every Svelte component of the corpus. `.github/workflows/lint-versus-main.yml` runs it on x86_64
+Compares the lint crate of the old port (`rsvelte_lint`) with this branch's
+(`rsvelte_svelte_lint`) on every Svelte component of the corpus. The old port is `202af6f2aa`,
+the last revision before this rewrite replaced `main`; the arms keep the name `main`. `.github/workflows/lint-versus-main.yml` runs it on x86_64
 Linux, arm64 Linux and macOS, and writes the report to the run's summary.
 
 The two arms share everything but the library they call:
