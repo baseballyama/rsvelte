@@ -1,9 +1,12 @@
+//! Work spread over every core on scoped threads of its own, outside rayon's pool.
+
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// `f` over each item on every core, in the items' order. Each thread takes the next item when it
 /// is free, so a few large items do not leave the other threads idle.
-pub(crate) fn map<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Vec<R> {
+#[must_use]
+pub fn map<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Vec<R> {
     let threads = std::thread::available_parallelism()
         .map_or(1, std::num::NonZero::get)
         .min(items.len());
