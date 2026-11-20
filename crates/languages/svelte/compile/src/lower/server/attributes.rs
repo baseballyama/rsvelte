@@ -5,6 +5,7 @@ mod without_spread;
 
 use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier;
 
 use super::{
     Attribute, AttributeValue, Part, ServerCompilationContext, decode_attribute, escape_markup,
@@ -13,6 +14,16 @@ use super::{
 use crate::lower::builder::Runtime;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
+    /// Upstream `get_attribute_name`: an attribute or a binding of an HTML `element` renders
+    /// its name in lowercase, one of an `<svg>` or `<math>` element as written.
+    pub(super) fn attribute_name(&self, element: CompilerNodeIdentifier, name: &str) -> String {
+        if self.plan.named(element) == crate::render_plan::Namespace::Html {
+            name.to_lowercase()
+        } else {
+            name.to_owned()
+        }
+    }
+
     /// Upstream `build_attribute_value` (server), with text as written: an element's caller
     /// escapes it, a component's does not. A `class` written as one unquoted expression goes
     /// through `$.clsx` when upstream's `needs_clsx`.
