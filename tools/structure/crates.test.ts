@@ -109,8 +109,8 @@ function inject(from: string, to: string): string[] {
 // (apps/site/scripts/code-names.ts); only the language directories keep the short names.
 const spelled: Record<string, string> = { css: 'stylesheet', html: 'markup' };
 function expectedName(manifestPath: string): string | undefined {
-	const bridge = /\/crates\/bridges\/([^/]+)\/Cargo\.toml$/.exec(manifestPath)?.[1];
-	if (bridge !== undefined) return `rsvelte_${bridge}`;
+	const single = /\/crates\/(?:bridges|hosts)\/([^/]+)\/Cargo\.toml$/.exec(manifestPath)?.[1];
+	if (single !== undefined) return `rsvelte_${single}`;
 	const [, language, directory] =
 		/\/crates\/languages\/([^/]+)\/([^/]+)\/Cargo\.toml$/.exec(manifestPath) ?? [];
 	if (language === undefined || directory === undefined) return undefined;
@@ -151,7 +151,7 @@ test('every workspace crate has a role from its path', () => {
 	assert.deepEqual(named('example'), ['rsvelte_example_plugin']);
 });
 
-test('every language crate is named for its path', () => {
+test('every language, bridge and host crate is named for its path', () => {
 	const misnamed = metadata.packages
 		.map((pkg) => [pkg.name, expectedName(pkg.manifest_path)] as const)
 		.filter(([name, expected]) => expected !== undefined && name !== expected);
@@ -162,7 +162,8 @@ test('every language crate is named for its path', () => {
 		expectedName('/r/crates/languages/css/syntax/Cargo.toml'),
 		'rsvelte_stylesheet_syntax',
 	);
-	assert.equal(expectedName('/r/crates/hosts/browser/Cargo.toml'), undefined);
+	assert.equal(expectedName('/r/crates/hosts/browser/Cargo.toml'), 'rsvelte_browser');
+	assert.equal(expectedName('/r/crates/language_independent/kernel/Cargo.toml'), undefined);
 });
 
 test('no crate depends on a crate its role does not accept', () => {
