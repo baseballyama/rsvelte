@@ -7,6 +7,7 @@ use rsvelte_lint_runner::finding::{Finding, Fix, UNUSED_DIRECTIVE};
 use rustc_hash::FxHashMap;
 
 use super::{Kind, justification_start};
+use crate::rule::JsComment;
 
 /// One rule name of a directive comment, or every rule (`None`), at `ESLint`'s position: a line
 /// and a 1-based column, where column 0 comes before the line's first finding.
@@ -34,7 +35,7 @@ struct Comment<'a> {
 /// what it can tell: a rule name that `running` says runs, whose findings are all here.
 pub(crate) fn apply<'l>(
     findings: &mut Vec<Finding>,
-    comments: &[Span],
+    comments: &[JsComment],
     source: &str,
     lines: &dyn Fn() -> &'l LineIndex,
     running: impl Fn(&str) -> bool,
@@ -42,8 +43,8 @@ pub(crate) fn apply<'l>(
     let mut parsed: Vec<Comment<'_>> = Vec::new();
     let mut blocks: Vec<Applied> = Vec::new();
     let mut line_directives: Vec<Applied> = Vec::new();
-    for &span in comments {
-        let Some((kind, block, rules, list)) = javascript_directive(span.text(source)) else {
+    for &JsComment { span, value, block } in comments {
+        let Some((kind, rules, list)) = javascript_directive(value.text(source)) else {
             continue;
         };
         let start = lines().line_column(span.start_offset);
@@ -107,13 +108,9 @@ pub(crate) fn apply<'l>(
         .collect()
 }
 
-/// A directive comment's kind, whether it is a block comment, the rules it names, and their
-/// list as written.
-fn javascript_directive(text: &str) -> Option<(Kind, bool, Rules<'_>, &str)> {
-    let (block, value) = text.strip_prefix("/*").map_or_else(
-        || (false, text.strip_prefix("//").unwrap_or(text)),
-        |inner| (true, inner.strip_suffix("*/").unwrap_or(inner)),
-    );
+/// The kind of a directive comment whose text between the delimiters is `value`, the rules it
+/// names, and their list as written.
+fn javascript_directive(value: &str) -> Option<(Kind, Rules<'_>, &str)> {
     let part = value[..justification_start(value).unwrap_or(value.len())].trim();
     let (kind, rest) = [
         Kind::DisableNextLine,
@@ -138,7 +135,7 @@ fn javascript_directive(text: &str) -> Option<(Kind, bool, Rules<'_>, &str)> {
             rules.push((name, false));
         }
     }
-    Some((kind, block, rules, rest.trim()))
+    Some((kind, rules, rest.trim()))
 }
 
 /// One pass of `applyDirectives`: the latest directive at or before a finding that names its

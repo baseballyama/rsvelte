@@ -1,11 +1,10 @@
 use rsvelte_kernel::diagnostics::Severity;
 
 use super::*;
-use crate::lint::tests::verify;
+use crate::lint::tests::{comment, verify};
 
 fn read(text: &str) -> Vec<String> {
-    let comment = Span::new(0, u32::try_from(text.len()).expect("short"));
-    settings(&[comment], text)
+    settings(&[comment(text)], text)
         .into_iter()
         .map(|(name, setting)| match setting {
             Setting::Off => format!("{name} off"),

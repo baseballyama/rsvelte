@@ -40,7 +40,7 @@ impl SvelteRule for ValidCompile {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let source = file.source();
-        let compiled = match compile(file, &ignores(component, source), self.postcss) {
+        let compiled = match compile(file, &ignores(file), self.postcss) {
             None => return,
             Some(Err(why)) => return reporter.fail(why),
             Some(Ok(compiled)) => compiled,

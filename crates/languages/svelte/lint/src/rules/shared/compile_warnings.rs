@@ -43,20 +43,13 @@ const STYLESHEET_CODES: &[&str] = &[
 ];
 
 /// `getSvelteIgnoreItems`: JavaScript comments, then template comments.
-pub(crate) fn ignores(component: &Component, source: &str) -> Ignores {
+pub(crate) fn ignores(file: &File<'_>) -> Ignores {
     let mut out = Ignores::default();
-    let tree = &component.javascript;
-    let comments = component
-        .scripts()
-        .flat_map(|script| &tree.get_program(script.program).comments)
-        .chain(tree.comments());
-    for comment in comments {
-        let comment = document_span(comment.span);
-        // `//` and `/*` are two bytes, and so is a block comment's `*/`.
-        let value = Span::new(comment.start_offset + 2, block_end(comment, source));
-        read(value, comment, source, &mut out);
+    let source = file.source();
+    for comment in file.comments() {
+        read(comment.value, comment.span, source, &mut out);
     }
-    for node in &component.nodes {
+    for node in file.component().into_iter().flat_map(|c| &c.nodes) {
         if let TemplateNode::Comment { span, data } = *node {
             read(data, span, source, &mut out);
         }
@@ -64,14 +57,6 @@ pub(crate) fn ignores(component: &Component, source: &str) -> Ignores {
     // Stable, so a comment's codes keep their order.
     out.items.sort_by_key(|item| item.comment.start_offset);
     out
-}
-
-fn block_end(comment: Span, source: &str) -> u32 {
-    if comment.text(source).starts_with("/*") {
-        comment.end_offset - 2
-    } else {
-        comment.end_offset
-    }
 }
 
 /// `/^\s*svelte-ignore\s+/` and the codes after it, separated by spaces or commas; a

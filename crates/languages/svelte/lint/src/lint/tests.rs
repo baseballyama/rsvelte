@@ -4,6 +4,7 @@ use rsvelte_kernel::source::document::{Document, DocumentError};
 use rsvelte_kernel::source::positions::Span;
 
 use super::*;
+use crate::rule::JsComment;
 
 /// Lints one source, as `ESLint`'s `Linter.verify(code, config, filename)` does with
 /// `eslint-plugin-svelte`. `filename` is where rules that look at the path read it.
@@ -27,6 +28,18 @@ pub(super) fn verify(
         &DocumentContext::new(&document, registry.artifacts()),
         configuration,
     )
+}
+
+/// `text` as one whole JavaScript comment, `//` or `/* */`.
+pub(super) fn comment(text: &str) -> JsComment {
+    let end = u32::try_from(text.len()).expect("short");
+    let block = text.starts_with("/*");
+    let value = Span::new(2, if block { end - 2 } else { end });
+    JsComment {
+        span: Span::new(0, end),
+        value,
+        block,
+    }
 }
 
 const SOURCE: &str = "<script>let unused = 1;</script>\n<button>x</button>\n";
