@@ -191,10 +191,7 @@ fn head<'t>(
     }
     body.extend(helpers::declarations(helpers, b));
     if plan.async_values && server {
-        body.push(prelude::marker(
-            b,
-            "const $$async_derived = async (getter) => ({ value: await getter() });",
-        ));
+        body.push(prelude::marker(b, include_str!("async_derived.js")));
     }
     if plan.core_patterns {
         body.push(prelude::marker(b, include_str!("patterns.js")));
