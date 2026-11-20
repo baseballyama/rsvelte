@@ -187,7 +187,7 @@ pub fn lower_document<'o>(
 /// # Errors
 ///
 /// A [`Diagnostic`] for what the compiler rejects or the port does not handle yet.
-pub fn compile_input(
+pub fn compile_to_javascript(
     input: &lower::CompileInput<'_>,
     res: &rsvelte_svelte_semantic::resolve::Resolution,
     an: &rsvelte_svelte_semantic::analyze::Analysis,

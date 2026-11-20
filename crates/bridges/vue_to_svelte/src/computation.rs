@@ -161,7 +161,7 @@ impl<S: Side> Task for Compile<S> {
             .get::<Analyzed<S>>()
             .as_ref()
             .expect("a translation is analysed");
-        match rsvelte_svelte_compile::compile_input(
+        match rsvelte_svelte_compile::compile_to_javascript(
             &t.compile_input(context.source_text(), &context.document.path),
             resolution,
             analysis,

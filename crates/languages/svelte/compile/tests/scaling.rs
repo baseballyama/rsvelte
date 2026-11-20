@@ -23,7 +23,7 @@ fn allocations(script: &str) -> u64 {
         &tree,
     );
     let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
-    rsvelte_svelte_compile::compile_input(&input, &resolution, &analysis, Target::Client)
+    rsvelte_svelte_compile::compile_to_javascript(&input, &resolution, &analysis, Target::Client)
         .expect("compiles");
     thread_allocations().0 - before
 }
@@ -60,8 +60,13 @@ fn stages(source: &str, stage: Stage) {
     );
     let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
     if stage == Stage::Compile {
-        rsvelte_svelte_compile::compile_input(&input, &resolution, &analysis, Target::Client)
-            .expect("compiles");
+        rsvelte_svelte_compile::compile_to_javascript(
+            &input,
+            &resolution,
+            &analysis,
+            Target::Client,
+        )
+        .expect("compiles");
     }
 }
 
@@ -208,8 +213,13 @@ fn a_components_snippets_compile_in_time_linear_in_their_number() {
         );
         let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
         let start = thread_time();
-        rsvelte_svelte_compile::compile_input(&input, &resolution, &analysis, Target::Client)
-            .expect("compiles");
+        rsvelte_svelte_compile::compile_to_javascript(
+            &input,
+            &resolution,
+            &analysis,
+            Target::Client,
+        )
+        .expect("compiles");
         thread_time().saturating_sub(start)
     };
     // Alternating the sizes lets both meet the same machine.

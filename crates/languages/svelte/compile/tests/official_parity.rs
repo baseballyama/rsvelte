@@ -2,7 +2,7 @@
 //! or rsvelte's documented deviation where the official output is an upstream bug. Printed code is
 //! compared without whitespace unless the whitespace is the point.
 
-use rsvelte_svelte_compile::{CompileInput, Target, compile_input};
+use rsvelte_svelte_compile::{CompileInput, Target, compile_to_javascript};
 use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
 
 #[path = "official_parity/const_tags.rs"]
@@ -43,12 +43,14 @@ fn compile_at(source: &str, target: Target) -> Result<String, (String, (u32, u32
         &tree,
     );
     let analysis = analyze::analyze(&input, &resolution);
-    compile_input(&CompileInput::from(input), &resolution, &analysis, target).map_err(|error| {
-        (
-            error.code.to_string(),
-            (error.span.start_offset, error.span.end_offset),
-        )
-    })
+    compile_to_javascript(&CompileInput::from(input), &resolution, &analysis, target).map_err(
+        |error| {
+            (
+                error.code.to_string(),
+                (error.span.start_offset, error.span.end_offset),
+            )
+        },
+    )
 }
 
 fn compiled(source: &str, target: Target) -> String {

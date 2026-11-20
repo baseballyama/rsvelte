@@ -1,4 +1,4 @@
-use rsvelte_svelte_compile::{CompileInput, Target, compile_input};
+use rsvelte_svelte_compile::{CompileInput, Target, compile_to_javascript};
 use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
 
 #[test]
@@ -37,8 +37,9 @@ fn invalid_special_attributes_are_refused_on_both_targets() {
         );
         let analysis = analyze::analyze(&input, &resolution);
         for target in [Target::Client, Target::Server] {
-            let error = compile_input(&CompileInput::from(input), &resolution, &analysis, target)
-                .expect_err("invalid attributes");
+            let error =
+                compile_to_javascript(&CompileInput::from(input), &resolution, &analysis, target)
+                    .expect_err("invalid attributes");
             assert_eq!(error.code, code, "{source} on {target:?}");
         }
     }
@@ -187,8 +188,9 @@ fn raises_on_both_targets(script: &str, code: &str) {
     );
     let analysis = analyze::analyze(&input, &resolution);
     for target in [Target::Client, Target::Server] {
-        let error = compile_input(&CompileInput::from(input), &resolution, &analysis, target)
-            .expect_err("a misplaced rune");
+        let error =
+            compile_to_javascript(&CompileInput::from(input), &resolution, &analysis, target)
+                .expect_err("a misplaced rune");
         assert_eq!(error.code, code, "{script} on {target:?}");
     }
 }
@@ -208,7 +210,7 @@ fn a_leading_byte_order_mark_still_counts_in_line_one_columns() {
         &tree,
     );
     let analysis = analyze::analyze(&input, &resolution);
-    let error = compile_input(
+    let error = compile_to_javascript(
         &CompileInput::from(input),
         &resolution,
         &analysis,
@@ -232,7 +234,7 @@ fn compiled(source: &str) -> Result<(), rsvelte_kernel::diagnostics::Diagnostic>
         &tree,
     );
     let analysis = analyze::analyze(&input, &resolution);
-    compile_input(
+    compile_to_javascript(
         &CompileInput::from(input),
         &resolution,
         &analysis,
@@ -376,7 +378,7 @@ fn a_directive_named_by_a_store_member_is_an_illegal_global() {
             &tree,
         );
         let analysis = analyze::analyze(&input, &resolution);
-        let error = compile_input(
+        let error = compile_to_javascript(
             &CompileInput::from(input),
             &resolution,
             &analysis,
@@ -405,7 +407,7 @@ fn a_bind_this_shorthand_compiles_on_the_server_and_is_refused_on_the_client() {
     let analysis = analyze::analyze(&input, &resolution);
     let input = CompileInput::from(input);
     let code = |target| {
-        compile_input(&input, &resolution, &analysis, target)
+        compile_to_javascript(&input, &resolution, &analysis, target)
             .err()
             .map(|error| error.code)
     };
