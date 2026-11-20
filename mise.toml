@@ -19,10 +19,8 @@ run = "cargo +{{vars.rustfmt}} fmt --all --check"
 
 [tasks.structure]
 description = "Check source file lengths, the crate graph, the kernel layers, and the checker controls"
-run = [
-  "node --test 'tools/structure/*.test.ts' 'tools/structure/*/*.test.ts'",
-  "node tools/structure/structure.ts",
-]
+dir = "{{config_root}}/tools/structure"
+run = ["node --run test", "node --run structure"]
 
 [tasks.lint]
 depends = ["structure"]
@@ -60,4 +58,5 @@ run = "node tools/performance/performance.ts linux-counters"
 
 [tasks."performance:test"]
 description = "Test the measurement tools and their defect controls"
-run = "node --test 'tools/performance/*.test.ts' 'tools/performance/*/*.test.ts'"
+dir = "{{config_root}}/tools/performance"
+run = "node --run test"

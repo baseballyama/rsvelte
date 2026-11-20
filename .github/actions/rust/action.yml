@@ -17,7 +17,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - id: channel
+    - id: settings
       shell: bash
       working-directory: ${{ github.workspace }}
       env:
@@ -28,14 +28,14 @@ runs:
     - id: rustup
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: ~/.rustup/toolchains/${{ steps.channel.outputs.channel }}-*
+        path: ~/.rustup/toolchains/${{ steps.settings.outputs.channel }}-*
         key: rustup-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml') }}-${{ inputs.targets }}
     # rust-cache hashes the version of every installed toolchain into its key, and runner image
     # versions roll out with different preinstalled toolchains, so only the pinned one may stay.
     - shell: bash
       working-directory: ${{ github.workspace }}
       env:
-        CHANNEL: ${{ steps.channel.outputs.channel }}
+        CHANNEL: ${{ steps.settings.outputs.channel }}
         TARGETS: ${{ inputs.targets }}
       run: |
         rustup toolchain install
@@ -47,10 +47,10 @@ runs:
             *) rustup toolchain uninstall "$toolchain" ;;
           esac
         done
-    - if: steps.channel.outputs.save == 'true' && steps.rustup.outputs.cache-hit != 'true'
+    - if: steps.settings.outputs.save == 'true' && steps.rustup.outputs.cache-hit != 'true'
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: ~/.rustup/toolchains/${{ steps.channel.outputs.channel }}-*
+        path: ~/.rustup/toolchains/${{ steps.settings.outputs.channel }}-*
         key: ${{ steps.rustup.outputs.cache-primary-key }}
     # rust-cache saves only under a new key, so a change to which target directories a job
     # builds needs a new prefix to be cached.
@@ -58,4 +58,4 @@ runs:
       with:
         prefix-key: v2-rust
         key: ${{ inputs.key }}
-        save-if: ${{ steps.channel.outputs.save }}
+        save-if: ${{ steps.settings.outputs.save }}
