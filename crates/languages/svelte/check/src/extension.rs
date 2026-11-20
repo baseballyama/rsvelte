@@ -13,7 +13,7 @@ pub static EXTENSION: Extension = Extension {
     install,
 };
 
-const TASK: &str = "svelte.check/default";
+pub(crate) const TASK: &str = "svelte.check/default";
 
 /// The content mapper that projects every component, including one a package ships.
 const MAPPER: &str = "rsvelte-svelte-content-mapper";

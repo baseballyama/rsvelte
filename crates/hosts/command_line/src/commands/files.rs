@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use std::sync::Arc;
 
 use rsvelte_kernel::computation::pipeline::{self, DocumentResult, RunOptions, Sharing};
-use rsvelte_kernel::computation::registry::{Project, Registry};
+use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::Document;
 
 use crate::usage;
@@ -26,7 +26,7 @@ pub(crate) fn load(
     };
     find(paths, &walk, &|path| applies(reg, tasks, path))?
         .into_iter()
-        .map(|file| read(reg, file))
+        .map(|file| read(reg, file, tasks))
         .collect()
 }
 
@@ -36,9 +36,9 @@ pub(crate) fn applies(reg: &Registry, tasks: &[&str], path: &Path) -> bool {
     probe.is_ok_and(|document| reg.applies(tasks, &document))
 }
 
-/// The document of the file at `path`.
-pub(crate) fn read(reg: &Registry, path: PathBuf) -> Result<Document, String> {
-    let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+/// The document of the file at `path`, with the text `tasks` read it with.
+pub(crate) fn read(reg: &Registry, path: PathBuf, tasks: &[&str]) -> Result<Document, String> {
+    let text = (reg.read(&path, tasks)).map_err(|e| format!("{}: {e}", path.display()))?;
     document(reg, path, text)
 }
 
@@ -75,21 +75,6 @@ pub(crate) fn document(reg: &Registry, file: PathBuf, text: String) -> Result<Do
         .document(file.to_string_lossy().into_owned(), text)
         .map_err(|e| format!("{}: {e:?}", file.display()))?;
     Ok(document.read_from(file))
-}
-
-/// The documents of every file of `project`, each with the text the project reads it with.
-pub(crate) fn project_documents(
-    reg: &Registry,
-    project: &Project,
-) -> Result<Vec<Document>, String> {
-    (project.files.iter())
-        .map(|file| {
-            let text = project
-                .text(file)
-                .map_err(|e| format!("{}: {e}", file.display()))?;
-            document(reg, file.clone(), text)
-        })
-        .collect()
 }
 
 /// Runs `tasks` over `documents` in one run, with the exit code of its error.

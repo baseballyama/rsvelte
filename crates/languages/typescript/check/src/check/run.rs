@@ -95,7 +95,7 @@ impl Tsc {
             files: req.env.replaced.iter().cloned().collect(),
             links: Vec::new(),
         };
-        // A replaced file that is a document already has the replaced text.
+        // A document of a replaced file has the replaced text, as the host reads it.
         for (i, path) in paths.iter().enumerate() {
             layer.files.insert(path.clone(), req.text(i).to_owned());
         }

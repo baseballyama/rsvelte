@@ -39,30 +39,34 @@ pub type ProjectFilesFn = Box<dyn Fn(&Registry) -> Result<Project, String> + Sen
 #[derive(Debug, Default)]
 pub struct Project {
     pub files: Vec<std::path::PathBuf>,
-    /// Files among `files` that the project's own tool reads with this text instead of the
-    /// disk's, such as a package's types it rewrites. A host reads every file through
-    /// [`Project::text`], so the document, its positions and the check have one text.
-    pub replaced: std::collections::BTreeMap<std::path::PathBuf, String>,
     /// Errors in the configuration, each in the file that has it, such as a `tsconfig.json`. The
     /// project's own tool reports only these when there are any, instead of checking the files.
     pub problems: Vec<(std::path::PathBuf, Diagnostic)>,
 }
 
-impl Project {
-    /// The text the project reads `file` with.
-    ///
-    /// # Errors
-    ///
-    /// `file` is not replaced and cannot be read.
-    pub fn text(&self, file: &std::path::Path) -> std::io::Result<String> {
-        self.replaced
-            .get(file)
-            .map_or_else(|| std::fs::read_to_string(file), |text| Ok(text.clone()))
-    }
-}
-
 impl Contribution for ProjectFiles {
     type Item = (&'static str, ProjectFilesFn);
+}
+
+/// Files that tasks read with other text than the disk's, such as a package's types a checker
+/// rewrites.
+///
+/// A host reads every document through [`Registry::read`], so the document, its positions and
+/// what the task reads have one text.
+#[derive(Debug)]
+pub struct ReplacedFiles;
+
+#[derive(Debug)]
+pub struct ReplacedFile {
+    /// The tasks that read the file replaced.
+    pub tasks: &'static [&'static str],
+    /// The file's real path.
+    pub path: std::path::PathBuf,
+    pub text: String,
+}
+
+impl Contribution for ReplacedFiles {
+    type Item = ReplacedFile;
 }
 
 impl std::fmt::Debug for Registry {
@@ -126,6 +130,23 @@ impl Registry {
         );
     }
 
+    /// The text `tasks` read `file` with: the disk's, unless a task among them replaces it.
+    ///
+    /// # Errors
+    ///
+    /// `file` cannot be read.
+    pub fn read(&self, file: &std::path::Path, tasks: &[&str]) -> std::io::Result<String> {
+        let real = std::fs::canonicalize(file)?;
+        (self.contributions::<ReplacedFiles>().iter())
+            .find(|replaced| {
+                replaced.path == real && replaced.tasks.iter().any(|task| tasks.contains(task))
+            })
+            .map_or_else(
+                || std::fs::read_to_string(file),
+                |replaced| Ok(replaced.text.clone()),
+            )
+    }
+
     /// The files of the project that the tasks among `tasks` check, each once, in the order the
     /// tasks name them, with the problems of each task's configuration.
     ///
@@ -148,7 +169,6 @@ impl Registry {
                     project.files.push(file);
                 }
             }
-            project.replaced.extend(own.replaced);
             project.problems.extend(own.problems);
         }
         if !named {

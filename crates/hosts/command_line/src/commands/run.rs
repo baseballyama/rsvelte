@@ -17,7 +17,7 @@ const MAX_FIX_PASSES: usize = 10;
 /// pass, writes the file, and prints the output for the fixed text. Exit code 1 means an error
 /// diagnostic or finding is left.
 pub(crate) fn run_file(reg: &Registry, file: &Path, tasks: &[&str], fix: bool) -> ExitCode {
-    let mut text = match std::fs::read_to_string(file) {
+    let mut text = match reg.read(file, tasks) {
         Ok(t) => t,
         Err(e) => return usage(&format!("{}: {e}", file.display())),
     };
@@ -85,7 +85,10 @@ pub(crate) fn run_project(reg: &Registry, tasks: &[&str]) -> ExitCode {
             Err(e) => usage(&e),
         };
     }
-    match files::project_documents(reg, &project) {
+    match (project.files.into_iter())
+        .map(|file| files::read(reg, file, tasks))
+        .collect::<Result<Vec<_>, _>>()
+    {
         Ok(documents) => run_documents(reg, &documents, tasks),
         Err(e) => usage(&e),
     }
@@ -94,18 +97,13 @@ pub(crate) fn run_project(reg: &Registry, tasks: &[&str]) -> ExitCode {
 /// Runs `tasks` on every file of `files` in one run, so a project task such as a type check sees
 /// all of them, and prints each output under its file. Exit code 1 means an error is left.
 pub(crate) fn run_files(reg: &Registry, files: &[&str], tasks: &[&str]) -> ExitCode {
-    let mut documents = Vec::with_capacity(files.len());
-    for file in files {
-        let text = match std::fs::read_to_string(file) {
-            Ok(t) => t,
-            Err(e) => return usage(&format!("{file}: {e}")),
-        };
-        match files::document(reg, (*file).into(), text) {
-            Ok(document) => documents.push(document),
-            Err(e) => return usage(&e),
-        }
+    match (files.iter())
+        .map(|file| files::read(reg, file.into(), tasks))
+        .collect::<Result<Vec<_>, _>>()
+    {
+        Ok(documents) => run_documents(reg, &documents, tasks),
+        Err(e) => usage(&e),
     }
-    run_documents(reg, &documents, tasks)
 }
 
 /// Runs `tasks` on `documents` in one run and prints each output under its document.

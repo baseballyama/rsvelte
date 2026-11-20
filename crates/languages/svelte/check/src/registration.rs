@@ -7,7 +7,7 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{Visit, walk};
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
-use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::computation::registry::{Registry, ReplacedFile, ReplacedFiles};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
@@ -23,6 +23,7 @@ use rsvelte_typescript_check::{
 };
 
 use crate::Configuration;
+use crate::extension::TASK;
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.check",
@@ -44,7 +45,7 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
     rsvelte_typescript_check::register_service(reg);
     rsvelte_svelte_typescript_projection::register_artifacts(reg);
     reg.finish_task(Check {
-        identifier: "svelte.check/default",
+        identifier: TASK,
         documents: Documents::Matching(rsvelte_svelte_syntax::matches),
         tsc: config.check.as_ref().map(|c| c.tsc.clone()),
         stand_in: Some(rsvelte_svelte_typescript_projection::STAND_IN),
@@ -58,9 +59,13 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         reg.contribute::<MappedLanguages>(MappedLanguage {
             extension: ".svelte",
             content_mapper: check.content_mapper.clone(),
-            replaced: (env.iter().flatten())
-                .flat_map(|env| env.replaced.iter().cloned())
-                .collect(),
+        });
+    }
+    for (path, text) in (env.iter().flatten()).flat_map(|env| &env.replaced) {
+        reg.contribute::<ReplacedFiles>(ReplacedFile {
+            tasks: &[TASK, rsvelte_typescript_check::TASK],
+            path: path.clone(),
+            text: text.clone(),
         });
     }
     reg.provide::<TypeScriptView>("svelte", rsvelte_svelte_syntax::matches, move |context| {
@@ -105,6 +110,8 @@ fn typescript_env(
     content_mapper: &std::path::Path,
 ) -> Result<TypeScriptEnv, String> {
     let types = svelte.join("types/index.d.ts");
+    // Its real path, as a document of it and the checker name it.
+    let types = std::fs::canonicalize(&types).map_err(|e| format!("{}: {e}", types.display()))?;
     let text = std::fs::read_to_string(&types).map_err(|e| format!("{}: {e}", types.display()))?;
     let element_types = svelte.join("svelte-html.d.ts");
     let (declarations, include) = if element_types.is_file() {

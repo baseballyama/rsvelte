@@ -29,7 +29,10 @@ pub(crate) fn typecheck(reg: &Registry, tasks: &[&str]) -> ExitCode {
             Err(e) => usage(&e),
         };
     }
-    let documents = match files::project_documents(reg, &project) {
+    let documents = match (project.files.into_iter())
+        .map(|file| files::read(reg, file, tasks))
+        .collect::<Result<Vec<_>, _>>()
+    {
         Ok(documents) => documents,
         Err(e) => return usage(&e),
     };

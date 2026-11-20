@@ -301,15 +301,43 @@ fn typecheck_reports_every_file_of_the_program_that_svelte_check_reports() {
     );
 }
 
+/// A project whose component imports svelte's types, checked without `skipLibCheck` and with
+/// `lib`, and its `rsvelte.config.json`, which names its tsconfig so the CLI runs from anywhere.
+#[cfg(unix)]
+fn importing_svelte(lib: &str) -> (Project, String) {
+    let tsconfig = format!(
+        r#"{{"compilerOptions":{{"strict":true,"module":"esnext","moduleResolution":"bundler",
+"target":"esnext","lib":["{lib}"],"types":[],"skipLibCheck":false}},"include":["src"]}}"#
+    );
+    let component = "<script lang=\"ts\">\n\timport type { Snippet } from \"svelte\";\n\
+        \tlet { children }: { children?: Snippet } = $props();\n</script>\n\
+        {@render children?.()}\n";
+    let project = Project::new(
+        &format!("replaced-{lib}"),
+        &[("tsconfig.json", &tsconfig), ("src/App.svelte", component)],
+    );
+    std::fs::create_dir_all(project.0.join("node_modules")).expect("node_modules");
+    let svelte = NodePackages::locate().package("svelte");
+    std::os::unix::fs::symlink(svelte, project.0.join("node_modules/svelte")).expect("link");
+    let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
+    let mut config: serde_json::Value = serde_json::from_str(&config).expect("config");
+    config["plugins"]["typescript.check"]["tsconfig"] =
+        serde_json::json!(project.0.join("tsconfig.json"));
+    let config_path = project.0.join("rsvelte.config.json");
+    std::fs::write(&config_path, config.to_string()).expect("config");
+    let config_path = config_path.display().to_string();
+    (project, config_path)
+}
+
 /// Without `skipLibCheck` svelte's types are a file the check reports and a file the check
 /// replaces, whose blanked `declare module '*.svelte'` spans eight lines. svelte-check 4.7.8
 /// finds no error, and with `lib` `es5` two at lines of the replaced text.
 #[cfg(unix)]
 #[test]
 fn typecheck_reads_a_replaced_package_file_as_one_text() {
-    let packages = NodePackages::locate();
-    let svelte = packages.package("svelte");
-    let types = svelte.join("types/index.d.ts");
+    let types = NodePackages::locate()
+        .package("svelte")
+        .join("types/index.d.ts");
     let types = types.strip_prefix("/").expect("an absolute path").display();
     let es5 = |name: &str, line: u32| {
         format!(
@@ -324,28 +352,9 @@ fn typecheck_reads_a_replaced_package_file_as_one_text() {
     );
     let cases = [("esnext", Some(0), String::new()), ("es5", Some(1), es5)];
     for (lib, code, expected) in cases {
-        let tsconfig = format!(
-            r#"{{"compilerOptions":{{"strict":true,"module":"esnext","moduleResolution":"bundler",
-"target":"esnext","lib":["{lib}"],"types":[],"skipLibCheck":false}},"include":["src"]}}"#
-        );
-        let component = "<script lang=\"ts\">\n\timport type { Snippet } from \"svelte\";\n\
-            \tlet { children }: { children?: Snippet } = $props();\n</script>\n\
-            {@render children?.()}\n";
-        let project = Project::new(
-            "typecheck-replaced",
-            &[("tsconfig.json", &tsconfig), ("src/App.svelte", component)],
-        );
-        std::fs::create_dir_all(project.0.join("node_modules")).expect("node_modules");
-        std::os::unix::fs::symlink(&svelte, project.0.join("node_modules/svelte")).expect("link");
+        let (project, config) = importing_svelte(lib);
         // Run from `/`, the report names the package's file by its whole path.
-        let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
-        let mut config: serde_json::Value = serde_json::from_str(&config).expect("config");
-        config["plugins"]["typescript.check"]["tsconfig"] =
-            serde_json::json!(project.0.join("tsconfig.json"));
-        let config_path = project.0.join("rsvelte.config.json");
-        std::fs::write(&config_path, config.to_string()).expect("config");
-        let config_path = config_path.display().to_string();
-        let output = project.rsvelte_in("/", &["typecheck", "--config", &config_path]);
+        let output = project.rsvelte_in("/", &["typecheck", "--config", &config]);
         let output = (
             output.status.code(),
             text(&output.stdout),
@@ -353,6 +362,53 @@ fn typecheck_reads_a_replaced_package_file_as_one_text() {
         );
         assert_eq!(output, (code, expected, String::new()), "lib {lib}");
     }
+}
+
+/// A run of the check on the replaced file alone reads the same text: svelte-check 4.7.8's two
+/// errors in it, at its lines less one, as the task's JSON counts lines from 0.
+#[cfg(unix)]
+#[test]
+fn a_run_on_a_replaced_file_reads_the_replaced_text() {
+    let (project, config) = importing_svelte("es5");
+    let types = NodePackages::locate()
+        .package("svelte")
+        .join("types/index.d.ts");
+    let output = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
+        .current_dir(&project.0)
+        .args([
+            "run",
+            &types.display().to_string(),
+            "--task",
+            "ts.check/default",
+        ])
+        .args(["--config", &config])
+        .output()
+        .expect("run CLI");
+    let stdout = text(&output.stdout);
+    let found: serde_json::Value = (stdout.split_once("json\n"))
+        .and_then(|(_, json)| serde_json::from_str(json).ok())
+        .unwrap_or_else(|| panic!("{stdout}{}", text(&output.stderr)));
+    let found: Vec<_> = (found.as_array().expect("findings").iter())
+        .filter(|d| d["message"].as_str().is_some_and(|m| m.contains("Big")))
+        .map(|d| {
+            (
+                d["message"].as_str().map(|m| m[..30].to_owned()),
+                d["start"].clone(),
+            )
+        })
+        .collect();
+    let error = |name: &str, line: u32| {
+        let message = format!("Cannot find name '{name}'. Do");
+        (
+            Some(message[..30].to_owned()),
+            serde_json::json!({ "line": line, "character": 4 }),
+        )
+    };
+    assert_eq!(
+        found,
+        [error("BigInt64Array", 3348), error("BigUint64Array", 3349)],
+        "{stdout}"
+    );
 }
 
 #[test]
