@@ -7,13 +7,13 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_semantic::{ScopeFlags, SymbolId};
 use oxc_span::GetSpan;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_typescript_compile::build::Builder;
 use rsvelte_vue_semantic::expressions::is_global;
 use rsvelte_vue_semantic::resolve::BindingType;
+use rustc_hash::FxHashMap;
 
-use super::{
-    Class, Declared, Diagnostic, FxHashMap, Info, R, can_never_be_ref, span_of, unsupported,
-};
+use super::{Class, Declared, Info, R, can_never_be_ref, span_of, unsupported};
 
 /// Copies one user expression or statement of the Vue tree into the output, rewriting what Vue
 /// and Svelte spell differently and refusing what svue does not translate.

@@ -1,7 +1,6 @@
 use oxc_allocator::{Box as ArenaBox, CloneIn, GetAllocator};
-use oxc_ast::ast::{BinaryOperator, BindingPattern, Expression, FormalParameters};
+use oxc_ast::ast::{BinaryOperator, BindingPattern, FormalParameters};
 use oxc_semantic::SymbolId;
-use oxc_span::SPAN;
 
 use super::{Body, Emitter};
 
@@ -48,7 +47,7 @@ impl<'o> Emitter<'_, 'o> {
                         b.id("undefined"),
                     );
                     let default = self.expression(default);
-                    value = Expression::new_conditional_expression(SPAN, test, default, value, b);
+                    value = b.conditional(test, default, value);
                 }
                 let pattern = self.copy_pattern(&parameter.pattern);
                 let values = names.iter().map(|name| b.id(&name.name));

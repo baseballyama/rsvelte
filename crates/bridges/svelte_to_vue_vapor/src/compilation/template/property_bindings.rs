@@ -1,6 +1,10 @@
+use rsvelte_svelte_semantic::compiler_syntax_tree::Attribute;
 use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 
-use super::{Attribute, Helper, Steps, Template, vue};
+use super::{Steps, Template};
+use crate::compilation::helpers::Helper;
+use crate::compilation::markers;
 
 impl<'t> Template<'_, '_, 't> {
     pub(super) fn bind_property(
@@ -22,9 +26,9 @@ impl<'t> Template<'_, '_, 't> {
                 props.push(self.bound(name, attribute.name.span(), value, attribute.span));
             } else if matches!(name, "innerHTML" | "innerText" | "textContent") {
                 let content = if name == "innerHTML" {
-                    "$$html_content"
+                    markers::MARKUP_CONTENT_KEY
                 } else {
-                    "$$text_content"
+                    markers::TEXT_CONTENT_KEY
                 };
                 props.push(self.bound(content, attribute.name.span(), current, attribute.span));
             }

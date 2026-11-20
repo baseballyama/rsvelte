@@ -389,6 +389,7 @@ fn unsupported<T>(what: &str, span: Span) -> Result<T, Diagnostic> {
 }
 
 mod validation;
+pub use script::is_expression_async;
 pub use template::{DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select};
 use template::{
     event_attribute, has_dependency, is_behaviour, is_directive, is_dom_property,

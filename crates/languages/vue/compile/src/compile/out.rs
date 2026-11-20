@@ -1,39 +1,11 @@
 //! Output nodes the shared builder has no constructor for.
 
-use oxc_allocator::GetAllocator;
 use oxc_ast::ast::{
     Argument, ArrayExpressionElement, BindingIdentifier, ExportDefaultDeclarationKind, Expression,
-    FormalParameters, ImportDeclarationSpecifier, ImportOrExportKind, ModuleExportName, Statement,
-    StringLiteral,
+    FormalParameters, ImportDeclarationSpecifier, ImportOrExportKind, Statement, StringLiteral,
 };
 use oxc_span::SPAN;
 use rsvelte_typescript_compile::build::Builder;
-
-/// `import { imported as local, … } from 'source'`.
-pub(super) fn import<'o>(
-    b: &Builder<'o>,
-    specifiers: impl IntoIterator<Item = (&'o str, &'o str)>,
-    source: &str,
-) -> Statement<'o> {
-    let specifiers = b.vec(specifiers.into_iter().map(|(imported, local)| {
-        ImportDeclarationSpecifier::new_import_specifier(
-            SPAN,
-            ModuleExportName::new_identifier_name(SPAN, imported, b),
-            BindingIdentifier::new(SPAN, local, b),
-            ImportOrExportKind::Value,
-            b,
-        )
-    }));
-    Statement::new_import_declaration(
-        SPAN,
-        Some(specifiers),
-        StringLiteral::new(SPAN, b.str(source), None, b),
-        None,
-        None,
-        ImportOrExportKind::Value,
-        b,
-    )
-}
 
 /// `import local from 'source'`.
 pub(super) fn import_default<'o>(b: &Builder<'o>, local: &str, source: &str) -> Statement<'o> {
@@ -122,9 +94,4 @@ pub(super) fn method<'o>(
         false,
         b,
     )
-}
-
-/// A name in the output's arena.
-pub(super) fn name<'o>(b: &Builder<'o>, name: &str) -> &'o str {
-    b.allocator().alloc_str(name)
 }

@@ -1,6 +1,11 @@
 use oxc_ast::ast::{Expression, FormalParameter};
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::lower::Parent;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 
-use super::{CompilerNodeIdentifier, NodeKind, Parent, R, Span, Template, unsupported, vue};
+use super::Template;
+use crate::compilation::{R, markers, unsupported};
 
 impl<'t> Template<'_, '_, 't> {
     /// `{#snippet}` as a `$$Snippet` named after its declaration, whose `v-for` names the
@@ -54,7 +59,7 @@ impl<'t> Template<'_, '_, 't> {
             self.bound("name", at, name, at),
             self.loop_directive(parameters.unwrap_or_default(), self.b.id("undefined"), at),
         ];
-        let node = self.template_node("$$Snippet", at, properties, parent);
+        let node = self.template_node(markers::SNIPPET, at, properties, parent);
         let children = self.list(Parent::Block, body, Some(node), preserve, at)?;
         self.vb.set_element_children(node, children);
         Ok(node)

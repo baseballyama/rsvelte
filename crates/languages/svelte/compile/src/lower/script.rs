@@ -25,6 +25,7 @@ use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_semantic::{ReferenceId, SymbolId};
 use oxc_span::Span;
 use oxc_syntax::scope::ScopeFlags;
+pub use patterns::is_expression_async;
 pub(super) use program::{ScriptContext, lower_declaration_tag, lower_script, props_id};
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rustc_hash::{FxHashMap, FxHashSet};

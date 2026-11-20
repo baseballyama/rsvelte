@@ -1,9 +1,9 @@
 //! The template: the Svelte HIR, read with Svelte's meaning, as a Vue template HIR built through
 //! [`rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTreeBuilder`].
 //!
-//! Text is what Svelte's [`clean_nodes`] leaves; the Vue HIR is post-condense, so the Vue compiler
-//! keeps it as is. Expressions are copied into the component's tree; a reference to a prop becomes
-//! `$$props.<key>` and everything else is left to the Vue compiler, which unwraps setup refs.
+//! Text is what Svelte's [`clean_nodes`] leaves. Expressions are copied into the component's tree;
+//! a reference to a prop becomes `$$props.<key>` and everything else is left to the Vapor emitter,
+//! which unwraps setup refs.
 //!
 //! The client and the server output differ where Svelte's client and server runtimes do: the
 //! client mirrors what Svelte's DOM updates do (`set_text`, `set_attribute`, `set_value`, the
@@ -19,11 +19,10 @@ use oxc_semantic::SymbolId;
 use oxc_span::{GetSpan, GetSpanMut};
 use rsvelte_kernel::index::{IndexRange, TypedIndex};
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_compile::lower::{Item, Parent, clean_nodes, template_end};
+use rsvelte_svelte_compile::lower::{Parent, is_expression_async};
 use rsvelte_svelte_compile::render_plan::Namespace;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
-    ElementKind, NodeKind, Part,
+    Attribute, CompilerNodeIdentifier, ElementKind, NodeKind, Part,
 };
 use rsvelte_svelte_semantic::evaluate::{Evaluation, Evaluator, Value};
 use rsvelte_svelte_semantic::resolve::Resolution;
@@ -36,10 +35,9 @@ use rsvelte_vue_semantic::compiler_syntax_tree::{
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName, LoopExpression};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::compilation::{Input, span_of};
-use crate::helpers::{self, Helper};
-use crate::script::prop_member;
-use crate::{R, unsupported};
+use crate::compilation::helpers::{self, Helper};
+use crate::compilation::script::{prop_member, runes};
+use crate::compilation::{Input, R, markers};
 
 /// What the emitter reads of the template besides the Vue HIR's expressions.
 #[derive(Debug)]
@@ -90,7 +88,7 @@ pub(crate) fn build<'t>(
                 .resolution
                 .snippet(identifier)
                 .expect("a snippet name has a symbol");
-            let name = format!("$$snippet_{}", symbol.index());
+            let name = format!(markers::snippet_name!("{}"), symbol.index());
             declarations.push(b.function_declaration(&name, b.parameters([]), [], false));
             snippet_names.insert(symbol, name);
         }
@@ -210,7 +208,7 @@ impl<'i, 't> Template<'i, '_, 't> {
     /// A template expression in the component's tree.
     fn template_expression(&mut self, e: ExpressionIdentifier) -> Expression<'t> {
         let source = self.source(e);
-        if !self.i.server && crate::compilation::asynchronous::has_await(source) {
+        if !self.i.server && is_expression_async(source) {
             self.helpers.insert(Helper::Async);
         }
         let value = self.rewrite(source);
@@ -363,7 +361,7 @@ impl<'i, 't> Template<'i, '_, 't> {
 }
 
 /// Template references to props read `$$props.<key>`, snippets their declaration's name, and
-/// runes Vue's reactivity; the Vue compiler handles the rest.
+/// runes Vue's reactivity; the Vapor emitter handles the rest.
 struct TemplateRewrite<'r, 't> {
     b: &'r Builder<'t>,
     res: &'r Resolution,
@@ -376,8 +374,8 @@ impl<'t> TemplateRewrite<'_, 't> {
         let (name, _) = self.res.rune(it)?;
         let b = self.b;
         let span = it.span();
-        let local = crate::script::runes::local(name);
-        let eager = crate::script::runes::eager(name);
+        let local = runes::local(name);
+        let eager = runes::eager(name);
         if local.is_none() && !eager {
             return None;
         }
@@ -513,7 +511,6 @@ mod bindings;
 mod blocks;
 mod boolean_attributes;
 mod components;
-mod custom_elements;
 mod declarations;
 mod defaults;
 mod each_block;

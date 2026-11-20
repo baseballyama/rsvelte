@@ -2,7 +2,7 @@
 //!
 //! svue reads the Vue plugin's artifacts ([`rsvelte_vue_syntax::Parsed`],
 //! [`rsvelte_vue_semantic::Lowered`], [`rsvelte_vue_semantic::Resolved`]) and writes what the
-//! Svelte compiler reads: a runes instance program and a Svelte HIR ([`Translation`]).
+//! Svelte compiler reads: a runes instance program and a Svelte HIR (`Translation`).
 //! [`rsvelte_svelte_compile::compile_input`] then lowers it, so the module has the shape
 //! `svelte/compiler` emits and imports only `svelte`, `svelte/*`, `vue` and `@vue/*`. The tasks are
 //! `svue.compile/client` and `svue.compile/server`, on `.vue` documents; the oracle is the
@@ -104,11 +104,7 @@
 
 pub(crate) mod compilation;
 pub(crate) mod computation;
-pub use compilation::Translation;
-pub(crate) use compilation::{context, script, template};
-pub use computation::{
-    Analyzed, Client, Compile, PLUGIN, Resolved, Server, Side, Translated, register,
-};
+pub use computation::register;
 
 /// Takes no options.
 pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_interface::Extension {

@@ -7,8 +7,11 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::NodeId;
 use oxc_syntax::scope::ScopeFlags;
+use rsvelte_svelte_semantic::resolve::Resolution;
+use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::{FxHashMap, FxHashSet, R, Resolution, Root, span_of, unsupported};
+use super::Root;
+use crate::compilation::{R, span_of, unsupported};
 
 #[derive(Debug, Default)]
 pub(super) struct Plan {

@@ -86,7 +86,8 @@ impl<'o> ScriptRewrite<'_, 'o> {
             }
             return Some(b.sequence(expressions));
         }
-        let asynchronous = is_async(&value) || assignments.iter().any(is_async);
+        let asynchronous =
+            is_expression_async(&value) || assignments.iter().any(is_expression_async);
         let mut statements: Vec<Statement<'o>> = (inserts.into_iter())
             .map(|(name, value)| b.var(&name, value))
             .chain(assignments.into_iter().map(|a| b.statement(a)))
@@ -320,10 +321,10 @@ fn fallback<'o>(
         let call = b.runtime("fallback", [value, awaited.unbox().argument]);
         return Expression::new_await_expression(oxc_span::SPAN, call, b);
     }
-    if is_async(&fallback) {
+    if is_expression_async(&fallback) {
         // Upstream's arrow drops the `async` of `async () => await x` when `x` does not await.
         let thunk = match fallback {
-            Expression::AwaitExpression(awaited) if !is_async(&awaited.argument) => {
+            Expression::AwaitExpression(awaited) if !is_expression_async(&awaited.argument) => {
                 b.arrow(b.parameters([]), awaited.unbox().argument)
             }
             fallback => Expression::new_arrow_function_expression(
@@ -353,7 +354,8 @@ fn fallback<'o>(
 }
 
 /// Upstream `is_expression_async`: an `await` outside any function `e` holds.
-fn is_async(e: &Expression<'_>) -> bool {
+#[must_use]
+pub fn is_expression_async(e: &Expression<'_>) -> bool {
     #[derive(Default)]
     struct Finds(bool);
     impl<'a> Visit<'a> for Finds {

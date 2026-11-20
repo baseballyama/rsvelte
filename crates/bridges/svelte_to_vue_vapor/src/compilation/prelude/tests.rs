@@ -2,7 +2,7 @@ use oxc_ast::ast::{Expression, Statement};
 use rsvelte_typescript_compile::build::Builder;
 
 use super::{expand, expanded, marker, parsed, remark, text};
-use crate::compilation::helpers;
+use crate::compilation::helpers::{self, Helper};
 
 const SCRIPT: [&str; 9] = [
     include_str!("../script/props.js"),
@@ -13,8 +13,33 @@ const SCRIPT: [&str; 9] = [
     include_str!("../script/runes.js"),
     include_str!("../script/lifecycle.js"),
     include_str!("../script/attachments.js"),
-    "const $$async_derived = async (getter) => ({ value: await getter() });",
+    include_str!("../script/async_derived.js"),
 ];
+
+const EMITTER: [&str; 5] = [
+    include_str!("../vapor/server.js"),
+    include_str!("../vapor/styles.js"),
+    include_str!("../vapor/custom_element.js"),
+    include_str!("../vapor/async_server.js"),
+    include_str!("../vapor/async_setup.js"),
+];
+
+/// The template adds what a helper requires one level deep, so what that requires must already
+/// be listed.
+#[test]
+fn what_a_helper_requires_is_closed() {
+    for &h in Helper::ALL {
+        let direct = helpers::requires(h);
+        for &r in direct {
+            for indirect in helpers::requires(r) {
+                assert!(
+                    direct.contains(indirect),
+                    "{h:?} needs {indirect:?} through {r:?}"
+                );
+            }
+        }
+    }
+}
 
 #[test]
 fn a_prelude_is_parsed_once_per_thread() {
@@ -75,49 +100,12 @@ fn a_string_the_script_wrote_is_not_a_marker() {
 /// the name is a `$$` constant that no rune cell or ref initializes, which this checks.
 #[test]
 fn no_prelude_name_is_a_cell_or_a_ref() {
-    use helpers::Helper::*;
     let allocator = oxc_allocator::Allocator::default();
     let b = Builder::new(&allocator);
-    let all = [
-        Each,
-        EachServer,
-        Attribute,
-        AttributeServer,
-        BooleanServer,
-        Stringify,
-        NodeValue,
-        Clsx,
-        Class,
-        ToClass,
-        SetClass,
-        Attributes,
-        Spread,
-        Fail,
-        Value,
-        Once,
-        Select,
-        Option,
-        ScopedClass,
-        Style,
-        RawMarkup,
-        Lifecycle,
-        Await,
-        NumberBinding,
-        Group,
-        PropertyBinding,
-        MediaBinding,
-        ResizeBinding,
-        FormReset,
-        ClassSpread,
-        ComponentProps,
-        Transition,
-        Animate,
-        Boundary,
-        CustomElementData,
-    ];
-    let markers = helpers::declarations(&all, &b);
+    let markers = helpers::declarations(Helper::ALL, &b);
     let sources = SCRIPT
         .iter()
+        .chain(&EMITTER)
         .map(|&source| parsed(source))
         .chain(markers.iter().filter_map(expand));
     // The names a prelude's top level calls, none of which makes a cell or a ref.

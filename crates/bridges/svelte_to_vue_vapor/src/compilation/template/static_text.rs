@@ -1,6 +1,12 @@
 use std::borrow::Cow;
 
-use super::{Item, Parent, Span, Template, Text, spelled, vue};
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::lower::{Item, Parent};
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
+use rsvelte_vue_semantic::compiler_syntax_tree::Text;
+
+use super::{Template, spelled};
+use crate::compilation::markers;
 
 /// A `<textarea>`'s text. As its content, the parser drops one leading newline (client), and
 /// Svelte's server drops a lone one beside an expression. As its `value`, whose leading newline
@@ -65,9 +71,9 @@ impl Template<'_, '_, '_> {
             origin: 0,
         };
         let tag = match parent {
-            Parent::Element("textarea") => "$$TextareaText",
-            Parent::Element("pre") => "$$PreText",
-            _ => "$$Text",
+            Parent::Element("textarea") => markers::TEXTAREA_TEXT,
+            Parent::Element("pre") => markers::PRE_TEXT,
+            _ => markers::TEXT,
         };
         self.template_node(tag, at, vec![property], vue_parent)
     }

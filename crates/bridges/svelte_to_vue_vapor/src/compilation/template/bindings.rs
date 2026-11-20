@@ -2,13 +2,16 @@ use oxc_ast::ast::{
     AssignmentOperator, AssignmentTarget, BinaryOperator, Expression, LogicalOperator,
     VariableDeclarationKind,
 };
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_semantic::compiler_syntax_tree::Attribute;
 use rsvelte_svelte_semantic::resolve::BindingKind;
 use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
-use super::{
-    Attribute, DirectiveExpression, DirectiveName, Helper, R, Span, Steps, Template, directive,
-    spelled, static_type, unsupported, vue,
-};
+use super::{Steps, Template, directive, spelled, static_type};
+use crate::compilation::helpers::Helper;
+use crate::compilation::{R, unsupported};
 
 /// The text-like input types whose `bind:value` is Svelte's string binding.
 const TEXT_INPUT_TYPES: &[&str] = &["text", "search", "email", "url", "tel", "password"];

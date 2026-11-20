@@ -1,15 +1,18 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{
-    Argument, BinaryOperator, BindingProperty, BindingRestElement, LogicalOperator,
-    VariableDeclarator,
+    Argument, BinaryOperator, BindingPattern, BindingProperty, BindingRestElement, Expression,
+    LogicalOperator, Statement, UnaryOperator, VariableDeclarationKind, VariableDeclarator,
 };
-use oxc_span::SPAN;
+use oxc_span::{GetSpan, SPAN};
 use rsvelte_typescript_compile::build::Builder;
+use rsvelte_typescript_compile::strip::is_type_only;
+use rsvelte_vue_semantic::resolve::unwrap_typescript;
+use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
+use rustc_hash::FxHashMap;
 
-use super::{
-    BindingPattern, Class, Expression, FxHashMap, GetSpan, Helper, Info, Names, Prop, R, Rewriter,
-    SingleFileComponent, Statement, UnaryOperator, VariableDeclarationKind, fresh, is_type_only,
-    span_of, unsupported, unwrap_typescript, vue_call,
+use super::{fresh, vue_call};
+use crate::compilation::context::{
+    Class, Helper, Info, Names, Prop, R, Rewriter, span_of, unsupported,
 };
 
 /// The instance script.

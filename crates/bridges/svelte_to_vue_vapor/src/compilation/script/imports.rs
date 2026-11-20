@@ -1,7 +1,8 @@
 use oxc_ast::ast::{ImportDeclarationSpecifier, ModuleExportName, StringLiteral};
 use oxc_span::GetSpan;
 
-use super::{Plan, R, span_of, unsupported};
+use super::Plan;
+use crate::compilation::{R, span_of, unsupported};
 
 pub(super) fn collect(
     source: &StringLiteral<'_>,

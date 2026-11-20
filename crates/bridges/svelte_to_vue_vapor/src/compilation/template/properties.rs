@@ -1,8 +1,7 @@
 use oxc_ast::ast::{BinaryOperator, Expression, FunctionBody, LogicalOperator, UnaryOperator};
 use oxc_ast_visit::Visit;
 use oxc_syntax::scope::ScopeFlags;
-
-use super::{Attribute, AttributeValue};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue};
 
 /// The event a binding's listener waits for.
 pub(super) fn binding_event(property: &str) -> &'static str {

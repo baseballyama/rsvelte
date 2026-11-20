@@ -2,15 +2,19 @@ use oxc_ast::AstKind;
 use oxc_ast::ast::Expression;
 use oxc_ast_visit::Visit;
 use oxc_semantic::SymbolId;
-use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::render_plan::Namespace;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue, Modifiers};
 use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_vue_semantic::compiler_syntax_tree as vue;
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{
-    Attribute, AttributeValue, DirectiveExpression, DirectiveName, Helper, Namespace,
-    PASSIVE_EVENTS, R, Span, Steps, Template, attribute, binding_event, directive, is_boolean,
-    is_primitive, reads_this, spelled, unsupported, vue,
+    PASSIVE_EVENTS, Steps, Template, attribute, binding_event, directive, is_boolean, is_primitive,
+    reads_this, spelled,
 };
-use crate::compilation::string_key;
+use crate::compilation::helpers::Helper;
+use crate::compilation::{R, string_key, unsupported};
 
 impl<'t> Template<'_, '_, 't> {
     /// `() => value`.
@@ -389,6 +393,14 @@ impl<'t> Template<'_, '_, 't> {
             Some(Expression::ArrowFunctionExpression(_)) => false,
             _ => true,
         }
+    }
+
+    fn custom_element_attribute(&mut self, attribute: &Attribute, steps: &mut Steps<'t>) {
+        let value = self.plain_value(attribute);
+        self.helpers.insert(Helper::CustomElementData);
+        let name = self.b.string(attribute.name.text(self.i.source_text));
+        let call = self.call("$$custom_element_data", [self.b.id("$$el"), name, value]);
+        steps.mounted.push(call);
     }
 }
 

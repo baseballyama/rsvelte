@@ -10,12 +10,13 @@ use oxc_span::SPAN;
 use props::prop_declarations;
 pub(crate) use props::prop_member;
 pub(crate) use rewrite::{ScriptRewrite, property_target};
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_compile::build::Builder;
 pub(crate) use rune_values::{async_arrow, rune_value, tracked};
 
-use super::{BindingKind, Plan, Resolution};
-use crate::compilation::{import, prelude};
-use crate::helpers::{self, Helper};
+use super::Plan;
+use crate::compilation::helpers::{self, Helper};
+use crate::compilation::{markers, prelude};
 
 /// What decides the imports and helpers of the program.
 #[expect(
@@ -65,7 +66,7 @@ fn imports<'t>(
     let state_helpers = uses.state || uses.bindable;
     let mut specs: Vec<(&str, String)> = Vec::new();
     for (used, imported, local) in [
-        (uses.state && server, "shallowRef", "$$ref"),
+        (uses.state && server, "shallowRef", markers::REF),
         (
             (state_helpers && !server) || uses.derived,
             "customRef",
@@ -131,8 +132,7 @@ fn imports<'t>(
         specs.push(("nextTick", "$$nextTick".to_owned()));
     }
     (!specs.is_empty()).then(|| {
-        import(
-            b,
+        b.import(
             specs
                 .iter()
                 .map(|(imported, local)| (*imported, local.as_str())),
@@ -191,10 +191,7 @@ fn head<'t>(
     }
     body.extend(helpers::declarations(helpers, b));
     if plan.async_values && server {
-        body.push(prelude::marker(
-            b,
-            "const $$async_derived = async (getter) => ({ value: await getter() });",
-        ));
+        body.push(prelude::marker(b, include_str!("async_derived.js")));
     }
     if plan.core_patterns {
         body.push(prelude::marker(b, include_str!("patterns.js")));
@@ -205,7 +202,7 @@ fn head<'t>(
     if uses.derived {
         body.push(prelude::marker(b, include_str!("derived.js")));
         let make = b.call(b.id("$$make_derived"), [b.boolean(server)]);
-        body.push(b.const_("$$computed", make));
+        body.push(b.const_(markers::COMPUTED, make));
     }
     if uses.prop_cells
         || !plan.auxiliary.is_empty()
@@ -237,7 +234,7 @@ fn imported_names<'t>(rw: &ScriptRewrite<'_, 't>, plan: &Plan, body: &mut Vec<St
             } else {
                 b.id(match imported {
                     "onMount" if server => "$$on_mount_server",
-                    "onMount" => "$$on_mount",
+                    "onMount" => markers::ON_MOUNT,
                     "onDestroy" => "$$onScopeDispose",
                     "tick" => "$$nextTick",
                     "untrack" => "$$untrack",

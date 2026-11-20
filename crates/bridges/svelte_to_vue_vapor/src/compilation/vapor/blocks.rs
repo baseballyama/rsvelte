@@ -1,11 +1,12 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::Expression;
+use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_vue_semantic::compiler_syntax_tree::CompilerNodeIdentifier;
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{Body, Emitter};
-use crate::compilation::asynchronous::has_await;
-use crate::helpers::Helper;
+use crate::compilation::helpers::Helper;
+use crate::compilation::markers;
 
 impl<'o> Emitter<'_, 'o> {
     pub(super) fn client_setup(&mut self, body: &mut Body<'o>) -> Expression<'o> {
@@ -15,7 +16,7 @@ impl<'o> Emitter<'_, 'o> {
             let nodes = self.list(root, body);
             return b.array(nodes);
         }
-        self.helpers
+        self.vue_imports
             .extend(["VaporFragment", "remove", "queuePostFlushCb"]);
         let mut template = Body::default();
         let nodes = self.list(root, &mut template);
@@ -78,7 +79,7 @@ impl<'o> Emitter<'_, 'o> {
                 },
             );
         }
-        if has_await(test) {
+        if is_expression_async(test) {
             return self.async_if(test, arguments);
         }
         let test = self.expression(test);
@@ -91,7 +92,10 @@ impl<'o> Emitter<'_, 'o> {
         identifier: CompilerNodeIdentifier,
         body: &mut Body<'o>,
     ) -> Expression<'o> {
-        let special = matches!(self.tag(identifier), "$$Await" | "$$Snippet" | "$$Scope");
+        let special = matches!(
+            self.tag(identifier),
+            markers::AWAIT | markers::SNIPPET | markers::SCOPE
+        );
         if special || self.structural(identifier, DirectiveName::For).is_none() {
             return self.node(identifier, body);
         }
@@ -110,7 +114,7 @@ impl<'o> Emitter<'_, 'o> {
         let parameters = self.res.tree().get_parameters(loop_.parameters);
         let source = self.render_expression(self.source(loop_.source), body);
         let source = self.arrow(source);
-        let key = self.bound(identifier, Some("$$key")).map(|key| {
+        let key = self.bound(identifier, Some(markers::KEY_KEY)).map(|key| {
             let key = self.expression(self.source(key));
             b.arrow(b.alloc(parameters.clone_in(b.allocator())), key)
         });
@@ -125,7 +129,7 @@ impl<'o> Emitter<'_, 'o> {
         let mut arguments = vec![source, render];
         arguments.extend(key);
         let call = if self.t.template.animation_loops.contains(&identifier) {
-            self.helpers.insert("createFor");
+            self.vue_imports.insert("createFor");
             b.call(b.id("$$animated_for"), arguments)
         } else {
             self.call("createFor", arguments)

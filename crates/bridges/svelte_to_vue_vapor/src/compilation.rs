@@ -1,14 +1,11 @@
-pub(crate) mod asynchronous;
 pub(crate) mod helpers;
+pub(crate) mod markers;
 pub(crate) mod prelude;
 pub(crate) mod script;
 pub(crate) mod template;
 mod vapor;
 
-use oxc_ast::ast::{
-    BindingIdentifier, ImportDeclarationSpecifier, ImportOrExportKind, ModuleExportName, Program,
-    PropertyKey, Statement, StringLiteral,
-};
+use oxc_ast::ast::{Program, PropertyKey, Statement};
 use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
@@ -53,32 +50,6 @@ pub(crate) const fn span_of(span: oxc_span::Span) -> Span {
 /// The key `"name"`.
 pub(crate) fn string_key<'t>(b: &Builder<'t>, name: &str) -> PropertyKey<'t> {
     PropertyKey::new_string_literal(SPAN, b.str(name), None, b)
-}
-
-/// `import { imported as local, … } from "source"`.
-pub(crate) fn import<'t, 'n>(
-    b: &Builder<'t>,
-    specifiers: impl IntoIterator<Item = (&'n str, &'n str)>,
-    source: &str,
-) -> Statement<'t> {
-    let specifiers = specifiers.into_iter().map(|(imported, local)| {
-        ImportDeclarationSpecifier::new_import_specifier(
-            SPAN,
-            ModuleExportName::new_identifier_name(SPAN, b.str(imported), b),
-            BindingIdentifier::new(SPAN, b.str(local), b),
-            ImportOrExportKind::Value,
-            b,
-        )
-    });
-    Statement::new_import_declaration(
-        SPAN,
-        Some(b.vec(specifiers)),
-        StringLiteral::new(SPAN, b.str(source), None, b),
-        None,
-        None,
-        ImportOrExportKind::Value,
-        b,
-    )
 }
 
 /// A program of `body` over the document.
@@ -202,7 +173,7 @@ pub(crate) fn translate(input: Input<'_>) -> R<Translation> {
         stylesheet_hash: identity.stylesheet_hash,
         css_mode: plan.stylesheet_mode,
         destroy: plan.lifecycle.iter().any(|(name, _)| *name == "onDestroy"),
-        tracking: plan.auxiliary.contains_key("$effect.tracking") && !input.server,
+        tracking: plan.tracking(input.server),
         template,
     })
 }
