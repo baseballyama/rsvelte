@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use oxc_allocator::{Allocator, CloneIn};
 use oxc_ast_visit::VisitMut;
 use rsvelte_kernel::computation::database::DocumentContext;
@@ -38,14 +36,7 @@ impl Task for Compile {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        Path::new(&document.path)
-            .extension()
-            .is_some_and(|extension| {
-                matches!(
-                    extension.to_str(),
-                    Some("ts" | "mts" | "cts" | "js" | "mjs" | "cjs")
-                )
-            })
+        rsvelte_typescript_tree::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
