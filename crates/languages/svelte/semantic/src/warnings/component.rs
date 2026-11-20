@@ -1,4 +1,5 @@
-//! The errors of the whole component rather than of one node.
+//! The errors raised outside the walks: the parse-time `<svelte:options tag>` check, and the
+//! checks of the whole component once the walks end.
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
