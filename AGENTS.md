@@ -84,5 +84,5 @@ All JavaScript-side code is TypeScript that Node 26 runs directly, in one pnpm w
 
 - Other agents work here at the same time. Do not revert changes that are not yours; ask.
 - No bare `git stash`, because all worktrees share one stash. One logical change per commit.
-- Skills: `review` (review a branch or PR), `pr` (issue or branch to a ready PR) and `docs`
+- Skills: `full-code-review` (review a branch or PR), `pr` (issue or branch to a ready PR) and `docs`
   (write or edit reader-facing text).
