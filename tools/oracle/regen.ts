@@ -96,7 +96,9 @@ export async function regen({
 	for (const u of units) {
 		const key = `${u.family}/${u.source}`;
 		sources.set(key, { family: u.family, source: u.source });
-		chosenPaths.set(key, [...(chosenPaths.get(key) ?? []), u.path]);
+		let list = chosenPaths.get(key);
+		if (!list) chosenPaths.set(key, (list = []));
+		list.push(u.path);
 	}
 
 	const work: (Job & { size: number })[] = [];
@@ -126,11 +128,7 @@ export async function regen({
 	const results = await runPool(work, jobs ?? os.availableParallelism());
 
 	const unparseable = results.flatMap((r) => r.unparseable);
-	const packs = new Map<string, JobResult[]>();
-	for (const r of results) {
-		const file = expectedPack(r.family, r.source, r.task, r.variant);
-		packs.set(file, [...(packs.get(file) ?? []), r]);
-	}
+	const packs = Map.groupBy(results, (r) => expectedPack(r.family, r.source, r.task, r.variant));
 	const written = new Map<string, number>();
 	for (const [file, parts] of packs) {
 		const fresh = parts.flatMap((r) => r.entries);
