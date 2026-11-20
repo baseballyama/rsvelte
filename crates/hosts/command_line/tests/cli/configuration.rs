@@ -1,27 +1,18 @@
-use std::path::PathBuf;
 use std::process::Command;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
-struct Project(PathBuf);
+use crate::Scratch;
+
+struct Project(Scratch);
 
 impl Project {
     fn new() -> Self {
-        static NEXT: AtomicUsize = AtomicUsize::new(0);
-        let path = std::env::temp_dir().join(format!(
-            "rsvelte-cli-config-{}-{}",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed)
-        ));
-        std::fs::create_dir_all(&path).expect("test directory");
-        std::fs::write(
-            path.join("Input.svelte"),
+        Self(Scratch::new(&[(
+            "Input.svelte",
             concat!(
                 "<script>let unused = 1;</script>",
                 "<button>Hi</button><style>button { color: red; }</style>"
             ),
-        )
-        .expect("component");
-        Self(path)
+        )]))
     }
 
     fn write(&self, name: &str, text: &str) {
@@ -51,12 +42,6 @@ impl Project {
 /// The run finished: exit code 0, or 1 for error diagnostics or findings, not 2 for a usage error.
 fn completed(output: &std::process::Output) -> bool {
     matches!(output.status.code(), Some(0 | 1))
-}
-
-impl Drop for Project {
-    fn drop(&mut self) {
-        std::fs::remove_dir_all(&self.0).expect("remove project");
-    }
 }
 
 #[test]

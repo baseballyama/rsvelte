@@ -1,22 +1,17 @@
 //! `rsvelte-dev check` on a project on disk, whose own tsconfig sets the options under test.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use rsvelte_test_harness::NodePackages;
 
-struct Project(PathBuf);
+use crate::Scratch;
+
+struct Project(Scratch);
 
 impl Project {
-    fn new(name: &str, files: &[(&str, &str)]) -> Self {
-        let root = std::env::temp_dir().join(format!("rsvelte-cli-{name}-{}", std::process::id()));
-        for (file, text) in files {
-            let path = root.join(file);
-            std::fs::create_dir_all(path.parent().expect("a file has a directory"))
-                .expect("test directory");
-            std::fs::write(path, text).expect("test file");
-        }
-        Self(std::fs::canonicalize(&root).expect("test directory"))
+    fn new(files: &[(&str, &str)]) -> Self {
+        Self(Scratch::new(files))
     }
 
     /// Each finding of the check, as `<file> TS<code>`.
@@ -83,51 +78,42 @@ impl Project {
     }
 }
 
-impl Drop for Project {
-    fn drop(&mut self) {
-        drop(std::fs::remove_dir_all(&self.0));
-    }
-}
-
 const NODENEXT: &str = r#"{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext",
 "strict":true,"skipLibCheck":true,"noEmit":true,"types":[]},"include":["src"]}"#;
 
 #[test]
 fn an_esm_import_of_a_rune_module_by_its_component_name_reads_the_module() {
-    let project = Project::new(
-        "rune-module",
-        &[
-            ("package.json", r#"{"type":"module"}"#),
-            ("tsconfig.json", NODENEXT),
-            (
-                "src/state.svelte.ts",
-                concat!(
-                    "export const count = (): string => '';\n",
-                    "export default class Counter {\n",
-                    "  n = '';\n",
-                    "}\n",
-                ),
+    let project = Project::new(&[
+        ("package.json", r#"{"type":"module"}"#),
+        ("tsconfig.json", NODENEXT),
+        (
+            "src/state.svelte.ts",
+            concat!(
+                "export const count = (): string => '';\n",
+                "export default class Counter {\n",
+                "  n = '';\n",
+                "}\n",
             ),
-            (
-                "src/use.ts",
-                concat!(
-                    "import Counter, { count } from './state.svelte';\n",
-                    "export const n: number = count();\n",
-                    "export const m: number = new Counter().n;\n",
-                ),
+        ),
+        (
+            "src/use.ts",
+            concat!(
+                "import Counter, { count } from './state.svelte';\n",
+                "export const n: number = count();\n",
+                "export const m: number = new Counter().n;\n",
             ),
-            (
-                "src/Use.svelte",
-                concat!(
-                    "<script lang=\"ts\">\n",
-                    "  import { count } from './state.svelte';\n",
-                    "  const n: number = count();\n",
-                    "</script>\n",
-                    "{n}\n",
-                ),
+        ),
+        (
+            "src/Use.svelte",
+            concat!(
+                "<script lang=\"ts\">\n",
+                "  import { count } from './state.svelte';\n",
+                "  const n: number = count();\n",
+                "</script>\n",
+                "{n}\n",
             ),
-        ],
-    );
+        ),
+    ]);
     // Without the module's types, each import would fail to resolve (TS2307) instead.
     assert_eq!(
         project.check(),
@@ -141,137 +127,125 @@ fn an_esm_import_of_a_rune_module_by_its_component_name_reads_the_module() {
 
 #[test]
 fn a_snippet_given_to_a_component_is_read_and_an_unused_one_is_not() {
-    let project = Project::new(
-        "unused-snippet",
-        &[
-            (
-                "tsconfig.json",
-                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","strict":true,
+    let project = Project::new(&[
+        (
+            "tsconfig.json",
+            r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","strict":true,
 "skipLibCheck":true,"noEmit":true,"types":[],"noUnusedLocals":true},"include":["src"]}"#,
+        ),
+        (
+            "src/Child.svelte",
+            concat!(
+                "<script lang=\"ts\">\n",
+                "  import type { Snippet } from 'svelte';\n",
+                "  let { text }: { text?: Snippet } = $props();\n",
+                "</script>\n",
+                "{@render text?.()}\n",
             ),
-            (
-                "src/Child.svelte",
-                concat!(
-                    "<script lang=\"ts\">\n",
-                    "  import type { Snippet } from 'svelte';\n",
-                    "  let { text }: { text?: Snippet } = $props();\n",
-                    "</script>\n",
-                    "{@render text?.()}\n",
-                ),
+        ),
+        (
+            "src/Parent.svelte",
+            concat!(
+                "<script lang=\"ts\">\n",
+                "  import Child from './Child.svelte';\n",
+                "</script>\n",
+                "<Child>\n",
+                "  {#snippet text()}<p></p>{/snippet}\n",
+                "</Child>\n",
+                "{#snippet unused()}<p></p>{/snippet}\n",
             ),
-            (
-                "src/Parent.svelte",
-                concat!(
-                    "<script lang=\"ts\">\n",
-                    "  import Child from './Child.svelte';\n",
-                    "</script>\n",
-                    "<Child>\n",
-                    "  {#snippet text()}<p></p>{/snippet}\n",
-                    "</Child>\n",
-                    "{#snippet unused()}<p></p>{/snippet}\n",
-                ),
-            ),
-        ],
-    );
+        ),
+    ]);
     // svelte-check reports the unused snippet, and not the one it reads as a prop.
     assert_eq!(project.check(), ["src/Parent.svelte TS6133"]);
 }
 
 #[test]
 fn a_class_component_of_a_package_takes_the_props_of_its_instance() {
-    let project = Project::new(
-        "class-component",
-        &[
-            (
-                "tsconfig.json",
-                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","strict":true,
+    let project = Project::new(&[
+        (
+            "tsconfig.json",
+            r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","strict":true,
 "skipLibCheck":true,"noEmit":true,"types":[]},"include":["src"]}"#,
+        ),
+        (
+            "node_modules/icons/package.json",
+            r#"{"name":"icons","types":"index.d.ts"}"#,
+        ),
+        (
+            "node_modules/icons/index.d.ts",
+            concat!(
+                "import { SvelteComponent } from 'svelte';\n",
+                "export declare class Icon extends SvelteComponent<{ size?: number }> {}\n",
             ),
-            (
-                "node_modules/icons/package.json",
-                r#"{"name":"icons","types":"index.d.ts"}"#,
+        ),
+        (
+            "src/App.svelte",
+            concat!(
+                "<script lang=\"ts\">\n",
+                "  import { Icon } from 'icons';\n",
+                "</script>\n",
+                "<Icon size={2} />\n",
+                "<Icon size=\"big\" />\n",
             ),
-            (
-                "node_modules/icons/index.d.ts",
-                concat!(
-                    "import { SvelteComponent } from 'svelte';\n",
-                    "export declare class Icon extends SvelteComponent<{ size?: number }> {}\n",
-                ),
-            ),
-            (
-                "src/App.svelte",
-                concat!(
-                    "<script lang=\"ts\">\n",
-                    "  import { Icon } from 'icons';\n",
-                    "</script>\n",
-                    "<Icon size={2} />\n",
-                    "<Icon size=\"big\" />\n",
-                ),
-            ),
-        ],
-    );
+        ),
+    ]);
     // svelte-check reports only the prop of the wrong type, as its svelte2tsx constructs the class.
     assert_eq!(project.check(), ["src/App.svelte TS2322"]);
 }
 
 #[test]
 fn a_bindable_prop_only_written_is_not_unused() {
-    let project = Project::new(
-        "bindable-unused",
-        &[
-            (
-                "tsconfig.json",
-                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","strict":true,
+    let project = Project::new(&[
+        (
+            "tsconfig.json",
+            r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","strict":true,
 "skipLibCheck":true,"noEmit":true,"types":[],"noUnusedLocals":true},"include":["src"]}"#,
+        ),
+        (
+            "src/Drawer.svelte",
+            concat!(
+                "<script lang=\"ts\">\n",
+                "  let { open = $bindable(false), plain = 1 }:\n",
+                "    { open?: boolean; plain?: number } =\n",
+                "    $props();\n",
+                "  const close = () => (open = false);\n",
+                "</script>\n",
+                "<button onclick={close}>x</button>\n",
             ),
-            (
-                "src/Drawer.svelte",
-                concat!(
-                    "<script lang=\"ts\">\n",
-                    "  let { open = $bindable(false), plain = 1 }:\n",
-                    "    { open?: boolean; plain?: number } =\n",
-                    "    $props();\n",
-                    "  const close = () => (open = false);\n",
-                    "</script>\n",
-                    "<button onclick={close}>x</button>\n",
-                ),
-            ),
-        ],
-    );
+        ),
+    ]);
     // svelte-check reads each bindable prop once, so only `plain` is unused.
     assert_eq!(project.check(), ["src/Drawer.svelte TS6133"]);
 }
 
 #[test]
 fn a_stylesheet_custom_property_given_to_a_component_is_not_a_prop() {
-    let project = Project::new(
-        "stylesheet-custom-property",
-        &[
-            (
-                "tsconfig.json",
-                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","strict":true,
+    let project = Project::new(&[
+        (
+            "tsconfig.json",
+            r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","strict":true,
 "skipLibCheck":true,"noEmit":true,"types":[]},"include":["src"]}"#,
+        ),
+        (
+            "src/Child.svelte",
+            concat!(
+                "<script lang=\"ts\">\n",
+                "  let { size }: { size?: number } = $props();\n",
+                "</script>\n",
+                "{size}\n",
             ),
-            (
-                "src/Child.svelte",
-                concat!(
-                    "<script lang=\"ts\">\n",
-                    "  let { size }: { size?: number } = $props();\n",
-                    "</script>\n",
-                    "{size}\n",
-                ),
+        ),
+        (
+            "src/App.svelte",
+            concat!(
+                "<script lang=\"ts\">\n",
+                "  import Child from './Child.svelte';\n",
+                "</script>\n",
+                "<Child --color=\"red\" --gap={missing} size={1} />\n",
             ),
-            (
-                "src/App.svelte",
-                concat!(
-                    "<script lang=\"ts\">\n",
-                    "  import Child from './Child.svelte';\n",
-                    "</script>\n",
-                    "<Child --color=\"red\" --gap={missing} size={1} />\n",
-                ),
-            ),
-        ],
-    );
+        ),
+    ]);
     // svelte-check checks the value, but no prop `--color`.
     assert_eq!(project.check(), ["src/App.svelte TS2304"]);
 }
@@ -289,7 +263,7 @@ fn checker_processes_that_share_the_documents_report_each_finding_once() {
         .collect();
     files.push(("src/m.ts", "export const wrong: number = 'm';\n"));
     files.push(("tsconfig.json", NODENEXT));
-    let project = Project::new("processes", &files);
+    let project = Project::new(&files);
     let one = project.check_in(Some(1));
     assert_eq!(one.len(), 6, "{one:?}");
     assert_eq!(project.check_in(Some(3)), one);
@@ -298,31 +272,28 @@ fn checker_processes_that_share_the_documents_report_each_finding_once() {
 
 #[test]
 fn a_sveltekit_route_file_is_typed_as_svelte_check_types_it() {
-    let project = Project::new(
-        "kit-route",
-        &[
-            (
-                "tsconfig.json",
-                r#"{ "compilerOptions": { "strict": true, "noEmit": true, "module": "esnext",
+    let project = Project::new(&[
+        (
+            "tsconfig.json",
+            r#"{ "compilerOptions": { "strict": true, "noEmit": true, "module": "esnext",
                 "moduleResolution": "bundler", "types": [],
                 "rootDirs": [".", ".svelte-kit/types"] },
                 "include": ["src/**/*.ts", ".svelte-kit/types/**/$types.d.ts"] }"#,
-            ),
-            (
-                "src/routes/+page.ts",
-                "export const load = async ({ params }) => ({ id: params.id });\n",
-            ),
-            (
-                "src/routes/missing/+page.ts",
-                "export function load(event) {\n  return { id: event.params.id };\n}\n",
-            ),
-            (
-                ".svelte-kit/types/src/routes/$types.d.ts",
-                "export type PageLoadEvent = { params: { id: string } };\n\
+        ),
+        (
+            "src/routes/+page.ts",
+            "export const load = async ({ params }) => ({ id: params.id });\n",
+        ),
+        (
+            "src/routes/missing/+page.ts",
+            "export function load(event) {\n  return { id: event.params.id };\n}\n",
+        ),
+        (
+            ".svelte-kit/types/src/routes/$types.d.ts",
+            "export type PageLoadEvent = { params: { id: string } };\n\
                  export type PageLoad = (event: PageLoadEvent) => unknown;\n",
-            ),
-        ],
-    );
+        ),
+    ]);
     // svelte-check 4.7.6 reports only the route without generated types, at the type it inserts.
     let found = project.findings(None);
     assert_eq!(found.len(), 1, "{found:?}");
@@ -343,37 +314,34 @@ fn a_sveltekit_route_file_is_typed_as_svelte_check_types_it() {
 const OUT_DIR: &str = r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler",
 "strict":true,"skipLibCheck":true,"types":[],"outDir":"./dist"ROOT_DIR},"include":["src"]}"#;
 
-fn out_dir_project(name: &str, root_dir: &str) -> Project {
-    Project::new(
-        name,
-        &[
-            ("tsconfig.json", &OUT_DIR.replace("ROOT_DIR", root_dir)),
-            ("shared.ts", "export const shared = 1;\n"),
-            ("src/lib/util.ts", "export const n: number = '';\n"),
-            (
-                "src/App.svelte",
-                concat!(
-                    "<script lang=\"ts\">\n",
-                    "  import { n } from './lib/util';\n",
-                    "  import { shared } from '../shared';\n",
-                    "</script>\n",
-                    "{n}{shared}\n",
-                ),
+fn out_dir_project(root_dir: &str) -> Project {
+    Project::new(&[
+        ("tsconfig.json", &OUT_DIR.replace("ROOT_DIR", root_dir)),
+        ("shared.ts", "export const shared = 1;\n"),
+        ("src/lib/util.ts", "export const n: number = '';\n"),
+        (
+            "src/App.svelte",
+            concat!(
+                "<script lang=\"ts\">\n",
+                "  import { n } from './lib/util';\n",
+                "  import { shared } from '../shared';\n",
+                "</script>\n",
+                "{n}{shared}\n",
             ),
-        ],
-    )
+        ),
+    ])
 }
 
 #[test]
 fn an_out_dir_without_a_root_dir_keeps_the_root_dir_of_the_project() {
     // TS6059 would name the overlay's directory as the rootDir.
-    let project = out_dir_project("out-dir", "");
+    let project = out_dir_project("");
     assert_eq!(project.check(), ["src/lib/util.ts TS2322"]);
 }
 
 #[test]
 fn a_root_dir_the_project_sets_still_holds_its_files() {
-    let project = out_dir_project("root-dir", r#","rootDir":"./src""#);
+    let project = out_dir_project(r#","rootDir":"./src""#);
     assert_eq!(
         project.check(),
         ["src/App.svelte TS6059", "src/lib/util.ts TS2322"]

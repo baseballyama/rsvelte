@@ -1,18 +1,12 @@
-use std::path::PathBuf;
 use std::process::Command;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
-struct Project(PathBuf);
+use crate::Scratch;
+
+struct Project(Scratch);
 
 impl Project {
     fn new() -> Self {
-        static NEXT: AtomicUsize = AtomicUsize::new(0);
-        let path = std::env::temp_dir().join(format!(
-            "rsvelte-cli-lint-{}-{}",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed)
-        ));
-        for (name, text) in [
+        Self(Scratch::new(&[
             ("src/App.svelte", "<script>\n  let unused = 1;\n</script>\n"),
             ("src/Clean.svelte", "<p>Hi</p>\n"),
             (
@@ -20,12 +14,7 @@ impl Project {
                 "<script>let ignored = 1;</script>\n",
             ),
             ("notes.txt", "not a component\n"),
-        ] {
-            let file = path.join(name);
-            std::fs::create_dir_all(file.parent().expect("a parent")).expect("directory");
-            std::fs::write(file, text).expect("file");
-        }
-        Self(path)
+        ]))
     }
 
     fn lint(&self, arguments: &[&str]) -> std::process::Output {
@@ -35,12 +24,6 @@ impl Project {
             .args(arguments)
             .output()
             .expect("run CLI")
-    }
-}
-
-impl Drop for Project {
-    fn drop(&mut self) {
-        std::fs::remove_dir_all(&self.0).expect("remove project");
     }
 }
 

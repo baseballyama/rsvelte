@@ -13,7 +13,7 @@ test('the sources of the programs ship, their tests and docs do not', () => {
 		assert.equal(ships(file), true, file);
 	for (const file of [
 		'crates/languages/typescript/check/src/kit/tests.rs',
-		'crates/hosts/command_line/tests/project_check.rs',
+		'crates/hosts/command_line/tests/cli/project_check.rs',
 		'crates/languages/svelte/check/tests/fixtures/a/input.svelte',
 		'crates/languages/css/syntax/examples/parse.rs',
 		'crates/hosts/README.md',
