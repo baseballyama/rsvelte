@@ -1,10 +1,10 @@
-//! Shapes found by differential reviews against the oracle.
+//! Template, script and style shapes, each pinned to the oracle's output or refusal.
 
 use super::*;
 
 /// Expected outputs from prettier-plugin-svelte 4.1.1.
 #[test]
-fn review_d_shapes_print_as_the_plugin_prints_them() {
+fn wide_characters_line_endings_and_unembedded_bindings_print_as_the_plugin_prints_them() {
     // A block whose first child starts with a character wider than a byte.
     assert_eq!(formatted("{#if a}é{/if}\n"), "{#if a}é{/if}\n");
     // Prettier reads `\r\n` as `\n` before it formats, comments included.
@@ -37,7 +37,7 @@ fn review_d_shapes_print_as_the_plugin_prints_them() {
 
 /// Each of these prints otherwise under the plugin (or fails there), in a way not ported.
 #[test]
-fn review_d_shapes_the_port_cannot_print_are_refused() {
+fn unported_literals_regions_and_script_languages_are_refused() {
     let off = options(r#"{"embeddedLanguageFormatting": "off"}"#);
     let refused: Vec<&str> = [
         ("<p>{9007199254740993}</p>\n", &off),
@@ -77,7 +77,7 @@ fn review_d_shapes_the_port_cannot_print_are_refused() {
 
 /// Expected outputs from prettier-plugin-svelte 4.1.1.
 #[test]
-fn review_e_shapes_print_as_the_plugin_prints_them() {
+fn parentheses_numbers_and_call_arguments_print_as_the_plugin_prints_them() {
     for (source_text, want) in [
         ("<p>{1..toString()}</p>\n", "<p>{(1).toString()}</p>\n"),
         ("<p>{1_0.5_0}</p>\n", "<p>{1_0.5_0}</p>\n"),
@@ -115,7 +115,7 @@ fn review_e_shapes_print_as_the_plugin_prints_them() {
 
 /// The plugin throws on these, or prints them in a layout not ported.
 #[test]
-fn review_e_shapes_the_port_cannot_print_are_refused() {
+fn digit_escapes_optional_chain_assignments_and_negated_powers_are_refused() {
     for source_text in [
         "<p>{\"\\8\"}</p>\n",
         "<p>{a?.b = 1}</p>\n",
@@ -131,10 +131,9 @@ fn a_comparison_after_a_cast_is_refused() {
     refusal("<script lang=\"ts\">\n  a as T < c;\n</script>\n");
 }
 
-/// Shapes a differential review found printed wrong; outputs from Prettier 3.9.10 with
-/// prettier-plugin-svelte 4.1.1.
+/// Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
 #[test]
-fn review_f_shapes_print_as_prettier_does() {
+fn functions_constructors_and_mixed_logical_operators_print_as_prettier_does() {
     for (source_text, expected) in [
         (
             "<script>\n  function* g() {}\n</script>\n",
@@ -208,7 +207,7 @@ fn review_f_shapes_print_as_prettier_does() {
 
 /// JavaScript a module rejects.
 #[test]
-fn review_f_shapes_are_refused() {
+fn javascript_a_module_rejects_is_refused() {
     for source_text in [
         "<script>\n  [a?.b] = c;\n</script>\n",
         "<script>\n  ({a}) = 1;\n</script>\n",
@@ -262,9 +261,9 @@ fn corpus_shapes_print_as_the_plugin_prints_them() {
     }
 }
 
-/// Inputs the earlier printer refused, with their print width; expected outputs from Prettier
-/// 3.9.10 with prettier-plugin-svelte 4.1.1.
-const ONCE_REFUSED: &[(u32, &str, &str)] = &[
+/// Inputs with their print width; expected outputs from Prettier 3.9.10 with
+/// prettier-plugin-svelte 4.1.1.
+const AT_PRINT_WIDTH: &[(u32, &str, &str)] = &[
     (
         20,
         "<title>x</title>{a + b}\n",
@@ -364,8 +363,8 @@ const ONCE_REFUSED: &[(u32, &str, &str)] = &[
 ];
 
 #[test]
-fn shapes_once_refused_print_as_the_plugin_prints_them() {
-    for &(print_width, source_text, want) in ONCE_REFUSED {
+fn shapes_at_their_print_width_print_as_the_plugin_prints_them() {
+    for &(print_width, source_text, want) in AT_PRINT_WIDTH {
         let options = options(&format!(r#"{{"printWidth": {print_width}}}"#));
         assert_eq!(
             formatted_with(source_text, &options),
