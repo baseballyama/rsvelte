@@ -2,22 +2,14 @@
 //! or rsvelte's documented deviation where the official output is an upstream bug. Printed code is
 //! compared without whitespace unless the whitespace is the point.
 
-use rsvelte_svelte_compile::{CompileInput, Target, compile_to_javascript};
-use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
+use rsvelte_svelte_compile::{Target, compile_to_javascript};
 
-#[path = "official_parity/const_tags.rs"]
 mod const_tags;
-#[path = "official_parity/derived.rs"]
 mod derived;
-#[path = "official_parity/errors.rs"]
 mod errors;
-#[path = "official_parity/exports.rs"]
 mod exports;
-#[path = "official_parity/lets.rs"]
 mod lets;
-#[path = "official_parity/patterns.rs"]
 mod patterns;
-#[path = "official_parity/runes.rs"]
 mod runes;
 
 /// The output, or the code of the diagnostic that refuses the source.
@@ -28,29 +20,17 @@ fn compile(source: &str, target: Target) -> Result<String, String> {
 /// The output, or the error's code and where it is (UTF-8 bytes, which equal upstream's offsets
 /// in ASCII).
 fn compile_at(source: &str, target: Target) -> Result<String, (String, (u32, u32))> {
-    let component = rsvelte_svelte_syntax::parse::parse(source).map_err(|error| {
+    let code_at = |error: rsvelte_kernel::diagnostics::Diagnostic| {
         (
             error.code.to_string(),
             (error.span.start_offset, error.span.end_offset),
         )
-    })?;
-    let tree = compiler_syntax_tree::lower(&component, source);
-    let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "App.svelte");
-    let resolution = resolve::resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        component.module.as_ref().map(|s| s.program),
-        &tree,
-    );
-    let analysis = analyze::analyze(&input, &resolution);
-    compile_to_javascript(&CompileInput::from(input), &resolution, &analysis, target).map_err(
-        |error| {
-            (
-                error.code.to_string(),
-                (error.span.start_offset, error.span.end_offset),
-            )
-        },
-    )
+    };
+    super::analyzed(source, "App.svelte", |input, resolution, analysis| {
+        compile_to_javascript(&input, resolution, analysis, target)
+    })
+    .map_err(code_at)?
+    .map_err(code_at)
 }
 
 fn compiled(source: &str, target: Target) -> String {
