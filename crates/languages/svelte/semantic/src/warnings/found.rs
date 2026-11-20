@@ -112,9 +112,7 @@ impl VisitOrder {
                 continue;
             };
             let name = name.text(source);
-            if !(is_component_name(name) && !name.starts_with("svelte:")
-                || matches!(name, "svelte:component" | "svelte:self"))
-            {
+            if !(is_component_name(name) || matches!(name, "svelte:component" | "svelte:self")) {
                 continue;
             }
             let children = component.children(*children);

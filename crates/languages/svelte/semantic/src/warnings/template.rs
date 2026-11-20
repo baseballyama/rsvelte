@@ -5,7 +5,6 @@ use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::names::is_component_name;
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, Range, TemplateNode, decode_attribute,
     decode_text,
@@ -450,9 +449,4 @@ pub(super) fn bidirectional_runs(text: &str) -> impl Iterator<Item = (usize, usi
         }
         Some((start, end))
     })
-}
-
-/// Whether `name` is a component tag: a capitalized or dotted name, not a `svelte:` one.
-fn is_component(name: &str) -> bool {
-    is_component_name(name) && !name.starts_with("svelte:")
 }
