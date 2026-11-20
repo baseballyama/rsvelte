@@ -511,7 +511,6 @@ mod bindings;
 mod blocks;
 mod boolean_attributes;
 mod components;
-mod custom_elements;
 mod declarations;
 mod defaults;
 mod each_block;
