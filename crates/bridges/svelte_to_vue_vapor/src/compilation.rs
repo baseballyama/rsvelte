@@ -14,7 +14,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_compile::build::Builder;
-use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree, document_span};
 
 /// The translated component: one JavaScript tree holding the `<script setup>` program, the module
 /// program and every template expression, and the template's Vue HIR.
@@ -40,11 +40,6 @@ pub(crate) fn unsupported(what: impl std::fmt::Display, span: Span) -> Diagnosti
         format!("not supported by vuelte: {what}"),
         span,
     )
-}
-
-/// An oxc span, which is the document's, as the kernel holds it.
-pub(crate) const fn span_of(span: oxc_span::Span) -> Span {
-    Span::new(span.start, span.end)
 }
 
 /// The key `"name"`.
@@ -89,7 +84,7 @@ pub(crate) fn check(
         {
             return Err(unsupported(
                 "TypeScript with runtime semantics",
-                span_of(span),
+                document_span(span),
             ));
         }
     }

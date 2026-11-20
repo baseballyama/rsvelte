@@ -8,7 +8,7 @@ use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::warnings::{CompileWarnings, code_for_v5};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
-use rsvelte_typescript_tree::ProgramIdentifier;
+use rsvelte_typescript_tree::{ProgramIdentifier, document_span};
 
 use crate::computation::PostcssConfiguration;
 use crate::project::PostcssConfigurationOnDisk;
@@ -51,7 +51,7 @@ pub(crate) fn ignores(component: &Component, source: &str) -> Ignores {
         .flat_map(|script| &tree.get_program(script.program).comments)
         .chain(tree.comments());
     for comment in comments {
-        let comment = Span::new(comment.span.start, comment.span.end);
+        let comment = document_span(comment.span);
         // `//` and `/*` are two bytes, and so is a block comment's `*/`.
         let value = Span::new(comment.start_offset + 2, block_end(comment, source));
         read(value, comment, source, &mut out);
@@ -501,7 +501,7 @@ impl Targets<'_> {
         let statements = &program.body;
         let span = |statement: &oxc_ast::ast::Statement<'_>| {
             let span = statement.span();
-            Span::new(span.start, span.end)
+            document_span(span)
         };
         let i = statements.partition_point(|statement| span(statement).end_offset <= at);
         let Some(here) = statements.get(i).map(span).filter(|s| contains(*s, at)) else {
@@ -516,7 +516,7 @@ impl Targets<'_> {
         vec![
             comments[first..last.max(first)]
                 .iter()
-                .map(|c| Span::new(c.span.start, c.span.end))
+                .map(|c| document_span(c.span))
                 .collect(),
         ]
     }

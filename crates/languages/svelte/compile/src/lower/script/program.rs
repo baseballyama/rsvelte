@@ -6,11 +6,12 @@ use oxc_ast_visit::VisitMut;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_typescript_compile::strip::is_type_only;
+use rsvelte_typescript_tree::node_span;
 
 use super::statements::{Inspect, declares_nothing, inspect, inspects_with, is_effect};
 use super::{Export, ScriptRewrite, declarators, exports, props};
 use crate::lower::names::Names;
-use crate::lower::{Target, span_of, unsupported};
+use crate::lower::{Target, unsupported};
 
 /// Which script is lowered; the instance's exports are collected while it is.
 pub(in crate::lower) enum ScriptContext<'e, 't> {
@@ -127,7 +128,7 @@ pub(in crate::lower) fn lower_script<'t, 'o>(
             // Upstream turns these into the component's exports; copying them would put an
             // `export` inside the component function.
             Statement::ExportDefaultDeclaration(_) if instance => {
-                return unsupported("an export from the instance script", span_of(statement));
+                return unsupported("an export from the instance script", node_span(statement));
             }
             Statement::VariableDeclaration(d) => {
                 lower_declaration(rw, d, instance, &mut out, hoisted, names);

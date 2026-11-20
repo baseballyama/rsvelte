@@ -7,9 +7,10 @@ use oxc_semantic::{NodeId, ReferenceId, ScopeId, SymbolId};
 use oxc_span::GetSpan;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_typescript_semantic::semantic::Semantic;
+use rsvelte_typescript_tree::document_span;
 use rustc_hash::FxHashSet;
 
-use super::{Facts, Use, identifier_range, span};
+use super::{Facts, Use, identifier_range};
 
 mod typescript_eslint;
 use typescript_eslint::{
@@ -135,7 +136,10 @@ pub fn no_unused_variables<'r>(
             _ => continue,
         };
         if let Some(this) = this {
-            reporter.range("'this' is defined but never used.", span(this.span));
+            reporter.range(
+                "'this' is defined but never used.",
+                document_span(this.span),
+            );
         }
     }
 }
@@ -166,7 +170,7 @@ fn report(
     let name = f.scoping.symbol_name(symbol);
     let range = if typescript {
         // typescript-eslint's location spans the name alone.
-        span(oxc_span::Span::sized(at.start, name.len() as u32))
+        document_span(oxc_span::Span::sized(at.start, name.len() as u32))
     } else {
         identifier_range(f, symbol, at)
     };

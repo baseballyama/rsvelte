@@ -14,9 +14,10 @@ use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_svelte_syntax::syntax_tree::Component;
+use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::compilation::{R, span_of, unsupported};
+use crate::compilation::{R, unsupported};
 
 /// What `plan` found: the script's runes and the names the template needs.
 #[derive(Debug, Default)]
@@ -186,10 +187,10 @@ fn statement(
             }
         }
         Statement::ExportNamedDeclaration(_) | Statement::ExportFromDeclaration(_) => {
-            Err(unsupported("this component export", span_of(s.span())))
+            Err(unsupported("this component export", node_span(s)))
         }
         Statement::ExportDefaultDeclaration(_) | Statement::ExportAllDeclaration(_) => {
-            Err(unsupported("an export", span_of(s.span())))
+            Err(unsupported("an export", node_span(s)))
         }
         Statement::VariableDeclaration(d) => variables(d, res, plan, consumed),
         _ => Ok(()),
@@ -225,7 +226,10 @@ fn variables(
             {
                 let symbol = id.symbol_id.get().expect("a declaration has a symbol");
                 if res.writes(symbol) > 0 {
-                    return Err(unsupported("assigning a `$props.id()`", span_of(id.span)));
+                    return Err(unsupported(
+                        "assigning a `$props.id()`",
+                        document_span(id.span),
+                    ));
                 }
                 plan.props_id = Some(symbol);
                 true
@@ -241,7 +245,7 @@ fn variables(
         if !ok {
             return Err(unsupported(
                 format_args!("this use of `{rune}`"),
-                span_of(init.span()),
+                node_span(init),
             ));
         }
         consumed.insert(runes::root(&call.callee));
@@ -282,7 +286,7 @@ fn check_redeclared(res: &Resolution, program: &Program<'_>) -> R<()> {
         .filter(|span| program.span.contains_inclusive(*span))
         .min_by_key(|span| span.start);
     first.map_or(Ok(()), |span| {
-        Err(unsupported("a name declared twice", span_of(span)))
+        Err(unsupported("a name declared twice", document_span(span)))
     })
 }
 
@@ -291,7 +295,7 @@ fn check_names(res: &Resolution) -> R<()> {
     let scoping = res.scoping();
     for symbol in scoping.symbol_ids() {
         let name = scoping.symbol_name(symbol);
-        let span = span_of(scoping.symbol_span(symbol));
+        let span = document_span(scoping.symbol_span(symbol));
         if name.starts_with('$') {
             return Err(unsupported(
                 format_args!("the `$`-prefixed name `{name}`"),
@@ -330,17 +334,17 @@ fn check_references(
             self.result = if !self.template && VUE_MACROS.contains(&name) {
                 Err(unsupported(
                     format_args!("the name `{name}`"),
-                    span_of(it.span),
+                    document_span(it.span),
                 ))
             } else if unbound && self.template {
                 Err(unsupported(
                     "a rune outside a supported declaration or call",
-                    span_of(it.span),
+                    document_span(it.span),
                 ))
             } else if unbound {
                 Err(unsupported(
                     format_args!("the rune or store subscription `{name}`"),
-                    span_of(it.span),
+                    document_span(it.span),
                 ))
             } else {
                 Ok(())
@@ -366,7 +370,7 @@ fn check_writes(res: &Resolution) -> R<()> {
         {
             return Err(unsupported(
                 "writing the rest of `$props()`",
-                span_of(scoping.symbol_span(symbol)),
+                document_span(scoping.symbol_span(symbol)),
             ));
         }
     }
@@ -381,7 +385,7 @@ fn props(res: &Resolution, pattern: &BindingPattern<'_>) -> R<Props> {
     let refuse = |span: oxc_span::Span| {
         Err(unsupported(
             "a `$props()` pattern other than plain keys with literal defaults",
-            span_of(span),
+            document_span(span),
         ))
     };
     let symbol = |id: &oxc_ast::ast::BindingIdentifier<'_>| {
@@ -420,7 +424,7 @@ fn props(res: &Resolution, pattern: &BindingPattern<'_>) -> R<Props> {
         if reserved {
             return Err(unsupported(
                 format_args!("the prop name `{name}` (Vue reserves it or reads it as a global)"),
-                span_of(key.span),
+                document_span(key.span),
             ));
         }
         out.push((name.to_owned(), symbol(local), literal));

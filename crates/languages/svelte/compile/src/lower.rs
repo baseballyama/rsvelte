@@ -36,7 +36,7 @@ pub(crate) use module::lower_module;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Program, Statement};
 use oxc_ast_visit::VisitMut;
-use oxc_span::{GetSpan, SPAN, SourceType};
+use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::analyze::Analysis;
@@ -198,12 +198,6 @@ pub(crate) struct Prepared<'c, 'o> {
     custom_element: Option<&'c custom_element::CustomElement>,
     /// Upstream `analysis.name`: the component name, renamed if the source declares it.
     component_name: String,
-}
-
-/// The document span of an oxc node.
-pub(crate) fn span_of(node: &impl GetSpan) -> Span {
-    let span = node.span();
-    Span::new(span.start, span.end)
 }
 
 /// The code of what this port refuses, which upstream compiles.

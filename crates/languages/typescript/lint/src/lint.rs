@@ -298,14 +298,7 @@ fn identifier_range(f: &Facts<'_>, symbol: SymbolId, at: oxc_span::Span) -> Span
             end = end.max(annotation.end);
         }
     }
-    span(oxc_span::Span::new(at.start, end))
-}
-
-const fn span(span: oxc_span::Span) -> Span {
-    Span {
-        start_offset: span.start,
-        end_offset: span.end,
-    }
+    Span::new(at.start, end)
 }
 
 #[cfg(test)]

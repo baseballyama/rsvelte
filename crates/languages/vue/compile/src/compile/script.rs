@@ -5,11 +5,11 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
 use oxc_semantic::{ScopeFlags, SymbolFlags};
-use oxc_span::GetSpan;
+use rsvelte_typescript_tree::{document_span, node_span};
 
 use super::{
     BindingType, Builder, CompileInput, ProgramIdentifier, R, Resolution, Unsupported, call_name,
-    document_span, is_static, out, template,
+    is_static, out, template,
 };
 
 /// compiler-sfc's macros other than `defineProps` and `defineOptions`, none of which the port
@@ -145,7 +145,7 @@ pub(super) fn define_options<'a>(
     let Some(Expression::ObjectExpression(object)) = argument.as_expression() else {
         return Err(Unsupported::at(
             "defineOptions() with an argument other than an object literal",
-            document_span(argument.span()),
+            node_span(argument),
         ));
     };
     for p in &object.properties {
@@ -270,10 +270,7 @@ pub(super) fn refuse_unsupported(s: &Statement<'_>) -> R<()> {
         s,
         Statement::ExportNamedDeclaration(_) | Statement::ExportDefaultDeclaration(_)
     ) {
-        return Err(Unsupported::at(
-            "an export in <script setup>",
-            document_span(s.span()),
-        ));
+        return Err(Unsupported::at("an export in <script setup>", node_span(s)));
     }
     let mut check = Refusals { refused: None };
     check.visit_statement(s);

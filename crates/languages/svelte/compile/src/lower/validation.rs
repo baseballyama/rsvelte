@@ -1,6 +1,7 @@
 use oxc_semantic::SymbolId;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
 use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature_where};
+use rsvelte_typescript_tree::document_span;
 use rustc_hash::FxHashSet;
 
 mod awaits;
@@ -317,7 +318,7 @@ fn check_legacy_props(input: &CompileInput<'_>, res: &Resolution) -> Result<(), 
             .flat_map(|(_, references)| references.into_iter().map(|r| res.reference_span(r)))
             .min_by_key(|span| (!scripted(span.start), span.start));
         if let Some(span) = first {
-            return crate::lower::invalid(code, message, Span::new(span.start, span.end));
+            return crate::lower::invalid(code, message, document_span(span));
         }
     }
     Ok(())
@@ -333,7 +334,7 @@ fn first_unresolved(res: &Resolution, wanted: impl Fn(&str) -> bool) -> Option<(
                 .map(move |r| (name, res.reference_span(r)))
         })
         .min_by_key(|(_, span)| span.start)
-        .map(|(name, span)| (name, Span::new(span.start, span.end)))
+        .map(|(name, span)| (name, document_span(span)))
 }
 
 /// Upstream `analysis.uses_slots`: the component reads `$$slots`, which it declares from
@@ -390,10 +391,7 @@ fn first_typescript_feature(
     match (programs.into_iter().flatten())
         .find_map(|program| first_svelte_runtime_feature_where(program, wanted))
     {
-        Some((feature, span)) => Err(typescript_invalid_feature(
-            feature,
-            Span::new(span.start, span.end),
-        )),
+        Some((feature, span)) => Err(typescript_invalid_feature(feature, document_span(span))),
         None => Ok(()),
     }
 }

@@ -9,7 +9,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Part, TemplateNode,
 };
-use rsvelte_typescript_tree::Tree;
+use rsvelte_typescript_tree::{Tree, node_span};
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
@@ -209,8 +209,8 @@ impl<'a> Values<'a> {
                         | BinaryOperator::Inequality
                 ) =>
             {
-                let between = &self.source[nodes::span(&binary.left).end_offset as usize
-                    ..nodes::span(&binary.right).start_offset as usize];
+                let between = &self.source[node_span(&binary.left).end_offset as usize
+                    ..node_span(&binary.right).start_offset as usize];
                 let between = if matches!(
                     binary.operator,
                     BinaryOperator::StrictEquality | BinaryOperator::Equality

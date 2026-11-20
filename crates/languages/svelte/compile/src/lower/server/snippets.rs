@@ -1,12 +1,13 @@
 use oxc_ast::ast::Statement;
 use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, Snippet};
+use rsvelte_typescript_tree::node_span;
 
 use super::super::snippets::{Place, place, render_arguments, render_call, snippet_name};
 use super::{
     CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind, R, ServerCompilationContext, Template,
 };
-use crate::lower::{span_of, unsupported};
+use crate::lower::unsupported;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `SnippetBlock`: a top-level snippet that reads only module-level names is
@@ -20,7 +21,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             return unsupported(
                 "on the server, a snippet in elements named like a `let`, `const` or class of the \
                     script",
-                span_of(self.javascript.get_expression(snippet.name)),
+                node_span(self.javascript.get_expression(snippet.name)),
             );
         }
         let declaration = self.snippet_declaration(snippet)?;

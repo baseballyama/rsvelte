@@ -11,14 +11,13 @@ use rsvelte_svelte_semantic::typescript::without_typescript;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, Component, Part, TemplateNode, decode_attribute,
 };
-use rsvelte_typescript_tree::Tree;
+use rsvelte_typescript_tree::{Tree, node_span};
 use rustc_hash::FxHashMap;
 
 use super::shared::kit_navigation::{
     Navigation, Options, Script, first_argument, first_part, has_scheme, links, string, template,
 };
 use super::shared::kit_route::runs_for;
-use super::shared::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 #[cfg(test)]
@@ -101,7 +100,7 @@ impl SvelteRule for NoNavigationWithoutResolve {
                 .as_expression()
                 .is_some_and(|url| check.allowed(Url::Expression(url), allow, &mut Vec::new()));
             if !allowed {
-                reporter.range(message, span(argument));
+                reporter.range(message, node_span(argument));
             }
         }
         let Some(component) = file.component().filter(|_| !self.0.ignore_links) else {

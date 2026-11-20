@@ -7,9 +7,10 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, ElementKind, MetadataTag, NodeKind,
 };
 use rsvelte_svelte_semantic::resolve::is_rune;
+use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::FxHashSet;
 
-use super::{CompileInput, Diagnostic, Resolution, Span, Unit, span_of};
+use super::{CompileInput, Diagnostic, Resolution, Span, Unit};
 
 /// The `$name`s no binding declares, each with its references, in upstream's order: the module
 /// script's, the instance script's, then the template's, each in the order upstream's scope walk
@@ -89,7 +90,7 @@ impl<'r> StoreSubscriptions<'r> {
         let scoping = res.scoping();
         let span = |r: ReferenceId| {
             let span = res.reference_span(r);
-            Span::new(span.start, span.end)
+            document_span(span)
         };
         if unit == Unit::Module {
             return self.check_module(res);
@@ -145,7 +146,7 @@ impl<'r> StoreSubscriptions<'r> {
         let scoping = res.scoping();
         for (name, references) in &self.names {
             let span = res.reference_span(references[0]);
-            let span = Span::new(span.start, span.end);
+            let span = document_span(span);
             if *name == "$" || name.starts_with("$$") {
                 return global_reference_invalid(name, span);
             }
@@ -179,7 +180,7 @@ struct TemplateWalk {
 impl TemplateWalk {
     fn new(input: &CompileInput<'_>) -> Self {
         let tree = input.component.compiler_syntax_tree;
-        let span = |e| span_of(input.component.javascript.get_expression(e));
+        let span = |e| node_span(input.component.javascript.get_expression(e));
         let mut walk = Self {
             directives: FxHashSet::default(),
             moved: Vec::new(),

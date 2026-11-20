@@ -5,9 +5,9 @@ use oxc_span::GetSpan;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_semantic::reference_tracker::{global_references, property_references};
 use rsvelte_typescript_semantic::semantic::Semantic;
+use rsvelte_typescript_tree::document_span;
 use rustc_hash::FxHashMap;
 
-use super::shared::nodes::from_oxc;
 use super::shared::runes::is_svelte_file;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -76,7 +76,7 @@ impl SvelteRule for PreferSvelteReactivity {
             else {
                 continue;
             };
-            let at = from_oxc(nodes.kind(node).span());
+            let at = document_span(nodes.kind(node).span());
             let class = reference.name;
             let message = format!(
                 "Found a mutable instance of the built-in {class} class. Use Svelte{class} instead."

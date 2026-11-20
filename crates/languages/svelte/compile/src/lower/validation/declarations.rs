@@ -2,11 +2,11 @@
 //! imports, which its scopes see where oxc's do not.
 
 use oxc_ast::ast::{Declaration, ImportDeclarationSpecifier, Statement};
-use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
+use rsvelte_typescript_tree::{document_span, node_span};
 
-use super::{CompileInput, Diagnostic, Resolution, Span};
+use super::{CompileInput, Diagnostic, Resolution};
 use crate::lower::{NodeKind, error};
 
 /// Each duplicate with when upstream raises it, as it builds the scopes.
@@ -50,7 +50,7 @@ fn module_import_conflict(input: &CompileInput<'_>) -> Option<(Raised, Diagnosti
         });
         conflict
     })?;
-    let span = Span::new(declarator.id.span().start, declarator.id.span().end);
+    let span = node_span(&declarator.id);
     let raised = Raised {
         phase: Phase::Walk,
         section: Section::Instance,
@@ -65,7 +65,7 @@ fn module_import_conflict(input: &CompileInput<'_>) -> Option<(Raised, Diagnosti
 }
 
 fn raised(section: Section, name: &str, span: oxc_span::Span) -> (Raised, Diagnostic) {
-    let span = Span::new(span.start, span.end);
+    let span = document_span(span);
     let raised = Raised {
         phase: Phase::Scopes,
         section,

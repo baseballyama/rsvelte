@@ -1,7 +1,7 @@
 use oxc_ast::ast::Argument;
 use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_typescript_tree::node_span;
 
-use super::shared::nodes::span;
 use super::shared::svelte_store::store_calls;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -28,7 +28,7 @@ impl SvelteRule for RequireStoresInit {
             }
             reporter.report(Report::range(
                 "Always set a default value for svelte stores.",
-                span(call),
+                node_span(call),
             ));
         }
     }

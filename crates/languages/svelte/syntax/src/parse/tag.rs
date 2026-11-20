@@ -5,7 +5,7 @@ use oxc_ast::ast::{
 use oxc_parser::Kind;
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_tree::DeclarationIdentifier;
+use rsvelte_typescript_tree::{DeclarationIdentifier, document_span};
 
 use super::javascript::javascript_failure;
 use super::{ParseResult, Parser};
@@ -70,7 +70,7 @@ impl Parser<'_, '_> {
             statement => {
                 let at = statement.span();
                 return Self::err_at(
-                    Span::new(at.start, at.end),
+                    document_span(at),
                     "declaration_tag_invalid_type",
                     "Declaration tags must be `let` or `const` declarations",
                 );
@@ -118,7 +118,7 @@ impl Parser<'_, '_> {
             if !call {
                 let at = expression.span();
                 return Self::err_at(
-                    Span::new(at.start, at.end),
+                    document_span(at),
                     "render_tag_invalid_expression",
                     "`{@render ...}` tags can only contain call expressions",
                 );
@@ -181,7 +181,7 @@ impl Parser<'_, '_> {
             && !self.source_text[expression_start..at.start as usize].contains('(')
         {
             return Self::err_at(
-                Span::new(at.start, at.end),
+                document_span(at),
                 "const_tag_invalid_expression",
                 "{@const ...} must consist of a single variable declaration",
             );

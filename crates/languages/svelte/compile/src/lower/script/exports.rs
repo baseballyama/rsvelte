@@ -8,9 +8,10 @@ use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
+use rsvelte_typescript_tree::node_span;
 
 use super::super::paths::bound_names;
-use super::super::{CompileInput, span_of, unsupported};
+use super::super::{CompileInput, unsupported};
 use crate::lower::error;
 
 /// Upstream `module_illegal_default_export`, which its walk of either script raises at an
@@ -38,7 +39,7 @@ pub(in crate::lower) fn default_exports(
                 _ => false,
             })
             .map(move |(index, statement)| {
-                let mut span = span_of(statement);
+                let mut span = node_span(statement);
                 // acorn-typescript reads a decorated class after `default` as an expression,
                 // whose statement takes the `;` that follows.
                 if let Statement::ExportDefaultDeclaration(export) = statement
@@ -123,7 +124,7 @@ pub(super) fn check_declaration<'t>(
     if plain {
         return Ok(());
     }
-    unsupported("this export from the instance script", span_of(statement))
+    unsupported("this export from the instance script", node_span(statement))
 }
 
 /// Pushes the names of `export { name as alias }`, which renders nothing in the component.
@@ -168,7 +169,7 @@ pub(super) fn check_reexports<'t>(
         let alias = specifier.exported.name().as_str();
         // Upstream raises `module_illegal_default_export`.
         if alias == "default" {
-            return unsupported("this export from the instance script", span_of(specifier));
+            return unsupported("this export from the instance script", node_span(specifier));
         }
         exports.push(Export {
             name: specifier.local.name().as_str(),

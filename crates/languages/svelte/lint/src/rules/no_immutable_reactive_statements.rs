@@ -9,10 +9,10 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode};
+use rsvelte_typescript_tree::node_span;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::shared::legacy_reactivity::{Legacy, Variable, bindings, expression_node, legacy};
-use super::shared::nodes::span;
 use super::shared::reactive_statements::{by_statement, reactive_statements};
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
@@ -42,7 +42,7 @@ impl SvelteRule for NoImmutableReactiveStatements {
         let nodes = resolution.semantic().nodes();
         let ranges: Vec<Span> = statements
             .iter()
-            .map(|&(statement, _)| span(statement))
+            .map(|&(statement, _)| node_span(statement))
             .collect();
         let references = by_statement(
             &ranges,
@@ -88,11 +88,11 @@ impl SvelteRule for NoImmutableReactiveStatements {
                     Expression::AssignmentExpression(assignment)
                         if assignment.operator == AssignmentOperator::Assign =>
                     {
-                        span(&assignment.right)
+                        node_span(&assignment.right)
                     }
-                    _ => span(body),
+                    _ => node_span(body),
                 },
-                _ => span(body),
+                _ => node_span(body),
             };
             reporter.report(Report::range(
                 "This statement is not reactive because all variables referenced in the \

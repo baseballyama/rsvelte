@@ -1,10 +1,11 @@
+use rsvelte_typescript_tree::document_span;
+
 use super::{
     BindingType, Codegen, CodegenIdentifier, DirectiveName, Exp, Expression, ExpressionIdentifier,
     Helper, Lit, NOT_CONSTANT, Node, Property, PropertyIdentifier, PropertyKind, R, Transform,
     TransformNodeIdentifier, Unsupported, camelize, collect_identifiers, is_keyboard_event,
     resolve_modifiers, to_handler_key,
 };
-use crate::compile::document_span;
 
 impl Transform<'_> {
     /// The directive transforms `buildProps` runs: the property, and the runtime directive.

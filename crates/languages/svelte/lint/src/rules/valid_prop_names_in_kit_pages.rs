@@ -5,9 +5,10 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::{Visit, walk};
 use rsvelte_lint_runner::rule::Reporter;
+use rsvelte_typescript_tree::node_span;
 
 use super::shared::kit_route::{RouteFile, route_file};
-use super::shared::nodes::{is_named, span};
+use super::shared::nodes::is_named;
 use crate::LintSettings;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -62,7 +63,7 @@ impl SvelteRule for ValidPropNames {
                 match &declarator.id {
                     BindingPattern::BindingIdentifier(name) => {
                         if !LEGACY_PAGE.contains(&name.name.as_str()) {
-                            reporter.range(MESSAGE, span(declarator));
+                            reporter.range(MESSAGE, node_span(declarator));
                         }
                     }
                     pattern => check_pattern(pattern, LEGACY_PAGE, reporter),
@@ -102,7 +103,7 @@ fn check_pattern(pattern: &BindingPattern<'_>, expected: &[&str], reporter: &mut
         if let PropertyKey::StaticIdentifier(key) = &property.key
             && !expected.contains(&key.name.as_str())
         {
-            reporter.range(MESSAGE, span(key.as_ref()));
+            reporter.range(MESSAGE, node_span(key.as_ref()));
         }
     }
 }

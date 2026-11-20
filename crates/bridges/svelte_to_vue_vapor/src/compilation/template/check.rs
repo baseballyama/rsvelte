@@ -9,11 +9,11 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::Component;
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, document_span};
 use rustc_hash::FxHashSet;
 
 use crate::compilation::script::runes;
-use crate::compilation::{R, span_of, unsupported};
+use crate::compilation::{R, unsupported};
 
 /// The parents a table part needs for the browser to parse it where it is written.
 fn table_parents(tag: &str) -> Option<&'static [&'static str]> {
@@ -224,14 +224,17 @@ impl<'a> Visit<'a> for Names<'_> {
         {
             self.result = Err(unsupported(
                 format_args!("the rune or store subscription `{}`", it.name),
-                span_of(it.span),
+                document_span(it.span),
             ));
         }
     }
 
     fn visit_this_expression(&mut self, it: &ThisExpression) {
         if self.result.is_ok() {
-            self.result = Err(unsupported("`this` in the template", span_of(it.span)));
+            self.result = Err(unsupported(
+                "`this` in the template",
+                document_span(it.span),
+            ));
         }
     }
 }

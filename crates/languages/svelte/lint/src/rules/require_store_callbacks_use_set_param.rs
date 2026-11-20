@@ -1,8 +1,8 @@
 use oxc_ast::ast::BindingPattern;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_typescript_tree::node_span;
 
-use super::shared::nodes::span;
 use super::shared::svelte_store::{Function, Scopes, rename, store_calls};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -52,13 +52,13 @@ impl SvelteRule for RequireStoreCallbacksUseSetParam {
             let name = parameter.map(|(_, name)| name);
             let mut report = Report::range(
                 "Store callbacks must use `set` param.",
-                span(&function.span),
+                node_span(&function.span),
             );
             if let Ok(symbol) = scopes.replaceable(file, function, name, "set") {
                 if let Some((at, name)) = parameter {
                     report = report.suggest(Suggestion {
                         message: format!("Rename parameter from {name} to `set`."),
-                        fix: rename(file, span(&at), symbol, "set"),
+                        fix: rename(file, node_span(&at), symbol, "set"),
                     });
                 } else if let Some(open) =
                     open_parenthesis_before(file.source(), parameters.span.start, function.body)

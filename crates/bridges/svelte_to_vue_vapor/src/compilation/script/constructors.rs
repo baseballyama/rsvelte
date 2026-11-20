@@ -8,10 +8,11 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::NodeId;
 use oxc_syntax::scope::ScopeFlags;
 use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_typescript_tree::document_span;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::Root;
-use crate::compilation::{R, span_of, unsupported};
+use crate::compilation::{R, unsupported};
 
 #[derive(Debug, Default)]
 pub(super) struct Plan {
@@ -83,7 +84,7 @@ impl Classes<'_> {
                         };
                         return Err(unsupported(
                             "a rune after a class field's first assignment",
-                            span_of(oxc_span::GetSpan::span(&s.expression)),
+                            document_span(oxc_span::GetSpan::span(&s.expression)),
                         ));
                     }
                     self.plan.assignments.insert(node);

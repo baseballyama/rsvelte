@@ -3,6 +3,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{TemplateNode, TokenType};
+use rsvelte_typescript_tree::node_span;
 
 use super::shared::nodes;
 use super::shared::runes::runes;
@@ -46,7 +47,7 @@ impl SvelteRule for NoAtConstTags {
                 .and_then(|declarator| declarator.init.as_ref())
                 && !is_derived_call(initializer)
             {
-                let init = nodes::span(initializer);
+                let init = node_span(initializer);
                 fix.push(Span::new(init.start_offset, init.start_offset), "$derived(");
                 fix.push(Span::new(init.end_offset, init.end_offset), ")");
             }

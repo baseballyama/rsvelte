@@ -8,9 +8,10 @@ use oxc_ast::ast::{
     Statement,
 };
 use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::FxHashMap;
 
-use super::{Diagnostic, span_of};
+use super::Diagnostic;
 
 /// A `$state`, `$state.raw`, `$derived` or `$derived.by` field.
 #[derive(Clone)]
@@ -98,7 +99,7 @@ pub(super) fn class_fields(
                     continue;
                 };
                 if analysis.members.contains_key(name.as_ref()) {
-                    return duplicate_class_field(&name, span_of(&**p));
+                    return duplicate_class_field(&name, node_span(&**p));
                 }
                 let member = if p.value.is_some() {
                     Member::AssignedProp
@@ -119,7 +120,7 @@ pub(super) fn class_fields(
                 } else {
                     name.into_owned()
                 };
-                analysis.method(name, m.kind, span_of(&**m))?;
+                analysis.method(name, m.kind, node_span(&**m))?;
             }
             _ => {}
         }
@@ -181,7 +182,7 @@ impl Analysis<'_> {
         let Some((rune @ ("$state" | "$state.raw" | "$derived" | "$derived.by"), _)) = rune else {
             return Ok(());
         };
-        let span = super::Span::new(at.start, at.end);
+        let span = document_span(at);
         if self.fields.by_name.contains_key(name.as_ref()) {
             return crate::lower::invalid(
                 "state_field_duplicate",

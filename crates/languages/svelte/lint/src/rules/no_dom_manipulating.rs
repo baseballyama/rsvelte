@@ -5,11 +5,11 @@ use oxc_span::GetSpan;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, TemplateNode};
 use rsvelte_typescript_semantic::static_value::StaticValues;
+use rsvelte_typescript_tree::node_span;
 use rustc_hash::FxHashSet;
 
 use super::shared::element_kind::is_markup_element;
 use super::shared::legacy_reactivity::{Variable, expression_node, legacy, property_name};
-use super::shared::nodes::span;
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -125,7 +125,7 @@ impl SvelteRule for NoDomManipulating {
                     "Don't manipulate the DOM directly. The Svelte runtime can get confused \
                          if there is a difference between the actual DOM and the DOM expected by \
                          the Svelte runtime.",
-                    span(&member_kind),
+                    node_span(&member_kind),
                 ));
             }
         }

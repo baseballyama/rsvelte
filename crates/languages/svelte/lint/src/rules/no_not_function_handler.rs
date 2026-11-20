@@ -1,11 +1,10 @@
 use oxc_ast::ast::Expression;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Part, TemplateNode};
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, node_span};
 
 use super::shared::constant_string::root;
 use super::shared::markup::{is_attribute, parts};
-use super::shared::nodes;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -63,7 +62,7 @@ fn verify(file: &File<'_>, expression: ExpressionIdentifier, reporter: &mut Repo
     };
     reporter.report(Report::range(
         format!("Unexpected {phrase} in event handler."),
-        nodes::span(expression),
+        node_span(expression),
     ));
 }
 
