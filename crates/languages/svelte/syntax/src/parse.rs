@@ -240,9 +240,9 @@ fn acorn_position(mut e: Diagnostic) -> Diagnostic {
 
 /// Upstream's error `code`; an error of this parser's own, `parse_error`, has no docs page.
 #[cold]
-fn svelte_error(code: &'static str, message: impl std::fmt::Display, span: Span) -> Diagnostic {
+fn svelte_error(code: &'static str, message: impl AsRef<str>, span: Span) -> Diagnostic {
     if code == "parse_error" {
-        Diagnostic::error(code, message.to_string(), span)
+        Diagnostic::error(code, message.as_ref().to_owned(), span)
     } else {
         crate::svelte_diagnostics::error(code, message, span)
     }
@@ -407,7 +407,7 @@ impl<'a> Parser<'a, '_> {
         code: &'static str,
         message: impl std::fmt::Display,
     ) -> ParseResult<T> {
-        Err(svelte_error(code, message, span))
+        Err(svelte_error(code, message.to_string(), span))
     }
 
     /// Upstream's `expected_token`, which its `eat(token, true)` raises.

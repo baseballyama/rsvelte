@@ -175,11 +175,8 @@ impl Unsupported {
     /// when the task itself refuses.
     #[must_use]
     pub fn diagnostic(&self, code: &'static str, refuser: Option<&str>) -> Diagnostic {
-        let what = self.what;
-        let message = refuser.map_or_else(
-            || format!("not supported yet: {what}"),
-            |refuser| format!("not supported by {refuser} yet: {what}"),
-        );
+        let (by, refuser) = refuser.map_or(("", ""), |refuser| (" by ", refuser));
+        let message = ["not supported", by, refuser, " yet: ", self.what].concat();
         Diagnostic::error(code, message, self.span())
     }
 }

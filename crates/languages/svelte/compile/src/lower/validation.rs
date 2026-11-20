@@ -422,7 +422,7 @@ fn typescript_invalid_feature(feature: Feature, span: Span) -> Diagnostic {
     };
     crate::lower::error(
         "typescript_invalid_feature",
-        format_args!(
+        format!(
             "TypeScript language features like {feature} are not natively supported, and their \
              use is generally discouraged. Outside of `<script>` tags, these features are not \
              supported. For use within `<script>` tags, you will need to use a preprocessor to \

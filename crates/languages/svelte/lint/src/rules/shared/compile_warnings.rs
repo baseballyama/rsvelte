@@ -217,7 +217,7 @@ pub(crate) fn compile<'a>(
 fn invalid_option(name: &str) -> Diagnostic {
     rsvelte_svelte_syntax::svelte_diagnostics::error(
         "options_invalid_value",
-        format_args!("Invalid compiler option: {name} should be true or false, if specified"),
+        format!("Invalid compiler option: {name} should be true or false, if specified"),
         Span::new(0, 0),
     )
 }
