@@ -207,7 +207,7 @@ pub fn clean_nodes(
                     });
                 let raw = if *spelled {
                     let decoded = data.get(source_text, compiler_syntax_tree);
-                    match crate::markup::escape_markup(decoded, false) {
+                    match rsvelte_markup_syntax::escape_markup(decoded, false) {
                         Cow::Borrowed(_) => data.clone(),
                         Cow::Owned(escaped) => Text::changed(decoded, escaped),
                     }

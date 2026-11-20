@@ -39,6 +39,7 @@ use oxc_ast_visit::VisitMut;
 use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
+pub(crate) use rsvelte_markup_syntax::escape_markup;
 use rsvelte_svelte_semantic::analyze::Analysis;
 pub(crate) use rsvelte_svelte_semantic::analyze::cannot_be_set_statically;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
@@ -61,7 +62,6 @@ pub(crate) use validation::{
 use validation::{check_runes, uses_slots};
 
 use crate::input::{CompileInput, Target};
-pub(crate) use crate::markup::escape_markup;
 use crate::render_plan::{Item, RenderPlan};
 
 /// # Errors
