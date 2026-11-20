@@ -214,7 +214,3 @@ codegen-units = 1
 inherits = "release"
 debug = false
 strip = true
-
-# The profile benchmarks and performance gates measure: release plus symbols for profilers.
-[profile.benchmark]
-inherits = "release"
