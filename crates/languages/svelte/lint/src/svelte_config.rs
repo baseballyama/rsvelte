@@ -5,8 +5,9 @@
 //! property of it is static.
 //!
 //! `parseConfig` drops `compilerOptions.experimental.async`; a project passes it to `ESLint` by
-//! importing the file into `parserOptions.svelteConfig`. rsvelte cannot run the import, so it reads
-//! that option from the file the same static way.
+//! importing the file into `parserOptions.svelteConfig`, which hands it to Svelte's `compile`
+//! unchanged. rsvelte cannot run the import, so it reads that option from the file the same static
+//! way, and a static value that is not a boolean is the invalid option `compile` rejects.
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
@@ -104,12 +105,21 @@ impl<'a> Evaluator<'a> {
             _ => None,
         };
         let runes = options.and_then(|options| self.flag(options, "runes"));
-        let experimental_async = options
-            .and_then(|options| match self.property(options, "experimental", 0) {
-                Some(Evaluated::Object(experimental)) => self.flag(experimental, "async"),
-                _ => None,
-            })
-            .unwrap_or(false);
+        // Svelte's option validation takes only a boolean; anything else fails every compile.
+        let (experimental_async, invalid_option) =
+            match options.map(|options| self.property(options, "experimental", 0)) {
+                Some(Some(Evaluated::Object(experimental))) => {
+                    match self
+                        .property(experimental, "async", 0)
+                        .and_then(|value| self.to_static(&value, 0))
+                    {
+                        None | Some(Static::Undefined) => (false, None),
+                        Some(Static::Boolean(value)) => (value, None),
+                        Some(_) => (false, Some("experimental.async")),
+                    }
+                }
+                _ => (false, None),
+            };
         let kit = match self.property(config, "kit", 0) {
             Some(Evaluated::Object(kit)) => Some(Kit {
                 files: KitFiles {
@@ -122,6 +132,7 @@ impl<'a> Evaluator<'a> {
             runes,
             kit,
             experimental_async,
+            invalid_option,
             ..SvelteConfig::default()
         }
     }

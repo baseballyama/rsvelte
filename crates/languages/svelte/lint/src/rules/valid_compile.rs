@@ -1,4 +1,5 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use serde::Deserialize;
 
@@ -48,6 +49,15 @@ impl SvelteRule for ValidCompile {
             Some(Ok(config)) => Some(config),
             None => None,
         };
+        if let Some(option) = config.and_then(|c| c.invalid_option) {
+            let code = "options_invalid_value";
+            let message = format!(
+                "Invalid compiler option: {option} should be true or false, if \
+                 specified\nhttps://svelte.dev/e/{code}"
+            );
+            reporter.report(Report::range(format!("{message}({code})"), Span::new(0, 0)));
+            return;
+        }
         let compile = match compile {
             Ok(compile) => compile,
             Err(error) => return report(reporter, error, &error.message, &error.code),

@@ -84,30 +84,42 @@ fn compiler_options_runes_is_read_when_static() {
     assert_eq!(runes("export default {};"), None);
 }
 
-fn experimental_async(source: &str) -> bool {
-    parse(source)
-        .expect("the configuration parses")
-        .experimental_async
+/// `(experimental_async, invalid_option)` of `compilerOptions.experimental.async: <value>`.
+fn experimental_async(value: &str) -> (bool, Option<&'static str>) {
+    let config = parse(&format!(
+        "const config = {{ compilerOptions: {{ experimental: {{ async: {value} }} }} }}; \
+         export default config;"
+    ))
+    .expect("the configuration parses");
+    (config.experimental_async, config.invalid_option)
 }
 
+/// `ESLint` 10.14.0 + eslint-plugin-svelte 3.23.1 with `svelteConfig` set to each value: `true`
+/// compiles with async, `false` and `undefined` without, and any other value fails at 1:1 with
+/// `options_invalid_value`.
 #[test]
-fn compiler_options_experimental_async_is_read_when_static() {
-    assert!(experimental_async(
-        "export default { compilerOptions: { experimental: { async: true } } };"
-    ));
-    assert!(experimental_async(
-        "const config = { compilerOptions: { experimental: { async: 1 } } }; export default config;"
-    ));
-    assert!(!experimental_async(
-        "export default { compilerOptions: { experimental: { async: false } } };"
-    ));
-    assert!(!experimental_async(
-        "export default { compilerOptions: { experimental: { async: process.env.ASYNC } } };"
-    ));
-    assert!(!experimental_async(
-        "export default { compilerOptions: { experimental: makeExperimental() } };"
-    ));
-    assert!(!experimental_async(
-        "export default { compilerOptions: { runes: true } };"
-    ));
+fn compiler_options_experimental_async_must_be_a_boolean() {
+    assert_eq!(experimental_async("true"), (true, None));
+    assert_eq!(experimental_async("false"), (false, None));
+    assert_eq!(experimental_async("undefined"), (false, None));
+    for invalid in ["1", "0", "'yes'", "null", "{}"] {
+        assert_eq!(
+            experimental_async(invalid),
+            (false, Some("experimental.async")),
+            "{invalid}"
+        );
+    }
+    assert_eq!(experimental_async("process.env.ASYNC"), (false, None));
+    let unset = |source: &str| {
+        let config = parse(source).expect("the configuration parses");
+        (config.experimental_async, config.invalid_option)
+    };
+    assert_eq!(
+        unset("export default { compilerOptions: { experimental: makeExperimental() } };"),
+        (false, None)
+    );
+    assert_eq!(
+        unset("export default { compilerOptions: { runes: true } };"),
+        (false, None)
+    );
 }

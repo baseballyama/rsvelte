@@ -160,6 +160,18 @@ fn svelte_config_experimental_async_lets_lint_analyze_top_level_await() {
         !with.contains("experimental_async") && with.contains("a11y_missing_attribute"),
         "{with}"
     );
+    project.write(
+        "svelte.config.js",
+        "export default { compilerOptions: { experimental: { async: 1 } } };",
+    );
+    let invalid = lint();
+    assert!(
+        invalid.contains("options_invalid_value")
+            && invalid.contains("\"line\": 1")
+            && !invalid.contains("experimental_async(")
+            && !invalid.contains("a11y_missing_attribute"),
+        "{invalid}"
+    );
 }
 
 #[test]

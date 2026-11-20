@@ -63,8 +63,11 @@ pub struct SvelteConfig {
     /// `compilerOptions.runes` when it is static; `<svelte:options runes>` wins over it.
     pub runes: Option<bool>,
     pub kit: Option<Kit>,
-    /// `compilerOptions.experimental.async`.
+    /// `compilerOptions.experimental.async` when it is the static `true`.
     pub experimental_async: bool,
+    /// A compiler option whose static value Svelte's option validation rejects, which fails every
+    /// compile: `experimental.async` when it is not a boolean.
+    pub invalid_option: Option<&'static str>,
     /// `warningFilter`, or else `onwarn`, as one function: the warning to report, or `None`.
     pub on_warning: Option<WarningHandler>,
 }
