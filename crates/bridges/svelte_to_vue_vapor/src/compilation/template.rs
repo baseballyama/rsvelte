@@ -1,9 +1,9 @@
 //! The template: the Svelte HIR, read with Svelte's meaning, as a Vue template HIR built through
 //! [`rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTreeBuilder`].
 //!
-//! Text is what Svelte's [`clean_nodes`] leaves; the Vue HIR is post-condense, so the Vue compiler
-//! keeps it as is. Expressions are copied into the component's tree; a reference to a prop becomes
-//! `$$props.<key>` and everything else is left to the Vue compiler, which unwraps setup refs.
+//! Text is what Svelte's [`clean_nodes`] leaves. Expressions are copied into the component's tree;
+//! a reference to a prop becomes `$$props.<key>` and everything else is left to the Vapor emitter,
+//! which unwraps setup refs.
 //!
 //! The client and the server output differ where Svelte's client and server runtimes do: the
 //! client mirrors what Svelte's DOM updates do (`set_text`, `set_attribute`, `set_value`, the
@@ -363,7 +363,7 @@ impl<'i, 't> Template<'i, '_, 't> {
 }
 
 /// Template references to props read `$$props.<key>`, snippets their declaration's name, and
-/// runes Vue's reactivity; the Vue compiler handles the rest.
+/// runes Vue's reactivity; the Vapor emitter handles the rest.
 struct TemplateRewrite<'r, 't> {
     b: &'r Builder<'t>,
     res: &'r Resolution,
