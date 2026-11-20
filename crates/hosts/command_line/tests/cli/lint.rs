@@ -136,7 +136,10 @@ fn lint_prints_a_parse_error_as_eslint_does() {
         (
             "Block.svelte",
             "<script>\n  let unused = 1;\n</script>\n\n<div>\n  {#if x}\n</div>\n",
-            "  7:0  error  Parsing error: `</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag\n",
+            concat!(
+                "  7:0  error  Parsing error: `</div>` attempted to close an element that was not ",
+                "open\nhttps://svelte.dev/e/element_invalid_closing_tag\n",
+            ),
         ),
         (
             "Bom.svelte",
