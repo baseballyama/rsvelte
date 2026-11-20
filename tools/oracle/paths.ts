@@ -4,7 +4,7 @@ export const ROOT = path.resolve(import.meta.dirname, '../..');
 export const CORPUS = path.join(ROOT, 'corpus');
 /** Where cargo writes the builds the tools run, so a build under `CARGO_TARGET_DIR` is the one they spawn. */
 export const CARGO_TARGET = path.resolve(ROOT, process.env.CARGO_TARGET_DIR || 'target');
-// Sources live under corpus/<family>/ (svelte, vue, html, …); everything shared lives in _registry/.
+// Sources live under corpus/<family>/ (a family of languages.ts); everything shared lives in _registry/.
 const REGISTRY = path.join(CORPUS, '_registry');
 export const SOURCES_FILE = path.join(REGISTRY, 'sources.json');
 export const ORACLES_FILE = path.join(REGISTRY, 'oracles.json');

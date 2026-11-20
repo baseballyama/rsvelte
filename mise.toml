@@ -18,7 +18,7 @@ description = "Fail when the Rust workspace is not formatted"
 run = "cargo +{{vars.rustfmt}} fmt --all --check"
 
 [tasks.structure]
-description = "Check source file lengths, the crate graph, the kernel layers, and the checker controls"
+description = "Check source file lengths, the crate graph, the kernel layers, module files and the tools' layout"
 dir = "{{config_root}}/tools/structure"
 run = ["node --run test", "node --run structure"]
 
