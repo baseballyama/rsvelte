@@ -91,6 +91,11 @@ pub fn compile(source: &str, options: &CompileOptions) -> Result<CompileResult, 
     let document = document(&options.filename, source)?;
     let context = DocumentContext::new(&document, registry.artifacts());
     let compiled = crate::task::compiled(&context, options.generate, true)?;
+    let warnings = context
+        .get::<crate::warnings::Warned>()
+        .as_ref()
+        .map_err(Clone::clone)?
+        .clone();
     let map = compiled.javascript.source_map(
         context.source_text(),
         context.lines(LineBreaks::Newline),
@@ -102,7 +107,7 @@ pub fn compile(source: &str, options: &CompileOptions) -> Result<CompileResult, 
             map,
         },
         css: compiled.stylesheet.map(str::to_owned),
-        warnings: Vec::new(),
+        warnings,
     })
 }
 
