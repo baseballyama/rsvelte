@@ -26,7 +26,9 @@ impl Template<'_> {
         };
         let mut only_warn = false;
         let mut past_parent = false;
-        let mut ancestors = vec![parent];
+        let mut ancestors = std::mem::take(&mut self.placement_path);
+        ancestors.clear();
+        ancestors.push(parent);
         let mut found = Vec::new();
         for ancestor in self.ancestry.iter().rev() {
             match *ancestor {
@@ -45,6 +47,7 @@ impl Template<'_> {
                 Ancestor::Boundary => {}
             }
         }
+        self.placement_path = ancestors;
         for (message, only_warn) in found {
             if only_warn {
                 let message = format!(

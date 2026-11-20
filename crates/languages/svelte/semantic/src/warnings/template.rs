@@ -59,6 +59,8 @@ pub(super) struct Template<'a> {
     parent_element: Option<&'a str>,
     /// The elements, blocks and boundaries around the walk, outermost first.
     ancestry: Vec<placement::Ancestor<'a>>,
+    /// Scratch space for the element path each placement check builds, reused across elements.
+    placement_path: Vec<&'a str>,
 }
 
 /// The node a fragment belongs to, as far as `{@const}` and `<title>` care.
@@ -94,6 +96,7 @@ impl<'a> Template<'a> {
             each_rest: FxHashSet::default(),
             parent_element: None,
             ancestry: Vec::new(),
+            placement_path: Vec::new(),
         }
     }
 
