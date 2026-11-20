@@ -17,15 +17,25 @@ runs:
       with:
         path: ~/.rustup/toolchains/${{ steps.channel.outputs.channel }}-*
         key: rustup-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml') }}-${{ inputs.targets }}
+    # rust-cache hashes the version of every installed toolchain into its key, and runner image
+    # versions roll out with different preinstalled toolchains, so only the pinned one may stay.
     - shell: bash
       working-directory: ${{ github.workspace }}
       env:
+        CHANNEL: ${{ steps.channel.outputs.channel }}
         TARGETS: ${{ inputs.targets }}
       run: |
         rustup toolchain install
         for target in $TARGETS; do rustup target add "$target"; done
+        rustup default "$CHANNEL"
+        for toolchain in $(rustup toolchain list --quiet | tr -d '\r'); do
+          case "$toolchain" in
+            "$CHANNEL"-*) ;;
+            *) rustup toolchain uninstall "$toolchain" ;;
+          esac
+        done
     # rust-cache saves only under a new key, so a change to which target directories a job
     # builds needs a new prefix to be cached.
     - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       with:
-        prefix-key: v1-rust
+        prefix-key: v2-rust
