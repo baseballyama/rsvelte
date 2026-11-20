@@ -5,6 +5,10 @@
 //! `plugins`, `filepath`, `cursorOffset`), the other languages' options (`vueIndentScriptAndStyle`,
 //! the Pug plugin's `pugTabWidth`) and `svelte5CompilerPath` are not options here.
 
+pub use rsvelte_typescript_format::options::{
+    ArrowParens, EmbeddedLanguageFormatting, EndOfLine, ObjectWrap, OperatorPosition, QuoteProps,
+    TrailingComma,
+};
 use serde::{Deserialize, Deserializer};
 
 /// The names [`Options`] takes, so that a host can tell an option the formatter prints from one it
@@ -140,36 +144,6 @@ fn whole_or_null<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<us
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum QuoteProps {
-    AsNeeded,
-    Consistent,
-    Preserve,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum TrailingComma {
-    All,
-    Es5,
-    None,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ObjectWrap {
-    Preserve,
-    Collapse,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ArrowParens {
-    Always,
-    Avoid,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum WhitespaceSensitivity {
     /// Prettier's `css`: as each element's CSS `display` makes its whitespace significant.
@@ -181,33 +155,10 @@ pub enum WhitespaceSensitivity {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum EndOfLine {
-    Lf,
-    Crlf,
-    Cr,
-    Auto,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum EmbeddedLanguageFormatting {
-    Auto,
-    Off,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
 pub enum ProseWrap {
     Always,
     Never,
     Preserve,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum OperatorPosition {
-    Start,
-    End,
 }
 
 /// The top-level parts of a component.

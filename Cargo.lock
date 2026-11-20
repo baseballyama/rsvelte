@@ -1497,6 +1497,7 @@ dependencies = [
  "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
+ "rsvelte_typescript_format",
  "rsvelte_typescript_tree",
  "serde",
  "serde_json",
