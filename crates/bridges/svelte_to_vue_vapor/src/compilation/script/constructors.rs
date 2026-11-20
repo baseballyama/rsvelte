@@ -8,7 +8,7 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::NodeId;
 use oxc_syntax::scope::ScopeFlags;
 use rsvelte_svelte_semantic::resolve::Resolution;
-use rsvelte_typescript_tree::document_span;
+use rsvelte_typescript_tree::node_span;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::Root;
@@ -84,7 +84,7 @@ impl Classes<'_> {
                         };
                         return Err(unsupported(
                             "a rune after a class field's first assignment",
-                            document_span(oxc_span::GetSpan::span(&s.expression)),
+                            node_span(&s.expression),
                         ));
                     }
                     self.plan.assignments.insert(node);

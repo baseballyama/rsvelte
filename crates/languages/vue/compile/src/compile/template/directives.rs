@@ -1,4 +1,4 @@
-use rsvelte_typescript_tree::document_span;
+use rsvelte_typescript_tree::node_span;
 
 use super::{
     BindingType, Codegen, CodegenIdentifier, DirectiveName, Exp, Expression, ExpressionIdentifier,
@@ -135,7 +135,7 @@ impl Transform<'_> {
         runtime: Helper,
     ) -> R<(CodegenIdentifier, CodegenIdentifier)> {
         let expression = self.javascript.get_expression(raw);
-        let source_location = document_span(oxc_span::GetSpan::span(expression));
+        let source_location = node_span(expression);
         let is_ref = match expression {
             Expression::Identifier(identifier) => {
                 let name = identifier.name.as_str();

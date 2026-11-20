@@ -1,9 +1,8 @@
-use oxc_span::GetSpan;
 use rsvelte_svelte_compile::render_plan::Parent;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, EachKey, NodeKind,
 };
-use rsvelte_typescript_tree::document_span;
+use rsvelte_typescript_tree::node_span;
 use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
@@ -70,7 +69,7 @@ impl Template<'_, '_, '_> {
         }
         lead.push(self.loop_directive(parameters, source, node.span));
         if let Ok(EachKey::Keyed { key, .. }) | Err(key) = each.key(javascript) {
-            let span = document_span(self.source(key).span());
+            let span = node_span(self.source(key));
             let value = self.template_expression(key);
             lead.push(self.bound(markers::KEY_KEY, span, value, span));
         }

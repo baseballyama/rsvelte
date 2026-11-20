@@ -13,7 +13,7 @@ use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_semantic::resolve::{RUNE_ROOTS, Resolution};
 use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
-use rsvelte_typescript_tree::node_span;
+use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::shared::legacy_reactivity::{
@@ -219,7 +219,7 @@ fn report(
         return;
     };
     let store = object.name.as_str();
-    let at = node_span(&member.span());
+    let at = document_span(member.span());
     let mut suggestions = Vec::new();
     if let Member::Static(static_member) = member {
         let name = static_member.property.name.as_str();
