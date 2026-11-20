@@ -9,6 +9,7 @@ pub use rsvelte_typescript_format::options::{
     ArrowParens, EmbeddedLanguageFormatting, EndOfLine, ObjectWrap, OperatorPosition, QuoteProps,
     TrailingComma,
 };
+use rsvelte_typescript_format::options::{indent_width, line_width};
 use serde::{Deserialize, Deserializer};
 
 /// The names [`Options`] takes, so that a host can tell an option the formatter prints from one it
@@ -224,8 +225,8 @@ impl TryFrom<String> for SortOrder {
 )]
 pub fn unported(o: &Options) -> Option<&'static str> {
     let Options {
-        print_width: _,
-        tab_width: _,
+        print_width,
+        tab_width,
         use_tabs: _,
         semi,
         single_quote,
@@ -254,6 +255,8 @@ pub fn unported(o: &Options) -> Option<&'static str> {
     } = o;
     let d = Options::default();
     [
+        ("printWidth", line_width(*print_width).is_none()),
+        ("tabWidth", indent_width(*tab_width).is_none()),
         ("semi", *semi != d.semi),
         ("singleQuote", *single_quote != d.single_quote),
         ("quoteProps", *quote_props != d.quote_props),

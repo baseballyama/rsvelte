@@ -25,7 +25,14 @@ struct Section {
 }
 
 /// A property's value, and the `.editorconfig` that set it.
-type Property = (Value, Arc<Path>);
+type Property = (Value, Written);
+
+/// Where a property was written: its `.editorconfig` and its key there.
+#[derive(Clone, Debug)]
+pub(crate) struct Written {
+    pub(crate) file: Arc<Path>,
+    pub(crate) key: &'static str,
+}
 
 /// What `.editorconfig` gives an option of Prettier's.
 #[derive(Debug, PartialEq, Eq)]
@@ -35,8 +42,31 @@ pub(crate) enum Given {
     Unlimited,
 }
 
+/// How a formatter maps `.editorconfig` properties to its options.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Reading {
+    /// Whether `indent_size = tab` alone means tabs, as `editorconfig-to-prettier` reads it.
+    tab_size_is_tabs: bool,
+    /// The least width it takes from a property: Prettier skips 0, oxfmt loads it.
+    least_width: u64,
+    /// Whether `max_line_length = off` means no line limit, as Prettier reads it; oxfmt drops it.
+    off_is_unlimited: bool,
+}
+
+pub(crate) const PRETTIER: Reading = Reading {
+    tab_size_is_tabs: true,
+    least_width: 1,
+    off_is_unlimited: true,
+};
+
+pub(crate) const OXFMT: Reading = Reading {
+    tab_size_is_tabs: false,
+    least_width: 0,
+    off_is_unlimited: false,
+};
+
 /// An option under Prettier's name, what it is given, and the `.editorconfig` that gave it.
-pub(crate) type Setting = (&'static str, Given, Arc<Path>);
+pub(crate) type Setting = (&'static str, Given, Written);
 
 impl EditorConfig {
     /// A file that cannot be read is no `.editorconfig`, as the package reads it.
@@ -166,10 +196,11 @@ fn matcher(name: &str) -> Option<GlobMatcher> {
 
 /// The options that `files`, outermost first, give `file`, each with the file that set it.
 pub(crate) fn options<'a>(
+    reading: Reading,
     files: impl IntoIterator<Item = &'a EditorConfig>,
     file: &Path,
 ) -> Vec<Setting> {
-    let mut properties: Vec<(String, Property)> = Vec::new();
+    let mut properties: Vec<(String, (Value, Arc<Path>))> = Vec::new();
     for config in files {
         let directory = config.source.parent().unwrap_or_else(|| Path::new(""));
         let Ok(relative) = file.strip_prefix(directory) else {
@@ -191,13 +222,13 @@ pub(crate) fn options<'a>(
             }
         }
     }
-    let get = |key: &str| {
-        properties
-            .iter()
-            .find(|(k, _)| k == key)
-            .map(|(_, property)| property.clone())
+    let get = |key: &'static str| {
+        let (_, (value, file)) = properties.iter().find(|(k, _)| k == key)?;
+        let file = Arc::clone(file);
+        Some((value.clone(), Written { file, key }))
     };
     prettier(
+        reading,
         processed(get("indent_style"), get("indent_size"), get("tab_width")),
         get,
     )
@@ -213,7 +244,7 @@ fn processed(
     if indent_style.as_ref().is_some_and(|(v, _)| *v == tab) && indent_size.is_none() {
         indent_size = indent_style
             .as_ref()
-            .map(|(_, at)| (tab.clone(), Arc::clone(at)));
+            .map(|(_, written)| (tab.clone(), written.clone()));
     }
     if let Some(size) = indent_size.as_ref().filter(|(v, _)| *v != tab)
         && tab_width.is_none()
@@ -228,47 +259,47 @@ fn processed(
     [indent_style, indent_size, tab_width]
 }
 
-/// `editorconfig-to-prettier`.
+/// `editorconfig-to-prettier`, as `reading` differs from it.
 fn prettier(
+    reading: Reading,
     [indent_style, indent_size, tab_width]: [Option<Property>; 3],
-    get: impl Fn(&str) -> Option<Property>,
+    get: impl Fn(&'static str) -> Option<Property>,
 ) -> Vec<Setting> {
     let is = |property: &Option<Property>, value: &str| {
         property.as_ref().is_some_and(|(v, _)| v == value)
     };
-    let positive = |property: &Option<Property>| {
-        property
-            .as_ref()
-            .and_then(|(v, at)| Some((v.as_u64().filter(|&n| n > 0)?, Arc::clone(at))))
+    let width = |property: &Option<Property>| {
+        property.as_ref().and_then(|(v, at)| {
+            let width = v.as_u64().filter(|&n| n >= reading.least_width)?;
+            Some((width, at.clone()))
+        })
     };
     let mut options = Vec::new();
     let use_tabs = if is(&indent_style, "space") {
         indent_style.as_ref().map(|(_, at)| (false, at))
     } else if is(&indent_style, "tab") {
         indent_style.as_ref().map(|(_, at)| (true, at))
-    } else if is(&indent_size, "tab") {
+    } else if reading.tab_size_is_tabs && is(&indent_size, "tab") {
         indent_size.as_ref().map(|(_, at)| (true, at))
     } else {
         None
     };
     if let Some((use_tabs, at)) = use_tabs {
-        options.push((
-            "useTabs",
-            Given::Value(Value::from(use_tabs)),
-            Arc::clone(at),
-        ));
+        options.push(("useTabs", Given::Value(Value::from(use_tabs)), at.clone()));
     }
-    let tab_width = match (use_tabs, positive(&indent_size)) {
+    let tab_width = match (use_tabs, width(&indent_size)) {
         (Some((false, _)), Some(size)) => Some(size),
-        _ => positive(&tab_width),
+        _ => width(&tab_width),
     };
     if let Some((width, at)) = tab_width {
         options.push(("tabWidth", Given::Value(Value::from(width)), at));
     }
     let max_line_length = get("max_line_length");
     if let Some((_, at)) = max_line_length.as_ref().filter(|(v, _)| v == "off") {
-        options.push(("printWidth", Given::Unlimited, Arc::clone(at)));
-    } else if let Some((width, at)) = positive(&max_line_length) {
+        if reading.off_is_unlimited {
+            options.push(("printWidth", Given::Unlimited, at.clone()));
+        }
+    } else if let Some((width, at)) = width(&max_line_length) {
         options.push(("printWidth", Given::Value(Value::from(width)), at));
     }
     if let Some((quote, at)) = get("quote_type") {

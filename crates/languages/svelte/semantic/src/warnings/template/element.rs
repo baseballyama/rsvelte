@@ -44,8 +44,8 @@ impl<'a> Template<'a> {
         }
     }
 
-    /// The element `node`, followed in its fragment by `next`.
-    pub(super) fn element(&mut self, node: u32, next: Option<u32>, parent: a11y::Parent<'a>) {
+    /// The element `node`.
+    pub(super) fn element(&mut self, node: u32, parent: a11y::Parent<'a>) {
         let component = self.context.component;
         let source = self.context.source;
         let TemplateNode::Element {
@@ -53,7 +53,6 @@ impl<'a> Template<'a> {
             attributes,
             children,
             self_closing,
-            end_tag,
             span,
             ..
         } = *component.node(node)
@@ -117,10 +116,6 @@ impl<'a> Template<'a> {
         } else {
             Owner::Other
         };
-        let closer = self.closer;
-        if end_tag {
-            self.closer = Some(name);
-        }
         // What the elements inside see as their ancestry and `parent_element`.
         let (ancestor, parent_element) = match tag {
             Tag::Regular => (Some(Ancestor::Element(name)), Some(name)),
@@ -137,12 +132,7 @@ impl<'a> Template<'a> {
             self.fragment_of(owner, children, inner);
             self.parent_element = outer;
         }
-        self.closer = closer;
         self.shadow_root = shadow_root;
-        // After the children, so that of the elements one end tag closes, the inner comes first.
-        if tag == Tag::Regular && !end_tag && !self_closing && !is_void(name) {
-            self.implicitly_closed(name, span, children, next);
-        }
     }
 
     /// The checks of one kind of element, before its directives and children.
@@ -228,41 +218,6 @@ impl<'a> Template<'a> {
             );
             self.error(span, found);
         }
-    }
-
-    /// `element_implicitly_closed`, which the parser emits where it closes the element: at the
-    /// next sibling's start tag, or else at the enclosing element's end tag.
-    fn implicitly_closed(&mut self, name: &str, span: Span, children: Range, next: Option<u32>) {
-        let component = self.context.component;
-        let source = self.context.source;
-        let (tag, closed_at) = match next.map(|n| component.node(n)) {
-            Some(&TemplateNode::Element {
-                name: next,
-                span: next_span,
-                ..
-            }) => (format!("<{}>", next.text(source)), next_span.start_offset),
-            _ => match self.closer {
-                Some(closer) => (format!("</{closer}>"), span.end_offset),
-                None => return,
-            },
-        };
-        let end = component
-            .children(children)
-            .first()
-            .map_or(closed_at, |&c| component.node(c).span().start_offset);
-        let message = format!(
-            "This element is implicitly closed by the following `{tag}`, which can cause an \
-                unexpected DOM structure. Add an explicit `</{name}>` to avoid surprises."
-        );
-        self.found.push(
-            Stage::Parse,
-            closed_at,
-            warning(
-                "element_implicitly_closed",
-                &message,
-                Span::new(span.start_offset, end),
-            ),
-        );
     }
 
     /// `component_name_lowercase`: an element named like an import nothing references.

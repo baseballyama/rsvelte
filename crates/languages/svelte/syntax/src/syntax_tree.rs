@@ -16,6 +16,44 @@ use rsvelte_typescript_tree::{
 
 pub type TemplateNodeIdentifier = u32;
 
+/// What ended an element, as the parser read it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ElementEnd {
+    /// Its start tag: written `<name … />`, or a void element.
+    StartTag,
+    /// Its own `</name>`, the last tokens of the element.
+    EndTag,
+    /// The start tag of the next sibling, an element it cannot hold.
+    NextStartTag,
+    /// The end tag of an ancestor.
+    AncestorEndTag,
+}
+
+/// An element closed by another element's tag, which upstream's parser warns about as
+/// `element_implicitly_closed` when it closes it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ImplicitlyClosed {
+    pub element: TemplateNodeIdentifier,
+    pub by: ClosingTag,
+}
+
+/// The tag that closed an element implicitly, by its name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ClosingTag {
+    /// `<name`, of the next sibling.
+    Start(Span),
+    /// `</name`, of an ancestor.
+    End(Span),
+}
+
+impl ElementEnd {
+    /// Whether the element's own `</name>` ends it.
+    #[must_use]
+    pub const fn has_end_tag(self) -> bool {
+        matches!(self, Self::EndTag)
+    }
+}
+
 /// A slice of one of the side vectors (`children`, `attributes`, `parts`, `modifiers`,
 /// `debug_identifiers`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -77,9 +115,7 @@ pub enum TemplateNode {
         start_tag: Span,
         /// Written `<name … />`.
         self_closing: bool,
-        /// Closed by its own `</name>`, the last tokens of `span`; not when self-closing, void or
-        /// closed by a following tag or its parent's end tag.
-        end_tag: bool,
+        end: ElementEnd,
         span: Span,
     },
     If {
@@ -341,6 +377,8 @@ pub struct Component {
     pub debug_identifiers: Vec<ExpressionIdentifier>,
     /// The `//` and `/* */` comments between the attributes of tags, in order.
     pub tag_comments: Vec<Span>,
+    /// In the order the parser closed them, inner elements first.
+    pub implicitly_closed: Vec<ImplicitlyClosed>,
     pub root: Range,
     /// `<script module>`, whose program is in the same [`Tree`].
     pub module: Option<Script>,

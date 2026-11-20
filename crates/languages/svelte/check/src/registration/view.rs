@@ -13,7 +13,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
-    AttributeKind, AttributeValue, Component, Part, TemplateNode,
+    AttributeKind, AttributeValue, Component, ElementEnd, Part, TemplateNode,
 };
 use rsvelte_svelte_typescript_projection::{EmittedProjection, THROWN, store_reads};
 use rsvelte_typescript_check::{
@@ -140,7 +140,7 @@ fn pug_template(component: &Component, source_text: &str) -> Option<Span> {
                 name,
                 attributes,
                 start_tag,
-                end_tag: true,
+                end: ElementEnd::EndTag,
                 span,
                 ..
             } if name.text(source_text) == "template" => Some((*attributes, *start_tag, *span)),

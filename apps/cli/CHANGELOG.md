@@ -1,5 +1,15 @@
 # @rsvelte/cli
 
+## 0.2.4
+
+### Patch Changes
+
+- 6b20383: `rsvelte format` now loads each option value as its formatter loads it, from a configuration or from `.editorconfig`. It leaves the files of a value the formatter refuses, such as `endOfLine: "auto"` under oxfmt. It refuses a `printWidth` or `tabWidth` out of range before writing any file.
+- 209b3ca: Do not warn `element_implicitly_closed` about an element closed by an end tag that names the element a start tag closed before, as Svelte does.
+- d217e69: The server output now renders a binding named after an inherited property, such as `bind:toString` on a `<div>`, as the attribute Svelte renders.
+- 26a5293: A rest prop member that an assignment writes directly, such as the setter of `bind:checked={rest.c}`, now stays `rest.c` as Svelte compiles it instead of becoming `$$props.c`.
+- 22f9760: `rsvelte typecheck` reports every file of the TypeScript program that svelte-check reports. This includes a file outside `include` that the project imports, such as a component of a workspace package linked into `node_modules`. It honors `skipLibCheck` as svelte-check does and prints a file outside the current directory with `../` as `tsc` does.
+
 ## 0.2.3
 
 ### Patch Changes

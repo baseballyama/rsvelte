@@ -56,8 +56,6 @@ pub(super) struct Template<'a> {
     pub(super) event_attributes: bool,
     /// The identifiers an `{#each}` context declares inside a rest element.
     each_rest: FxHashSet<SymbolId>,
-    /// The nearest enclosing element with its own end tag, which closes the open ones inside.
-    closer: Option<&'a str>,
     /// Upstream `parent_element`: the enclosing regular element, until a component or snippet.
     parent_element: Option<&'a str>,
     /// The elements, blocks and boundaries around the walk, outermost first.
@@ -95,7 +93,6 @@ impl<'a> Template<'a> {
             event_directive: None,
             event_attributes: false,
             each_rest: FxHashSet::default(),
-            closer: None,
             parent_element: None,
             ancestry: Vec::new(),
         }
@@ -123,7 +120,7 @@ impl<'a> Template<'a> {
             if let TemplateNode::Text { span } = *component.node(child) {
                 self.text(span, &children[..i], false);
             } else {
-                self.node(child, children.get(i + 1).copied(), parent);
+                self.node(child, parent);
             }
         }
     }
@@ -289,8 +286,8 @@ impl<'a> Template<'a> {
         }
     }
 
-    /// One node of a fragment, and the sibling after it.
-    pub(super) fn node(&mut self, child: u32, next: Option<u32>, parent: a11y::Parent<'a>) {
+    /// One node of a fragment.
+    pub(super) fn node(&mut self, child: u32, parent: a11y::Parent<'a>) {
         let component = self.context.component;
         let node = component.node(child);
         let ancestor = match *node {
@@ -303,20 +300,20 @@ impl<'a> Template<'a> {
         };
         if let Some((ancestor, parent_element)) = ancestor {
             self.within(ancestor, parent_element, |walk| {
-                walk.node_inside(child, next, parent);
+                walk.node_inside(child, parent);
             });
         } else {
-            self.node_inside(child, next, parent);
+            self.node_inside(child, parent);
         }
     }
 
-    fn node_inside(&mut self, child: u32, next: Option<u32>, parent: a11y::Parent<'a>) {
+    fn node_inside(&mut self, child: u32, parent: a11y::Parent<'a>) {
         let component = self.context.component;
         let node = component.node(child);
         let at = node.span().start_offset;
         self.opening_tag(node);
         match *node {
-            TemplateNode::Element { .. } => self.element(child, next, parent),
+            TemplateNode::Element { .. } => self.element(child, parent),
             TemplateNode::If {
                 consequent,
                 alternate,
