@@ -3,7 +3,6 @@
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext, Facet};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
 use rsvelte_svelte_semantic::{Analyzed, component_input};
 
 use crate::lower::{CompileErrors, UNSUPPORTED};
@@ -148,13 +147,8 @@ pub fn compile_errors(context: &DocumentContext<'_>, runes: bool) -> CompileErro
             };
         }
         Err(error) if lint_raises(error) => {
-            let raised = Raised {
-                phase: Phase::Parse,
-                section: Section::Template,
-                at: 0,
-            };
             return CompileErrors {
-                raised: vec![(raised, error.clone())],
+                raised: vec![(crate::lower::raised_at_parse(), error.clone())],
                 after_analysis: None,
             };
         }

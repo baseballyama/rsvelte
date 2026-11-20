@@ -18,6 +18,33 @@ use super::{
     rest_reads, script, snippets, special, stores,
 };
 
+/// An error upstream raises as it parses, before any other.
+pub(crate) const fn raised_at_parse() -> Raised {
+    Raised {
+        phase: Phase::Parse,
+        section: Section::Template,
+        at: 0,
+    }
+}
+
+/// An error upstream's walk over the template raises at `at`.
+pub(super) const fn walk(at: u32) -> Raised {
+    Raised {
+        phase: Phase::Walk,
+        section: Section::Template,
+        at,
+    }
+}
+
+/// An error upstream raises as it builds the template's scopes, at `at`.
+pub(super) const fn scopes(at: u32) -> Raised {
+    Raised {
+        phase: Phase::Scopes,
+        section: Section::Template,
+        at,
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct ValidatedOptions {
     pub(in crate::lower) custom_element: Option<custom_element::CustomElement>,
@@ -152,14 +179,7 @@ pub(crate) fn rune_error(
 /// the scripts' syntax and `<svelte:options>` as it parses, then the first of the template walk.
 /// Apart, a TypeScript feature with a runtime meaning, which it refuses after the analysis.
 pub(crate) fn mode_independent_errors(input: &CompileInput<'_>, res: &Resolution) -> CompileErrors {
-    let parse = |error| {
-        let raised = Raised {
-            phase: Phase::Parse,
-            section: Section::Template,
-            at: 0,
-        };
-        (raised, error)
-    };
+    let parse = |error| (raised_at_parse(), error);
     let mut raised = Vec::new();
     if let Some(error) =
         rsvelte_svelte_semantic::javascript_error::parse_error(&input.component, res)
@@ -169,14 +189,7 @@ pub(crate) fn mode_independent_errors(input: &CompileInput<'_>, res: &Resolution
         raised.extend(check_awaits(input).err().map(parse));
     }
     raised.extend(special::validate(input).err().map(parse));
-    raised.extend(template_error(input).map(|(at, error)| {
-        let raised = Raised {
-            phase: Phase::Walk,
-            section: Section::Template,
-            at,
-        };
-        (raised, error)
-    }));
+    raised.extend(template_error(input).map(|(at, error)| (walk(at), error)));
     CompileErrors {
         raised,
         after_analysis: (check_typescript(input))
@@ -218,7 +231,7 @@ pub(super) fn check_analysis(
         res,
         true,
     ));
-    let walk = |section, error: Diagnostic| {
+    let walked = |section, error: Diagnostic| {
         let at = error.span.start_offset;
         let raised = Raised {
             phase: Phase::Walk,
@@ -227,42 +240,26 @@ pub(super) fn check_analysis(
         };
         (raised, error)
     };
-    errors.extend(template_error(input).map(|(at, error)| {
-        let raised = Raised {
-            phase: Phase::Walk,
-            section: Section::Template,
-            at,
-        };
-        (raised, error)
-    }));
+    errors.extend(template_error(input).map(|(at, error)| (walk(at), error)));
     // Upstream raises these once its walk is done, in this order.
     let after_walk = [
         markup::mixed_syntaxes(input),
         markup::slot_snippet_conflict(input, res, custom_element),
     ];
-    errors.extend(after_walk.into_iter().flatten().map(|error| {
-        let raised = Raised {
-            phase: Phase::Walk,
-            section: Section::Template,
-            at: u32::MAX,
-        };
-        (raised, error)
-    }));
-    errors.extend(markup::unparenthesized_sequence(input).map(|(at, error)| {
-        let raised = Raised {
-            phase: Phase::Walk,
-            section: Section::Template,
-            at,
-        };
-        (raised, error)
-    }));
+    errors.extend(
+        after_walk
+            .into_iter()
+            .flatten()
+            .map(|error| (walk(u32::MAX), error)),
+    );
+    errors.extend(markup::unparenthesized_sequence(input).map(|(at, error)| (walk(at), error)));
     // The rune walk's template error, which upstream meets in the same walk as the template's.
     let script = (errors.iter())
         .any(|(raised, _)| raised.section == Section::Template)
         .then(|| {
             let (script, template) = script_and_template_errors(input, res, custom_element);
             if let Some(error) = template.filter(|error| error.code != crate::lower::UNSUPPORTED) {
-                errors.push(walk(Section::Template, error));
+                errors.push(walked(Section::Template, error));
             }
             script
         });
@@ -276,7 +273,7 @@ pub(super) fn check_analysis(
         } else {
             Section::Instance
         };
-        errors.push(walk(section, error));
+        errors.push(walked(section, error));
     }
     errors.sort_by_key(|&(raised, _)| raised);
     let mut errors = errors.into_iter().peekable();

@@ -9,7 +9,8 @@ use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rsvelte_svelte_semantic::warnings::Raised;
 
 use super::super::paths::bound_names;
-use super::{CompileInput, Diagnostic, ElementKind, NodeKind, Resolution, snippet_name, walk};
+use super::super::validation::walk;
+use super::{CompileInput, Diagnostic, ElementKind, NodeKind, Resolution, snippet_name};
 use crate::lower::error;
 
 /// The first reference, in document order, from a snippet to a `{@const}` or `{let}` declared

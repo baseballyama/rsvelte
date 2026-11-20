@@ -55,7 +55,8 @@ use template::{
 };
 pub use validation::CompileErrors;
 pub(crate) use validation::{
-    Unit, ValidatedOptions, mode_independent_errors, rune_error, validate, validate_unit,
+    Unit, ValidatedOptions, mode_independent_errors, raised_at_parse, rune_error, validate,
+    validate_unit,
 };
 use validation::{check_runes, uses_slots};
 

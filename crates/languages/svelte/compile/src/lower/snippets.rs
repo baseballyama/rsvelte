@@ -6,12 +6,13 @@ use oxc_ast::ast::{
 use oxc_semantic::{ReferenceId, ScopeId, SymbolFlags, SymbolId};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, Element, Snippet};
 use rsvelte_svelte_semantic::resolve::TemplateScope;
-use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
+use rsvelte_svelte_semantic::warnings::Raised;
 use rsvelte_typescript_tree::Tree;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 mod const_references;
 
+use super::validation::{scopes, walk};
 use super::{
     AttributeValue, BindingKind, CompileInput, Diagnostic, ElementKind, NodeKind, Resolution, Span,
     span_of,
@@ -62,22 +63,6 @@ pub(super) fn errors(input: &CompileInput<'_>, res: &Resolution) -> Vec<(Raised,
     }
     out.extend(const_references::invalid_reference(input, res));
     out
-}
-
-const fn walk(at: u32) -> Raised {
-    Raised {
-        phase: Phase::Walk,
-        section: Section::Template,
-        at,
-    }
-}
-
-const fn scopes(at: u32) -> Raised {
-    Raised {
-        phase: Phase::Scopes,
-        section: Section::Template,
-        at,
-    }
 }
 
 /// Where upstream's walk is once it has walked the body of the node at `span`.
