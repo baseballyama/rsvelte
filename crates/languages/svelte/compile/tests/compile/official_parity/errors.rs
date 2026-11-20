@@ -369,10 +369,13 @@ fn a_binding_upstream_rejects_on_its_element_is_refused_on_both_targets() {
         ("<input type bind:value={x} />", "attribute_invalid_type"),
         ("<input bind:files={x} />", "bind_invalid_target"),
         ("<div bind:value={x}></div>", "bind_invalid_target"),
-        ("<div bind:innerHTML={x}></div>", "unsupported"),
+        (
+            "<div bind:innerHTML={x}></div>",
+            "attribute_contenteditable_missing",
+        ),
         (
             "<div contenteditable={t} bind:textContent={x}></div>",
-            "unsupported",
+            "attribute_contenteditable_dynamic",
         ),
         (
             "<select multiple={t} bind:value={x}></select>",
