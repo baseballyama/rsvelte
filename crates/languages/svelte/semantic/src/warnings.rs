@@ -6,7 +6,7 @@
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Component, Script, TemplateNode};
+use rsvelte_svelte_syntax::syntax_tree::{Component, Script};
 use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 
 use crate::analyze::Analysis;
@@ -15,9 +15,11 @@ use crate::resolve::Resolution;
 
 mod a11y;
 mod awaits;
+mod component;
 mod exports;
 mod found;
 mod ignore;
+mod raised;
 mod runes;
 mod script;
 mod selectors;
@@ -28,9 +30,11 @@ mod template;
 mod tests;
 mod updates;
 
+use component::{component_errors, deprecated_tag};
 use exports::{state_exports, unused_exports};
 use found::{Found, VisitOrder};
 pub use ignore::code_for_v5;
+pub use raised::{Phase, Raised, Section};
 pub use runes::dollar_name_errors;
 use runes::{custom_element, declaration_errors, runes};
 use selectors::unused_selectors;
@@ -48,105 +52,6 @@ pub struct CompileWarnings {
     pub awaits: Vec<Span>,
     /// Whether the compiler is in runes mode, given or inferred.
     pub runes: bool,
-}
-
-/// When the compiler raises an error: it creates every scope before it walks any tree, and it
-/// handles the module script, then the instance script, then the template.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Raised {
-    pub phase: Phase,
-    pub section: Section,
-    /// Where the compiler's walk is when it raises the error.
-    pub at: u32,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Phase {
-    Parse,
-    Scopes,
-    Walk,
-    /// The checks of the whole component after the walks.
-    Component,
-    /// The compiler analyzes the style sheet after it walks every tree.
-    Stylesheet,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Section {
-    Module,
-    Instance,
-    Template,
-}
-
-impl Section {
-    /// The part of `component` that holds `offset`.
-    #[must_use]
-    pub fn of(component: &Component, offset: u32) -> Self {
-        let holds = |script: &Option<Script>| {
-            script
-                .as_ref()
-                .is_some_and(|s| s.span.start_offset <= offset && offset < s.span.end_offset)
-        };
-        if holds(&component.module) {
-            Self::Module
-        } else if holds(&component.instance) {
-            Self::Instance
-        } else {
-            Self::Template
-        }
-    }
-}
-
-impl CompileWarnings {
-    /// The error the compiler stops at; an `await` is one only without `experimental.async`.
-    #[must_use]
-    pub fn first_error(
-        &self,
-        component: &Component,
-        experimental_async: bool,
-    ) -> Option<Diagnostic> {
-        self.first_error_with(component, experimental_async, &[])
-    }
-
-    /// [`Self::first_error`] among these and the `others` that the compiler raises besides.
-    #[must_use]
-    pub fn first_error_with(
-        &self,
-        component: &Component,
-        experimental_async: bool,
-        others: &[(Raised, Diagnostic)],
-    ) -> Option<Diagnostic> {
-        let awaits = self
-            .awaits
-            .iter()
-            .filter(|_| !experimental_async)
-            .map(|&span| {
-                let raised = Raised {
-                    phase: Phase::Walk,
-                    section: Section::of(component, span.start_offset),
-                    at: span.start_offset,
-                };
-                (raised, Err(span))
-            });
-        let (_, first) = self
-            .errors
-            .iter()
-            .chain(others)
-            .map(|(raised, error)| (*raised, Ok(error)))
-            .chain(awaits)
-            .min_by_key(|(raised, _)| *raised)?;
-        Some(first.map_or_else(
-            |span| {
-                error(
-                    "experimental_async",
-                    "Cannot use `await` in deriveds and template expressions, or at the top level \
-                        of a component, unless the `experimental.async` compiler option is `true`",
-                    span,
-                )
-            },
-            Clone::clone,
-        ))
-    }
 }
 
 impl CompileWarnings {
@@ -431,54 +336,6 @@ fn stylesheet_warnings(
     }
 }
 
-/// The checks upstream makes once the walks end: `mixed_event_handler_syntaxes`, an element's
-/// `on:` directive beside an element's event attribute, then `slot_snippet_conflict`, a
-/// `{@render}` beside a `<slot>` or beside `$$slots`.
-fn component_errors(
-    component: &Component,
-    resolution: &Resolution,
-    source: &str,
-    event_directive: Option<(Span, Span)>,
-    first_slot: Option<Span>,
-    custom_element: bool,
-    out: &mut Vec<(Raised, Diagnostic)>,
-) {
-    let raised = |at| Raised {
-        phase: Phase::Component,
-        section: Section::Template,
-        at,
-    };
-    if let Some((at, name)) = event_directive {
-        let name = name.text(source);
-        let message = format!(
-            "Mixing old (on:{name}) and new syntaxes for event handling is not allowed. Use only \
-                the on{name} syntax"
-        );
-        let found = error("mixed_event_handler_syntaxes", &message, at);
-        // Upstream checks it first, so it sorts before the slot conflict wherever that is.
-        out.push((raised(0), found));
-    }
-    let renders = component
-        .nodes
-        .iter()
-        .any(|node| matches!(node, TemplateNode::Render { .. }));
-    let uses_slots = resolution.unresolved_names().any(|name| name == "$$slots");
-    if !renders || !(uses_slots || (!custom_element && first_slot.is_some())) {
-        return;
-    }
-    let at = first_slot.unwrap_or_else(|| {
-        // Upstream points at the text `$$slot`, which a `$$slots` read holds.
-        let at = source.find("$$slot").map_or(0, |at| at as u32);
-        Span::new(at, at)
-    });
-    let message = "Cannot use `<slot>` syntax and `{@render ...}` tags in the same component. \
-        Migrate towards `{@render ...}` tags completely";
-    out.push((
-        raised(at.start_offset),
-        error("slot_snippet_conflict", message, at),
-    ));
-}
-
 /// Upstream `analyze_module`'s warnings for a `.svelte.js` or `.svelte.ts` module: its script
 /// visitors, in runes mode, over `program` of `javascript`, and the `svelte-ignore` comments in it.
 #[must_use]
@@ -558,28 +415,5 @@ impl<'a> Scripts<'a> {
         ]
         .into_iter()
         .filter_map(|(section, script)| Some((section, script?)))
-    }
-}
-
-/// `<svelte:options tag>`, which Svelte 5's parser rejects; it reaches here only when a style
-/// sheet error kept the parser from reading the options.
-fn deprecated_tag(component: &Component, source: &str, out: &mut Vec<(Raised, Diagnostic)>) {
-    let Some((attributes, _)) = component.svelte_options(source) else {
-        return;
-    };
-    for attribute in attributes {
-        if attribute.kind == AttributeKind::Attribute && attribute.name.text(source) == "tag" {
-            let raised = Raised {
-                phase: Phase::Parse,
-                section: Section::Template,
-                at: attribute.span.start_offset,
-            };
-            let found = error(
-                "svelte_options_deprecated_tag",
-                "\"tag\" option is deprecated — use \"customElement\" instead",
-                attribute.span,
-            );
-            out.push((raised, found));
-        }
     }
 }
