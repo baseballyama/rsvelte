@@ -22,7 +22,7 @@ pub(crate) fn store_calls<'a>(
     let semantic = file.semantic();
     let nodes = semantic.nodes();
     let mut out: Vec<(&'a CallExpression<'a>, &'static str)> =
-        import_references(semantic, &file.programs(), "svelte/store", names)
+        import_references(semantic, file.programs(), "svelte/store", names)
             .into_iter()
             .filter_map(|reference| match nodes.kind(reference.call?) {
                 AstKind::CallExpression(call) => Some((call, reference.name)),

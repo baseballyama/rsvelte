@@ -47,11 +47,11 @@ pub(crate) struct Script<'a> {
     pub(crate) tree: &'a Tree,
     semantic: &'a Semantic,
     pub(crate) source: &'a str,
-    programs: Vec<ProgramIdentifier>,
+    programs: &'a [ProgramIdentifier],
 }
 
 impl<'a> Script<'a> {
-    pub(crate) fn new(file: &File<'a>) -> Self {
+    pub(crate) fn new(file: &'a File<'_>) -> Self {
         Self {
             tree: file.javascript(),
             semantic: file.semantic(),
@@ -133,7 +133,7 @@ impl<'a> Script<'a> {
     }
 
     fn imports<'e>(&self, specifier: &str, exports: &[&'e str]) -> Vec<TrackedReference<'e>> {
-        import_references(self.semantic, &self.programs, specifier, exports)
+        import_references(self.semantic, self.programs, specifier, exports)
     }
 
     pub(crate) fn symbol(&self, identifier: &IdentifierReference<'_>) -> Option<SymbolId> {

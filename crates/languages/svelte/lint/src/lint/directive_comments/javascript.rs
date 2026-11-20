@@ -1,6 +1,6 @@
 //! `ESLint`'s own directive comments, in JavaScript comments.
 
-use oxc_ast::Comment as OxcComment;
+use oxc_ast::Comment;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
@@ -15,7 +15,7 @@ use super::{Kind, justification_start};
 struct Applied {
     at: (u32, u32),
     disable: bool,
-    comment: usize,
+    directive: usize,
     rule: Option<usize>,
 }
 
@@ -23,7 +23,7 @@ struct Applied {
 type Rules<'a> = Vec<(&'a str, bool)>;
 
 /// A JavaScript directive comment.
-struct Comment<'a> {
+struct Directive<'a> {
     span: Span,
     disable: bool,
     rules: Rules<'a>,
@@ -36,12 +36,12 @@ struct Comment<'a> {
 /// what it can tell: a rule name that `running` says runs, whose findings are all here.
 pub(crate) fn apply<'l>(
     findings: &mut Vec<Finding>,
-    comments: &[&OxcComment],
+    comments: &[&Comment],
     source: &str,
     lines: &dyn Fn() -> &'l LineIndex,
     running: impl Fn(&str) -> bool,
 ) -> Vec<Finding> {
-    let mut parsed: Vec<Comment<'_>> = Vec::new();
+    let mut parsed: Vec<Directive<'_>> = Vec::new();
     let mut blocks: Vec<Applied> = Vec::new();
     let mut line_directives: Vec<Applied> = Vec::new();
     for &comment in comments {
@@ -60,13 +60,13 @@ pub(crate) fn apply<'l>(
             Kind::DisableNextLine => Some(lines().line_column(span.end_offset).line + 1),
             _ => continue,
         };
-        let comment = parsed.len();
+        let directive = parsed.len();
         let every = std::iter::once(None).filter(|_| rules.is_empty());
         for rule in (0..rules.len()).map(Some).chain(every) {
             let applied = |at, disable| Applied {
                 at,
                 disable,
-                comment,
+                directive,
                 rule,
             };
             match line {
@@ -80,7 +80,7 @@ pub(crate) fn apply<'l>(
                 }
             }
         }
-        parsed.push(Comment {
+        parsed.push(Directive {
             span,
             disable: kind != Kind::Enable,
             rules,
@@ -107,8 +107,8 @@ pub(crate) fn apply<'l>(
     findings.retain(|_| !keep.next().expect("one verdict per finding"));
     parsed
         .iter()
-        .filter(|comment| comment.disable)
-        .flat_map(|comment| unused(comment, source, &running))
+        .filter(|directive| directive.disable)
+        .flat_map(|directive| unused(directive, source, &running))
         .collect()
 }
 
@@ -148,33 +148,33 @@ fn credit(
     pass: &[Applied],
     findings: &[Finding],
     at: &[(u32, u32)],
-    parsed: &mut [Comment<'_>],
+    parsed: &mut [Directive<'_>],
     suppressed: &mut [bool],
 ) {
     let mut next = 0;
     let mut all: Option<usize> = None;
     let mut named: FxHashMap<&str, usize> = FxHashMap::default();
     for (i, finding) in findings.iter().enumerate() {
-        while let Some(directive) = pass.get(next).filter(|d| d.at <= at[i]) {
-            match directive.rule {
+        while let Some(applied) = pass.get(next).filter(|d| d.at <= at[i]) {
+            match applied.rule {
                 None => all = Some(next),
                 Some(rule) => {
-                    named.insert(parsed[directive.comment].rules[rule].0, next);
+                    named.insert(parsed[applied.directive].rules[rule].0, next);
                 }
             }
             next += 1;
         }
         let latest = all.max(named.get(&*finding.diagnostic.code).copied());
-        let Some(directive) = latest.map(|latest| &pass[latest]) else {
+        let Some(applied) = latest.map(|latest| &pass[latest]) else {
             continue;
         };
-        if !directive.disable {
+        if !applied.disable {
             continue;
         }
         if !suppressed[i]
-            && let Some(rule) = directive.rule
+            && let Some(rule) = applied.rule
         {
-            parsed[directive.comment].rules[rule].1 = true;
+            parsed[applied.directive].rules[rule].1 = true;
         }
         suppressed[i] = true;
     }
@@ -182,8 +182,16 @@ fn credit(
 
 /// `processUnusedDirectives` for one disable comment: one report naming every rule when none
 /// turned anything off, else one per unused rule.
-fn unused(comment: &Comment<'_>, source: &str, running: &impl Fn(&str) -> bool) -> Vec<Finding> {
-    let mut unused = comment.rules.iter().filter(|&&(_, used)| !used).peekable();
+fn unused(
+    directive: &Directive<'_>,
+    source: &str,
+    running: &impl Fn(&str) -> bool,
+) -> Vec<Finding> {
+    let mut unused = directive
+        .rules
+        .iter()
+        .filter(|&&(_, used)| !used)
+        .peekable();
     // An unnamed directive also covers rules rsvelte does not run, which may have used it.
     if unused.peek().is_none() {
         return Vec::new();
@@ -192,16 +200,16 @@ fn unused(comment: &Comment<'_>, source: &str, running: &impl Fn(&str) -> bool) 
         let message = format!(
             "Unused eslint-disable directive (no problems were reported from {description})."
         );
-        let at = Span::new(comment.span.start_offset, comment.span.start_offset);
+        let at = Span::new(directive.span.start_offset, directive.span.start_offset);
         let mut finding =
             Finding::from(Diagnostic::warning(UNUSED_DIRECTIVE, message, at).without_end());
         finding.fix = fix;
         finding
     };
-    let all_run = comment.rules.iter().all(|&(rule, _)| running(rule));
-    let any_used = comment.rules.iter().any(|&(_, used)| used);
+    let all_run = directive.rules.iter().all(|&(rule, _)| running(rule));
+    let any_used = directive.rules.iter().any(|&(_, used)| used);
     if all_run && !any_used {
-        let names: Vec<String> = comment
+        let names: Vec<String> = directive
             .rules
             .iter()
             .map(|(rule, _)| format!("'{rule}'"))
@@ -212,22 +220,25 @@ fn unused(comment: &Comment<'_>, source: &str, running: &impl Fn(&str) -> bool) 
             }
             _ => names.join(" or "),
         };
-        return vec![report(&description, Some(Fix::replace(comment.span, " ")))];
+        return vec![report(
+            &description,
+            Some(Fix::replace(directive.span, " ")),
+        )];
     }
     // An unknown or non-running rule may have used it, which decides one report or one per rule.
     if !any_used {
         return Vec::new();
     }
     // `ESLint` finds the list from the comment's start, as `indexOf` does.
-    let text = comment.span.text(source);
+    let text = directive.span.text(source);
     let list_start = text
-        .find(comment.list)
-        .map(|i| comment.span.start_offset as usize + i);
+        .find(directive.list)
+        .map(|i| directive.span.start_offset as usize + i);
     unused
         .filter(|&&(rule, _)| running(rule))
         .map(|(rule, _)| {
             let fix = list_start.and_then(|start| {
-                let (from, to) = removal::rule_removal(comment.list, rule)?;
+                let (from, to) = removal::rule_removal(directive.list, rule)?;
                 Some(Fix::remove(Span::new(
                     (start + from) as u32,
                     (start + to) as u32,

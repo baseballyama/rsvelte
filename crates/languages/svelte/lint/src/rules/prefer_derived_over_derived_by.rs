@@ -5,7 +5,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_tree::node_span;
 
 use super::shared::nodes::{is_named, only_statement, text};
-use super::shared::runes::in_runes_mode;
+use super::shared::runes::meets_runes_condition;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -19,7 +19,7 @@ struct PreferDerivedOverDerivedBy;
 
 impl SvelteRule for PreferDerivedOverDerivedBy {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        if !in_runes_mode(file) {
+        if !meets_runes_condition(file) {
             return;
         }
         let source = file.source();

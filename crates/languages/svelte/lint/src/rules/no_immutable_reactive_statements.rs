@@ -32,7 +32,7 @@ struct NoImmutableReactiveStatements;
 impl SvelteRule for NoImmutableReactiveStatements {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        let statements: Vec<_> = reactive_statements(file, component).collect();
+        let statements: Vec<_> = reactive_statements(file).collect();
         if statements.is_empty() {
             return;
         }

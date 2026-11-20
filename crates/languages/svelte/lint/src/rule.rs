@@ -79,7 +79,7 @@ pub struct File<'a> {
     pub context: &'a DocumentContext<'a>,
     parsed: Source<'a>,
     configured_globals: &'a Declared,
-    /// Every JavaScript comment of the document, in document order.
+    programs: Vec<ProgramIdentifier>,
     comments: Vec<&'a Comment>,
     /// The configuration's globals as the comments set them, or `None` when no comment sets one.
     globals: OnceLock<Option<Declared>>,
@@ -89,6 +89,26 @@ pub struct File<'a> {
 enum Source<'a> {
     Component(Linted<'a>),
     Module(&'a Script),
+}
+
+impl<'a> Source<'a> {
+    const fn javascript(&self) -> &'a Tree {
+        match *self {
+            Source::Component(linted) => &linted.component.javascript,
+            Source::Module(module) => &module.tree,
+        }
+    }
+
+    fn programs(&self) -> Vec<ProgramIdentifier> {
+        match *self {
+            Source::Component(Linted { component, .. }) => {
+                let mut scripts: Vec<_> = component.scripts().collect();
+                scripts.sort_by_key(|script| script.span.start_offset);
+                scripts.iter().map(|script| script.program).collect()
+            }
+            Source::Module(module) => vec![module.root],
+        }
+    }
 }
 
 impl<'a> File<'a> {
@@ -107,24 +127,22 @@ impl<'a> File<'a> {
         } else {
             Source::Module(crate::computation::module(context).map_err(Clone::clone)?)
         };
-        let mut file = Self {
+        let programs = parsed.programs();
+        let tree = parsed.javascript();
+        // Every run reads the configuration comments, so the list is never left unused.
+        let mut comments: Vec<_> = (programs.iter())
+            .flat_map(|&program| &tree.get_program(program).comments)
+            .chain(tree.comments())
+            .collect();
+        comments.sort_unstable_by_key(|comment| comment.span.start);
+        Ok(Self {
             context,
             parsed,
             configured_globals: globals,
-            comments: Vec::new(),
+            programs,
+            comments,
             globals: OnceLock::new(),
-        };
-        // Every run reads the configuration comments, so the list is never left unused.
-        let tree = file.javascript();
-        file.comments = file
-            .programs()
-            .into_iter()
-            .flat_map(|program| &tree.get_program(program).comments)
-            .chain(tree.comments())
-            .collect();
-        file.comments
-            .sort_unstable_by_key(|comment| comment.span.start);
-        Ok(file)
+        })
     }
 
     /// The global variables: the configuration's, as the document's `/* global */` comments set
@@ -228,24 +246,14 @@ impl<'a> File<'a> {
     /// module's program. A node's `node_id` is the analysis's only after [`File::semantic`].
     #[must_use]
     pub const fn javascript(&self) -> &'a Tree {
-        match self.parsed {
-            Source::Component(linted) => &linted.component.javascript,
-            Source::Module(module) => &module.tree,
-        }
+        self.parsed.javascript()
     }
 
     /// The programs of the document in source order: a component's `<script module>` and
     /// `<script>`, or a module's one program.
     #[must_use]
-    pub fn programs(&self) -> Vec<ProgramIdentifier> {
-        match self.parsed {
-            Source::Component(Linted { component, .. }) => {
-                let mut scripts: Vec<_> = component.scripts().collect();
-                scripts.sort_by_key(|script| script.span.start_offset);
-                scripts.iter().map(|script| script.program).collect()
-            }
-            Source::Module(module) => vec![module.root],
-        }
+    pub fn programs(&self) -> &[ProgramIdentifier] {
+        &self.programs
     }
 
     /// Scopes over [`File::javascript`].

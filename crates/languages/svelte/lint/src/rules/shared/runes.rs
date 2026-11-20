@@ -140,7 +140,7 @@ pub(crate) fn is_svelte_file(file: &File<'_>) -> bool {
 
 /// A rule's `runes: [true, 'undetermined']` condition. Upstream's `'undetermined'` is a Svelte
 /// file that svelte-eslint-parser did not parse, which never happens here.
-pub(crate) fn in_runes_mode(file: &File<'_>) -> bool {
+pub(crate) fn meets_runes_condition(file: &File<'_>) -> bool {
     runes(file) == Some(true)
 }
 

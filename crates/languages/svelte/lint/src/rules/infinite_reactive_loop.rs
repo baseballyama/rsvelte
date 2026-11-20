@@ -27,8 +27,7 @@ struct InfiniteReactiveLoop;
 
 impl SvelteRule for InfiniteReactiveLoop {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let component = file.component().expect("a component rule");
-        let statements: Vec<_> = reactive_statements(file, component).collect();
+        let statements: Vec<_> = reactive_statements(file).collect();
         if statements.is_empty() {
             return;
         }
@@ -37,17 +36,17 @@ impl SvelteRule for InfiniteReactiveLoop {
         let nodes = semantic.nodes();
         let legacy = legacy(file);
         // The calls that run their callbacks in another microtask.
-        let programs = file.programs();
-        let later: FxHashSet<NodeId> = import_references(semantic, &programs, "svelte", &["tick"])
-            .into_iter()
-            .chain(global_references(
-                semantic,
-                file.globals(),
-                &["setTimeout", "setInterval", "queueMicrotask"],
-            ))
-            .filter_map(|reference| reference.call)
-            .filter(|&call| matches!(nodes.kind(call), AstKind::CallExpression(_)))
-            .collect();
+        let later: FxHashSet<NodeId> =
+            import_references(semantic, file.programs(), "svelte", &["tick"])
+                .into_iter()
+                .chain(global_references(
+                    semantic,
+                    file.globals(),
+                    &["setTimeout", "setInterval", "queueMicrotask"],
+                ))
+                .filter_map(|reference| reference.call)
+                .filter(|&call| matches!(nodes.kind(call), AstKind::CallExpression(_)))
+                .collect();
         let reactive: FxHashSet<NodeId> = (0..scoping.references_len())
             .map(ReferenceId::from_usize)
             .filter(|&id| {
