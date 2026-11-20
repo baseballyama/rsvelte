@@ -118,6 +118,10 @@ impl<'a> Tree<'a> {
         self.n[i].parent.expect("only the root has no parent")
     }
 
+    pub(super) fn is_top_level(&self, i: NodeIdentifier) -> bool {
+        self.n[i].parent == Some(NodeIdentifier::ROOT)
+    }
+
     /// Every node, the root first; it does not borrow the tree, so a loop can change nodes.
     pub(super) fn identifiers(&self) -> impl Iterator<Item = NodeIdentifier> + use<> {
         IndexRange::new(NodeIdentifier::ROOT, self.n.next_identifier()).iter()

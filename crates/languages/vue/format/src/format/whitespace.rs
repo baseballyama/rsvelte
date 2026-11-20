@@ -155,9 +155,7 @@ impl Tree<'_> {
     pub(super) fn display_and_closing(&mut self) {
         for i in self.identifiers().skip(1) {
             let display = match self.n[i].kind {
-                NodeKind::Element { .. } if self.n[i].parent == Some(NodeIdentifier::ROOT) => {
-                    "block"
-                }
+                NodeKind::Element { .. } if self.is_top_level(i) => "block",
                 NodeKind::Element { name, .. } => STYLESHEET_DISPLAY
                     .iter()
                     .find(|(t, _)| *t == name)
@@ -186,13 +184,14 @@ impl Tree<'_> {
         if texty(i) && n.prev.is_some_and(texty) {
             return true;
         }
-        let parent = &self.n[self.parent(i)];
+        let parent_identifier = self.parent(i);
+        let parent = &self.n[parent_identifier];
         if parent.display == "none" {
             return false;
         }
         if n.prev.is_none()
-            && (n.parent == Some(NodeIdentifier::ROOT)
-                || self.is_script_like(self.parent(i))
+            && (self.is_top_level(i)
+                || self.is_script_like(parent_identifier)
                 || Self::is_block_like(parent.display)
                 || parent.display == "inline-block")
         {
@@ -217,13 +216,14 @@ impl Tree<'_> {
         if texty(i) && n.next.is_some_and(texty) {
             return true;
         }
-        let parent = &self.n[self.parent(i)];
+        let parent_identifier = self.parent(i);
+        let parent = &self.n[parent_identifier];
         if parent.display == "none" {
             return false;
         }
         if n.next.is_none()
-            && (n.parent == Some(NodeIdentifier::ROOT)
-                || self.is_script_like(self.parent(i))
+            && (self.is_top_level(i)
+                || self.is_script_like(parent_identifier)
                 || Self::is_block_like(parent.display)
                 || parent.display == "inline-block")
         {

@@ -31,7 +31,7 @@ impl Printer<'_, '_, '_> {
         n.has.leading
             && n.prev.map_or_else(
                 || {
-                    n.parent == Some(NodeIdentifier::ROOT)
+                    self.t.is_top_level(i)
                         || self.t.line(self.n(self.t.parent(i)).open_end)
                             < self.t.line(n.span.start_offset)
                 },
@@ -44,7 +44,7 @@ impl Printer<'_, '_, '_> {
         n.has.trailing
             && n.next.map_or_else(
                 || {
-                    n.parent == Some(NodeIdentifier::ROOT)
+                    self.t.is_top_level(i)
                         || self
                             .n(self.t.parent(i))
                             .close_start

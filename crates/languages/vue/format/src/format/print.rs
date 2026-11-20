@@ -110,7 +110,7 @@ impl Printer<'_, '_, '_> {
         let body = self.cat(&body);
         let body = if should_hug {
             self.d().indent_if_break(body, gid)
-        } else if self.t.is_script_like(i) && self.n(i).parent == Some(NodeIdentifier::ROOT) {
+        } else if self.t.is_script_like(i) && self.t.is_top_level(i) {
             body
         } else {
             self.d().indent(body)
