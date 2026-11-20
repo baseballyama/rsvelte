@@ -105,6 +105,9 @@ fn every_option_value_not_printed_yet_is_refused() {
         (r#"{"bracketSpacing": false}"#, "bracketSpacing"),
         (r#"{"objectWrap": "collapse"}"#, "objectWrap"),
         (r#"{"arrowParens": "avoid"}"#, "arrowParens"),
+        (r#"{"printWidth": 0}"#, "printWidth"),
+        (r#"{"printWidth": 321}"#, "printWidth"),
+        (r#"{"tabWidth": 25}"#, "tabWidth"),
         (r#"{"rangeStart": 1}"#, "rangeStart"),
         (r#"{"rangeEnd": 10}"#, "rangeEnd"),
         (

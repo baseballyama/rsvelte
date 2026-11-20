@@ -9,6 +9,22 @@ use oxc_formatter::{
 use oxc_formatter_core::{IndentStyle, IndentWidth, LineEnding, LineWidth};
 use serde::Deserialize;
 
+/// The line width oxc's formatter prints for Prettier's `printWidth`, if it takes that width.
+#[must_use]
+pub fn line_width(print_width: usize) -> Option<LineWidth> {
+    u16::try_from(print_width)
+        .ok()
+        .and_then(|width| LineWidth::try_from(width).ok())
+}
+
+/// The indent width oxc's formatter prints for Prettier's `tabWidth`, if it takes that width.
+#[must_use]
+pub fn indent_width(tab_width: usize) -> Option<IndentWidth> {
+    u8::try_from(tab_width)
+        .ok()
+        .and_then(|width| IndentWidth::try_from(width).ok())
+}
+
 /// The names [`Options`] takes, so that a host can pass these and only these from a Prettier
 /// configuration.
 pub const NAMES: &[&str] = &[
@@ -164,12 +180,8 @@ impl Options {
         if let Some((name, _)) = unported.into_iter().find(|&(_, refused)| refused) {
             return Err(name);
         }
-        let line_width = LineWidth::try_from(self.print_width)
-            .ok()
-            .ok_or("printWidth")?;
-        let indent_width = IndentWidth::try_from(self.tab_width)
-            .ok()
-            .ok_or("tabWidth")?;
+        let line_width = line_width(usize::from(self.print_width)).ok_or("printWidth")?;
+        let indent_width = indent_width(usize::from(self.tab_width)).ok_or("tabWidth")?;
         Ok(JsFormatOptions {
             indent_style: if self.use_tabs {
                 IndentStyle::Tab
