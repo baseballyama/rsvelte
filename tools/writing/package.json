@@ -4,8 +4,8 @@
 	"description": "Checks the English prose of the repository's Markdown files with textlint",
 	"type": "module",
 	"scripts": {
-		"lint": "node lint.ts",
-		"test": "node --test '*.test.ts'",
+		"writing": "node writing.ts",
+		"test": "node --test '*.test.ts' '*/*.test.ts'",
 		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
 	},
 	"devDependencies": {

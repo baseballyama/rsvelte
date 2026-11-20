@@ -6,7 +6,7 @@
 	"scripts": {
 		"format": "oxfmt",
 		"typecheck": "node node_modules/typescript-7/bin/tsc -p .",
-		"check": "oxfmt --check && oxlint && knip && pnpm --recursive --include-workspace-root --if-present run typecheck && pnpm --filter @rsvelte-experimental/writing run test && pnpm --filter @rsvelte-experimental/writing run lint",
+		"check": "oxfmt --check && oxlint && knip && pnpm --recursive --include-workspace-root --if-present run typecheck && pnpm --filter @rsvelte-experimental/writing run test && pnpm --filter @rsvelte-experimental/writing run writing",
 		"changeset": "changeset",
 		"release:version": "changeset version && node tools/release/release.ts version"
 	},
