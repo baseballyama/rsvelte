@@ -90,11 +90,15 @@ fn a_version_is_read_only_when_it_is_a_string() {
     write("kit", r#"{"name":"kit","version":"3.0.1","bin":7}"#);
     write("numbered", r#"{"version":3}"#);
     write("unversioned", r#"{"name":"unversioned"}"#);
+    write("listed", "[]");
+    write("repeated", r#"{"version":"1.0.0","version":"2.0.0"}"#);
     write("broken", "{");
     let version = |name| installed_version(name, &scratch.0);
     assert_eq!(version("kit").unwrap(), Some("3.0.1".to_owned()));
     assert_eq!(version("numbered").unwrap(), None);
     assert_eq!(version("unversioned").unwrap(), None);
     assert_eq!(version("absent").unwrap(), None);
+    assert_eq!(version("listed").unwrap(), None);
+    assert_eq!(version("repeated").unwrap(), Some("2.0.0".to_owned()));
     version("broken").unwrap_err();
 }

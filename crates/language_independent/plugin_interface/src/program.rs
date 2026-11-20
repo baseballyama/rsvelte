@@ -73,11 +73,8 @@ pub fn installed_bin(name: &str, bin: &str, base: &Path) -> io::Result<Option<Pa
 ///
 /// As [`installed_package`], or the package's `package.json` cannot be read or decoded.
 pub fn installed_version(name: &str, base: &Path) -> io::Result<Option<String>> {
-    let manifest = installed_manifest::<Versioned>(name, base)?;
-    Ok(manifest.and_then(|(_, manifest)| match manifest.version? {
-        Version::Text(version) => Some(version),
-        Version::Other(_) => None,
-    }))
+    let manifest = installed_manifest::<serde_json::Value>(name, base)?;
+    Ok(manifest.and_then(|(_, manifest)| manifest["version"].as_str().map(str::to_owned)))
 }
 
 fn installed_manifest<T: serde::de::DeserializeOwned>(
@@ -97,19 +94,6 @@ struct Manifest {
     #[serde(default)]
     name: String,
     bin: Option<Bin>,
-}
-
-/// Only the version, so that a malformed `bin` or `name` does not hide it.
-#[derive(serde::Deserialize)]
-struct Versioned {
-    version: Option<Version>,
-}
-
-#[derive(serde::Deserialize)]
-#[serde(untagged)]
-enum Version {
-    Text(String),
-    Other(serde::de::IgnoredAny),
 }
 
 #[derive(serde::Deserialize)]
