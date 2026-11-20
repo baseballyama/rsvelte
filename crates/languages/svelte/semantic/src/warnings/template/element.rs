@@ -11,7 +11,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
 use super::super::{a11y, error, warning};
 use super::placement::Ancestor;
 use super::{Owner, Stage, Template};
-use crate::names::{is_mathml, is_svg};
+use crate::namespaces::{is_mathml, is_svg};
 
 /// How the compiler classifies an element tag.
 #[derive(Clone, Copy, PartialEq, Eq)]

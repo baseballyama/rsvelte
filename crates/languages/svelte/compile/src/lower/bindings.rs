@@ -216,7 +216,7 @@ pub(super) fn check_binding(
             multiple.span,
         );
     }
-    if name == "offsetWidth" && rsvelte_svelte_semantic::names::is_svg(host) {
+    if name == "offsetWidth" && rsvelte_svelte_semantic::namespaces::is_svg(host) {
         return invalid_target(
             name,
             "non-`<svg>` elements. Use `bind:clientWidth` for `<svg>` instead",

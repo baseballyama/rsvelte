@@ -3,7 +3,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, ElementKind, MetadataTag,
     NodeKind,
 };
-use rsvelte_svelte_semantic::names::{is_mathml, is_svg};
+use rsvelte_svelte_semantic::namespaces::{is_mathml, is_svg};
 
 use crate::input::CompileInput;
 

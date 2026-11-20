@@ -1,7 +1,7 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
+use rsvelte_svelte_semantic::identifiers::component_name;
+pub(crate) use rsvelte_svelte_semantic::identifiers::sanitize_identifier;
 use rsvelte_svelte_semantic::input::ComponentInput;
-use rsvelte_svelte_semantic::names::component_name;
-pub(crate) use rsvelte_svelte_semantic::names::sanitize_identifier;
 
 #[derive(Debug)]
 pub struct OutputIdentity {

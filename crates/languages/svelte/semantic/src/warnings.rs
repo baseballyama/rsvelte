@@ -245,7 +245,7 @@ pub fn warnings(
         || ("Self".to_owned(), "Self.svelte"),
         |filename| {
             let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
-            (crate::names::component_name(filename), basename)
+            (crate::identifiers::component_name(filename), basename)
         },
     );
     let mut template = Template::new(
