@@ -1,6 +1,6 @@
 # Review checklist
 
-For the reviewers in phase 3 of the `review` skill. Read AGENTS.md first: this list says where
+For the reviewers in phase 3 of the `full-code-review` skill. Read AGENTS.md first: this list says where
 low-quality code hides in rsvelte, not what is true. If a file or helper named here has moved,
 find its replacement. `cargo clippy`, `mise run structure`, oxlint, knip and `tsc` already run
 in CI; do not report what they catch.

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Splits everything that differs from the merge base with the base branch (commits,
 // uncommitted edits and untracked files) into chunks small enough for one reviewer to read
-// closely, so that every round of the review skill reviews the same units.
+// closely, so that every round of the full-code-review skill reviews the same units.
 //
-// Usage: node .claude/skills/review/plan-chunks.ts [base] [--format=md]
+// Usage: node .claude/skills/full-code-review/plan-chunks.ts [base] [--format=md]
 // The base defaults to $BASE_BRANCH, then origin/main.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';

@@ -1,10 +1,10 @@
 ---
-name: review
-description: Review a branch or PR as its code owner - why, design, then every chunk of code with several reviewers, then the gates - fixing findings with the user until no Critical or Major remains. Use for "review this", "/review", and before you commit, push or open a PR.
+name: full-code-review
+description: Review a branch or PR as its code owner - why, design, then every chunk of code with several reviewers, then the gates - fixing findings with the user until no Critical or Major remains. Use for "review this", "/full-code-review", "full review", and before you commit, push or open a PR.
 user_invocable: true
 ---
 
-# Review
+# Full code review
 
 The goal is that no low-quality code lands. Review the whole branch every time, phase by phase.
 Each phase finds problems, fixes the approved ones, and only then moves on.
@@ -32,7 +32,7 @@ Each phase finds problems, fixes the approved ones, and only then moves on.
 
 1. Base: the user's choice, else the PR's `baseRefName`, else `origin/main`. Run
    `git fetch origin` first, and `OUT=$(mktemp -d)` for every output of this review.
-2. Run `mise exec -- node .claude/skills/review/plan-chunks.ts "$BASE" --format=md`. The scope
+2. Run `mise exec -- node .claude/skills/full-code-review/plan-chunks.ts "$BASE" --format=md`. The scope
    is everything since the merge base: commits, uncommitted edits and files Git does not track yet.
 3. Show the base, the file count and the chunk table. Flag new files that look accidental
    (scratch output, screenshots, `generated/`) instead of reviewing them.
@@ -78,7 +78,7 @@ Progress line: `Chunk 2/7 (rust: crates/languages/svelte/) · round 1`.
 ```
 Review only these files. Do not edit anything. Only report.
 Base: <BASE> (merge base <SHA>). Files: <files>. Lens: <lens>.
-Read AGENTS.md and .claude/skills/review/checklist.md first. Run
+Read AGENTS.md and .claude/skills/full-code-review/checklist.md first. Run
 `git diff <SHA> -- <files>` (it includes uncommitted edits), then read the code around each
 change and its callers.
 Report every finding as: severity (Critical/Major/Minor), file:line, failure scenario (input or
