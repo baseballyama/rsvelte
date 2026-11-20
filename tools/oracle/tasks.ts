@@ -6,13 +6,14 @@ import svelteCompile from './tasks/svelte-compile.ts';
 import svelteCompileModule from './tasks/svelte-compile-module.ts';
 import svelteFormat from './tasks/svelte-format.ts';
 import svelteLint from './tasks/svelte-lint.ts';
-import tsCheck from './tasks/ts-check.ts';
 import vueCheck from './tasks/vue-check.ts';
 import vueCompile from './tasks/vue-compile.ts';
 import vueFormat from './tasks/vue-format.ts';
 import vueLint from './tasks/vue-lint.ts';
 import type { Task } from './types.ts';
 
+// rsvelte's ts.check/default has no task: over Svelte documents it is the check svelte.check runs,
+// so svelte.check's expected output is its oracle.
 export const TASKS: Task[] = [
 	svelteCheck,
 	svelteCompile,
@@ -20,7 +21,6 @@ export const TASKS: Task[] = [
 	svelteFormat,
 	svelteLint,
 	svueCompile,
-	tsCheck,
 	vueCheck,
 	vueCompile,
 	vueFormat,
