@@ -1,3 +1,4 @@
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, Component, Part, TemplateNode, decode_attribute,
@@ -10,6 +11,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-target-blank",
     files: Files::Components,
+    category: Category::Suspicious,
     configure,
 };
 

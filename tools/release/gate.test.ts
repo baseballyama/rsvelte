@@ -8,7 +8,7 @@ test('the sources of the programs ship, their tests and docs do not', () => {
 		'crates/languages/typescript/check/Cargo.toml',
 		'crates/languages/svelte/typescript_projection/projection.d.ts',
 		'tools/release/launcher.js',
-		'apps/eslint-plugin/index.js',
+		'apps/eslint-plugin/configs.cjs',
 		'apps/eslint-plugin/rules.json',
 	])
 		assert.equal(ships(file), true, file);
@@ -21,6 +21,7 @@ test('the sources of the programs ship, their tests and docs do not', () => {
 		'Cargo.lock',
 		'tools/release/stage.ts',
 		'apps/eslint-plugin/index.test.ts',
+		'apps/eslint-plugin/package.json',
 		'corpus/svelte/a/input.svelte',
 	])
 		assert.equal(ships(file), false, file);

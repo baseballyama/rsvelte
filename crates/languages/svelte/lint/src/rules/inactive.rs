@@ -2,6 +2,7 @@
 //! and two need a TypeScript program (`parserOptions.project`), without which upstream reports
 //! nothing. They accept upstream's options so a configuration that names them still loads.
 
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use serde::Deserialize;
 
@@ -10,24 +11,28 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule, without_
 pub(super) static EXPERIMENTAL_REQUIRE_STRICT_EVENTS: RuleDefinition = RuleDefinition {
     name: "svelte/experimental-require-strict-events",
     files: Files::Components,
+    category: Category::Nursery,
     configure: without_options::<Inactive>,
 };
 
 pub(super) static REQUIRE_EVENT_DISPATCHER_TYPES: RuleDefinition = RuleDefinition {
     name: "svelte/require-event-dispatcher-types",
     files: Files::Components,
+    category: Category::Correctness,
     configure: without_options::<Inactive>,
 };
 
 pub(super) static NO_UNUSED_PROPS: RuleDefinition = RuleDefinition {
     name: "svelte/no-unused-props",
     files: Files::Components,
+    category: Category::Correctness,
     configure: no_unused_props,
 };
 
 pub(super) static REQUIRE_EVENT_PREFIX: RuleDefinition = RuleDefinition {
     name: "svelte/require-event-prefix",
     files: Files::Components,
+    category: Category::Style,
     configure: require_event_prefix,
 };
 

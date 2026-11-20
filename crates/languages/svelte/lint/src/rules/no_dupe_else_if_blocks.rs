@@ -2,6 +2,7 @@ use std::mem::discriminant;
 
 use oxc_ast::ast::Expression;
 use oxc_syntax::operator::LogicalOperator;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode, TemplateNodeIdentifier};
 
@@ -12,6 +13,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-dupe-else-if-blocks",
     files: Files::Components,
+    category: Category::Correctness,
     configure: without_options::<NoDupeElseIfBlocks>,
 };
 

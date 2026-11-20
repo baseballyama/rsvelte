@@ -1,3 +1,4 @@
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 
 use super::shared::style_sheet::{StyleVerdict, verdict};
@@ -6,6 +7,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/valid-style-parse",
     files: Files::Components,
+    category: Category::Suspicious,
     configure: without_options::<ValidStyleParse>,
 };
 

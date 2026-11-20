@@ -1,5 +1,6 @@
 use oxc_ast::AstKind;
 use oxc_syntax::operator::UnaryOperator;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_typescript_semantic::globals::library;
 use rustc_hash::FxHashSet;
@@ -17,6 +18,7 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "no-undef",
     files: Files::Components,
+    category: Category::Nursery,
     configure,
 };
 

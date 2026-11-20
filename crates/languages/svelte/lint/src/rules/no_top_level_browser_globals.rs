@@ -8,6 +8,7 @@ use oxc_syntax::operator::BinaryOperator::{
 };
 use oxc_syntax::operator::{LogicalOperator, UnaryOperator};
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
 use rsvelte_typescript_semantic::globals::{Global, global};
@@ -25,6 +26,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-top-level-browser-globals",
     files: Files::All,
+    category: Category::Suspicious,
     configure: without_options::<NoTopLevelBrowserGlobals>,
 };
 

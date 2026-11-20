@@ -1,3 +1,4 @@
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::shared::compile_warnings::{Postcss, compile, decidable, ignores};
@@ -9,6 +10,7 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-unused-svelte-ignore",
     files: Files::Components,
+    category: Category::Correctness,
     configure,
 };
 

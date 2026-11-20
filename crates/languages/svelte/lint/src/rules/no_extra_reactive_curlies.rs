@@ -1,5 +1,6 @@
 use oxc_ast::ast::Statement;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TokenType;
@@ -11,6 +12,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-extra-reactive-curlies",
     files: Files::Components,
+    category: Category::Style,
     configure: without_options::<NoExtraReactiveCurlies>,
 };
 

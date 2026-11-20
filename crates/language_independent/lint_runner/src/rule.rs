@@ -3,6 +3,7 @@
 use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
 use rsvelte_kernel::source::positions::Span;
 
+use crate::catalog::Category;
 use crate::finding::{Finding, Fix, Suggestion};
 
 /// A lint rule over a context type `C` that the language chooses.
@@ -17,6 +18,11 @@ pub trait Rule<C: ?Sized>: Send + Sync {
     }
 
     fn check(&self, context: &C, reporter: &mut Reporter<'_>);
+}
+
+/// A rule a language ships with, as its catalog lists it.
+pub trait BuiltIn<C: ?Sized>: Rule<C> {
+    fn category(&self) -> Category;
 }
 
 impl<C: ?Sized, R: Rule<C> + ?Sized> Rule<C> for &R {

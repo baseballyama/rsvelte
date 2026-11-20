@@ -1,6 +1,10 @@
 {
 	"extends": "../../tsconfig.base.json",
-	"compilerOptions": { "allowJs": true, "checkJs": true, "resolveJsonModule": true },
-	"include": ["**/*.ts", "**/*.js"],
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": true,
+		"resolveJsonModule": true
+	},
+	"include": ["**/*.ts", "**/*.cts", "**/*.cjs"],
 	"exclude": ["node_modules"]
 }

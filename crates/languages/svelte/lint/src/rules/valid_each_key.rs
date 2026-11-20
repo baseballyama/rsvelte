@@ -1,6 +1,7 @@
 use oxc_ast::ast::IdentifierReference;
 use oxc_ast_visit::Visit;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
 use rsvelte_svelte_semantic::resolve::Resolution;
@@ -11,6 +12,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/valid-each-key",
     files: Files::Components,
+    category: Category::Correctness,
     configure: without_options::<ValidEachKey>,
 };
 

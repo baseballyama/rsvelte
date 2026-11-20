@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 import {
@@ -120,11 +121,26 @@ test('the staged eslint-plugin-rsvelte loads on its own and reports the release 
 		assert.equal(manifest.private, undefined);
 		for (const file of manifest.files)
 			assert.ok(fs.existsSync(path.join(directory, file)), `${file} is staged`);
-		const { default: plugin } = await import(pathToFileURL(path.join(directory, 'index.js')).href);
+		// Resolve it by name, as a project does, through `import` and through `require`.
+		const project = path.join(root, 'project');
+		fs.cpSync(directory, path.join(project, 'node_modules', ESLINT_PLUGIN_PACKAGE), {
+			recursive: true,
+		});
+		const require = createRequire(path.join(project, 'index.js'));
+		// The exports have one condition, so `require.resolve` finds what `import` would.
+		const imported = (specifier: string) => import(pathToFileURL(require.resolve(specifier)).href);
+		const { default: plugin } = await imported(ESLINT_PLUGIN_PACKAGE);
+		assert.equal(plugin, require(ESLINT_PLUGIN_PACKAGE));
 		assert.equal(plugin.meta.version, '1.2.3');
 		assert.ok(
-			plugin.configs.all.some((block: { rules: object }) => 'svelte/indent' in block.rules),
+			plugin.configs['flat/all'].some(
+				(config: { rules: object }) => 'svelte/indent' in config.rules,
+			),
 		);
+		const { svelteRules } = await imported(`${ESLINT_PLUGIN_PACKAGE}/rules-by-scope`);
+		assert.ok('svelte/indent' in svelteRules);
+		const { styleRules } = require(`${ESLINT_PLUGIN_PACKAGE}/rules-by-category`);
+		assert.ok('svelte/indent' in styleRules);
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true });
 	}

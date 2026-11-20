@@ -4,6 +4,7 @@ use oxc_ast::ast::{
     BindingPattern, Declaration, Expression, PropertyKey, Statement, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 
 use super::shared::kit_route::{RouteFile, route_file};
@@ -14,6 +15,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/valid-prop-names-in-kit-pages",
     files: Files::Components,
+    category: Category::Correctness,
     configure,
 };
 

@@ -1,4 +1,5 @@
 use oxc_ast::ast::Expression;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Part, TemplateNode};
 use rsvelte_typescript_tree::ExpressionIdentifier;
@@ -11,6 +12,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-not-function-handler",
     files: Files::Components,
+    category: Category::Correctness,
     configure: without_options::<NoNotFunctionHandler>,
 };
 

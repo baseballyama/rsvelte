@@ -2,6 +2,7 @@ use oxc_ast::AstKind;
 use oxc_ast::ast::{BindingPattern, Expression};
 use oxc_semantic::{AstNodes, NodeId, SymbolId};
 use oxc_span::GetSpan;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_semantic::reference_tracker::import_references;
@@ -14,6 +15,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-unnecessary-state-wrap",
     files: Files::All,
+    category: Category::Correctness,
     configure,
 };
 

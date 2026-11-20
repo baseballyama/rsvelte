@@ -2,6 +2,7 @@ use oxc_ast::AstKind;
 use oxc_ast::ast::Expression;
 use oxc_semantic::{NodeId, ReferenceId};
 use oxc_span::GetSpan;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_semantic::legacy::Variable;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, TemplateNode};
@@ -20,6 +21,7 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-dom-manipulating",
     files: Files::Components,
+    category: Category::Correctness,
     configure: without_options::<NoDomManipulating>,
 };
 

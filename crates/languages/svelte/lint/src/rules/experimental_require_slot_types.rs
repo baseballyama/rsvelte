@@ -1,4 +1,5 @@
 use oxc_ast::AstKind;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode};
 
@@ -8,6 +9,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/experimental-require-slot-types",
     files: Files::Components,
+    category: Category::Nursery,
     configure: without_options::<ExperimentalRequireSlotTypes>,
 };
 

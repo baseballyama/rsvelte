@@ -1,5 +1,6 @@
 use oxc_ast::ast::{AssignmentTarget, Expression, Statement};
 use oxc_syntax::operator::AssignmentOperator;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
@@ -10,6 +11,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-reactive-literals",
     files: Files::Components,
+    category: Category::Correctness,
     configure: without_options::<NoReactiveLiterals>,
 };
 

@@ -5,6 +5,7 @@ use oxc_ast::ast::{
 };
 use oxc_semantic::{NodeId, SymbolId};
 use oxc_syntax::operator::BinaryOperator;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_semantic::typescript::without_typescript;
@@ -27,6 +28,7 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-navigation-without-resolve",
     files: Files::All,
+    category: Category::Correctness,
     configure,
 };
 

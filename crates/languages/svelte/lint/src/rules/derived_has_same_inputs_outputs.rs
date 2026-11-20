@@ -1,6 +1,7 @@
 use oxc_ast::ast::{
     ArrayExpressionElement, BindingIdentifier, BindingPattern, Expression, FormalParameter,
 };
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::Suggestion;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
@@ -11,6 +12,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/derived-has-same-inputs-outputs",
     files: Files::All,
+    category: Category::Style,
     configure: without_options::<DerivedHasSameInputsOutputs>,
 };
 

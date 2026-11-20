@@ -1,6 +1,7 @@
 use std::ffi::OsStr;
 use std::path::Path;
 
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_typescript_lint::NoInnerDeclarationsOptions;
 use serde::Deserialize;
@@ -11,6 +12,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-inner-declarations",
     files: Files::All,
+    category: Category::Correctness,
     configure,
 };
 

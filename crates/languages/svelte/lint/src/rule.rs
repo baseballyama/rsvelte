@@ -4,6 +4,7 @@ use oxc_semantic::AstNodes;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Contribution;
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::Warned;
 use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
@@ -40,6 +41,7 @@ pub struct RuleDefinition {
     /// The full name, such as `svelte/no-at-html-tags`.
     pub name: &'static str,
     pub files: Files,
+    pub category: Category,
     /// Reads `ESLint`'s options after the level and returns the configured rule.
     pub configure: fn(&RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String>,
 }

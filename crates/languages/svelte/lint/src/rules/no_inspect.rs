@@ -1,4 +1,5 @@
 use oxc_ast::AstKind;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::shared::nodes::from_oxc;
@@ -8,6 +9,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-inspect",
     files: Files::All,
+    category: Category::Correctness,
     configure: without_options::<NoInspect>,
 };
 

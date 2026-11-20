@@ -4,6 +4,7 @@ use oxc_semantic::{AstNodes, NodeId, ReferenceId};
 use oxc_span::GetSpan;
 use oxc_syntax::operator::{AssignmentOperator, UnaryOperator};
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_semantic::legacy::{Variable, reactive_body};
 use rustc_hash::FxHashMap;
@@ -18,6 +19,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-reactive-reassign",
     files: Files::Components,
+    category: Category::Correctness,
     configure,
 };
 

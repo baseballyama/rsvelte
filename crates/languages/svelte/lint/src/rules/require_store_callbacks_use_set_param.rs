@@ -1,4 +1,5 @@
 use oxc_ast::ast::BindingPattern;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
@@ -12,6 +13,7 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/require-store-callbacks-use-set-param",
     files: Files::All,
+    category: Category::Suspicious,
     configure: without_options::<RequireStoreCallbacksUseSetParam>,
 };
 

@@ -198,6 +198,9 @@ importers:
       eslint:
         specifier: 10.14.0
         version: 10.14.0(jiti@2.7.0)(supports-color@10.2.2)
+      eslint-plugin-oxlint:
+        specifier: 1.94.0
+        version: 1.94.0(oxlint@1.90.0)
       eslint-plugin-svelte:
         specifier: 3.23.1
         version: 3.23.1(eslint@10.14.0(jiti@2.7.0)(supports-color@10.2.2))(svelte@5.57.3(@typescript-eslint/types@8.72.1))
@@ -2923,6 +2926,11 @@ packages:
   escape-string-regexp@5.0.0:
     resolution: {integrity: sha512-/veY75JbMK4j1yjvuUxuVsiS/hr/4iHs9FTT6cgTexxdE0Ly/glccBAkloH/DofkjRbZU3bnoj38mOmhkZ0lHw==}
     engines: {node: '>=12'}
+
+  eslint-plugin-oxlint@1.94.0:
+    resolution: {integrity: sha512-G85ciyw/h05n43cYrjkXVR8bF9mgOt+nMA/aPH3oVN59OWwLIDQB5bEguMGIeDFyQDKBDp+6HWrz5ponHqFXZA==}
+    peerDependencies:
+      oxlint: ~1.94.0
 
   eslint-plugin-svelte@3.23.1:
     resolution: {integrity: sha512-+w86Jlx4IRUuuvtqD6j4njql+akx+81JnpvbN5de3AV5iq2SexvST/Jr51CiTlKeY0i+vhoKjPO/ywFKIP75sA==}
@@ -8235,6 +8243,11 @@ snapshots:
   escape-string-regexp@4.0.0: {}
 
   escape-string-regexp@5.0.0: {}
+
+  eslint-plugin-oxlint@1.94.0(oxlint@1.90.0):
+    dependencies:
+      jsonc-parser: 3.3.1
+      oxlint: 1.90.0
 
   eslint-plugin-svelte@3.23.1(eslint@10.14.0(jiti@2.7.0)(supports-color@10.2.2))(svelte@5.57.3(@typescript-eslint/types@8.72.1)):
     dependencies:

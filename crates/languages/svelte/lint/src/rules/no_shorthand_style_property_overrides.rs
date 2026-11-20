@@ -1,3 +1,4 @@
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_stylesheet_syntax::properties::{longhands, vendor_prefix};
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
@@ -9,6 +10,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-shorthand-style-property-overrides",
     files: Files::Components,
+    category: Category::Correctness,
     configure: without_options::<NoShorthandStylePropertyOverrides>,
 };
 

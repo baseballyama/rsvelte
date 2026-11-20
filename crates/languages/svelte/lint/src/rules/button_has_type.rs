@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_markup_lint::button_type::{Allowed, Problem, check_static};
 use rsvelte_svelte_syntax::syntax_tree::{
@@ -12,6 +13,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/button-has-type",
     files: Files::Components,
+    category: Category::Pedantic,
     configure,
 };
 

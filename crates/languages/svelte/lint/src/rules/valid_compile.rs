@@ -1,4 +1,5 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use serde::Deserialize;
 
@@ -12,6 +13,7 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/valid-compile",
     files: Files::Components,
+    category: Category::Suspicious,
     configure,
 };
 

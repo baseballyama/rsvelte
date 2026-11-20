@@ -6,6 +6,7 @@ use oxc_semantic::{NodeId, ReferenceId, SymbolId};
 use oxc_span::GetSpan;
 use oxc_syntax::operator::{AssignmentOperator, UnaryOperator};
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_semantic::legacy::{Legacy, Variable};
 use rsvelte_svelte_semantic::resolve::Resolution;
@@ -21,6 +22,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-immutable-reactive-statements",
     files: Files::Components,
+    category: Category::Correctness,
     configure: without_options::<NoImmutableReactiveStatements>,
 };
 

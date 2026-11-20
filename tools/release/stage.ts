@@ -32,9 +32,6 @@ export const ESLINT_PLUGIN_PACKAGE = 'eslint-plugin-rsvelte';
 
 const ESLINT_PLUGIN = path.join(ROOT, 'apps/eslint-plugin');
 
-/** What the plugin package holds; `apps/eslint-plugin` also has its tests and its workspace manifest. */
-export const ESLINT_PLUGIN_FILES = ['index.js', 'index.d.ts', 'rules.json'] as const;
-
 export const packageName = (platform: (typeof PLATFORMS)[number]) =>
 	`@rsvelte/cli-${platform.suffix}`;
 
@@ -63,20 +60,21 @@ export function stage(artifacts: string, out: string, version: string): string[]
 	};
 	const order: string[] = [];
 	const eslintPlugin = path.join(out, 'eslint-plugin');
+	// The workspace manifest names what ships; its dependencies are the tests'.
+	const workspace = JSON.parse(fs.readFileSync(path.join(ESLINT_PLUGIN, 'package.json'), 'utf8'));
 	write(eslintPlugin, {
 		name: ESLINT_PLUGIN_PACKAGE,
 		version,
-		description: 'Turns off the ESLint rules that rsvelte lint runs',
-		keywords: ['eslint', 'eslintplugin', 'eslint-plugin', 'svelte', 'rsvelte'],
+		description: 'Turn off all rules already supported by rsvelte',
+		keywords: ['eslint', 'eslintplugin', 'eslint-plugin', 'svelte', 'rsvelte', 'rules'],
 		license: 'MIT',
 		repository: { ...REPOSITORY, directory: 'apps/eslint-plugin' },
 		type: 'module',
-		exports: { '.': { types: './index.d.ts', default: './index.js' } },
-		files: [...ESLINT_PLUGIN_FILES],
+		exports: workspace.exports,
+		files: workspace.files,
 		engines: { node: '>=18.18' },
-		peerDependencies: { eslint: '>=9' },
 	});
-	for (const file of [...ESLINT_PLUGIN_FILES, 'README.md'])
+	for (const file of [...workspace.files, 'README.md'])
 		fs.copyFileSync(path.join(ESLINT_PLUGIN, file), path.join(eslintPlugin, file));
 	order.push(eslintPlugin);
 	for (const platform of PLATFORMS) {

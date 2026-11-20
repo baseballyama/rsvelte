@@ -1,4 +1,5 @@
 use rsvelte_kernel::source::characters::split_ecmascript_whitespace;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_stylesheet_syntax::nth_of_selectors;
 use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
@@ -14,6 +15,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-unused-class-name",
     files: Files::Components,
+    category: Category::Pedantic,
     configure,
 };
 

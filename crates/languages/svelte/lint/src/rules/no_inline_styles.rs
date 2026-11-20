@@ -1,3 +1,4 @@
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, TemplateNode};
 use serde::Deserialize;
@@ -9,6 +10,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-inline-styles",
     files: Files::Components,
+    category: Category::Pedantic,
     configure,
 };
 
