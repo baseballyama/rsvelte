@@ -1,6 +1,7 @@
 //! Where JavaScript's comments are, which the syntax-tree comparison does not see: each comment
-//! is keyed by its text and the tokens on either side of it, and the two outputs agree when they
-//! hold the same keys. Layout between tokens does not count.
+//! is keyed by its text, the tokens on either side of it, the nearest word on either side, and for
+//! a line comment whether it ends the line of the token before it. The two outputs agree when they
+//! hold the same keys. Other layout does not count.
 
 use oxc_allocator::Allocator;
 use oxc_ast::Comment;
@@ -10,16 +11,48 @@ use oxc_span::SourceType;
 
 use super::javascript::Unparsed;
 
-/// Whether the two texts have the same comments between the same tokens.
-pub(crate) fn same_places(expected: &str, actual: &str) -> Result<bool, Unparsed> {
+/// How the comments of two texts differ.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) struct Difference {
+    /// Places only the expected text has.
+    pub(crate) missing: usize,
+    /// Places only the actual text has.
+    pub(crate) extra: usize,
+}
+
+/// The places each text has and the other lacks, counted with multiplicity.
+pub(crate) fn difference(expected: &str, actual: &str) -> Result<Difference, Unparsed> {
     let mut expected = places(expected).map_err(Unparsed::Expected)?;
     let mut actual = places(actual).map_err(Unparsed::Actual)?;
     expected.sort_unstable();
     actual.sort_unstable();
-    Ok(expected == actual)
+    let (mut e, mut a) = (expected.iter().peekable(), actual.iter().peekable());
+    let mut difference = Difference {
+        missing: 0,
+        extra: 0,
+    };
+    loop {
+        match (e.peek(), a.peek()) {
+            (None, None) => return Ok(difference),
+            (Some(x), Some(y)) if x == y => {
+                e.next();
+                a.next();
+            }
+            (Some(x), y) if y.is_none_or(|y| x < y) => {
+                difference.missing += 1;
+                e.next();
+            }
+            _ => {
+                difference.extra += 1;
+                a.next();
+            }
+        }
+    }
 }
 
-/// One key per comment: `<comment> | <previous token> ^ <next token>`.
+/// One key per comment: `<comment> | <word> <token> ^ <token> <word>`, where the tokens are the
+/// ones next to it and the words the nearest identifiers or keywords, then `| trailing` or
+/// `| own line` for a line comment.
 pub(crate) fn places(text: &str) -> Result<Vec<String>, String> {
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, text, SourceType::mjs())
@@ -36,18 +69,38 @@ pub(crate) fn places(text: &str) -> Result<Vec<String>, String> {
         .filter(|t| t.kind() != Kind::Eof)
         .collect();
     let token = |t: Option<&Token>| t.map_or("EOF", |t| spelling(text, t));
+    let is_word = |t: &&Token| t.kind().is_identifier_name();
     let comments = parsed.program.comments.iter();
     Ok(comments
         .filter(|c| !annotation(c) && !module_header(text, c, &tokens))
         .map(|c| {
             let after = tokens.partition_point(|t| t.end() <= c.span.start);
-            let words: Vec<&str> = c.span.source_text(text).split_whitespace().collect();
-            format!(
-                "{} | {} ^ {}",
-                words.join(" "),
-                token(after.checked_sub(1).and_then(|i| tokens.get(i))),
-                token(tokens.get(after)),
-            )
+            let (before, rest) = tokens.split_at(after);
+            let previous = before.last();
+            let mut key = format!(
+                "{} | {} {} ^ {} {}",
+                c.span
+                    .source_text(text)
+                    .split_whitespace()
+                    .collect::<Vec<_>>()
+                    .join(" "),
+                token(before.iter().rev().find(is_word)),
+                token(previous),
+                token(rest.first()),
+                token(rest.iter().find(is_word)),
+            );
+            if c.is_line() {
+                let from = previous.map_or(0, |t| t.end() as usize);
+                let own_line = text[from..c.span.start as usize]
+                    .contains(['\n', '\r', '\u{2028}', '\u{2029}'])
+                    || previous.is_none();
+                key.push_str(if own_line {
+                    " | own line"
+                } else {
+                    " | trailing"
+                });
+            }
+            key
         })
         .collect())
 }

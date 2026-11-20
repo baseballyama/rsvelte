@@ -373,17 +373,25 @@ impl Conformance {
         }
         let mut out = Vec::new();
         for (i, c) in self.compared.iter().enumerate() {
-            if table.is_some_and(|t| t.skips(c.task)) {
+            let official: Vec<Entry<'_>> = expected[i].find(&document.path).collect();
+            if !matches!(c.kind, Kind::Comments { .. }) && table.is_some_and(|t| t.skips(c.task)) {
                 continue;
             }
-            let official: Vec<Entry<'_>> = expected[i].find(&document.path).collect();
             if let Kind::Comments { of } = c.kind {
-                if result.panic.is_some() || table.is_some_and(|t| t.skips(of)) {
-                    continue;
-                }
-                let ours = result.outputs.iter().find(|(t, _)| *t == of);
-                let verdict = compare::comments_verdict(&official, ours.map(|(_, out)| out))
-                    .map_err(|e| format!("{key}: {e}"))?;
+                // Every unit of the task's population has a verdict, so one that stops being
+                // compared moves.
+                let applies = result.outputs.iter().any(|(t, _)| *t == of);
+                let verdict = if !applies && result.panic.is_none() {
+                    None
+                } else if table.is_some_and(|t| t.skips(c.task) || t.skips(of)) {
+                    Some(Verdict::Skipped)
+                } else if result.panic.is_some() {
+                    (!official.is_empty()).then_some(Verdict::Panicked)
+                } else {
+                    let ours = result.outputs.iter().find(|(t, _)| *t == of);
+                    compare::comments_verdict(&official, ours.map(|(_, out)| out))
+                        .map_err(|e| format!("{key}: {e}"))?
+                };
                 if let Some(v) = verdict {
                     out.push((key.clone(), i, v));
                 }
