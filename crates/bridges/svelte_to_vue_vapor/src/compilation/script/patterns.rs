@@ -25,7 +25,7 @@ pub(crate) fn declarators<'t>(
     rune: &str,
     tracking: bool,
 ) -> Vec<VariableDeclarator<'t>> {
-    let base = format!("{}base_{}", markers::PATTERN_PREFIX, pattern.span().start);
+    let base = format!(markers::pattern_name!("base_{}"), pattern.span().start);
     let mut out = vec![b.declarator(b.binding(&base), Some(source))];
     let mode = match rune {
         "$state" => Mode::State,
@@ -126,7 +126,7 @@ impl<'t, V: VisitMut<'t>> Lower<'_, 't, V> {
             let copy = value.clone_in_with_semantic_ids(b.allocator());
             return (value, copy);
         }
-        let name = format!("{}key_{at}", markers::PATTERN_PREFIX);
+        let name = format!(markers::pattern_name!("key_{}"), at);
         let cell = self.cell(value);
         self.out.push(b.declarator(b.binding(&name), Some(cell)));
         let read = || b.member(b.id(&name), "value");
@@ -135,7 +135,7 @@ impl<'t, V: VisitMut<'t>> Lower<'_, 't, V> {
 
     /// A cell for a part of the pattern, named after where the part starts.
     fn intermediate(&mut self, at: u32, value: Expression<'t>) -> Expression<'t> {
-        let name = format!("{}{at}", markers::PATTERN_PREFIX);
+        let name = format!(markers::pattern_name!("{}"), at);
         let cell = self.cell(value);
         let b = self.b;
         self.out.push(b.declarator(b.binding(&name), Some(cell)));

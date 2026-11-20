@@ -88,7 +88,7 @@ pub(crate) fn build<'t>(
                 .resolution
                 .snippet(identifier)
                 .expect("a snippet name has a symbol");
-            let name = format!("{}{}", markers::SNIPPET_PREFIX, symbol.index());
+            let name = format!(markers::snippet_name!("{}"), symbol.index());
             declarations.push(b.function_declaration(&name, b.parameters([]), [], false));
             snippet_names.insert(symbol, name);
         }

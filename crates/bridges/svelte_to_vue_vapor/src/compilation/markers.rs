@@ -33,15 +33,25 @@ pub(crate) const GROUP_SOURCE: &str = "$$group_source";
 /// The client's `onMount`.
 pub(crate) const ON_MOUNT: &str = "$$on_mount";
 
-/// The prefix of a snippet's declared name.
-pub(crate) const SNIPPET_PREFIX: &str = "$$snippet_";
-/// A name a destructuring pattern's lowering declares, all of which start with [`PATTERN_PREFIX`].
+/// A snippet's declared name, `$$snippet_<suffix>`, as a literal that `format!` can take.
+macro_rules! snippet_name {
+    ($suffix:literal) => {
+        concat!("$$snippet_", $suffix)
+    };
+}
+pub(crate) use snippet_name;
+
+/// A name a destructuring pattern's lowering declares, `$$pattern_<suffix>`, as a literal that
+/// `format!` can take.
 macro_rules! pattern_name {
     ($suffix:literal) => {
         concat!("$$pattern_", $suffix)
     };
 }
+pub(crate) use pattern_name;
 
+/// The prefix of a snippet's declared name.
+pub(crate) const SNIPPET_PREFIX: &str = snippet_name!("");
 /// The prefix of every name a destructuring pattern's lowering declares.
 pub(crate) const PATTERN_PREFIX: &str = pattern_name!("");
 /// The parameter that selects a pattern's default.
