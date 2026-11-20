@@ -3,6 +3,12 @@
 //!
 //! Of the result, rules read `compilerOptions.runes` and `kit.files`, which is kept only when every
 //! property of it is static.
+//!
+//! `parseConfig` drops `compilerOptions.experimental.async`; a project passes it to `ESLint` by
+//! importing the file into `parserOptions.svelteConfig`, which hands it to Svelte's `compile`
+//! unchanged. rsvelte cannot run the import, so it reads that option from the file the same static
+//! way, and a static value that is not a boolean is the invalid option `compile` rejects. A value
+//! with code in it is unknown here, so the option stays off.
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
@@ -14,7 +20,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::Tree;
 
-use crate::{Kit, KitFiles, SvelteConfig};
+use crate::{ExperimentalAsync, Kit, KitFiles, SvelteConfig};
 
 #[cfg(test)]
 mod tests;
@@ -95,12 +101,24 @@ impl<'a> Evaluator<'a> {
         let Some(Evaluated::Object(config)) = self.expression(declaration, 0) else {
             return SvelteConfig::default();
         };
-        let runes = match self.property(config, "compilerOptions", 0) {
-            Some(Evaluated::Object(options)) => self
-                .property(options, "runes", 0)
-                .and_then(|runes| self.to_static(&runes, 0))
-                .and_then(truthy),
+        let options = match self.property(config, "compilerOptions", 0) {
+            Some(Evaluated::Object(options)) => Some(options),
             _ => None,
+        };
+        let runes = options.and_then(|options| self.flag(options, "runes"));
+        // Svelte's option validation takes only a boolean; anything else fails every compile.
+        let experimental_async = match options
+            .map(|options| self.property(options, "experimental", 0))
+        {
+            Some(Some(Evaluated::Object(experimental))) => match self
+                .property(experimental, "async", 0)
+                .and_then(|value| self.to_static(&value, 0))
+            {
+                None | Some(Static::Undefined | Static::Boolean(false)) => ExperimentalAsync::Off,
+                Some(Static::Boolean(true)) => ExperimentalAsync::On,
+                Some(_) => ExperimentalAsync::Invalid,
+            },
+            _ => ExperimentalAsync::Off,
         };
         let kit = match self.property(config, "kit", 0) {
             Some(Evaluated::Object(kit)) => Some(Kit {
@@ -113,8 +131,16 @@ impl<'a> Evaluator<'a> {
         SvelteConfig {
             runes,
             kit,
+            experimental_async,
             ..SvelteConfig::default()
         }
+    }
+
+    /// A static property's truth, or `None` when it is unset or has code in it.
+    fn flag(&self, object: &'a ObjectExpression<'a>, key: &str) -> Option<bool> {
+        self.property(object, key, 0)
+            .and_then(|value| self.to_static(&value, 0))
+            .and_then(truthy)
     }
 
     fn routes(&self, kit: &'a ObjectExpression<'a>) -> Option<String> {
