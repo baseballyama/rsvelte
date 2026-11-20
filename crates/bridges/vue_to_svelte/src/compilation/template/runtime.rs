@@ -5,7 +5,7 @@ use oxc_ast::ast::{
 use oxc_span::SPAN;
 use rsvelte_typescript_compile::build::Builder;
 
-use crate::compilation::context::Names;
+use crate::compilation::names::Names;
 
 /// `function includeBooleanAttr(value) { return !!value || value === ''; }`
 pub(super) fn include_boolean_attribute<'a>(

@@ -14,7 +14,8 @@ use rsvelte_vue_semantic::expressions::is_global;
 use rsvelte_vue_semantic::resolve::BindingType;
 use rustc_hash::FxHashMap;
 
-use super::{Class, Declared, Info, R, can_never_be_ref, unsupported};
+use crate::compilation::info::{Class, Declared, Info, can_never_be_ref};
+use crate::compilation::{R, unsupported};
 
 /// Copies one user expression or statement of the Vue tree into the output, rewriting what Vue
 /// and Svelte spell differently and refusing what svue does not translate.

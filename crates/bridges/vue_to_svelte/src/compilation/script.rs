@@ -14,7 +14,9 @@ use rsvelte_vue_semantic::resolve::{DefineProps, Resolution, unwrap_typescript};
 use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
 use rustc_hash::FxHashMap;
 
-use crate::compilation::context::{Class, Declared, Info, Names, Prop, R, Top, unsupported};
+use crate::compilation::info::{Class, Declared, Info, Prop, Top};
+use crate::compilation::names::Names;
+use crate::compilation::{R, unsupported};
 
 const VUE_APIS: [&str; 4] = ["ref", "computed", "reactive", "onMounted"];
 

@@ -14,7 +14,10 @@ use rsvelte_vue_semantic::compiler_syntax_tree::{
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 use rustc_hash::FxHashMap;
 
-use crate::compilation::context::{Helper, Info, Names, R, Rewriter, unsupported};
+use crate::compilation::info::Info;
+use crate::compilation::names::{Helper, Names};
+use crate::compilation::rewrite::Rewriter;
+use crate::compilation::{R, unsupported};
 
 /// The translated template, and the declarations the instance script needs for it.
 #[derive(Debug)]

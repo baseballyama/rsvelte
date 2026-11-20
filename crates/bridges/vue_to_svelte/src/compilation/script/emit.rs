@@ -12,7 +12,10 @@ use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
 use rustc_hash::FxHashMap;
 
 use super::{fresh, vue_call};
-use crate::compilation::context::{Class, Helper, Info, Names, Prop, R, Rewriter, unsupported};
+use crate::compilation::info::{Class, Info, Prop};
+use crate::compilation::names::{Helper, Names};
+use crate::compilation::rewrite::Rewriter;
+use crate::compilation::{R, unsupported};
 
 /// The instance script.
 ///
