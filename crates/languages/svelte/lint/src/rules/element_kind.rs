@@ -36,3 +36,12 @@ pub(super) fn is_markup_like(node: &TemplateNode, source: &str) -> bool {
         _ => false,
     }
 }
+
+/// Whether an element named `name` is an HTML element, `<svelte:element>` included, rather than a
+/// component or another special element.
+pub(super) fn is_markup_element(name: &str) -> bool {
+    name == "svelte:element"
+        || !(name.starts_with("svelte:")
+            || name.contains('.')
+            || name.starts_with(|c: char| c.is_ascii_uppercase()))
+}

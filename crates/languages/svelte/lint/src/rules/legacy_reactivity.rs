@@ -48,15 +48,6 @@ pub(super) fn bindings(file: &File<'_>) -> FxHashMap<NodeId, Span> {
         .collect()
 }
 
-/// Whether an element named `name` is an HTML element, `<svelte:element>` included, rather than a
-/// component or another special element.
-pub(super) fn is_markup_element(name: &str) -> bool {
-    name == "svelte:element"
-        || !(name.starts_with("svelte:")
-            || name.contains('.')
-            || name.starts_with(|c: char| c.is_ascii_uppercase()))
-}
-
 /// `getPropertyName`: a member's static property name. A private name has none, since `#name`
 /// never equals a public name.
 pub(super) fn property_name(member: AstKind<'_>) -> Option<&str> {

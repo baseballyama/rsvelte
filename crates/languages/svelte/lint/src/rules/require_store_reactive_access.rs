@@ -13,7 +13,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 use rustc_hash::FxHashMap;
 
-use super::legacy_reactivity::is_markup_element;
+use super::element_kind::is_markup_element;
 use super::nodes::span;
 use super::svelte_store::store_calls;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
