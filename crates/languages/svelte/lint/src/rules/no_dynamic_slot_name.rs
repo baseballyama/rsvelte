@@ -2,8 +2,8 @@ use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Part, TemplateNode};
 
-use super::constant_string::{root, string_if_constant};
-use super::markup::{is_attribute, parts, quote, value_span};
+use super::shared::constant_string::{root, string_if_constant};
+use super::shared::markup::{is_attribute, parts, quote, value_span};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

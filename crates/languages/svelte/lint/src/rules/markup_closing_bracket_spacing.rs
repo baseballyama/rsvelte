@@ -3,7 +3,7 @@ use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use serde::Deserialize;
 
-use super::markup::{closing_token, end_tags, start_tags, whitespace_before};
+use super::shared::markup::{closing_token, end_tags, start_tags, whitespace_before};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

@@ -3,7 +3,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::whitespace::is_ascii_whitespace;
-use super::{End, ParseResult, Parser, is_void};
+use super::{AutoClosed, End, ParseResult, Parser, is_void};
 use crate::names::{META_TAGS, is_component_name, is_valid_element_name};
 use crate::syntax_tree::{
     AttributeKind, AttributeValue, Part, Range, TemplateNode, TemplateNodeIdentifier, TokenType,
@@ -64,7 +64,7 @@ enum Closed {
     StartTag,
 }
 
-impl Parser<'_, '_> {
+impl<'a> Parser<'a, '_> {
     pub(super) fn element(&mut self, at_root: bool) -> ParseResult<Option<Read>> {
         let start_offset = self.position;
         self.eat_token(TokenType::TagOpen, 1);
@@ -123,7 +123,13 @@ impl Parser<'_, '_> {
             self.component_this(start_offset, attributes)?;
         }
         let start_tag = Span::new(start_offset as u32, self.position as u32);
-        let regular = !name_text.starts_with("svelte:") && !component_name;
+        // Upstream's `RegularElement`: its `TitleElement` and `SlotElement` are not.
+        let regular = match name_text {
+            _ if component_name || name_text.starts_with("svelte:") => false,
+            "title" => !self.ancestry.head,
+            "slot" => self.ancestry.shadow_root,
+            _ => true,
+        };
         let (children, closed) = if self_closing || is_void(name_text) {
             (self.empty_range(), Closed::Outside)
         } else if name_text == "textarea" {
@@ -131,12 +137,7 @@ impl Parser<'_, '_> {
         } else if matches!(name_text, "script" | "style") {
             self.raw_children(name_text)?
         } else {
-            let children = self.fragment(End::Tag {
-                name: name_text,
-                regular,
-                start: start_offset as u32,
-            })?;
-            (children, self.end_tag(name_text, regular)?)
+            self.element_children(name_text, regular, component_name, attributes, start_offset)?
         };
         let span = Span::new(start_offset as u32, self.position as u32);
         let element = self.push_node(TemplateNode::Element {
@@ -153,6 +154,41 @@ impl Parser<'_, '_> {
             element,
             closed_by_start_tag: matches!(closed, Closed::StartTag),
         }))
+    }
+
+    /// The children of an element with an end tag, read with what upstream knows of its
+    /// ancestors, and how it closed.
+    fn element_children(
+        &mut self,
+        name: &'a str,
+        regular: bool,
+        component: bool,
+        attributes: Range,
+        start_offset: usize,
+    ) -> ParseResult<(Range, Closed)> {
+        let ancestry = self.ancestry;
+        if name == "svelte:head" {
+            self.ancestry.head = true;
+        } else if regular || component {
+            self.ancestry.head = false;
+        }
+        if regular && self.has_attribute(attributes, "shadowrootmode") {
+            self.ancestry.shadow_root = true;
+        }
+        let children = self.fragment(End::Tag {
+            name,
+            regular,
+            start: start_offset as u32,
+        });
+        self.ancestry = ancestry;
+        Ok((children?, self.end_tag(name, regular)?))
+    }
+
+    fn has_attribute(&self, attributes: Range, name: &str) -> bool {
+        attributes
+            .get(&self.component.attributes)
+            .iter()
+            .any(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source_text) == name)
     }
 
     /// Upstream requires `this={…}` on `<svelte:component>` while it parses.
@@ -199,14 +235,18 @@ impl Parser<'_, '_> {
         Span::new(start_offset as u32, self.position as u32)
     }
 
-    fn end_tag(&mut self, name: &str, regular: bool) -> ParseResult<Closed> {
+    fn end_tag(&mut self, name: &'a str, regular: bool) -> ParseResult<Closed> {
         let rest = self.rest();
         let Some(after) = rest.strip_prefix("</") else {
-            return Ok(if rest.is_empty() {
-                Closed::Outside
-            } else {
-                Closed::StartTag
+            if rest.is_empty() {
+                return Ok(Closed::Outside);
+            }
+            self.auto_closed = Some(AutoClosed {
+                name,
+                by: peek_tag_name(&rest[1..]),
+                depth: self.depth,
             });
+            return Ok(Closed::StartTag);
         };
         if self.position + 2 >= self.source_text.len() {
             return self.unexpected_eof();
@@ -216,10 +256,7 @@ impl Parser<'_, '_> {
             if regular {
                 return Ok(Closed::Outside);
             }
-            return self.err(
-                "element_invalid_closing_tag",
-                format_args!("`</{closing}>` attempted to close an element that was not open"),
-            );
+            return self.stray_closing_tag();
         }
         self.eat_token(TokenType::EndTagOpen, 2);
         self.eat_token(TokenType::TagName, closing.len());
@@ -228,6 +265,9 @@ impl Parser<'_, '_> {
             return self.expected_token(">");
         }
         self.eat_token(TokenType::TagEnd, 1);
+        if self.auto_closed.is_some_and(|a| self.depth < a.depth) {
+            self.auto_closed = None;
+        }
         Ok(Closed::EndTag)
     }
 

@@ -8,7 +8,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
 use rsvelte_typescript_tree::PatternIdentifier;
 use serde::Deserialize;
 
-use super::markup::{is_special_this, whitespace_after, whitespace_before};
+use super::shared::markup::{is_special_this, whitespace_after, whitespace_before};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

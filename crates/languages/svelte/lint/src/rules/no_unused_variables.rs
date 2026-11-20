@@ -11,9 +11,10 @@ use rsvelte_svelte_semantic::legacy::{TopLevel, Variable};
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::legacy_reactivity::legacy;
-use super::nodes;
-use super::runes::runes;
+use super::shared::legacy_reactivity::legacy;
+use super::shared::nodes;
+use super::shared::runes::runes;
+use super::shared::svelte_names::{TopLevelNames, has_reactive_statement};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 #[cfg(test)]
@@ -43,8 +44,12 @@ fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     let mut skipped = FxHashSet::default();
     let runes = runes(file) != Some(false);
     virtually_read(file, runes, &mut skipped);
-    let mut reads = subscribed_stores(file, runes, &mut skipped);
-    script_snippets(file, &mut reads);
+    let top_level = TopLevelNames::new(file);
+    let mut reads = FxHashMap::default();
+    if let Some(top_level) = &top_level {
+        reads = subscribed_stores(top_level, runes, &mut skipped);
+        script_snippets(top_level, &mut reads);
+    }
     component_snippets(file, &mut skipped);
     shared_names(file, &mut skipped);
     let bodies = snippet_bodies(file);
@@ -70,7 +75,7 @@ fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
 /// parameter pattern, whose defaults assign the names.
 fn defaulted_let_starts(file: &File<'_>) -> FxHashSet<u32> {
     let mut starts = FxHashSet::default();
-    let Some(tree) = file.normalized() else {
+    let Some(tree) = file.lowered() else {
         return starts;
     };
     for attribute in &tree.attributes {
@@ -87,20 +92,7 @@ fn defaulted_let_starts(file: &File<'_>) -> FxHashSet<u32> {
 /// `analyzeReactiveScope`: a top-level `$: name = …` that assigns an undeclared name declares it,
 /// with the first assigned identifier as its definition.
 fn reactive_declarations(file: &File<'_>, reporter: &mut Reporter<'_>) {
-    // Most components have no `$:`, and then need no legacy facts.
-    let (Some(component), tree) = (file.component(), file.javascript()) else {
-        return;
-    };
-    let reactive = component
-        .module
-        .iter()
-        .chain(&component.instance)
-        .any(|script| {
-            tree.get_program(script.program).body.iter().any(|statement| {
-            matches!(statement, Statement::LabeledStatement(labeled) if labeled.label.name == "$")
-        })
-        });
-    if !reactive {
+    if !has_reactive_statement(file) {
         return;
     }
     let legacy = legacy(file);
@@ -170,7 +162,7 @@ fn updates_itself(nodes: &AstNodes<'_>, identifier: NodeId) -> bool {
 /// The scope of each snippet's parameters and body, where `svelte-eslint-parser`'s function for
 /// it makes a reference to it a self-reference.
 fn snippet_bodies(file: &File<'_>) -> FxHashMap<SymbolId, ScopeId> {
-    let (Some(tree), Some(resolution)) = (file.normalized(), file.resolution()) else {
+    let (Some(tree), Some(resolution)) = (file.lowered(), file.resolution()) else {
         return FxHashMap::default();
     };
     tree.nodes
@@ -187,25 +179,16 @@ fn snippet_bodies(file: &File<'_>) -> FxHashMap<SymbolId, ScopeId> {
 
 /// `svelte-eslint-parser` declares a top-level snippet in the scripts' scope, where Svelte's
 /// scopes leave a script's reference to it unresolved.
-fn script_snippets(file: &File<'_>, reads: &mut FxHashMap<SymbolId, Vec<ReferenceId>>) {
-    let (Some(tree), Some(resolution)) = (file.normalized(), file.resolution()) else {
-        return;
-    };
-    let scoping = resolution.scoping();
-    let mut top_level = FxHashMap::default();
-    for (identifier, node) in tree.nodes.iter_enumerated() {
-        if matches!(node.kind, NodeKind::Snippet(_))
-            && node.parent.is_none()
-            && let Some(symbol) = resolution.snippet(identifier)
-        {
-            top_level.insert(scoping.symbol_name(symbol), symbol);
-        }
-    }
-    if top_level.is_empty() {
+fn script_snippets(
+    top_level: &TopLevelNames<'_>,
+    reads: &mut FxHashMap<SymbolId, Vec<ReferenceId>>,
+) {
+    if !top_level.has_snippets() {
         return;
     }
+    let scoping = top_level.scoping();
     for (name, references) in scoping.root_unresolved_references() {
-        if let Some(&symbol) = top_level.get(name.as_str()) {
+        if let Some(symbol) = top_level.snippet(name.as_str()) {
             reads.entry(symbol).or_default().extend(references);
         }
     }
@@ -228,7 +211,7 @@ fn virtually_read(file: &File<'_>, runes: bool, out: &mut FxHashSet<SymbolId>) {
         );
     };
     let tree = file.javascript();
-    for script in component.module.iter().chain(&component.instance) {
+    for script in component.scripts() {
         for statement in &tree.get_program(script.program).body {
             match statement {
                 Statement::VariableDeclaration(declaration) if runes => {
@@ -292,37 +275,14 @@ fn bindable_names<'a>(pattern: &BindingPattern<'a>, out: &mut impl FnMut(&Bindin
 /// subscribes to, in either script. A store whose only references are such reads that the code
 /// writes (`$name = v`) is marked used.
 fn subscribed_stores(
-    file: &File<'_>,
+    top_level: &TopLevelNames<'_>,
     runes: bool,
     used: &mut FxHashSet<SymbolId>,
 ) -> FxHashMap<SymbolId, Vec<ReferenceId>> {
     let mut stores: FxHashMap<SymbolId, Vec<ReferenceId>> = FxHashMap::default();
-    let Some(resolution) = file.resolution() else {
-        return stores;
-    };
-    let scoping = resolution.scoping();
-    // The root fragment's names are top-level names to `svelte-eslint-parser`.
-    let root = file
-        .normalized()
-        .and_then(|tree| resolution.template_scope(TemplateScope::Fragment(tree.root)));
-    let scopes = [
-        Some(resolution.instance_scope()),
-        Some(scoping.root_scope_id()),
-        root,
-    ];
+    let scoping = top_level.scoping();
     for (name, references) in scoping.root_unresolved_references() {
-        let name = name.as_str();
-        let Some(store) = name.strip_prefix('$') else {
-            continue;
-        };
-        if SVELTE_GLOBALS.contains(&name) || (runes && RUNE_GLOBALS.contains(&name)) {
-            continue;
-        }
-        for symbol in scopes
-            .iter()
-            .flatten()
-            .filter_map(|&scope| scoping.get_binding(scope, store.into()))
-        {
+        for symbol in top_level.stores(name.as_str(), runes) {
             stores.entry(symbol).or_default().extend(references);
         }
     }
@@ -343,23 +303,10 @@ fn subscribed_stores(
     stores
 }
 
-/// `svelte-eslint-parser`'s globals, which subscribe to nothing.
-const SVELTE_GLOBALS: [&str; 3] = ["$$slots", "$$props", "$$restProps"];
-/// Its globals outside legacy mode.
-const RUNE_GLOBALS: [&str; 7] = [
-    "$state",
-    "$derived",
-    "$effect",
-    "$props",
-    "$bindable",
-    "$inspect",
-    "$host",
-];
-
 /// A `{#snippet}` directly inside a component, `<svelte:component>` or `<svelte:boundary>` is a
 /// prop of it.
 fn component_snippets(file: &File<'_>, out: &mut FxHashSet<SymbolId>) {
-    let (Some(tree), Some(resolution)) = (file.normalized(), file.resolution()) else {
+    let (Some(tree), Some(resolution)) = (file.lowered(), file.resolution()) else {
         return;
     };
     let source = file.source();
@@ -405,7 +352,7 @@ fn shared_names(file: &File<'_>, out: &mut FxHashSet<SymbolId>) {
     if module != instance {
         merge(module, Some(instance));
     }
-    let Some(tree) = file.normalized() else {
+    let Some(tree) = file.lowered() else {
         return;
     };
     let root = fragment(tree.root);

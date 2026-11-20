@@ -6,7 +6,7 @@ use super::*;
 fn the_installed_plugins_run_every_command_and_no_other_language() {
     let mut settings = rsvelte_plugin_interface::Settings::new(
         Selection::DocumentTasks,
-        std::sync::Arc::new(rsvelte_plugin_interface::NoFunctions),
+        Arc::new(rsvelte_plugin_interface::NoFunctions),
     );
     let mut reg = Registry::new();
     rsvelte_plugin_interface::install(&mut reg, EXTENSIONS, &mut settings).unwrap();

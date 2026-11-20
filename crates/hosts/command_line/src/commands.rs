@@ -2,7 +2,7 @@
 
 pub(crate) mod benchmark;
 pub(crate) mod corpus;
-mod files;
+pub(crate) mod files;
 pub(crate) mod format;
 pub(crate) mod lint;
 pub(crate) mod performance;

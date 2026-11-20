@@ -2,8 +2,8 @@ use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, TemplateNode};
 use serde::Deserialize;
 
-use super::element_kind::{ElementKind, element_kind};
-use super::style_attribute::is_style;
+use super::shared::element_kind::{ElementKind, element_kind};
+use super::shared::style_attribute::is_style;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

@@ -6,9 +6,10 @@ use oxc_ast_visit::VisitMut;
 use oxc_semantic::{SymbolFlags, SymbolId};
 use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    AttributeValue, Each, ElementKind, MetadataTag,
+    AttributeValue, Each, EachKey, ElementKind, MetadataTag,
 };
 use rsvelte_svelte_semantic::resolve::TemplateScope;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
@@ -65,7 +66,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             Some(BindingPattern::BindingIdentifier(item)) => (Some(&**item), None),
             pattern => (None, pattern),
         };
-        let keyed = each.keyed(javascript);
+        let key = crate::lower::validation::each_key(javascript, each)?;
+        let keyed = matches!(key, EachKey::Keyed { .. });
         let index = each
             .index
             .and_then(|i| javascript.get_pattern(i).pattern.get_binding_identifier());
@@ -99,11 +101,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .iter()
             .chain(destructured_names.iter().map(|&(symbol, _)| symbol))
             .collect();
-        let key_function = if keyed {
-            let pattern = pattern.expect("a key follows `as`");
-            self.key_function(each, pattern, &symbols, &index_name, index_use.key)
-        } else {
-            b.member(b.id("$"), "index")
+        let key_function = match key {
+            EachKey::Keyed { context, key } => {
+                let pattern = &javascript.get_pattern(context).pattern;
+                self.key_function(key, pattern, &symbols, &index_name, index_use.key)
+            }
+            EachKey::Index => b.member(b.id("$"), "index"),
         };
         for symbol in &symbols {
             self.reads.remove(symbol);
@@ -301,7 +304,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     /// The key function sees the item and the index as plain values.
     fn key_function(
         &mut self,
-        each: &Each,
+        key: ExpressionIdentifier,
         pattern: &BindingPattern<'_>,
         symbols: &[SymbolId],
         index_name: &str,
@@ -311,7 +314,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         for &symbol in symbols {
             self.reads.insert(symbol, Read::Plain);
         }
-        let key = self.expression(each.key.expect("a keyed block has a key"));
+        let key = self.expression(key);
         let mut pattern = pattern.clone_in_with_semantic_ids(b.allocator());
         self.rewriter(true).visit_binding_pattern(&mut pattern);
         let mut parameters = vec![b.parameter(pattern)];

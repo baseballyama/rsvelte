@@ -2,15 +2,15 @@
 //! for one file.
 
 use rsvelte_kernel::diagnostics::Severity;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use serde::de::{Deserialize, Deserializer, MapAccess, Visitor};
 use serde_json::value::RawValue;
 
+use super::directive_comments::justification_start;
 use crate::Configuration;
 use crate::configuration::{Running, applies};
-use crate::directives::justification_start;
 use crate::rule::{File, Files, SvelteRule};
-use crate::words::is_javascript_space;
 
 /// What a comment sets a rule to.
 #[derive(Debug)]
@@ -35,10 +35,10 @@ pub(super) fn settings(comments: &[Span], source: &str) -> Vec<(String, Setting)
             continue;
         };
         let part = value[..justification_start(value).unwrap_or(value.len())]
-            .trim_matches(is_javascript_space);
+            .trim_matches(is_ecmascript_whitespace);
         let Some(rules) = part
             .strip_prefix("eslint")
-            .filter(|rest| rest.is_empty() || rest.starts_with(is_javascript_space))
+            .filter(|rest| rest.is_empty() || rest.starts_with(is_ecmascript_whitespace))
         else {
             continue;
         };
@@ -70,24 +70,24 @@ fn parse_json_like(text: &str) -> Option<Vec<(String, Box<RawValue>)>> {
 /// quoted, a `:`, a value, and a comma before the next member.
 fn levn_members(text: &str) -> Option<Vec<(String, Box<RawValue>)>> {
     let mut members = Vec::new();
-    let mut rest = text.trim_matches(is_javascript_space);
+    let mut rest = text.trim_matches(is_ecmascript_whitespace);
     while !rest.is_empty() {
         let colon = rest.find(':')?;
-        let name = rest[..colon].trim_matches(is_javascript_space);
+        let name = rest[..colon].trim_matches(is_ecmascript_whitespace);
         let name = name
             .strip_prefix('"')
             .and_then(|n| n.strip_suffix('"'))
             .unwrap_or(name);
-        if name.is_empty() || name.contains(|c: char| c == '"' || is_javascript_space(c)) {
+        if name.is_empty() || name.contains(|c: char| c == '"' || is_ecmascript_whitespace(c)) {
             return None;
         }
         let value = &rest[colon + 1..];
         let mut values = serde_json::Deserializer::from_str(value).into_iter::<Box<RawValue>>();
         let parsed = values.next()?.ok()?;
         members.push((name.to_owned(), parsed));
-        rest = value[values.byte_offset()..].trim_start_matches(is_javascript_space);
+        rest = value[values.byte_offset()..].trim_start_matches(is_ecmascript_whitespace);
         if let Some(after) = rest.strip_prefix(',') {
-            rest = after.trim_start_matches(is_javascript_space);
+            rest = after.trim_start_matches(is_ecmascript_whitespace);
         } else if !rest.is_empty() {
             return None;
         }
@@ -144,7 +144,7 @@ fn normalize(text: &str) -> String {
             return None;
         }
         let after = &quoted[i + 1..];
-        let spaces = after.len() - after.trim_start_matches(is_javascript_space).len();
+        let spaces = after.len() - after.trim_start_matches(is_ecmascript_whitespace).len();
         (spaces > 0 && after[spaces..].starts_with('"')).then_some((i + 1, i + 1 + spaces))
     });
     if let Some((start, end)) = comma {

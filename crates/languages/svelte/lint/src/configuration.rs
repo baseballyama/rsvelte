@@ -139,7 +139,7 @@ impl Configuration {
     /// # Errors
     ///
     /// A rule of the name is already on.
-    pub fn push(
+    pub(crate) fn push(
         &mut self,
         name: &'static str,
         files: Files,
@@ -172,7 +172,7 @@ impl Configuration {
 /// # Errors
 ///
 /// A plugin's prefix or rule name breaks that, or two plugins share a prefix.
-pub fn check_plugins(plugins: &[&'static LintPlugin]) -> Result<(), String> {
+pub(crate) fn check_plugins(plugins: &[&'static LintPlugin]) -> Result<(), String> {
     catalog::check_plugins("svelte", plugins)
 }
 
@@ -194,7 +194,7 @@ impl Configuration {
     ///
     /// Never: the default rules take no options.
     #[must_use]
-    pub fn with_default_rules(settings: LintSettings) -> Self {
+    pub(crate) fn with_default_rules(settings: LintSettings) -> Self {
         let mut configuration = Self::new(settings);
         for name in DEFAULT_RULES {
             configuration

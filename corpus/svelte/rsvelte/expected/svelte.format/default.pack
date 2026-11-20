@@ -2437,12 +2437,12 @@ b"
   >real space before bracket</svelte:element
 >
 
-=== 103 lint/html-closing-bracket-spacing/04-script-style-tags.svelte	svelte
+=== 101 lint/html-closing-bracket-spacing/04-script-style-tags.svelte	svelte
 <script>
   export const x = 1;
 </script>
 
-<div>{x}</div>
+<div>x</div>
 
 <style>
   div {
@@ -33717,6 +33717,24 @@ plain text with no script, no markup elements and no expressions
 
 <div class:a.b>x</div>
 
+=== 243 pattern/css/attribute-selector-value-escapes.svelte	svelte
+<div data-x="a b" data-y="ab" data-w="a\20 b"></div>
+
+<style>
+  [data-x="a\20 b"] {
+    color: green;
+  }
+  [data-y="a\62"] {
+    color: green;
+  }
+  [data-w="a\20 b"] {
+    color: red;
+  }
+  [data\2d x="a b"] {
+    color: green;
+  }
+</style>
+
 === 78 pattern/css/declaration-without-property-or-colon.svelte	svelte
 <p class="a">x</p>
 
@@ -33781,6 +33799,28 @@ https://svelte.dev/e/expected_token
 
 {JSON.stringify($value)}
 
+=== 188 pattern/each-comment-without-as.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  1 | <script>
+  2 | 	let items = $state([1, 2]);
+> 3 | </script>
+    |          ^
+  4 |
+  5 | {#each items /* as item */}
+  6 | 	text
+
+=== 176 pattern/each-parenthesized-without-as.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  1 | <script>
+  2 | 	let items = $state([1, 2]);
+> 3 | </script>
+    |          ^
+  4 |
+  5 | {#each (items)}
+  6 | 	text
+
 === 191 pattern/event-directive-named-class.svelte	svelte
 <script>
   let { b, f } = $props();
@@ -33795,6 +33835,15 @@ https://svelte.dev/e/expected_token
     color: red;
   }
 </style>
+
+=== 138 pattern/global-focused-bindings.svelte	svelte
+<script>
+  let focused = $state(false);
+</script>
+
+<input bind:focused />
+<svelte:window bind:focused />
+<svelte:document bind:focused />
 
 === 147 pattern/input-default-value-style-directive.svelte	svelte
 <script>
@@ -40769,6 +40818,31 @@ b`.length}
 
 <p>{a}{b}{c}{d}{e}</p>
 
+=== 753 pattern/issues/431-bind-group-interpolated-value.svelte	svelte
+<script>
+  let { p, q } = $props();
+  let group = $state([]);
+  let one = $state("");
+  let checked = $state(false);
+  let items = $state([1, 2]);
+  let c = "q";
+  function f(x) {
+    return x;
+  }
+</script>
+
+<input type="checkbox" value="{p}-{q}" bind:group />
+<input type="radio" value="x{p}" bind:group={one} />
+<input type="radio" value="{f(p)}{q}" bind:group={one} />
+<input type="checkbox" value="{p}:{f(q)}" bind:checked />
+{#each items as item, i}
+  <input type="checkbox" value="{item}-{i}-{p}" bind:group />
+{/each}
+<input type="checkbox" value="a{c}" bind:group />
+<input type="checkbox" value="it's {c}" bind:group />
+<input type="checkbox" value="say &quot;{c}&quot; \ back" bind:group />
+<input type="checkbox" value={"lit"} bind:group />
+
 === 611 pattern/issues/4335-parse-ts-type-fields.svelte	svelte
 <script lang="ts">
   function id<T>(v: T): T {
@@ -46396,6 +46470,16 @@ b`;
 
 <p>{x}</p>
 
+=== 156 pattern/select-dynamic-multiple-size-binding.svelte	svelte
+<script>
+  let width = $state(0);
+  let many = $state(false);
+</script>
+
+<select multiple={many} bind:clientWidth={width}>
+  <option>one</option>
+</select>
+
 === 60 pattern/self-closing-block-in-a-string.svelte	svelte
 <script>
   const tag = "<style />";
@@ -46427,6 +46511,35 @@ https://svelte.dev/e/expected_token
 > 2 | <style lang="scss" />
     |                   ^
   3 |
+
+=== 164 pattern/slot-closed-by-parent-end-tag.svelte	error.txt
+`</div>` attempted to close an element that was not open
+https://svelte.dev/e/element_invalid_closing_tag
+  1 | <div>
+  2 | 	<slot>
+> 3 | </div>
+    |      ^
+  4 |
+
+=== 373 pattern/snippet-parameter-defaults-on-the-server.svelte	svelte
+<script>
+  import { writable } from "svelte/store";
+  const fallback = writable("fallback");
+  let count = $state(0);
+  let double = $derived(count * 2);
+  let { name, ...rest } = $props();
+</script>
+
+{#snippet row(
+  value = $fallback,
+  d = double,
+  n = name,
+  r = rest.x,
+  { a = $fallback } = {},
+)}
+  <p>{value}{d}{n}{r}{a}{$fallback}</p>
+{/snippet}
+{@render row()}
 
 === 251 pattern/state-wrapped-store-reference.svelte	svelte
 <script>
@@ -46463,6 +46576,15 @@ https://svelte.dev/e/expected_token
     <option value={o}>{o}</option>
   {/each}
 </select>
+
+=== 145 pattern/svelte-options-left-open.svelte	error.txt
+Block was left open
+https://svelte.dev/e/block_unclosed
+> 1 | <svelte:options runes>
+    |                      ^
+  2 |
+  3 | <p>after</p>
+  4 |
 
 === 130 pattern/ts-class-generator-method-overload.svelte	svelte
 <script lang="ts">

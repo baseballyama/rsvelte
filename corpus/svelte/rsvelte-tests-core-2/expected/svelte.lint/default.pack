@@ -2340,25 +2340,6 @@
 2:14 2:15 no-unused-vars "'x' is assigned a value but never used."
 5:16 5:84 svelte/valid-compile "`<svelte:self>` is deprecated — use self-imports (e.g. `import Self from './Self.svelte'`) instead\nhttps://svelte.dev/e/svelte_self_deprecated(svelte_self_deprecated)"
 
-=== 1177 directive_attribute_locations/directive_locations_cover_the_full_unicode_attribute_names/3d067ac2960a5475.svelte	lint.txt
-1:1 9:2 svelte/no-unused-class-name "Unused class \"有効\"."
-2:3 2:27 svelte/shorthand-directive "Expected shorthand directive."
-2:21 2:26 no-undef "'value' is not defined."
-3:21 3:23 no-undef "'動作' is not defined."
-3:25 3:31 no-undef "'action' is not defined."
-4:3 4:20 svelte/sort-attributes "Attribute 'class:有効' should go before 'bind:value|group'."
-4:13 4:19 no-undef "'active' is not defined."
-5:2 5:4 no-undef "'動作' is not defined."
-5:3 5:26 svelte/no-inline-styles "Found disallowed style directive."
-5:3 5:26 svelte/sort-attributes "Attribute 'style:色' should go before 'bind:value|group'."
-5:9 5:10 svelte/no-unknown-style-directive-property "Unexpected unknown style directive property '色'."
-6:14 6:16 no-undef "'遷移' is not defined."
-6:25 6:31 no-undef "'params' is not defined."
-7:3 7:22 svelte/valid-compile "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement(animation_invalid_placement)"
-7:11 7:13 no-undef "'反転' is not defined."
-7:15 7:21 no-undef "'params' is not defined."
-8:11 8:15 no-unused-vars "'item' is defined but never used."
-
 === 86 directive_attribute_locations/loose_unterminated_multiline_comments_keep_eof_location/88ab87e758711917.svelte	lint.txt
 2:3 - - "Parsing error: Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof"
 
@@ -19655,12 +19636,6 @@
 === 156 parse_ts_node_estree_fields_4133/a_type_parameter_list_records_its_trailing_comma/d859cd936e28cb9d.svelte	lint.txt
 1:1 1:54 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:25 1:26 no-unused-vars "'f' is assigned a value but never used."
-
-=== 462 parse_ts_node_estree_fields_4133/a_typescript_template_expression_parses_await_as_a_module_would/7386b579a5aafd1b.svelte	lint.txt
-1:1 1:34 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:23 1:24 no-unassigned-vars "'a' is always 'undefined' because it's never assigned."
-2:2 2:7 no-undef "'await' is not defined."
-2:2 2:11 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
 
 === 802 parse_ts_node_estree_fields_4133/an_accessibility_modifier_without_readonly_omits_the_readonly_field/44e834ba4a646dcb.svelte	lint.txt
 1:1 1:64 svelte/block-lang "The lang attribute of the <script> block should be omitted."

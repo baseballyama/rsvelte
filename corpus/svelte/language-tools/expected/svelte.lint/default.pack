@@ -930,17 +930,6 @@
 === 89 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/script-boolean-not-assignable-to-string/input.svelte	lint.txt
 1:1 1:57 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 729 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/slot-typechecks/input.svelte	lint.txt
-1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-5:28 5:50 svelte/max-attributes-per-line "'prop' should be on a new line."
-5:28 5:50 svelte/sort-attributes "Attribute 'prop' should go before 'let:defaultSlotProp'."
-8:3 8:57 svelte/no-unused-class-name "Unused class \"namedSlotProp\"."
-8:19 8:36 svelte/max-attributes-per-line "'let:namedSlotProp' should be on a new line."
-8:37 8:56 svelte/sort-attributes "Attribute 'class:namedSlotProp' should go before 'let:namedSlotProp'."
-13:4 13:17 no-undef "'namedSlotProp' is not defined."
-14:20 14:25 svelte/max-attributes-per-line "'let:a' should be on a new line."
-
 === 737 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/snippet-js.v5/input.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 0 spaces but found 4 spaces."
 8:1 8:16 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
@@ -2765,30 +2754,6 @@
 5:14 5:21 no-undef "'Slotted' is not defined."
 5:35 5:44 svelte/max-attributes-per-line "'let:value' should be on a new line."
 5:39 5:44 no-unused-vars "'value' is defined but never used."
-6:1 6:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-
-=== 1546 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-infer-props/input.svelte	lint.txt
-1:2 1:8 no-undef "'Parent' is not defined."
-1:14 1:25 svelte/max-attributes-per-line "'shorthand' should be on a new line."
-1:15 1:24 no-undef "'shorthand' is not defined."
-1:32 1:36 svelte/html-quotes "Expected to be enclosed by double quotes."
-1:59 1:60 no-undef "'a' is not defined."
-1:63 1:64 no-undef "'b' is not defined."
-1:80 1:94 svelte/sort-attributes "Attribute 'literal' should go before 'shorthand'."
-1:95 1:113 svelte/sort-attributes "Attribute 'strLiteral' should go before 'text1'."
-1:106 1:113 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-1:114 1:127 svelte/sort-attributes "Attribute 'complex' should go before 'shorthand'."
-1:124 1:125 no-undef "'a' is not defined."
-1:128 1:150 svelte/sort-attributes "Attribute 'a-dashed-complex' should go before 'bare'."
-1:147 1:148 no-undef "'a' is not defined."
-1:151 1:173 svelte/sort-attributes "Attribute '--custom-cssprop' should go before 'bare'."
-2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-2:6 2:15 no-undef "'Component' is not defined."
-2:29 2:36 svelte/max-attributes-per-line "'let:bar' should be on a new line."
-3:1 3:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 6:1 6:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 

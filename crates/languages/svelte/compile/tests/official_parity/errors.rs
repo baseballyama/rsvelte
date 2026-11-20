@@ -378,7 +378,15 @@ fn a_binding_upstream_rejects_on_its_element_is_refused_on_both_targets() {
         ),
         (
             "<select multiple={t} bind:value={x}></select>",
-            "unsupported",
+            "attribute_invalid_multiple",
+        ),
+        (
+            "<select multiple={t} bind:clientWidth={x}></select>",
+            "attribute_invalid_multiple",
+        ),
+        (
+            "<select multiple=\"{t}\" bind:value={x}></select>",
+            "attribute_invalid_multiple",
         ),
         ("<svg bind:offsetWidth={x}></svg>", "bind_invalid_target"),
         ("<div bind:nope={x}></div>", "bind_invalid_name"),
@@ -394,6 +402,49 @@ fn a_binding_upstream_rejects_on_its_element_is_refused_on_both_targets() {
                 Err(code.to_owned()),
                 "{source} on {target:?}"
             );
+        }
+    }
+}
+
+#[test]
+fn an_each_key_is_refused_without_a_context_unless_it_is_the_index() {
+    // Svelte 5.57.3's `each_key_without_as` spans; the index as its own key keys nothing.
+    let typescript = "<script lang=\"ts\"></script>";
+    for (template, key) in [
+        ("{#each a, b (k)}x{/each}", Some((13, 14))),
+        ("{#each a, b (b.x)}x{/each}", Some((13, 16))),
+        ("<div>{#each a, b (k)}<p>x</p>{/each}</div>", Some((18, 19))),
+        (
+            "{#each a, b (k)}x{/each}{#each $state as x}{/each}",
+            Some((13, 14)),
+        ),
+        ("{#each a, b (b)}x{/each}", None),
+        ("{#each a, b ((b))}x{/each}", None),
+        ("{#each a, i (i)}{i}{/each}", None),
+    ] {
+        for target in [Target::Client, Target::Server] {
+            let error = compile_at(template, target).err();
+            let expected = key.map(|span| ("each_key_without_as".to_owned(), span));
+            assert_eq!(error, expected, "{template} on {target:?}");
+        }
+    }
+    // Upstream reads the key with its types erased.
+    let at = |span: (u32, u32)| (span.0 + 27, span.1 + 27);
+    for (template, key) in [
+        ("{#each a, b (k as number)}x{/each}", Some(at((13, 14)))),
+        (
+            "{#each a, b ((k as any) as number)}x{/each}",
+            Some(at((14, 15))),
+        ),
+        ("{#each a, b (b as number)}x{/each}", None),
+        ("{#each a, b (b!)}x{/each}", None),
+        ("{#each a, b (b satisfies number)}x{/each}", None),
+    ] {
+        let source = format!("{typescript}{template}");
+        for target in [Target::Client, Target::Server] {
+            let error = compile_at(&source, target).err();
+            let expected = key.map(|span| ("each_key_without_as".to_owned(), span));
+            assert_eq!(error, expected, "{source} on {target:?}");
         }
     }
 }

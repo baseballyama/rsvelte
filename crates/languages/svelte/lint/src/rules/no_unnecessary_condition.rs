@@ -4,7 +4,7 @@ use oxc_semantic::AstNodes;
 use oxc_syntax::operator::{LogicalOperator, UnaryOperator};
 use rsvelte_lint_runner::rule::Reporter;
 
-use super::nodes::span;
+use super::shared::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 use crate::types::TypeFacts;
 

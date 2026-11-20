@@ -1,4 +1,4 @@
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace as is_javascript_whitespace;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Token;
 use rsvelte_lint_runner::finding::Fix;
@@ -8,7 +8,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
 };
 use serde::Deserialize;
 
-use super::markup::{Attributes, part_span, quote_before, start_tags};
+use super::shared::markup::{Attributes, part_span, quote_before, start_tags};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -245,6 +245,6 @@ impl MarkupQuotes {
 /// No character that HTML forbids in an unquoted value.
 fn can_be_unquoted(text: &str) -> bool {
     !text.contains(|c: char| {
-        is_javascript_whitespace(c) || matches!(c, '"' | '\'' | '<' | '=' | '>' | '`')
+        is_ecmascript_whitespace(c) || matches!(c, '"' | '\'' | '<' | '=' | '>' | '`')
     })
 }

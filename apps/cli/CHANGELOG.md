@@ -1,5 +1,23 @@
 # @rsvelte/cli
 
+## 0.2.1
+
+### Patch Changes
+
+- c8116c2: Compile `bind:group` beside a `value` made of text and expressions, such as `value="{a}-{b}"`, instead of refusing it.
+- ea61e22: `rsvelte typecheck` no longer reports a false "has no default export" at an import of a component whose script only TypeScript reads, such as a plain `<script>` with TypeScript syntax.
+- 1db7820: An `{#each}` block without `as` now ends its expression where Svelte does, so a comment or a closing parenthesis after the expression is an error.
+- c9c88b5: `rsvelte format` now takes the options of the nearest oxfmt or Prettier configuration, as the 0.2.0 notes announced; 0.2.0 shipped without this change and formatted with Prettier's defaults.
+- cf93141: Inside a Git repository, `rsvelte lint` and `rsvelte format` read `.gitignore` files only up to the repository root, so an enclosing repository's no longer skip a nested project's files. Outside Git, `.gitignore` files still apply.
+- 9893576: Compile `bind:focused` on `<svelte:window>` and `<svelte:document>` as Svelte does.
+- cce073d: `svelte/no-navigation-without-resolve` accepts a link whose `href` an `{#each}` item takes from `resolve()` in a constant array or object literal.
+- 050637e: `rsvelte lint` supports the `no-undef` rule for Svelte components.
+- 4e358aa: Report `attribute_invalid_multiple` for a binding on a `<select>` with a dynamic `multiple` attribute, as Svelte does.
+- dc51a86: The README says that `on:click`, `<slot>` and `createEventDispatcher` work as in the official compiler's runes mode, and that `typecheck` reports `$$props` and `$$restProps` as unknown names.
+- d6270b1: The README states that rsvelte supports only Svelte 5 components in runes mode, and what each command does on a legacy component.
+- e2b3c65: `rsvelte typecheck` reports the errors of the project's `tsconfig.json` and exits 1, as svelte-check does. Examples are an `include` that matches no file, an empty `files` and an unknown compiler option.
+- 7154a25: A `<svelte:options>`, `<svelte:head>`, component or `<slot>` left open at the end of a file now raises `block_unclosed` like Svelte does. A regular element left open raises `element_unclosed`.
+
 ## 0.2.0
 
 ### Minor Changes

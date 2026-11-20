@@ -152,6 +152,103 @@ fn typecheck_prints_each_error_as_tsc_does_and_fails() {
 }
 
 #[test]
+fn typecheck_reports_the_errors_of_the_tsconfig_instead_of_the_files() {
+    let packages = NodePackages::locate();
+    let (program, arguments) = packages.type_checker();
+    let command: Vec<String> = std::iter::once(program.to_string_lossy().into_owned())
+        .chain(arguments)
+        .collect();
+    let config = serde_json::json!({ "plugins": {
+        "typescript.check": { "command": command },
+        "svelte.check": {
+            "svelte": packages.package("svelte"),
+            "contentMapper": rsvelte_test_harness::content_mapper(),
+        },
+    }});
+    let project = Project::new(
+        "typecheck-tsconfig",
+        &[
+            ("rsvelte.config.json", &config.to_string()),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions":{"strict":true,"types":[],"foo":1},"include":["src"]}"#,
+            ),
+            (
+                "src/App.svelte",
+                "<script lang=\"ts\">\n\tconst n: number = 'x';\n</script>\n{n}\n",
+            ),
+        ],
+    );
+    let typecheck = || {
+        let output = project.rsvelte(&["typecheck"]);
+        let mut report = text(&output.stdout);
+        report.push_str(&text(&output.stderr));
+        (output.status.code(), report)
+    };
+    assert_eq!(
+        typecheck(),
+        (
+            Some(1),
+            "tsconfig.json(1,46): error TS5023: Unknown compiler option 'foo'.\n\
+             \nFound 1 error in 1 file.\n"
+                .to_owned()
+        ),
+        "an unknown option, and the component is not checked"
+    );
+    let tsconfig = project.0.join("tsconfig.json");
+    std::fs::write(
+        &tsconfig,
+        r#"{"compilerOptions":{"strict":true,"types":[]},"include":["missing/**/*.ts"]}"#,
+    )
+    .expect("tsconfig");
+    assert_eq!(
+        typecheck(),
+        (
+            Some(1),
+            format!(
+                "tsconfig.json(1,1): error TS18003: No inputs were found in config file '{}'. \
+                 Specified 'include' paths were '[\"missing/**/*.ts\"]' and 'exclude' paths were \
+                 '[]'.\n\nFound 1 error in 1 file.\n",
+                tsconfig.display()
+            )
+        ),
+        "no inputs"
+    );
+    std::fs::write(
+        &tsconfig,
+        r#"{"compilerOptions":{"strict":true,"types":[]},"include":["src/**/*.svelte"]}"#,
+    )
+    .expect("tsconfig");
+    assert_eq!(
+        typecheck(),
+        (
+            Some(1),
+            "src/App.svelte(2,8): error TS2322: Type 'string' is not assignable to type \
+             'number'.\n\nFound 1 error in 1 file.\n"
+                .to_owned()
+        ),
+        "components alone are inputs"
+    );
+    std::fs::write(
+        &tsconfig,
+        r#"{"compilerOptions":{"strict":true,"types":[]},"files":[]}"#,
+    )
+    .expect("tsconfig");
+    assert_eq!(
+        typecheck(),
+        (
+            Some(1),
+            format!(
+                "tsconfig.json(1,55): error TS18002: The 'files' list in config file '{}' is \
+                 empty.\n\nFound 1 error in 1 file.\n",
+                tsconfig.display()
+            )
+        ),
+        "an empty `files`, which only the tsconfig without `extends` reports"
+    );
+}
+
+#[test]
 fn typecheck_without_a_checker_says_what_to_install() {
     let project = Project::new(
         "no-checker",
@@ -161,4 +258,176 @@ fn typecheck_without_a_checker_says_what_to_install() {
     assert_eq!(output.status.code(), Some(2));
     let stderr = text(&output.stderr);
     assert!(stderr.contains("\n    npm install -D tsrs\n"), "{stderr}");
+}
+
+#[test]
+fn format_follows_the_projects_formatter_configuration() {
+    let project = Project::new(
+        "format-configuration",
+        &[
+            (".prettierrc.json", r#"{"tabWidth":4,"printWidth":100}"#),
+            ("a.ts", "if (x) {\n  y(\"z\");\n}\n"),
+            ("App.svelte", "<script>\n  let a = 1;\n</script>\n"),
+        ],
+    );
+    let output = project.rsvelte(&["format"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(read("a.ts"), "if (x) {\n    y(\"z\");\n}\n");
+    assert_eq!(read("App.svelte"), "<script>\n    let a = 1;\n</script>\n");
+}
+
+#[test]
+fn format_leaves_svelte_files_whose_options_it_cannot_print_and_says_so() {
+    let project = Project::new(
+        "format-refused",
+        &[
+            (
+                ".oxfmtrc.jsonc",
+                r#"{
+  // the house style
+  "singleQuote": true,
+  "ignorePatterns": ["generated/"],
+}
+"#,
+            ),
+            ("a.ts", "y(\"z\");\n"),
+            ("generated/b.ts", "y(\"z\");\n"),
+            ("App.svelte", "<script>\nlet   a = \"1\"\n</script>\n"),
+        ],
+    );
+    let output = project.rsvelte(&["format"]);
+    let stderr = text(&output.stderr);
+    assert_eq!(output.status.code(), Some(2), "{stderr}");
+    assert!(
+        stderr.contains("1 Svelte files were not formatted"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("`singleQuote`"), "{stderr}");
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(read("a.ts"), "y('z');\n");
+    assert_eq!(read("generated/b.ts"), "y(\"z\");\n");
+    assert_eq!(read("App.svelte"), "<script>\nlet   a = \"1\"\n</script>\n");
+}
+
+#[test]
+fn format_refuses_a_configuration_it_cannot_honor_and_writes_nothing() {
+    let project = Project::new(
+        "format-overrides",
+        &[
+            (
+                ".prettierrc",
+                r#"{"overrides":[{"files":"*.ts","options":{"semi":false}}]}"#,
+            ),
+            ("a.ts", "y(\"z\")\n"),
+        ],
+    );
+    let output = project.rsvelte(&["format"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        text(&output.stderr).contains("`overrides`"),
+        "{}",
+        text(&output.stderr)
+    );
+    assert_eq!(
+        std::fs::read_to_string(project.0.join("a.ts")).expect("file"),
+        "y(\"z\")\n"
+    );
+}
+
+#[test]
+fn format_resolves_the_configuration_of_each_file_as_prettier_does() {
+    let unformatted = "function f() {\nreturn \"x\"\n}\n";
+    let project = Project::new(
+        "format-per-file",
+        &[
+            (".git/HEAD", "ref: refs/heads/main\n"),
+            ("sub/.prettierrc", r#"{"tabWidth":4}"#),
+            ("sub/a.ts", unformatted),
+            ("a.ts", unformatted),
+            ("tabs/.editorconfig", "[*.ts]\nindent_style = tab\n"),
+            ("tabs/b.ts", unformatted),
+        ],
+    );
+    let output = project.rsvelte(&["format"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(read("a.ts"), "function f() {\n  return \"x\";\n}\n");
+    assert_eq!(read("sub/a.ts"), "function f() {\n    return \"x\";\n}\n");
+    assert_eq!(read("tabs/b.ts"), "function f() {\n\treturn \"x\";\n}\n");
+}
+
+#[test]
+fn format_takes_from_rsvelte_config_the_options_it_names() {
+    let project = Project::new(
+        "format-rsvelte-config",
+        &[
+            (".prettierrc", r#"{"semi":false}"#),
+            ("rsvelte.config.json", r#"{"plugins":{"svelte.format":{}}}"#),
+            ("App.svelte", "<script>\nlet   a = 1\n</script>\n"),
+            ("a.ts", "y(\"z\");\n"),
+        ],
+    );
+    let output = project.rsvelte(&["format"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(read("App.svelte"), "<script>\n  let a = 1;\n</script>\n");
+    assert_eq!(read("a.ts"), "y(\"z\")\n");
+}
+
+#[test]
+fn format_ignores_an_unknown_option_and_says_so() {
+    let project = Project::new(
+        "format-unknown-option",
+        &[
+            (".prettierrc", r#"{"svelteStrictMode":true,"tabWidth":4}"#),
+            ("a.ts", "if (x) {\n  y(\"z\");\n}\n"),
+        ],
+    );
+    let output = project.rsvelte(&["format"]);
+    let stderr = text(&output.stderr);
+    assert_eq!(output.status.code(), Some(0), "{stderr}");
+    assert!(
+        stderr.contains("ignored unknown option `svelteStrictMode`"),
+        "{stderr}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(project.0.join("a.ts")).expect("file"),
+        "if (x) {\n    y(\"z\");\n}\n"
+    );
+}
+
+#[test]
+fn format_reads_nothing_for_a_file_oxfmt_leaves_and_skips_a_package_json_that_does_not_parse() {
+    let unformatted = "const a = [1,2];\n";
+    let formatted = "const a = [1, 2];\n";
+    let project = Project::new(
+        "format-left-unread",
+        &[
+            (
+                ".oxfmtrc.json",
+                r#"{"ignorePatterns":["vendor/**","fixtures/**","big"]}"#,
+            ),
+            ("a.ts", unformatted),
+            ("vendor/.prettierrc.yaml", "semi: false\n"),
+            ("vendor/x.ts", unformatted),
+            ("fixtures/bad/package.json", "{ broken\n"),
+            ("fixtures/bad/x.ts", unformatted),
+            ("big/y.ts", unformatted),
+            ("big/sub/.oxfmtrc.json", "{}"),
+            ("big/sub/x.ts", unformatted),
+            ("prettier/fixtures/package.json", "{ broken\n"),
+            ("prettier/.prettierrc", "{}"),
+            ("prettier/fixtures/x.ts", unformatted),
+        ],
+    );
+    let output = project.rsvelte(&["format"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(read("a.ts"), formatted);
+    assert_eq!(read("vendor/x.ts"), unformatted);
+    assert_eq!(read("fixtures/bad/x.ts"), unformatted);
+    assert_eq!(read("big/y.ts"), unformatted);
+    assert_eq!(read("big/sub/x.ts"), formatted);
+    assert_eq!(read("prettier/fixtures/x.ts"), formatted);
 }

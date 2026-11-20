@@ -379,16 +379,6 @@
 1:9 1:13 no-undef "'Icon' is not defined."
 1:20 1:21 no-undef "'a' is not defined."
 
-=== 392 block_body_width/a_closer_on_the_close_tags_line_does_not_count/e8a2ed7714498841.svelte	lint.txt
-1:1 1:23 svelte/require-each-key "Each block should have a key"
-1:8 1:12 no-undef "'cols' is not defined."
-2:11 2:20 no-undef "'tableCell' is not defined."
-2:32 2:39 no-undef "'rowData' is not defined."
-2:41 2:49 no-undef "'rowIndex' is not defined."
-2:62 2:72 no-undef "'dataValues' is not defined."
-3:6 3:11 no-undef "'value' is not defined."
-4:9 5:3 no-undef "'tableCell' is not defined."
-
 === 391 block_body_width/a_key_blocks_closer_counts_against_the_body/052ca3192d0c754a.svelte	lint.txt
 1:7 1:13 no-undef "'action' is not defined."
 1:17 1:21 no-undef "'Icon' is not defined."
@@ -1066,28 +1056,6 @@
 1:32 1:36 no-undef "'fade' is not defined."
 1:47 1:51 no-undef "'fade' is not defined."
 
-=== 143 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/2a039126629eda94.svelte	lint.txt
-1:22 1:31 no-undef "'shortcuts' is not defined."
-1:90 1:95 no-undef "'input' is not defined."
-2:19 2:28 no-undef "'shortcuts' is not defined."
-
-=== 900 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/35a7a183bfa27c27.svelte	lint.txt
-1:1 1:16 svelte/no-unused-class-name "Unused class \"a\"."
-2:3 2:18 svelte/no-unused-class-name "Unused class \"b\"."
-3:5 3:20 svelte/no-unused-class-name "Unused class \"c\"."
-4:7 4:22 svelte/no-unused-class-name "Unused class \"d\"."
-5:9 5:24 svelte/no-unused-class-name "Unused class \"e\"."
-6:11 6:26 svelte/no-unused-class-name "Unused class \"f\"."
-7:13 7:28 svelte/no-unused-class-name "Unused class \"g\"."
-8:15 8:39 svelte/require-each-key "Each block should have a key"
-8:22 8:26 no-undef "'list' is not defined."
-9:17 11:18 svelte/button-has-type "Missing an explicit type attribute for button."
-10:19 10:93 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
-10:23 10:30 no-undef "'tooltip' is not defined."
-10:32 10:43 no-undef "'makeTooltip' is not defined."
-10:82 10:91 no-undef "'placement' is not defined."
-11:22 12:1 no-undef "'tooltip' is not defined."
-
 === 902 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/693bdc8795850054.svelte	lint.txt
 1:1 1:16 svelte/no-unused-class-name "Unused class \"a\"."
 2:3 2:18 svelte/no-unused-class-name "Unused class \"b\"."
@@ -1225,29 +1193,6 @@
 11:21 11:35 no-undef "'selectCategory' is not defined."
 11:71 11:71 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 11:81 12:17 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
-
-=== 142 directive_value_first_line_budget_4119/the_oracle_output_is_a_fixed_point/7bdb4b9c3632a555.svelte	lint.txt
-2:7 2:16 no-undef "'shortcuts' is not defined."
-3:61 3:66 no-undef "'input' is not defined."
-6:19 6:28 no-undef "'shortcuts' is not defined."
-
-=== 1054 directive_value_first_line_budget_4119/the_oracle_output_is_a_fixed_point/a5cb8f41eea6d35c.svelte	lint.txt
-1:1 1:16 svelte/no-unused-class-name "Unused class \"a\"."
-2:3 2:18 svelte/no-unused-class-name "Unused class \"b\"."
-3:5 3:20 svelte/no-unused-class-name "Unused class \"c\"."
-4:7 4:22 svelte/no-unused-class-name "Unused class \"d\"."
-5:9 5:24 svelte/no-unused-class-name "Unused class \"e\"."
-6:11 6:26 svelte/no-unused-class-name "Unused class \"f\"."
-7:13 7:28 svelte/no-unused-class-name "Unused class \"g\"."
-8:15 8:39 svelte/require-each-key "Each block should have a key"
-8:22 8:26 no-undef "'list' is not defined."
-9:17 14:22 svelte/button-has-type "Missing an explicit type attribute for button."
-10:23 10:30 no-undef "'tooltip' is not defined."
-10:32 10:43 no-undef "'makeTooltip' is not defined."
-13:21 13:30 no-undef "'placement' is not defined."
-14:21 14:21 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
-14:31 15:17 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
-15:12 16:1 no-undef "'tooltip' is not defined."
 
 === 719 directive_value_first_line_budget_4119/the_oracle_output_is_a_fixed_point/b2bd84ff78efc815.svelte	lint.txt
 1:1 1:16 svelte/no-unused-class-name "Unused class \"a\"."
@@ -11952,13 +11897,6 @@
 2:7 2:45 no-unused-vars "'component' is defined but never used."
 2:16 2:16 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 2:25 2:40 no-undef "'SvelteComponent' is not defined."
-
-=== 329 typescript/plain_ts_script_ambiguous_generic_expr_formats_as_js/6f506a9c7c78c0d3.svelte	lint.txt
-1:13 1:22 no-unused-vars "'x' is assigned a value but never used."
-1:13 1:22 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
-1:14 1:14 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
-2:5 2:7 no-undef "'fn' is not defined."
-2:16 2:17 no-undef "'a' is not defined."
 
 === 827 typescript/reflow_does_not_touch_block_comment_with_sibling_as_union/34f277beb33d1857.svelte	lint.txt
 1:1 1:28 svelte/block-lang "The lang attribute of the <script> block should be omitted."

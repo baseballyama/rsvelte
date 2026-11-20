@@ -13,8 +13,8 @@ use rsvelte_svelte_syntax::syntax_tree::{
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::rule::File;
-use crate::rules::element_kind::{ElementKind, element_kind};
-use crate::rules::nodes;
+use crate::rules::shared::element_kind::{ElementKind, element_kind};
+use crate::rules::shared::nodes;
 
 /// How many times an element renders.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

@@ -3,7 +3,7 @@ use rsvelte_stylesheet_syntax::properties::{longhands, vendor_prefix};
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 use rustc_hash::FxHashSet;
 
-use super::style_attribute::property_sets;
+use super::shared::style_attribute::property_sets;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

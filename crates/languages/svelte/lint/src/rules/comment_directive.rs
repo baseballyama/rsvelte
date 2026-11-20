@@ -1,7 +1,7 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use serde::Deserialize;
 
-use crate::directives::{Kind, markup_directives};
+use crate::lint::directive_comments::{Kind, markup_directives};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 /// Turns on `<!-- eslint-disable -->` and its kin; `lint` applies them. With

@@ -4078,19 +4078,6 @@
 1:26 1:35 no-undef "'autofocus' is not defined."
 1:35 1:36 svelte/html-self-closing "Require self-closing on HTML void elements."
 
-=== 288 packages/svelte/tests/parser-legacy/samples/action-with-call/input.svelte	lint.txt
-1:12 1:19 no-undef "'tooltip' is not defined."
-1:20 1:40 svelte/html-quotes "Unexpected to be enclosed by any quotes."
-1:22 1:23 no-undef "'t' is not defined."
-1:40 1:41 svelte/html-self-closing "Require self-closing on HTML void elements."
-2:20 2:27 no-undef "'tooltip' is not defined."
-
-=== 222 packages/svelte/tests/parser-legacy/samples/action-with-identifier/input.svelte	lint.txt
-1:12 1:19 no-undef "'tooltip' is not defined."
-1:21 1:28 no-undef "'message' is not defined."
-1:29 1:30 svelte/html-self-closing "Require self-closing on HTML void elements."
-2:21 2:28 no-undef "'tooltip' is not defined."
-
 === 200 packages/svelte/tests/parser-legacy/samples/action-with-literal/input.svelte	lint.txt
 1:12 1:19 no-undef "'tooltip' is not defined."
 1:20 1:37 svelte/html-quotes "Unexpected to be enclosed by any quotes."

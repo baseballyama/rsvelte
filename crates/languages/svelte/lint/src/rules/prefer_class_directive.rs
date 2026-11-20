@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use oxc_ast::ast::Expression;
 use oxc_syntax::operator::{BinaryOperator, UnaryOperator};
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace as is_space;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
@@ -13,8 +13,8 @@ use rsvelte_typescript_tree::Tree;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
-use super::element_kind::is_markup_like;
-use super::nodes;
+use super::shared::element_kind::is_markup_like;
+use super::shared::nodes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -175,7 +175,7 @@ impl<'a> Values<'a> {
                 return false;
             };
             if let Some(first) = strings.iter().find_map(|s| s.chars().next()) {
-                return is_space(first);
+                return is_ecmascript_whitespace(first);
             }
         }
         true
@@ -187,7 +187,7 @@ impl<'a> Values<'a> {
                 return false;
             };
             if let Some(last) = strings.iter().find_map(|s| s.chars().next_back()) {
-                return is_space(last);
+                return is_ecmascript_whitespace(last);
             }
         }
         true
@@ -299,7 +299,11 @@ impl PreferClassDirective {
             Values::constant(&conditional.consequent)?,
             Values::constant(&conditional.alternate)?,
         ];
-        if self.prefer_empty && names.iter().all(|n| !n.trim_matches(is_space).is_empty()) {
+        if self.prefer_empty
+            && names
+                .iter()
+                .all(|n| !n.trim_matches(is_ecmascript_whitespace).is_empty())
+        {
             return None;
         }
         let next_is_word = !values.starts_with_space(&parts[index + 1..]);
@@ -308,9 +312,9 @@ impl PreferClassDirective {
             match (name.chars().next(), name.chars().next_back()) {
                 (Some(first), Some(last)) => {
                     // Upstream pairs each end of the class with the opposite neighbour.
-                    if !is_class_name(name.trim_matches(is_space))
-                        || (!is_space(first) && next_is_word)
-                        || (!is_space(last) && previous_is_word)
+                    if !is_class_name(name.trim_matches(is_ecmascript_whitespace))
+                        || (!is_ecmascript_whitespace(first) && next_is_word)
+                        || (!is_ecmascript_whitespace(last) && previous_is_word)
                     {
                         return None;
                     }
@@ -323,7 +327,7 @@ impl PreferClassDirective {
         let mut classes = Vec::new();
         let mut space = " ";
         for (name, not) in names.iter().zip([false, true]) {
-            let trimmed = name.trim_matches(is_space);
+            let trimmed = name.trim_matches(is_ecmascript_whitespace);
             if trimmed.is_empty() {
                 space = name;
             } else {
@@ -340,12 +344,12 @@ impl PreferClassDirective {
         let mut before = &parts[..index];
         while let Some((&Part::Text(text), rest)) = before.split_last() {
             let value = text.text(source);
-            if value.trim_matches(is_space).is_empty() {
+            if value.trim_matches(is_ecmascript_whitespace).is_empty() {
                 fix.push(text, "");
                 before = rest;
                 continue;
             }
-            let trimmed = value.trim_end_matches(is_space);
+            let trimmed = value.trim_end_matches(is_ecmascript_whitespace);
             if trimmed.len() != value.len() {
                 fix.push(text, trimmed);
             }
@@ -354,12 +358,12 @@ impl PreferClassDirective {
         let mut after = &parts[index + 1..];
         while let Some((&Part::Text(text), rest)) = after.split_first() {
             let value = text.text(source);
-            if value.trim_matches(is_space).is_empty() {
+            if value.trim_matches(is_ecmascript_whitespace).is_empty() {
                 fix.push(text, "");
                 after = rest;
                 continue;
             }
-            let trimmed = value.trim_start_matches(is_space);
+            let trimmed = value.trim_start_matches(is_ecmascript_whitespace);
             if trimmed.len() != value.len() {
                 fix.push(text, trimmed);
             }

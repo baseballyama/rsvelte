@@ -7,8 +7,8 @@ use rsvelte_typescript_semantic::reference_tracker::{global_references, property
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rustc_hash::FxHashMap;
 
-use super::node_span;
-use super::runes::is_svelte_file;
+use super::shared::nodes::from_oxc;
+use super::shared::runes::is_svelte_file;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -76,7 +76,7 @@ impl SvelteRule for PreferSvelteReactivity {
             else {
                 continue;
             };
-            let at = node_span(nodes.kind(node).span());
+            let at = from_oxc(nodes.kind(node).span());
             let class = reference.name;
             let message = format!(
                 "Found a mutable instance of the built-in {class} class. Use Svelte{class} instead."

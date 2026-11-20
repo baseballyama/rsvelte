@@ -3,7 +3,7 @@ use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, TokenType};
 
-use super::markup::start_tags;
+use super::shared::markup::start_tags;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

@@ -2,8 +2,8 @@ use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, Component, Part, TokenType};
 
-use super::markup::{parts, value_span};
-use super::nodes;
+use super::shared::markup::{parts, value_span};
+use super::shared::nodes;
 use super::shorthand_attribute::Options;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 

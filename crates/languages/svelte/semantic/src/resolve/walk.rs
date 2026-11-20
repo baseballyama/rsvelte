@@ -271,7 +271,15 @@ fn element(
         roots.expression(reference);
     }
     if let Some(this) = el.this {
-        attribute(&compiler_syntax_tree.attributes[this].value, roots);
+        match &compiler_syntax_tree.attributes[this].value {
+            // Upstream's parser keeps only the first chunk of `this="h{n}"`.
+            AttributeValue::Interpolated(parts) => {
+                if let Some(&Part::Expression { expression, .. }) = parts.first() {
+                    roots.expression(expression);
+                }
+            }
+            value => attribute(value, roots),
+        }
     }
     let lets = compiler_syntax_tree
         .attributes(el.attributes)

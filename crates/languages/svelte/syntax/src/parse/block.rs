@@ -11,7 +11,7 @@ use super::javascript::javascript_failure;
 use super::{End, ParseResult, Parser};
 use crate::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
 
-impl Parser<'_, '_> {
+impl<'a> Parser<'a, '_> {
     /// `{`, the sigil and `word`. Upstream's `eat(word)` takes a prefix, so `{#ifx}` is an
     /// `{#if` that needs its whitespace.
     pub(super) fn eat_marker(&mut self, sigil: char, word: &str) -> bool {
@@ -277,12 +277,18 @@ impl Parser<'_, '_> {
                 return self.each_expression_before(position, tokens, mark, position + keyword);
             }
         };
-        if self.at_word("as") {
+        // The expression ends after its trailing comments, and upstream skips whitespace before
+        // it looks for `as`.
+        let after_expression = self.position;
+        self.position += super::whitespace::whitespace_len(self.rest());
+        let keyword = self.at_word("as");
+        self.position = after_expression;
+        if keyword {
             return Ok(self.builder.keep_expression(expression));
         }
-        let first = match &expression {
-            Expression::SequenceExpression(sequence) => &sequence.expressions[0],
-            expression => expression,
+        let (first, sequence) = match &expression {
+            Expression::SequenceExpression(sequence) => (&sequence.expressions[0], true),
+            expression => (expression, false),
         };
         // TypeScript reads `items as item` as an assertion, also inside `a || [] as item`: the
         // `as` of the one that ends the expression is the block's (upstream's walk).
@@ -299,12 +305,52 @@ impl Parser<'_, '_> {
                 });
             if let Some(keyword) = keyword {
                 let keyword = keyword.span.start_offset as usize;
-                return self.each_expression_before(position, tokens, mark, keyword);
+                return self.each_expression_until(expression, position, tokens, mark, keyword);
             }
-        } else if let Expression::SequenceExpression(sequence) = &expression {
-            let end = sequence.expressions[0].span().end as usize;
-            return self.each_expression_before(position, tokens, mark, end);
+            return Ok(self.builder.keep_expression(expression));
         }
+        // With no `as`, upstream reads on from the end of the first expression, before any
+        // comment after it, so what it skips there fails to close the block.
+        let end = first.span().end as usize;
+        if sequence
+            || !self.source_text[end..self.position]
+                .trim_start_matches(is_ecmascript_whitespace)
+                .is_empty()
+        {
+            return self.each_expression_until(expression, position, tokens, mark, end);
+        }
+        Ok(self.builder.keep_expression(expression))
+    }
+
+    /// The `{#each}` expression `expression`, read from `position`, with the block going on from
+    /// `at` as upstream's does.
+    fn each_expression_until(
+        &mut self,
+        expression: Expression<'a>,
+        position: usize,
+        tokens: usize,
+        mark: usize,
+        at: usize,
+    ) -> ParseResult<ExpressionIdentifier> {
+        let read = self.component.tokens.since(tokens);
+        let before = read
+            .iter()
+            .take_while(|token| token.span.end_offset as usize <= at)
+            .count();
+        let depth = read[..before]
+            .iter()
+            .fold(0_i32, |depth, token| match token.kind {
+                TokenType::JavaScript(Kind::LParen) => depth + 1,
+                TokenType::JavaScript(Kind::RParen) => depth - 1,
+                _ => depth,
+            });
+        if depth == 0 {
+            return self.each_expression_before(position, tokens, mark, at);
+        }
+        // Upstream drops the parentheses and goes on inside them, where the block cannot close,
+        // so this path always ends in an error.
+        self.component.tokens.truncate(tokens + before);
+        self.position = at;
         Ok(self.builder.keep_expression(expression))
     }
 

@@ -3365,7 +3365,7 @@ import * as $ from 'svelte/internal/server';
 export default function _4_script_style_tags($$renderer, $$props) {
 	const x = 1;
 
-	$$renderer.push(`<div class="svelte-dqmvib">1</div>`);
+	$$renderer.push(`<div class="svelte-dqmvib">x</div>`);
 	$.bind_props($$props, { x });
 }
 === 367 lint/html-closing-bracket-spacing/05-options-always.svelte	js
@@ -49943,6 +49943,38 @@ export default function Destructure_iife_comment_cursor($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
+=== 223 pattern/each-comment-without-as.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 5,
+		"column": 13,
+		"character": 62
+	},
+	"end": {
+		"line": 5,
+		"column": 13,
+		"character": 62
+	}
+}
+
+=== 223 pattern/each-parenthesized-without-as.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 5,
+		"column": 13,
+		"character": 62
+	},
+	"end": {
+		"line": 5,
+		"column": 13,
+		"character": 62
+	}
+}
+
 === 39 pattern/event-directive-named-class.svelte	css
 
 	em.svelte-1t7657s {
@@ -50003,6 +50035,14 @@ export default function Event_directive_named_class($$renderer, $$props) {
 	}
 ]
 
+=== 162 pattern/global-focused-bindings.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Global_focused_bindings($$renderer) {
+	let focused = false;
+
+	$$renderer.push(`<input/>`);
+}
 === 374 pattern/input-default-value-style-directive.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -61677,6 +61717,33 @@ export default function _244_erased_annotation_comment($$renderer) {
 	}
 }
 
+=== 1654 pattern/issues/431-bind-group-interpolated-value.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _31_bind_group_interpolated_value($$renderer, $$props) {
+	let { p, q } = $$props;
+	let group = [];
+	let one = '';
+	let checked = false;
+	let items = [1, 2];
+	let c = 'q';
+
+	function f(x) {
+		return x;
+	}
+
+	$$renderer.push(`<input type="checkbox"${$.attr('value', `${$.stringify(p)}-${$.stringify(q)}`)}${$.attr('checked', group.includes(`${$.stringify(p)}-${$.stringify(q)}`), true)}/> <input type="radio"${$.attr('value', `x${$.stringify(p)}`)}${$.attr('checked', one === `x${$.stringify(p)}`, true)}/> <input type="radio"${$.attr('value', `${$.stringify(f(p))}${$.stringify(q)}`)}${$.attr('checked', one === `${$.stringify(f(p))}${$.stringify(q)}`, true)}/> <input type="checkbox"${$.attr('value', `${$.stringify(p)}:${$.stringify(f(q))}`)}${$.attr('checked', checked, true)}/> <!--[-->`);
+
+	const each_array = $.ensure_array_like(items);
+
+	for (let i = 0, $$length = each_array.length; i < $$length; i++) {
+		let item = each_array[i];
+
+		$$renderer.push(`<input type="checkbox"${$.attr('value', `${$.stringify(item)}-${$.stringify(i)}-${$.stringify(p)}`)}${$.attr('checked', group.includes(`${$.stringify(item)}-${$.stringify(i)}-${$.stringify(p)}`), true)}/>`);
+	}
+
+	$$renderer.push(`<!--]--> <input type="checkbox" value="aq"${$.attr('checked', group.includes('aq'), true)}/> <input type="checkbox" value="it's q"${$.attr('checked', group.includes('it\'s q'), true)}/> <input type="checkbox" value="say &quot;q&quot; \\ back"${$.attr('checked', group.includes('say "q" \\ back'), true)}/> <input type="checkbox" value="lit"${$.attr('checked', group.includes('lit'), true)}/>`);
+}
 === 590 pattern/issues/4335-parse-ts-type-fields.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -70097,6 +70164,22 @@ export default function Reactive_new_callee($$renderer, $$props) {
 	}
 }
 
+=== 296 pattern/select-dynamic-multiple-size-binding.svelte	error.json
+{
+	"code": "attribute_invalid_multiple",
+	"message": "'multiple' attribute must be static if select uses two-way binding\nhttps://svelte.dev/e/attribute_invalid_multiple",
+	"start": {
+		"line": 6,
+		"column": 8,
+		"character": 79
+	},
+	"end": {
+		"line": 6,
+		"column": 23,
+		"character": 94
+	}
+}
+
 === 184 pattern/self-closing-block-in-a-string.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -70150,6 +70233,22 @@ export default function Self_closing_block_in_a_string($$renderer) {
 		"line": 2,
 		"column": 19,
 		"character": 38
+	}
+}
+
+=== 287 pattern/slot-closed-by-parent-end-tag.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 14
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 14
 	}
 }
 
@@ -70210,6 +70309,22 @@ export default function Store_member_write_invalidates_inner_signals($$renderer,
 		$.bind_props($$props, { shape });
 	});
 }
+=== 222 pattern/svelte-options-left-open.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
 === 248 pattern/ts-class-generator-method-overload.svelte	error.json
 {
 	"code": "duplicate_class_field",

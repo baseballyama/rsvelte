@@ -61,6 +61,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             GlobalBinding::Online => b.runtime("bind_online", [set]),
             GlobalBinding::ActiveElement => b.runtime("bind_active_element", [set]),
+            GlobalBinding::Focused => b.runtime("bind_focused", [global(), set]),
             GlobalBinding::Property(event) => b.runtime(
                 "bind_property",
                 [b.string(name), b.string(event), global(), set],

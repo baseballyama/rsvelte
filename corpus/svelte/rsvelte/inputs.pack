@@ -3029,7 +3029,7 @@ b" class="c">first attr beside but tag is multiline: expect linebreak</div>
 
 <svelte:element this={n > 2 ? 'b' : 's'} >real space before bracket</svelte:element>
 
-=== 101 lint/html-closing-bracket-spacing/04-script-style-tags.svelte	svelte	runes	neutral
+=== 99 lint/html-closing-bracket-spacing/04-script-style-tags.svelte	svelte	runes	neutral
 <script >
 	export const x = 1;
 </script >
@@ -3040,7 +3040,7 @@ b" class="c">first attr beside but tag is multiline: expect linebreak</div>
 	}
 </style >
 
-<div>{x}</div>
+<div>x</div>
 
 === 254 lint/html-closing-bracket-spacing/05-options-always.svelte	svelte	runes	neutral
 <script>
@@ -35792,6 +35792,24 @@ export const pair = $state({ a: 1, b: "two" });
 
 <div class:a.b>x</div>
 
+=== 225 pattern/css/attribute-selector-value-escapes.svelte	svelte	runes	neutral
+<div data-x="a b" data-y="ab" data-w="a\20 b"></div>
+
+<style>
+	[data-x='a\20 b'] {
+		color: green;
+	}
+	[data-y=a\62] {
+		color: green;
+	}
+	[data-w='a\20 b'] {
+		color: red;
+	}
+	[data\2d x='a b'] {
+		color: green;
+	}
+</style>
+
 === 312 pattern/css/consecutive-and-column-combinators.svelte	svelte	runes	neutral
 <table>
 	<colgroup><col class="c" /></colgroup>
@@ -35892,6 +35910,24 @@ export interface Config {
 
 {JSON.stringify($value)}
 
+=== 91 pattern/each-comment-without-as.svelte	svelte	runes	rejected
+<script>
+	let items = $state([1, 2]);
+</script>
+
+{#each items /* as item */}
+	text
+{/each}
+
+=== 79 pattern/each-parenthesized-without-as.svelte	svelte	runes	rejected
+<script>
+	let items = $state([1, 2]);
+</script>
+
+{#each (items)}
+	text
+{/each}
+
 === 186 pattern/event-directive-named-class.svelte	svelte	runes	runes
 <script>
 	let { b, f } = $props();
@@ -35906,6 +35942,15 @@ export interface Config {
 		color: red;
 	}
 </style>
+
+=== 167 pattern/global-focused-bindings.svelte	svelte	runes	runes
+<script>
+	let focused = $state(false);
+</script>
+
+<input bind:focused={focused} />
+<svelte:window bind:focused={focused} />
+<svelte:document bind:focused={focused} />
 
 === 146 pattern/input-default-value-style-directive.svelte	svelte	runes	runes
 <script>
@@ -43285,6 +43330,31 @@ export function controls(x) {
 
 <p>{a}{b}{c}{d}{e}</p>
 
+=== 800 pattern/issues/431-bind-group-interpolated-value.svelte	svelte	runes	runes
+<script>
+	let { p, q } = $props();
+	let group = $state([]);
+	let one = $state('');
+	let checked = $state(false);
+	let items = $state([1, 2]);
+	let c = 'q';
+	function f(x) {
+		return x;
+	}
+</script>
+
+<input type="checkbox" value="{p}-{q}" bind:group={group} />
+<input type="radio" value="x{p}" bind:group={one} />
+<input type="radio" value="{f(p)}{q}" bind:group={one} />
+<input type="checkbox" value="{p}:{f(q)}" bind:checked={checked} />
+{#each items as item, i}
+	<input type="checkbox" value="{item}-{i}-{p}" bind:group={group} />
+{/each}
+<input type="checkbox" value="a{c}" bind:group={group} />
+<input type="checkbox" value="it's {c}" bind:group={group} />
+<input type="checkbox" value="say &quot;{c}&quot; \ back" bind:group={group} />
+<input type="checkbox" value={'lit'} bind:group={group} />
+
 === 578 pattern/issues/4335-parse-ts-type-fields.svelte	svelte	runes	runes
 <script lang="ts">
 	function id<T>(v: T): T {
@@ -48768,6 +48838,16 @@ export function pin(then) {
 
 <p>{x}</p>
 
+=== 153 pattern/select-dynamic-multiple-size-binding.svelte	svelte	runes	rejected
+<script>
+	let width = $state(0);
+	let many = $state(false);
+</script>
+
+<select multiple={many} bind:clientWidth={width}>
+	<option>one</option>
+</select>
+
 === 60 pattern/self-closing-block-in-a-string.svelte	svelte	runes	neutral
 <script>
   const tag = "<style />";
@@ -48787,6 +48867,25 @@ export function pin(then) {
 === 41 pattern/self-closing-style-block.svelte	svelte	runes	rejected
 <p class="a">x</p>
 <style lang="scss" />
+
+=== 21 pattern/slot-closed-by-parent-end-tag.svelte	svelte	runes	rejected
+<div>
+	<slot>
+</div>
+
+=== 354 pattern/snippet-parameter-defaults-on-the-server.svelte	svelte	runes	runes
+<script>
+	import { writable } from 'svelte/store';
+	const fallback = writable('fallback');
+	let count = $state(0);
+	let double = $derived(count * 2);
+	let { name, ...rest } = $props();
+</script>
+
+{#snippet row(value = $fallback, d = double, n = name, r = rest.x, { a = $fallback } = {})}
+	<p>{value}{d}{n}{r}{a}{$fallback}</p>
+{/snippet}
+{@render row()}
 
 === 245 pattern/state-wrapped-store-reference.svelte	svelte	runes	runes
 <script>
@@ -48823,6 +48922,11 @@ export function pin(then) {
 		<option value={o}>{o}</option>
 	{/each}
 </select>
+
+=== 37 pattern/svelte-options-left-open.svelte	svelte	runes	rejected
+<svelte:options runes>
+
+<p>after</p>
 
 === 118 pattern/ts-class-generator-method-overload.svelte	svelte	runes	rejected
 <script lang="ts">

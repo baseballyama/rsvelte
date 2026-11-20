@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::positions::Span;
 
 use super::element_rules::closing_tag_omitted;
-use super::{End, ParseResult, Parser, element, is_void};
+use super::{AutoClosed, End, ParseResult, Parser, element, is_void};
 use crate::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
 
 impl Parser<'_, '_> {
@@ -22,15 +22,20 @@ impl Parser<'_, '_> {
         loop {
             let rest = self.rest();
             if rest.is_empty() {
-                // Upstream reports the innermost open node's first character.
+                // Upstream reports the innermost open node's first character, as an element only
+                // for a `RegularElement`.
                 return match end {
                     End::Eof => Ok(self.finish_children(children_start)),
-                    End::Tag { name, start, .. } => Self::err_at(
+                    End::Tag {
+                        name,
+                        regular: true,
+                        start,
+                    } => Self::err_at(
                         Span::new(start, start + 1),
                         "element_unclosed",
                         format_args!("`<{name}>` was left open"),
                     ),
-                    End::Block { start } => Self::err_at(
+                    End::Tag { start, .. } | End::Block { start } => Self::err_at(
                         Span::new(start, start + 1),
                         "block_unclosed",
                         "Block was left open",
@@ -84,8 +89,9 @@ impl Parser<'_, '_> {
         }
     }
 
-    /// Upstream's error for `</name>` with no element of its own open.
-    fn stray_closing_tag<T>(&mut self) -> ParseResult<T> {
+    /// Upstream's error for `</name>` with no element of its own open, or one that would pop an
+    /// element upstream does not close implicitly.
+    pub(super) fn stray_closing_tag<T>(&mut self) -> ParseResult<T> {
         let start = self.position as u32;
         // Upstream's `read_until` stops at the trimmed end before it reads the name.
         if self.position + 2 >= self.source_text.len() {
@@ -103,6 +109,16 @@ impl Parser<'_, '_> {
                 at,
                 "void_element_invalid_content",
                 "Void elements cannot have children or closing tags",
+            );
+        }
+        if let Some(AutoClosed { by, .. }) = self.auto_closed.filter(|a| a.name == name) {
+            return Self::err_at(
+                at,
+                "element_invalid_closing_tag_autoclosed",
+                format_args!(
+                    "`</{name}>` attempted to close element that was already automatically closed \
+                     by `<{by}>` (cannot nest `<{by}>` inside `<{name}>`)"
+                ),
             );
         }
         Self::err_at(

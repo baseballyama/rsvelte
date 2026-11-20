@@ -2,9 +2,9 @@ use oxc_ast::ast::Expression;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::Part;
 
-use super::markup::{Holder, for_each_mustache, has_comment, parts};
-use super::nodes;
-use super::string_escape::has_useful_escape;
+use super::shared::markup::{Holder, for_each_mustache, has_comment, parts};
+use super::shared::nodes;
+use super::shared::string_escape::has_useful_escape;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

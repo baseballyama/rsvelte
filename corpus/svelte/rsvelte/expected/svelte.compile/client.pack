@@ -4763,11 +4763,11 @@ export default function _3_svelte_element_this_gt($$anchor) {
 		color: red;
 	}
 
-=== 378 lint/html-closing-bracket-spacing/04-script-style-tags.svelte	js
+=== 355 lint/html-closing-bracket-spacing/04-script-style-tags.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
-var root = $.from_html(`<div class="svelte-dqmvib"></div>`);
+var root = $.from_html(`<div class="svelte-dqmvib">x</div>`);
 
 export default function _4_script_style_tags($$anchor, $$props) {
 	$.push($$props, true);
@@ -4776,7 +4776,6 @@ export default function _4_script_style_tags($$anchor, $$props) {
 	var $$exports = { x };
 	var div = root();
 
-	div.textContent = '1';
 	$.append($$anchor, div);
 
 	return $.pop($$exports);
@@ -75749,6 +75748,38 @@ export default function Destructure_iife_comment_cursor($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
+=== 223 pattern/each-comment-without-as.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 5,
+		"column": 13,
+		"character": 62
+	},
+	"end": {
+		"line": 5,
+		"column": 13,
+		"character": 62
+	}
+}
+
+=== 223 pattern/each-parenthesized-without-as.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 5,
+		"column": 13,
+		"character": 62
+	},
+	"end": {
+		"line": 5,
+		"column": 13,
+		"character": 62
+	}
+}
+
 === 39 pattern/event-directive-named-class.svelte	css
 
 	em.svelte-1t7657s {
@@ -75834,6 +75865,21 @@ export default function Event_directive_named_class($$anchor, $$props) {
 	}
 ]
 
+=== 474 pattern/global-focused-bindings.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<input/>`);
+
+export default function Global_focused_bindings($$anchor) {
+	let focused = $.state(false);
+	var input = root();
+
+	$.bind_focused($.window, ($$value) => $.set(focused, $$value, true));
+	$.bind_focused($.document, ($$value) => $.set(focused, $$value, true));
+	$.bind_focused(input, ($$value) => $.set(focused, $$value));
+	$.append($$anchor, input);
+}
 === 667 pattern/input-default-value-style-directive.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -91565,6 +91611,206 @@ export default function _244_erased_annotation_comment($$anchor) {
 	}
 }
 
+=== 3981 pattern/issues/431-bind-group-interpolated-value.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<input type="checkbox"/>`);
+var root_1 = $.from_html(`<input type="checkbox"/> <input type="radio"/> <input type="radio"/> <input type="checkbox"/> <!> <input type="checkbox"/> <input type="checkbox"/> <input type="checkbox"/> <input type="checkbox"/>`, 1);
+
+export default function _31_bind_group_interpolated_value($$anchor, $$props) {
+	const binding_group = [];
+	const binding_group_1 = [];
+	let group = $.state($.proxy([]));
+	let one = $.state('');
+	let checked = $.state(false);
+	let items = $.proxy([1, 2]);
+	let c = 'q';
+
+	function f(x) {
+		return x;
+	}
+
+	var fragment = root_1();
+	var input = $.first_child(fragment);
+
+	$.remove_input_defaults(input);
+
+	var input_value;
+	var input_1 = $.sibling(input, 2);
+
+	$.remove_input_defaults(input_1);
+
+	var input_1_value;
+	var input_2 = $.sibling(input_1, 2);
+
+	$.remove_input_defaults(input_2);
+
+	var input_2_value;
+	var input_3 = $.sibling(input_2, 2);
+
+	$.remove_input_defaults(input_3);
+
+	var input_3_value;
+	var node = $.sibling(input_3, 2);
+
+	$.each(node, 17, () => items, $.index, ($$anchor, item, i) => {
+		var input_4 = root();
+
+		$.remove_input_defaults(input_4);
+
+		var input_4_value;
+
+		$.template_effect(() => {
+			if (input_4_value !== (input_4_value = `${$.get(item) ?? ''}-${i}-${$$props.p ?? ''}`)) {
+				input_4.value = input_4.__value = input_4_value;
+			}
+		});
+
+		$.bind_group(
+			binding_group,
+			[],
+			input_4,
+			() => {
+				`${$.get(item) ?? ''}-${i}-${$$props.p ?? ''}`;
+
+				return $.get(group);
+			},
+			($$value) => $.set(group, $$value)
+		);
+
+		$.append($$anchor, input_4);
+	});
+
+	var input_5 = $.sibling(node, 2);
+
+	$.remove_input_defaults(input_5);
+	input_5.value = input_5.__value = 'aq';
+
+	var input_6 = $.sibling(input_5, 2);
+
+	$.remove_input_defaults(input_6);
+	input_6.value = input_6.__value = 'it\'s q';
+
+	var input_7 = $.sibling(input_6, 2);
+
+	$.remove_input_defaults(input_7);
+	input_7.value = input_7.__value = 'say "q" \\ back';
+
+	var input_8 = $.sibling(input_7, 2);
+
+	$.remove_input_defaults(input_8);
+	input_8.value = input_8.__value = 'lit';
+
+	$.template_effect(
+		($0, $1) => {
+			if (input_value !== (input_value = `${$$props.p ?? ''}-${$$props.q ?? ''}`)) {
+				input.value = input.__value = input_value;
+			}
+
+			if (input_1_value !== (input_1_value = `x${$$props.p ?? ''}`)) {
+				input_1.value = input_1.__value = input_1_value;
+			}
+
+			if (input_2_value !== (input_2_value = `${$0 ?? ''}${$$props.q ?? ''}`)) {
+				input_2.value = input_2.__value = input_2_value;
+			}
+
+			if (input_3_value !== (input_3_value = `${$$props.p ?? ''}:${$1 ?? ''}`)) {
+				input_3.value = input_3.__value = input_3_value;
+			}
+		},
+		[() => f($$props.p), () => f($$props.q)]
+	);
+
+	$.bind_group(
+		binding_group,
+		[],
+		input,
+		() => {
+			`${$$props.p ?? ''}-${$$props.q ?? ''}`;
+
+			return $.get(group);
+		},
+		($$value) => $.set(group, $$value)
+	);
+
+	$.bind_group(
+		binding_group_1,
+		[],
+		input_1,
+		() => {
+			`x${$$props.p ?? ''}`;
+
+			return $.get(one);
+		},
+		($$value) => $.set(one, $$value)
+	);
+
+	$.bind_group(
+		binding_group_1,
+		[],
+		input_2,
+		() => {
+			`${f($$props.p) ?? ''}${$$props.q ?? ''}`;
+
+			return $.get(one);
+		},
+		($$value) => $.set(one, $$value)
+	);
+
+	$.bind_checked(input_3, () => $.get(checked), ($$value) => $.set(checked, $$value));
+
+	$.bind_group(
+		binding_group,
+		[],
+		input_5,
+		() => {
+			'aq';
+
+			return $.get(group);
+		},
+		($$value) => $.set(group, $$value)
+	);
+
+	$.bind_group(
+		binding_group,
+		[],
+		input_6,
+		() => {
+			'it\'s q';
+
+			return $.get(group);
+		},
+		($$value) => $.set(group, $$value)
+	);
+
+	$.bind_group(
+		binding_group,
+		[],
+		input_7,
+		() => {
+			'say "q" \\ back';
+
+			return $.get(group);
+		},
+		($$value) => $.set(group, $$value)
+	);
+
+	$.bind_group(
+		binding_group,
+		[],
+		input_8,
+		() => {
+			'lit';
+
+			return $.get(group);
+		},
+		($$value) => $.set(group, $$value)
+	);
+
+	$.append($$anchor, fragment);
+}
 === 716 pattern/issues/4335-parse-ts-type-fields.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -102294,6 +102540,22 @@ export default function Reactive_new_callee($$anchor, $$props) {
 	}
 }
 
+=== 296 pattern/select-dynamic-multiple-size-binding.svelte	error.json
+{
+	"code": "attribute_invalid_multiple",
+	"message": "'multiple' attribute must be static if select uses two-way binding\nhttps://svelte.dev/e/attribute_invalid_multiple",
+	"start": {
+		"line": 6,
+		"column": 8,
+		"character": 79
+	},
+	"end": {
+		"line": 6,
+		"column": 23,
+		"character": 94
+	}
+}
+
 === 291 pattern/self-closing-block-in-a-string.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -102355,6 +102617,58 @@ export default function Self_closing_block_in_a_string($$anchor) {
 	}
 }
 
+=== 287 pattern/slot-closed-by-parent-end-tag.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 14
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 14
+	}
+}
+
+=== 1393 pattern/snippet-parameter-defaults-on-the-server.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { writable } from 'svelte/store';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'name']);
+var root = $.from_html(`<p> </p>`);
+
+export default function Snippet_parameter_defaults_on_the_server($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $fallback = () => $.store_get(fallback, '$fallback', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+
+	const row = ($$anchor, $$arg0, $$arg1, $$arg2, $$arg3, $$arg4) => {
+		let value = $.derived_safe_equal(() => $.fallback($$arg0?.(), $fallback()));
+		let d = $.derived_safe_equal(() => $.fallback($$arg1?.(), $.get(double)));
+		let n = $.derived_safe_equal(() => $.fallback($$arg2?.(), $$props.name));
+		let r = $.derived_safe_equal(() => $.fallback($$arg3?.(), () => $$props.x, true));
+		let a = $.derived_safe_equal(() => $.fallback($.fallback($$arg4?.(), () => ({}), true).a, $fallback()));
+		var p = root();
+		var text = $.only_child(p);
+
+		$.template_effect(() => $.set_text(text, `${$.get(value) ?? ''}${$.get(d) ?? ''}${$.get(n) ?? ''}${$.get(r) ?? ''}${$.get(a) ?? ''}${$fallback() ?? ''}`));
+		$.append($$anchor, p);
+	};
+
+	const fallback = writable('fallback');
+	let count = 0;
+	let double = $.derived(() => count * 2);
+	let rest = $.rest_props($$props, rest_excludes);
+
+	row($$anchor);
+	$.pop();
+	$$cleanup();
+}
 === 894 pattern/state-wrapped-store-reference.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -102440,6 +102754,22 @@ export default function Store_member_write_invalidates_inner_signals($$anchor, $
 }
 
 $.delegate(['click']);
+=== 222 pattern/svelte-options-left-open.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
 === 248 pattern/ts-class-generator-method-overload.svelte	error.json
 {
 	"code": "duplicate_class_field",

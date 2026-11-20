@@ -9840,11 +9840,6 @@
 1:6 1:21 svelte/no-inline-styles "Found disallowed style directive."
 1:19 1:20 no-undef "'y' is not defined."
 
-=== 123 tag_directive_parse_errors/valid_directives_still_compile/800645f7de38c26c.svelte	lint.txt
-1:10 1:11 no-undef "'x' is not defined."
-1:13 1:14 no-undef "'y' is not defined."
-1:37 1:38 no-undef "'x' is not defined."
-
 === 41 tag_directive_parse_errors/valid_directives_still_compile/80e578f50339025f.svelte	lint.txt
 1:21 1:22 no-undef "'a' is not defined."
 
@@ -12447,18 +12442,6 @@
 
 === 0 template_expression_js_validation_3694_3707/arguments_is_rejected_in_template_references_but_not_in_function_expressions/0f6990efff1b4cf5.svelte	lint.txt
 
-=== 195 template_expression_js_validation_3694_3707/arguments_is_rejected_in_template_references_but_not_in_function_expressions/48cb29f9855d623a.svelte	lint.txt
-1:9 1:18 svelte/valid-compile "The arguments keyword cannot be used within the template or at the top level of a component\nhttps://svelte.dev/e/invalid_arguments_usage(invalid_arguments_usage)"
-
-=== 195 template_expression_js_validation_3694_3707/arguments_is_rejected_in_template_references_but_not_in_function_expressions/600ff78d07fd469d.svelte	lint.txt
-1:2 1:11 svelte/valid-compile "The arguments keyword cannot be used within the template or at the top level of a component\nhttps://svelte.dev/e/invalid_arguments_usage(invalid_arguments_usage)"
-
-=== 195 template_expression_js_validation_3694_3707/arguments_is_rejected_in_template_references_but_not_in_function_expressions/a607c7671a6fcd22.svelte	lint.txt
-1:9 1:18 svelte/valid-compile "The arguments keyword cannot be used within the template or at the top level of a component\nhttps://svelte.dev/e/invalid_arguments_usage(invalid_arguments_usage)"
-
-=== 195 template_expression_js_validation_3694_3707/arguments_is_rejected_in_template_references_but_not_in_function_expressions/f32a948d0dafd9a0.svelte	lint.txt
-1:2 1:11 svelte/valid-compile "The arguments keyword cannot be used within the template or at the top level of a component\nhttps://svelte.dev/e/invalid_arguments_usage(invalid_arguments_usage)"
-
 === 79 template_expression_js_validation_3694_3707/super_and_await_match_the_module_parser_restrictions/2c81a6a97a5162a0.svelte	lint.txt
 1:6 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
 
@@ -12474,12 +12457,6 @@
 === 136 template_expression_js_validation_3694_3707/super_is_still_legal_in_a_method_and_await_is_legal_as_a_property/9bc9098d2b031b39.svelte	lint.txt
 1:1 1:47 svelte/no-object-in-text-mustaches "Unexpected class in text mustache interpolation."
 1:18 1:19 no-undef "'B' is not defined."
-
-=== 376 template_expression_js_validation_3694_3707/super_is_still_legal_in_a_method_and_await_is_legal_as_a_property/dc8ae0a47550afae.svelte	lint.txt
-1:2 1:7 no-undef "'await' is not defined."
-1:2 1:34 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
-1:9 1:14 no-undef "'await' is not defined."
-1:16 1:21 no-undef "'value' is not defined."
 
 === 466 template_expression_ts_gate/matches_the_official_compiler/00ad3f34db9951e2.svelte	lint.txt
 1:1 1:63 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -14224,11 +14201,6 @@
 
 === 80 template_expression_ts_gate/matches_the_official_compiler/a34667d6fc181010.svelte	lint.txt
 1:49 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
-
-=== 126 template_expression_ts_gate/matches_the_official_compiler/a4b86ab454de333a.svelte	lint.txt
-1:8 1:11 no-undef "'act' is not defined."
-1:13 1:14 no-undef "'y' is not defined."
-2:16 2:19 no-undef "'act' is not defined."
 
 === 145 template_expression_ts_gate/matches_the_official_compiler/a4eab1a92996b161.svelte	lint.txt
 2:8 - - "Parsing error: {@debug ...} arguments must be identifiers, not arbitrary expressions\nhttps://svelte.dev/e/debug_tag_invalid_arguments"
@@ -24158,14 +24130,6 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:8 3:9 no-unused-vars "'C' is defined but never used."
 
-=== 433 ts_only_nodes_in_parse_ast_4195/a_namespace_export_declaration_reaches_the_program_body/9125c12e26a89289.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 no-unused-vars "'a' is assigned a value but never used."
-2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:22 3:23 no-undef "'N' is not defined."
-
 === 327 ts_only_nodes_in_parse_ast_4195/an_export_assignment_reaches_the_program_body/a160f5217fd6c8bf.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -24199,13 +24163,6 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
-=== 368 ts_only_statements_4196/a_typescript_only_statement_compiles_on_both_targets/6106b9e4c198dc24.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:22 3:23 no-undef "'N' is not defined."
 
 === 385 ts_only_statements_4196/a_typescript_only_statement_compiles_on_both_targets/d62b10769928e1c3.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

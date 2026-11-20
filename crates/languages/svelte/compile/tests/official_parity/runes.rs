@@ -159,3 +159,16 @@ fn an_inspect_in_an_event_handler_is_dropped_with_the_handler_on_the_server() {
         Some("unsupported")
     );
 }
+
+// Upstream bug: svelte 5.57.3's server leaves a snippet's parameters unvisited, so `$fallback` is
+// undeclared (SSR throws) and `double` is the derived itself.
+#[test]
+fn a_server_snippet_reads_a_store_and_a_derived_in_its_parameter_defaults() {
+    let source = "<script>import { writable } from 'svelte/store'; const fallback = \
+                  writable(1); let count = $state(0); let double = $derived(count * 2);</script>\
+                  {#snippet row(value = $fallback, d = double)}<p>{value}{d}</p>{/snippet}";
+    let server = squashed(source, Target::Server);
+    let parameters = "functionrow($$renderer,\
+                      value=$.store_get($$store_subs??={},\"$fallback\",fallback),d=double())";
+    assert!(server.contains(parameters), "{server}");
+}

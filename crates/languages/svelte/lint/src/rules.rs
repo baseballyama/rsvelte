@@ -1,26 +1,36 @@
-use rsvelte_kernel::source::positions::Span;
-
 use crate::rule::RuleDefinition;
+
+/// What several rules share; every other module here is one rule.
+pub(crate) mod shared {
+    pub(super) mod compile_warnings;
+    pub(super) mod constant_string;
+    pub(super) mod duplicate_directives;
+    pub(super) mod element_kind;
+    pub(super) mod expressions;
+    pub(super) mod kit_navigation;
+    pub(super) mod kit_route;
+    pub(super) mod legacy_reactivity;
+    pub(super) mod markup;
+    pub(super) mod nodes;
+    pub(super) mod reactive_statements;
+    pub(super) mod runes;
+    pub(super) mod string_escape;
+    pub(crate) mod style_attribute;
+    pub(crate) mod style_sheet;
+    pub(super) mod svelte_names;
+    pub(super) mod svelte_store;
+}
 
 mod block_lang;
 mod button_has_type;
 pub(crate) mod comment_directive;
-mod compile_warnings;
 mod consistent_selector_style;
-mod constant_string;
 mod derived_has_same_inputs_outputs;
-mod duplicate_directives;
-mod element_kind;
 mod experimental_require_slot_types;
-mod expressions;
 mod first_attribute_linebreak;
 mod inactive;
 mod indent;
 mod infinite_reactive_loop;
-mod kit_navigation;
-mod kit_route;
-mod legacy_reactivity;
-mod markup;
 mod markup_closing_bracket_new_line;
 mod markup_closing_bracket_spacing;
 mod markup_quotes;
@@ -65,6 +75,7 @@ mod no_svelte_internal;
 mod no_target_blank;
 mod no_top_level_browser_globals;
 mod no_trailing_spaces;
+mod no_undef;
 mod no_unknown_style_directive_property;
 mod no_unnecessary_condition;
 mod no_unnecessary_state_wrap;
@@ -73,7 +84,6 @@ mod no_unused_svelte_ignore;
 mod no_unused_variables;
 mod no_useless_children_snippet;
 mod no_useless_mustaches;
-mod nodes;
 mod prefer_attribute_interpolation;
 mod prefer_class_directive;
 mod prefer_const;
@@ -82,21 +92,15 @@ mod prefer_destructured_store_props;
 mod prefer_style_directive;
 mod prefer_svelte_reactivity;
 mod prefer_writable_derived;
-mod reactive_statements;
 mod require_each_key;
 mod require_optimized_style_attribute;
 mod require_store_callbacks_use_set_param;
 mod require_store_reactive_access;
 mod require_stores_init;
-mod runes;
 mod shorthand_attribute;
 mod shorthand_directive;
 mod sort_attributes;
 mod spaced_markup_comment;
-mod string_escape;
-pub(crate) mod style_attribute;
-pub(crate) mod style_sheet;
-mod svelte_store;
 pub(crate) mod system;
 mod valid_compile;
 mod valid_each_key;
@@ -106,6 +110,7 @@ mod valid_style_parse;
 /// Every built-in rule.
 pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_unused_variables::RULE,
+    &no_undef::RULE,
     &no_unnecessary_condition::RULE,
     &button_has_type::RULE,
     &no_conflicting_module_names::RULE,
@@ -193,11 +198,3 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &valid_prop_names_in_kit_pages::RULE,
     &valid_style_parse::RULE,
 ];
-
-/// An oxc span as the document's position type; every oxc tree is parsed in place.
-pub(super) const fn node_span(span: oxc_span::Span) -> Span {
-    Span {
-        start_offset: span.start,
-        end_offset: span.end,
-    }
-}

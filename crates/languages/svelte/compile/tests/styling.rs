@@ -295,6 +295,7 @@ fn attributes_and_template_relations_match_the_oracle() {
     }
 }
 
+// Upstream bug: svelte 5.57.3 matches the value with its escapes as written, unlike CSS.
 #[test]
 fn escaped_attribute_values_are_decoded_before_matching() {
     assert_eq!(

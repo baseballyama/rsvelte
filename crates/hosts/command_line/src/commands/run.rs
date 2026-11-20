@@ -6,7 +6,7 @@ use rsvelte_kernel::computation::pipeline::DocumentResult;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::{Severity, apply_fixes};
 
-use super::files;
+use super::{files, typecheck};
 use crate::usage;
 
 /// `ESLint`'s bound on fixing passes, which stops fixes that keep producing fixes.
@@ -73,12 +73,18 @@ pub(crate) fn run_file(reg: &Registry, file: &Path, tasks: &[&str], fix: bool) -
 
 /// Runs `tasks` on every file of the project they check, as the project's checker selects them.
 pub(crate) fn run_project(reg: &Registry, tasks: &[&str]) -> ExitCode {
-    let files = match reg.project_files(tasks) {
-        Ok(files) => files,
+    let project = match reg.project_files(tasks) {
+        Ok(project) => project,
         Err(e) => return usage(&e),
     };
-    let names: Vec<String> = files
-        .iter()
+    if !project.problems.is_empty() {
+        let here = std::env::current_dir().and_then(std::fs::canonicalize).ok();
+        return match typecheck::problems(&project.problems, here.as_deref()) {
+            Ok(report) => typecheck::print(report),
+            Err(e) => usage(&e),
+        };
+    }
+    let names: Vec<String> = (project.files.iter())
         .map(|file| file.to_string_lossy().into_owned())
         .collect();
     let names: Vec<&str> = names.iter().map(String::as_str).collect();

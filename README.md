@@ -2,7 +2,7 @@
 
 A native toolchain for Svelte 5 (and Vue), written in Rust: compile, lint, format
 and type check. It reads each file once and keeps immutable trees and a database of facts derived
-from them. A task computes only what it needs, one file per thread. The old port on `main` is
+from them. A task computes only what it needs, one file per thread. The old port it replaced is
 only a diff oracle and a performance baseline.
 
 ![ESLint, then `rsvelte lint` with the same rules, on a large open-source Svelte project](.github/assets/lint.gif)
@@ -16,6 +16,12 @@ npx @rsvelte/cli typecheck
 ```
 
 [The package's README](tools/release/npm-readme.md) is the user guide.
+
+rsvelte supports Svelte 5 components in runes mode only. It does not support Svelte 4 projects
+or components in legacy mode, such as those that use `export let` or `$:`. On them, `typecheck`
+gives wrong results. The compiler rejects legacy syntax, as the official compiler does with
+`runes: true`, and refuses `<svelte:options runes={false} />` as unsupported. The user guide lists what each command does with
+legacy components. For Svelte 4, use the official tools.
 
 ## Layout
 

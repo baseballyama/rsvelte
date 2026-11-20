@@ -31,16 +31,18 @@
 
 mod commands;
 mod configuration;
+mod formatting;
 mod input;
 mod output;
 mod release;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use commands::corpus::corpus;
 use commands::run::{run_file, run_files, run_project};
 use commands::{benchmark, format, lint, performance};
 pub use release::release;
+use rsvelte_configuration_loading::LoadedConfiguration;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_plugin_interface::Extension;
 
@@ -140,7 +142,7 @@ pub fn development() -> ExitCode {
     let installation = Installation {
         extensions: EXTENSIONS,
         selection,
-        defaults: &[],
+        defaults: Vec::new(),
     };
     let (reg, tools) = match configured_registry(&config, &overrides, installation) {
         Ok(configured) => configured,
@@ -158,13 +160,12 @@ pub fn development() -> ExitCode {
     dispatch(&reg, &positional, &tasks, tools, (fix, check))
 }
 
-/// What a program installs: its plugins, the tasks that will run, and the plugins that get empty
-/// options, so that they use their defaults, when neither the configuration nor `--options`
-/// gives any.
+/// What a program installs: its plugins, the tasks that will run, and the options, as JSON, of
+/// the plugins that neither the configuration nor `--options` gives any.
 struct Installation {
     extensions: &'static [&'static Extension],
     selection: rsvelte_plugin_interface::Selection,
-    defaults: &'static [&'static str],
+    defaults: Vec<(&'static str, String)>,
 }
 
 /// Installs the plugins with their options, and returns the programs their tasks will run. Every
@@ -175,7 +176,17 @@ fn configured_registry(
     installation: Installation,
 ) -> Result<(Registry, Vec<rsvelte_plugin_interface::Tool>), String> {
     let loaded = config.load().map_err(|error| error.to_string())?;
-    let functions: std::sync::Arc<dyn rsvelte_plugin_interface::FunctionResolver> = match &loaded {
+    install(loaded.as_ref(), overrides, installation)
+}
+
+/// [`configured_registry`] with the configuration already loaded, so that one configuration can
+/// install several registries.
+fn install(
+    loaded: Option<&(PathBuf, LoadedConfiguration)>,
+    overrides: &[(&str, &str)],
+    installation: Installation,
+) -> Result<(Registry, Vec<rsvelte_plugin_interface::Tool>), String> {
+    let functions: std::sync::Arc<dyn rsvelte_plugin_interface::FunctionResolver> = match loaded {
         Some((_, loaded)) => std::sync::Arc::clone(&loaded.functions),
         None => std::sync::Arc::new(rsvelte_plugin_interface::NoFunctions),
     };
@@ -186,17 +197,17 @@ fn configured_registry(
         .collect();
     if let Some((path, loaded)) = loaded {
         let base = path.parent().unwrap_or_else(|| Path::new(".")).to_owned();
-        for (plugin, options) in loaded.configuration.plugins {
+        for (plugin, options) in &loaded.configuration.plugins {
             given.push(plugin.clone());
-            settings.set(plugin, options, base.clone());
+            settings.set(plugin.clone(), options.clone(), base.clone());
         }
     }
     let here = std::env::current_dir().map_err(|e| format!("current directory: {e}"))?;
-    for &plugin in installation.defaults {
+    for (plugin, options) in installation.defaults {
         if !given.iter().any(|g| g == plugin) {
-            let empty = serde_json::value::RawValue::from_string("{}".to_owned())
-                .map_err(|e| e.to_string())?;
-            settings.set(plugin.to_owned(), empty, here.clone());
+            let options =
+                serde_json::value::RawValue::from_string(options).map_err(|e| e.to_string())?;
+            settings.set(plugin.to_owned(), options, here.clone());
         }
     }
     for &(plugin, options) in overrides {
@@ -233,16 +244,25 @@ fn dispatch(
             if paths.is_empty() { &["."] } else { paths },
             if tasks.is_empty() { lint::TASKS } else { tasks },
         ),
-        ["format", paths @ ..] => format::format(
-            reg,
-            if paths.is_empty() { &["."] } else { paths },
-            if tasks.is_empty() {
+        ["format", paths @ ..] => {
+            let paths = if paths.is_empty() { &["."] } else { paths };
+            let tasks = if tasks.is_empty() {
                 format::TASKS
             } else {
                 tasks
-            },
-            check,
-        ),
+            };
+            match commands::files::load(reg, paths, tasks, format::IGNORE_FILES) {
+                Ok(documents) => format::format(
+                    &[format::Batch {
+                        reg,
+                        tasks,
+                        documents,
+                    }],
+                    check,
+                ),
+                Err(e) => usage(&e),
+            }
+        }
         ["check"] if !fix => run_project(
             reg,
             if tasks.is_empty() {

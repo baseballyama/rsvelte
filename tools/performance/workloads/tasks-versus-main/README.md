@@ -1,10 +1,10 @@
 # Tasks versus main
 
-Times this branch against `main` and the official tools on every task: parse, compile for the
-client and for the server, format, lint and type check. `run.ts` runs every task on one machine
-and writes one report.
+Times this branch against the old port (see [AGENTS.md](../../../../AGENTS.md)) and the official
+tools on every task: parse, compile for the client and for the server, format, lint and type
+check. `run.ts` runs every task on one machine and writes one report.
 
-| Task           | `main`                  | This branch                               | Official                                    |
+| Task           | Old port (`main`)       | This branch                               | Official                                    |
 | -------------- | ----------------------- | ----------------------------------------- | ------------------------------------------- |
 | Parse          | `rsvelte_core::parse`   | `rsvelte_svelte_syntax::parse::parse`     | `parse` of `svelte/compiler`                |
 | Client, server | `rsvelte_core::compile` | task `svelte.compile/client`, `/server`   | `compile` of `svelte/compiler`              |
@@ -24,7 +24,7 @@ and writes one report.
 - Every task but the type check samples the components from real projects: `--every 8` takes
   one in eight, so the official tools' rounds stay short.
 
-It needs a checkout of `main` and these tools:
+It needs a checkout of the old port and these tools:
 
 - Rust (`rust-toolchain.toml`)
 - Node, with `pnpm install` in this tree
@@ -32,7 +32,7 @@ It needs a checkout of `main` and these tools:
 - Python 3 with `venv`
 
 ```sh
-git worktree add --detach ../main origin/main
+git worktree add --detach ../main 202af6f2aa
 node tools/performance/workloads/tasks-versus-main/run.ts --main ../main --work <directory>
 ```
 

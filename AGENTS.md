@@ -3,7 +3,8 @@
 rsvelte (experimental) is a native toolchain for Svelte, written in Rust. It reads each file
 once and keeps immutable trees and a database of derived facts. Each task (compile, lint, format
 or type check) computes only what it needs, one file per thread. Svelte 5 comes first. The old
-port on `main` is only a diff oracle and a performance baseline; do not copy its design.
+port (revision `202af6f2aa`, the last before this rewrite replaced `main`) is only a diff oracle
+and a performance baseline; do not copy its design.
 
 Porting a Svelte tool means designing its ideal architecture, not translating its code. When a
 good Rust crate already does a general job, such as parsing JavaScript, use it instead of
@@ -27,7 +28,7 @@ into cells of the oxc trees, so analyze each tree once.
 Non-goals:
 
 - Bundling and minifying
-- Svelte 4 legacy mode (it falls back to the official compiler)
+- Svelte 4 and legacy mode (runes mode only; the compiler rejects `runes={false}` as unsupported)
 - Svelte 4 → 5 migration
 - Text-level svelte2tsx compatibility
 - A broad set of general JavaScript lint checks
@@ -41,7 +42,7 @@ Non-goals:
   change, run with `UPDATE_EXPECT=1`.
   See [corpus/README.md](corpus/README.md) and
   [crates/language_independent/corpus/README.md](crates/language_independent/corpus/README.md).
-- Speed: compare the official tools, `main` and this rewrite. See
+- Speed: compare the official tools, the old port and this rewrite. See
   [tools/performance/README.md](tools/performance/README.md).
 
 ```sh
@@ -84,5 +85,5 @@ All JavaScript-side code is TypeScript that Node 26 runs directly, in one pnpm w
 
 - Other agents work here at the same time. Do not revert changes that are not yours; ask.
 - No bare `git stash`, because all worktrees share one stash. One logical change per commit.
-- Skills: `review` (review a branch or PR), `pr` (issue or branch to a ready PR) and `docs`
+- Skills: `full-code-review` (review a branch or PR), `pr` (issue or branch to a ready PR) and `docs`
   (write or edit reader-facing text).

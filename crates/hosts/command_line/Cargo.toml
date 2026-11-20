@@ -12,10 +12,12 @@ doctest = false
 [[bin]]
 name = "rsvelte"
 path = "src/bin/rsvelte.rs"
+test = false
 
 [[bin]]
 name = "rsvelte-dev"
 path = "src/bin/rsvelte-dev.rs"
+test = false
 
 [features]
 metrics = ["rsvelte_kernel/metrics"]
@@ -46,6 +48,8 @@ rsvelte_svelte_to_vue_vapor.workspace = true
 rayon.workspace = true
 libc.workspace = true
 ignore.workspace = true
+globset.workspace = true
+json-strip-comments.workspace = true
 
 [dev-dependencies]
 rsvelte_svelte_syntax.workspace = true

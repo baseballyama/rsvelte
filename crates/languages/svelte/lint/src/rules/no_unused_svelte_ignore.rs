@@ -1,6 +1,6 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::compile_warnings::{Postcss, compile, decidable, ignores};
+use super::shared::compile_warnings::{Postcss, compile, decidable, ignores};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 #[cfg(test)]
