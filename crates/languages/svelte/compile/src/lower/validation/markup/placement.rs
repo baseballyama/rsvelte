@@ -1,6 +1,6 @@
 //! Upstream `html-tree-validation`: where the HTML parser would repair the tree a template writes.
 
-use rsvelte_svelte_semantic::html_tree::{Rule, SLOTS, entry, rule};
+use rsvelte_svelte_semantic::markup_tree::{Rule, SLOTS, entry, rule};
 
 /// The nearest element above the parent with each tag of a [`Rule::Descendant`], which upstream's
 /// `is_tag_valid_with_ancestor` asks about while it walks up to a component or snippet.

@@ -5,7 +5,7 @@ use rsvelte_kernel::source::positions::Span;
 
 use super::super::{error, warning};
 use super::{Stage, Template};
-use crate::html_tree::{invalid_with_ancestor, invalid_with_parent};
+use crate::markup_tree::{invalid_with_ancestor, invalid_with_parent};
 
 /// What encloses the node being walked, as the placement check looks outwards.
 #[derive(Clone, Copy)]
