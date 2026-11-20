@@ -200,12 +200,6 @@ pub(crate) struct Prepared<'c, 'o> {
     component_name: String,
 }
 
-/// Upstream `is_custom_element_node`: a regular element with a `-` in its name or an `is`
-/// attribute, whose attributes upstream sets as properties.
-fn is_custom_element_node(tree: &CompilerSyntaxTree, source_text: &str, el: &Element) -> bool {
-    tree.is_custom_element(el, source_text)
-}
-
 /// The document span of an oxc node.
 pub(crate) fn span_of(node: &impl GetSpan) -> Span {
     let span = node.span();

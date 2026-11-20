@@ -24,7 +24,7 @@ pub(in crate::lower) use slot_snippets::slot_snippet_conflict;
 
 use super::super::{
     AttributeValue, Children, CompileInput, CompilerNodeIdentifier, Diagnostic, Element, NodeKind,
-    is_custom_element_node, is_directive,
+    is_directive,
 };
 use crate::lower::invalid;
 use crate::render_plan::is_template_whitespace;
@@ -330,7 +330,7 @@ fn element<'a>(
     let owner = match el.kind {
         kind if kind.renders_component() => Some(Owner::Component(identifier)),
         ElementKind::Metadata(Some(MetadataTag::Element)) => Some(Owner::Element),
-        ElementKind::Regular if is_custom_element_node(tree, source, el) => Some(Owner::Element),
+        ElementKind::Regular if tree.is_custom_element(el, source) => Some(Owner::Element),
         _ => owner,
     };
     Ok((owner, placement))
