@@ -186,7 +186,7 @@ pub(super) fn javascript_config(path: &Path, root: &Path) -> Option<SvelteConfig
         // `compilerOptions: { experimental: { async: true } }`
         "valid-compile/valid/svelte-config-experimental-async/_config.cjs" => {
             return Some(SvelteConfig {
-                experimental_async: true,
+                experimental_async: rsvelte_svelte_lint::ExperimentalAsync::On,
                 ..SvelteConfig::default()
             });
         }

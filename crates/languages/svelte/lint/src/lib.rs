@@ -18,7 +18,8 @@ mod rules;
 mod settings;
 pub mod svelte_config;
 pub use settings::{
-    CompileOptions, Kit, KitFiles, LintSettings, Postcss, SvelteConfig, Warning, WarningHandler,
+    CompileOptions, ExperimentalAsync, Kit, KitFiles, LintSettings, Postcss, SvelteConfig, Warning,
+    WarningHandler,
 };
 mod task;
 mod words;

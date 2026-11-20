@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use super::compile_warnings::{Postcss, apply, ignores};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
-use crate::settings::Warning;
+use crate::settings::{ExperimentalAsync, Warning};
 
 #[cfg(test)]
 mod tests;
@@ -49,10 +49,11 @@ impl SvelteRule for ValidCompile {
             Some(Ok(config)) => Some(config),
             None => None,
         };
-        if let Some(option) = config.and_then(|c| c.invalid_option) {
+        let experimental_async = config.map_or(ExperimentalAsync::Off, |c| c.experimental_async);
+        if experimental_async == ExperimentalAsync::Invalid {
             let code = "options_invalid_value";
             let message = format!(
-                "Invalid compiler option: {option} should be true or false, if \
+                "Invalid compiler option: experimental.async should be true or false, if \
                  specified\nhttps://svelte.dev/e/{code}"
             );
             reporter.report(Report::range(format!("{message}({code})"), Span::new(0, 0)));
@@ -62,12 +63,11 @@ impl SvelteRule for ValidCompile {
             Ok(compile) => compile,
             Err(error) => return report(reporter, error, &error.message, &error.code),
         };
-        let experimental_async = config.is_some_and(|c| c.experimental_async);
         let applied = apply(
             file,
             compile,
             &ignores(component, source),
-            experimental_async,
+            experimental_async.is_on(),
             self.postcss,
         );
         if let Some(error) = &applied.error {

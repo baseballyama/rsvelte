@@ -2,6 +2,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::compile_warnings::{Postcss, apply, decidable, ignores};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use crate::settings::ExperimentalAsync;
 
 #[cfg(test)]
 mod tests;
@@ -45,9 +46,19 @@ impl SvelteRule for NoUnusedSvelteIgnore {
         let experimental_async = match file.svelte_config() {
             Some(Err(why)) => return reporter.fail(why),
             Some(Ok(config)) => config.experimental_async,
-            None => false,
+            None => ExperimentalAsync::Off,
         };
-        let applied = apply(file, compile, &ignores, experimental_async, self.postcss);
+        // An invalid option fails the compile before it reads any comment.
+        if experimental_async == ExperimentalAsync::Invalid {
+            return;
+        }
+        let applied = apply(
+            file,
+            compile,
+            &ignores,
+            experimental_async.is_on(),
+            self.postcss,
+        );
         if applied.error.is_some() {
             return;
         }

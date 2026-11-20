@@ -174,6 +174,48 @@ fn svelte_config_experimental_async_lets_lint_analyze_top_level_await() {
     );
 }
 
+/// `ESLint` 10.14.0 + eslint-plugin-svelte 3.23.1: an invalid option fails the compile, so
+/// no-unused-svelte-ignore reads no comment and only valid-compile reports.
+#[test]
+fn an_invalid_experimental_async_leaves_svelte_ignore_comments_unread() {
+    let project = Project::new();
+    project.write(
+        "Input.svelte",
+        "<!-- svelte-ignore a11y_autofocus -->\n<p>hi</p>\n",
+    );
+    project.write(
+        "rsvelte.config.json",
+        r#"{"plugins": {"svelte.lint": {"rules": {
+            "svelte/valid-compile": "error", "svelte/no-unused-svelte-ignore": "error"
+        }}}}"#,
+    );
+    let lint = || {
+        let output = project.run_without_runtime(&["--task", "svelte.lint/default"]);
+        assert!(
+            completed(&output),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).expect("UTF-8")
+    };
+    let valid = lint();
+    assert!(
+        valid.contains(r#""rule": "svelte/no-unused-svelte-ignore""#)
+            && !valid.contains("options_invalid_value"),
+        "{valid}"
+    );
+    project.write(
+        "svelte.config.js",
+        "export default { compilerOptions: { experimental: { async: 1 } } };",
+    );
+    let invalid = lint();
+    assert!(
+        invalid.contains("options_invalid_value")
+            && !invalid.contains(r#""rule": "svelte/no-unused-svelte-ignore""#),
+        "{invalid}"
+    );
+}
+
 #[test]
 fn node_config_callbacks_reach_client_server_and_stylesheet_output() {
     let project = Project::new();
