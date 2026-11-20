@@ -13,11 +13,13 @@ use rsvelte_kernel::computation::registry::Registry;
 use crate::SvelteConfig;
 use crate::computation::{SvelteConfiguration, SvelteKit};
 
+mod disk;
 mod package;
 
 #[cfg(test)]
 mod tests;
 
+pub(crate) use disk::{PostcssConfigurationOnDisk, SameNamedFileOnDisk};
 use package::Package;
 
 /// What `eslint-plugin-svelte` knows of the `SvelteKit` project a document is in.

@@ -15,9 +15,9 @@ use crate::Configuration;
 use crate::computation::{
     ConditionTypes, LegacyReactivity, LintConfiguration, LoweredAsSvelteEslintParser,
     ModuleAsTypeScript, ModuleSemantic, NativeConditionTypes, ParsedAsSvelteEslintParser,
-    PostcssConfigurationOnDisk, ResolvedAsSvelteEslintParser, SameNamedFileOnDisk,
-    read_as_svelte_eslint_parser,
+    ResolvedAsSvelteEslintParser, read_as_svelte_eslint_parser,
 };
+use crate::project::{PostcssConfigurationOnDisk, SameNamedFileOnDisk};
 use crate::rules::shared::style_attribute::InlineStyles;
 use crate::rules::shared::style_sheet::{LintStyleSheet, StyleSheetVerdict};
 use crate::types::TypeFacts;
