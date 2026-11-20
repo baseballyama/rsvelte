@@ -37,7 +37,8 @@ function setUp(mode: Mode, rulesFile: string, inputsFile: string) {
 			// The Rust arms do not report them, and they carry no rule.
 			linterOptions: { reportUnusedDisableDirectives: 'off' },
 			rules: Object.fromEntries(rules.map((rule) => [rule, 'error'])),
-			// The parsers of the corpus's lint oracle, `tools/oracle/tasks/svelte-lint.ts`.
+			// The corpus lint oracle's parsers, with runes set through `svelteFeatures` rather than its
+			// `svelteConfig`.
 			languageOptions: {
 				parser: svelteParser,
 				parserOptions: { parser: typescriptParser, svelteFeatures: { runes: true } },

@@ -44,14 +44,14 @@ function behaviourTask(id: string, lang: string, source: Runtime, target: Runtim
 								src,
 								unit.path,
 								t,
-								!!unit.fixture.behaviour?.custom_element,
-								unit.fixture.behaviour?.experimental_async,
+								!!unit.table.behaviour?.custom_element,
+								unit.table.behaviour?.experimental_async,
 							)
 						: official(src, unit.path, t),
 					t,
 					sourceFile,
 				),
-				unit.fixture.behaviour ?? {},
+				unit.table.behaviour ?? {},
 				sourceFile,
 			);
 			const errors = traceErrors(result);
@@ -71,7 +71,7 @@ function behaviourTask(id: string, lang: string, source: Runtime, target: Runtim
 					runtime,
 					variant.id as Target,
 					file,
-					unit.fixture.behaviour ?? {},
+					unit.table.behaviour ?? {},
 					unit.sourceFile,
 					target === 'vapor',
 				);

@@ -90,8 +90,9 @@ This is not a complete Svelte type projection.
 
 Type checking and typed lint read this same projection; no task has its own output. Original
 expressions keep exact content mappings, and generated helpers do not become source lint nodes.
-The [shared type information API](../../../../tools/type-information/README.md) uses one native
-Program for both consumers. The Rust CLI checker does not use that API yet.
+Today only the oracle's semantic comparison (`tools/oracle/semantic`) uses the
+[type information adapter](../../../../tools/type-information/README.md). Neither the Rust checker
+nor typed lint uses it yet.
 
 ## Tests and measurements
 
