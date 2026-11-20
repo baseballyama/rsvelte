@@ -8,10 +8,11 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::Script;
+use rsvelte_typescript_tree::document_span;
 
 use super::contract::Edit;
 use super::hoistable::{Hoisted, hoisted};
-use super::{Buffer, Builder, Node, NodeIdentifier, Range, Refusal, Result, Span, refuse, span};
+use super::{Buffer, Builder, Node, NodeIdentifier, Range, Refusal, Result, Span, refuse};
 use crate::syntax_tree::TypeParameters;
 
 /// A generic component's type parameters and where its render function starts in the scratch.
@@ -118,7 +119,7 @@ impl Builder<'_> {
         };
         let start = self.scratch.len();
         for parameter in &declaration.params {
-            let name = span(parameter.name.span);
+            let name = document_span(parameter.name.span);
             self.scratch
                 .push(self.tree.push(Node::UnmappedSource(name)));
         }
@@ -198,9 +199,12 @@ impl Builder<'_> {
             // `@import` in a function, as TypeScript 7 does only at the top level.
             while let Some(comment) = comments.next_if(|comment| comment.span.start < start) {
                 if comment.span.end <= start
-                    && (import || span(comment.span).text(self.source).contains("@import"))
+                    && (import
+                        || document_span(comment.span)
+                            .text(self.source)
+                            .contains("@import"))
                 {
-                    moved(self, span(comment.span));
+                    moved(self, document_span(comment.span));
                 }
             }
             // A comment inside the statement belongs to it.
@@ -215,7 +219,7 @@ impl Builder<'_> {
                 moved(self, import);
             }
             match statement {
-                Statement::ImportDeclaration(import) => moved(self, span(import.span)),
+                Statement::ImportDeclaration(import) => moved(self, document_span(import.span)),
                 // A type export would leave the render function; svelte2tsx moves it out.
                 Statement::ExportDeclaration(export)
                     if generic
@@ -227,9 +231,12 @@ impl Builder<'_> {
                         && !aliases
                             .found
                             .iter()
-                            .any(|alias| alias.span == span(export.span)) =>
+                            .any(|alias| alias.span == document_span(export.span)) =>
                 {
-                    return Err(refuse("generic component contracts", span(export.span)));
+                    return Err(refuse(
+                        "generic component contracts",
+                        document_span(export.span),
+                    ));
                 }
                 _ => {}
             }
@@ -418,7 +425,7 @@ impl DollarGenerics {
 
     fn name(&mut self, declared: Span, name: oxc_span::Span) {
         if self.collect_named {
-            self.named.push((declared, span(name)));
+            self.named.push((declared, document_span(name)));
         }
     }
 
@@ -435,7 +442,7 @@ impl DollarGenerics {
 
     /// The declaration's span with its `export`, which svelte2tsx's node starts at.
     fn declared(&self, declaration: oxc_span::Span) -> Span {
-        self.export.unwrap_or_else(|| span(declaration))
+        self.export.unwrap_or_else(|| document_span(declaration))
     }
 }
 
@@ -446,7 +453,7 @@ impl<'a> Visit<'a> for DollarGenerics {
             it.declaration,
             Declaration::TSTypeAliasDeclaration(_) | Declaration::TSInterfaceDeclaration(_)
         ) {
-            self.export = Some(span(it.span));
+            self.export = Some(document_span(it.span));
         }
         walk::walk_export_declaration(self, it);
         self.export = outer;
@@ -466,12 +473,12 @@ impl<'a> Visit<'a> for DollarGenerics {
             ));
             self.found.push(DollarGeneric {
                 span: declared,
-                name: span(it.id.span),
+                name: document_span(it.id.span),
                 arguments: reference
                     .type_arguments
                     .iter()
                     .flat_map(|arguments| &arguments.params)
-                    .map(|argument| span(argument.span()))
+                    .map(|argument| document_span(argument.span()))
                     .collect(),
             });
         } else {

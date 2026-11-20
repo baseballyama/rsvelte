@@ -2,9 +2,10 @@
 
 use oxc_ast::ast::{Program, Statement};
 use oxc_ast_visit::{Visit, walk};
+use rsvelte_typescript_tree::document_span;
 
 use super::generic::instance_only;
-use super::{Refusal, Span, span};
+use super::{Refusal, Span};
 
 /// What svelte2tsx does to a script that Svelte does not parse, which it still reads as
 /// TypeScript.
@@ -60,7 +61,7 @@ struct Moved {
 impl<'a> Visit<'a> for Moved {
     fn visit_statement(&mut self, it: &Statement<'a>) {
         if let Statement::ImportDeclaration(import) = it {
-            self.imports.push(span(import.span));
+            self.imports.push(document_span(import.span));
         }
         self.removed.extend(super::namespace::removed_export(it));
         walk::walk_statement(self, it);

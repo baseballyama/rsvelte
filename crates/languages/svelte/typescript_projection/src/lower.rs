@@ -27,7 +27,7 @@ use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode, TokenType};
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, document_span};
 pub use unparsed_script::{UnparsedScript, unparsed_script};
 
 use crate::buffers::Buffer;
@@ -172,7 +172,7 @@ struct Builder<'a> {
 
 /// The source text at `at`, whose mapping ends at `end` when that is not its own end.
 fn source_expression(at: oxc_span::Span, end: Option<u32>) -> SourceExpression {
-    let span = span(at);
+    let span = document_span(at);
     SourceExpression {
         span,
         end: end.unwrap_or(span.end_offset),
@@ -219,11 +219,6 @@ fn starts_with_object(mut e: &Expression<'_>) -> bool {
         }
         e = next;
     }
-}
-
-/// The document position of an oxc node.
-const fn span(span: oxc_span::Span) -> Span {
-    Span::new(span.start, span.end)
 }
 
 impl Builder<'_> {
@@ -361,7 +356,7 @@ impl Builder<'_> {
                 expression,
                 span: tag,
             } => {
-                let at = span(self.expression(expression).span());
+                let at = document_span(self.expression(expression).span());
                 self.mustache(expression, at, tag.end_offset - 1)
             }
             TemplateNode::Element {
