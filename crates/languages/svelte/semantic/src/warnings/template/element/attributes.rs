@@ -4,9 +4,9 @@ use oxc_ast::ast::Expression;
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range};
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, document_span};
 
-use super::super::super::{error, span, warning};
+use super::super::super::{error, warning};
 use super::super::Template;
 use super::Tag;
 
@@ -166,8 +166,7 @@ impl Template<'_> {
                         .map(|n| n.text(source));
                     if named == Some("this") {
                         let at = component.javascript.get_expression(value).span();
-                        self.bind_this
-                            .push((Span::new(at.start, at.end), self.blocks > 0));
+                        self.bind_this.push((document_span(at), self.blocks > 0));
                     }
                     self.each_rest_binding(at, value);
                 }
@@ -206,7 +205,7 @@ impl Template<'_> {
                             "attribute_invalid_sequence_expression",
                             "Comma-separated expressions are not allowed as attribute/directive \
                                 values in runes mode, unless wrapped in parentheses",
-                            span(sequence.span),
+                            document_span(sequence.span),
                         )
                     })
                 }
@@ -297,11 +296,7 @@ impl Template<'_> {
         );
         self.warn(
             at,
-            warning(
-                "bind_invalid_each_rest",
-                &message,
-                Span::new(declared.start, declared.end),
-            ),
+            warning("bind_invalid_each_rest", &message, document_span(declared)),
         );
     }
 }

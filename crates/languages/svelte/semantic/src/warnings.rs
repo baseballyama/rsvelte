@@ -164,11 +164,6 @@ pub fn slot_name_error(name: Option<&str>) -> Option<(&'static str, &'static str
     }
 }
 
-/// The document position of an oxc node.
-const fn span(span: oxc_span::Span) -> Span {
-    Span::new(span.start, span.end)
-}
-
 fn warning(code: &'static str, message: &str, span: Span) -> Diagnostic {
     let message = format!("{message}\nhttps://svelte.dev/e/{code}");
     Diagnostic::warning(code, message, span)
