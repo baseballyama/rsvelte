@@ -228,7 +228,7 @@ fn element_placement<'a>(
 fn node_invalid_placement<T>(message: &str, span: Span) -> Result<T, Diagnostic> {
     invalid(
         "node_invalid_placement",
-        &format!(
+        format!(
             "{message}. The browser will 'repair' the HTML (by moving, removing, or inserting \
              elements) which breaks Svelte's assumptions about the structure of your components."
         ),
@@ -357,7 +357,7 @@ fn animation(
         if each.key.is_none() {
             return invalid(
                 "animation_missing_key",
-                &format!("{PLACEMENT}. Did you forget to add a key to your each block?"),
+                format!("{PLACEMENT}. Did you forget to add a key to your each block?"),
                 a.span,
             );
         }
@@ -408,7 +408,7 @@ fn event_modifiers(attributes: &[Attribute]) -> Result<(), Diagnostic> {
             if modifiers.contains(conflict) {
                 return invalid(
                     "event_handler_invalid_modifier_combination",
-                    &format!("The 'passive' and '{name}' modifiers cannot be used together"),
+                    format!("The 'passive' and '{name}' modifiers cannot be used together"),
                     a.span,
                 );
             }
@@ -551,7 +551,7 @@ fn directives(
         {
             return invalid(
                 "bind_invalid_parens",
-                &format!(
+                format!(
                     "`bind:{}={{get, set}}` must not have surrounding parentheses",
                     a.name.text(source)
                 ),

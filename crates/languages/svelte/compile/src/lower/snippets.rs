@@ -261,7 +261,7 @@ pub(super) fn check_exports(
                 None => {
                     return invalid(
                         "export_undefined",
-                        &format!("`{}` is not defined", local.name),
+                        format!("`{}` is not defined", local.name),
                         node_span(specifier),
                     );
                 }

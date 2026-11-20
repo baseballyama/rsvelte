@@ -219,7 +219,7 @@ fn validate_globals(
             }
             return invalid(
                 "illegal_element_attribute",
-                &format!("`<{host}>` does not support non-event attributes or spread attributes"),
+                format!("`<{host}>` does not support non-event attributes or spread attributes"),
                 attribute.span,
             );
         }
@@ -246,7 +246,7 @@ fn no_children(
         let name = element.name.text(source);
         return invalid(
             "svelte_meta_invalid_content",
-            &format!("<{name}> cannot have children"),
+            format!("<{name}> cannot have children"),
             Span::new(
                 tree.node(first).span.start_offset,
                 tree.node(last).span.end_offset,

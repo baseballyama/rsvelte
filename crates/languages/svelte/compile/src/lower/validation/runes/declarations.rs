@@ -47,7 +47,7 @@ pub(super) fn imports(import: &ImportDeclaration<'_>) -> Result<(), Diagnostic> 
         {
             return crate::lower::invalid(
                 "runes_mode_invalid_import",
-                &format!("{} cannot be used in runes mode", imported.name),
+                format!("{} cannot be used in runes mode", imported.name),
                 node_span(&**specifier),
             );
         }

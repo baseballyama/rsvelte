@@ -233,7 +233,7 @@ impl TemplateWalk {
 fn global_reference_invalid(name: &str, span: Span) -> Result<(), Diagnostic> {
     crate::lower::invalid(
         "global_reference_invalid",
-        &format!(
+        format!(
             "`{name}` is an illegal variable name. To reference a global variable called `{name}`, \
                 use `globalThis.{name}`"
         ),

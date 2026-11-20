@@ -347,7 +347,7 @@ pub(super) fn uses_slots(res: &Resolution) -> bool {
 fn state_invalid_placement<T>(rune: &str, span: Span) -> Result<T, Diagnostic> {
     crate::lower::invalid(
         "state_invalid_placement",
-        &format!(
+        format!(
             "`{rune}(...)` can only be used as a variable declaration initializer, a class field \
              declaration, or the first assignment to a class field at the top level of the \
              constructor."

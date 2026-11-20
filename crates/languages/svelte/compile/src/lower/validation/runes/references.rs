@@ -105,7 +105,7 @@ fn invalid_name(name: &str, span: Span, known: bool) -> Result<(), Diagnostic> {
         ),
         _ => invalid(
             "rune_invalid_name",
-            &format!("`{name}` is not a valid rune"),
+            format!("`{name}` is not a valid rune"),
             span,
         ),
     }

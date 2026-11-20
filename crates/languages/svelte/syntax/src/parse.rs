@@ -240,9 +240,13 @@ fn acorn_position(mut e: Diagnostic) -> Diagnostic {
 
 /// Upstream's error `code`; an error of this parser's own, `parse_error`, has no docs page.
 #[cold]
-fn svelte_error(code: &'static str, message: impl AsRef<str>, span: Span) -> Diagnostic {
+fn svelte_error(
+    code: &'static str,
+    message: impl AsRef<str> + Into<String>,
+    span: Span,
+) -> Diagnostic {
     if code == "parse_error" {
-        Diagnostic::error(code, message.as_ref().to_owned(), span)
+        Diagnostic::error(code, message.into(), span)
     } else {
         crate::svelte_diagnostics::error(code, message, span)
     }

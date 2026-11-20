@@ -21,7 +21,7 @@ impl RuneWalk<'_> {
         if rune != "$inspect" && spread {
             return crate::lower::invalid(
                 "rune_invalid_spread",
-                &format!("`{rune}` cannot be called with a spread argument"),
+                format!("`{rune}` cannot be called with a spread argument"),
                 node_span(call),
             );
         }
@@ -210,7 +210,7 @@ fn check_rune_arguments(
         "$props" | "$props.id" | "$host" | "$effect.tracking" if count > 0 => {
             return crate::lower::invalid(
                 "rune_invalid_arguments",
-                &format!("`{rune}` cannot be called with arguments"),
+                format!("`{rune}` cannot be called with arguments"),
                 node_span(call),
             );
         }
@@ -228,7 +228,7 @@ fn check_rune_arguments(
     };
     crate::lower::invalid(
         "rune_invalid_arguments_length",
-        &format!("`{rune}` must be called with {expected}"),
+        format!("`{rune}` must be called with {expected}"),
         node_span(call),
     )
 }

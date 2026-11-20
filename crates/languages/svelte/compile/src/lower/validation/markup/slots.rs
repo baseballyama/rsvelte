@@ -36,7 +36,7 @@ pub(super) fn check<'a>(
     if !names.insert(name) {
         return invalid(
             "slot_attribute_duplicate",
-            &format!(
+            format!(
                 "Duplicate slot name '{name}' in <{}>",
                 owner.name.text(source)
             ),
