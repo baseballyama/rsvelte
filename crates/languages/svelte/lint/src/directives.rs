@@ -3,13 +3,14 @@
 //! the rules `settings.svelte.ignoreWarnings` names outside `<script>`).
 
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::{LineColumn, LineIndex, Span};
 use rsvelte_lint_runner::finding::{Finding, Fix, UNUSED_DIRECTIVE};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Script, TemplateNode};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::Pattern;
-use crate::words::{is_javascript_space, words};
+use crate::words::words;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Kind {
@@ -50,7 +51,7 @@ pub(crate) fn markup_directives(component: &Component, source: &str) -> Vec<Mark
         let value = data.text(source);
         // Upstream keeps the text before a ` -- ` description and does not trim it.
         let text = &value[..justification_start(value).unwrap_or(value.len())];
-        let trimmed = text.trim_start_matches(is_javascript_space);
+        let trimmed = text.trim_start_matches(is_ecmascript_whitespace);
         let at = text.len() - trimmed.len();
         let Some((kind, keyword)) = [
             Kind::DisableNextLine,
@@ -63,7 +64,7 @@ pub(crate) fn markup_directives(component: &Component, source: &str) -> Vec<Mark
         .find(|(_, keyword)| {
             trimmed
                 .strip_prefix(keyword)
-                .is_some_and(|rest| rest.is_empty() || rest.starts_with(is_javascript_space))
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with(is_ecmascript_whitespace))
         }) else {
             continue;
         };
@@ -89,7 +90,7 @@ pub(crate) fn markup_directives(component: &Component, source: &str) -> Vec<Mark
 pub(crate) fn justification_start(value: &str) -> Option<usize> {
     let bytes = value.as_bytes();
     value.char_indices().find_map(|(i, c)| {
-        if !is_javascript_space(c) {
+        if !is_ecmascript_whitespace(c) {
             return None;
         }
         let dashes = bytes[i + c.len_utf8()..]
@@ -97,7 +98,7 @@ pub(crate) fn justification_start(value: &str) -> Option<usize> {
             .take_while(|&&b| b == b'-')
             .count();
         let after = &value[i + c.len_utf8() + dashes..];
-        (dashes >= 2 && after.starts_with(is_javascript_space)).then_some(i)
+        (dashes >= 2 && after.starts_with(is_ecmascript_whitespace)).then_some(i)
     })
 }
 
@@ -217,7 +218,7 @@ fn javascript_directive(text: &str) -> Option<(Kind, bool, Rules<'_>, &str)> {
     .into_iter()
     .find_map(|kind| {
         let rest = part.strip_prefix(kind.keyword())?;
-        (rest.is_empty() || rest.starts_with(is_javascript_space)).then_some((kind, rest))
+        (rest.is_empty() || rest.starts_with(is_ecmascript_whitespace)).then_some((kind, rest))
     })?;
     // `parseListConfig`: commas separate names, which may be quoted; a repeated name is one.
     let mut rules: Rules<'_> = Vec::new();

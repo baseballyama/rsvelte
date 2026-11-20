@@ -4,6 +4,7 @@
 
 use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::warnings::{CompileWarnings, code_for_v5};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
@@ -11,7 +12,7 @@ use rsvelte_typescript_tree::ProgramIdentifier;
 
 use crate::computation::{PostcssConfiguration, PostcssConfigurationOnDisk};
 use crate::rule::File;
-use crate::words::{is_javascript_space, words};
+use crate::words::words;
 use crate::{LintSettings, settings};
 
 /// One code of a `svelte-ignore` comment.
@@ -75,11 +76,11 @@ fn block_end(comment: Span, source: &str) -> u32 {
 /// parenthesized note is not a code.
 fn read(value: Span, comment: Span, source: &str, out: &mut Ignores) {
     let text = value.text(source);
-    let trimmed = text.trim_start_matches(is_javascript_space);
+    let trimmed = text.trim_start_matches(is_ecmascript_whitespace);
     let Some(rest) = trimmed.strip_prefix("svelte-ignore") else {
         return;
     };
-    let codes = rest.trim_start_matches(is_javascript_space);
+    let codes = rest.trim_start_matches(is_ecmascript_whitespace);
     if codes.len() == rest.len() {
         return;
     }
