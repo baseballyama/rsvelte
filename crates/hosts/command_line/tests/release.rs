@@ -128,10 +128,7 @@ fn format_leaves_svelte_files_whose_options_it_cannot_print_and_says_so() {
     let output = project.rsvelte(&["format"]);
     let stderr = text(&output.stderr);
     assert_eq!(output.status.code(), Some(2), "{stderr}");
-    assert!(
-        stderr.contains("1 Svelte files were not formatted"),
-        "{stderr}"
-    );
+    assert!(stderr.contains("1 file was not formatted"), "{stderr}");
     assert!(stderr.contains("`singleQuote`"), "{stderr}");
     let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
     assert_eq!(read("a.ts"), "y('z');\n");
@@ -140,7 +137,7 @@ fn format_leaves_svelte_files_whose_options_it_cannot_print_and_says_so() {
 }
 
 #[test]
-fn format_refuses_a_configuration_it_cannot_honor_and_writes_nothing() {
+fn format_leaves_the_files_of_a_configuration_it_cannot_honor() {
     let project = Project::new(
         "format-overrides",
         &[
@@ -259,4 +256,90 @@ fn format_reads_nothing_for_a_file_oxfmt_leaves_and_skips_a_package_json_that_do
     assert_eq!(read("big/y.ts"), unformatted);
     assert_eq!(read("big/sub/x.ts"), formatted);
     assert_eq!(read("prettier/fixtures/x.ts"), formatted);
+}
+
+#[test]
+fn format_leaves_the_files_one_configuration_refuses_and_formats_the_others() {
+    let unformatted = "const a = [1,2];\n";
+    let project = Project::new(
+        "format-refused-group",
+        &[
+            (".git/HEAD", "ref: refs/heads/main\n"),
+            ("a.ts", unformatted),
+            ("sub/.prettierrc", "semi: false\n"),
+            ("sub/b.ts", unformatted),
+            ("sub/App.svelte", "<script>\nlet   a = 1\n</script>\n"),
+        ],
+    );
+    let output = project.rsvelte(&["format"]);
+    let stderr = text(&output.stderr);
+    assert_eq!(output.status.code(), Some(2), "{stderr}");
+    assert!(stderr.contains("2 files were not formatted"), "{stderr}");
+    assert!(stderr.contains(".prettierrc"), "{stderr}");
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(read("a.ts"), "const a = [1, 2];\n");
+    assert_eq!(read("sub/b.ts"), unformatted);
+    assert_eq!(read("sub/App.svelte"), "<script>\nlet   a = 1\n</script>\n");
+}
+
+#[test]
+fn format_leaves_the_files_of_options_a_formatter_cannot_read_and_formats_the_others() {
+    let unformatted = "const   x = [1,2]\n";
+    let project = Project::new(
+        "format-unread-option",
+        &[
+            (".oxfmtrc.json", "{}"),
+            ("a.ts", unformatted),
+            ("sub/.oxfmtrc.json", r#"{ "printWidth": "x" }"#),
+            ("sub/b.ts", unformatted),
+        ],
+    );
+    let output = project.rsvelte(&["format"]);
+    let stderr = text(&output.stderr);
+    assert_eq!(output.status.code(), Some(2), "{stderr}");
+    assert!(stderr.contains("1 file was not formatted"), "{stderr}");
+    assert!(stderr.contains("`printWidth`"), "{stderr}");
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(read("a.ts"), "const x = [1, 2];\n");
+    assert_eq!(read("sub/b.ts"), unformatted);
+}
+
+#[test]
+fn format_leaves_every_file_of_a_configuration_a_formatter_cannot_read() {
+    let unformatted = "const   x = [1,2]\n";
+    let svelte = "<script lang=\"ts\">\nlet   y = [2]\n</script>\n";
+    let project = Project::new(
+        "format-unread-svelte-option",
+        &[
+            (".oxfmtrc.json", "{}"),
+            ("a.ts", unformatted),
+            ("sub/.oxfmtrc.json", r#"{ "svelte": { "sortOrder": 3 } }"#),
+            ("sub/b.ts", unformatted),
+            ("sub/B.svelte", svelte),
+        ],
+    );
+    let output = project.rsvelte(&["format"]);
+    let stderr = text(&output.stderr);
+    assert_eq!(output.status.code(), Some(2), "{stderr}");
+    assert!(stderr.contains("2 files were not formatted"), "{stderr}");
+    assert!(stderr.contains("`svelte.sortOrder`"), "{stderr}");
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(read("a.ts"), "const x = [1, 2];\n");
+    assert_eq!(read("sub/b.ts"), unformatted);
+    assert_eq!(read("sub/B.svelte"), svelte);
+}
+
+#[test]
+fn format_reads_null_as_an_option_left_unset() {
+    let project = Project::new(
+        "format-null-option",
+        &[
+            (".oxfmtrc.json", r#"{ "semi": null, "printWidth": null }"#),
+            ("a.ts", "const   x = [1,2]\n"),
+        ],
+    );
+    let output = project.rsvelte(&["format"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(read("a.ts"), "const x = [1, 2];\n");
 }

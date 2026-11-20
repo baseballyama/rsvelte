@@ -45,16 +45,18 @@ the nearest one from the current directory. When `rsvelte.config` gives `svelte.
 `format` ignores an option the formatter does not know and prints a warning, as Prettier does.
 It reads nothing else for a file that the `ignorePatterns` of its nearest oxfmt configuration
 leave, and it skips a `package.json` that does not parse, as Prettier does.
-When `format` cannot print as the options say, it writes nothing and says why:
+When `format` cannot print as a file's options say, it leaves that file unchanged and formats
+the others. Then it says why and exits with 2, as Prettier and oxfmt do with a configuration
+they cannot load:
 
-- It reads only JSON, so a YAML, TOML or JavaScript configuration stops it.
+- It reads only JSON, so it leaves the files of a YAML, TOML or JavaScript configuration.
 - It does not apply `overrides`, `sortImports`, Tailwind CSS sorting or Prettier plugins other
   than `prettier-plugin-svelte`.
 - It does not print without a line limit, as Prettier prints with `max_line_length = off`.
   Under an oxfmt configuration, it drops that setting, as oxfmt does.
 - The Svelte formatter prints only the defaults of `semi`, `singleQuote`, `trailingComma`,
   `arrowParens`, `bracketSpacing`, `quoteProps` and `objectWrap`. With another value, `format`
-  formats the other files, leaves those Svelte files as they are, and exits with 2.
+  leaves only the Svelte files.
 
 `typecheck` checks the project of `tsconfig.json` in the current directory and reports the
 type errors that svelte-check reports. It runs a TypeScript 7 type checker from the project's
