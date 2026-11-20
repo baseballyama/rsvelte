@@ -27,10 +27,23 @@ pub enum ElementEnd {
     NextStartTag,
     /// The end tag of an ancestor.
     AncestorEndTag,
-    /// The end tag of an ancestor that also names the element a start tag closed last
-    /// (upstream's `last_auto_closed_tag`): upstream takes it as meant for that one, and does not
-    /// warn about the elements it closes on the way.
-    AutoClosedEndTag,
+}
+
+/// An element closed by another element's tag, which upstream's parser warns about as
+/// `element_implicitly_closed` when it closes it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ImplicitlyClosed {
+    pub element: TemplateNodeIdentifier,
+    pub by: ClosingTag,
+}
+
+/// The tag that closed an element implicitly, by its name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ClosingTag {
+    /// `<name`, of the next sibling.
+    Start(Span),
+    /// `</name`, of an ancestor.
+    End(Span),
 }
 
 impl ElementEnd {
@@ -364,6 +377,8 @@ pub struct Component {
     pub debug_identifiers: Vec<ExpressionIdentifier>,
     /// The `//` and `/* */` comments between the attributes of tags, in order.
     pub tag_comments: Vec<Span>,
+    /// In the order the parser closed them, inner elements first.
+    pub implicitly_closed: Vec<ImplicitlyClosed>,
     pub root: Range,
     /// `<script module>`, whose program is in the same [`Tree`].
     pub module: Option<Script>,

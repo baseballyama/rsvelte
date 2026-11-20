@@ -1,5 +1,7 @@
 use rsvelte_svelte_syntax::parse::parse;
-use rsvelte_svelte_syntax::syntax_tree::{Component, ElementEnd, Range, TemplateNode};
+use rsvelte_svelte_syntax::syntax_tree::{
+    ClosingTag, Component, ElementEnd, ImplicitlyClosed, Range, TemplateNode,
+};
 
 fn element_names<'a>(component: &Component, children: Range, source: &'a str) -> Vec<&'a str> {
     component
@@ -64,7 +66,7 @@ fn closing_names_keep_unicode_whitespace_and_error_positions() {
 
 #[test]
 fn an_element_records_what_ended_it() {
-    use ElementEnd::{AncestorEndTag, AutoClosedEndTag, EndTag, NextStartTag, StartTag};
+    use ElementEnd::{AncestorEndTag, EndTag, NextStartTag, StartTag};
     let source = "<div><p>a \
         <b>x</b><div>y</div></div><ul><li>one<li>two</ul><br><i/><textarea>t</textarea><svelte:hea\
         d><script>s</script></svelte:head><p>a<p>b</p><div><p><span>x</p></div>";
@@ -100,11 +102,24 @@ fn an_element_records_what_ended_it() {
             ("p", EndTag),
             ("div", EndTag),
             ("p", EndTag),
-            // `</p>` follows the `<p>` that `<p>` closed, so upstream does not warn about
-            // `<span>`.
-            ("span", AutoClosedEndTag),
+            ("span", AncestorEndTag),
         ]
     );
+    let closed: Vec<(&str, String)> = (component.implicitly_closed.iter())
+        .map(|&ImplicitlyClosed { element, by }| {
+            let TemplateNode::Element { name, .. } = *component.node(element) else {
+                panic!("{element} is not an element");
+            };
+            let by = match by {
+                ClosingTag::Start(by) => format!("<{}", by.text(source)),
+                ClosingTag::End(by) => format!("</{}", by.text(source)),
+            };
+            (name.text(source), by)
+        })
+        .collect();
+    // `</p>` follows the `<p>` that `<p>` closed, so upstream does not warn about `<span>`.
+    let expected = [("p", "<div"), ("li", "<li"), ("li", "</ul"), ("p", "<p")];
+    assert_eq!(closed, expected.map(|(name, by)| (name, by.to_owned())));
 }
 
 /// Each code and offset is the official compiler's.
