@@ -90,7 +90,7 @@ pub fn string_to_number(s: &str) -> f64 {
 /// exact value: the leading 61 or more bits, and whether any bit below them is set.
 #[expect(
     clippy::cast_precision_loss,
-    reason = "u64 to f64 rounds to nearest, and the sticky bit makes that the exact value's rounding"
+    reason = "u64 to f64 rounds to nearest; the sticky bit makes that the exact value's rounding"
 )]
 fn radix_digits(digits: &str, radix: u32) -> f64 {
     if digits.is_empty() {
