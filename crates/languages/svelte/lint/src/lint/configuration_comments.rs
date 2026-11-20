@@ -7,9 +7,9 @@ use rsvelte_kernel::source::positions::Span;
 use serde::de::{Deserialize, Deserializer, MapAccess, Visitor};
 use serde_json::value::RawValue;
 
+use super::directive_comments::justification_start;
 use crate::Configuration;
 use crate::configuration::{Running, applies};
-use crate::directives::justification_start;
 use crate::rule::{File, Files, SvelteRule};
 
 /// What a comment sets a rule to.
