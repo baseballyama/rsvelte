@@ -2,8 +2,8 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_compile::RenderPlan;
-use rsvelte_svelte_compile::lower::{self, Item, Target, Text};
+use rsvelte_svelte_compile::render_plan::{Item, Text};
+use rsvelte_svelte_compile::{RenderPlan, Target, lower};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerSyntaxTree, NodeKind};
 
 fn text(plan: &RenderPlan, children: Children, source: &str, tree: &CompilerSyntaxTree) -> String {

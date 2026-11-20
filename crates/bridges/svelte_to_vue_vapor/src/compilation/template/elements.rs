@@ -170,12 +170,12 @@ impl<'t> Template<'_, '_, 't> {
             .iter()
             .map(|part| match *part {
                 Part::Text(span) => Item::Text {
-                    data: rsvelte_svelte_compile::lower::Text::transformed(
+                    data: rsvelte_svelte_compile::render_plan::Text::transformed(
                         span,
                         source_text,
                         rsvelte_svelte_syntax::syntax_tree::decode_attribute,
                     ),
-                    raw: rsvelte_svelte_compile::lower::Text::Source(span),
+                    raw: rsvelte_svelte_compile::render_plan::Text::Source(span),
                 },
                 Part::Expression { expression, .. } => Item::Expression(expression),
             })

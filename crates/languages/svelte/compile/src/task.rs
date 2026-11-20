@@ -13,8 +13,7 @@ use rsvelte_svelte_semantic::{Analyzed, Resolved};
 use rsvelte_typescript_compile::print;
 
 use crate::computation::Validated;
-use crate::lower::{self, Target};
-use crate::{Identified, Planned, ScopedStylesheet};
+use crate::{Identified, Planned, ScopedStylesheet, Target, lower};
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.compile",
@@ -181,14 +180,14 @@ pub fn lower_document<'o>(
     )
 }
 
-/// The JavaScript module of one target, from any frontend's [`lower::CompileInput`], with the
+/// The JavaScript module of one target, from any frontend's [`crate::CompileInput`], with the
 /// default options.
 ///
 /// # Errors
 ///
 /// A [`Diagnostic`] for what the compiler rejects or the port does not handle yet.
 pub fn compile_to_javascript(
-    input: &lower::CompileInput<'_>,
+    input: &crate::CompileInput<'_>,
     res: &rsvelte_svelte_semantic::resolve::Resolution,
     an: &rsvelte_svelte_semantic::analyze::Analysis,
     target: Target,

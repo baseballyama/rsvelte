@@ -59,10 +59,9 @@ pub(crate) use validation::{
 };
 use validation::{check_runes, uses_slots};
 
-pub use crate::input::{CompileInput, Target};
+use crate::input::{CompileInput, Target};
 pub(crate) use crate::markup::escape_markup;
-use crate::render_plan::RenderPlan;
-pub use crate::render_plan::{Cleaned, Item, Parent, Text, clean_nodes, template_end};
+use crate::render_plan::{Item, RenderPlan};
 
 /// # Errors
 /// Returns the first diagnostic from validation or target lowering.
