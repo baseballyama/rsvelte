@@ -16,7 +16,7 @@ use std::borrow::Cow;
 
 use oxc_allocator::Allocator;
 use oxc_formatter::{BracketSameLine, JsFormatOptions, QuoteStyle};
-use oxc_formatter_core::{CoreFormatOptions, IndentStyle, IndentWidth, LineEnding, LineWidth};
+use oxc_formatter_core::{CoreFormatOptions, IndentStyle, LineEnding};
 use rsvelte_document_printer::{Embedding, LayoutInstructionIdentifier, LayoutInstructions};
 use rsvelte_kernel::diagnostics::{Diagnostic, Unsupported};
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
@@ -25,6 +25,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, Script, TagAttributes, TemplateNode,
     TemplateNodeIdentifier, TokenType,
 };
+use rsvelte_typescript_format::options::{indent_width, line_width};
 use rsvelte_typescript_tree::SyntaxError;
 
 use crate::options::{EndOfLine, Options, unported};
@@ -183,13 +184,9 @@ fn print(
 
 /// The options oxc's printer and formatters share.
 fn core_options(options: &Options) -> R<CoreFormatOptions> {
-    let tab_width = u8::try_from(options.tab_width)
-        .ok()
-        .and_then(|w| IndentWidth::try_from(w).ok())
+    let tab_width = indent_width(options.tab_width)
         .ok_or_else(|| Unsupported::nowhere("a `tabWidth` oxc's formatter does not take"))?;
-    let line_width = u16::try_from(options.print_width)
-        .ok()
-        .and_then(|w| LineWidth::try_from(w).ok())
+    let line_width = line_width(options.print_width)
         .ok_or_else(|| Unsupported::nowhere("a `printWidth` oxc's formatter does not take"))?;
     Ok(CoreFormatOptions {
         indent_style: if options.use_tabs {

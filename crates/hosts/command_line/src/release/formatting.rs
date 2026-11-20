@@ -29,8 +29,7 @@ pub(crate) enum Origin {
 impl fmt::Display for Origin {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Default(Formatter::Oxfmt) => f.write_str("oxfmt's defaults"),
-            Self::Default(Formatter::Prettier) => f.write_str("Prettier's defaults"),
+            Self::Default(formatter) => write!(f, "{formatter}'s defaults"),
             Self::File(path) => write!(f, "{}", path.display()),
         }
     }
@@ -66,11 +65,7 @@ struct Set {
 }
 
 impl Resolved {
-    fn set(&mut self, name: &str, value: &Value, origin: Origin) {
-        self.set_as(name, name, value, origin);
-    }
-
-    fn set_as(&mut self, name: &str, written: &str, value: &Value, origin: Origin) {
+    fn set(&mut self, name: &str, written: &str, value: &Value, origin: Origin) {
         let set = Set {
             json: value.to_string(),
             origin,
@@ -211,31 +206,48 @@ impl Resolver {
         let formatter = configuration
             .as_ref()
             .map_or(Formatter::Prettier, |c| c.formatter);
+        // Each source replaces what the ones before it give; the formatter loads what is left.
+        let mut given: BTreeMap<String, (Given, Origin, String)> = BTreeMap::new();
+        let mut give = |name: &str, written: &str, value: Given, origin: Origin| {
+            given.insert(name.to_owned(), (value, origin, written.to_owned()));
+        };
         for &(name, value) in formatter.defaults() {
-            resolved.set(name, &Value::from(value), Origin::Default(formatter));
+            give(
+                name,
+                name,
+                Given::Value(value.into()),
+                Origin::Default(formatter),
+            );
         }
-        let editorconfigs = match formatter {
-            Formatter::Prettier => read.prettier_editorconfigs(directory),
-            Formatter::Oxfmt => read.oxfmt_editorconfig(&self.cwd).into_iter().collect(),
+        let (reading, editorconfigs) = match formatter {
+            Formatter::Prettier => (
+                editorconfig::PRETTIER,
+                read.prettier_editorconfigs(directory),
+            ),
+            Formatter::Oxfmt => (
+                editorconfig::OXFMT,
+                read.oxfmt_editorconfig(&self.cwd).into_iter().collect(),
+            ),
         };
         let outermost_first = editorconfigs.iter().rev().map(AsRef::as_ref);
-        for (name, given, at) in editorconfig::options(outermost_first, &file) {
-            match (given, formatter) {
-                (Given::Value(value), _) => resolved.set(name, &value, Origin::File(at)),
-                // oxfmt drops what it cannot print as a number; Prettier prints no line limit.
-                (Given::Unlimited, Formatter::Oxfmt) => {}
-                (Given::Unlimited, Formatter::Prettier) => resolved.refuse(
-                    "rsvelte does not format with this `max_line_length = off` yet".to_owned(),
-                    Origin::File(at),
-                ),
+        for (name, value, at) in editorconfig::options(reading, outermost_first, &file) {
+            give(name, name, value, Origin::File(at));
+        }
+        if let Some(configuration) = &configuration {
+            let source = || Origin::File(Arc::clone(&configuration.source));
+            for (name, written, value) in &configuration.options.printed {
+                give(name, written, Given::Value(value.clone()), source());
+            }
+        }
+        for (name, (value, origin, written)) in given {
+            match formatter.load(&name, &written, &value) {
+                Ok(value) => resolved.set(&name, &written, &value, origin),
+                Err(reason) => resolved.refuse(reason, origin),
             }
         }
         if let Some(configuration) = configuration {
             let source = || Origin::File(Arc::clone(&configuration.source));
             let options = &configuration.options;
-            for (name, written, value) in &options.printed {
-                resolved.set_as(name, written, value, source());
-            }
             if let Some(reason) = &options.refused {
                 resolved.refuse(reason.clone(), source());
             }

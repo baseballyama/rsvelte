@@ -12,7 +12,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if self.stores.is_empty() {
             return Vec::new();
         }
-        let rewrite = self.rewriter(false);
+        let rewrite = self.rewriter();
         let mut setup: Vec<_> = (self.stores.iter())
             .map(|name| {
                 let store = rewrite.store_of(name);

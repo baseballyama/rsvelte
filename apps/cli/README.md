@@ -40,7 +40,10 @@ formatter configuration from the file's directory upward. In each directory it l
 `prettier` field of `package.json`. Where that configuration says nothing, `.editorconfig` sets
 the indentation, the line width, the quotes and the line endings. Prettier reads every `.editorconfig` up to the project root, and oxfmt reads
 the nearest one from the current directory. When `rsvelte.config` gives `svelte.format` or
-`typescript.format` options, that plugin uses only those.
+`typescript.format` options, that plugin uses only those. `format` loads each value, from a
+configuration or from `.editorconfig`, as its formatter loads it. Under oxfmt, `null` leaves an
+option unset and a width of 0 counts. Prettier refuses `null` and skips a width of 0 in
+`.editorconfig`.
 
 `format` ignores an option the formatter does not know and prints a warning, as Prettier does.
 It reads nothing else for a file that the `ignorePatterns` of its nearest oxfmt configuration
@@ -52,6 +55,10 @@ they cannot load:
 - It reads only JSON, so it leaves the files of a YAML, TOML or JavaScript configuration.
 - It does not apply `overrides`, `sortImports`, Tailwind CSS sorting or Prettier plugins other
   than `prettier-plugin-svelte`.
+- A value the formatter does not load leaves the files of that configuration, as the
+  formatter does. Examples: `endOfLine: "auto"` or `max_line_length = 0` under oxfmt, or
+  `printWidth: null` under Prettier.
+- It prints a `printWidth` from 1 to 320 and a `tabWidth` from 0 to 24.
 - It does not print without a line limit, as Prettier prints with `max_line_length = off`.
   Under an oxfmt configuration, it drops that setting, as oxfmt does.
 - The Svelte formatter prints only the defaults of `semi`, `singleQuote`, `trailingComma`,

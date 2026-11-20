@@ -16,7 +16,7 @@ pub static EXTENSION: Extension = Extension {
 };
 
 /// The task that checks every document some plugin gives a TypeScript view, in one project.
-const TASK: &str = "ts.check/default";
+pub const TASK: &str = "ts.check/default";
 
 /// What a check task needs when no type checker is configured.
 pub const NEEDS_TYPE_CHECKER: &str =

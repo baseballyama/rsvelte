@@ -33,7 +33,6 @@ pub(super) fn prepare<'c, 'o>(
     let mut hoisted = Vec::new();
     let mut rewrite = script::ScriptRewrite {
         accessors: custom_element.is_some(),
-        rest_reads: Some(&facts.validated.rest_reads),
         stores: &facts.validated.stores,
         names: Some(&names),
         ..script::ScriptRewrite::new(b, target, res)

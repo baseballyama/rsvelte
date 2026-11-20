@@ -51,9 +51,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 AttributeValue::Bind(e) => {
                     // `prepare_element_spread_object` keeps every binding.
                     let value = if all {
-                        Some((raw_name.to_lowercase(), self.bound(e)))
+                        Some((self.attribute_name(identifier, raw_name), self.bound(e)))
                     } else {
-                        self.bound_value(tag, list, a)
+                        self.bound_value(identifier, tag, list, a)
                     };
                     if let Some((name, value)) = value {
                         props.push(b.init(&name, value));
@@ -90,11 +90,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 }
                 _ => {}
             }
-            let mut name = if self.plan.named(identifier) == crate::render_plan::Namespace::Html {
-                raw_name.to_lowercase()
-            } else {
-                raw_name.to_owned()
-            };
+            let mut name = self.attribute_name(identifier, raw_name);
             if tag == "select" && name == "defaultvalue" {
                 "defaultValue".clone_into(&mut name);
             }

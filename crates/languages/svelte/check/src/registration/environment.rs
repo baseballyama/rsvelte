@@ -10,6 +10,8 @@ pub(super) fn typescript_env(
     content_mapper: &std::path::Path,
 ) -> Result<TypeScriptEnv, String> {
     let types = svelte.join("types/index.d.ts");
+    // Its real path, as a document of it and the checker name it.
+    let types = std::fs::canonicalize(&types).map_err(|e| format!("{}: {e}", types.display()))?;
     let text = std::fs::read_to_string(&types).map_err(|e| format!("{}: {e}", types.display()))?;
     let element_types = svelte.join("svelte-html.d.ts");
     let (declarations, include) = if element_types.is_file() {

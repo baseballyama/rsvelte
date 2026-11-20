@@ -107,7 +107,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             self.reads.insert(binding.symbol_id(), Read::Plain);
         }
         let mut cloned = pattern.clone_in_with_semantic_ids(b.allocator());
-        self.rewriter(true).visit_binding_pattern(&mut cloned);
+        self.rewriter().visit_binding_pattern(&mut cloned);
         let object = b.object(names.iter().map(|n| b.init(&n.name, b.id(&n.name))));
         let source = b.runtime("get", [b.id("$$source")]);
         let body = vec![

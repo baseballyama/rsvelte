@@ -9,12 +9,14 @@ mod arguments;
 mod configuration;
 mod documents;
 mod format;
+mod format_options;
 mod lint;
 mod lint_globals;
 mod project_check;
 mod release;
 mod svelte_kit;
 mod tool_plugins;
+mod typecheck;
 mod unit_names;
 
 /// `rsvelte-dev`, to be run in `directory`.

@@ -36,7 +36,6 @@ pub(crate) fn lower_module<'o>(
     let b = Builder::new(allocator);
     let names = prepare::names(res);
     let mut rewrite = script::ScriptRewrite {
-        rest_reads: Some(&validated.rest_reads),
         stores: &validated.stores,
         names: Some(&names),
         ..script::ScriptRewrite::new(&b, target, res)

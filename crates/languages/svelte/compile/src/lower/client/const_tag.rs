@@ -15,7 +15,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         declaration: DeclarationIdentifier,
     ) -> Vec<oxc_ast::ast::Statement<'o>> {
         let declaration = self.javascript.get_declaration(declaration);
-        script::lower_declaration_tag(&mut self.rewriter(true), declaration, &self.names)
+        script::lower_declaration_tag(&mut self.rewriter(), declaration, &self.names)
     }
 
     /// Upstream `ConstTag` (client): `const x = $.derived(() => init)`, read through `$.get`. A
@@ -29,7 +29,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let d = &self.javascript.get_declaration(declaration).declarations[0];
         let init = d.init.as_ref().expect("a `{@const}` has an initializer");
         if let BindingPattern::BindingIdentifier(id) = &d.id {
-            let value = self.rewrite(init.get_inner_expression(), true);
+            let value = self.rewrite(init.get_inner_expression());
             l.consts
                 .push(b.const_(&id.name, b.runtime("derived", [b.thunk(value)])));
             self.reads.insert(id.symbol_id(), Read::Get);
@@ -41,12 +41,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         for binding in &names {
             self.reads.insert(binding.symbol_id(), Read::Plain);
         }
-        let value = self.rewrite(init.get_inner_expression(), true);
+        let value = self.rewrite(init.get_inner_expression());
         let body = if is_simple_object_pattern(&d.id) {
             vec![b.return_(Some(value))]
         } else {
             let mut pattern = d.id.clone_in_with_semantic_ids(b.allocator());
-            self.rewriter(true).visit_binding_pattern(&mut pattern);
+            self.rewriter().visit_binding_pattern(&mut pattern);
             let object = b.object(names.iter().map(|n| b.init(&n.name, b.id(&n.name))));
             vec![
                 b.declaration(

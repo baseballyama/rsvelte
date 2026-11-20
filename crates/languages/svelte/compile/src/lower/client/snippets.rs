@@ -92,7 +92,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let metadata = self.an.render_arguments(expression);
         let mut arguments = Vec::with_capacity(call.arguments.len());
         for (index, argument) in render_arguments(call).enumerate() {
-            let value = self.rewrite(argument, true);
+            let value = self.rewrite(argument);
             let value = if metadata[index].has_call {
                 let name = format!("${}", statements.len());
                 let value = callback(b, self.res, Some(argument), value, Created::Template);
@@ -103,7 +103,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             };
             arguments.push(b.thunk(value));
         }
-        let callee = self.rewrite(call.callee.get_inner_expression(), true);
+        let callee = self.rewrite(call.callee.get_inner_expression());
         let anchor = b.id(node);
         let call = if is_dynamic_render(self.res, call) {
             let callee = if optional {
