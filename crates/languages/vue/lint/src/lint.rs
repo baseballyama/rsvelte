@@ -21,11 +21,11 @@ use rustc_hash::FxHashSet;
 
 #[derive(Debug)]
 pub(crate) struct RuleContext<'a> {
-    pub c: &'a SingleFileComponent,
+    pub component: &'a SingleFileComponent,
     pub source_text: &'a str,
     /// The document's path: some rules read the file name.
     pub path: &'a str,
-    pub res: &'a Resolution,
+    pub resolution: &'a Resolution,
 }
 
 pub(crate) type VueRule = dyn for<'a> Rule<RuleContext<'a>>;
@@ -68,7 +68,7 @@ impl<'a> Rule<RuleContext<'a>> for NoUnusedVariables {
             .filter_map(|(binding, _)| binding.symbol_id.get())
             .collect();
         rsvelte_typescript_lint::no_unused_variables(
-            context.res.semantic(),
+            context.resolution.semantic(),
             rsvelte_typescript_lint::Dialect::Core,
             |symbol| !aliases.contains(&symbol),
             |_| &[],
@@ -90,7 +90,7 @@ impl<'a> Rule<RuleContext<'a>> for VueNoUnusedVariables {
     }
 
     fn check(&self, context: &RuleContext<'a>, reporter: &mut Reporter<'_>) {
-        let scoping = context.res.scoping();
+        let scoping = context.resolution.scoping();
         // One group per directive kind; `v-for` is the only kind that declares yet.
         for parameters in loops(context) {
             let variables: Vec<_> = parameter_bindings(parameters).collect();
@@ -118,7 +118,7 @@ impl<'a> Rule<RuleContext<'a>> for VueNoUnusedVariables {
 
 /// Each `v-for`'s aliases, as a parameter list.
 fn loops<'c>(context: &RuleContext<'c>) -> impl Iterator<Item = &'c FormalParameters<'c>> {
-    let (sfc, tree) = (context.c, context.res.tree());
+    let (sfc, tree) = (context.component, context.resolution.tree());
     sfc.nodes
         .iter()
         .filter_map(move |n| match *n {
@@ -174,7 +174,7 @@ impl<'a> Rule<RuleContext<'a>> for MarkupButtonHasType {
     }
 
     fn check(&self, context: &RuleContext<'a>, reporter: &mut Reporter<'_>) {
-        let (sfc, source_text) = (context.c, context.source_text);
+        let (sfc, source_text) = (context.component, context.source_text);
         for n in &sfc.nodes {
             let TemplateNode::Element {
                 name,
