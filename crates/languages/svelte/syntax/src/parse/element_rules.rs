@@ -10,14 +10,16 @@ pub fn is_void(name: &str) -> bool {
 #[derive(Clone, Copy, Debug)]
 pub enum Autoclosing {
     Direct(&'static [&'static str]),
-    Descendant(&'static [&'static str]),
+    /// The closing tags, and upstream's `reset_by`: the elements below which they are allowed
+    /// again, which only the HTML tree validation reads.
+    Descendant(&'static [&'static str], &'static [&'static str]),
 }
 
 impl Autoclosing {
     #[must_use]
     pub const fn tags(self) -> &'static [&'static str] {
         match self {
-            Self::Direct(tags) | Self::Descendant(tags) => tags,
+            Self::Direct(tags) | Self::Descendant(tags, _) => tags,
         }
     }
 }
@@ -30,44 +32,50 @@ const CELL_END: &[&str] = &["td", "th", "tr"];
 /// Upstream `autoclosing_children`, which the HTML tree validation extends.
 pub const AUTOCLOSING_CHILDREN: [(&str, Autoclosing); 14] = [
     ("li", Autoclosing::Direct(&["li"])),
-    ("dt", Autoclosing::Descendant(DT_DD)),
-    ("dd", Autoclosing::Descendant(DT_DD)),
+    ("dt", Autoclosing::Descendant(DT_DD, &["dl"])),
+    ("dd", Autoclosing::Descendant(DT_DD, &["dl"])),
     (
         "p",
-        Autoclosing::Descendant(&[
-            "address",
-            "article",
-            "aside",
-            "blockquote",
-            "div",
-            "dl",
-            "fieldset",
-            "footer",
-            "form",
-            "h1",
-            "h2",
-            "h3",
-            "h4",
-            "h5",
-            "h6",
-            "header",
-            "hgroup",
-            "hr",
-            "main",
-            "menu",
-            "nav",
-            "ol",
-            "p",
-            "pre",
-            "section",
-            "table",
-            "ul",
-        ]),
+        Autoclosing::Descendant(
+            &[
+                "address",
+                "article",
+                "aside",
+                "blockquote",
+                "div",
+                "dl",
+                "fieldset",
+                "footer",
+                "form",
+                "h1",
+                "h2",
+                "h3",
+                "h4",
+                "h5",
+                "h6",
+                "header",
+                "hgroup",
+                "hr",
+                "main",
+                "menu",
+                "nav",
+                "ol",
+                "p",
+                "pre",
+                "section",
+                "table",
+                "ul",
+            ],
+            &[],
+        ),
     ),
-    ("rt", Autoclosing::Descendant(RT_RP)),
-    ("rp", Autoclosing::Descendant(RT_RP)),
-    ("optgroup", Autoclosing::Descendant(&["optgroup"])),
-    ("option", Autoclosing::Descendant(&["option", "optgroup"])),
+    ("rt", Autoclosing::Descendant(RT_RP, &[])),
+    ("rp", Autoclosing::Descendant(RT_RP, &[])),
+    ("optgroup", Autoclosing::Descendant(&["optgroup"], &[])),
+    (
+        "option",
+        Autoclosing::Descendant(&["option", "optgroup"], &[]),
+    ),
     ("thead", Autoclosing::Direct(ROW_GROUP_END)),
     ("tbody", Autoclosing::Direct(ROW_GROUP_END)),
     ("tfoot", Autoclosing::Direct(&["tbody"])),
