@@ -38,7 +38,7 @@ await Promise.all([
 		'--out-dir',
 		path.join(out, 'wasm/kernel'),
 		'--out-name',
-		'rsvelte_kernel_browser',
+		'rsvelte_browser',
 		'--target',
 		'web',
 		'--release',

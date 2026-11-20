@@ -143,7 +143,7 @@
 <Figure label="図 1.2 · crate の役割と依存の向き">
 	<div class="overflow-x-auto px-4 py-5">
 		<ol class="flex min-w-[640px] items-stretch gap-2 font-mono text-[12.5px] tracking-normal">
-			{#each [['rsvelte_command_line · rsvelte_kernel_browser', 'ホスト：コマンドラインとブラウザ'], ['rsvelte_svelte_compile · rsvelte_vue_lint · rsvelte_vue_to_svelte ほか', '言語の機能：コンパイル、整形、コード検査、型検査、言語間の変換'], ['rsvelte_svelte_syntax · rsvelte_vue_semantic ほか／rsvelte_plugin_interface ほか', '言語の構文と意味解析と、言語を知らない部品'], ['rsvelte_kernel', '言語を知らない']] as [name, role], i (name)}
+			{#each [['rsvelte_command_line · rsvelte_browser', 'ホスト：コマンドラインとブラウザ'], ['rsvelte_svelte_compile · rsvelte_vue_lint · rsvelte_vue_to_svelte ほか', '言語の機能：コンパイル、整形、コード検査、型検査、言語間の変換'], ['rsvelte_svelte_syntax · rsvelte_vue_semantic ほか／rsvelte_plugin_interface ほか', '言語の構文と意味解析と、言語を知らない部品'], ['rsvelte_kernel', '言語を知らない']] as [name, role], i (name)}
 				<li class="flex flex-1 items-center gap-2">
 					<div
 						class={[

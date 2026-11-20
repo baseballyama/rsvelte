@@ -145,7 +145,7 @@ test('every workspace crate has a role from its path', () => {
 		'rsvelte_typescript_content_mapper',
 	]);
 	assert.deepEqual(named('host_library'), ['rsvelte_configuration_loading']);
-	assert.deepEqual(named('host'), ['rsvelte_command_line', 'rsvelte_kernel_browser']);
+	assert.deepEqual(named('host'), ['rsvelte_command_line', 'rsvelte_browser']);
 	assert.ok(named('capability').length > 0);
 	assert.deepEqual(named('bridge'), ['rsvelte_svelte_to_vue_vapor', 'rsvelte_vue_to_svelte']);
 	assert.deepEqual(named('example'), ['rsvelte_example_plugin']);
@@ -263,8 +263,8 @@ test('support, plugin and host boundaries reject injected dependencies', () => {
 		['rsvelte_plugin_interface', 'rsvelte_configuration_loading'],
 		['rsvelte_typescript_content_mapper', 'rsvelte_typescript_tree'],
 		['rsvelte_svelte_lint', 'rsvelte_command_line'],
-		['rsvelte_vue_to_svelte', 'rsvelte_kernel_browser'],
-		['rsvelte_command_line', 'rsvelte_kernel_browser'],
+		['rsvelte_vue_to_svelte', 'rsvelte_browser'],
+		['rsvelte_command_line', 'rsvelte_browser'],
 	] as const) {
 		assert.deepEqual(inject(from, to), [`${from} depends on ${to}`]);
 	}

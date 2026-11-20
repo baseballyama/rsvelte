@@ -17,7 +17,7 @@ import {
 beforeAll(async () => {
 	await initializePipeline(
 		await readFile(
-			new URL('../../../generated/wasm/kernel/rsvelte_kernel_browser_bg.wasm', import.meta.url),
+			new URL('../../../generated/wasm/kernel/rsvelte_browser_bg.wasm', import.meta.url),
 		),
 	);
 });

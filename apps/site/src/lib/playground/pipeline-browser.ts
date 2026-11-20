@@ -1,7 +1,7 @@
 import initializeBrowserBindings, {
 	runPipeline as runPipelineJson,
 	type InitInput,
-} from '#generated/wasm/kernel/rsvelte_kernel_browser.js';
+} from '#generated/wasm/kernel/rsvelte_browser.js';
 
 export type PipelineRequest = {
 	source: string;

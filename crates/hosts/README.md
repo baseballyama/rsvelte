@@ -96,7 +96,7 @@ Build the bindings with `pnpm run generate` from `apps/site/`. See
 generated module before you call its functions:
 
 ```js
-import init, { runPipeline } from './rsvelte_kernel_browser.js';
+import init, { runPipeline } from './rsvelte_browser.js';
 
 await init();
 const result = JSON.parse(
