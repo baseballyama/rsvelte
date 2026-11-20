@@ -19,7 +19,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { parseArgs } from 'node:util';
+import { parseArgs, stripVTControlCharacters } from 'node:util';
 
 interface Phase {
 	calls: number;
@@ -144,8 +144,10 @@ export async function main(args: string[]): Promise<void> {
 				CARGO_TARGET_DIR: dir,
 			},
 		);
-		// Says how much of the build's time the cache did not save.
-		console.error(`  ${flavour}: ${stderr.match(/Compiling /g)?.length ?? 0} crates compiled`);
+		// Crates the cache did not restore, so a slow build can be told apart from a cold cache. CI
+		// colours cargo's output, and a colour code sits between `Compiling` and its space.
+		const compiled = stripVTControlCharacters(stderr).match(/^\s*Compiling /gm)?.length ?? 0;
+		console.error(`  ${flavour}: ${compiled} crates compiled`);
 		fs.mkdirSync(path.join(directory, flavour));
 		const copy = path.join(directory, flavour, 'rsvelte-dev');
 		fs.copyFileSync(path.join(dir, 'release', 'rsvelte-dev'), copy);

@@ -17,17 +17,19 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
 
+# corpus/svelte is most of the tree, and the jobs that do not read it check out without it
+# (`no-corpus` below). git still lists the excluded files, so such a job must not read a tracked
+# file under corpus/svelte: tools/structure reads every tracked file and runs on the whole tree;
+# tools/writing reads every tracked *.md, and corpus/svelte holds none.
 jobs:
   rust-format:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      # corpus/svelte is most of the tree, and a sparse checkout fetches no blob outside it. A job
-      # that lists files with `git ls-files` and reads them (tools/structure) needs the whole tree.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          sparse-checkout: |
+          sparse-checkout: &no-corpus |
             /*
             !/corpus/svelte/
           sparse-checkout-cone-mode: false
@@ -47,9 +49,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          sparse-checkout: |
-            /*
-            !/corpus/svelte/
+          sparse-checkout: *no-corpus
           sparse-checkout-cone-mode: false
       - uses: ./.github/actions/rust
       - run: cargo fetch --locked
@@ -66,16 +66,14 @@ jobs:
       matrix:
         include:
           # The corpus test is the only reader of corpus/svelte, and optimizing it saves more time
-          # than the optimized build costs.
+          # than the optimized build costs. An empty sparse-checkout checks out the whole tree.
           - part: command-line
             packages: -p rsvelte_command_line
             sparse-checkout: ''
             opt-level: 1
           - part: workspace
             packages: --workspace --exclude rsvelte_command_line
-            sparse-checkout: |
-              /*
-              !/corpus/svelte/
+            sparse-checkout: *no-corpus
             opt-level: 0
     name: rust-test (${{ matrix.part }})
     runs-on: ubuntu-24.04
@@ -138,9 +136,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          sparse-checkout: |
-            /*
-            !/corpus/svelte/
+          sparse-checkout: *no-corpus
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -185,9 +181,9 @@ jobs:
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16
           CARGO_PROFILE_RELEASE_DEBUG: false
         run: pnpm run generate --no-wasm-opt
-      # test, check and build each start by generating; it is done, so they skip that and run at
-      # once. SvelteKit's sync writes a file only when its content changes, so they share it.
-      # build:bundle is build without the two lints, which test runs.
+      # test and check start by generating; it is done, so they skip that and run at once beside
+      # build:bundle, which is build without the lints that test runs. SvelteKit's sync writes a
+      # file only when its content changes, so they share it.
       - run: |
           declare -A pids
           for script in test check build:bundle; do
