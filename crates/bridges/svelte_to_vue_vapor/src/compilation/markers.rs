@@ -46,6 +46,8 @@ pub(crate) const COMPUTED: &str = "$$computed";
 pub(crate) const PROP_CELL: &str = "$$prop_cell";
 /// The script's async derived cell constructor.
 pub(crate) const ASYNC_DERIVED: &str = "$$async_derived";
+/// The wrapper that makes `$effect.tracking()` true while a value is read.
+pub(crate) const TRACKED: &str = "$$tracked";
 /// The source of a `bind:group` binding.
 pub(crate) const GROUP_SOURCE: &str = "$$group_source";
 /// The client's `onMount`.

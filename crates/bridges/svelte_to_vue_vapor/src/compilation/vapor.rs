@@ -21,6 +21,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::{Translation, helpers, prelude, program};
 use crate::compilation::markers;
+use crate::compilation::script::tracked;
 
 mod blocks;
 mod components;
@@ -278,11 +279,15 @@ impl<'a, 'o> Emitter<'a, 'o> {
         name
     }
 
+    fn tracked(&self, value: Expression<'o>) -> Expression<'o> {
+        tracked(self.b, value, self.t.tracking)
+    }
+
     fn tracked_callback(&self, callback: Expression<'o>) -> Expression<'o> {
         if !self.t.tracking {
             return callback;
         }
-        self.arrow(self.b.call(self.b.id("$$tracked"), [callback]))
+        self.arrow(self.b.call(self.b.id(markers::TRACKED), [callback]))
     }
 
     const fn reserve_effect_order(&mut self) -> usize {
@@ -294,11 +299,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
     /// `renderEffect(() => update)`; one that only updates the DOM may merge with the others of
     /// its body.
     fn effect(&mut self, update: Expression<'o>, dom: bool, body: &mut Body<'o>) {
-        let update = if self.t.tracking {
-            self.b.call(self.b.id("$$tracked"), [self.arrow(update)])
-        } else {
-            update
-        };
+        let update = self.tracked(update);
         let order = self
             .attribute_effect_order
             .unwrap_or_else(|| self.reserve_effect_order());

@@ -474,4 +474,6 @@ mod imports;
 mod module;
 pub(crate) mod patterns;
 pub(crate) mod runes;
-pub(crate) use emit::{ScriptRewrite, async_arrow, emit, prop_member, property_target, rune_value};
+pub(crate) use emit::{
+    ScriptRewrite, async_arrow, emit, prop_member, property_target, rune_value, tracked,
+};

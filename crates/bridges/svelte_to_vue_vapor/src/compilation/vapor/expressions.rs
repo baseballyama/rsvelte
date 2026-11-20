@@ -63,14 +63,6 @@ impl<'o> Emitter<'_, 'o> {
         self.tracked(value)
     }
 
-    fn tracked(&self, value: Expression<'o>) -> Expression<'o> {
-        if self.t.tracking {
-            self.b.call(self.b.id("$$tracked"), [self.arrow(value)])
-        } else {
-            value
-        }
-    }
-
     fn rewrite(
         &mut self,
         e: &Expression<'_>,
