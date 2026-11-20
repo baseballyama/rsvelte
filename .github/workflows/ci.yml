@@ -65,18 +65,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # The corpus test is the only reader of corpus/svelte.
+          # The corpus test is the only reader of corpus/svelte, and optimizing it saves more time
+          # than the optimized build costs.
           - part: command-line
             packages: -p rsvelte_command_line
             sparse-checkout: ''
+            opt-level: 1
           - part: workspace
             packages: --workspace --exclude rsvelte_command_line
             sparse-checkout: |
               /*
               !/corpus/svelte/
+            opt-level: 0
     name: rust-test (${{ matrix.part }})
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    # rust-cache hashes CARGO_* variables into its key, so each level has its own cache entry.
+    env:
+      CARGO_PROFILE_DEV_OPT_LEVEL: ${{ matrix.opt-level }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
