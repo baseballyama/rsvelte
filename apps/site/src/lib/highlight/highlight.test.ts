@@ -1,18 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { highlight } from './highlight';
 import { outputLanguage } from './code-language';
-import { examples } from './pipeline-playground';
 
-describe('playground highlighting', () => {
-	for (const example of examples) {
-		it(`preserves ${example.id} source and highlights embedded languages`, async () => {
-			const tokens = await highlight(example.source, example.id === 'svelte' ? 'svelte' : 'vue');
-			expect(tokens.map((line) => line.map((token) => token.content).join('')).join('\n')).toBe(
-				example.source,
-			);
-			expect(new Set(tokens.flat().map((token) => token.color)).size).toBeGreaterThan(3);
-		});
-	}
+describe('highlighting', () => {
 	it('preserves untrusted markup and blank lines as text', async () => {
 		const source = '<script>const text = "<img src=x onerror=alert(1)>";</script>\n\n';
 		const tokens = await highlight(source, 'svelte');

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { declaredGlobals } from './lint-shared.ts';
+import { declaredGlobals } from './eslint.ts';
 
 test('a later entry overrides a global, and "off" removes it', () => {
 	assert.deepEqual(

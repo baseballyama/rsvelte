@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { machineFailure } from './infrastructure.ts';
+import { machineFailure } from './machine-failures.ts';
 import { readPack } from './pack.ts';
 
 /** The message of the error `f` throws. */

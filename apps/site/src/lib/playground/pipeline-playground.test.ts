@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { highlight } from '../highlight/highlight';
 import { initializePipeline, runPipeline } from './pipeline-browser';
 import {
 	accessTable,
@@ -176,4 +177,16 @@ describe('problems', () => {
 		if (!result.ok) throw new Error(result.message);
 		expect(problems(result.steps[0])).toEqual([expect.objectContaining({ line: 2, kind: '診断' })]);
 	});
+});
+
+describe('the examples', () => {
+	for (const example of examples) {
+		it(`preserves ${example.id} source and highlights embedded languages`, async () => {
+			const tokens = await highlight(example.source, example.id === 'svelte' ? 'svelte' : 'vue');
+			expect(tokens.map((line) => line.map((token) => token.content).join('')).join('\n')).toBe(
+				example.source,
+			);
+			expect(new Set(tokens.flat().map((token) => token.color)).size).toBeGreaterThan(3);
+		});
+	}
 });

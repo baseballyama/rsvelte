@@ -1,5 +1,5 @@
-// Runs the performance ratchet in the CI runner's environment (linux.Dockerfile), with
-// instruction counts: `performance linux` checks, `performance linux --update` records.
+// Runs the performance ratchet in the CI runner's environment (ratchet-linux.Dockerfile), with
+// instruction counts: `performance ratchet-linux` checks, `performance ratchet-linux --update` records.
 //
 // The container builds a snapshot of the sources and the fixtures as staged (the index) when this
 // starts: what is measured is what the next commit holds, as CI's clean checkout does, and the
@@ -55,7 +55,7 @@ export async function main(args: string[]): Promise<void> {
 			'-t',
 			'rsvelte-performance',
 			'-f',
-			path.join(import.meta.dirname, 'linux.Dockerfile'),
+			path.join(import.meta.dirname, 'ratchet-linux.Dockerfile'),
 			import.meta.dirname,
 		],
 		{

@@ -29,7 +29,8 @@ Each platform builds `rsvelte` and `rsvelte-svelte-content-mapper`. Then
 
 - `@rsvelte/cli-<platform>` for each platform in `stage.ts`, with its two programs.
 - `@rsvelte/cli`, which depends on every platform package. npm installs only the one for the
-  machine. The package's `rsvelte` command is `launcher.js`, which starts that program.
+  machine. The package's `rsvelte` command is [`apps/cli/launcher.js`](../../apps/cli/launcher.js),
+  which starts that program, and its README is [`apps/cli/README.md`](../../apps/cli/README.md).
 
 The workflow publishes the platform packages first, then `@rsvelte/cli`, and last the GitHub
 release with each platform's programs, which makes the tag. It skips what an earlier attempt

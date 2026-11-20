@@ -68,7 +68,7 @@ Add a word to `tools/writing/words.ts` only for a real technical term.
 ```sh
 pnpm --dir apps/site run lint:prose        # the site's Japanese text
 pnpm --dir apps/site run lint:code-names
-pnpm --filter @rsvelte-experimental/writing run lint [file ...]   # English Markdown
+pnpm --filter @rsvelte-experimental/writing run writing [file ...] # English Markdown
 ```
 
 A clean lint does not make the text right. Read the page in the browser once, and check every

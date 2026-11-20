@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { rules } from './rules.ts';
-import { englishLinter, markdownFiles } from './writing.ts';
+import { englishLinter, markdownFiles } from './linter.ts';
 
 test('every rule loads and reports a known mistake', async () => {
 	const linter = await englishLinter();

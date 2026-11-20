@@ -15,7 +15,7 @@ npx @rsvelte/cli format --check
 npx @rsvelte/cli typecheck
 ```
 
-[The package's README](tools/release/npm-readme.md) is the user guide.
+[The package's README](apps/cli/README.md) is the user guide.
 
 rsvelte supports Svelte 5 components in runes mode only. It does not support Svelte 4 projects
 or components in legacy mode, such as those that use `export let` or `$:`. On them, `typecheck`
@@ -31,6 +31,7 @@ legacy components. For Svelte 4, use the official tools.
 | [`examples/`](examples/)            | Code the site's guides quote; it builds and is tested with the workspace      |
 | [`corpus/`](corpus/README.md)       | Real files from open-source projects, and the official tools' output for them |
 | [`tools/`](tools/README.md)         | TypeScript tools: the fixture runner, the performance gate, …                 |
+| [`apps/cli/`](apps/cli/README.md)   | The `@rsvelte/cli` npm package: its user guide, command and changelog         |
 | [`apps/site/`](apps/site/README.md) | The project site, built with SvelteKit                                        |
 
 ## How it works
@@ -60,8 +61,8 @@ cargo test                                        # Rust tests, the fixture test
 mise run lint                                     # clippy and rustdoc, every lint denies
 mise run fmt                                      # rustfmt on the pinned nightly
 pnpm install && pnpm run check                    # TypeScript side: oxfmt, oxlint, knip, tsc, the English prose lint
-node tools/oracle/oracle.ts run-all               # rsvelte's output for every corpus unit
-cargo test -p rsvelte_command_line --test corpus  # compare it with the official tools' output
+cargo test -p rsvelte_command_line --test corpus  # compare every corpus unit with the official tools' output
+node tools/oracle/oracle.ts run-all               # write rsvelte's output for every corpus unit to actual/
 node tools/performance/performance.ts ratchet     # the performance gate
 cargo run -p rsvelte_command_line --bin rsvelte-dev -- run App.svelte --task svelte.compile/client
 ```
