@@ -39,7 +39,6 @@ use oxc_ast_visit::VisitMut;
 use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-pub(crate) use rsvelte_markup_syntax::escape_markup;
 use rsvelte_svelte_semantic::analyze::Analysis;
 pub(crate) use rsvelte_svelte_semantic::analyze::cannot_be_set_statically;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
@@ -48,6 +47,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 pub(crate) use rsvelte_svelte_syntax::svelte_diagnostics::error;
+pub(crate) use rsvelte_svelte_syntax::syntax_tree::escape_markup;
 use rustc_hash::{FxHashMap, FxHashSet};
 pub use script::is_expression_async;
 pub use template::{DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select};
@@ -214,6 +214,10 @@ fn unsupported<T>(what: &str, span: Span) -> Result<T, Diagnostic> {
 }
 
 /// An upstream error, whose message ends with the link to its documentation.
-pub(crate) fn invalid<T>(code: &'static str, message: &str, span: Span) -> Result<T, Diagnostic> {
+pub(crate) fn invalid<T>(
+    code: &'static str,
+    message: impl AsRef<str>,
+    span: Span,
+) -> Result<T, Diagnostic> {
     Err(error(code, message, span))
 }

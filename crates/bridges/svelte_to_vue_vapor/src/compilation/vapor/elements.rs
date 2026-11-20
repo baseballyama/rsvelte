@@ -1,6 +1,6 @@
 use oxc_ast::ast::{BinaryOperator, Expression, VariableDeclarationKind};
-use rsvelte_markup_syntax::escape_markup;
 use rsvelte_svelte_compile::render_plan::Namespace;
+use rsvelte_svelte_syntax::syntax_tree::escape_markup;
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, Element, NodeKind, PropertyKind, TagType,
 };

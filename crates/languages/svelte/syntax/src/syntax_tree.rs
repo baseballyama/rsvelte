@@ -8,7 +8,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::{TokenKind, Tokens};
-pub use rsvelte_markup_syntax::{decode_attribute, decode_text};
+pub use rsvelte_markup_syntax::{decode_attribute, decode_text, escape_markup};
 use rsvelte_stylesheet_syntax::StyleSheet;
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,

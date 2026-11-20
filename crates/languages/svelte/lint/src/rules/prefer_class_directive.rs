@@ -7,7 +7,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{
-    Attribute, AttributeKind, AttributeValue, Part, TemplateNode,
+    Attribute, AttributeKind, AttributeValue, Part, TemplateNode, decode_attribute,
 };
 use rsvelte_typescript_tree::{Tree, node_span};
 use rustc_hash::FxHashSet;
@@ -157,9 +157,7 @@ impl<'a> Values<'a> {
     fn strings(&self, part: &Part) -> Option<Vec<Cow<'a, str>>> {
         let mut out = Vec::new();
         match *part {
-            Part::Text(span) => out.push(rsvelte_svelte_syntax::syntax_tree::decode_attribute(
-                span.text(self.source),
-            )),
+            Part::Text(span) => out.push(decode_attribute(span.text(self.source))),
             Part::Expression { expression, .. } => {
                 Self::branches(self.javascript.get_expression(expression), &mut out)?;
             }

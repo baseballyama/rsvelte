@@ -1,7 +1,7 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{Expression, ObjectPropertyKind, Statement};
-use rsvelte_markup_syntax::escape_markup;
 use rsvelte_svelte_compile::lower::is_expression_async;
+use rsvelte_svelte_syntax::syntax_tree::escape_markup;
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, Element, NodeKind, PropertyKind, TagType,
 };
