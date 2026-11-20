@@ -56,7 +56,7 @@ pub(crate) const ON_MOUNT: &str = "$$on_mount";
 /// The setup's `defineProps()` object.
 pub(crate) const SETUP_PROPS: &str = "$$props";
 /// The setup's rest props.
-pub(crate) const ATTRS: &str = "$$attrs";
+pub(crate) const REST_PROPS: &str = "$$attrs";
 /// The setup's `$host()` function.
 pub(crate) const HOST: &str = "$$host";
 /// The setup's custom element host, which `$host()` returns.

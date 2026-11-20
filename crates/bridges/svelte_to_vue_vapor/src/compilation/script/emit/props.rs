@@ -16,7 +16,7 @@ pub(crate) fn prop_member<'t>(
     let symbol = res.symbol(identifier)?;
     let info = res.binding(symbol);
     if info.kind == BindingKind::RestProperty {
-        return Some(b.id_at(markers::ATTRS, identifier.span));
+        return Some(b.id_at(markers::REST_PROPS, identifier.span));
     }
     if prop_cell(res, symbol) {
         return Some(b.id_at(&identifier.name, identifier.span));

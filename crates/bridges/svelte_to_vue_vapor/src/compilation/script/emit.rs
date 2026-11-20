@@ -193,7 +193,7 @@ fn head<'t>(
     if plan.rest.is_some() {
         body.push(prelude::marker(b, include_str!("rest.js")));
         let attributes = b.call(b.id("$$rest_props"), [b.call(b.id("$$useAttrs"), [])]);
-        body.push(b.const_(markers::ATTRS, attributes));
+        body.push(b.const_(markers::REST_PROPS, attributes));
     }
     body.extend(helpers::declarations(helpers, b));
     if plan.async_values && server {

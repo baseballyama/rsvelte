@@ -133,7 +133,7 @@ impl<'r, 't> ScriptRewrite<'r, 't> {
             BindingKind::Property if prop_cell(self.res, symbol) => {
                 b.member(b.id_at(name, span), "value")
             }
-            BindingKind::RestProperty => b.id(markers::ATTRS),
+            BindingKind::RestProperty => b.id(markers::REST_PROPS),
             BindingKind::Property => {
                 let PropertyKey::StaticIdentifier(key) = info.prop_key? else {
                     return None;

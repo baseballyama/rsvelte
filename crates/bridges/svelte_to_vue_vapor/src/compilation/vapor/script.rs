@@ -201,7 +201,10 @@ fn module_level(s: &Statement<'_>) -> bool {
                     && !id.name.starts_with(markers::PATTERN_PREFIX)
                     && !matches!(
                         id.name.as_str(),
-                        markers::SETUP_PROPS | markers::ATTRS | markers::HOST | markers::HOST_VALUE
+                        markers::SETUP_PROPS
+                            | markers::REST_PROPS
+                            | markers::HOST
+                            | markers::HOST_VALUE
                     )
             })
         }),
