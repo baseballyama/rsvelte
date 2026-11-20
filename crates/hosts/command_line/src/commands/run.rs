@@ -6,7 +6,8 @@ use rsvelte_kernel::computation::pipeline::DocumentResult;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::{Severity, apply_fixes};
 
-use super::{files, typecheck};
+use super::files;
+use super::typecheck::{self, Project};
 use crate::usage;
 
 /// `ESLint`'s bound on fixing passes, which stops fixes that keep producing fixes.
@@ -60,14 +61,14 @@ pub(crate) fn run_file(reg: &Registry, file: &Path, tasks: &[&str], fix: bool) -
 /// Runs `tasks` on every file of the project they check, as the project's checker selects them.
 pub(crate) fn run_project(reg: &Registry, tasks: &[&str]) -> ExitCode {
     match typecheck::project_files(reg, tasks) {
-        Ok(files) => run_files(reg, &files, tasks),
-        Err(code) => code,
+        Project::Files(files) => run_files(reg, files, tasks),
+        Project::Reported(code) => code,
     }
 }
 
 /// Runs `tasks` on every file of `files` in one run, so a project task such as a type check sees
 /// all of them, and prints each output under its file. Exit code 1 means an error is left.
-pub(crate) fn run_files(reg: &Registry, files: &[PathBuf], tasks: &[&str]) -> ExitCode {
+pub(crate) fn run_files(reg: &Registry, files: Vec<PathBuf>, tasks: &[&str]) -> ExitCode {
     let documents = match files::read_all(reg, files) {
         Ok(documents) => documents,
         Err(e) => return usage(&e),

@@ -18,10 +18,10 @@ use crate::usage;
 /// Checks the files of the project the tasks check. Exit code 1 means an error was found.
 pub(crate) fn typecheck(reg: &Registry, tasks: &[&str]) -> ExitCode {
     let files = match project_files(reg, tasks) {
-        Ok(files) => files,
-        Err(code) => return code,
+        Project::Files(files) => files,
+        Project::Reported(code) => return code,
     };
-    let documents = match files::read_all(reg, &files) {
+    let documents = match files::read_all(reg, files) {
         Ok(documents) => documents,
         Err(e) => return usage(&e),
     };
@@ -32,14 +32,24 @@ pub(crate) fn typecheck(reg: &Registry, tasks: &[&str]) -> ExitCode {
     print(report(&documents, &results, here().as_deref()))
 }
 
-/// The files of the project the tasks check. A configuration with errors is reported instead, as
-/// svelte-check reports it, and the error is the report's exit code.
-pub(crate) fn project_files(reg: &Registry, tasks: &[&str]) -> Result<Vec<PathBuf>, ExitCode> {
-    let project = reg.project_files(tasks).map_err(|e| usage(&e))?;
+/// The files of the project the tasks check, or what was printed instead of checking them.
+pub(crate) enum Project {
+    Files(Vec<PathBuf>),
+    /// The configuration's problems, as svelte-check prints them, or the error of reading it, were
+    /// printed with this exit code. It is success when no problem is an error.
+    Reported(ExitCode),
+}
+
+/// The files of the project the tasks check. A configuration with problems is reported instead.
+pub(crate) fn project_files(reg: &Registry, tasks: &[&str]) -> Project {
+    let project = match reg.project_files(tasks) {
+        Ok(project) => project,
+        Err(e) => return Project::Reported(usage(&e)),
+    };
     if project.problems.is_empty() {
-        return Ok(project.files);
+        return Project::Files(project.files);
     }
-    Err(match problems(&project.problems, here().as_deref()) {
+    Project::Reported(match problems(&project.problems, here().as_deref()) {
         Ok(report) => print(report),
         Err(e) => usage(&e),
     })

@@ -24,7 +24,7 @@ pub(crate) fn load(
         ignore_files,
         prune: None,
     };
-    read_all(reg, &find(paths, &walk, &|path| applies(reg, tasks, path))?)
+    read_all(reg, find(paths, &walk, &|path| applies(reg, tasks, path))?)
 }
 
 /// Whether a task of `tasks` reads the file at `path`.
@@ -40,8 +40,11 @@ pub(crate) fn read(reg: &Registry, path: PathBuf) -> Result<Document, String> {
 }
 
 /// The documents of the files at `paths`, in their order.
-pub(crate) fn read_all(reg: &Registry, paths: &[PathBuf]) -> Result<Vec<Document>, String> {
-    paths.iter().map(|path| read(reg, path.clone())).collect()
+pub(crate) fn read_all(
+    reg: &Registry,
+    paths: impl IntoIterator<Item = PathBuf>,
+) -> Result<Vec<Document>, String> {
+    paths.into_iter().map(|path| read(reg, path)).collect()
 }
 
 /// Leaves the directories it says, without reading them.

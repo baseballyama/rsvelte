@@ -227,9 +227,7 @@ fn format_resolved(
     }
     let mut batches = Vec::new();
     for (reg, tasks, formatted) in &installed {
-        let documents = (formatted.iter())
-            .map(|file| files::read(reg, file.clone()))
-            .collect::<Result<_, _>>()?;
+        let documents = files::read_all(reg, formatted.iter().cloned())?;
         batches.push(format::Batch {
             reg,
             tasks,
