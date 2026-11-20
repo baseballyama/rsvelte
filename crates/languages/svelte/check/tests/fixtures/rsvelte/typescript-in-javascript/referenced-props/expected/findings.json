@@ -1,0 +1,14 @@
+[
+	{
+		"code": 8010,
+		"message": "Type annotations can only be used in TypeScript files.",
+		"start": {
+			"line": 1,
+			"character": 15
+		},
+		"end": {
+			"line": 1,
+			"character": 22
+		}
+	}
+]

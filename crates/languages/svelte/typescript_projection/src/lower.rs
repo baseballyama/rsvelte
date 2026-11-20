@@ -10,15 +10,13 @@ mod each;
 mod element;
 mod generic;
 mod names;
-mod namespace;
+mod nested;
 pub use contract::store_reads;
 pub use generic::{UnparsedScript, unparsed_script};
 mod hoistable;
 mod root_snippets;
 mod standalone;
 pub use standalone::lower_alone;
-mod script_kind;
-pub use script_kind::checked_as_typescript;
 mod tag;
 mod type_assertion;
 
@@ -102,7 +100,7 @@ pub fn lower<'a>(
         slot_elements: Vec::new(),
         slots_by_elements: false,
     };
-    builder.tree.javascript = !checked_as_typescript(component, source);
+    builder.tree.javascript = !component.checked_as_typescript(source);
     // svelte2tsx moves the root's snippets after the instance script's imports. Without one it
     // moves those it may into the module script and leaves the rest in place.
     let instance = component.instance.is_some();

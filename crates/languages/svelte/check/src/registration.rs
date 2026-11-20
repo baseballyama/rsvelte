@@ -11,12 +11,10 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_semantic::Resolved;
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, TemplateNode,
 };
-use rsvelte_svelte_syntax::{Parsed, ParsedAsTypeScript};
-use rsvelte_svelte_typescript_projection::{Printed, THROWN, checked_as_typescript, store_reads};
+use rsvelte_svelte_typescript_projection::{Printed, THROWN, store_reads};
 use rsvelte_typescript_check::{
     Check, CheckedDocument, Documents, Hidden, Import, MappedLanguage, MappedLanguages,
     TypeScriptDocument, TypeScriptEnv, TypeScriptStandIn, TypeScriptView,
@@ -69,9 +67,14 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         if let Some(Ok(TypeScriptDocument::Rejected { .. })) = context.facet::<TypeScriptView>() {
             return Some(bare_script(&context.document.text));
         }
-        let own = context.get::<Parsed>().as_ref().ok().and_then(|component| {
-            rsvelte_svelte_typescript_projection::stand_in(component, &context.document.text)
-        });
+        let own = rsvelte_svelte_typescript_projection::read(context)
+            .ok()
+            .and_then(|read| {
+                rsvelte_svelte_typescript_projection::stand_in(
+                    read.component,
+                    &context.document.text,
+                )
+            });
         Some(own.unwrap_or_else(|| rsvelte_svelte_typescript_projection::STAND_IN.to_owned()))
     });
 }
@@ -164,22 +167,17 @@ fn typescript_view(
     env: Option<&Result<Arc<TypeScriptEnv>, String>>,
 ) -> Result<TypeScriptDocument, Diagnostic> {
     // svelte-check type-checks a component whose style sheet does not parse.
-    let component = match context.get::<Parsed>() {
-        Ok(component) => component,
+    let read = match rsvelte_svelte_typescript_projection::read(context) {
+        Ok(read) => read,
         Err(error) => {
-            let default_export = context
-                .get::<ParsedAsTypeScript>()
-                .as_ref()
-                .is_ok_and(|component| component.script_typescript_errors.is_empty());
-            if let Some(document) =
-                script_syntax::view(&context.document.text, default_export, || env_of(env))
-            {
+            if let Some(document) = script_syntax::view(&context.document.text, || env_of(env)) {
                 return document;
             }
             // svelte2tsx throws Svelte's parse error, which svelte-check reports as it is.
             return Ok(rejected(error));
         }
     };
+    let component = read.component;
     // Svelte's parser also rejects the template's JavaScript; svelte2tsx blanks the scripts first.
     if let Some(error) = rsvelte_svelte_semantic::javascript_error(context)
         && !rsvelte_svelte_syntax::parse::in_script_content(
@@ -190,7 +188,7 @@ fn typescript_view(
         return Ok(rejected(&error));
     }
     // svelte-check reads the component as TypeScript when either script is, else as JavaScript.
-    let typescript = checked_as_typescript(component, &context.document.text);
+    let typescript = component.checked_as_typescript(&context.document.text);
     let projection = match context.get::<Printed>() {
         Ok(projection) => projection,
         Err(thrown) if thrown.code == THROWN => {
@@ -214,9 +212,8 @@ fn typescript_view(
         env: Arc::clone(env),
         extension: if typescript { ".ts" } else { ".js" },
         imports: relative_imports(component),
-        store_reads: context
-            .get::<Resolved>()
-            .as_ref()
+        store_reads: read
+            .resolution(context)
             .map(store_reads)
             .unwrap_or_default(),
         hidden: hidden(component, &context.document.text),

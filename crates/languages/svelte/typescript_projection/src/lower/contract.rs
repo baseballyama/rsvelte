@@ -1,12 +1,12 @@
 use oxc_ast::ast::{
-    BindingPattern, Declaration, Expression, PropertyKey, Statement, TSType, VariableDeclaration,
+    BindingPattern, Declaration, Expression, PropertyKey, Statement, VariableDeclaration,
     VariableDeclarationKind,
 };
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
 
 use super::generic::Generics;
-use super::namespace::namespace_exports;
+use super::nested::Nested;
 use super::{Buffer, Builder, Node, NodeIdentifier, Range, Result, Span, refuse, span};
 
 pub(super) struct Edit {
@@ -57,7 +57,9 @@ impl Builder<'_> {
                 edits.push(flags);
             }
             for statement in &program.body {
-                namespace_exports(statement, &mut |at| edits.push(Edit::removal(at)));
+                for at in Nested::inside(statement).removed {
+                    edits.push(Edit::removal(at));
+                }
                 let Some(declaration) =
                     self.instance_export(statement, &mut exports, &mut edits)?
                 else {
@@ -74,10 +76,10 @@ impl Builder<'_> {
                                 span(declarator.id.span()),
                             ));
                         }
-                        let annotation = declarator.type_annotation.as_ref().map(|a| {
-                            let reference = matches!(a.type_annotation, TSType::TSTypeReference(_));
-                            (span(a.type_annotation.span()), reference)
-                        });
+                        let annotation = declarator
+                            .type_annotation
+                            .as_deref()
+                            .map(PropsAnnotation::of);
                         props = Some(self.props(
                             &declarator.id,
                             annotation,
@@ -307,15 +309,15 @@ impl Builder<'_> {
     fn props(
         &mut self,
         pattern: &BindingPattern<'_>,
-        annotation: Option<(Span, bool)>,
+        annotation: Option<PropsAnnotation>,
         declaration: Span,
         bindings: &mut Buffer<NodeIdentifier>,
         edits: &mut Buffer<Edit>,
     ) -> Result<NodeIdentifier> {
         let statement = declaration.start_offset;
         let BindingPattern::ObjectPattern(object) = pattern else {
-            if let Some((span, reference)) = annotation {
-                return Ok(self.props_alias(span, reference, statement, edits));
+            if let Some(annotation) = annotation {
+                return Ok(self.props_alias(annotation, statement, edits));
             }
             // svelte2tsx names an undeclared `$$ComponentProps` here, which TypeScript reads as
             // `any`.
@@ -369,8 +371,8 @@ impl Builder<'_> {
                 replacement: Some(self.tree.push(Node::Statements(reads))),
             });
         }
-        if let Some((span, reference)) = annotation {
-            return Ok(self.props_alias(span, reference, statement, edits));
+        if let Some(annotation) = annotation {
+            return Ok(self.props_alias(annotation, statement, edits));
         }
         if let Some(route) = route {
             return Ok(self.route_props(route, object, (statement, pattern.span().end), edits));
@@ -522,6 +524,7 @@ impl Builder<'_> {
 mod events;
 mod legacy;
 mod props_alias;
+pub(super) use props_alias::PropsAnnotation;
 mod route;
 pub(super) use route::Route;
 mod siblings;

@@ -91,6 +91,33 @@ pub fn parse_reading_scripts_as_typescript(source_text: &str) -> ParseResult<Com
     parse_with(source_text, Scripts::ReadAsTypeScript, false)
 }
 
+/// The component as svelte-check's checker reads svelte2tsx's output.
+///
+/// Each script is TypeScript when [`Component::checked_as_typescript`], else JavaScript with
+/// JSX, where TypeScript also reads TypeScript syntax and reports it.
+///
+/// The errors of a script that language rejects are [`Component::script_typescript_errors`],
+/// and its program is empty.
+///
+/// # Errors
+///
+/// As [`parse`], outside the scripts.
+pub fn parse_as_checked(source_text: &str) -> ParseResult<Component> {
+    let component = parse_with(source_text, Scripts::ReadAsChecked, false)?;
+    // The compiler's language came first; svelte2tsx's can differ only by the script tags.
+    let read_as = |component: &Component| {
+        [&component.instance, &component.module]
+            .into_iter()
+            .flatten()
+            .any(|script| script.typescript)
+    };
+    let typescript = component.checked_as_typescript(source_text);
+    if read_as(&component) == typescript {
+        return Ok(component);
+    }
+    parse_as(source_text, Scripts::ReadAsChecked, false, typescript).0
+}
+
 /// The component as svelte-eslint-parser reads it: as
 /// [`parse_reading_scripts_as_typescript`], with a self-closing `<script …/>` or `<style …/>`
 /// at the root read as a plain element, which the compiler rejects.
@@ -111,6 +138,8 @@ enum Scripts {
     Left,
     /// As the compiler does, and as TypeScript where the compiler rejects it.
     ReadAsTypeScript,
+    /// As [`parse_as_checked`] does.
+    ReadAsChecked,
 }
 
 fn parse_with(

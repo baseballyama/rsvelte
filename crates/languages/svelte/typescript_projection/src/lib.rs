@@ -5,13 +5,14 @@ pub mod content_mapper;
 mod lower;
 pub mod syntax_tree;
 pub use lower::{
-    Refusal, Resolve, UnparsedScript, checked_as_typescript, lower, lower_alone, store_reads,
-    unparsed_script,
+    Refusal, Resolve, UnparsedScript, lower, lower_alone, store_reads, unparsed_script,
 };
 mod emit;
 pub use emit::emit;
 mod computation;
+mod read;
 pub use computation::{Printed, Projected, THROWN, register, register_artifacts};
+pub use read::{Read, read, read_alone};
 
 /// The helpers' declarations without the element types, for a project that reads them from
 /// svelte's own `svelte-html.d.ts`, as svelte-check does when the package has one.
