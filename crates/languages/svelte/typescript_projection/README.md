@@ -100,14 +100,12 @@ cargo test -p rsvelte_svelte_typescript_projection
 cargo test -p rsvelte_svelte_typescript_projection --test fixtures
 cargo run --release -p rsvelte_svelte_typescript_projection --example verify -- corpus/svelte
 cargo run --release -p rsvelte_svelte_typescript_projection --example benchmark -- corpus/svelte 20
-cargo run -p rsvelte_svelte_typescript_projection --example layout
 ```
 
 The verifier counts all Svelte inputs, parse failures, unsupported projections and invalid
 TypeScript outputs. It checks the generated syntax with an independent parser. The benchmark
 measures lowering and printing for parsed components with an instance TypeScript script. Its
-process CPU counters also include file reads and source parsing. Layout sizes measure payloads;
-they do not prove cache residency. See [performance tools](../../../../tools/performance/README.md).
+process CPU counters also include file reads and source parsing. See [performance tools](../../../../tools/performance/README.md).
 
 The fixture test runs the compiler's hand-written inputs (`../compile/tests/fixtures`); only the
 projection's expected and actual outputs live here. The corpus runs in the `corpus` test of
