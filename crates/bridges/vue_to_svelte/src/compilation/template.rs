@@ -21,7 +21,7 @@ use crate::compilation::{R, unsupported};
 
 /// The translated template, and the declarations the instance script needs for it.
 #[derive(Debug)]
-pub(crate) struct Template<'a> {
+pub(crate) struct Built<'a> {
     pub(crate) compiler_syntax_tree: svelte::CompilerSyntaxTree,
     /// Statements that go before the script's own.
     pub(crate) hoisted: Vec<Statement<'a>>,
@@ -126,16 +126,16 @@ pub(crate) fn translate<'a>(
     tree: &mut rsvelte_typescript_tree::TreeBuilder<'a>,
     b: &Builder<'a>,
     names: &mut Names<'_>,
-) -> R<Template<'a>> {
+) -> R<Built<'a>> {
     let mut builder = CompilerSyntaxTreeBuilder::new(info.source_text, 0, 0);
     let Some(vue_tree) = compiler_syntax_tree else {
         let root = builder.children(&[]);
-        return Ok(Template {
+        return Ok(Built {
             compiler_syntax_tree: builder.finish(root),
             hoisted: Vec::new(),
         });
     };
-    let mut t = T {
+    let mut t = Template {
         info,
         vue_tree,
         source_text: info.source_text,
@@ -154,16 +154,16 @@ pub(crate) fn translate<'a>(
     };
     let root = t.list(vue_tree.root(), None)?;
     let root = t.builder.children(&root);
-    let T {
+    let Template {
         builder, hoisted, ..
     } = t;
-    Ok(Template {
+    Ok(Built {
         compiler_syntax_tree: builder.finish(root),
         hoisted,
     })
 }
 
-struct T<'t, 'v, 'n, 'a> {
+struct Template<'t, 'v, 'n, 'a> {
     info: &'t Info<'v>,
     vue_tree: &'t CompilerSyntaxTree,
     source_text: &'v str,
@@ -183,7 +183,7 @@ struct T<'t, 'v, 'n, 'a> {
     renderable: Option<String>,
 }
 
-impl<'a> T<'_, '_, '_, 'a> {
+impl<'a> Template<'_, '_, '_, 'a> {
     /// A template expression, rewritten.
     fn expression(&self, e: ExpressionIdentifier) -> R<Expression<'a>> {
         Rewriter::new(self.info, self.b, true, &self.aliases)

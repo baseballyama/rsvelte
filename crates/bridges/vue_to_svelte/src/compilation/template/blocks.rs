@@ -11,7 +11,7 @@ use rsvelte_vue_semantic::compiler_syntax_tree::{
 };
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
-use super::{T, directive, directives, expression_of};
+use super::{Template, directive, directives, expression_of};
 use crate::compilation::names::Helper;
 use crate::compilation::{R, output_span, unsupported};
 
@@ -35,7 +35,7 @@ fn directive_key<'h>(
         })
 }
 
-impl T<'_, '_, '_, '_> {
+impl Template<'_, '_, '_, '_> {
     pub(super) fn list(
         &mut self,
         child_nodes: &[CompilerNodeIdentifier],
