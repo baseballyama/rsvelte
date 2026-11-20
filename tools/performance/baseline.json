@@ -24,7 +24,7 @@
 		]
 	},
 	"allocs": 27838036,
-	"alloc_bytes": 4213520640,
+	"alloc_bytes": 4212538688,
 	"peak_live_growth_bytes": 3262173,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -370,7 +370,7 @@
 		"vuelte.vapor": {
 			"calls": 50752,
 			"allocs": 5751905,
-			"alloc_bytes": 874262939
+			"alloc_bytes": 873280987
 		}
 	},
 	"instructions": {
