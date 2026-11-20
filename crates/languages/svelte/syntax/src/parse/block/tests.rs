@@ -109,3 +109,39 @@ fn without_as_the_block_goes_on_from_the_end_of_its_expression() {
         [("items".to_owned(), None, Some("i".to_owned()))]
     );
 }
+
+#[test]
+fn a_block_keyword_is_read_as_a_prefix_as_upstream_eats_it() {
+    // Svelte 5.57.3 fails each with `expected_whitespace` at the offset given.
+    for (source, at) in [
+        ("{#each items asx}{/each}", 15),
+        ("{#each items /* c */ asx}{/each}", 23),
+        ("{#each items // c\n asx}{/each}", 21),
+        ("{#each items asx, i}{/each}", 15),
+        ("{#each items as[a]}{a}{/each}", 15),
+        ("{#await p thenx}{/await}", 14),
+        ("{#await p catchx}{/await}", 15),
+        ("{#await p /* c */ thenx}{/await}", 22),
+        ("{#await p then(x)}{x}{/await}", 14),
+        (
+            "<script lang=\"ts\">let items: number[] = [];</script>{#each items asx}{/each}",
+            67,
+        ),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert_eq!(
+            (&*error.code, error.span.start_offset),
+            ("expected_whitespace", at),
+            "{source}"
+        );
+    }
+    for source in [
+        "{#each assets}{/each}",
+        "{#each assets as a}{a}{/each}",
+        "{#each items\nas\nitem}{item}{/each}",
+        "{#await thenable}{/await}",
+        "{#await p then}{/await}",
+    ] {
+        assert!(parse(source).is_ok(), "{source}");
+    }
+}

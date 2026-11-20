@@ -23,7 +23,6 @@ mod token;
 mod whitespace;
 
 pub use element_rules::{AUTOCLOSING_CHILDREN, Autoclosing, is_void};
-use identifier::is_identifier_continue;
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;
@@ -499,14 +498,5 @@ impl<'a> Parser<'a, '_> {
             start: self.component.children.len() as u32,
             len: 0,
         }
-    }
-
-    fn at_word(&self, word: &str) -> bool {
-        self.rest().starts_with(word)
-            && !self
-                .rest()
-                .get(word.len()..)
-                .and_then(|r| r.chars().next())
-                .is_some_and(is_identifier_continue)
     }
 }
