@@ -488,21 +488,6 @@ fn a_one_way_binding_asserts_the_assigned_value() {
 }
 
 #[test]
-fn a_generated_name_skips_the_indices_the_component_names() {
-    // `__rsvelte_element02` spells no index a generated name writes, so it leaves 2 free.
-    let source = "<script lang=\"ts\">let e: HTMLElement | undefined; let w = $state(0); \
-                  let __rsvelte_element0 = 0, __rsvelte_element02 = 0; \
-                  __rsvelte_element1;</script>\
-                  <div bind:this={e!} bind:clientWidth={w as number}></div>";
-    let (_, output) = project(source);
-    assert!(
-        output.out.contains("e = __rsvelte_element2!;"),
-        "{}",
-        output.out
-    );
-}
-
-#[test]
 fn a_generic_component_renders_in_a_function_of_its_type_parameters() {
     let source = "<script lang=\"ts\" generics=\"T extends string\">\
                   import type { Snippet } from 'svelte';\

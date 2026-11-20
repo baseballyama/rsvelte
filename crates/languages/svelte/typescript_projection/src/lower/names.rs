@@ -82,3 +82,6 @@ impl<'a> Builder<'a> {
         self.tree.push(Node::GeneratedIdentifier { prefix, index })
     }
 }
+
+#[cfg(test)]
+mod tests;
