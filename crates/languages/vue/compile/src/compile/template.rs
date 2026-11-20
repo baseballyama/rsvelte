@@ -13,6 +13,8 @@
 use oxc_ast::ast::Expression;
 use oxc_semantic::ReferenceId;
 use rsvelte_kernel::diagnostics::Unsupported;
+use rsvelte_kernel::index::IndexVector;
+use rsvelte_kernel::newtype_index;
 use rsvelte_typescript_tree::{ExpressionIdentifier, ParametersIdentifier, Tree};
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind, PropertyIdentifier, PropertyKind, TagType,
@@ -20,7 +22,7 @@ use rsvelte_vue_semantic::compiler_syntax_tree::{
 use rsvelte_vue_semantic::resolve::{BindingType, Resolution};
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
-type R<T> = Result<T, Unsupported>;
+use super::R;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Helper {
@@ -92,8 +94,14 @@ const CAN_SKIP_PATCH: u8 = 1;
 const CAN_CACHE: u8 = 2;
 const CAN_STRINGIFY: u8 = 3;
 
-type Nid = usize;
-type Cid = usize;
+newtype_index!(
+    /// A template node in [`Transform::tree`].
+    struct NodeIdentifier;
+);
+newtype_index!(
+    /// A codegen node in [`Transform::codegen`].
+    struct CodegenIdentifier;
+);
 
 /// A template expression after `processExpression`.
 #[derive(Clone, Copy, Debug)]
@@ -128,43 +136,43 @@ enum Property {
 
 #[derive(Debug)]
 enum Node {
-    Root(Vec<Nid>),
+    Root(Vec<NodeIdentifier>),
     Element {
         tag: String,
         props: Vec<Property>,
-        children: Vec<Nid>,
-        codegen: Option<Cid>,
+        children: Vec<NodeIdentifier>,
+        codegen: Option<CodegenIdentifier>,
     },
     Text(String),
     Interpolation(Exp),
     /// Adjacent text and interpolations, merged by `transformText`.
-    Compound(Vec<Nid>),
+    Compound(Vec<NodeIdentifier>),
     If {
-        branches: Vec<Nid>,
-        codegen: Option<Cid>,
+        branches: Vec<NodeIdentifier>,
+        codegen: Option<CodegenIdentifier>,
     },
     Branch {
         condition: Option<Exp>,
-        children: Vec<Nid>,
+        children: Vec<NodeIdentifier>,
     },
     For {
         source: Exp,
         parameters: ParametersIdentifier,
-        children: Vec<Nid>,
-        codegen: Option<Cid>,
+        children: Vec<NodeIdentifier>,
+        codegen: Option<CodegenIdentifier>,
     },
     TextCall {
-        content: Nid,
-        codegen: Cid,
+        content: NodeIdentifier,
+        codegen: CodegenIdentifier,
     },
 }
 
 #[derive(Debug, Clone)]
 enum VChildren {
     /// The only child, a text, interpolation or compound, passed as is.
-    Node(Nid),
-    List(Vec<Nid>),
-    Cg(Cid),
+    Node(NodeIdentifier),
+    List(Vec<NodeIdentifier>),
+    Codegen(CodegenIdentifier),
 }
 
 #[derive(Debug, Clone)]
@@ -177,16 +185,16 @@ enum Lit {
 }
 
 #[derive(Debug, Clone)]
-enum Cg {
+enum Codegen {
     VNode {
         /// `None`: `Fragment`.
         tag: Option<String>,
-        props: Option<Cid>,
+        props: Option<CodegenIdentifier>,
         children: Option<VChildren>,
         patch_flag: Option<i32>,
-        dynamic_props: Option<Cid>,
+        dynamic_props: Option<CodegenIdentifier>,
         /// `withDirectives`' list: the element's runtime directives.
-        directives: Option<Cid>,
+        directives: Option<CodegenIdentifier>,
         is_block: bool,
         disable_tracking: bool,
         /// `needsPatch`: a `v-for` that turns it from a block into a plain vnode adds
@@ -195,14 +203,14 @@ enum Cg {
     },
     Call {
         callee: Helper,
-        arguments: Vec<Cid>,
+        arguments: Vec<CodegenIdentifier>,
     },
     /// Keys are static.
-    Object(Vec<(String, Cid)>),
-    Array(Vec<Cid>),
+    Object(Vec<(String, CodegenIdentifier)>),
+    Array(Vec<CodegenIdentifier>),
     /// A helper's local name, as a value (a runtime directive).
     Helper(Helper),
-    NodeArray(Vec<Nid>),
+    NodeArray(Vec<NodeIdentifier>),
     /// `stringifyDynamicPropertyNames`.
     PropertyNames(Vec<String>),
     /// A simple expression the compiler wrote.
@@ -225,22 +233,22 @@ enum Cg {
     },
     Function {
         parameters: ParametersIdentifier,
-        returns: Cid,
+        returns: CodegenIdentifier,
     },
     Conditional {
         test: Exp,
-        consequent: Cid,
-        alternate: Cid,
+        consequent: CodegenIdentifier,
+        alternate: CodegenIdentifier,
     },
     Cache {
         index: usize,
-        value: Cid,
+        value: CodegenIdentifier,
         /// `needArraySpread`: `[...(_cache[i] || …)]`.
         spread: bool,
     },
     Hoisted(usize),
     /// A template node, generated through `genNode`.
-    Node(Nid),
+    Node(NodeIdentifier),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -262,11 +270,11 @@ fn ref_info(res: &Resolution, reference: ReferenceId) -> RefInfo {
 /// A compiled template, ready for [`Compiled::generate`].
 #[derive(Debug)]
 pub(crate) struct Compiled {
-    tree: Vec<Node>,
-    cg: Vec<Cg>,
-    root_codegen: Option<Cid>,
+    tree: IndexVector<NodeIdentifier, Node>,
+    codegen: IndexVector<CodegenIdentifier, Codegen>,
+    root_codegen: Option<CodegenIdentifier>,
     pub helpers: Vec<Helper>,
-    hoists: Vec<Cid>,
+    hoists: Vec<CodegenIdentifier>,
 }
 
 struct Transform<'a> {
@@ -276,10 +284,10 @@ struct Transform<'a> {
     res: &'a Resolution,
     /// The render function is `setup`'s closure and reads bindings directly.
     inline: bool,
-    tree: Vec<Node>,
-    cg: Vec<Cg>,
+    tree: IndexVector<NodeIdentifier, Node>,
+    codegen: IndexVector<CodegenIdentifier, Codegen>,
     helpers: Vec<(Helper, u32)>,
-    hoists: Vec<Cid>,
+    hoists: Vec<CodegenIdentifier>,
     cached: usize,
     /// `context.scopes.vFor`: the `v-for`s being traversed.
     v_for: u32,
@@ -301,8 +309,8 @@ pub(crate) fn transform(
         source_text,
         res,
         inline,
-        tree: Vec::new(),
-        cg: Vec::new(),
+        tree: IndexVector::new(),
+        codegen: IndexVector::new(),
         helpers: Vec::new(),
         hoists: Vec::new(),
         cached: 0,
@@ -319,19 +327,17 @@ pub(crate) fn transform(
         helpers: t.helpers.iter().map(|&(h, _)| h).collect(),
         hoists: t.hoists,
         tree: t.tree,
-        cg: t.cg,
+        codegen: t.codegen,
     })
 }
 
 impl Transform<'_> {
-    fn push(&mut self, n: Node) -> Nid {
-        self.tree.push(n);
-        self.tree.len() - 1
+    fn push(&mut self, n: Node) -> NodeIdentifier {
+        self.tree.push(n)
     }
 
-    fn cgn(&mut self, c: Cg) -> Cid {
-        self.cg.push(c);
-        self.cg.len() - 1
+    fn cgn(&mut self, c: Codegen) -> CodegenIdentifier {
+        self.codegen.push(c)
     }
 
     fn helper(&mut self, h: Helper) {
@@ -352,7 +358,7 @@ impl Transform<'_> {
         }
     }
 
-    fn children_of(&self, n: Nid) -> &[Nid] {
+    fn children_of(&self, n: NodeIdentifier) -> &[NodeIdentifier] {
         match &self.tree[n] {
             Node::Root(children)
             | Node::Element { children, .. }
@@ -362,7 +368,7 @@ impl Transform<'_> {
         }
     }
 
-    fn children_mut(&mut self, n: Nid) -> &mut Vec<Nid> {
+    fn children_mut(&mut self, n: NodeIdentifier) -> &mut Vec<NodeIdentifier> {
         match &mut self.tree[n] {
             Node::Root(children)
             | Node::Element { children, .. }
@@ -372,7 +378,7 @@ impl Transform<'_> {
         }
     }
 
-    fn codegen_of(&self, n: Nid) -> Option<Cid> {
+    fn codegen_of(&self, n: NodeIdentifier) -> Option<CodegenIdentifier> {
         match &self.tree[n] {
             Node::Element { codegen, .. }
             | Node::If { codegen, .. }
@@ -382,8 +388,8 @@ impl Transform<'_> {
         }
     }
 
-    fn lit(&mut self, lit: Lit, const_type: u8) -> Cid {
-        self.cgn(Cg::Lit { lit, const_type })
+    fn lit(&mut self, lit: Lit, const_type: u8) -> CodegenIdentifier {
+        self.cgn(Codegen::Lit { lit, const_type })
     }
 }
 
@@ -400,25 +406,25 @@ enum PropertyView {
 
 struct VNodeArgs {
     tag: Option<String>,
-    props: Option<Cid>,
+    props: Option<CodegenIdentifier>,
     children: Option<VChildren>,
     patch_flag: Option<i32>,
-    dynamic_props: Option<Cid>,
-    directives: Option<Cid>,
+    dynamic_props: Option<CodegenIdentifier>,
+    directives: Option<CodegenIdentifier>,
     is_block: bool,
     disable_tracking: bool,
     needs_patch: bool,
 }
 
 enum Exit {
-    Element(Nid),
-    Text(Nid),
+    Element(NodeIdentifier),
+    Text(NodeIdentifier),
     If {
-        if_node: Nid,
-        branch: Nid,
+        if_node: NodeIdentifier,
+        branch: NodeIdentifier,
         key: usize,
     },
-    For(Nid),
+    For(NodeIdentifier),
 }
 
 mod events;

@@ -1,11 +1,11 @@
 use super::{
-    CAN_CACHE, CAN_SKIP_PATCH, CAN_STRINGIFY, Cg, Cid, DirectiveName, Helper, Lit, NOT_CONSTANT,
-    Nid, Node, Property, Transform, VChildren, VNodeArgs, patch,
+    CAN_CACHE, CAN_SKIP_PATCH, CAN_STRINGIFY, Codegen, CodegenIdentifier, DirectiveName, Helper,
+    Lit, NOT_CONSTANT, Node, NodeIdentifier, Property, Transform, VChildren, VNodeArgs, patch,
 };
 
 impl Transform<'_> {
     /// `createVNodeCall`.
-    pub(super) fn vnode_call(&mut self, a: VNodeArgs) -> Cid {
+    pub(super) fn vnode_call(&mut self, a: VNodeArgs) -> CodegenIdentifier {
         if a.is_block {
             self.helper(Helper::OpenBlock);
             self.helper(Helper::CreateElementBlock);
@@ -15,7 +15,7 @@ impl Transform<'_> {
         if a.directives.is_some() {
             self.helper(Helper::WithDirectives);
         }
-        self.cgn(Cg::VNode {
+        self.cgn(Codegen::VNode {
             tag: a.tag,
             props: a.props,
             children: a.children,
@@ -30,16 +30,17 @@ impl Transform<'_> {
 
     // ---- transformText -------------------------------------------------------------------
 
-    pub(super) fn transform_text(&mut self, n: Nid) {
-        let is_text =
-            |t: &Self, c: Nid| matches!(t.tree[c], Node::Text(_) | Node::Interpolation(_));
+    pub(super) fn transform_text(&mut self, n: NodeIdentifier) {
+        let is_text = |t: &Self, c: NodeIdentifier| {
+            matches!(t.tree[c], Node::Text(_) | Node::Interpolation(_))
+        };
         let mut children = self.children_of(n).to_vec();
         let mut has_text = false;
         let mut i = 0;
         while i < children.len() {
             if is_text(self, children[i]) {
                 has_text = true;
-                let mut container: Option<Nid> = None;
+                let mut container: Option<NodeIdentifier> = None;
                 while i + 1 < children.len() && is_text(self, children[i + 1]) {
                     let next = children.remove(i + 1);
                     if let Some(c) = container {
@@ -67,13 +68,13 @@ impl Transform<'_> {
                 }
                 let mut arguments = Vec::new();
                 if !matches!(&self.tree[*child], Node::Text(t) if t == " ") {
-                    arguments.push(self.cgn(Cg::Node(*child)));
+                    arguments.push(self.cgn(Codegen::Node(*child)));
                 }
                 if self.constant_type(*child) == NOT_CONSTANT {
                     arguments.push(self.lit(Lit::Number(f64::from(patch::TEXT)), NOT_CONSTANT));
                 }
                 self.helper(Helper::CreateText);
-                let codegen = self.cgn(Cg::Call {
+                let codegen = self.cgn(Codegen::Call {
                     callee: Helper::CreateText,
                     arguments,
                 });
@@ -89,7 +90,7 @@ impl Transform<'_> {
     // ---- constant types, cacheStatic, the root -------------------------------------------
 
     /// `getConstantType` for a template node.
-    pub(super) fn constant_type(&self, n: Nid) -> u8 {
+    pub(super) fn constant_type(&self, n: NodeIdentifier) -> u8 {
         match &self.tree[n] {
             Node::Text(_) => CAN_STRINGIFY,
             Node::Interpolation(e) => e.const_type,
@@ -105,12 +106,12 @@ impl Transform<'_> {
                 codegen: Some(cg),
                 ..
             } => {
-                let Cg::VNode {
+                let Codegen::VNode {
                     is_block,
                     patch_flag,
                     props: vprops,
                     ..
-                } = &self.cg[*cg]
+                } = &self.codegen[*cg]
                 else {
                     return NOT_CONSTANT;
                 };
@@ -143,16 +144,16 @@ impl Transform<'_> {
     }
 
     /// `getGeneratedPropsConstantType`.
-    pub(super) fn generated_props_type(&self, props: Option<Cid>) -> u8 {
-        let Some(Cg::Object(list)) = props.map(|p| &self.cg[p]) else {
+    pub(super) fn generated_props_type(&self, props: Option<CodegenIdentifier>) -> u8 {
+        let Some(Codegen::Object(list)) = props.map(|p| &self.codegen[p]) else {
             return CAN_STRINGIFY;
         };
         let mut ret = CAN_STRINGIFY;
         for &(_, v) in list {
-            let t = match &self.cg[v] {
-                Cg::Lit { const_type, .. } => *const_type,
-                Cg::Exp(e) if !e.compound => e.const_type,
-                Cg::Hoisted(_) => CAN_CACHE,
+            let t = match &self.codegen[v] {
+                Codegen::Lit { const_type, .. } => *const_type,
+                Codegen::Exp(e) if !e.compound => e.const_type,
+                Codegen::Hoisted(_) => CAN_CACHE,
                 _ => NOT_CONSTANT,
             };
             if t == NOT_CONSTANT {
@@ -163,23 +164,23 @@ impl Transform<'_> {
         ret
     }
 
-    pub(super) fn single_element_root(&self, root: Nid) -> bool {
+    pub(super) fn single_element_root(&self, root: NodeIdentifier) -> bool {
         matches!(self.children_of(root), [only] if matches!(self.tree[*only], Node::Element { .. }))
     }
 
-    pub(super) fn hoist(&mut self, value: Cid) -> Cid {
+    pub(super) fn hoist(&mut self, value: CodegenIdentifier) -> CodegenIdentifier {
         self.hoists.push(value);
-        self.cgn(Cg::Hoisted(self.hoists.len()))
+        self.cgn(Codegen::Hoisted(self.hoists.len()))
     }
 
     /// `walk` for an element that is not constant: its props may still be hoisted.
-    pub(super) fn hoist_props(&mut self, vnode: Cid) {
-        let Cg::VNode {
+    pub(super) fn hoist_props(&mut self, vnode: CodegenIdentifier) {
+        let Codegen::VNode {
             patch_flag,
             props,
             dynamic_props,
             ..
-        } = self.cg[vnode]
+        } = self.codegen[vnode]
         else {
             return;
         };
@@ -188,20 +189,20 @@ impl Transform<'_> {
             && let Some(p) = props
         {
             let h = self.hoist(p);
-            if let Cg::VNode { props, .. } = &mut self.cg[vnode] {
+            if let Codegen::VNode { props, .. } = &mut self.codegen[vnode] {
                 *props = Some(h);
             }
         }
         if let Some(d) = dynamic_props {
             let h = self.hoist(d);
-            if let Cg::VNode { dynamic_props, .. } = &mut self.cg[vnode] {
+            if let Codegen::VNode { dynamic_props, .. } = &mut self.codegen[vnode] {
                 *dynamic_props = Some(h);
             }
         }
     }
 
     /// `cacheStatic`'s `walk`.
-    pub(super) fn walk_static(&mut self, n: Nid, do_not_hoist: bool) {
+    pub(super) fn walk_static(&mut self, n: NodeIdentifier, do_not_hoist: bool) {
         let children = self.children_of(n).to_vec();
         let mut to_cache = Vec::new();
         for &child in &children {
@@ -214,7 +215,7 @@ impl Transform<'_> {
                         self.constant_type(child)
                     };
                     if ct >= CAN_CACHE {
-                        if let Cg::VNode { patch_flag, .. } = &mut self.cg[vnode] {
+                        if let Codegen::VNode { patch_flag, .. } = &mut self.codegen[vnode] {
                             *patch_flag = Some(patch::CACHED);
                         }
                         to_cache.push(child);
@@ -233,12 +234,12 @@ impl Transform<'_> {
                         self.constant_type(*content)
                     };
                     if ct >= CAN_CACHE {
-                        if let Cg::Call { arguments, .. } = &self.cg[codegen]
+                        if let Codegen::Call { arguments, .. } = &self.codegen[codegen]
                             && !arguments.is_empty()
                         {
                             let flag =
                                 self.lit(Lit::Number(f64::from(patch::CACHED)), NOT_CONSTANT);
-                            if let Cg::Call { arguments, .. } = &mut self.cg[codegen] {
+                            if let Codegen::Call { arguments, .. } = &mut self.codegen[codegen] {
                                 arguments.push(flag);
                             }
                         }
@@ -263,19 +264,19 @@ impl Transform<'_> {
                 codegen: Some(vnode),
                 ..
             } = self.tree[n]
-            && let Cg::VNode {
+            && let Codegen::VNode {
                 children: Some(VChildren::List(list)),
                 ..
-            } = &self.cg[vnode]
+            } = &self.codegen[vnode]
         {
-            let arr = self.cgn(Cg::NodeArray(list.clone()));
+            let arr = self.cgn(Codegen::NodeArray(list.clone()));
             let c = self.cache(arr);
             // Always spread since #13221: mounting must not mutate the cached array.
-            if let Cg::Cache { spread, .. } = &mut self.cg[c] {
+            if let Codegen::Cache { spread, .. } = &mut self.codegen[c] {
                 *spread = true;
             }
-            if let Cg::VNode { children, .. } = &mut self.cg[vnode] {
-                *children = Some(VChildren::Cg(c));
+            if let Codegen::VNode { children, .. } = &mut self.codegen[vnode] {
+                *children = Some(VChildren::Codegen(c));
             }
             return;
         }
@@ -291,7 +292,7 @@ impl Transform<'_> {
     }
 
     /// `createRootCodegen`.
-    pub(super) fn root_codegen(&mut self, root: Nid) -> Option<Cid> {
+    pub(super) fn root_codegen(&mut self, root: NodeIdentifier) -> Option<CodegenIdentifier> {
         let children = self.children_of(root).to_vec();
         match children.as_slice() {
             [] => None,
@@ -302,7 +303,7 @@ impl Transform<'_> {
                     self.convert_to_block(vnode);
                     Some(vnode)
                 } else {
-                    Some(self.cgn(Cg::Node(child)))
+                    Some(self.cgn(Codegen::Node(child)))
                 }
             }
             _ => {

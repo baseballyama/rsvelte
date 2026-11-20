@@ -1,14 +1,17 @@
 use super::{
     CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Exit, Exp, ExpressionIdentifier,
-    Helper, NOT_CONSTANT, Nid, Node, NodeKind, Property, PropertyIdentifier, PropertyKind, R,
-    TagType, Transform, Unsupported,
+    Helper, NOT_CONSTANT, Node, NodeIdentifier, NodeKind, Property, PropertyIdentifier,
+    PropertyKind, R, TagType, Transform, Unsupported,
 };
 
 impl Transform<'_> {
     // ---- the HIR ------------------------------------------------------------------------
 
     /// The nodes as the transforms hold them, refusing what the port does not compile.
-    pub(super) fn parse_children(&mut self, children: &[CompilerNodeIdentifier]) -> R<Vec<Nid>> {
+    pub(super) fn parse_children(
+        &mut self,
+        children: &[CompilerNodeIdentifier],
+    ) -> R<Vec<NodeIdentifier>> {
         let mut out = Vec::with_capacity(children.len());
         for &k in children {
             let node = self.compiler_syntax_tree.node(k);
@@ -109,7 +112,11 @@ impl Transform<'_> {
 
     /// `traverseNode` with the transforms that act on this template, in preset order:
     /// `transformIf`, `transformFor`, `transformExpression`, `transformElement`, `transformText`.
-    pub(super) fn traverse(&mut self, mut n: Nid, parent: Option<Nid>) -> R<()> {
+    pub(super) fn traverse(
+        &mut self,
+        mut n: NodeIdentifier,
+        parent: Option<NodeIdentifier>,
+    ) -> R<()> {
         let mut exits: Vec<Exit> = Vec::new();
         let is_if = |d| {
             matches!(
@@ -198,7 +205,7 @@ impl Transform<'_> {
         Ok(())
     }
 
-    pub(super) fn traverse_children(&mut self, n: Nid) -> R<()> {
+    pub(super) fn traverse_children(&mut self, n: NodeIdentifier) -> R<()> {
         let mut i = 0;
         while i < self.children_of(n).len() {
             let child = self.children_of(n)[i];
@@ -213,7 +220,7 @@ impl Transform<'_> {
     /// `createStructuralDirectiveTransform`: removes the first matching directive.
     pub(super) fn take_directive(
         &mut self,
-        n: Nid,
+        n: NodeIdentifier,
         matches: impl Fn(DirectiveName) -> bool,
     ) -> Option<(
         DirectiveName,
@@ -238,7 +245,12 @@ impl Transform<'_> {
         Some((name, raw, identifier))
     }
 
-    pub(super) fn replace_child(&mut self, parent: Nid, old: Nid, new: Nid) {
+    pub(super) fn replace_child(
+        &mut self,
+        parent: NodeIdentifier,
+        old: NodeIdentifier,
+        new: NodeIdentifier,
+    ) {
         if let Some(slot) = self.children_mut(parent).iter_mut().find(|c| **c == old) {
             *slot = new;
         }

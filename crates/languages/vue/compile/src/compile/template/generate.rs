@@ -4,8 +4,8 @@ use oxc_ast_visit::VisitMut;
 use rsvelte_typescript_compile::build::Builder;
 
 use super::{
-    Cg, Cid, Compiled, DirectiveName, Exp, ExpRewrite, Expression, Helper, Lit, Nid, Node,
-    PropertyView, Resolution, Tree, VChildren, is_simple_identifier,
+    Codegen, CodegenIdentifier, Compiled, DirectiveName, Exp, ExpRewrite, Expression, Helper, Lit,
+    Node, NodeIdentifier, PropertyView, Resolution, Tree, VChildren, is_simple_identifier,
 };
 use crate::compile::out;
 
@@ -86,7 +86,7 @@ impl<'o> Gen<'_, '_, 'o> {
     }
 
     /// `genNode` for a template node.
-    fn node(&mut self, n: Nid) -> Expression<'o> {
+    fn node(&mut self, n: NodeIdentifier) -> Expression<'o> {
         let b = self.b;
         match &self.t.tree[n] {
             Node::Text(t) => b.string(t),
@@ -114,10 +114,10 @@ impl<'o> Gen<'_, '_, 'o> {
     }
 
     #[expect(clippy::too_many_lines, reason = "one arm per codegen node")]
-    fn cg(&mut self, c: Cid) -> Expression<'o> {
+    fn cg(&mut self, c: CodegenIdentifier) -> Expression<'o> {
         let b = self.b;
-        match &self.t.cg[c] {
-            Cg::VNode {
+        match &self.t.codegen[c] {
+            Codegen::VNode {
                 tag,
                 props,
                 children,
@@ -140,7 +140,7 @@ impl<'o> Gen<'_, '_, 'o> {
                 arguments.push(children.map(|ch| match ch {
                     VChildren::Node(n) => self.node(n),
                     VChildren::List(list) => self.node_array(&list),
-                    VChildren::Cg(c) => self.cg(c),
+                    VChildren::Codegen(c) => self.cg(c),
                 }));
                 arguments.push(patch_flag.map(|f| self.flag(f)));
                 arguments.push(dynamic_props.map(|d| self.cg(d)));
@@ -168,13 +168,13 @@ impl<'o> Gen<'_, '_, 'o> {
                 let list = self.cg(d);
                 b.call(self.helper(Helper::WithDirectives), [call, list])
             }
-            Cg::Call { callee, arguments } => {
+            Codegen::Call { callee, arguments } => {
                 let callee = *callee;
                 let arguments: Vec<Expression<'o>> =
                     arguments.clone().into_iter().map(|a| self.cg(a)).collect();
                 b.call(self.helper(callee), arguments)
             }
-            Cg::Object(list) => {
+            Codegen::Object(list) => {
                 let properties: Vec<_> = list
                     .clone()
                     .into_iter()
@@ -190,25 +190,25 @@ impl<'o> Gen<'_, '_, 'o> {
                     .collect();
                 b.object(properties)
             }
-            Cg::NodeArray(list) => {
+            Codegen::NodeArray(list) => {
                 let list = list.clone();
                 self.node_array(&list)
             }
-            Cg::Array(list) => {
+            Codegen::Array(list) => {
                 let items: Vec<Expression<'o>> =
                     list.clone().into_iter().map(|c| self.cg(c)).collect();
                 b.array(items)
             }
-            &Cg::Helper(h) => self.helper(h),
-            Cg::PropertyNames(names) => b.array(names.iter().map(|n| b.string(n))),
-            Cg::Lit { lit, .. } => match lit {
+            &Codegen::Helper(h) => self.helper(h),
+            Codegen::PropertyNames(names) => b.array(names.iter().map(|n| b.string(n))),
+            Codegen::Lit { lit, .. } => match lit {
                 Lit::String(s) => b.string(s),
                 Lit::Number(v) => b.number(*v),
                 Lit::Boolean(v) => b.boolean(*v),
                 Lit::Undefined => b.void0(),
             },
-            Cg::Exp(e) => self.exp(*e),
-            &Cg::Handler { exp, inline } => {
+            Codegen::Exp(e) => self.exp(*e),
+            &Codegen::Handler { exp, inline } => {
                 if inline {
                     return b.arrow(b.parameters(["$event"]), self.exp(exp));
                 }
@@ -216,7 +216,7 @@ impl<'o> Gen<'_, '_, 'o> {
                 let body = b.logical(self.exp(exp), LogicalOperator::And, call);
                 out::rest_arrow(b, "args", body)
             }
-            &Cg::ModelUpdate { target, is_ref } => {
+            &Codegen::ModelUpdate { target, is_ref } => {
                 let lhs = if is_ref {
                     b.member(self.verbatim(target), "value")
                 } else {
@@ -225,7 +225,7 @@ impl<'o> Gen<'_, '_, 'o> {
                 let body = b.assign_member(lhs, b.id("$event"));
                 b.arrow(b.parameters(["$event"]), body)
             }
-            &Cg::Function {
+            &Codegen::Function {
                 parameters,
                 returns,
             } => {
@@ -237,7 +237,7 @@ impl<'o> Gen<'_, '_, 'o> {
                 let r = self.cg(returns);
                 b.arrow_block(b.alloc(parameters), [b.return_(Some(r))], false)
             }
-            &Cg::Conditional {
+            &Codegen::Conditional {
                 test,
                 consequent,
                 alternate,
@@ -247,7 +247,7 @@ impl<'o> Gen<'_, '_, 'o> {
                 let a = self.cg(alternate);
                 b.conditional(t, c, a)
             }
-            &Cg::Cache {
+            &Codegen::Cache {
                 index,
                 value,
                 spread,
@@ -262,12 +262,12 @@ impl<'o> Gen<'_, '_, 'o> {
                     cached
                 }
             }
-            Cg::Hoisted(i) => b.id(&format!("_hoisted_{i}")),
-            Cg::Node(n) => self.node(*n),
+            Codegen::Hoisted(i) => b.id(&format!("_hoisted_{i}")),
+            Codegen::Node(n) => self.node(*n),
         }
     }
 
-    fn node_array(&mut self, list: &[Nid]) -> Expression<'o> {
+    fn node_array(&mut self, list: &[NodeIdentifier]) -> Expression<'o> {
         let items: Vec<Expression<'o>> = list.iter().map(|&n| self.node(n)).collect();
         self.b.array(items)
     }

@@ -1,6 +1,7 @@
 use super::{
-    Cg, DirectiveExpression, DirectiveName, Exit, ExpressionIdentifier, Helper, NOT_CONSTANT, Nid,
-    Node, Property, PropertyIdentifier, PropertyKind, R, Transform, VChildren, VNodeArgs, patch,
+    Codegen, DirectiveExpression, DirectiveName, Exit, ExpressionIdentifier, Helper, NOT_CONSTANT,
+    Node, NodeIdentifier, Property, PropertyIdentifier, PropertyKind, R, Transform, VChildren,
+    VNodeArgs, patch,
 };
 
 impl Transform<'_> {
@@ -9,11 +10,11 @@ impl Transform<'_> {
     /// `processFor`, and the codegen `transformFor` creates before the children are traversed.
     pub(super) fn process_for(
         &mut self,
-        el: Nid,
-        parent: Option<Nid>,
+        el: NodeIdentifier,
+        parent: Option<NodeIdentifier>,
         raw: ExpressionIdentifier,
         identifier: PropertyIdentifier,
-    ) -> R<(Nid, Exit)> {
+    ) -> R<(NodeIdentifier, Exit)> {
         let PropertyKind::Directive(d) = &self.compiler_syntax_tree.props[identifier].kind else {
             unreachable!("v-for is a directive")
         };
@@ -32,8 +33,8 @@ impl Transform<'_> {
             self.replace_child(p, el, for_node);
         }
         self.helper(Helper::RenderList);
-        let source_text_cg = self.cgn(Cg::Exp(source));
-        let render = self.cgn(Cg::Call {
+        let source_text_cg = self.cgn(Codegen::Exp(source));
+        let render = self.cgn(Codegen::Call {
             callee: Helper::RenderList,
             arguments: vec![source_text_cg],
         });
@@ -49,7 +50,7 @@ impl Transform<'_> {
         let vnode = self.vnode_call(VNodeArgs {
             tag: None,
             props: None,
-            children: Some(VChildren::Cg(render)),
+            children: Some(VChildren::Codegen(render)),
             patch_flag: Some(flag),
             dynamic_props: None,
             directives: None,
@@ -64,7 +65,7 @@ impl Transform<'_> {
         Ok((for_node, Exit::For(for_node)))
     }
 
-    pub(super) fn has_key(&self, el: Nid) -> bool {
+    pub(super) fn has_key(&self, el: NodeIdentifier) -> bool {
         let Node::Element { props, .. } = &self.tree[el] else {
             return false;
         };
@@ -80,7 +81,7 @@ impl Transform<'_> {
     }
 
     /// `transformFor`'s exit: the child's codegen becomes the render function's block.
-    pub(super) fn finish_for(&mut self, for_node: Nid) {
+    pub(super) fn finish_for(&mut self, for_node: NodeIdentifier) {
         let Node::For {
             source,
             parameters,
@@ -91,17 +92,17 @@ impl Transform<'_> {
             unreachable!("a v-for with its codegen")
         };
         let (source, parameters, vnode) = (*source, *parameters, *vnode);
-        let Cg::VNode {
-            children: Some(VChildren::Cg(render)),
+        let Codegen::VNode {
+            children: Some(VChildren::Codegen(render)),
             ..
-        } = self.cg[vnode]
+        } = self.codegen[vnode]
         else {
             unreachable!("a v-for fragment renders a list")
         };
         let stable = source.const_type > NOT_CONSTANT;
         let child = self.children_of(for_node)[0];
         let block = self.codegen_of(child).expect("a transformed element");
-        let Cg::VNode { is_block, .. } = self.cg[block] else {
+        let Codegen::VNode { is_block, .. } = self.codegen[block] else {
             unreachable!("an element's codegen is a vnode call")
         };
         if is_block == stable {
@@ -112,16 +113,16 @@ impl Transform<'_> {
                 self.remove_helper(Helper::CreateElementVNode);
             }
         }
-        if let Cg::VNode { is_block, .. } = &mut self.cg[block] {
+        if let Codegen::VNode { is_block, .. } = &mut self.codegen[block] {
             *is_block = !stable;
         }
         if stable {
             self.helper(Helper::CreateElementVNode);
-            if let Cg::VNode {
+            if let Codegen::VNode {
                 needs_patch: true,
                 patch_flag,
                 ..
-            } = &mut self.cg[block]
+            } = &mut self.codegen[block]
             {
                 *patch_flag = Some(patch_flag.unwrap_or(0) | patch::NEED_PATCH);
             }
@@ -129,11 +130,11 @@ impl Transform<'_> {
             self.helper(Helper::OpenBlock);
             self.helper(Helper::CreateElementBlock);
         }
-        let f = self.cgn(Cg::Function {
+        let f = self.cgn(Codegen::Function {
             parameters,
             returns: block,
         });
-        if let Cg::Call { arguments, .. } = &mut self.cg[render] {
+        if let Codegen::Call { arguments, .. } = &mut self.codegen[render] {
             arguments.push(f);
         }
     }
