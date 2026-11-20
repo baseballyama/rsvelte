@@ -9,7 +9,7 @@ use serde_json::value::RawValue;
 use super::directive_comments::justification_start;
 use crate::Configuration;
 use crate::configuration::{Running, applies};
-use crate::rule::{File, Files, JsComment, SvelteRule};
+use crate::rule::{File, Files, JavaScriptComment, SvelteRule};
 
 /// What a comment sets a rule to.
 #[derive(Debug)]
@@ -23,7 +23,7 @@ pub(super) enum Setting {
 ///
 /// `ESLint` reports a comment it cannot read, or a level it does not know; such a comment sets
 /// nothing here.
-pub(super) fn settings(comments: &[JsComment], source: &str) -> Vec<(String, Setting)> {
+pub(super) fn settings(comments: &[JavaScriptComment], source: &str) -> Vec<(String, Setting)> {
     let mut out: Vec<(String, Setting)> = Vec::new();
     for comment in comments.iter().filter(|comment| comment.block) {
         let value = comment.value.text(source);

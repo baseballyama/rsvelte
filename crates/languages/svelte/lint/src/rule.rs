@@ -79,14 +79,14 @@ pub struct File<'a> {
     pub context: &'a DocumentContext<'a>,
     parsed: Source<'a>,
     configured_globals: &'a Declared,
-    comments: OnceLock<Vec<JsComment>>,
+    comments: OnceLock<Vec<JavaScriptComment>>,
     /// The configuration's globals as the comments set them, or `None` when no comment sets one.
     globals: OnceLock<Option<Declared>>,
 }
 
 /// A JavaScript comment as the parser read it.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct JsComment {
+pub(crate) struct JavaScriptComment {
     /// The whole comment, delimiters included.
     pub(crate) span: Span,
     /// The text between the delimiters.
@@ -143,15 +143,15 @@ impl<'a> File<'a> {
     /// Every JavaScript comment of the document, the scripts' and the template's, in document
     /// order: what `ESLint` reads directive comments from.
     #[must_use]
-    pub(crate) fn comments(&self) -> &[JsComment] {
+    pub(crate) fn comments(&self) -> &[JavaScriptComment] {
         self.comments.get_or_init(|| {
             let tree = self.javascript();
-            let mut out: Vec<JsComment> = self
+            let mut out: Vec<JavaScriptComment> = self
                 .programs()
                 .into_iter()
                 .flat_map(|program| &tree.get_program(program).comments)
                 .chain(tree.comments())
-                .map(|comment| JsComment {
+                .map(|comment| JavaScriptComment {
                     span: document_span(comment.span),
                     value: document_span(comment.content_span()),
                     block: comment.is_block(),
