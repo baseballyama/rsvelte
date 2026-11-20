@@ -313,7 +313,4 @@ pub(crate) fn can_never_be_ref(e: &Expression<'_>) -> bool {
 }
 
 mod rewrite;
-
-mod translate;
 pub(crate) use rewrite::Rewriter;
-pub(crate) use translate::translate;
