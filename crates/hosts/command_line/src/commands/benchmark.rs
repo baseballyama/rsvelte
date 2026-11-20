@@ -167,9 +167,9 @@ pub(crate) fn benchmark(
     } else {
         tasks
     };
-    let m = measure(reg, &docs, tasks, options.rounds);
-    let report = report(&m, root, docs.len(), skipped, options);
-    summarize(&m, docs.len(), skipped, options.rounds);
+    let m = measure(reg, &docs, skipped, tasks, options.rounds);
+    let report = report(&m, root, options);
+    summarize(&m, options.rounds);
     if super::write_report("benchmark", options.json.as_deref(), &report) {
         ExitCode::SUCCESS
     } else {
@@ -178,6 +178,9 @@ pub(crate) fn benchmark(
 }
 
 struct Measured<'a> {
+    documents: usize,
+    /// Units below the root that were not loaded.
+    skipped: usize,
     source_bytes: usize,
     output_bytes: usize,
     counts: Vec<(&'a str, TaskCount)>,
@@ -193,6 +196,7 @@ struct Measured<'a> {
 fn measure<'a>(
     reg: &Registry,
     docs: &'a [Document],
+    skipped: usize,
     tasks: &[&'a str],
     rounds: usize,
 ) -> Measured<'a> {
@@ -259,6 +263,8 @@ fn measure<'a>(
     let phases = measurement::snapshot();
     rsvelte_kernel::performance::buffer_pool::set_enabled(true);
     Measured {
+        documents: docs.len(),
+        skipped,
         source_bytes: docs.iter().map(|d| d.text.len()).sum(),
         output_bytes,
         counts,
@@ -269,13 +275,7 @@ fn measure<'a>(
 }
 
 /// The JSON report, in its schema's field order.
-fn report(
-    m: &Measured<'_>,
-    root: &Path,
-    documents: usize,
-    skipped: usize,
-    options: &Options,
-) -> String {
+fn report(m: &Measured<'_>, root: &Path, options: &Options) -> String {
     let mut w = StructuredDataWriter::new(true);
     w.begin_object()
         .key("build")
@@ -299,9 +299,9 @@ fn report(
         .key("root")
         .write_string(&root.to_string_lossy())
         .key("documents")
-        .write_number(documents)
+        .write_number(m.documents)
         .key("skipped")
-        .write_number(skipped)
+        .write_number(m.skipped)
         .key("bytes")
         .write_number(m.source_bytes)
         .key("output_bytes")
@@ -419,12 +419,14 @@ fn write_phases(phases: &[measurement::PhaseMeasurements], w: &mut StructuredDat
     clippy::cast_precision_loss,
     reason = "nanosecond and byte counts become f64 only for display"
 )]
-fn summarize(m: &Measured<'_>, documents: usize, skipped: usize, rounds: usize) {
+fn summarize(m: &Measured<'_>, rounds: usize) {
     eprintln!(
-        "{documents} documents ({} bytes in, {} bytes out, {skipped} skipped, {} panicked), \
+        "{} documents ({} bytes in, {} bytes out, {} skipped, {} panicked), \
          {rounds} round(s), build {}",
+        m.documents,
         m.source_bytes,
         m.output_bytes,
+        m.skipped,
         m.panicked.len(),
         env!("RSV_BUILD_REV")
     );
