@@ -9,6 +9,7 @@ use crate::commands::{lint, typecheck};
 use crate::{Installation, configuration, configured_registry, usage};
 
 mod format;
+mod host_lint;
 
 /// The plugins `rsvelte` installs for `lint` and `typecheck`, in installation order.
 static EXTENSIONS: &[&Extension] = &[
@@ -45,6 +46,9 @@ Options:
 #[must_use]
 pub fn release() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
+    if let Some(("lint", rest)) = arguments.split_first().map(|(c, r)| (c.as_str(), r)) {
+        return host_lint::lint(rest);
+    }
     if let Some(("format", rest)) = arguments.split_first().map(|(c, r)| (c.as_str(), r)) {
         return format::format(rest);
     }
