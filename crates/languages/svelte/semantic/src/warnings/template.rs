@@ -5,7 +5,6 @@ use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::names::is_component_name;
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, Range, TemplateNode, decode_attribute,
     decode_text,
@@ -60,6 +59,8 @@ pub(super) struct Template<'a> {
     parent_element: Option<&'a str>,
     /// The elements, blocks and boundaries around the walk, outermost first.
     ancestry: Vec<placement::Ancestor<'a>>,
+    /// Scratch space for the element path each placement check builds, reused across elements.
+    placement_path: Vec<&'a str>,
 }
 
 /// The node a fragment belongs to, as far as `{@const}` and `<title>` care.
@@ -95,6 +96,7 @@ impl<'a> Template<'a> {
             each_rest: FxHashSet::default(),
             parent_element: None,
             ancestry: Vec::new(),
+            placement_path: Vec::new(),
         }
     }
 
@@ -450,9 +452,4 @@ pub(super) fn bidirectional_runs(text: &str) -> impl Iterator<Item = (usize, usi
         }
         Some((start, end))
     })
-}
-
-/// Whether `name` is a component tag: a capitalized or dotted name, not a `svelte:` one.
-fn is_component(name: &str) -> bool {
-    is_component_name(name) && !name.starts_with("svelte:")
 }

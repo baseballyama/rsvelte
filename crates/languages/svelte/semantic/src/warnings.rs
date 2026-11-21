@@ -30,6 +30,7 @@ mod stylesheet_analysis;
 mod template;
 #[cfg(test)]
 mod tests;
+mod transitions;
 mod updates;
 
 use component::{component_errors, deprecated_tag};
@@ -42,6 +43,7 @@ pub use runes::dollar_name_errors;
 use runes::{custom_element, declaration_errors, runes};
 use selectors::unused_selectors;
 use template::Template;
+pub use transitions::TransitionDirections;
 
 #[derive(Debug, Default)]
 pub struct CompileWarnings {
@@ -243,10 +245,7 @@ pub fn warnings(
         || ("Self".to_owned(), "Self.svelte"),
         |filename| {
             let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
-            (
-                rsvelte_svelte_syntax::names::component_name(filename),
-                basename,
-            )
+            (crate::identifiers::component_name(filename), basename)
         },
     );
     let mut template = Template::new(

@@ -6,7 +6,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range};
 use rsvelte_typescript_tree::{ExpressionIdentifier, document_span};
 
-use super::super::super::{error, warning};
+use super::super::super::{TransitionDirections, error, warning};
 use super::super::Template;
 use super::Tag;
 
@@ -182,8 +182,7 @@ impl Template<'_> {
     pub(super) fn attribute_errors(&mut self, at: Span, attributes: Range, element: bool) {
         let component = self.context.component;
         let bytes = self.context.source.as_bytes();
-        // The directions an earlier transition directive runs in, by their kind.
-        let (mut intro, mut outro): (Option<&str>, Option<&str>) = (None, None);
+        let mut transitions = TransitionDirections::default();
         for attribute in component.attributes(attributes) {
             let found = match attribute.kind {
                 AttributeKind::Attribute if self.context.runes => {
@@ -209,36 +208,8 @@ impl Template<'_> {
                         )
                     })
                 }
-                AttributeKind::Transition {
-                    intro: is_intro,
-                    outro: is_outro,
-                } if element => {
-                    let kind = match (is_intro, is_outro) {
-                        (true, true) => "transition",
-                        (true, false) => "in",
-                        _ => "out",
-                    };
-                    let existing =
-                        if is_intro { intro } else { None }.or(if is_outro { outro } else { None });
-                    if is_intro {
-                        intro = Some(kind);
-                    }
-                    if is_outro {
-                        outro = Some(kind);
-                    }
-                    existing.map(|existing| {
-                        if existing == kind {
-                            let message = format!(
-                                "Cannot use multiple `{kind}:` directives on a single element"
-                            );
-                            error("transition_duplicate", &message, attribute.span)
-                        } else {
-                            let message = format!(
-                                "Cannot use `{existing}:` alongside existing `{kind}:` directive"
-                            );
-                            error("transition_conflict", &message, attribute.span)
-                        }
-                    })
+                AttributeKind::Transition { intro, outro } if element => {
+                    transitions.visit(intro, outro, attribute.span)
                 }
                 _ => None,
             };

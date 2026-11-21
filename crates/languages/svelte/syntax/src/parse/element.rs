@@ -2,7 +2,7 @@ use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::whitespace::is_ascii_whitespace;
+use super::whitespace::is_ascii_ecmascript_whitespace;
 use super::{AutoClosed, End, ParseResult, Parser, is_void};
 use crate::names::{META_TAGS, is_component_name, is_valid_element_name};
 use crate::syntax_tree::{
@@ -20,7 +20,7 @@ pub(super) fn peek_tag_name(s: &str) -> &str {
     while let Some(&b) = bytes.get(end) {
         // ASCII needs no decoding.
         let len = if b.is_ascii() {
-            if is_ascii_whitespace(b) || matches!(b, b'/' | b'>') {
+            if is_ascii_ecmascript_whitespace(b) || matches!(b, b'/' | b'>') {
                 break;
             }
             1

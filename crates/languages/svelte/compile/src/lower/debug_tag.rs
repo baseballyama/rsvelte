@@ -1,6 +1,6 @@
 use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKey, PropertyKind, Statement};
 use oxc_span::SPAN;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerSyntaxTree, NodeList};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerSyntaxTree, DebugIdentifiers};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
 use super::builder::Builder;
@@ -10,7 +10,7 @@ pub(super) fn debug_tag<'o>(
     b: &Builder<'o>,
     tree: &CompilerSyntaxTree,
     javascript: &Tree,
-    identifiers: NodeList,
+    identifiers: DebugIdentifiers,
     mut value: impl FnMut(ExpressionIdentifier) -> Expression<'o>,
 ) -> [Statement<'o>; 2] {
     let properties = tree.debug_identifiers(identifiers).iter().map(|&e| {

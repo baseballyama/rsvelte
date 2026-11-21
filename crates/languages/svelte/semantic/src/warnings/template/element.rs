@@ -2,7 +2,7 @@
 
 use oxc_semantic::SymbolFlags;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::names::{is_mathml, is_svg};
+use rsvelte_svelte_syntax::names::is_component_name;
 use rsvelte_svelte_syntax::parse::is_void;
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Part, Range, TemplateNode,
@@ -10,7 +10,8 @@ use rsvelte_svelte_syntax::syntax_tree::{
 
 use super::super::{a11y, error, warning};
 use super::placement::Ancestor;
-use super::{Owner, Stage, Template, is_component};
+use super::{Owner, Stage, Template};
+use crate::namespaces::{is_mathml, is_svg};
 
 /// How the compiler classifies an element tag.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -62,7 +63,7 @@ impl<'a> Template<'a> {
         let name = name.text(source);
         let tag = if name == "svelte:element" {
             Tag::Dynamic
-        } else if is_component(name) || matches!(name, "svelte:component" | "svelte:self") {
+        } else if is_component_name(name) || matches!(name, "svelte:component" | "svelte:self") {
             Tag::Component
         } else if name == "slot" && !self.shadow_root {
             Tag::Slot
