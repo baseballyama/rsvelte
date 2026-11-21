@@ -3,7 +3,8 @@
 //!
 //! Prettier's own plumbing (`parser`,
 //! `plugins`, `filepath`, `cursorOffset`), the other languages' options (`vueIndentScriptAndStyle`,
-//! the Pug plugin's `pugTabWidth`) and `svelte5CompilerPath` are not options here.
+//! the Pug plugin's `pugTabWidth`) and `svelte5CompilerPath` are not options here. Nor are
+//! `rangeStart` and `rangeEnd`: oxfmt, which `rsvelte format` replaces, has no range option.
 
 use oxc_formatter::{JsdocOptions, SortImportsOptions};
 pub use rsvelte_typescript_format::options::{
@@ -36,8 +37,6 @@ pub const NAMES: &[&str] = &[
     "requirePragma",
     "insertPragma",
     "checkIgnorePragma",
-    "rangeStart",
-    "rangeEnd",
     "experimentalTernaries",
     "experimentalOperatorPosition",
     "svelteSortOrder",
@@ -76,11 +75,6 @@ pub struct Options {
     pub require_pragma: bool,
     pub insert_pragma: bool,
     pub check_ignore_pragma: bool,
-    #[serde(deserialize_with = "whole")]
-    pub range_start: usize,
-    /// `None` is Prettier's `Infinity`, the end of the file.
-    #[serde(deserialize_with = "whole_or_null")]
-    pub range_end: Option<usize>,
     pub experimental_ternaries: bool,
     pub experimental_operator_position: OperatorPosition,
     pub svelte_sort_order: SortOrder,
@@ -118,8 +112,6 @@ impl Default for Options {
             require_pragma: false,
             insert_pragma: false,
             check_ignore_pragma: false,
-            range_start: 0,
-            range_end: None,
             experimental_ternaries: false,
             experimental_operator_position: OperatorPosition::End,
             svelte_sort_order: SortOrder::default(),
@@ -146,12 +138,6 @@ fn whole<'de, D: Deserializer<'de>>(deserializer: D) -> Result<usize, D::Error> 
             "{value} is not a whole number"
         )))
     }
-}
-
-fn whole_or_null<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<usize>, D::Error> {
-    #[derive(Deserialize)]
-    struct Whole(#[serde(deserialize_with = "whole")] usize);
-    Ok(Option::<Whole>::deserialize(deserializer)?.map(|Whole(n)| n))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
@@ -255,8 +241,6 @@ pub fn unported(o: &Options) -> Option<&'static str> {
         require_pragma: _,
         insert_pragma: _,
         check_ignore_pragma: _,
-        range_start,
-        range_end,
         experimental_ternaries,
         experimental_operator_position,
         svelte_sort_order: _,
@@ -276,8 +260,6 @@ pub fn unported(o: &Options) -> Option<&'static str> {
         ("bracketSpacing", *bracket_spacing != d.bracket_spacing),
         ("objectWrap", *object_wrap != d.object_wrap),
         ("arrowParens", *arrow_parens != d.arrow_parens),
-        ("rangeStart", *range_start != d.range_start),
-        ("rangeEnd", *range_end != d.range_end),
         (
             "experimentalTernaries",
             *experimental_ternaries != d.experimental_ternaries,
