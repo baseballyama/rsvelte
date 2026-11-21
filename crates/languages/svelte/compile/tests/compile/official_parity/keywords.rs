@@ -1,5 +1,5 @@
-//! A keyword acorn reads as a name, or meets written with an escape, in a component's script and
-//! in a `.svelte.js` module.
+//! A keyword acorn reads as a name or an expression, or meets written with an escape, in a
+//! component's script and in a `.svelte.js` module.
 
 use rsvelte_svelte_compile::{CompileOptions, ModuleCompileOptions, compile, compile_module};
 
@@ -183,6 +183,131 @@ const CASES: &[(&str, &str, u32)] = &[
         30,
     ),
     ("th\\u0069s;", "Escape sequence in keyword this", 0),
+    ("const f = (await) => 1;", "Unexpected token", 16),
+    ("const f = async (await) => 1;", "Unexpected token", 22),
+    (
+        "function g() { const f = async (await) => 1; }",
+        "Cannot use keyword 'await' outside an async function",
+        32,
+    ),
+    (
+        "async function g() { const f = (await) => 1; }",
+        "Unexpected token",
+        37,
+    ),
+    (
+        "async function g() { const f = async (await) => 1; }",
+        "Unexpected token",
+        43,
+    ),
+    (
+        "class A { static { const f = (await) => 1; } }",
+        "Cannot use await in class static initialization block",
+        30,
+    ),
+    (
+        "class A { static { const f = async (await) => 1; } }",
+        "Cannot use await in class static initialization block",
+        36,
+    ),
+    ("const f = (a, await) => 1;", "Unexpected token", 19),
+    ("const f = ({ a: await }) => 1;", "Unexpected token", 22),
+    ("const f = ([await]) => 1;", "Unexpected token", 17),
+    (
+        "const f = async (\\u0061wait) => 1;",
+        "Cannot use keyword 'await' outside an async function",
+        17,
+    ),
+    (
+        "async function g() { const f = (\\u0061wait) => 1; }",
+        "Cannot use 'await' as identifier inside an async function",
+        32,
+    ),
+    (
+        "function* g() { const f = (yield) => 1; }",
+        "Yield expression cannot be a default value",
+        27,
+    ),
+    (
+        "const f = async () => (await) => 1;",
+        "Unexpected token",
+        28,
+    ),
+    (
+        "const f = async () => { const h = (await) => 1; };",
+        "Unexpected token",
+        40,
+    ),
+    ("const f = async (...await) => 1;", "Unexpected token", 25),
+    (
+        "const f = async ({ await }) => 1;",
+        "Cannot use keyword 'await' outside an async function",
+        19,
+    ),
+    ("const f = async ([await]) => 1;", "Unexpected token", 23),
+    ("const f = (await = 1) => 1;", "Unexpected token", 17),
+    ("const f = (a = (await) => 1) => 2;", "Unexpected token", 21),
+    (
+        "function* g() { const f = ([yield]) => 1; }",
+        "Yield expression cannot be a default value",
+        28,
+    ),
+    (
+        "function* g() { const f = (a, yield) => 1; }",
+        "Yield expression cannot be a default value",
+        30,
+    ),
+    (
+        "function* g() { const f = (...yield) => 1; }",
+        "Cannot use 'yield' as identifier inside a generator",
+        30,
+    ),
+    (
+        "function* g() { const f = ({ yield }) => 1; }",
+        "Cannot use 'yield' as identifier inside a generator",
+        29,
+    ),
+    (
+        "async function g() { const f = (...await) => 1; }",
+        "Cannot use 'await' as identifier inside an async function",
+        35,
+    ),
+    (
+        "async function g() { const f = ({ await }) => 1; }",
+        "Cannot use 'await' as identifier inside an async function",
+        34,
+    ),
+    ("const f = (await /* c */ ) => 1;", "Unexpected token", 25),
+    (
+        "const f = (await
+) => 1;",
+        "Unexpected token",
+        17,
+    ),
+    ("const f = async (...[await]) => 1;", "Unexpected token", 26),
+    ("const f = async (a, await) => 1;", "Unexpected token", 25),
+    ("const f = (await, b) => 1;", "Unexpected token", 16),
+    (
+        "const f = (a = async (await) => 1) => 0;",
+        "Unexpected token",
+        27,
+    ),
+    (
+        "function* g() { const f = async (yield) => 1; }",
+        "Yield expression cannot be a default value",
+        33,
+    ),
+    (
+        "function* g() { const f = async yield => 1; }",
+        "Cannot use 'yield' as identifier inside a generator",
+        32,
+    ),
+    ("const f = (/* c */ await) => 1;", "Unexpected token", 24),
+    (
+        "function* g() { const f = (\\u0079ield) => 1; }",
+        "Cannot use 'yield' as identifier inside a generator",
+        27,
+    ),
 ];
 
 #[test]

@@ -4,7 +4,7 @@ use oxc_ast::{AstKind, AstType};
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 
-use super::word::{Home, Word};
+use super::word::{Home, Read, Word};
 
 /// What acorn reports about a node around oxc's label, found as the tree is walked.
 #[derive(Debug)]
@@ -21,10 +21,27 @@ pub struct Locator {
     pub(super) first_is_type: bool,
     /// For [`Find::Home`], where acorn reads the name the label is.
     pub(super) home: Option<Home>,
-    /// For [`Find::Home`], the name the label is in the tree.
-    pub(super) word: Option<Word>,
+    /// For [`Find::Home`], the name the label is in the tree, and how acorn reads it.
+    pub(super) word: Option<(Word, Read)>,
+    /// For [`Find::Home`], the parameters around the label that acorn reads as expressions.
+    cover: Cover,
     /// Whether the walk took in any node: a part oxc could not read has no tree.
     pub(super) walked: bool,
+}
+
+/// The parameters around a label that acorn reads as an expression, before it meets the `=>`
+/// that makes them an arrow function's: its words are tokens, so `await` there is a keyword
+/// wherever acorn can await.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Cover {
+    None,
+    /// A parenthesized parameter list, or an async arrow's, which acorn reads as a call's
+    /// arguments, where a spread is an expression too; acorn then checks it as parameters.
+    List {
+        is_async: bool,
+    },
+    /// A plain arrow's one parameter without parentheses, an expression that `=>` ends.
+    Bare,
 }
 
 /// What decides how acorn reads an optional rest element, from the nodes around it.
@@ -100,6 +117,7 @@ impl Locator {
             first_is_type: false,
             home: None,
             word: None,
+            cover: Cover::None,
             walked: false,
             rest: AroundRest {
                 ambient: false,
@@ -171,12 +189,36 @@ impl Locator {
             _ => None,
         };
         if let Some(name) = name.filter(|_| kind.span() == self.label) {
-            self.word = Some(Word::named(name, self.label));
+            let read = match self.cover {
+                Cover::None => Read::Name,
+                Cover::List { .. } => Read::Parameter,
+                Cover::Bare => Read::Expression,
+            };
+            self.word = Some((Word::named(name, self.label), read));
         }
+        let holds = |span: oxc_span::Span| span.contains_inclusive(self.label);
+        self.cover = match kind {
+            AstKind::ArrowFunctionExpression(it) if it.params.span == self.label => {
+                // acorn reads an async arrow's one parameter without parentheses as a name.
+                if it.r#async { Cover::None } else { Cover::Bare }
+            }
+            AstKind::ArrowFunctionExpression(it) if holds(it.params.span) => Cover::List {
+                is_async: it.r#async,
+            },
+            // acorn reads a plain arrow's rest parameter, and a shorthand property, as names.
+            AstKind::BindingRestElement(it)
+                if holds(it.span) && self.cover == (Cover::List { is_async: false }) =>
+            {
+                Cover::None
+            }
+            AstKind::BindingProperty(it) if it.shorthand && holds(it.value.span()) => Cover::None,
+            _ => self.cover,
+        };
         if let Some((governs, home)) = governed(kind)
-            && governs.contains_inclusive(self.label)
+            && holds(governs)
         {
             self.home = Some(home);
+            self.cover = Cover::None;
         }
     }
 
@@ -280,7 +322,8 @@ fn governed(kind: AstKind<'_>) -> Option<(oxc_span::Span, Home)> {
                 it.generator,
             )
         }
-        AstKind::ArrowFunctionExpression(it) => function(it.span, it.r#async, false),
+        // acorn reads an arrow's parameters before it knows they are an arrow's.
+        AstKind::ArrowFunctionExpression(it) => function(it.body.span(), it.r#async, false),
         AstKind::StaticBlock(it) => Some((it.span, Home::StaticBlock)),
         AstKind::PropertyDefinition(it) => Some((it.value.as_ref()?.span(), Home::Initializer)),
         AstKind::AccessorProperty(it) => Some((it.value.as_ref()?.span(), Home::Initializer)),
