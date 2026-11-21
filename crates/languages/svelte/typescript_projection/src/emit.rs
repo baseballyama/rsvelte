@@ -128,6 +128,7 @@ impl Printer<'_> {
                 self.output.push(";\n");
             }
             Node::Identifier(name) => self.output.push(name),
+            Node::IdentifierAt { name, at } => self.output.atom(name, Span::new(at, at)),
             Node::AnyComponent => self.output.push("__rsvelte_any_component"),
             Node::StringLiteralAt { value, at } => {
                 let start = self.output.out.len() as u32;

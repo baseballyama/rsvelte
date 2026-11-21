@@ -212,10 +212,7 @@ impl Builder<'_> {
                 .next_if(|comment| comment.span.start < statement.span().end)
                 .is_some()
             {}
-            // svelte2tsx moves an import inside a namespace too.
-            let mut imports = Vec::new();
-            super::namespace::nested_imports(statement, &mut imports);
-            for import in imports {
+            for import in super::nested::Nested::inside(statement).imports {
                 moved(self, import);
             }
             match statement {
@@ -266,9 +263,7 @@ impl Builder<'_> {
                 match hoisted {
                     Hoisted::Statement(at) => moved(self, at),
                     Hoisted::ComponentProps(annotation) => {
-                        let name = self.tree.push(Node::Identifier("$$ComponentProps"));
-                        let value = self.source_at(annotation, None);
-                        let alias = self.tree.push(Node::TypeAlias { name, value });
+                        let alias = self.component_props_alias(annotation);
                         self.scratch.push(alias);
                         self.props_hoisted = true;
                     }
@@ -300,8 +295,7 @@ impl Builder<'_> {
             declaration.declarations.iter().find_map(|declarator| {
                 let initializer = declarator.init.as_ref()?;
                 self.is_rune(initializer, "$props")
-                    .then_some(declarator.type_annotation.as_ref())?
-                    .map(|annotation| &annotation.type_annotation)
+                    .then_some(declarator.type_annotation.as_deref())?
             })
         });
         // svelte2tsx hoists nothing without an annotated `$props()`.

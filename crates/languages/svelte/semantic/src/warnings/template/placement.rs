@@ -26,7 +26,9 @@ impl Template<'_> {
         };
         let mut only_warn = false;
         let mut past_parent = false;
-        let mut ancestors = vec![parent];
+        let mut path = std::mem::take(&mut self.placement_path);
+        path.clear();
+        path.push(parent);
         let mut found = Vec::new();
         for ancestor in self.ancestry.iter().rev() {
             match *ancestor {
@@ -38,13 +40,14 @@ impl Template<'_> {
                     }
                 }
                 Ancestor::Element(tag) => {
-                    ancestors.push(tag);
-                    found.extend(invalid_with_ancestor(name, &ancestors).map(|m| (m, only_warn)));
+                    path.push(tag);
+                    found.extend(invalid_with_ancestor(name, &path).map(|m| (m, only_warn)));
                 }
                 Ancestor::Boundary if past_parent => break,
                 Ancestor::Boundary => {}
             }
         }
+        self.placement_path = path;
         for (message, only_warn) in found {
             if only_warn {
                 let message = format!(

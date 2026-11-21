@@ -107,31 +107,12 @@ impl Artifact for Warned {
 pub fn component_input<'a>(context: &'a DocumentContext<'_>) -> Option<input::ComponentInput<'a>> {
     let c = fully_parsed(context).ok()?;
     let compiler_syntax_tree = context.get::<Lowered>().as_ref()?;
-    Some(svelte_input(
+    Some(input::ComponentInput::new(
         c,
         compiler_syntax_tree,
         context.source_text(),
         &context.document.path,
     ))
-}
-
-/// [`component_input`] outside the artifact database.
-#[must_use]
-pub fn svelte_input<'a>(
-    c: &'a syntax_tree::Component,
-    compiler_syntax_tree: &'a compiler_syntax_tree::CompilerSyntaxTree,
-    source_text: &'a str,
-    filename: &'a str,
-) -> input::ComponentInput<'a> {
-    input::ComponentInput {
-        javascript: &c.javascript,
-        instance: c.instance.as_ref().map(|s| s.program),
-        module: c.module.as_ref().map(|s| s.program),
-        compiler_syntax_tree,
-        style: c.style.as_ref().and_then(|s| s.sheet.as_ref().ok()),
-        source_text,
-        filename,
-    }
 }
 
 pub static PLUGIN: Plugin = Plugin {

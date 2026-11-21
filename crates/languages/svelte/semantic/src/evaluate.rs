@@ -85,10 +85,6 @@ impl ValueFacts {
     }
 }
 
-fn add(values: &mut Values, value: Value) {
-    values.add(value);
-}
-
 #[derive(Debug)]
 pub struct Evaluator<'r> {
     res: &'r Resolution,

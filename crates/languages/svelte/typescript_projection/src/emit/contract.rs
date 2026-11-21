@@ -86,6 +86,7 @@ impl Printer<'_> {
             }
             Node::Const { name, value } => self.declaration("const ", name, value),
             Node::TypeAlias { name, value } => self.declaration("type ", name, value),
+            Node::TypeDefinition { name, value } => self.type_definition(name, value),
             Node::Render {
                 type_parameters,
                 asynchronous,

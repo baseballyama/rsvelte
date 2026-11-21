@@ -8,8 +8,6 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineBreaks;
-use rsvelte_svelte_semantic::Resolved;
-use rsvelte_svelte_syntax::Parsed;
 
 use crate::Refusal;
 use crate::syntax_tree::SyntaxTree;
@@ -32,10 +30,10 @@ impl Artifact for ProjectionTree {
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         // The projection never reads the style sheet, so its error does not stop it, as in
         // svelte2tsx.
-        let component = context.get::<Parsed>().as_ref().map_err(Clone::clone)?;
-        let resolution = || context.get::<Resolved>().as_ref();
+        let read = crate::read(context).map_err(Clone::clone)?;
+        let resolution = || read.resolution(context);
         crate::lower(
-            component,
+            read.component,
             context.source_text(),
             &context.document.path,
             &resolution,
@@ -94,6 +92,7 @@ pub fn register_artifacts(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
     rsvelte_svelte_semantic::register(registry);
     registry
+        .artifact::<crate::read::ResolvedAsChecked>()
         .artifact::<ProjectionTree>()
         .artifact::<EmittedProjection>();
 }

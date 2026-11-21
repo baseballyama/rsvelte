@@ -79,6 +79,16 @@ pub enum Node {
     AnyComponent,
     StringLiteral(&'static str),
     /// A generated string whose findings fall on the empty range at `at`.
+    /// A name whose text TypeScript reports at the source offset `at`.
+    IdentifierAt {
+        name: &'static str,
+        at: u32,
+    },
+    /// `/** @typedef {value} name */`, a type alias in JavaScript.
+    TypeDefinition {
+        name: NodeIdentifier,
+        value: NodeIdentifier,
+    },
     StringLiteralAt {
         value: &'static str,
         at: u32,

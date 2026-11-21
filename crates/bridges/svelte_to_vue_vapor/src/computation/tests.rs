@@ -13,7 +13,12 @@ fn run(source_text: &str, server: bool) -> Result<String, String> {
         &compiler_syntax_tree,
     );
     let analysis = rsvelte_svelte_semantic::analyze::analyze(
-        &rsvelte_svelte_semantic::svelte_input(&c, &compiler_syntax_tree, source_text, "A.svelte"),
+        &rsvelte_svelte_semantic::input::ComponentInput::new(
+            &c,
+            &compiler_syntax_tree,
+            source_text,
+            "A.svelte",
+        ),
         &resolution,
     );
     let plan = check(&c, &compiler_syntax_tree, &resolution, source_text).map_err(|d| d.message)?;

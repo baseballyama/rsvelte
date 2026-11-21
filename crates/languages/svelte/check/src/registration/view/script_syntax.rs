@@ -1,20 +1,17 @@
 //! A component whose script does not parse: svelte2tsx blanks the scripts before Svelte parses
-//! the markup, so TypeScript reports the script's syntax, reading it as TSX or JSX.
+//! the markup, so TypeScript reports the script's syntax, in the component's language.
 
 use std::sync::Arc;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_typescript_projection::{Refusal, checked_as_typescript, unparsed_script};
+use rsvelte_svelte_typescript_projection::{Refusal, unparsed_script};
 use rsvelte_typescript_check::{CheckedDocument, TypeScriptDocument, TypeScriptEnv};
 
-/// The document to check, or `None` when the markup does not parse either. With
-/// `default_export`, set when TypeScript reads every script, the view exports a component of any
-/// props.
+/// The document to check, or `None` when the markup does not parse either.
 pub(super) fn view<'e>(
     source_text: &str,
-    default_export: bool,
     env: impl FnOnce() -> Result<&'e Arc<TypeScriptEnv>, Diagnostic>,
 ) -> Option<Result<TypeScriptDocument, Diagnostic>> {
     let component = rsvelte_svelte_syntax::parse::parse_without_scripts(source_text).ok()?;
@@ -28,7 +25,7 @@ pub(super) fn view<'e>(
             span,
         }));
     }
-    let typescript = checked_as_typescript(&component, source_text);
+    let typescript = component.checked_as_typescript(source_text);
     let env = match env() {
         Ok(env) => env,
         Err(error) => return Some(Err(error)),
@@ -69,18 +66,12 @@ pub(super) fn view<'e>(
         projection.atom("async () => {", Span::new(end, end + 1));
         projection.push("\n};\n}\n");
     }
-    if default_export {
-        // An import then reads a component of any props instead of a module without a default
-        // export; `JSON.parse` returns `any` read as JavaScript or as TypeScript.
-        projection.push("export default JSON.parse(\"null\");\n");
-    } else {
-        projection.push("export {};\n");
-    }
+    projection.push("export {};\n");
     Some(Ok(TypeScriptDocument::Checked(Arc::new(CheckedDocument {
         projection: Arc::new(projection),
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),
-        extension: if typescript { ".tsx" } else { ".jsx" },
+        extension: if typescript { ".ts" } else { ".js" },
         imports: Vec::new(),
         store_reads: Vec::new(),
         hidden: Vec::new(),

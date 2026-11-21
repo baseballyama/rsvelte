@@ -54,6 +54,21 @@ impl Artifact for ParsedAsTypeScript {
     }
 }
 
+/// The component as [`crate::parse::parse_as_checked`] reads it, for a document
+/// [`Parsed`] rejects.
+#[derive(Debug)]
+pub struct ParsedAsChecked;
+
+impl Artifact for ParsedAsChecked {
+    type Output = Result<Component, Diagnostic>;
+
+    const NAME: &'static str = "svelte.parse.checked";
+
+    fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        crate::parse::parse_as_checked(context.source_text())
+    }
+}
+
 /// The component as Prettier's Svelte plugin reads it.
 ///
 /// A script the compiler rejects is read as TypeScript, with its errors in
@@ -87,4 +102,5 @@ pub fn register(registry: &mut Registry) {
     rsvelte_typescript_tree::register(registry);
     registry.artifact::<Parsed>();
     registry.artifact::<ParsedAsTypeScript>();
+    registry.artifact::<ParsedAsChecked>();
 }

@@ -4,7 +4,7 @@ use oxc_ast::ast::{
 use oxc_semantic::{SymbolFlags, SymbolId};
 
 use super::globals::{Global, global};
-use super::{Evaluator, Value, Values, add};
+use super::{Evaluator, Value, Values};
 use crate::resolve::BindingKind;
 
 impl Evaluator<'_> {
@@ -22,9 +22,9 @@ impl Evaluator<'_> {
     pub(super) fn identifier(&mut self, identifier: &IdentifierReference<'_>, values: &mut Values) {
         let Some(symbol) = self.resolve(identifier) else {
             if identifier.name == "undefined" {
-                add(values, Value::Undefined);
+                values.add(Value::Undefined);
             } else {
-                add(values, Value::Unknown);
+                values.add(Value::Unknown);
             }
             return;
         };
@@ -34,7 +34,7 @@ impl Evaluator<'_> {
             info.kind,
             BindingKind::StaticIndex | BindingKind::KeyedIndex
         ) {
-            add(values, Value::AnyNumber);
+            values.add(Value::AnyNumber);
             return;
         }
         let is_prop = matches!(
@@ -49,7 +49,7 @@ impl Evaluator<'_> {
                 .symbol_flags(symbol)
                 .contains(SymbolFlags::Function)
             {
-                add(values, Value::AnyFunction);
+                values.add(Value::AnyFunction);
                 return;
             }
             if let Some(initializer) = self.res.initializer(symbol) {
@@ -62,7 +62,7 @@ impl Evaluator<'_> {
                 return;
             }
         }
-        add(values, Value::Unknown);
+        values.add(Value::Unknown);
     }
 
     pub(super) fn call(
@@ -77,19 +77,19 @@ impl Evaluator<'_> {
             match rune {
                 "$state" | "$state.raw" | "$derived" => match argument {
                     Some(a) => self.eval_into(a, values),
-                    None => add(values, Value::Undefined),
+                    None => values.add(Value::Undefined),
                 },
                 "$derived.by" => match argument.and_then(expression_body) {
                     Some(body) => self.eval_into(body, values),
-                    None => add(values, Value::Unknown),
+                    None => values.add(Value::Unknown),
                 },
                 // A `$props.id()` binding is a `const`, so its identifier reaches here as well.
-                "$props.id" => add(values, Value::AnyString),
+                "$props.id" => values.add(Value::AnyString),
                 "$effect.tracking" => {
-                    add(values, Value::Boolean(false));
-                    add(values, Value::Boolean(true));
+                    values.add(Value::Boolean(false));
+                    values.add(Value::Boolean(true));
                 }
-                _ => add(values, Value::Unknown),
+                _ => values.add(Value::Unknown),
             }
             return;
         }
@@ -120,15 +120,15 @@ impl Evaluator<'_> {
                 *value = evaluation.into_value();
             }
             if path.0 == "Math" && has_bigint {
-                add(values, Value::Unknown);
+                values.add(Value::Unknown);
             } else if let Some(fold) = fold.filter(|_| all_known) {
-                add(values, fold(known));
+                values.add(fold(known));
             } else {
-                add(values, kind);
+                values.add(kind);
             }
             return;
         }
-        add(values, Value::Unknown);
+        values.add(Value::Unknown);
     }
 
     /// A global, or a property of one: `name` or `name.member`, when `name` is not bound.

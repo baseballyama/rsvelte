@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::{Registry, ReplacedFile, ReplacedFiles};
-use rsvelte_svelte_syntax::Parsed;
 use rsvelte_typescript_check::{
     Check, Documents, MappedLanguage, MappedLanguages, TypeScriptDocument, TypeScriptStandIn,
     TypeScriptView,
@@ -64,9 +63,14 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         if let Some(Ok(TypeScriptDocument::Rejected { .. })) = context.facet::<TypeScriptView>() {
             return Some(bare_script(&context.document.text));
         }
-        let own = context.get::<Parsed>().as_ref().ok().and_then(|component| {
-            rsvelte_svelte_typescript_projection::stand_in(component, &context.document.text)
-        });
+        let own = rsvelte_svelte_typescript_projection::read(context)
+            .ok()
+            .and_then(|read| {
+                rsvelte_svelte_typescript_projection::stand_in(
+                    read.component,
+                    &context.document.text,
+                )
+            });
         Some(own.unwrap_or_else(|| rsvelte_svelte_typescript_projection::STAND_IN.to_owned()))
     });
 }

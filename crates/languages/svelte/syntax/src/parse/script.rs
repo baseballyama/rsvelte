@@ -223,6 +223,32 @@ impl Parser<'_, '_> {
         Ok((program, source_type.is_typescript()))
     }
 
+    /// The script's program as svelte-check's checker reads it, or empty, keeping its errors;
+    /// and whether it is TypeScript.
+    fn program_read_as_checked(
+        &mut self,
+        content: Span,
+    ) -> Result<(ProgramIdentifier, bool), SyntaxError> {
+        // TypeScript reads a JavaScript file with JSX, and its TypeScript syntax as an error.
+        let source_type = if self.typescript {
+            SourceType::ts()
+        } else {
+            SourceType::tsx()
+        }
+        .with_module(true);
+        let program = match (self.builder).program_or_errors(content, source_type) {
+            Ok(program) => program,
+            Err(rejected) => {
+                self.component
+                    .script_typescript_errors
+                    .extend(rejected.errors);
+                let end = content.end_offset;
+                self.builder.program(Span::new(end, end), source_type)?
+            }
+        };
+        Ok((program, self.typescript))
+    }
+
     fn script(&mut self, start_offset: usize, attributes: Vec<TagAttributes>) -> ParseResult<()> {
         let module = is_module(self.source_text, &attributes);
         if self.lang_read.is_none() {
@@ -248,6 +274,7 @@ impl Parser<'_, '_> {
                 )
                 .map(|p| (p, typescript)),
             Scripts::ReadAsTypeScript => self.program_read_as_typescript(content, source_type),
+            Scripts::ReadAsChecked => self.program_read_as_checked(content),
         }
         .map_err(javascript_failure)?;
         // Upstream parses the script before it checks for another.
