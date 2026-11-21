@@ -12,7 +12,7 @@ use crate::Configuration;
 
 pub(crate) const TASK: &str = "svelte.check/default";
 
-pub static PLUGIN: Plugin = Plugin {
+static PLUGIN: Plugin = Plugin {
     identifier: "svelte.check",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[
