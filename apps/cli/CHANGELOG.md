@@ -1,5 +1,23 @@
 # @rsvelte/cli
 
+## 0.4.0
+
+### Minor Changes
+
+- 6e69490: Add `rsvelte help <command>` and `rsvelte <command> --help`, which print what `lint` and `typecheck` read and print, how to configure them and their exit codes. For `format`, they print oxfmt's help.
+- 01752cb: Add `rsvelte version`. For each command, it names the official tools and versions whose output the tests compare with. It also names the oxfmt and oxc inside rsvelte and the type checker that `typecheck` would run.
+- ad32b26: `format` sorts the imports and formats the `/** */` comments of a Svelte file's scripts when the configuration sets `sortImports` or `jsdoc`, as oxfmt does, instead of reporting an error. It also formats the `svelte` code blocks of a Markdown file.
+- c224d76: `format` sorts Tailwind CSS classes with `sortTailwindcss`, as oxfmt does, in each file other than a Svelte file. It runs the `prettier-plugin-tailwindcss` installed in the file's project with `node`, and reports an error for each file whose classes it cannot sort.
+
+### Patch Changes
+
+- 39d95b2: The compiler now reports a keyword used as a name, or written with an escape, in the official compiler's words. For example, `let await = 1` gives "Cannot use keyword 'await' outside an async function".
+- 3069dfa: Reject a `$` name that a `var` declares again over a parameter, and report a `var` declared twice inside a function at its last declaration, as Svelte does.
+- a3df8af: `svelte/no-dom-manipulating`, `svelte/require-store-reactive-access` and the rules that skip components now tell a component from an HTML element as Svelte does: `<Foo-bar>` is an HTML element, and `<Ärger>` and `<Foo.>` are components.
+- 55ca8bc: The Svelte formatter no longer takes Prettier's `rangeStart` and `rangeEnd`, which oxfmt does not have either. `rsvelte format` never passed them on, so its output does not change.
+- 15b4a10: `rsvelte format` formats Svelte files with `semi: false` and `singleQuote: true` instead of reporting an error.
+- 689a5fa: Vue: an attribute name with a non-ASCII character no longer crashes the parser, and compiling it leaves the object key bare as `@vue/compiler-sfc` does (`ä: "1"`, not `"ä": "1"`).
+
 ## 0.3.0
 
 ### Minor Changes
