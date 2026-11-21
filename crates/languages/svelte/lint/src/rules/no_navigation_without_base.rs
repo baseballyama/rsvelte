@@ -1,5 +1,6 @@
 use oxc_ast::ast::{ChainElement, Expression};
 use oxc_semantic::{NodeId, SymbolId};
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_syntax::syntax_tree::{Part, decode_attribute};
 use rsvelte_typescript_tree::node_span;
@@ -14,6 +15,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-navigation-without-base",
     files: Files::All,
+    category: Category::Suspicious,
     configure,
 };
 

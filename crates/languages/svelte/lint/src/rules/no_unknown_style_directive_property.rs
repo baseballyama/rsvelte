@@ -1,3 +1,4 @@
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_stylesheet_syntax::properties::{is_known, vendor_prefix};
 use rsvelte_svelte_syntax::syntax_tree::AttributeKind;
@@ -9,6 +10,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-unknown-style-directive-property",
     files: Files::Components,
+    category: Category::Correctness,
     configure,
 };
 

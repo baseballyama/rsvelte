@@ -1,4 +1,5 @@
 use oxc_ast::ast::Expression;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::shared::markup::{Holder, for_each_mustache, parts};
@@ -7,6 +8,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-object-in-text-mustaches",
     files: Files::Components,
+    category: Category::Correctness,
     configure: without_options::<NoObjectInTextMustaches>,
 };
 

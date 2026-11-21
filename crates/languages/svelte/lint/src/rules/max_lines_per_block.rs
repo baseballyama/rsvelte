@@ -1,5 +1,6 @@
 use rsvelte_kernel::source::characters::trim_ecmascript;
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode, TokenType};
 use serde::Deserialize;
@@ -9,6 +10,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/max-lines-per-block",
     files: Files::Components,
+    category: Category::Pedantic,
     configure,
 };
 

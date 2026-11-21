@@ -2,6 +2,7 @@ use oxc_ast::AstKind;
 use oxc_ast::ast::Expression;
 use oxc_semantic::AstNodes;
 use oxc_syntax::operator::{LogicalOperator, UnaryOperator};
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_typescript_tree::node_span;
 
@@ -11,6 +12,7 @@ use crate::types::TypeFacts;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/@typescript-eslint/no-unnecessary-condition",
     files: Files::Components,
+    category: Category::Nursery,
     configure: without_options::<NoUnnecessaryCondition>,
 };
 

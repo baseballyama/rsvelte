@@ -1,5 +1,6 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::Expression;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_tree::node_span;
 
@@ -11,6 +12,7 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-ignored-unsubscribe",
     files: Files::All,
+    category: Category::Suspicious,
     configure: without_options::<NoIgnoredUnsubscribe>,
 };
 

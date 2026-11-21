@@ -10,6 +10,47 @@ use serde_json::value::RawValue;
 use crate::configuration::RuleLevels;
 use crate::rule::{Reporter, Rule};
 
+/// The kind of problem a rule finds, in oxlint's categories, so tools built for oxlint's
+/// categories group rsvelte's rules the same way.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Category {
+    /// Code that is wrong or useless; the rules a linter runs by default.
+    Correctness,
+    Suspicious,
+    Pedantic,
+    Perf,
+    Style,
+    Restriction,
+    /// Rules still being written.
+    Nursery,
+}
+
+impl Category {
+    pub const ALL: [Self; 7] = [
+        Self::Correctness,
+        Self::Suspicious,
+        Self::Pedantic,
+        Self::Perf,
+        Self::Style,
+        Self::Restriction,
+        Self::Nursery,
+    ];
+
+    /// The name oxlint's configuration uses.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Correctness => "correctness",
+            Self::Suspicious => "suspicious",
+            Self::Pedantic => "pedantic",
+            Self::Perf => "perf",
+            Self::Style => "style",
+            Self::Restriction => "restriction",
+            Self::Nursery => "nursery",
+        }
+    }
+}
+
 /// A rule as configuration names it.
 pub trait Definition: Sync + 'static {
     /// The full name, such as `svelte/no-at-html-tags`.
