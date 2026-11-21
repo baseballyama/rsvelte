@@ -5,28 +5,31 @@
 <h1>仕組み</h1>
 
 <p>
-	rsvelte
-	は各ファイルを一度だけ解析し、その結果をコンパイル、コード検査、整形、型検査で共有します。このページは、rsvelte
-	の開発に参加する人向けの概要です。
+	rsvelte の開発に参加する人向けの概要です。1
+	回の実行の中では、各ファイルを一度だけ解析し、その結果を複数の処理で共有します。
 </p>
 
 <h2 id="flow">一度読んで共有する</h2>
 
 <ol>
-	<li>パーサーがソースを読み、構文木を作ります。構文木は作ったあと変更しません。</li>
+	<li>
+		パーサーがソースを読み、構文木を作ります。構文木は作ったあと変更しません。例外は、oxc
+		の意味解析がスコープや変数の番号を書き込むことだけです。
+	</li>
 	<li>
 		意味解析は、変数のスコープなどの事実を構文木とは別の表に記録します。構文木と表は、ファイルごとのデータベースに保存されます。
 	</li>
 	<li>
-		各タスク（<code>svelte.lint/default</code> など）は、必要な計算結果だけをデータベースに求めます。まだない結果はその場で計算され、ほかのタスクと共有されます。
+		タスクは、ファイルに対する 1 つの処理です（Svelte のコード検査なら <code
+			>svelte.lint/default</code
+		>）。タスクは必要な計算結果だけをデータベースに求めます。まだない結果はその場で計算され、同じファイルのほかのタスクと共有されます。
 	</li>
-	<li>ファイルは 1 スレッドに 1 つずつ割り当てられ、並列に処理されます。</li>
+	<li>
+		ファイルは 1 スレッドに 1
+		つずつ割り当てられ、並列に処理されます。型検査のタスクは、全ファイルのあとにプロジェクト全体を 1
+		回検査します。
+	</li>
 </ol>
-
-<p>
-	テキストを出力して読み直すことはしません。ソース上の位置は、UTF-8 のバイト位置を表す
-	<code>Span</code> の 1 種類だけです。
-</p>
 
 <h2 id="crates">クレートの構成</h2>
 
@@ -38,19 +41,25 @@
 		<tr>
 			<td><code>crates/language_independent/</code></td>
 			<td>
-				どの言語も知らない部分。文書と位置、診断、計算結果のデータベース、タスクのスケジューラ（<code
+				どの言語も知らない部分。文書、位置、診断、計算結果のデータベース、タスクのスケジューラ（<code
 					>kernel</code
-				>）と、プラグインの接続口（<code>plugin_interface</code>）
+				>）と、プラグインの接続口（<code>plugin_interface</code
+				>）。コード検査と整形の共通部品、テストの仕組みもここにあります
 			</td>
 		</tr>
 		<tr>
 			<td><code>crates/languages/&lt;言語&gt;/</code></td>
 			<td>
-				言語ごとの構文解析（<code>syntax</code>）と意味解析（<code>semantic</code
-				>）、各ツール（<code>compile</code>、<code>lint</code>、<code>format</code>、<code
-					>check</code
-				>）
+				言語ごとの構文解析と意味解析、各ツール（<code>compile</code>、<code>lint</code>、<code
+					>format</code
+				>、<code>check</code>）
 			</td>
+		</tr>
+		<tr>
+			<td><code>crates/bridges/</code></td>
+			<td
+				>あるフレームワークのコンポーネントを、別のフレームワークのランタイム向けにコンパイルする部分</td
+			>
 		</tr>
 		<tr>
 			<td><code>crates/hosts/</code></td>
@@ -64,9 +73,11 @@
 </table>
 
 <p>
-	各ツールは 1
-	つのタスクを登録するクレートです。構文解析と意味解析はツールに依存しないので、全ツールが同じ解析結果を使えます。JavaScript
-	と TypeScript の解析には <a href="https://oxc.rs/">oxc</a> を使います。
+	各ツールは、自分のタスク（<code>svelte.compile/client</code>
+	など）を登録するクレートです。JavaScript と TypeScript の解析には
+	<a href="https://oxc.rs/">oxc</a>
+	を使います。<code>rsvelte format</code>
+	だけはタスクを使わず、oxfmt のファイル処理から Svelte の整形を呼び出します。
 </p>
 
 <h2 id="typecheck">型検査</h2>
@@ -80,12 +91,16 @@
 <h2 id="correctness">公式ツールとの比較</h2>
 
 <p>
-	<code>corpus/</code> には、MIT などの緩いライセンスで公開された実在の Svelte 5 ファイルがあります。各ファイルの期待する出力は、svelte
-	や svelte-check などの公式ツールが作ります。
+	<code>corpus/</code> には、MIT などの緩いライセンスで公開された実在の Svelte 5 ファイルと、このプロジェクト用に書いたファイルがあります。正解の出力は、svelte
+	や svelte-check などの公式ツールで作ります。
 </p>
 
 <p>
-	<code>cargo test</code> は rsvelte の出力を期待する出力と比べ、ファイルごとに一致したかを記録します。記録と違う結果が出ると、テストが失敗します。
+	<code>cargo test</code> は rsvelte
+	の出力を正解と比べます。一致したかどうかの判定は、タスクごとに台帳（<code
+		>corpus/_registry/parity/</code
+	>）に記録されています。判定が台帳と変わると、テストが失敗します。意図した変化は
+	<code>UPDATE_EXPECT=1</code> で記録し直します。
 </p>
 
 <h2 id="contribute">開発に参加する</h2>

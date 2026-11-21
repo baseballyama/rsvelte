@@ -36,13 +36,14 @@ npx @rsvelte/cli typecheck</code
 	</div>
 	<div>
 		<h3><code>typecheck</code></h3>
-		<p>svelte-check と同じ型エラーを、TypeScript 7 の型検査器で報告します。</p>
+		<p>svelte-check と同じ型エラーを、TypeScript 7 系の型検査器（tsrs など）で報告します。</p>
 	</div>
 </div>
 
 <p>
-	対象は Svelte 5 のルーンモードのコンポーネントと、TypeScript と JavaScript のファイルです。Svelte
-	4 には公式ツールを使ってください。
+	対象は Svelte 5 のルーンモードのコンポーネントと、TypeScript と JavaScript のファイルです（<a
+		href={resolve('/guide') + '#legacy'}>Svelte 4 の場合</a
+	>）。
 </p>
 
 <p>

@@ -27,13 +27,20 @@
 
 <p>
 	<code>rsvelte lint</code> が実装している {rules.length} 個のルールです。リンク先の ESLint、typescript-eslint、eslint-plugin-svelte
-	のルールを移植したもので、名前も同じです。
+	のルールを移植したものです。
 </p>
 
 <p>
 	ルールは <code>rsvelte.config.json</code> で有効にします（<a href={resolve('/guide') + '#config'}
 		>設定</a
-	>）。JavaScript と TypeScript のファイルには、<code>.jsx</code> と <code>.tsx</code> も含みます。
+	>）。<code>@typescript-eslint/no-unused-vars</code> は <code>typescript.lint</code>
+	に、ほかのルールは
+	<code>svelte.lint</code> に書きます。
+</p>
+
+<p>
+	対象に JavaScript と TypeScript を含む <code>svelte/</code> のルールは、<code>.jsx</code> と
+	<code>.tsx</code> も検査します。
 </p>
 
 {#each groups as group (group.id)}

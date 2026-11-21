@@ -12,7 +12,11 @@
 
 <pre><code>npm install --save-dev @rsvelte/cli</code></pre>
 
-<p><code>package.json</code> のスクリプトでは、コマンド名は <code>rsvelte</code> です。</p>
+<p>
+	<code>typecheck</code> を使うときは、<a href="#typecheck">型検査器</a
+	>もインストールしてください。<code>package.json</code> のスクリプトでは、コマンド名は
+	<code>rsvelte</code> です。
+</p>
 
 <pre><code
 		>{`{
@@ -35,9 +39,17 @@
 <p>
 	パスより下にある <code>.svelte</code>、<code>.js</code>、<code>.mjs</code>、<code>.cjs</code
 	>、<code>.ts</code>、<code>.mts</code>、<code>.cts</code>
-	を検査します。パスを省くと、現在のディレクトリが対象です。<code>node_modules</code>
-	と、<code>.gitignore</code> が除外するファイルは読みません。問題は ESLint の
-	<code>stylish</code> 形式で表示します。
+	を検査します。パスを省くと、現在のディレクトリが対象です。<code>node_modules</code>、<code
+		>.git</code
+	>
+	と、<code>.gitignore</code> や <code>.ignore</code> が除外するファイルは読みません。ただし、コマンドラインで名前を指定したファイルは読みます。
+</p>
+
+<p>
+	問題は、ESLint の既定の表示形式（<code>stylish</code>）で表示します。<code>svelte/no-inspect</code
+	>
+	のように JavaScript にも効く Svelte のルールを有効にすると、<code>.jsx</code> と
+	<code>.tsx</code> も検査します。
 </p>
 
 <p>
@@ -66,7 +78,7 @@
 
 <p>
 	TypeScript、JSON、CSS、Markdown など、oxfmt が Rust で整形するファイルを整形します。oxfmt が
-	Prettier に任せるファイルは飛ばします。<code>format</code> は Prettier を動かしません。
+	Prettier に任せるファイルは飛ばします。
 </p>
 
 <p>Svelte ファイルの整形には、次の制限があります。</p>
@@ -88,29 +100,39 @@
 		<code>sortImports</code>、<code>sortTailwindcss</code>、<code>jsdoc</code> にはまだ対応していません。
 	</li>
 	<li>
-		対応していない設定があると、Svelte ファイルごとにエラーを出し、ほかのファイルは整形します。
+		対応していない設定があると、Svelte
+		ファイルごとにエラーを出し、ほかのファイルは整形します。エラーは、対応していない設定の名前を示します。
 	</li>
 	<li>設定ファイルに <code>"svelte": false</code> と書くと、Svelte ファイルを整形しません。</li>
 </ul>
 
-<p><code>rsvelte.config</code> は <code>format</code> には効きません。</p>
+<p>
+	rsvelte の<a href="#config">設定ファイル</a>（<code>rsvelte.config.json</code>）は
+	<code>format</code> には効きません。
+</p>
 
 <h2 id="typecheck">typecheck：型検査する</h2>
 
 <pre><code>rsvelte typecheck</code></pre>
 
 <p>
-	<code>tsconfig.json</code> が選ぶファイルを型検査し、svelte-check と同じエラーを報告します。読む
-	<code>tsconfig.json</code> は現在のディレクトリのものです。<code>rsvelte.config</code> に
-	<code>typescript.check</code> の設定があれば、<code>rsvelte.config</code> の隣のものを読みます。
+	<code>tsconfig.json</code> が選ぶファイルを型検査し、svelte-check
+	と同じエラーを報告します。パスは指定できません。エラーは、<code>tsc --pretty false</code> と同じ形で
+	1 行に 1 つずつ表示します。
 </p>
 
 <p>
-	型検査には、プロジェクトの <code>node_modules</code> にある TypeScript 7 の型検査器を使います。次のどれかをインストールしてください。
+	読むのは現在のディレクトリの <code>tsconfig.json</code> です。設定ファイルに
+	<code>typescript.check</code> があるときは、設定ファイルと同じディレクトリのものを読みます。
+</p>
+
+<p>
+	型検査には、プロジェクトの <code>node_modules</code> にある TypeScript 7
+	の型検査器を使います。次のどれかをインストールしてください。プロジェクトには <code>svelte</code> も必要です。
 </p>
 
 <pre><code
-		>{`npm install --save-dev tsrs                         # おすすめ
+		>{`npm install --save-dev tsrs                         # おすすめ（TypeScript 7 の Rust 移植）
 npm install --save-dev typescript                   # 7.1 以降
 npm install --save-dev @typescript/native-preview   # 7.1 以降`}</code
 	></pre>
@@ -118,12 +140,13 @@ npm install --save-dev @typescript/native-preview   # 7.1 以降`}</code
 <h2 id="config">設定</h2>
 
 <p>
-	<code>lint</code> と <code>typecheck</code> は <code>rsvelte.config.json</code> を読みます（<code
-		>.js</code
+	<code>lint</code> と <code>typecheck</code> は、rsvelte の設定ファイル
+	<code>rsvelte.config.json</code>
+	を読みます。<code>.js</code> や <code>.ts</code> の設定ファイルは Node
+	で評価します。現在のディレクトリから親へたどり、最初に見つかったファイルを使います。<code
+		>--config &lt;ファイル&gt;</code
 	>
-	や <code>.ts</code>
-	なども使えます）。現在のディレクトリから親へたどって、最初に見つかったファイルを使います。各プラグインは
-	<code>plugins</code> の下から自分の設定を読みます。
+	でも指定できます。
 </p>
 
 <pre><code
@@ -137,34 +160,39 @@ npm install --save-dev @typescript/native-preview   # 7.1 以降`}</code
 }`}</code
 	></pre>
 
+<p>設定は <code>plugins</code> の下に、処理ごとのキーで書きます。</p>
+
 <table>
 	<thead>
-		<tr><th>プラグイン</th><th>設定</th></tr>
+		<tr><th>キー</th><th>主な設定</th></tr>
 	</thead>
 	<tbody>
 		<tr>
 			<td><code>svelte.lint</code></td>
 			<td>
-				Svelte ファイルのルール（<code>rules</code>）と、宣言済みのグローバル変数（<code
+				<code>@typescript-eslint/no-unused-vars</code> 以外の全ルール（<code>rules</code>）。ESLint
+				と同じく、ルールにオプションを渡せます。宣言済みのグローバル変数（<code
 					>languageOptions.globals</code
 				>）
 			</td>
 		</tr>
-		<tr
-			><td><code>typescript.lint</code></td><td
-				>TypeScript と JavaScript のファイルのルール（<code>rules</code>）</td
-			></tr
-		>
-		<tr
-			><td><code>typescript.check</code></td><td
-				>型検査器のコマンド（<code>command</code>）と <code>tsconfig</code></td
-			></tr
-		>
+		<tr>
+			<td><code>typescript.lint</code></td>
+			<td><code>@typescript-eslint/no-unused-vars</code>（<code>rules</code>）</td>
+		</tr>
+		<tr>
+			<td><code>typescript.check</code></td>
+			<td>型検査器のコマンド（<code>command</code>）と <code>tsconfig</code></td>
+		</tr>
 	</tbody>
 </table>
 
 <p>
-	<code>rules</code> を書くと、既定のルールは使われず、書いたルールだけが動きます。設定の中のパスは、設定ファイルのディレクトリから数えます。
+	<code>rules</code>
+	を書くと、既定のルールは使われず、書いたルールだけが動きます。設定の中のパスは、設定ファイルのディレクトリから数えます。知らないキーはエラーになります。全項目は<a
+		href="https://github.com/baseballyama/rsvelte/blob/main/crates/hosts/configuration_loading/README.md"
+		>設定の説明</a
+	>（英語）にあります。
 </p>
 
 <h2 id="exit">終了コード</h2>
@@ -176,7 +204,7 @@ npm install --save-dev @typescript/native-preview   # 7.1 以降`}</code
 	<tbody>
 		<tr>
 			<td><code>lint</code>、<code>typecheck</code></td>
-			<td>エラーを見つけた</td>
+			<td>エラーを見つけた（警告だけなら 0）</td>
 			<td>実行できなかった</td>
 		</tr>
 		<tr>
@@ -191,8 +219,12 @@ npm install --save-dev @typescript/native-preview   # 7.1 以降`}</code
 
 <p>
 	<a href="https://www.npmjs.com/package/@rsvelte/eslint-plugin">@rsvelte/eslint-plugin</a>
-	は、rsvelte が実装したルールを ESLint で無効にします。同じ問題が二重に報告されなくなります。
+	は、rsvelte が実装したルールを ESLint で無効にします。同じ問題が二重に報告されなくなります。<code
+		>@rsvelte/cli</code
+	> と同じバージョンを使ってください。
 </p>
+
+<pre><code>npm install --save-dev @rsvelte/eslint-plugin</code></pre>
 
 <pre><code
 		>{`// eslint.config.js
@@ -201,9 +233,18 @@ import rsvelte from '@rsvelte/eslint-plugin';
 
 export default [
   ...svelte.configs.recommended,
-  ...rsvelte.configs['flat/recommended'], // 最後に置く
+  ...rsvelte.configs['flat/all'], // 最後に置く
 ];`}</code
 	></pre>
+
+<p>
+	<code>flat/all</code> は開発中（<code>nursery</code>）以外の全ルールを、<code
+		>flat/recommended</code
+	>
+	は <code>correctness</code> のルールだけを無効にします。rsvelte
+	の設定とは関係なく無効にするので、同じルールを
+	<code>rsvelte.config.json</code> で有効にしてください。
+</p>
 
 <p>スクリプトでは rsvelte を先に動かします：<code>"lint": "rsvelte lint && eslint"</code></p>
 
@@ -223,7 +264,10 @@ export default [
 </ul>
 
 <ul>
-	<li><code>typecheck</code> はレガシーモードのコンポーネントで正しい結果を出しません。</li>
+	<li>
+		<code>typecheck</code> はレガシーモードのコンポーネントで正しい結果を出しません。JavaScript のコンポーネントでは、エラーを
+		1 つも報告しないこともあります。
+	</li>
 	<li>
 		<code>lint</code> と <code>format</code> は読めますが、結果が公式ツールと異なる場合があります。
 	</li>

@@ -7,10 +7,10 @@
 	let { children } = $props();
 
 	const links = [
-		{ href: resolve('/guide'), label: '使い方' },
-		{ href: resolve('/rules'), label: 'ルール' },
-		{ href: resolve('/playground'), label: 'プレイグラウンド' },
-		{ href: resolve('/architecture'), label: '仕組み' },
+		{ route: '/guide', href: resolve('/guide'), label: '使い方' },
+		{ route: '/rules', href: resolve('/rules'), label: 'ルール' },
+		{ route: '/playground', href: resolve('/playground'), label: 'プレイグラウンド' },
+		{ route: '/architecture', href: resolve('/architecture'), label: '仕組み' },
 	];
 </script>
 
@@ -18,7 +18,7 @@
 	<a class="home" href={resolve('/')}><Logo /> rsvelte</a>
 	<nav>
 		{#each links as link (link.href)}
-			<a href={link.href} aria-current={page.url.pathname === link.href ? 'page' : undefined}>
+			<a href={link.href} aria-current={page.route.id === link.route ? 'page' : undefined}>
 				{link.label}
 			</a>
 		{/each}

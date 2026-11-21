@@ -15,10 +15,10 @@ export type Step = {
 export type Result = { ok: true; steps: Step[] } | { ok: false; message: string };
 
 export const operations = [
+	{ id: 'lint', label: 'コード検査' },
+	{ id: 'format', label: '整形' },
 	{ id: 'compile-client', label: 'クライアント向けコンパイル' },
 	{ id: 'compile-server', label: 'サーバー向けコンパイル' },
-	{ id: 'format', label: '整形' },
-	{ id: 'lint', label: 'コード検査' },
 ] as const;
 export type Operation = (typeof operations)[number]['id'];
 
@@ -33,12 +33,13 @@ export const example = `<script>
 `;
 
 /** One problem, from a diagnostic or from a finding in a lint task's `lint.json`. */
-type Problem = { line: number; column: number; rule: string; message: string };
+type Problem = { line: number; column: number; rule: string | null; message: string };
 /** What a step shows: the files it wrote and the problems it found. */
 export type View = { files: { name: string; text: string }[]; problems: Problem[] };
 
 type LintFile = {
-	findings: { rule: string; message: string; start: { line: number; column: number } }[];
+	// A finding of no rule is a parse error or an unused directive comment.
+	findings: { rule: string | null; message: string; start: { line: number; column: number } }[];
 };
 
 export function view(step: Step): View {
@@ -61,18 +62,16 @@ export function view(step: Step): View {
 	return { files, problems };
 }
 
-type Run = (
-	source: string,
-	filename: string,
-	plugins: string,
-	tasks: string,
-	shared: boolean,
-) => string;
-
 /** Loads the WebAssembly build; call it in the browser only. */
 export async function load(): Promise<(source: string, operation: Operation) => Result> {
 	const wasm = await import('#generated/wasm/rsvelte_browser.js');
 	await wasm.default();
-	const run: Run = wasm.runPipeline;
-	return (source, operation) => JSON.parse(run(source, 'App.svelte', 'svelte', operation, true));
+	return (source, operation) => {
+		try {
+			return JSON.parse(wasm.runPipeline(source, 'App.svelte', 'svelte', operation, true));
+		} catch (error) {
+			// A panic traps the WebAssembly instance, which may not run correctly again.
+			return { ok: false, message: `${String(error)}（ページを再読み込みしてください）` };
+		}
+	};
 }

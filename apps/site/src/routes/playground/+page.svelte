@@ -3,7 +3,9 @@
 	import { example, load, operations, view, type Operation, type Result } from '#lib/playground.ts';
 
 	let source = $state(example);
-	let operation: Operation = $state('compile-client');
+	// Runs after typing pauses, so a fast typist does not wait for each keystroke's run.
+	let settled = $state(example);
+	let operation: Operation = $state('lint');
 	let run: ((source: string, operation: Operation) => Result) | undefined = $state();
 	let failure = $state('');
 
@@ -14,7 +16,13 @@
 		);
 	});
 
-	const result = $derived(run?.(source, operation));
+	$effect(() => {
+		const next = source;
+		const timer = setTimeout(() => (settled = next), 150);
+		return () => clearTimeout(timer);
+	});
+
+	const result = $derived(run?.(settled, operation));
 </script>
 
 <svelte:head>
@@ -24,8 +32,9 @@
 <h1>プレイグラウンド</h1>
 
 <p>
-	Svelte コンポーネントを書くと、rsvelte の結果がすぐに表示されます。WebAssembly にビルドした
-	rsvelte がブラウザの中で動きます。型検査は TypeScript の型検査器が要るため、ここでは動きません。
+	Svelte
+	コンポーネントを書くと、コード検査、整形、コンパイルの結果がすぐに表示されます。コンパイルは、まだ
+	<code>rsvelte</code> コマンドにはありません。型検査はブラウザでは動きません。
 </p>
 
 <div class="operations" role="radiogroup" aria-label="処理">
@@ -56,6 +65,7 @@
 					</p>
 				{/each}
 				{#each shown.files as file (file.name)}
+					{#if shown.files.length > 1}<p class="muted">{file.name}</p>{/if}
 					<pre>{file.text}</pre>
 				{/each}
 				{#if operation === 'lint' && shown.problems.length === 0}
