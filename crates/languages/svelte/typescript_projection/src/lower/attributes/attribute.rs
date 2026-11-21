@@ -1,9 +1,10 @@
 //! An attribute as the property svelte2tsx writes for it.
 
 use oxc_span::GetSpan;
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+use rsvelte_kernel::source::characters::trim_ecmascript;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part};
+use rsvelte_typescript_semantic::number::string_to_number;
 
 use super::super::{Builder, Node, NodeIdentifier, SourceExpression};
 use crate::syntax_tree::Spelling;
@@ -128,37 +129,7 @@ fn is_number_only(name: &str) -> bool {
 
 /// JavaScript's `!isNaN(text)`, except for blank text, which svelte2tsx would print as nothing.
 fn is_number(text: &str) -> bool {
-    let text = text.trim_matches(is_ecmascript_whitespace);
-    if text.is_empty() {
-        return false;
-    }
-    let radix = |prefix: [&str; 2], digit: fn(&u8) -> bool| {
-        prefix
-            .iter()
-            .find_map(|p| text.strip_prefix(p))
-            .is_some_and(|digits| !digits.is_empty() && digits.as_bytes().iter().all(digit))
-    };
-    if radix(["0x", "0X"], u8::is_ascii_hexdigit)
-        || radix(["0o", "0O"], |b| (b'0'..=b'7').contains(b))
-        || radix(["0b", "0B"], |b| matches!(b, b'0' | b'1'))
-    {
-        return true;
-    }
-    let unsigned = text.strip_prefix(['+', '-']).unwrap_or(text);
-    if unsigned == "Infinity" {
-        return true;
-    }
-    let (mantissa, exponent) = unsigned
-        .split_once(['e', 'E'])
-        .map_or((unsigned, None), |(m, e)| (m, Some(e)));
-    let (whole, fraction) = mantissa.split_once('.').unwrap_or((mantissa, ""));
-    let digits = |s: &str| s.bytes().all(|b| b.is_ascii_digit());
-    let mantissa = (!whole.is_empty() || !fraction.is_empty()) && digits(whole) && digits(fraction);
-    let exponent = exponent.is_none_or(|e| {
-        let e = e.strip_prefix(['+', '-']).unwrap_or(e);
-        !e.is_empty() && digits(e)
-    });
-    mantissa && exponent
+    !trim_ecmascript(text).is_empty() && !string_to_number(text).is_nan()
 }
 
 impl Builder<'_> {

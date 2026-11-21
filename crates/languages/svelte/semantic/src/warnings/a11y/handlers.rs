@@ -1,7 +1,9 @@
 //! The checks of an element's event handlers and of its role as a whole.
 
+use rsvelte_typescript_semantic::number::string_to_number;
+
 use super::roles::{Role, implicit_role};
-use super::values::{list, number};
+use super::values::list;
 use super::{Element, Interactivity, Static, tables};
 
 impl Element<'_, '_> {
@@ -35,7 +37,7 @@ impl Element<'_, '_> {
         let interactive_role = static_role.as_ref().is_some_and(Role::is_interactive);
         if !self.dynamic && !interactive && !interactive_role && a.has("tabindex") {
             let value = a.text("tabindex");
-            if value.is_none_or(|v| number(&v) >= 0.0) {
+            if value.is_none_or(|v| string_to_number(&v) >= 0.0) {
                 self.warn(
                     "a11y_no_noninteractive_tabindex",
                     "noninteractive element cannot have nonnegative tabIndex value",

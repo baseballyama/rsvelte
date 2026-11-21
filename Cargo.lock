@@ -1893,6 +1893,7 @@ dependencies = [
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
  "rsvelte_typescript_content_mapper",
+ "rsvelte_typescript_semantic",
  "rsvelte_typescript_tree",
 ]
 
