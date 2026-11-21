@@ -3,7 +3,6 @@ use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_tree::document_span;
 
-use super::shared::runes::meets_runes_condition;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -18,7 +17,7 @@ struct NoInspect;
 
 impl SvelteRule for NoInspect {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        if !meets_runes_condition(file) {
+        if file.runes() != Some(true) {
             return;
         }
         // Every identifier, as the token `$inspect`: one in a type annotation names it too.

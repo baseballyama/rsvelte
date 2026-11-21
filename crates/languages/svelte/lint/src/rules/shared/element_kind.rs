@@ -1,3 +1,4 @@
+use rsvelte_svelte_syntax::names::is_component_name;
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 
 /// `svelte-eslint-parser`'s element kinds.
@@ -11,15 +12,14 @@ pub(crate) enum ElementKind {
 
 /// The kind of an element; `None` for other nodes.
 pub(crate) fn element_kind(node: &TemplateNode, source: &str) -> Option<ElementKind> {
-    let TemplateNode::Element {
-        name, component, ..
-    } = node
-    else {
+    let TemplateNode::Element { name, .. } = node else {
         return None;
     };
-    Some(if !component.is_none() {
+    let name = name.text(source);
+    // By name, not by the parsed reference: Svelte calls `<Foo.>` a component, and it has none.
+    Some(if is_component_name(name) {
         ElementKind::Component
-    } else if name.text(source).starts_with("svelte:") {
+    } else if name.starts_with("svelte:") {
         ElementKind::Special
     } else {
         ElementKind::Markup
@@ -35,13 +35,4 @@ pub(crate) fn is_markup_like(node: &TemplateNode, source: &str) -> bool {
         }
         _ => false,
     }
-}
-
-/// Whether an element named `name` is an HTML element, `<svelte:element>` included, rather than a
-/// component or another special element.
-pub(crate) fn is_markup_element(name: &str) -> bool {
-    name == "svelte:element"
-        || !(name.starts_with("svelte:")
-            || name.contains('.')
-            || name.starts_with(|c: char| c.is_ascii_uppercase()))
 }
