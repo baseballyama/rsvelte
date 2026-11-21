@@ -15,8 +15,8 @@
 //! the files of the project they check, as its checker selects them from the tsconfig.
 //! `rsvelte-dev benchmark <dir> [--task <identifier>]... [rounds=N] [json=<file>]` measures the
 //! pipeline (see `commands/benchmark.rs`).
-//! `rsvelte-dev performance <dir>... [--task <identifier>]... [rounds=N] [json=<file>]` prints the
-//! deterministic counters CI ratchets (see `commands/performance.rs`).
+//! `rsvelte-dev performance <dir>... [--task <identifier>]... [rounds=N] [every=N] [json=<file>]`
+//! prints the deterministic counters CI ratchets (see `commands/performance.rs`).
 //!
 //! Each plugin reads its own options: the configuration file's `plugins.<plugin>`, replaced by
 //! `--options <plugin> <json>`, whose relative paths are relative to the current directory. A
