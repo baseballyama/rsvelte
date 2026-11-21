@@ -63,7 +63,7 @@ mise run lint                                     # clippy and rustdoc, every li
 mise run fmt                                      # rustfmt on the pinned nightly
 pnpm install && pnpm run check                    # TypeScript side: oxfmt, oxlint, knip, tsc, the English prose lint
 cargo test -p rsvelte_command_line --test corpus  # compare every corpus unit with the official tools' output
-node tools/oracle/oracle.ts run-all               # write rsvelte's output for every corpus unit to actual/
+node tools/oracle/oracle.ts run-all               # write rsvelte's output for every corpus unit to actual/, one file per output
 node tools/performance/performance.ts ratchet     # the performance gate
 cargo run -p rsvelte_command_line --bin rsvelte-dev -- run App.svelte --task svelte.compile/client
 ```
