@@ -259,7 +259,7 @@ impl Tree {
 
     /// Every program, with its identifier, in the order kept.
     pub fn programs(&self) -> impl ExactSizeIterator<Item = (ProgramIdentifier, &Program<'_>)> {
-        listed(&self.0.borrow_dependent().programs)
+        self.0.borrow_dependent().programs.iter_enumerated()
     }
 
     /// Every expression kept apart from a program, with its identifier, in the order kept.
