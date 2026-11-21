@@ -7,11 +7,11 @@
 
 use std::path::{Component, Path, PathBuf};
 
+use rsvelte_kernel::computation::database::Facet;
 use rsvelte_kernel::computation::file_facts::{FileFact, FileFacts};
 use rsvelte_kernel::computation::registry::Registry;
 
 use crate::SvelteConfig;
-use crate::computation::{SvelteConfiguration, SvelteKit};
 
 mod disk;
 mod package;
@@ -21,6 +21,57 @@ mod tests;
 
 pub(crate) use disk::{PostcssConfigurationOnDisk, SameNamedFileOnDisk};
 use package::Package;
+
+/// The document's `svelte.config.js`, as `svelte-eslint-parser` finds it, or why it cannot be
+/// read. The host loads it ([`register_file_system`] from the files).
+#[derive(Debug)]
+pub struct SvelteConfiguration;
+
+impl Facet for SvelteConfiguration {
+    type Output = Result<SvelteConfig, String>;
+
+    const NAME: &'static str = "svelte.lint.svelte_config";
+}
+
+/// Where the document is in its `SvelteKit` project, as `eslint-plugin-svelte` finds it from the
+/// `package.json` files above it. The host answers it
+/// ([`register_file_system`] from the files).
+#[derive(Debug)]
+pub struct SvelteKit;
+
+impl Facet for SvelteKit {
+    type Output = SvelteKitProject;
+
+    const NAME: &'static str = "svelte.lint.svelte_kit";
+}
+
+/// The on-disk name of the file a component or a runes module shares its name with.
+///
+/// `Foo.svelte` and `Foo.svelte.ts` share one. A host that has its own view of the files can
+/// provide it; without a provider, `SameNamedFileOnDisk` reads the process's file system. Only
+/// `svelte/no-conflicting-module-names` asks.
+#[derive(Debug)]
+pub struct SameNamedFile;
+
+impl Facet for SameNamedFile {
+    type Output = Option<String>;
+
+    const NAME: &'static str = "svelte.lint.same_named_file";
+}
+
+/// Whether upstream finds a `PostCSS` configuration to transform a style in `postcss` with.
+///
+/// Without one it compiles the component without that style. A host that knows its working
+/// directory can provide it; without a provider, `PostcssConfigurationOnDisk` searches as
+/// `postcss-load-config` does. Only the rules that compile the component ask.
+#[derive(Debug)]
+pub struct PostcssConfiguration;
+
+impl Facet for PostcssConfiguration {
+    type Output = bool;
+
+    const NAME: &'static str = "svelte.lint.postcss_configuration";
+}
 
 /// What `eslint-plugin-svelte` knows of the `SvelteKit` project a document is in.
 #[derive(Clone, Debug, PartialEq, Eq)]

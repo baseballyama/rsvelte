@@ -216,7 +216,7 @@ fn without_files_a_document_is_in_a_kit_2_project_by_its_name() {
     use rsvelte_kernel::computation::registry::Registry;
     use rsvelte_kernel::source::document::Document;
 
-    use crate::computation::{SvelteConfiguration, SvelteKit};
+    use crate::project::{SvelteConfiguration, SvelteKit};
 
     let mut registry = Registry::new();
     super::register_without_files(&mut registry);

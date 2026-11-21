@@ -4,6 +4,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TagAttributes;
 use serde::Deserialize;
 
+use super::shared::markup::lang_attribute;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -149,9 +150,7 @@ impl Block {
             reporter.report(report);
         }
         for &(span, attributes) in blocks {
-            let lang = attributes
-                .iter()
-                .find(|(name, _)| name.text(source) == "lang");
+            let lang = lang_attribute(attributes, source);
             let value = lang.map(|(_, value)| value.map_or("", |v| v.text(source)));
             let lower = value.map(str::to_lowercase);
             if self.allowed.contains(&lower) {

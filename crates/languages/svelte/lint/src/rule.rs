@@ -2,11 +2,11 @@
 
 use std::sync::OnceLock;
 
+use oxc_ast::Comment;
 use oxc_semantic::AstNodes;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Contribution;
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::Warned;
 use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
@@ -15,12 +15,10 @@ use rsvelte_svelte_semantic::warnings::CompileWarnings;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_semantic::globals::Declared;
 use rsvelte_typescript_semantic::semantic::Semantic;
-use rsvelte_typescript_tree::{ProgramIdentifier, Script, Tree, document_span};
+use rsvelte_typescript_tree::{ProgramIdentifier, Script, Tree};
 
-use crate::computation::{
-    ConditionTypes, Linted, ModuleSemantic, NativeConditionTypes, SvelteConfiguration, SvelteKit,
-};
-use crate::project::SvelteKitProject;
+use crate::computation::{ConditionTypes, Linted, ModuleSemantic, NativeConditionTypes};
+use crate::project::{SvelteConfiguration, SvelteKit, SvelteKitProject};
 use crate::types::TypeFacts;
 use crate::{LintSettings, SvelteConfig};
 
@@ -81,7 +79,8 @@ pub struct File<'a> {
     pub context: &'a DocumentContext<'a>,
     parsed: Source<'a>,
     configured_globals: &'a Declared,
-    comments: OnceLock<Vec<Span>>,
+    programs: Vec<ProgramIdentifier>,
+    comments: Vec<&'a Comment>,
     /// The configuration's globals as the comments set them, or `None` when no comment sets one.
     globals: OnceLock<Option<Declared>>,
 }
@@ -90,6 +89,26 @@ pub struct File<'a> {
 enum Source<'a> {
     Component(Linted<'a>),
     Module(&'a Script),
+}
+
+impl<'a> Source<'a> {
+    const fn javascript(&self) -> &'a Tree {
+        match *self {
+            Source::Component(linted) => &linted.component.javascript,
+            Source::Module(module) => &module.tree,
+        }
+    }
+
+    fn programs(&self) -> Vec<ProgramIdentifier> {
+        match *self {
+            Source::Component(Linted { component, .. }) => {
+                let mut scripts: Vec<_> = component.scripts().collect();
+                scripts.sort_by_key(|script| script.span.start_offset);
+                scripts.iter().map(|script| script.program).collect()
+            }
+            Source::Module(module) => vec![module.root],
+        }
+    }
 }
 
 impl<'a> File<'a> {
@@ -108,11 +127,20 @@ impl<'a> File<'a> {
         } else {
             Source::Module(crate::computation::module(context).map_err(Clone::clone)?)
         };
+        let programs = parsed.programs();
+        let tree = parsed.javascript();
+        // Every run reads the configuration comments, so the list is never left unused.
+        let mut comments: Vec<_> = (programs.iter())
+            .flat_map(|&program| &tree.get_program(program).comments)
+            .chain(tree.comments())
+            .collect();
+        comments.sort_unstable_by_key(|comment| comment.span.start);
         Ok(Self {
             context,
             parsed,
             configured_globals: globals,
-            comments: OnceLock::new(),
+            programs,
+            comments,
             globals: OnceLock::new(),
         })
     }
@@ -123,7 +151,8 @@ impl<'a> File<'a> {
     pub fn globals(&self) -> &Declared {
         self.globals
             .get_or_init(|| {
-                let settings = crate::global_comments::settings(self.comments(), self.source());
+                let settings =
+                    crate::lint::global_comments::settings(self.comments(), self.source());
                 (!settings.is_empty()).then(|| self.configured_globals.overridden(settings))
             })
             .as_ref()
@@ -133,19 +162,8 @@ impl<'a> File<'a> {
     /// Every JavaScript comment of the document, the scripts' and the template's, in document
     /// order: what `ESLint` reads directive comments from.
     #[must_use]
-    pub fn comments(&self) -> &[Span] {
-        self.comments.get_or_init(|| {
-            let tree = self.javascript();
-            let mut out: Vec<Span> = self
-                .programs()
-                .into_iter()
-                .flat_map(|program| &tree.get_program(program).comments)
-                .chain(tree.comments())
-                .map(|comment| document_span(comment.span))
-                .collect();
-            out.sort_unstable_by_key(|comment| comment.start_offset);
-            out
-        })
+    pub(crate) fn comments(&self) -> &[&'a Comment] {
+        &self.comments
     }
 
     #[must_use]
@@ -228,24 +246,14 @@ impl<'a> File<'a> {
     /// module's program. A node's `node_id` is the analysis's only after [`File::semantic`].
     #[must_use]
     pub const fn javascript(&self) -> &'a Tree {
-        match self.parsed {
-            Source::Component(linted) => &linted.component.javascript,
-            Source::Module(module) => &module.tree,
-        }
+        self.parsed.javascript()
     }
 
     /// The programs of the document in source order: a component's `<script module>` and
     /// `<script>`, or a module's one program.
     #[must_use]
-    pub fn programs(&self) -> Vec<ProgramIdentifier> {
-        match self.parsed {
-            Source::Component(Linted { component, .. }) => {
-                let mut scripts: Vec<_> = component.scripts().collect();
-                scripts.sort_by_key(|script| script.span.start_offset);
-                scripts.iter().map(|script| script.program).collect()
-            }
-            Source::Module(module) => vec![module.root],
-        }
+    pub fn programs(&self) -> &[ProgramIdentifier] {
+        &self.programs
     }
 
     /// Scopes over [`File::javascript`].

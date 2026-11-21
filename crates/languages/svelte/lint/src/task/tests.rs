@@ -5,7 +5,7 @@ use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
 
 use super::{Lint, register_with_configuration};
-use crate::computation::SameNamedFile;
+use crate::project::SameNamedFile;
 use crate::{Configuration, LintSettings};
 
 /// `ESLint` ends a line at a lone CR and at U+2028, so the trailing space after `b` is on line 3.

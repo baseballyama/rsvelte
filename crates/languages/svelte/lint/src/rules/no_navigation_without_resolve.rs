@@ -15,7 +15,8 @@ use rsvelte_typescript_tree::{Tree, node_span};
 use rustc_hash::FxHashMap;
 
 use super::shared::kit_navigation::{
-    Navigation, Options, Script, first_argument, first_part, has_scheme, links, string, template,
+    Navigation, Options, Script, first_argument, first_part, has_scheme, is_empty_url, links,
+    string, template,
 };
 use super::shared::kit_route::runs_for;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
@@ -437,7 +438,7 @@ impl<'a> Check<'_, 'a> {
             _ => {}
         }
         (allow.absolute && is_absolute(node))
-            || (allow.empty && is_empty(node))
+            || (allow.empty && is_empty_url(node))
             || (allow.fragment && self.starts_with(node, "#", visited))
             || (allow.nullish && is_nullish(node))
             || self.is_resolve_call(node, visited)
@@ -539,6 +540,7 @@ impl<'a> Check<'_, 'a> {
     }
 }
 
+// Unlike `no-navigation-without-base`, upstream's rule reads only a `+` as a concatenation.
 fn is_absolute(node: &Expression<'_>) -> bool {
     match node {
         Expression::BinaryExpression(binary) if binary.operator == BinaryOperator::Addition => {
@@ -551,12 +553,6 @@ fn is_absolute(node: &Expression<'_>) -> bool {
         }),
         _ => false,
     }
-}
-
-fn is_empty(node: &Expression<'_>) -> bool {
-    string(node) == Some("")
-        || template(node)
-            .is_some_and(|(quasis, expressions)| expressions.is_empty() && quasis == [""])
 }
 
 /// `undefined` or `null`, as written.

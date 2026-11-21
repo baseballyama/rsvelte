@@ -9,7 +9,8 @@ use rsvelte_typescript_tree::node_span;
 use rustc_hash::FxHashSet;
 
 use super::shared::element_kind::is_markup_element;
-use super::shared::legacy_reactivity::{Variable, expression_node, legacy, property_name};
+use super::shared::legacy_reactivity::{Variable, legacy};
+use super::shared::nodes::property_name;
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -85,7 +86,7 @@ impl SvelteRule for NoDomManipulating {
                 AstKind::ComputedMemberExpression(member) => &member.object,
                 _ => continue,
             };
-            if expression_node(object) != identifier {
+            if object.node_id() != identifier {
                 continue;
             }
             let computed;
@@ -113,7 +114,7 @@ impl SvelteRule for NoDomManipulating {
             }
             let manipulates = match nodes.kind(parent) {
                 AstKind::CallExpression(call) => {
-                    expression_node(&call.callee) == callee && METHODS.contains(&name)
+                    call.callee.node_id() == callee && METHODS.contains(&name)
                 }
                 AstKind::AssignmentExpression(assignment) => {
                     assignment.left.span() == member_kind.span() && PROPERTIES.contains(&name)
@@ -161,7 +162,7 @@ fn bound_this(file: &File<'_>) -> FxHashSet<NodeId> {
                 && let expression = javascript.get_expression(*expression)
                 && matches!(expression, Expression::Identifier(_))
             {
-                bound.insert(expression_node(expression));
+                bound.insert(expression.node_id());
             }
         }
     }

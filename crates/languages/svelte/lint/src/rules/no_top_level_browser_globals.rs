@@ -70,9 +70,8 @@ impl SvelteRule for NoTopLevelBrowserGlobals {
         for reference in std::mem::take(&mut found) {
             available.extend(guards.checker(reference.node, true).map(Available::browser));
         }
-        let programs = file.programs();
         for (module, export) in ENVIRONMENT_MODULES {
-            for reference in import_references(semantic, &programs, module, &[export]) {
+            for reference in import_references(semantic, file.programs(), module, &[export]) {
                 if matches!(
                     guards.nodes.kind(reference.node),
                     AstKind::IdentifierReference(_)

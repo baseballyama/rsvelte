@@ -57,7 +57,7 @@ pub struct KitFiles {
 ///
 /// It is what `svelte-eslint-parser` takes from its `svelteConfig` option or, without one, from
 /// the nearest file above the document. A project can have several, so the host answers it per
-/// document ([`crate::computation::SvelteConfiguration`]).
+/// document ([`crate::project::SvelteConfiguration`]).
 #[derive(Clone, Debug, Default)]
 pub struct SvelteConfig {
     /// `compilerOptions.runes` when it is static; `<svelte:options runes>` wins over it.
