@@ -59,7 +59,7 @@ pub trait Definition: Sync + 'static {
 
 /// Rules a plugin adds. Each rule's name is `<prefix>/<rule>`.
 #[derive(Debug)]
-pub struct Plugin<D: 'static> {
+pub struct RulePlugin<D: 'static> {
     /// Not the linter's own prefix, and no other plugin's.
     pub prefix: &'static str,
     pub rules: &'static [&'static D],
@@ -77,7 +77,10 @@ pub fn is_prefix(prefix: &str) -> bool {
 /// # Errors
 ///
 /// A plugin's prefix or rule name breaks that, or two plugins share a prefix.
-pub fn check_plugins<D: Definition>(reserved: &str, plugins: &[&Plugin<D>]) -> Result<(), String> {
+pub fn check_plugins<D: Definition>(
+    reserved: &str,
+    plugins: &[&RulePlugin<D>],
+) -> Result<(), String> {
     for (i, plugin) in plugins.iter().enumerate() {
         if !is_prefix(plugin.prefix) || plugin.prefix == reserved {
             return Err(format!(
@@ -113,7 +116,7 @@ pub fn check_plugins<D: Definition>(reserved: &str, plugins: &[&Plugin<D>]) -> R
 #[must_use]
 pub fn find<D: Definition>(
     built_in: &[&'static D],
-    plugins: &[&Plugin<D>],
+    plugins: &[&RulePlugin<D>],
     name: &str,
 ) -> Option<&'static D> {
     built_in
