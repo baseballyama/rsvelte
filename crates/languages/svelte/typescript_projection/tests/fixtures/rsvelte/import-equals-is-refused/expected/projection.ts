@@ -13,8 +13,8 @@ function $$render() {
       y;
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
 }
 const ImportEqualsIsRefused__SvelteComponent_ = $$render();
-type ImportEqualsIsRefused__SvelteComponent_ = ReturnType<typeof ImportEqualsIsRefused__SvelteComponent_>;
+type ImportEqualsIsRefused__SvelteComponent_ = InstanceType<typeof ImportEqualsIsRefused__SvelteComponent_>;
 export default ImportEqualsIsRefused__SvelteComponent_;

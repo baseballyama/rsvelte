@@ -38,19 +38,25 @@ impl Printer<'_> {
         self.output.push(" */\n");
     }
 
-    /// The default export, which JavaScript cannot name as a type; an import of the component may
-    /// read it as `any`, as the run declares.
-    pub(super) fn javascript_export(&mut self, value: NodeIdentifier) {
-        self.output.push("const ");
+    /// svelte2tsx's default export in `JSDoc`, whose `@typedef` merges with the constant because
+    /// the constant is exported; an import of the component may read it as `any`, as the run
+    /// declares.
+    pub(super) fn javascript_export(&mut self, component: NodeIdentifier, instance: &str) {
+        self.output.push("export const ");
         self.push_default_export();
-        self.output.push(" = ");
-        self.node(value);
-        self.output
-            .push(";\nexport default /** @type {__rsvelte_javascript_export<typeof ");
+        self.output.push(
+            " = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ (",
+        );
+        self.node(component);
+        for part in [");\n/** @typedef {", instance, "<typeof "] {
+            self.output.push(part);
+        }
         self.push_default_export();
-        self.output.push(">} */ (");
+        self.output.push(">} ");
         self.push_default_export();
-        self.output.push(");\n");
+        self.output.push(" */\nexport default ");
+        self.push_default_export();
+        self.output.push(";\n");
     }
 
     fn in_type(&mut self, print: impl FnOnce(&mut Self)) {

@@ -33,7 +33,8 @@ function $$render() {
       focused ? 'typing' : 'idle';
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_component))();
 }
-const AttachInput__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof AttachInput__SvelteComponent_>} */ (AttachInput__SvelteComponent_);
+export const AttachInput__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof AttachInput__SvelteComponent_>} AttachInput__SvelteComponent_ */
+export default AttachInput__SvelteComponent_;

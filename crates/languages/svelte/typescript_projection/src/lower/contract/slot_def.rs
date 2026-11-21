@@ -15,24 +15,9 @@ use super::super::{Builder, Node, NodeIdentifier, Span};
 type Slot<'a> = (&'a str, NodeIdentifier, Vec<(&'a str, NodeIdentifier)>);
 
 impl<'s> Builder<'s> {
-    /// `component` with the slots each lowered `<slot>` gives, when its contract leaves them to
-    /// its `<slot>` elements.
-    pub(in crate::lower) fn with_slot_def(&mut self, component: NodeIdentifier) -> NodeIdentifier {
-        let elements = std::mem::take(&mut self.slot_elements);
-        if !self.slots_by_elements || elements.is_empty() {
-            return component;
-        }
-        let Some(slots) = self.slot_def(elements) else {
-            return component;
-        };
-        let callee = self.tree.push(Node::Identifier("__rsvelte_with_slots"));
-        let arguments = self.tree.list(&[component, slots]);
-        self.tree.push(Node::Call { callee, arguments })
-    }
-
     /// The object of each slot's properties, from the attributes of each `<slot>`, or `None`
     /// when svelte2tsx would print one as something other than an object literal.
-    fn slot_def(&mut self, mut elements: Vec<Range>) -> Option<NodeIdentifier> {
+    pub(super) fn slot_def(&mut self, mut elements: Vec<Range>) -> Option<NodeIdentifier> {
         // Root snippets lower first; svelte2tsx reads the slots in source order. An empty list
         // starts where the next element's does, and comes before it.
         elements.sort_unstable_by_key(|range| (range.start, range.len));

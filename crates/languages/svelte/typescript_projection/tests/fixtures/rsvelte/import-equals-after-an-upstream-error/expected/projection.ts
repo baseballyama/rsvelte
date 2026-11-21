@@ -13,7 +13,7 @@ async function $$render() {
       y;
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<globalThis.Record<string, never>, {}, "">();
 }
 const ImportEqualsAfterAnUpstreamError__SvelteComponent_ = await ($$render());
 type ImportEqualsAfterAnUpstreamError__SvelteComponent_ = ReturnType<typeof ImportEqualsAfterAnUpstreamError__SvelteComponent_>;

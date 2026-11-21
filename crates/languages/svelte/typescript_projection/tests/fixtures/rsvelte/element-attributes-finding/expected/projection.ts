@@ -29,8 +29,8 @@ function $$render() {
       });
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
 }
 const ElementAttributesFinding__SvelteComponent_ = $$render();
-type ElementAttributesFinding__SvelteComponent_ = ReturnType<typeof ElementAttributesFinding__SvelteComponent_>;
+type ElementAttributesFinding__SvelteComponent_ = InstanceType<typeof ElementAttributesFinding__SvelteComponent_>;
 export default ElementAttributesFinding__SvelteComponent_;

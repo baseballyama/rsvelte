@@ -11,8 +11,8 @@ function $$render() {
     a, a;
     function () {};
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
 }
 const MustacheStatements__SvelteComponent_ = $$render();
-type MustacheStatements__SvelteComponent_ = ReturnType<typeof MustacheStatements__SvelteComponent_>;
+type MustacheStatements__SvelteComponent_ = InstanceType<typeof MustacheStatements__SvelteComponent_>;
 export default MustacheStatements__SvelteComponent_;

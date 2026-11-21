@@ -1,9 +1,10 @@
+use mode::ComponentMode;
 use oxc_ast::ast::{
     BindingPattern, Declaration, Expression, PropertyKey, Statement, VariableDeclaration,
     VariableDeclarationKind,
 };
 use oxc_span::GetSpan;
-use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, Script, TemplateNode};
+use rsvelte_svelte_syntax::syntax_tree::Script;
 use rsvelte_typescript_tree::document_span;
 
 use super::nested::Nested;
@@ -25,9 +26,28 @@ impl Edit {
     }
 }
 
+/// A name the instance exports, and the type of its value.
+#[derive(Clone, Copy)]
+struct Export {
+    name: NodeIdentifier,
+    value: NodeIdentifier,
+}
+
+/// What the render function returns but its slots, which the template's `<slot>` elements type.
+#[derive(Clone, Copy)]
+pub(super) struct Contract {
+    props: NodeIdentifier,
+    exports: NodeIdentifier,
+    bindings: NodeIdentifier,
+    mode: ComponentMode,
+    /// Whether the instance declares `$$Events`.
+    events: bool,
+    generic: bool,
+}
+
 impl Builder<'_> {
-    /// The scripts, then the contract's value and the render function's generics.
-    pub(super) fn scripts(&mut self) -> Result<(NodeIdentifier, Generics)> {
+    /// The scripts, then the contract and the render function's generics.
+    pub(super) fn scripts(&mut self) -> Result<(Contract, Generics)> {
         self.module_declarations()?;
         let (mut edits, render_start) = self.module_and_store_edits();
         let mut bindings = Buffer::new(0);
@@ -95,101 +115,52 @@ impl Builder<'_> {
             self.script_parts(script, &edits);
             self.scratch[generated_start..].rotate_right(1);
         }
-        let runes = props.is_some() || self.runes_mode(generics.asynchronous);
-        let props = props.unwrap_or_else(|| self.props_without_rune(&exports, runes));
-        let props = if self.has_default_slot() {
-            let callee = self
-                .tree
-                .push(Node::Identifier("__rsvelte_props_with_children"));
-            let arguments = self.tree.list(&[props]);
-            self.tree.push(Node::TypeArguments { callee, arguments })
-        } else {
-            props
-        };
-        let exports = self.tree.list(&exports);
-        let exports = self.tree.push(Node::TypeLiteral(exports));
-        // Outside runes mode svelte2tsx's `bindings: ""` widens to `string`, so any prop binds.
-        let bindings = if !runes {
-            self.tree.push(Node::Identifier("string"))
-        } else if bindings.is_empty() {
-            self.tree.push(Node::StringLiteral(""))
-        } else {
-            let parts = self.tree.list(&bindings);
-            self.tree.push(Node::TypeUnion(parts))
-        };
-        let value = self.export(generics.is_generic(), events, [props, exports, bindings]);
-        generics.start = generated_start;
-        Ok((value, generics))
-    }
-
-    /// The component the render function returns, typed by its contract's `parts`: its props,
-    /// exports and bindings, and its `$$Events` and `$$Slots` when it declares them.
-    fn export(
-        &mut self,
-        generic: bool,
-        events: bool,
-        parts: [NodeIdentifier; 3],
-    ) -> NodeIdentifier {
-        let slots = self.declares_slots();
-        let typed = !generic && (events || slots);
-        let helper = self.tree.push(Node::Identifier(match (generic, typed) {
-            (true, _) => "__rsvelte_export_generic",
-            (false, true) => "__rsvelte_export_typed",
-            (false, false) => "__rsvelte_export_component",
-        }));
-        let arguments = if typed {
-            let events = self.tree.push(Node::Identifier(if events {
-                "$$Events"
-            } else {
-                "{ [event: string]: CustomEvent<any> }"
-            }));
-            let slots = (self.tree).push(Node::Identifier(if slots { "$$Slots" } else { "any" }));
-            self.tree
-                .list(&[parts[0], parts[1], parts[2], events, slots])
-        } else {
-            self.tree.list(&parts)
-        };
-        let callee = self.tree.push(Node::TypeArguments {
-            callee: helper,
-            arguments,
-        });
-        // Without `$$Slots` or `$$Events`, svelte2tsx types the slots by each `<slot>`.
-        self.slots_by_elements = !generic && !typed;
-        self.tree.push(Node::Call {
-            callee,
-            arguments: Range::default(),
-        })
-    }
-
-    /// svelte2tsx's `slots` has a `default` key: a `<slot>` without a `name`, or named `default`.
-    fn has_default_slot(&self) -> bool {
-        self.component.nodes.iter().any(|node| match *node {
-            TemplateNode::Element {
-                name,
-                component: None,
-                attributes,
-                ..
-            } if name.text(self.source) == "slot" => {
-                let named = self
-                    .component
-                    .attributes(attributes)
-                    .iter()
-                    .find(|a| a.name.text(self.source) == "name");
-                named.is_none_or(|a| {
-                    matches!(a.value, AttributeValue::Parts(parts)
-                        if matches!(self.component.parts(parts).first(),
-                            Some(Part::Text(text)) if text.text(self.source) == "default"))
-                })
+        let mode = self.component_mode(props.is_some(), generics.asynchronous);
+        let props = props.unwrap_or_else(|| self.props_without_rune(&exports, mode));
+        let exports = self.export_type(&exports, false);
+        let bindings = match mode {
+            // Outside runes mode svelte2tsx's `bindings: ""` widens to `string`, so any prop
+            // binds.
+            ComponentMode::Legacy => self.tree.push(Node::Identifier("string")),
+            ComponentMode::Runes if bindings.is_empty() => self.tree.push(Node::StringLiteral("")),
+            ComponentMode::Runes => {
+                let parts = self.tree.list(&bindings);
+                self.tree.push(Node::TypeUnion(parts))
             }
-            _ => false,
-        })
+        };
+        generics.start = generated_start;
+        let contract = Contract {
+            props,
+            exports,
+            bindings,
+            mode,
+            events,
+            generic: generics.is_generic(),
+        };
+        Ok((contract, generics))
+    }
+
+    /// `{ name: value; … }` of `exports`, each property optional when `optional`.
+    fn export_type(&mut self, exports: &[Export], optional: bool) -> NodeIdentifier {
+        let properties: Vec<NodeIdentifier> = exports
+            .iter()
+            .map(|&Export { name, value }| {
+                self.tree.push(Node::TypeProperty {
+                    name,
+                    value,
+                    optional,
+                })
+            })
+            .collect();
+        let properties = self.tree.list(&properties);
+        self.tree.push(Node::TypeLiteral(properties))
     }
 
     /// The variable declaration `statement` is or exports, after recording what it exports.
     fn instance_export<'s>(
         &mut self,
         statement: &'s Statement<'s>,
-        exports: &mut Buffer<NodeIdentifier>,
+        exports: &mut Buffer<Export>,
         edits: &mut Buffer<Edit>,
     ) -> Result<Option<&'s VariableDeclaration<'s>>> {
         let export = match statement {
@@ -210,7 +181,7 @@ impl Builder<'_> {
                     let local = self.source(specifier.local.span(), None);
                     let name = self.source(specifier.exported.span(), None);
                     let value = self.tree.push(Node::TypeQuery(local));
-                    exports.push(self.tree.push(Node::TypeProperty { name, value }));
+                    exports.push(Export { name, value });
                 }
                 edits.push(Edit {
                     span: document_span(named.span),
@@ -278,7 +249,7 @@ impl Builder<'_> {
     fn export_pattern(
         &mut self,
         pattern: &BindingPattern<'_>,
-        exports: &mut Buffer<NodeIdentifier>,
+        exports: &mut Buffer<Export>,
     ) -> Result<()> {
         match pattern {
             BindingPattern::BindingIdentifier(identifier) => {
@@ -307,10 +278,10 @@ impl Builder<'_> {
         Ok(())
     }
 
-    fn export_property(&mut self, name: oxc_span::Span, exports: &mut Buffer<NodeIdentifier>) {
+    fn export_property(&mut self, name: oxc_span::Span, exports: &mut Buffer<Export>) {
         let name = self.source(name, None);
         let value = self.tree.push(Node::TypeQuery(name));
-        exports.push(self.tree.push(Node::TypeProperty { name, value }));
+        exports.push(Export { name, value });
     }
 
     fn props(
@@ -519,8 +490,9 @@ impl Builder<'_> {
     }
 }
 
+mod component;
 mod events;
-mod legacy;
+mod mode;
 mod props_alias;
 pub(super) use props_alias::PropsAnnotation;
 mod route;

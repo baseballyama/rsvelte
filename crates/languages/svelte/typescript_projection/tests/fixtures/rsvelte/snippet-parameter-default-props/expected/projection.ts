@@ -22,5 +22,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }
-const SnippetParameterDefaultProps__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof SnippetParameterDefaultProps__SvelteComponent_>} */ (SnippetParameterDefaultProps__SvelteComponent_);
+export const SnippetParameterDefaultProps__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof SnippetParameterDefaultProps__SvelteComponent_>} SnippetParameterDefaultProps__SvelteComponent_ */
+export default SnippetParameterDefaultProps__SvelteComponent_;
