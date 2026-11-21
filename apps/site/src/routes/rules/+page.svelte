@@ -30,12 +30,18 @@
 	のルールを移植したものです。<code>$:</code> などレガシー構文向けのルールも含みます。
 </p>
 
+<p>設定がなくても動くのは、次の 3 つです。</p>
+
+<ul class="inline">
+	<li><code>no-unused-vars</code></li>
+	<li><code>svelte/button-has-type</code></li>
+	<li><code>@typescript-eslint/no-unused-vars</code></li>
+</ul>
+
 <p>
-	<a href={resolve('/guide') + '#lint'}>既定で動く 3 つ</a>のほかは、<code>rsvelte.config.json</code
-	>
-	で有効にします（<a href={resolve('/guide') + '#config'}>設定</a>）。<code
-		>@typescript-eslint/no-unused-vars</code
-	>
+	ほかのルールは <code>rsvelte.config.json</code> で有効にします（<a
+		href={resolve('/guide') + '#config'}>設定</a
+	>）。<code>@typescript-eslint/no-unused-vars</code>
 	は <code>typescript.lint</code>
 	に、ほかのルールは
 	<code>svelte.lint</code> に書きます。

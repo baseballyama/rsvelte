@@ -266,8 +266,9 @@ export default [
 	<code>flat/recommended</code> は
 	<a href={resolve('/rules') + '#correctness'}><code>correctness</code></a
 	>（誤りや無意味なコード）に分類されたルールを ESLint で無効にします。<code>flat/all</code>
-	は、開発中（<code>nursery</code>）以外の全ルールを無効にします。rsvelte
-	で動いていないルールは、どちらでも動かなくなります。使いたいルールは
+	は、開発中（<code>nursery</code>）以外の全ルールを無効にします。ESLint
+	で無効にしたルールのうち、rsvelte
+	でも有効にしていないものは、どこでも検査されなくなります。使いたいルールは
 	<code>rsvelte.config.json</code> の <code>rules</code> に書いてください。
 </p>
 
