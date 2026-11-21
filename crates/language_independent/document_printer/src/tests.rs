@@ -29,7 +29,7 @@ fn print(
     options: CoreFormatOptions,
 ) -> String {
     let allocator = Allocator::default();
-    Embedding::new(&allocator, options)
+    Embedding::new(&allocator, options, None)
         .print(d, root, 0)
         .expect("oxc's printer takes the document")
 }

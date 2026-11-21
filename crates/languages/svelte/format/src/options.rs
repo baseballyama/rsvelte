@@ -3,7 +3,9 @@
 //!
 //! Prettier's own plumbing (`parser`,
 //! `plugins`, `filepath`, `cursorOffset`), the other languages' options (`vueIndentScriptAndStyle`,
-//! the Pug plugin's `pugTabWidth`) and `svelte5CompilerPath` are not options here.
+//! the Pug plugin's `pugTabWidth`) and `svelte5CompilerPath` are not options here. Tailwind CSS
+//! sorting is oxfmt's `sortTailwindcss`, which a host builds from prettier-plugin-tailwindcss's
+//! options too.
 
 pub use rsvelte_typescript_format::options::{
     ArrowParens, EmbeddedLanguageFormatting, EndOfLine, ObjectWrap, OperatorPosition, QuoteProps,
@@ -42,6 +44,7 @@ pub const NAMES: &[&str] = &[
     "svelteSortOrder",
     "svelteAllowShorthand",
     "svelteIndentScriptAndStyle",
+    "sortTailwindcss",
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
@@ -85,6 +88,7 @@ pub struct Options {
     pub svelte_sort_order: SortOrder,
     pub svelte_allow_shorthand: bool,
     pub svelte_indent_script_and_style: bool,
+    pub sort_tailwindcss: Option<rsvelte_stylesheet_format::tailwind::Options>,
 }
 
 impl Default for Options {
@@ -117,6 +121,7 @@ impl Default for Options {
             svelte_sort_order: SortOrder::default(),
             svelte_allow_shorthand: true,
             svelte_indent_script_and_style: true,
+            sort_tailwindcss: None,
         }
     }
 }
@@ -252,7 +257,13 @@ pub fn unported(o: &Options) -> Option<&'static str> {
         svelte_sort_order: _,
         svelte_allow_shorthand: _,
         svelte_indent_script_and_style: _,
+        sort_tailwindcss,
     } = o;
+    if let Some(name) =
+        (sort_tailwindcss.as_ref()).and_then(rsvelte_stylesheet_format::tailwind::Options::unported)
+    {
+        return Some(name);
+    }
     let d = Options::default();
     [
         ("printWidth", line_width(*print_width).is_none()),

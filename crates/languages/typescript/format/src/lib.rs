@@ -10,10 +10,9 @@ pub use task::{Format, PLUGIN, register, register_with_options};
 pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_interface::Extension {
     identifier: "typescript.format",
     install: |registry, settings| {
-        let options = settings
+        let (options, base) = settings
             .options::<Options>(EXTENSION.identifier)?
-            .map(|o| o.value)
-            .unwrap_or_default();
+            .map_or_else(Default::default, |o| (o.value, o.base));
         // Checked once for the run, not on every document.
         if let Err(name) = options.formatter() {
             return Err(rsvelte_plugin_interface::CallError(format!(
@@ -21,7 +20,24 @@ pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_inter
                 EXTENSION.identifier
             )));
         }
-        register_with_options(registry, &options);
+        let formats = settings.runs(
+            Format::IDENTIFIER,
+            rsvelte_plugin_interface::TaskKind::Document,
+        );
+        let tailwind = match &options.sort_tailwindcss {
+            Some(tailwind) if formats => Some(
+                rsvelte_stylesheet_format::tailwind::Sorter::start(tailwind, &base).map_err(
+                    |error| {
+                        rsvelte_plugin_interface::CallError(format!(
+                            "{}: {error}",
+                            EXTENSION.identifier
+                        ))
+                    },
+                )?,
+            ),
+            _ => None,
+        };
+        register_with_options(registry, &options, tailwind);
         Ok(())
     },
 };

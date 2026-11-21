@@ -5,6 +5,7 @@ use oxc_allocator::{Allocator, ArenaVec};
 use oxc_formatter_core::{
     CoreFormatOptions, Document, FormatContext, FormatElement, FormatSession, FormatState,
     Formatter, InputKind, LineEnding, LineMode, PrintError, PrintWidth, PrinterOptions,
+    SessionServices, TailwindSorter,
 };
 use rsvelte_kernel::diagnostics::Unsupported;
 
@@ -47,10 +48,20 @@ impl FormatContext for Context {
 }
 
 impl<'x> Embedding<'x> {
+    /// `tailwind` sorts the Tailwind CSS classes the embedded formatters find, when the document
+    /// is printed; without it they print as written.
     #[must_use]
-    pub fn new(allocator: &'x Allocator, options: CoreFormatOptions) -> Self {
+    pub fn new(
+        allocator: &'x Allocator,
+        options: CoreFormatOptions,
+        tailwind: Option<TailwindSorter>,
+    ) -> Self {
+        let services = SessionServices {
+            tailwind_sorter: tailwind,
+            ..SessionServices::default()
+        };
         Self {
-            session: FormatSession::new(allocator, InputKind::PhysicalFile),
+            session: FormatSession::with_services(allocator, InputKind::PhysicalFile, services),
             layouts: Vec::new(),
             options,
         }
@@ -109,7 +120,7 @@ impl<'x> Embedding<'x> {
     ) -> Result<String, Unsupported> {
         let options = self.options;
         let context = Context { options };
-        let mut state = FormatState::new_with_session(context, self.session);
+        let mut state = FormatState::new_with_session(context, self.session.clone());
         let mut formatter = Formatter::new(&mut state);
         docs.lower(root, &self.layouts, &mut formatter);
         let elements = formatter.into_vec();
@@ -118,12 +129,14 @@ impl<'x> Embedding<'x> {
             .with_indent_style(options.indent_style)
             .with_indent_width(options.indent_width)
             .with_line_ending(LineEnding::Lf);
-        Ok(Document::new(elements, Vec::new())
-            .print(source_len, print)
-            .map_err(|PrintError::InvalidDocument(_)| {
-                Unsupported::nowhere("a document oxc's printer rejects")
-            })?
-            .into_code())
+        Ok(
+            Document::new(elements, self.session.take_sorted_tailwind_classes())
+                .print(source_len, print)
+                .map_err(|PrintError::InvalidDocument(_)| {
+                    Unsupported::nowhere("a document oxc's printer rejects")
+                })?
+                .into_code(),
+        )
     }
 }
 

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
-use serde_json::{Map, Value};
+use serde_json::{Map, Value, json};
 
 use super::editorconfig::Given;
 
@@ -42,9 +42,24 @@ enum Meaning {
     /// oxfmt's `svelte`: `true`, or prettier-plugin-svelte's options under [`OXFMT_SVELTE`]'s
     /// names.
     Svelte,
+    /// oxfmt's `sortTailwindcss`: `true`, `false` or its options.
+    SortTailwindcss,
+    /// Prettier's `plugins`: prettier-plugin-svelte and prettier-plugin-tailwindcss.
+    Plugins,
+    /// A prettier-plugin-tailwindcss option, under oxfmt's name in `sortTailwindcss`.
+    Tailwind(&'static str),
 }
 
-use Meaning::{IgnorePatterns, NoEffect, NoEffectWhen, Printed, Refused, Svelte};
+use Meaning::{
+    IgnorePatterns, NoEffect, NoEffectWhen, Plugins, Printed, Refused, SortTailwindcss, Svelte,
+    Tailwind,
+};
+
+/// The Prettier plugin that sorts Tailwind CSS classes.
+const TAILWIND_PLUGIN: &str = "prettier-plugin-tailwindcss";
+
+/// The options of `sortTailwindcss` that are paths, relative to the configuration.
+const TAILWIND_PATHS: &[&str] = &["config", "stylesheet"];
 
 /// What a formatter makes of one value it is given.
 enum Loaded {
@@ -135,10 +150,6 @@ fn is_true(value: &Value) -> bool {
     *value == Value::Bool(true)
 }
 
-fn only_the_svelte_plugin(value: &Value) -> bool {
-    (value.as_array()).is_some_and(|plugins| plugins.iter().all(|p| p == "prettier-plugin-svelte"))
-}
-
 /// Prettier 3's options with prettier-plugin-svelte 4's (`getSupportInfo`), and the keys of its
 /// configuration files. Any other name is one Prettier ignores with a warning.
 const PRETTIER: &[(&str, Meaning)] = &[
@@ -174,7 +185,13 @@ const PRETTIER: &[(&str, Meaning)] = &[
     ("cursorOffset", NoEffect),
     ("filepath", NoEffect),
     ("$schema", NoEffect),
-    ("plugins", NoEffectWhen(only_the_svelte_plugin)),
+    ("plugins", Plugins),
+    ("tailwindConfig", Tailwind("config")),
+    ("tailwindStylesheet", Tailwind("stylesheet")),
+    ("tailwindFunctions", Tailwind("functions")),
+    ("tailwindAttributes", Tailwind("attributes")),
+    ("tailwindPreserveWhitespace", Tailwind("preserveWhitespace")),
+    ("tailwindPreserveDuplicates", Tailwind("preserveDuplicates")),
     ("overrides", NoEffectWhen(is_empty_list)),
     ("parser", Refused),
 ];
@@ -212,8 +229,8 @@ const OXFMT: &[(&str, Meaning)] = &[
     ("jsdoc", Refused),
     ("sortImports", Refused),
     ("experimentalSortImports", Refused),
-    ("sortTailwindcss", Refused),
-    ("experimentalTailwindcss", Refused),
+    ("sortTailwindcss", SortTailwindcss),
+    ("experimentalTailwindcss", SortTailwindcss),
 ];
 
 /// oxfmt's `svelte` options, under prettier-plugin-svelte's names.
@@ -352,7 +369,7 @@ impl Configuration {
         read: Result<Map<String, Value>, String>,
     ) -> Self {
         let (mut options, patterns) = match read {
-            Ok(options) => meaning(formatter, options),
+            Ok(options) => meaning(formatter, options, source.parent().unwrap_or(&source)),
             Err(error) => (
                 Options {
                     refused: Some(error),
@@ -408,8 +425,13 @@ fn read(path: &Path, format: Format) -> Result<Map<String, Value>, String> {
         .map_err(|e| format!("{e} (rsvelte reads only JSON formatter configurations so far)"))
 }
 
-/// The options and the `ignorePatterns` of a configuration, by the formatter's table.
-fn meaning(formatter: Formatter, options: Map<String, Value>) -> (Options, Vec<String>) {
+/// The options and the `ignorePatterns` of a configuration in `directory`, by the formatter's
+/// table.
+fn meaning(
+    formatter: Formatter,
+    options: Map<String, Value>,
+    directory: &Path,
+) -> (Options, Vec<String>) {
     let mut result = Options::default();
     let mut patterns = Vec::new();
     let mut refuse = |reason: String| {
@@ -417,6 +439,9 @@ fn meaning(formatter: Formatter, options: Map<String, Value>) -> (Options, Vec<S
     };
     let mut printed = Vec::new();
     let mut unknown = Vec::new();
+    // Prettier's `tailwind*` options, which count only with the plugin, by their names.
+    let mut tailwind = Vec::new();
+    let mut tailwind_plugin = false;
     let unset = |value: &Value| value.is_null() && formatter.unsets_null();
     for (name, value) in options.into_iter().filter(|(_, value)| !unset(value)) {
         let found = formatter
@@ -453,11 +478,76 @@ fn meaning(formatter: Formatter, options: Map<String, Value>) -> (Options, Vec<S
                 }
                 _ => refuse(format!("rsvelte does not format with this `{name}` yet")),
             },
+            Some(SortTailwindcss) => match value {
+                Value::Bool(false) => {}
+                Value::Bool(true) => printed.push(("sortTailwindcss".to_owned(), name, json!({}))),
+                Value::Object(options) => {
+                    let options = sort_tailwindcss(options, directory, |option| {
+                        unknown.push(format!("{name}.{option}"));
+                    });
+                    printed.push(("sortTailwindcss".to_owned(), name, Value::Object(options)));
+                }
+                _ => refuse(format!("rsvelte does not format with this `{name}` yet")),
+            },
+            Some(Plugins) => match value.as_array() {
+                Some(plugins)
+                    if (plugins.iter())
+                        .all(|p| p == "prettier-plugin-svelte" || p == TAILWIND_PLUGIN) =>
+                {
+                    tailwind_plugin = plugins.iter().any(|p| p == TAILWIND_PLUGIN);
+                }
+                _ => refuse(format!("rsvelte does not format with this `{name}` yet")),
+            },
+            Some(Tailwind(as_named)) => tailwind.push((name, as_named, value)),
         }
+    }
+    if tailwind_plugin {
+        let options = (tailwind.into_iter())
+            .map(|(_, as_named, value)| (as_named.to_owned(), value))
+            .collect();
+        let options = sort_tailwindcss(options, directory, |_| {});
+        printed.push((
+            "sortTailwindcss".to_owned(),
+            "plugins".to_owned(),
+            Value::Object(options),
+        ));
+    } else {
+        // Prettier knows them only from the plugin.
+        unknown.extend(tailwind.into_iter().map(|(name, ..)| name));
     }
     result.printed = printed;
     result.unknown = unknown;
     (result, patterns)
+}
+
+/// `sortTailwindcss`'s options with their paths made absolute, as oxfmt and the plugin read them
+/// from the configuration's `directory`. A name it does not know goes to `unknown`.
+fn sort_tailwindcss(
+    mut options: Map<String, Value>,
+    directory: &Path,
+    mut unknown: impl FnMut(&str),
+) -> Map<String, Value> {
+    const KNOWN: &[&str] = &[
+        "config",
+        "stylesheet",
+        "functions",
+        "attributes",
+        "preserveWhitespace",
+        "preserveDuplicates",
+    ];
+    options.retain(|name, _| {
+        let known = KNOWN.contains(&name.as_str());
+        if !known {
+            unknown(name);
+        }
+        known
+    });
+    for name in TAILWIND_PATHS {
+        if let Some(Value::String(path)) = options.get_mut(*name) {
+            *path = directory.join(&*path).to_string_lossy().into_owned();
+        }
+    }
+    options
 }
 
 fn ignore(source: &Path, patterns: &[String]) -> Result<Option<Gitignore>, String> {

@@ -13,29 +13,47 @@
 //! cover is an [`Unsupported`] error, never an approximation.
 
 use std::borrow::Cow;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use oxc_allocator::Allocator;
-use oxc_formatter::{BracketSameLine, JsFormatOptions, QuoteStyle};
-use oxc_formatter_core::{CoreFormatOptions, IndentStyle, LineEnding};
+use oxc_formatter::{BracketSameLine, JsFormatOptions, QuoteStyle, SortTailwindcssOptions};
+use oxc_formatter_core::{CoreFormatOptions, IndentStyle, LineEnding, TailwindSorter};
 use rsvelte_document_printer::{Embedding, LayoutInstructionIdentifier, LayoutInstructions};
 use rsvelte_kernel::diagnostics::{Diagnostic, Unsupported};
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_stylesheet_format::tailwind::OxcSorter;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, Script, TagAttributes, TemplateNode,
     TemplateNodeIdentifier, TokenType,
 };
 use rsvelte_typescript_format::options::{indent_width, line_width};
 use rsvelte_typescript_tree::SyntaxError;
+pub use tailwind::Tailwind;
 
 use crate::options::{EndOfLine, Options, unported};
 
 type R<T> = Result<T, Unsupported>;
 
+/// Why a component is not formatted.
+#[derive(Debug)]
+pub(crate) enum Failure {
+    Unsupported(Unsupported),
+    /// The Tailwind CSS sorter failed.
+    Tailwind(String),
+}
+
+impl From<Unsupported> for Failure {
+    fn from(u: Unsupported) -> Self {
+        Self::Unsupported(u)
+    }
+}
+
 /// # Errors
 ///
 /// [`Unsupported`] if the component holds a construct this formatter does not print, or a
-/// flat-only layout that does not fit.
+/// flat-only layout that does not fit, or the Tailwind CSS sorter's failure.
 /// `rejected` is the first error a module rejects that the parsers do not report, which the
 /// plugin's parse fails on.
 pub(crate) fn print_component(
@@ -43,9 +61,10 @@ pub(crate) fn print_component(
     source_text: &str,
     options: &Options,
     rejected: Option<&SyntaxError>,
-) -> R<String> {
+    tailwind: Option<Tailwind<'_>>,
+) -> Result<String, Failure> {
     if let Some(name) = unported(options) {
-        return Err(Unsupported::nowhere(name));
+        return Err(Unsupported::nowhere(name).into());
     }
     // Prettier sets a byte order mark aside before formatting and puts it back after.
     let (bom, text) = source_text
@@ -66,14 +85,14 @@ pub(crate) fn print_component(
         let at = lone.unwrap_or(first) as u32;
         // Where the line feed breaks the parse, Prettier's parse fails too, with its own error.
         let reparsed = parsed(&normalized.text).map_err(|_parse_error| {
-            Unsupported::at(
+            Failure::from(Unsupported::at(
                 if lone.is_some() {
                     "a carriage return without a line feed"
                 } else {
                     "a line ending that parses otherwise as a line feed"
                 },
                 Span::new(at, at + 1),
-            )
+            ))
         })?;
         let rejected = first_module_syntax_error(&reparsed, &normalized.text);
         let options = Options {
@@ -83,28 +102,33 @@ pub(crate) fn print_component(
             },
             ..options.clone()
         };
-        return print_component(&reparsed, &normalized.text, &options, rejected.as_ref()).map_err(
-            |u| match u.source_location.span() {
+        return print_component(
+            &reparsed,
+            &normalized.text,
+            &options,
+            rejected.as_ref(),
+            tailwind,
+        )
+        .map_err(|failure| match failure {
+            Failure::Unsupported(u) => Failure::Unsupported(match u.source_location.span() {
                 Some(span) => Unsupported::at(u.what, normalized.original(span)),
                 None => u,
-            },
-        );
+            }),
+            other @ Failure::Tailwind(_) => other,
+        });
     }
     let unparsed_scripts = unparsed::unparsed_scripts(c, source_text, rejected)?;
     awaits::refuse_misread_awaits(c, source_text, &unparsed_scripts)?;
 
     let core = core_options(options)?;
-    let printed = rsvelte_typescript_tree::with_scratch_arena(|allocator| {
-        print(
-            c,
-            options,
-            source_text,
-            text,
-            core,
-            unparsed_scripts,
-            allocator,
-        )
-    })?;
+    let printed = print_sorting(
+        c,
+        options,
+        (source_text, bom.len()),
+        core,
+        unparsed_scripts,
+        tailwind,
+    )?;
     let eol = match options.end_of_line {
         EndOfLine::Lf => "\n",
         EndOfLine::Crlf => "\r\n",
@@ -139,14 +163,61 @@ fn guess_end_of_line(text: &str) -> EndOfLine {
     }
 }
 
+/// [`print`] with the template's Tailwind CSS classes sorted first, and those oxc finds in the
+/// scripts and the style sheet as it prints. `bom` is the length of the byte order mark.
+fn print_sorting(
+    c: &Component,
+    options: &Options,
+    (source_text, bom): (&str, usize),
+    core: CoreFormatOptions,
+    unparsed_scripts: Vec<Span>,
+    tailwind: Option<Tailwind<'_>>,
+) -> Result<String, Failure> {
+    let sorted = match tailwind {
+        Some(t) => tailwind::sort(c, source_text, t).map_err(Failure::Tailwind)?,
+        None => None,
+    };
+    let source_text = sorted.as_ref().map_or(source_text, |s| s.source.as_str());
+    let oxc = tailwind.map(|t| t.sorter.for_oxc(t.file.to_owned()));
+    let classes = Classes {
+        texts: sorted.as_ref().map(|s| &s.texts),
+        javascript: tailwind.map(|t| t.sorter.options().javascript()),
+        sorter: oxc.as_ref().map(|o| Arc::clone(&o.sorter)),
+    };
+    let printed = rsvelte_typescript_tree::with_scratch_arena(|allocator| {
+        print(
+            c,
+            options,
+            (source_text, &source_text[bom..]),
+            core,
+            unparsed_scripts,
+            classes,
+            allocator,
+        )
+    })?;
+    (oxc.as_ref().and_then(OxcSorter::failure)).map_or(Ok(printed), |error| {
+        Err(Failure::Tailwind(error.to_owned()))
+    })
+}
+
+/// What the printer does with Tailwind CSS classes.
+struct Classes<'s> {
+    /// The template's class texts, sorted before printing.
+    texts: Option<&'s HashMap<u32, String>>,
+    /// What oxc reads to find the classes in the scripts.
+    javascript: Option<Arc<SortTailwindcssOptions>>,
+    /// What sorts the classes oxc finds in the scripts and the style sheet, as it prints.
+    sorter: Option<TailwindSorter>,
+}
+
 /// Prints `text`, the source without its byte order mark, with arena trees built in `allocator`.
 fn print(
     c: &Component,
     options: &Options,
-    source_text: &str,
-    text: &str,
+    (source_text, text): (&str, &str),
     core: CoreFormatOptions,
     unparsed_scripts: Vec<Span>,
+    classes: Classes<'_>,
     allocator: &Allocator,
 ) -> R<String> {
     let mut docs = LayoutInstructions::new();
@@ -155,10 +226,12 @@ fn print(
         options,
         source_text,
         docs: &mut docs,
+        class_texts: classes.texts,
         embedder: javascript::Embedder {
-            embedding: Embedding::new(allocator, core),
+            embedding: Embedding::new(allocator, core, classes.sorter),
             typescript: is_typescript(c, source_text),
             options: javascript_options(options, core),
+            tailwind: classes.javascript,
             kept: Vec::new(),
             dropped: Vec::new(),
         },
@@ -310,6 +383,8 @@ struct Printer<'a: 'x, 'd, 'x> {
     options: &'a Options,
     source_text: &'a str,
     docs: &'d mut LayoutInstructions,
+    /// The sorted text of each class attribute's text, by the start of its span.
+    class_texts: Option<&'a HashMap<u32, String>>,
     embedder: javascript::Embedder<'x>,
     /// The plugin's mutable `raw` of each text node, once it differs from the source.
     text: Vec<Option<Cow<'a, str>>>,
@@ -406,6 +481,7 @@ mod expressions;
 mod javascript;
 mod line_endings;
 mod patterns;
+mod tailwind;
 mod tree;
 mod unparsed;
 

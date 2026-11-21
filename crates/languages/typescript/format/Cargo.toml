@@ -13,12 +13,14 @@ doctest = false
 rsvelte_plugin_interface.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript_tree.workspace = true
+rsvelte_stylesheet_format.workspace = true
 oxc_formatter.workspace = true
 oxc_formatter_core.workspace = true
 serde.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
+rsvelte_test_harness.workspace = true
 
 [lints]
 workspace = true

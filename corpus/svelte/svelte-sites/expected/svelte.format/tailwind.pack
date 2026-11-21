@@ -1,0 +1,866 @@
+# rsvelte pack 1
+=== 1783 sites/hn.svelte.dev/src/lib/Nav.svelte	svelte
+<script lang="ts">
+  import { resolve } from "$app/paths";
+
+  const { section }: { section: string } = $props();
+
+  const lists = ["top", "new", "best", "show", "ask", "jobs"] as const;
+</script>
+
+<nav>
+  <a href={resolve("/")}>
+    <img alt="Svelte Hacker News logo" class="icon" src="/favicon.png" />
+  </a>
+
+  <ul>
+    {#each lists as list (list)}
+      <li>
+        <a
+          href={resolve("/[list=category]/[page=numeric]", { list, page: "1" })}
+          class:selected={section === list}>{list}</a
+        >
+      </li>
+    {/each}
+
+    <li class="about">
+      <a href={resolve("/about")} class:selected={section === "about"}>about</a>
+    </li>
+  </ul>
+</nav>
+
+<style>
+  nav {
+    /* background-color: rgba(255, 102, 0, 0.05); */
+    border-bottom: 1px solid #ff6600;
+    color: var(--fg-light);
+    font-weight: 300;
+    padding: 0 1em;
+  }
+
+  .icon {
+    display: block;
+    width: 1em;
+    height: 1em;
+    float: left;
+    font-size: 2em;
+    position: relative;
+    top: 0.4em;
+    box-sizing: border-box;
+    margin: 0 0.5em 0 0;
+  }
+
+  ul {
+    margin: 0;
+    padding: 0;
+  }
+
+  ul::after {
+    content: "";
+    display: block;
+    clear: both;
+  }
+
+  li {
+    display: block;
+    float: left;
+  }
+
+  .about {
+    float: right;
+  }
+
+  .selected {
+    position: relative;
+    display: inline-block;
+    color: var(--fg);
+  }
+
+  .selected::after {
+    position: absolute;
+    content: "";
+    width: calc(100% - 1em);
+    height: 2px;
+    background-color: #ff6600;
+    display: block;
+    bottom: 0;
+  }
+
+  li a {
+    color: inherit;
+    text-decoration: none;
+    padding: 1em 0.5em;
+    display: block;
+    font-weight: 500;
+  }
+
+  @media (min-width: 400px) {
+    .icon {
+      margin: 0 0.5em 0 0;
+    }
+
+    li {
+      display: inline-block;
+    }
+  }
+</style>
+
+=== 1151 sites/hn.svelte.dev/src/lib/PreloadingIndicator.svelte	svelte
+<script lang="ts">
+  import { onMount } from "svelte";
+
+  let p = $state(0);
+  let visible = $state(false);
+
+  onMount(() => {
+    visible = true;
+    function next() {
+      p += 0.1;
+      const remaining = 1 - p;
+      if (remaining > 0.15) setTimeout(next, 500 / remaining);
+    }
+    setTimeout(next, 250);
+  });
+</script>
+
+{#if visible}
+  <div class="progress-container">
+    <div class="progress" style="width: {p * 100}%"></div>
+  </div>
+{/if}
+
+{#if p >= 0.4}
+  <div class="fade"></div>
+{/if}
+
+<style>
+  .progress-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    z-index: 999;
+  }
+
+  .progress {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background-color: #ff6600;
+    transition: width 0.4s;
+  }
+
+  .fade {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.3);
+    pointer-events: none;
+    z-index: 998;
+    animation: fade 0.4s;
+  }
+
+  :global(html.dark) .fade {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+</style>
+
+=== 1948 sites/hn.svelte.dev/src/lib/SubsetHTML.svelte	svelte
+<script lang="ts">
+  import { parse, type Inline } from "./htmlSubsetParse";
+  import { resolve } from "$app/paths";
+  const { content }: { content: string } = $props();
+
+  const parsedContent = $derived(parse(content));
+
+  type PossiblyRewrittenUrl = {
+    rel: "external" | undefined;
+    href: string;
+  };
+  const HN_HOSTNAME = "news.ycombinator.com" as const;
+  function tryRewriteLink(originalUrl: URL): PossiblyRewrittenUrl {
+    const { hostname, pathname, searchParams, hash, href } = originalUrl;
+    if (hostname === HN_HOSTNAME && pathname === "/item") {
+      // for the purposes of typescript control flow,
+      // .has() does not impact .get()
+      const itemId = searchParams.get("id");
+      if (itemId) {
+        // only support rewriting /item?id= links
+        // which actually covers most legitimate uses
+        return {
+          href: `${resolve("/item/[id=numeric]", {
+            id: itemId as `${number}`,
+          })}${hash}`,
+          rel: undefined,
+        };
+      }
+    }
+    // otherwise spit back original
+    return { href, rel: "external" };
+  }
+</script>
+
+{#snippet inline(child: Inline)}
+  {#if child.type === "text"}
+    {child.text}
+  {:else if child.type === "link"}
+    {@const originalUrl = new URL(child.href)}
+    {#if ["http:", "https:"].includes(originalUrl.protocol)}
+      {@const { href, rel } = tryRewriteLink(originalUrl)}
+      <a {href} {rel}>{child.text}</a>
+    {:else}
+      <!-- link might be other protocol like `javascript:` so bail out and do best effort render -->
+      <del>{child.text}</del>
+    {/if}
+  {:else if child.type === "italic"}
+    {#each child.children as subchild}
+      {@render inline(subchild)}
+    {/each}
+  {/if}
+{/snippet}
+
+{#each parsedContent as block}
+  {#if block.type === "paragraph"}
+    <p>
+      {#each block.children as child}
+        {@render inline(child)}
+      {/each}
+    </p>
+  {:else}
+    <pre><code>{block.text}</code></pre>
+  {/if}
+{/each}
+
+=== 1922 sites/hn.svelte.dev/src/lib/ThemeToggler.svelte	svelte
+<script lang="ts">
+  // preserve the focus ring for keyboard users because a11y,
+  // but hide for mouse users because fugly
+  let nice = $state(false);
+
+  let theme = "light";
+
+  try {
+    theme = localStorage.theme;
+  } catch (e) {
+    // ignore — could be SSR, or e.g. Firefox with restrictive permissions
+  }
+
+  const toggle = () => {
+    const { classList } = document.documentElement;
+    if (classList.length === 0) {
+      theme = "dark";
+    } else {
+      classList.remove(theme);
+      theme = theme === "light" ? "dark" : "light";
+    }
+    classList.add(theme);
+
+    try {
+      localStorage.theme = theme;
+    } catch (e) {
+      // ignore
+    }
+  };
+</script>
+
+<button
+  aria-label="Toggle theme"
+  title="Toggle theme"
+  class:nice
+  onmousedown={() => (nice = true)}
+  onblur={() => (nice = false)}
+  onclick={toggle}
+>
+  toggle theme
+
+  <svg viewBox="0 0 24 24">
+    <path
+      class="light"
+      d="M12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M20,15.31L23.31,12L20,8.69V4H15.31L12,0.69L8.69,4H4V8.69L0.69,12L4,15.31V20H8.69L12,23.31L15.31,20H20V15.31Z"
+    />
+    <path
+      class="dark"
+      d="M12,18C11.11,18 10.26,17.8 9.5,17.45C11.56,16.5 13,14.42 13,12C13,9.58 11.56,7.5 9.5,6.55C10.26,6.2 11.11,6 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M20,8.69V4H15.31L12,0.69L8.69,4H4V8.69L0.69,12L4,15.31V20H8.69L12,23.31L15.31,20H20V15.31L23.31,12L20,8.69Z"
+    />
+  </svg>
+</button>
+
+<style>
+  button {
+    position: fixed;
+    right: 1em;
+    bottom: 1em;
+    width: 2em;
+    height: 2em;
+    text-indent: -9999px;
+    background-color: transparent;
+    border: none;
+    opacity: 0.4;
+  }
+
+  .nice {
+    outline: none;
+  }
+
+  svg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    right: 0;
+    bottom: 0;
+  }
+
+  path {
+    fill: var(--fg);
+    transition: opacity 0.6s;
+  }
+
+  .dark {
+    opacity: 0;
+  }
+
+  :global(html.dark) .dark {
+    opacity: 1;
+  }
+</style>
+
+=== 595 sites/hn.svelte.dev/src/routes/+error.svelte	svelte
+<script lang="ts">
+  import { page } from "$app/state";
+
+  const offline =
+    typeof navigator !== "undefined" && navigator.onLine === false;
+
+  const title = offline ? "Offline" : page.status;
+  const message = offline
+    ? "Find the internet and try again"
+    : page.error?.message;
+</script>
+
+<svelte:head>
+  <title>{title}</title>
+</svelte:head>
+
+<h1>{title}</h1>
+
+<pre>{message}</pre>
+
+<style>
+  h1 {
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: 2.8em;
+    font-weight: 700;
+    margin: 0 0 0.5em 0;
+  }
+
+  @media (min-width: 480px) {
+    h1 {
+      font-size: 4em;
+    }
+  }
+</style>
+
+=== 631 sites/hn.svelte.dev/src/routes/+layout.svelte	svelte
+<script lang="ts">
+  import { page, navigating } from "$app/state";
+  import Nav from "$lib/Nav.svelte";
+  import PreloadingIndicator from "$lib/PreloadingIndicator.svelte";
+  import ThemeToggler from "$lib/ThemeToggler.svelte";
+  import "../app.css";
+
+  const { children } = $props();
+
+  const section = $derived(page.url.pathname.split("/")[1]);
+</script>
+
+<Nav {section} />
+
+{#if navigating.from}
+  <PreloadingIndicator />
+{/if}
+
+<main>
+  {@render children()}
+</main>
+
+<ThemeToggler />
+
+<style>
+  main {
+    position: relative;
+    max-width: 56em;
+    padding: 2em;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+</style>
+
+=== 1056 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/+page.svelte	svelte
+<script lang="ts">
+  import type { PageProps } from "./$types";
+  import { resolve } from "$app/paths";
+  import ItemSummary from "./ItemSummary.svelte";
+  import NullItem from "./NullItem.svelte";
+
+  const { data }: PageProps = $props();
+  const PAGE_SIZE = 30 as const;
+  const { list, items, page, now } = $derived(data);
+  const start = $derived(1 + (page - 1) * PAGE_SIZE);
+</script>
+
+<svelte:head>
+  <title>Svelte Hacker News</title>
+  <meta
+    name="description"
+    content="Latest Hacker News stories in the {list} category"
+  />
+</svelte:head>
+
+{#each items as item, i (item.id)}
+  {#if item.type !== "null"}
+    <ItemSummary {item} index={start + i} {now} />
+  {:else}
+    <!-- null item from API -->
+    <NullItem id={item.id} index={start + i} />
+  {/if}
+{/each}
+
+{#if items.length >= PAGE_SIZE}
+  <a
+    class="more"
+    href={resolve("/[list=category]/[page=numeric]", {
+      list: list as "top" | "new" | "best" | "show" | "ask" | "jobs",
+      page: `${page + 1}`,
+    })}>More...</a
+  >
+{:else}
+  <p>That's all we can find...</p>
+{/if}
+
+=== 1663 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/ItemSummary.svelte	svelte
+<script lang="ts">
+  import { resolve } from "$app/paths";
+  import { timeAgo } from "$lib/utils";
+
+  type Props = { item: HNStory | HNJob | HNPoll; index: number; now: number };
+  const { item, index, now }: Props = $props();
+</script>
+
+<article>
+  <h2>
+    {#if item.type !== "poll" && item.url}
+      <a rel="external" href={item.url}>
+        {item.title}
+        <small>{new URL(item.url).hostname}</small>
+      </a>
+    {:else}
+      <a
+        href={resolve("/item/[id=numeric]", {
+          id: `${item.id}`,
+        })}>{item.title}</a
+      >
+    {/if}
+  </h2>
+
+  <p>
+    {item.score}
+    {item.score === 1 ? "point" : "points"} by
+    <a href={resolve("/user/[name]", { name: item.by })}>{item.by}</a>
+    {timeAgo(now - item.time)}
+    {#if item.type !== "job"}
+      |
+      <a
+        href={resolve("/item/[id=numeric]", {
+          id: `${item.id}`,
+        })}
+      >
+        {item.descendants}
+        {item.descendants === 1 ? "comment" : "comments"}
+      </a>
+    {/if}
+  </p>
+
+  <span class="index">{index}</span>
+</article>
+
+<style>
+  article {
+    position: relative;
+    padding: 0 0 0 4em;
+    margin: 0 0 1.5em 0;
+  }
+
+  h2 {
+    font-size: 1em;
+    font-weight: 500;
+    margin: 0 0 0.5em 0;
+    color: var(--fg);
+  }
+
+  h2 a {
+    text-decoration: none;
+  }
+
+  p {
+    font-size: 0.8em;
+    color: var(--fg-light);
+    margin: 0;
+    font-weight: 300;
+  }
+
+  small {
+    color: var(--fg-light);
+    font-weight: 300;
+  }
+
+  .index {
+    position: absolute;
+    font-size: 1.6em;
+    font-weight: 200;
+    color: var(--fg-light);
+    left: 0.2em;
+    top: 0;
+    text-align: right;
+    width: 0.75em;
+    line-height: 1;
+  }
+</style>
+
+=== 782 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/NullItem.svelte	svelte
+<script lang="ts">
+  const { id, index }: { id: number; index: number } = $props();
+</script>
+
+<article>
+  <h2>
+    Item #{id} Unavailable
+  </h2>
+
+  <p>API failed to return this item - maybe deleted?</p>
+
+  <span class="index">{index}</span>
+</article>
+
+<style>
+  article {
+    position: relative;
+    padding: 0 0 0 4em;
+    margin: 0 0 1.5em 0;
+
+    opacity: 0.5;
+  }
+
+  h2 {
+    font-size: 1em;
+    font-weight: 500;
+    margin: 0 0 0.5em 0;
+    color: var(--fg);
+  }
+
+  p {
+    font-size: 0.8em;
+    color: var(--fg-light);
+    margin: 0;
+    font-weight: 300;
+  }
+
+  .index {
+    position: absolute;
+    font-size: 1.6em;
+    font-weight: 200;
+    color: var(--fg-light);
+    left: 0.2em;
+    top: 0;
+    text-align: right;
+    width: 0.75em;
+    line-height: 1;
+  }
+</style>
+
+=== 943 sites/hn.svelte.dev/src/routes/about/+page.svelte	svelte
+<svelte:head>
+  <title>About • Svelte Hacker News</title>
+</svelte:head>
+
+<h1>About this site</h1>
+
+<p>
+  This is a simple Hacker News clone, built with <a
+    rel="external"
+    href="https://kit.svelte.dev">SvelteKit</a
+  >, an application framework for
+  <a rel="external" href="https://svelte.dev">Svelte</a>.
+</p>
+
+<p>
+  Svelte is a new kind of framework, one that compiles your component templates
+  into fast, compact JavaScript — either client-side or server-side. You can
+  read more about the design and philosophy in the <a
+    rel="external"
+    href="https://svelte.dev/tutorial">introductory tutorial</a
+  >.
+</p>
+
+<p>
+  We're using a combination of the <a
+    rel="external"
+    href="https://github.com/hackernews/api">Firebase HN API</a
+  >
+  and the <a rel="external" href="https://hn.algolia.com/api">Algolia HN API</a>
+  as a backend. The app is hosted on
+  <a rel="external" href="https://vercel.com">Vercel</a>.
+</p>
+
+=== 2094 sites/hn.svelte.dev/src/routes/item/[id=numeric]/+page.svelte	svelte
+<script lang="ts">
+  import type { PageProps } from "./$types";
+  import { resolve } from "$app/paths";
+  import SubsetHTML from "$lib/SubsetHTML.svelte";
+  import { timeAgo } from "$lib/utils";
+  import CommentElement from "./Comment.svelte";
+
+  const { data }: PageProps = $props();
+  const { algoliaItem, pollOptions, now } = $derived(data);
+</script>
+
+<svelte:head>
+  <title>{algoliaItem.title} | Svelte Hacker News</title>
+</svelte:head>
+
+<div>
+  <article class="item">
+    <a class="main-link" rel="external" href={algoliaItem.url}>
+      <h1>{algoliaItem.title}</h1>
+      {#if algoliaItem.url}<small>{new URL(algoliaItem.url).hostname}</small
+        >{/if}
+    </a>
+
+    <p class="meta">
+      {algoliaItem.points}
+      {algoliaItem.points === 1 ? "point" : "points"} by
+      <a href={resolve("/user/[name]", { name: algoliaItem.author })}
+        >{algoliaItem.author}</a
+      >
+      {timeAgo(now - algoliaItem.created_at_i)}
+    </p>
+
+    {#if algoliaItem.text}
+      <SubsetHTML content={algoliaItem.text} />
+    {/if}
+    {#if algoliaItem.options && algoliaItem.options.length > 0}
+      <!-- Poll parts -->
+      {#each pollOptions as pollOption (pollOption.id)}
+        <SubsetHTML content={pollOption.text} />
+        <small>{pollOption.score} points</small>
+      {/each}
+    {/if}
+  </article>
+
+  {#if algoliaItem.children && algoliaItem.children.length > 0}
+    <div class="comments">
+      {#each algoliaItem.children as comment (comment.id)}
+        <CommentElement {comment} {now} />
+      {/each}
+    </div>
+  {/if}
+</div>
+
+<style>
+  h1 {
+    font-weight: 500;
+  }
+
+  .item {
+    border-bottom: 1em solid rgba(0, 0, 0, 0.1);
+    margin: 0 -2em 2em -2em;
+    padding: 0 2em 2em 2em;
+  }
+
+  :global(html.dark) .item {
+    border-bottom: 1em solid rgba(255, 255, 255, 0.1);
+  }
+
+  .main-link {
+    display: block;
+    text-decoration: none;
+  }
+
+  small {
+    display: block;
+    font-size: 14px;
+  }
+
+  .meta {
+    font-size: 0.8em;
+    font-weight: 300;
+    color: var(--fg-light);
+  }
+
+  .comments > :global(.comment):first-child {
+    border-top: none;
+  }
+</style>
+
+=== 2199 sites/hn.svelte.dev/src/routes/item/[id=numeric]/Comment.svelte	svelte
+<script lang="ts">
+  import SubsetHTML from "$lib/SubsetHTML.svelte";
+  import CommentElement from "./Comment.svelte";
+  import { resolve } from "$app/paths";
+  import { timeAgo } from "$lib/utils";
+
+  type Props = { comment: AlgoliaComment; now: number };
+  const { comment, now }: Props = $props();
+</script>
+
+{#if typeof comment !== null}
+  <article id={`${comment.id}`} class="comment">
+    <details open>
+      <summary>
+        <div class="meta-bar" role="button" tabindex="0">
+          <span class="meta">
+            <a href={resolve("/user/[name]", { name: comment.author })}
+              >{comment.author}</a
+            >
+            {timeAgo(now - comment.created_at_i)}
+          </span>
+        </div>
+      </summary>
+
+      <div class="body">
+        <SubsetHTML content={comment.text} />
+      </div>
+
+      {#if comment.children && comment.children.length > 0}
+        <ul class="children">
+          {#each comment.children as child (child.id)}
+            <li>
+              <CommentElement comment={child} {now} />
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </details>
+  </article>
+{/if}
+
+<style>
+  .comment {
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  :global(html.dark) .comment {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .meta-bar {
+    padding: 1em 0;
+    cursor: pointer;
+    background: 100% 50% no-repeat url(./unfold.svg);
+    background-size: 1em 1em;
+  }
+
+  .comment details[open] > summary > .meta-bar {
+    background-image: url(./fold.svg);
+  }
+
+  .comment details > summary {
+    list-style-type: none;
+  }
+
+  .comment details > summary::marker,
+  .comment details > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .comment .children {
+    padding: 0 0 0 1em;
+    margin: 0;
+  }
+
+  @media (min-width: 720px) {
+    .comment .children {
+      padding: 0 0 0 2em;
+    }
+  }
+
+  li {
+    list-style: none;
+  }
+
+  .meta {
+    display: block;
+    font-size: 14px;
+    color: var(--fg-light);
+  }
+
+  a {
+    color: var(--fg-light);
+  }
+
+  /* prevent crazy overflow layout bug on mobile */
+  .body :global(*) {
+    overflow-wrap: break-word;
+  }
+
+  .comment :global(pre) {
+    overflow-x: auto;
+  }
+</style>
+
+=== 935 sites/hn.svelte.dev/src/routes/user/[name]/+page.svelte	svelte
+<script lang="ts">
+  import type { PageProps } from "./$types";
+  import SubsetHTML from "$lib/SubsetHTML.svelte";
+  import { timeAgo } from "$lib/utils";
+
+  const { data }: PageProps = $props();
+  const { user, now } = $derived(data);
+</script>
+
+<svelte:head>
+  <title>{user.id} • Svelte Hacker News</title>
+</svelte:head>
+
+<h1>{user.id}</h1>
+
+<div>
+  <p>
+    ...joined <strong>{timeAgo(now - user.created)}</strong>, and has
+    <strong>{user.karma}</strong> karma
+  </p>
+
+  <p>
+    <a rel="external" href="https://news.ycombinator.com/submitted?id={user.id}"
+      >submissions</a
+    >
+    /
+    <a rel="external" href="https://news.ycombinator.com/threads?id={user.id}"
+      >comments</a
+    >
+    /
+    <a rel="external" href="https://news.ycombinator.com/favorites?id={user.id}"
+      >favourites</a
+    >
+  </p>
+
+  {#if user.about}
+    <div class="about">
+      <SubsetHTML content={user.about} />
+    </div>
+  {/if}
+</div>
+

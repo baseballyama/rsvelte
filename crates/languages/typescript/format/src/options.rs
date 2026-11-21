@@ -48,6 +48,7 @@ pub const NAMES: &[&str] = &[
     "requirePragma",
     "insertPragma",
     "checkIgnorePragma",
+    "sortTailwindcss",
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
@@ -77,6 +78,9 @@ pub struct Options {
     pub require_pragma: bool,
     pub insert_pragma: bool,
     pub check_ignore_pragma: bool,
+    /// oxfmt's `sortTailwindcss`, which a host builds from prettier-plugin-tailwindcss's options
+    /// too.
+    pub sort_tailwindcss: Option<rsvelte_stylesheet_format::tailwind::Options>,
 }
 
 impl Default for Options {
@@ -102,6 +106,7 @@ impl Default for Options {
             require_pragma: false,
             insert_pragma: false,
             check_ignore_pragma: false,
+            sort_tailwindcss: None,
         }
     }
 }
@@ -180,6 +185,11 @@ impl Options {
         if let Some((name, _)) = unported.into_iter().find(|&(_, refused)| refused) {
             return Err(name);
         }
+        if let Some(name) = (self.sort_tailwindcss.as_ref())
+            .and_then(rsvelte_stylesheet_format::tailwind::Options::unported)
+        {
+            return Err(name);
+        }
         let line_width = line_width(usize::from(self.print_width)).ok_or("printWidth")?;
         let indent_width = indent_width(usize::from(self.tab_width)).ok_or("tabWidth")?;
         Ok(JsFormatOptions {
@@ -232,6 +242,8 @@ impl Options {
                 OperatorPosition::End => OxcOperatorPosition::End,
             },
             experimental_ternaries: self.experimental_ternaries,
+            sort_tailwindcss: (self.sort_tailwindcss.as_ref())
+                .map(rsvelte_stylesheet_format::tailwind::Options::javascript),
             ..JsFormatOptions::default()
         })
     }

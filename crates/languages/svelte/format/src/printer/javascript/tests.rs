@@ -8,6 +8,7 @@ fn formatted(source_text: &str) -> String {
         source_text,
         &Options::default(),
         first_module_syntax_error(&c, source_text).as_ref(),
+        None,
     )
     .expect("prints")
 }

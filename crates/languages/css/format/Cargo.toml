@@ -1,0 +1,22 @@
+[package]
+name = "rsvelte_stylesheet_format"
+description = "What formatters share of style sheets: Tailwind CSS's class order"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[lib]
+doctest = false
+
+[dependencies]
+oxc_formatter.workspace = true
+oxc_formatter_core.workspace = true
+rsvelte_kernel.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+rsvelte_test_harness.workspace = true
+
+[lints]
+workspace = true

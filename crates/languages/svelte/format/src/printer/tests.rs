@@ -10,13 +10,15 @@ fn refusal_with<'s>(source_text: &'s str, options: &Options) -> (&'static str, O
         Ok(c) => c,
         Err(d) => return ("a syntax error", Some(d.span.text(source_text))),
     };
-    let u = print_component(
+    let Err(Failure::Unsupported(u)) = print_component(
         &c,
         source_text,
         options,
         first_module_syntax_error(&c, source_text).as_ref(),
-    )
-    .expect_err("refused");
+        None,
+    ) else {
+        panic!("refused");
+    };
     (
         u.what,
         u.source_location.span().map(|s| s.text(source_text)),
@@ -62,7 +64,7 @@ fn print_width_and_tab_width_reach_the_output() {
     let source_text = "<div>\n<p>aaaa bbbb cccc dddd</p>\n</div>\n";
     let c = rsvelte_svelte_syntax::parse::parse(source_text).expect("parses");
     let print =
-        |json: &str| print_component(&c, source_text, &options(json), None).expect("prints");
+        |json: &str| print_component(&c, source_text, &options(json), None, None).expect("prints");
     assert_eq!(print("{}"), "<div>\n  <p>aaaa bbbb cccc dddd</p>\n</div>\n");
     assert_eq!(
         print(r#"{"tabWidth": 3}"#),
@@ -85,6 +87,7 @@ fn formatted_with(source_text: &str, options: &Options) -> String {
         source_text,
         options,
         first_module_syntax_error(&c, source_text).as_ref(),
+        None,
     )
     .expect("prints")
 }

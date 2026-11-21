@@ -48,13 +48,20 @@ option unset and a width of 0 counts. Prettier refuses `null` and skips a width 
 `format` ignores an option the formatter does not know and prints a warning, as Prettier does.
 It reads nothing else for a file that the `ignorePatterns` of its nearest oxfmt configuration
 leave, and it skips a `package.json` that does not parse, as Prettier does.
+`format` sorts Tailwind CSS classes as `prettier-plugin-tailwindcss` does when the oxfmt
+configuration sets `sortTailwindcss`, or when the Prettier configuration lists
+`prettier-plugin-tailwindcss` in `plugins`. It runs the project's copy of the plugin with Node,
+so install it: `npm install --save-dev prettier-plugin-tailwindcss`. Without it, `format`
+writes nothing and exits with 2.
+
 When `format` cannot print as a file's options say, it leaves that file unchanged and formats
 the others. Then it says why and exits with 2, as Prettier and oxfmt do with a configuration
 they cannot load:
 
 - It reads only JSON, so it leaves the files of a YAML, TOML or JavaScript configuration.
-- It does not apply `overrides`, `sortImports`, Tailwind CSS sorting or Prettier plugins other
-  than `prettier-plugin-svelte`.
+- It does not apply `overrides`, `sortImports` or Prettier plugins other than
+  `prettier-plugin-svelte` and `prettier-plugin-tailwindcss`.
+- It does not take a `/pattern/` in the Tailwind CSS `functions` or `attributes` yet.
 - A value the formatter does not load leaves the files of that configuration, as the
   formatter does. Examples: `endOfLine: "auto"` or `max_line_length = 0` under oxfmt, or
   `printWidth: null` under Prettier.

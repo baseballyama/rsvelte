@@ -1,11 +1,13 @@
 //! The JavaScript and TypeScript in a component, formatted by `oxc_formatter` from its source text,
 //! as the plugin has Prettier format each part from its text.
 
+use std::sync::Arc;
+
 use oxc_allocator::ArenaVec;
 use oxc_ast::ast::Program;
 use oxc_formatter::{
     ExpressionLayout, ExpressionRoot, JsEmbeddedIn, JsFormatOptions, JsRoot, ProgramLayout,
-    ProgramSemicolons, QuoteStyle,
+    ProgramSemicolons, QuoteStyle, SortTailwindcssOptions,
 };
 use oxc_formatter_core::{FormatElement, LineMode, Tag};
 use oxc_span::SourceType;
@@ -21,6 +23,9 @@ pub(super) struct Embedder<'x> {
     /// The plugin parses with TypeScript when any `<script>` says `lang="ts"`.
     pub(super) typescript: bool,
     pub(super) options: JsFormatOptions,
+    /// What oxc reads to find Tailwind CSS classes, in the scripts only: the plugin sorts a
+    /// template expression's strings itself, and only in class attributes.
+    pub(super) tailwind: Option<Arc<SortTailwindcssOptions>>,
     /// The source the output keeps the comments of: what oxc formatted from its text, and what
     /// is printed as it is.
     pub(super) kept: Vec<Span>,
@@ -103,6 +108,9 @@ impl<'x> Printer<'_, '_, 'x> {
         if single_quote {
             options.quote_style = QuoteStyle::Single;
         }
+        if part == Part::Script {
+            options.sort_tailwindcss.clone_from(&embedder.tailwind);
+        }
         let root = match part {
             Part::Expression => JsRoot::Expression(ExpressionRoot {
                 layout: ExpressionLayout::Bare,
@@ -160,6 +168,10 @@ impl<'x> Printer<'_, '_, 'x> {
         if !whole {
             return Err(unformatted());
         }
+        let options = JsFormatOptions {
+            sort_tailwindcss: self.embedder.tailwind.clone(),
+            ..self.embedder.options.clone()
+        };
         #[expect(
             clippy::map_err_ignore,
             reason = "oxc's diagnostic says what the refusal says"
@@ -168,7 +180,7 @@ impl<'x> Printer<'_, '_, 'x> {
             self.embedder.embedding.session(),
             program,
             span.start_offset as usize..span.end_offset as usize,
-            self.embedder.options.clone(),
+            options,
             JsRoot::Program {
                 semicolons: ProgramSemicolons::AsOptions,
                 layout: ProgramLayout::Bare,

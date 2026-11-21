@@ -211,7 +211,7 @@ fn what_rsvelte_cannot_honor_is_a_refusal_named_by_its_source() {
         (
             "plugin",
             ".prettierrc.json",
-            r#"{"plugins":["prettier-plugin-tailwindcss"]}"#,
+            r#"{"plugins":["prettier-plugin-organize-imports"]}"#,
         ),
         (
             "overrides",
@@ -340,4 +340,64 @@ fn every_printed_option_is_one_the_svelte_formatter_takes() {
             "{name}"
         );
     }
+}
+
+#[test]
+fn oxfmts_sort_tailwindcss_is_given_with_its_paths_from_the_configuration() {
+    let d = Directory::new(
+        "tailwind-oxfmt",
+        &[(
+            ".oxfmtrc.json",
+            r#"{"sortTailwindcss":{"stylesheet":"src/app.css","functions":["cn"],"x":1}}"#,
+        )],
+    );
+    let files = d.resolver();
+    let resolved = formatted(files.resolve(Path::new("a.svelte")));
+    let expected = format!(
+        r#"{{"printWidth":100,"sortTailwindcss":{{"functions":["cn"],"stylesheet":{}}}}}"#,
+        Value::from(d.0.join("src/app.css").to_string_lossy())
+    );
+    assert_eq!(resolved.svelte(), expected);
+    assert_eq!(resolved.typescript(), expected);
+    assert_eq!(files.warnings().len(), 1, "{:?}", files.warnings());
+    for (value, svelte) in [
+        ("true", r#"{"printWidth":100,"sortTailwindcss":{}}"#),
+        ("false", r#"{"printWidth":100}"#),
+    ] {
+        let d = Directory::new(
+            &format!("tailwind-{value}"),
+            &[(
+                ".oxfmtrc.json",
+                &format!(r#"{{"experimentalTailwindcss":{value}}}"#),
+            )],
+        );
+        let resolved = formatted(d.resolver().resolve(Path::new("a.svelte")));
+        assert_eq!(resolved.svelte(), svelte, "{value}");
+    }
+}
+
+#[test]
+fn prettiers_tailwind_options_count_with_the_plugin_only() {
+    let options = r#""tailwindStylesheet":"app.css","tailwindFunctions":["cn"]"#;
+    let plugins = r#""plugins":["prettier-plugin-svelte","prettier-plugin-tailwindcss"]"#;
+    let d = Directory::new(
+        "tailwind-prettier",
+        &[(".prettierrc.json", &format!("{{{plugins},{options}}}"))],
+    );
+    let resolved = formatted(d.resolver().resolve(Path::new("a.svelte")));
+    assert_eq!(
+        resolved.svelte(),
+        format!(
+            r#"{{"sortTailwindcss":{{"functions":["cn"],"stylesheet":{}}}}}"#,
+            Value::from(d.0.join("app.css").to_string_lossy())
+        )
+    );
+    let d = Directory::new(
+        "tailwind-prettier-without",
+        &[(".prettierrc.json", &format!("{{{options}}}"))],
+    );
+    let files = d.resolver();
+    let resolved = formatted(files.resolve(Path::new("a.svelte")));
+    assert_eq!(resolved.svelte(), "{}");
+    assert_eq!(files.warnings().len(), 2, "{:?}", files.warnings());
 }

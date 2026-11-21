@@ -8,6 +8,7 @@ const TYPE_CHECKER_VARIABLE: &str = "FIXTURE_TYPE_CHECKER";
 /// `tsc` and the framework packages' types from there.
 #[derive(Debug)]
 pub struct NodePackages {
+    directory: PathBuf,
     node_modules: PathBuf,
 }
 
@@ -17,14 +18,23 @@ impl NodePackages {
     /// If `tools/oracle/node_modules` is not installed.
     #[must_use]
     pub fn locate() -> Self {
-        let node_modules =
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../tools/oracle/node_modules");
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../tools/oracle");
+        let node_modules = directory.join("node_modules");
         assert!(
             node_modules.is_dir(),
             "{} is missing: {INSTALL_HINT}",
             node_modules.display()
         );
-        Self { node_modules }
+        Self {
+            directory,
+            node_modules,
+        }
+    }
+
+    /// `tools/oracle`, whose packages a Node process started there finds.
+    #[must_use]
+    pub fn directory(&self) -> &Path {
+        &self.directory
     }
 
     /// The installed package's directory, with links resolved.

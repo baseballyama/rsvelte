@@ -229,7 +229,9 @@ impl Printer<'_, '_, '_> {
         for (i, p) in parts.iter().enumerate() {
             match *p {
                 Part::Text(span) => {
-                    let raw = span.text(source_text);
+                    let raw = (self.class_texts)
+                        .and_then(|texts| texts.get(&span.start_offset))
+                        .map_or_else(|| span.text(source_text), String::as_str);
                     // Inside `<pre>` the plugin prints a style directive's text as written.
                     if fill_text && self.in_pre {
                         if raw.contains('\n') {
