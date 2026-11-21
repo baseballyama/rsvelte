@@ -18,7 +18,7 @@ use crate::rule::File;
 /// then a static `compilerOptions.runes` of `svelte.config.js`, or else whether an identifier in a
 /// script or the template names a rune (`hasRunesSymbol`, whose `runeSymbols` are
 /// [`RUNE_ROOTS`]).
-fn runes_mode(file: &File<'_>, component: &Component) -> bool {
+pub(super) fn runes_mode(file: &File<'_>, component: &Component) -> bool {
     let source = file.source();
     if let Some(runes) = svelte_options_runes(component, source) {
         return runes;
@@ -122,26 +122,6 @@ fn svelte_options_runes(component: &Component, source: &str) -> Option<bool> {
         }
     }
     None
-}
-
-/// [`runes_mode`] of a component; a `.svelte.js` or `.svelte.ts` module is always in runes mode,
-/// and any other module has no mode (`None`). [`File::runes`] keeps it.
-pub(crate) fn runes(file: &File<'_>) -> Option<bool> {
-    file.component().map_or_else(
-        || is_svelte_file(file).then_some(true),
-        |component| Some(runes_mode(file, component)),
-    )
-}
-
-/// A rule's `svelteFileTypes: ['.svelte', '.svelte.[js|ts]']` condition.
-pub(crate) fn is_svelte_file(file: &File<'_>) -> bool {
-    file.is_component() || file.is_svelte_module()
-}
-
-/// A rule's `runes: [true, 'undetermined']` condition. Upstream's `'undetermined'` is a Svelte
-/// file that svelte-eslint-parser did not parse, which never happens here.
-pub(crate) fn meets_runes_condition(file: &File<'_>) -> bool {
-    file.runes() == Some(true)
 }
 
 #[cfg(test)]

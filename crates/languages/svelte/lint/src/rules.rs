@@ -13,7 +13,6 @@ pub(crate) mod shared {
     pub(super) mod markup;
     pub(super) mod nodes;
     pub(super) mod reactive_statements;
-    pub(crate) mod runes;
     pub(super) mod string_escape;
     pub(crate) mod style_attribute;
     pub(crate) mod style_sheet;
