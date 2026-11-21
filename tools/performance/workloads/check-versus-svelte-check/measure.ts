@@ -15,6 +15,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { revision } from '../revision.ts';
 import { type Diagnostic, type Parsed, parsers, TASK } from './parse.ts';
 import { expectedErrors } from './synthetic.ts';
 
@@ -315,7 +316,7 @@ const env = {
 	rsvelteSha256: sha256(rsvelte),
 	mapperSha256: sha256(mapper),
 	mainCheckSha256: mainCheck && sha256(mainCheck),
-	languageToolsRevision: output('git', ['-C', languageTools, 'rev-parse', 'HEAD']).stdout.trim(),
+	languageToolsRevision: revision(languageTools),
 	svelteCheckTs7Sha256: sha256(languageToolsCli),
 	officialMapperSha256: sha256(path.join(mapperDirectory, 'dist/server.js')),
 	svelteCheck: versionOf(svelteCheckPublished),
