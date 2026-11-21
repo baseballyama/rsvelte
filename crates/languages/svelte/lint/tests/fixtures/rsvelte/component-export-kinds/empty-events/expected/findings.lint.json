@@ -1,0 +1,20 @@
+{
+	"rules": [
+		"no-unused-vars",
+		"svelte/button-has-type"
+	],
+	"findings": [
+		{
+			"rule": "no-unused-vars",
+			"message": "'$$Events' is defined but never used.",
+			"start": {
+				"line": 2,
+				"column": 12
+			},
+			"end": {
+				"line": 2,
+				"column": 20
+			}
+		}
+	]
+}

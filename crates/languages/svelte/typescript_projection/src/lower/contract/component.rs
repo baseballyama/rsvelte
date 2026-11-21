@@ -4,7 +4,7 @@
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
 
 use super::super::{Builder, Node, NodeIdentifier, Range};
-use super::{ComponentMode, Contract};
+use super::{ComponentMode, Contract, Events};
 use crate::syntax_tree::Instance;
 
 impl Builder<'_> {
@@ -21,9 +21,9 @@ impl Builder<'_> {
             generic,
         } = contract;
         let elements = std::mem::take(&mut self.slot_elements);
-        let declared = self.declares_slots();
-        let slots = declared || !elements.is_empty() || self.reads_slot_flags();
-        match (generic, mode, slots || events) {
+        // svelte2tsx's `usesSlots`: the template's `<slot>` elements, not `$$Slots` or `$$slots`.
+        let slots = !elements.is_empty();
+        match (generic, mode, slots || events.any()) {
             (true, ..) => {
                 let props = if self.has_default_slot() {
                     let callee = self
@@ -44,10 +44,9 @@ impl Builder<'_> {
                 (component, Instance::Returned)
             }
             (false, ComponentMode::Runes, true) | (false, ComponentMode::Legacy, _) => {
-                let events = self.tree.push(Node::Identifier(if events {
-                    "$$Events"
-                } else {
-                    "{ [evt: string]: CustomEvent<any> }"
+                let events = self.tree.push(Node::Identifier(match events {
+                    Events::Declared { .. } => "$$Events",
+                    Events::Inferred { .. } => "{ [evt: string]: CustomEvent<any> }",
                 }));
                 let helper = if slots {
                     "__rsvelte_export_isomorphic_slots"
@@ -55,7 +54,7 @@ impl Builder<'_> {
                     "__rsvelte_export_isomorphic"
                 };
                 let callee = self.instantiated(helper, &[props, events, exports, bindings]);
-                let slots = if declared {
+                let slots = if self.declares_slots() {
                     let slots = self.tree.push(Node::Identifier("$$Slots"));
                     self.instantiated("__rsvelte_value", &[slots])
                 } else if elements.is_empty() {

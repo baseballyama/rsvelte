@@ -40,8 +40,7 @@ pub(super) struct Contract {
     exports: NodeIdentifier,
     bindings: NodeIdentifier,
     mode: ComponentMode,
-    /// Whether the instance declares `$$Events`.
-    events: bool,
+    events: Events,
     generic: bool,
 }
 
@@ -55,11 +54,11 @@ impl Builder<'_> {
         let mut props = None;
         let mut generics = Generics::NONE;
         let mut generated_start = render_start;
-        let mut events = false;
+        let mut events = None;
         if let Some(script) = &self.component.instance {
             let program = self.component.javascript.get_program(script.program);
             generics = self.generics(script, program, &mut edits)?;
-            events = self.events_interface(program, &mut edits);
+            events = Some(self.events(Some(program), &mut edits));
             generics.asynchronous = super::awaits::awaits_at_top_level(program);
             generated_start = self.scratch.len();
             if let Some(snippets) = self.root_snippets.take() {
@@ -115,6 +114,7 @@ impl Builder<'_> {
             self.script_parts(script, &edits);
             self.scratch[generated_start..].rotate_right(1);
         }
+        let events = events.unwrap_or_else(|| self.events(None, &mut edits));
         let mode = self.component_mode(props.is_some(), generics.asynchronous);
         let props = props.unwrap_or_else(|| self.props_without_rune(&exports, mode));
         let exports = self.export_type(&exports, false);
@@ -492,6 +492,7 @@ impl Builder<'_> {
 
 mod component;
 mod events;
+pub(super) use events::Events;
 mod mode;
 mod props_alias;
 pub(super) use props_alias::PropsAnnotation;

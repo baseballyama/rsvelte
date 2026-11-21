@@ -10,8 +10,8 @@ function $$render() {
       });
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_isomorphic<{ [x: string]: never }, { [evt: string]: CustomEvent<any> }, {}, string>} */ (__rsvelte_export_isomorphic))()({});
 }
 export const ModuleState__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
-/** @typedef {ReturnType<typeof ModuleState__SvelteComponent_>} ModuleState__SvelteComponent_ */
+/** @typedef {InstanceType<typeof ModuleState__SvelteComponent_>} ModuleState__SvelteComponent_ */
 export default ModuleState__SvelteComponent_;
