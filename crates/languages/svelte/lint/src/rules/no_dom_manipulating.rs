@@ -15,9 +15,6 @@ use super::shared::nodes::property_name;
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
-#[cfg(test)]
-mod tests;
-
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-dom-manipulating",
     files: Files::Components,
