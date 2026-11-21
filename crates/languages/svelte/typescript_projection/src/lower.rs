@@ -13,8 +13,6 @@ pub use contract::store_reads;
 mod hoistable;
 mod render;
 mod root_snippets;
-mod standalone;
-pub use standalone::lower_alone;
 mod tag;
 mod type_assertion;
 use std::cell::OnceCell;
@@ -138,6 +136,19 @@ pub fn lower<'a>(
     builder.render(contract, generics);
     builder.tree.root = builder.finish_list(0);
     Ok(builder.tree)
+}
+
+/// [`lower`] outside the artifact database: it analyzes the component itself, when it must.
+///
+/// # Errors
+///
+/// As [`lower`].
+pub fn lower_alone(component: &Component, source: &str, path: &str) -> Result<SyntaxTree> {
+    let resolution = OnceCell::new();
+    let resolve = || {
+        Some(resolution.get_or_init(|| rsvelte_svelte_semantic::resolve_alone(component, source)))
+    };
+    lower(component, source, path, &resolve)
 }
 
 struct Builder<'a> {

@@ -6,7 +6,7 @@ use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
-use rsvelte_svelte_semantic::{Resolved, compiler_syntax_tree, resolve_component};
+use rsvelte_svelte_semantic::{Resolved, resolve_alone};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Script};
 use rsvelte_svelte_syntax::{Parsed, ParsedAsChecked};
 
@@ -96,7 +96,6 @@ impl Artifact for ResolvedAsChecked {
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let component = context.get::<ParsedAsChecked>().as_ref().ok()?;
-        let lowered = compiler_syntax_tree::lower(component, context.source_text());
-        Some(resolve_component(component, &lowered))
+        Some(resolve_alone(component, context.source_text()))
     }
 }
