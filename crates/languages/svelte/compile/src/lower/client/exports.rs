@@ -1,9 +1,9 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{Expression, ObjectPropertyKind, VariableDeclarationKind};
 use oxc_span::SPAN;
+use rsvelte_svelte_semantic::resolve::BindingKind;
 
 use super::ClientCompilationContext;
-use crate::lower::BindingKind;
 use crate::lower::builder::Runtime;
 use crate::lower::script::Export;
 

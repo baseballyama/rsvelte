@@ -19,6 +19,10 @@ pub(super) enum Verdict<'a> {
     Parses,
 }
 
+/// svelte-eslint-parser throws Svelte's parse error, which `ESLint` reports as the one finding: the
+/// markup's, or a JavaScript one in the template's expressions, which Svelte's parser reads too. It
+/// parses a script itself, with typescript-eslint whatever the script's language, and throws what
+/// that rejects; the rules read a script it parses.
 pub(super) fn parse_verdict<'a>(context: &'a DocumentContext<'_>) -> Verdict<'a> {
     if !rsvelte_svelte_syntax::matches(context.document) {
         return module_rejection(context).map_or(Verdict::Parses, |(message, at)| {
@@ -61,7 +65,7 @@ fn unchecked_verdict(component: &Component) -> Verdict<'static> {
     if let Some((message, at)) = rsvelte_typescript_tree::typescript_eslint_check(
         tree,
         tree.unchecked_errors(),
-        grammar::scripts(component),
+        grammar::module_first_programs(component),
     ) {
         return Verdict::Throws(Cow::Borrowed(message), at);
     }
@@ -168,10 +172,14 @@ fn missing_at_the_end(
 fn grammar_verdict<'a>(component: &Component) -> TypescriptEslint<'a> {
     let tree = &component.javascript;
     let errors = (component.script_typescript_errors.iter()).chain(tree.unchecked_errors());
-    rsvelte_typescript_tree::typescript_eslint_check(tree, errors, grammar::scripts(component))
-        .map_or(TypescriptEslint::Parses, |(message, at)| {
-            TypescriptEslint::Throws(Cow::Borrowed(message), at)
-        })
+    rsvelte_typescript_tree::typescript_eslint_check(
+        tree,
+        errors,
+        grammar::module_first_programs(component),
+    )
+    .map_or(TypescriptEslint::Parses, |(message, at)| {
+        TypescriptEslint::Throws(Cow::Borrowed(message), at)
+    })
 }
 
 /// What typescript-eslint throws for a module the shared parse rejects.

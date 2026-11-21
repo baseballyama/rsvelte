@@ -7,11 +7,11 @@ use oxc_ast::ast::{
     ClassBody, ClassElement, Expression, MemberExpression, MethodDefinitionKind, PropertyKey,
     Statement,
 };
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::FxHashMap;
-
-use super::Diagnostic;
 
 /// A `$state`, `$state.raw`, `$derived` or `$derived.by` field.
 #[derive(Clone)]
@@ -215,7 +215,7 @@ impl Analysis<'_> {
         &mut self,
         name: String,
         kind: MethodDefinitionKind,
-        span: super::Span,
+        span: Span,
     ) -> Result<(), Diagnostic> {
         let Some(members) = self.members.get_mut(&name) else {
             self.members.insert(name, vec![Member::Method(kind)]);
@@ -244,7 +244,7 @@ impl Analysis<'_> {
     }
 }
 
-fn duplicate_class_field<T>(name: &str, span: super::Span) -> Result<T, Diagnostic> {
+fn duplicate_class_field<T>(name: &str, span: Span) -> Result<T, Diagnostic> {
     crate::lower::invalid(
         "duplicate_class_field",
         format!("`{name}` has already been declared"),

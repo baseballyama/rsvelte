@@ -5,12 +5,11 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::VisitMut;
 use oxc_span::SPAN;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 
 use crate::lower::builder::Runtime;
-use crate::lower::server::{
-    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, CompilerNodeIdentifier, NodeKind, R,
-    ServerCompilationContext, Template,
-};
+use crate::lower::server::template::Template;
+use crate::lower::server::{BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, R, ServerCompilationContext};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `EachBlock` (server).

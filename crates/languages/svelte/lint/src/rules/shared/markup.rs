@@ -11,6 +11,16 @@ use rsvelte_svelte_syntax::syntax_tree::{
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
+/// The `lang` attribute of a `<script>` or `<style>`; Svelte's parser rejects a second one.
+pub(crate) fn lang_attribute<'a>(
+    attributes: &'a [TagAttributes],
+    source: &str,
+) -> Option<&'a TagAttributes> {
+    attributes
+        .iter()
+        .find(|(name, _)| name.text(source) == "lang")
+}
+
 /// `kind: "html"`: neither a component nor a `svelte:` element.
 pub(crate) fn is_markup(name: &str) -> bool {
     !name.starts_with("svelte:") && !is_component_name(name)

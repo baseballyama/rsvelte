@@ -3,11 +3,11 @@ use std::borrow::Cow;
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKind, Statement};
 use oxc_semantic::SymbolId;
+use rsvelte_svelte_semantic::resolve::BindingKind;
 use rsvelte_typescript_tree::Tree;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::ClientCompilationContext;
-use crate::lower::BindingKind;
 use crate::lower::builder::Runtime;
 use crate::lower::custom_element::{CustomElement, Shadow, Tag, option_property};
 use crate::lower::javascript::prop_alias;

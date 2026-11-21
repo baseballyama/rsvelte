@@ -4,6 +4,7 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 
+use rsvelte_svelte_syntax::names::is_reserved;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 #[cfg(test)]
@@ -79,59 +80,7 @@ impl<'r> Names<'r> {
         };
         while self.declared.contains(name.as_str())
             || taken.generated.contains(name.as_str())
-            || (check_references
-                && (self.references.contains(name.as_str())
-                    || matches!(
-                        name.as_str(),
-                        "arguments"
-                            | "await"
-                            | "break"
-                            | "case"
-                            | "catch"
-                            | "class"
-                            | "const"
-                            | "continue"
-                            | "debugger"
-                            | "default"
-                            | "delete"
-                            | "do"
-                            | "else"
-                            | "enum"
-                            | "eval"
-                            | "export"
-                            | "extends"
-                            | "false"
-                            | "finally"
-                            | "for"
-                            | "function"
-                            | "if"
-                            | "implements"
-                            | "import"
-                            | "in"
-                            | "instanceof"
-                            | "interface"
-                            | "let"
-                            | "new"
-                            | "null"
-                            | "package"
-                            | "private"
-                            | "protected"
-                            | "public"
-                            | "return"
-                            | "static"
-                            | "super"
-                            | "switch"
-                            | "this"
-                            | "throw"
-                            | "true"
-                            | "try"
-                            | "typeof"
-                            | "var"
-                            | "void"
-                            | "while"
-                            | "with"
-                            | "yield"
-                    )))
+            || (check_references && (self.references.contains(name.as_str()) || is_reserved(&name)))
         {
             name = suffixed(preferred, n);
             n += 1;

@@ -1,3 +1,4 @@
+use oxc_ast::{Comment, CommentKind};
 use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::{Document, DocumentError};
@@ -27,6 +28,17 @@ pub(super) fn verify(
         &DocumentContext::new(&document, registry.artifacts()),
         configuration,
     )
+}
+
+/// `text` as one whole JavaScript comment, `//` or `/* */`.
+pub(super) fn comment(text: &str) -> Comment {
+    let end = u32::try_from(text.len()).expect("short");
+    let kind = if text.starts_with("/*") {
+        CommentKind::SingleLineBlock
+    } else {
+        CommentKind::Line
+    };
+    Comment::new(0, end, kind)
 }
 
 const SOURCE: &str = "<script>let unused = 1;</script>\n<button>x</button>\n";

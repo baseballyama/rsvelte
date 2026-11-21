@@ -1,8 +1,9 @@
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue};
+
+use crate::lower::attributes::is_directive;
 use crate::lower::bindings::binds;
 use crate::lower::builder::Runtime;
-use crate::lower::client::{
-    Attribute, AttributeValue, ClientCompilationContext, Lists, is_directive,
-};
+use crate::lower::client::{ClientCompilationContext, Lists};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream's `$.remove_input_defaults` condition for an `<input>`; a binding is named by its

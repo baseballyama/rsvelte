@@ -1,10 +1,10 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast_visit::VisitMut;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 
 use crate::lower::builder::Runtime;
-use crate::lower::server::{
-    BLOCK_CLOSE, CompilerNodeIdentifier, NodeKind, R, ServerCompilationContext, Template,
-};
+use crate::lower::server::template::Template;
+use crate::lower::server::{BLOCK_CLOSE, R, ServerCompilationContext};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `AwaitBlock` (server): the pending and the then branches; the server never

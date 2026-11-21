@@ -5,6 +5,62 @@ use unicode_id_start as unicode_identifier_start;
 #[cfg(test)]
 mod tests;
 
+/// Upstream `is_reserved` (`utils.js`): the words that cannot name a binding.
+#[must_use]
+pub fn is_reserved(word: &str) -> bool {
+    matches!(
+        word,
+        "arguments"
+            | "await"
+            | "break"
+            | "case"
+            | "catch"
+            | "class"
+            | "const"
+            | "continue"
+            | "debugger"
+            | "default"
+            | "delete"
+            | "do"
+            | "else"
+            | "enum"
+            | "eval"
+            | "export"
+            | "extends"
+            | "false"
+            | "finally"
+            | "for"
+            | "function"
+            | "if"
+            | "implements"
+            | "import"
+            | "in"
+            | "instanceof"
+            | "interface"
+            | "let"
+            | "new"
+            | "null"
+            | "package"
+            | "private"
+            | "protected"
+            | "public"
+            | "return"
+            | "static"
+            | "super"
+            | "switch"
+            | "this"
+            | "throw"
+            | "true"
+            | "try"
+            | "typeof"
+            | "var"
+            | "void"
+            | "while"
+            | "with"
+            | "yield"
+    )
+}
+
 /// Upstream `regex_valid_component_name`, split at its alternation (ZWNJ and ZWJ escaped):
 ///
 /// ```text

@@ -1,9 +1,10 @@
 //! `ESLint`'s configuration comments, `/* eslint svelte/rule: ["warn", {…}] */`, which set rules
 //! for one file.
 
+use oxc_ast::Comment;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
-use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_tree::document_span;
 use serde::de::{Deserialize, Deserializer, MapAccess, Visitor};
 use serde_json::value::RawValue;
 
@@ -24,16 +25,10 @@ pub(super) enum Setting {
 ///
 /// `ESLint` reports a comment it cannot read, or a level it does not know; such a comment sets
 /// nothing here.
-pub(super) fn settings(comments: &[Span], source: &str) -> Vec<(String, Setting)> {
+pub(super) fn settings(comments: &[&Comment], source: &str) -> Vec<(String, Setting)> {
     let mut out: Vec<(String, Setting)> = Vec::new();
-    for comment in comments {
-        let Some(value) = comment
-            .text(source)
-            .strip_prefix("/*")
-            .and_then(|inner| inner.strip_suffix("*/"))
-        else {
-            continue;
-        };
+    for comment in comments.iter().filter(|comment| comment.is_block()) {
+        let value = document_span(comment.content_span()).text(source);
         let part = value[..justification_start(value).unwrap_or(value.len())]
             .trim_matches(is_ecmascript_whitespace);
         let Some(rules) = part

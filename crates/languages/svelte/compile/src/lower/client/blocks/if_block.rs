@@ -1,9 +1,8 @@
 use oxc_ast::ast::{Expression, Statement};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 
 use crate::lower::builder::Runtime;
-use crate::lower::client::{
-    ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R,
-};
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, R};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `IfBlock` (client), with `{:else if}` chains flattened.

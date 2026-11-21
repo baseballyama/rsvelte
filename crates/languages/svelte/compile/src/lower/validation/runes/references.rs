@@ -3,11 +3,13 @@
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::IdentifierReference;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::is_rune;
 use rsvelte_typescript_tree::node_span;
 
 use super::RuneWalk;
-use crate::lower::{Diagnostic, Span, invalid};
+use crate::lower::invalid;
 
 impl RuneWalk<'_> {
     /// `reference` is the node being entered; its ancestors are the walk's frames.

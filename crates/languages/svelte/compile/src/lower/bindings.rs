@@ -2,9 +2,10 @@
 //! runtime call that keeps it in sync.
 
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue};
 
-use super::{Attribute, AttributeValue};
-use crate::lower::invalid;
+use super::attributes::is_directive;
+use super::invalid;
 
 #[cfg(test)]
 mod tests;
@@ -204,7 +205,7 @@ pub(super) fn check_binding(
         && name != "this"
         && let Some(multiple) = attributes
             .iter()
-            .find(|o| !super::is_directive(&o.value) && o.name.text(source_text) == "multiple")
+            .find(|o| !is_directive(&o.value) && o.name.text(source_text) == "multiple")
         && !matches!(
             multiple.value,
             AttributeValue::Boolean | AttributeValue::Static(_)
@@ -224,9 +225,8 @@ pub(super) fn check_binding(
         );
     }
     if property_of(name).is_some_and(|p| p.strategy == BindStrategy::ContentEditable) {
-        let editable = (attributes.iter()).find(|o| {
-            !super::is_directive(&o.value) && o.name.text(source_text) == "contenteditable"
-        });
+        let editable = (attributes.iter())
+            .find(|o| !is_directive(&o.value) && o.name.text(source_text) == "contenteditable");
         match editable {
             None => {
                 return invalid(
@@ -267,8 +267,8 @@ fn check_input(
     if host != "input" || name == "this" {
         return Ok(());
     }
-    let ty = (attributes.iter())
-        .find(|o| !super::is_directive(&o.value) && o.name.text(source_text) == "type");
+    let ty =
+        (attributes.iter()).find(|o| !is_directive(&o.value) && o.name.text(source_text) == "type");
     let ty = match ty {
         None => None,
         Some(Attribute {
@@ -353,7 +353,7 @@ pub(super) fn attribute_value<'a>(
 ) -> Option<&'a AttributeValue> {
     attributes
         .iter()
-        .find(|a| !super::is_directive(&a.value) && a.name.text(source_text) == name)
+        .find(|a| !is_directive(&a.value) && a.name.text(source_text) == name)
         .map(|a| &a.value)
 }
 

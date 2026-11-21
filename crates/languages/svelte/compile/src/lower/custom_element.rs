@@ -1,9 +1,9 @@
 use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKey};
-use rsvelte_svelte_semantic::compiler_syntax_tree::AttributeValue;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
-use super::template::single_expression;
-use super::{Attribute, CompileInput};
+use super::attributes::single_expression;
+use crate::input::CompileInput;
 
 #[derive(Debug)]
 pub(super) struct CustomElement {

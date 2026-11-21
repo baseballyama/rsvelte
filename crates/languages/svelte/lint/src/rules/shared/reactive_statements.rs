@@ -5,30 +5,24 @@ use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::{Token, TokenIdentifier, Tokens};
 use rsvelte_svelte_semantic::legacy::reactive_body;
-use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
-use rsvelte_typescript_tree::ProgramIdentifier;
+use rsvelte_svelte_syntax::syntax_tree::TokenType;
 
 use super::runes::runes_mode;
 use crate::rule::File;
 
-/// The scripts' programs, the module script's first.
-fn programs(component: &Component) -> impl Iterator<Item = ProgramIdentifier> + '_ {
-    component.scripts().map(|script| script.program)
-}
-
 /// The top-level `$:` statements with their bodies, in source order; none in runes mode, where
 /// upstream's rules on them do not run.
-pub(crate) fn reactive_statements<'a>(
-    file: &File<'_>,
-    component: &'a Component,
-) -> impl Iterator<Item = (&'a Statement<'a>, &'a Statement<'a>)> + 'a {
-    let javascript = &component.javascript;
-    let mut statements = programs(component)
-        .flat_map(move |program| &javascript.get_program(program).body)
+pub(crate) fn reactive_statements<'f, 'a: 'f>(
+    file: &'f File<'a>,
+) -> impl Iterator<Item = (&'a Statement<'a>, &'a Statement<'a>)> + 'f {
+    let javascript = file.javascript();
+    let mut statements = (file.programs().iter())
+        .flat_map(move |&program| &javascript.get_program(program).body)
         .filter_map(|statement| reactive_body(statement).map(|body| (statement, body)))
         .peekable();
     // Deciding the mode reads `svelte.config.js` and walks every name, so only `$:` asks.
-    let runes = statements.peek().is_some() && runes_mode(file, component);
+    let runes = statements.peek().is_some()
+        && (file.component()).is_some_and(|component| runes_mode(file, component));
     statements.filter(move |_| !runes)
 }
 

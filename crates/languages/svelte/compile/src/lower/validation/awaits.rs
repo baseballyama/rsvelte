@@ -8,9 +8,11 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::GetSpan;
 use oxc_syntax::scope::ScopeFlags;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::stack::grow;
+use rsvelte_kernel::source::positions::Span;
 
-use crate::lower::{CompileInput, Diagnostic, Span};
+use crate::input::CompileInput;
 
 /// What an `await` stands in, as acorn reads a module.
 #[derive(Clone, Copy, PartialEq, Eq)]

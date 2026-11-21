@@ -1,8 +1,9 @@
 use oxc_ast::ast::{Expression, Statement, VariableDeclarationKind};
 use oxc_semantic::{ScopeId, SymbolId};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, Element};
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 
-use super::{ClientCompilationContext, CompilerNodeIdentifier, Element, R};
+use super::{ClientCompilationContext, R};
 use crate::lower::builder::Runtime;
 use crate::lower::lets::{directives, pattern};
 use crate::lower::paths::bound_names;

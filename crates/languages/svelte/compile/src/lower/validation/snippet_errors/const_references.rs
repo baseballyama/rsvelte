@@ -2,16 +2,19 @@
 //! hoisted out of.
 
 use oxc_semantic::ScopeId;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    CompilerNodeIdentifier, CompilerSyntaxTree, MetadataTag,
+    CompilerNodeIdentifier, CompilerSyntaxTree, ElementKind, MetadataTag, NodeKind,
 };
-use rsvelte_svelte_semantic::resolve::TemplateScope;
+use rsvelte_svelte_semantic::resolve::{Resolution, TemplateScope};
 use rsvelte_svelte_semantic::warnings::Raised;
 
-use super::super::paths::bound_names;
-use super::super::validation::raised_in_walk;
-use super::{CompileInput, Diagnostic, ElementKind, NodeKind, Resolution, snippet_name};
+use crate::input::CompileInput;
 use crate::lower::error;
+use crate::lower::paths::bound_names;
+use crate::lower::snippets::snippet_name;
+use crate::lower::validation::raised_in_walk;
 
 /// The first reference, in document order, from a snippet to a `{@const}` or `{let}` declared
 /// in the component's default content that the snippet is hoisted out of. Upstream checks this
@@ -61,7 +64,7 @@ pub(super) fn invalid_reference(
     let (start, end, name) = first?;
     let message =
         format!("The `{{@const {name} = ...}}` declaration is not available in this snippet");
-    let span = crate::lower::Span::new(start, end);
+    let span = Span::new(start, end);
     Some((
         raised_in_walk(start),
         error("const_tag_invalid_reference", &message, span),

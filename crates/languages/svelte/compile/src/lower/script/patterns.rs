@@ -12,12 +12,13 @@ use oxc_syntax::scope::ScopeFlags;
 use rsvelte_svelte_semantic::evaluate::Evaluator;
 use rsvelte_svelte_semantic::resolve::Resolution;
 
-use super::super::javascript::is_simple_expression;
-use super::super::names::Names;
-use super::super::{Builder, Target};
 use super::ScriptRewrite;
 use super::writes::mutates_signal;
+use crate::input::Target;
+use crate::lower::Builder;
 use crate::lower::builder::Runtime;
+use crate::lower::javascript::is_simple_expression;
+use crate::lower::names::Names;
 
 impl<'o> ScriptRewrite<'_, 'o> {
     /// The rewritten destructuring assignment `it`, or `None` when no path it writes is

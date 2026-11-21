@@ -1,12 +1,13 @@
 //! Upstream `validate_slot_attribute` on the slot a component's child fills.
 
-use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier, ElementKind, MetadataTag, NodeKind,
+};
 use rustc_hash::FxHashSet;
 
-use super::super::super::{
-    Attribute, AttributeValue, CompileInput, CompilerNodeIdentifier, Diagnostic, NodeKind,
-    is_directive,
-};
+use crate::input::CompileInput;
+use crate::lower::attributes::is_directive;
 use crate::lower::invalid;
 use crate::render_plan::is_template_whitespace;
 

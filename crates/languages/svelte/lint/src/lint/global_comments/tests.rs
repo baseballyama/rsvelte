@@ -1,12 +1,11 @@
-use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_semantic::globals::Setting;
 
 use super::settings;
+use crate::lint::tests::comment;
 
 /// The settings of one comment, `text`.
 fn of(text: &str) -> Vec<(String, Setting)> {
-    let span = Span::new(0, u32::try_from(text.len()).expect("short"));
-    settings(&[span], text)
+    settings(&[&comment(text)], text)
         .into_iter()
         .map(|(name, setting)| (name.into(), setting))
         .collect()

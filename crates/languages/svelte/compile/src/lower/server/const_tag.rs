@@ -1,7 +1,8 @@
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use rsvelte_typescript_tree::DeclarationIdentifier;
 
+use super::ServerCompilationContext;
 use crate::lower::script;
-use crate::lower::server::{CompilerNodeIdentifier, NodeKind, ServerCompilationContext};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `DeclarationTag` (server): declared with the fragment's `{@const}`s.
