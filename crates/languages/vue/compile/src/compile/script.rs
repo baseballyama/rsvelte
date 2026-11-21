@@ -5,12 +5,12 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
 use oxc_semantic::{ScopeFlags, SymbolFlags};
-use rsvelte_typescript_tree::{document_span, node_span};
+use rsvelte_kernel::diagnostics::Unsupported;
+use rsvelte_typescript_compile::build::Builder;
+use rsvelte_typescript_tree::{ProgramIdentifier, document_span, node_span};
+use rsvelte_vue_semantic::resolve::{BindingType, Resolution, call_name, is_static};
 
-use super::{
-    BindingType, Builder, CompileInput, ProgramIdentifier, R, Resolution, Unsupported, call_name,
-    is_static, out, template,
-};
+use super::{CompileInput, R, out, template};
 
 /// compiler-sfc's macros other than `defineProps` and `defineOptions`, none of which the port
 /// compiles yet.

@@ -6,10 +6,13 @@ use oxc_formatter::{
 };
 use oxc_formatter_core::normalize_newlines;
 use oxc_span::SourceType;
+use rsvelte_document_printer::LayoutInstructionIdentifier;
+use rsvelte_kernel::diagnostics::Unsupported;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::ParametersIdentifier;
 use rsvelte_vue_syntax::syntax_tree::DirectiveName;
 
-use super::{LayoutInstructionIdentifier, Printer, R, Span, Unsupported};
+use super::{Printer, R};
 
 const fn expression(layout: ExpressionLayout) -> ExpressionRoot {
     ExpressionRoot {

@@ -13,9 +13,9 @@ use oxc_ast::ast::{Expression, Program};
 use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_typescript_compile::build::Builder;
-use rsvelte_typescript_tree::{ProgramIdentifier, document_span};
+use rsvelte_typescript_tree::document_span;
 use rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTree;
-use rsvelte_vue_semantic::resolve::{BindingType, Resolution, call_name, is_static};
+use rsvelte_vue_semantic::resolve::Resolution;
 use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
 use script::script_setup;
 

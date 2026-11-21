@@ -1,12 +1,16 @@
 use oxc_allocator::{CloneIn, GetAllocator};
-use oxc_ast::ast::{BinaryOperator, LogicalOperator, Statement, UnaryOperator};
+use oxc_ast::ast::{BinaryOperator, Expression, LogicalOperator, Statement, UnaryOperator};
 use oxc_ast_visit::VisitMut;
 use oxc_span::SPAN;
 use rsvelte_typescript_compile::build::Builder;
+use rsvelte_typescript_tree::Tree;
+use rsvelte_vue_semantic::resolve::Resolution;
+use rsvelte_vue_syntax::syntax_tree::DirectiveName;
 
+use super::rewrite::ExpRewrite;
 use super::{
-    Codegen, CodegenIdentifier, Compiled, DirectiveName, Exp, ExpRewrite, Expression, Helper, Lit,
-    Node, PropertyView, Resolution, TransformNodeIdentifier, Tree, VChildren,
+    Codegen, CodegenIdentifier, Compiled, Exp, Helper, Lit, Node, PropertyView,
+    TransformNodeIdentifier, VChildren,
 };
 use crate::compile::out;
 
