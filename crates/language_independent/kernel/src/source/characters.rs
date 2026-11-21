@@ -17,6 +17,12 @@ pub const fn is_ecmascript_whitespace(c: char) -> bool {
     )
 }
 
+/// ECMAScript's `LineTerminator`: LF, CR, U+2028 and U+2029.
+#[must_use]
+pub const fn is_ecmascript_line_terminator(c: char) -> bool {
+    matches!(c, '\n' | '\r' | '\u{2028}' | '\u{2029}')
+}
+
 /// `String.prototype.trim`.
 #[must_use]
 pub fn trim_ecmascript(text: &str) -> &str {

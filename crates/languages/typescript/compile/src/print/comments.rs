@@ -8,6 +8,7 @@
 use oxc_ast::Comment;
 use oxc_codegen::{CommentHook, CommentWriter};
 use oxc_span::Span;
+use rsvelte_kernel::source::characters::is_ecmascript_line_terminator;
 
 /// How esrap ends a comment it writes.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -83,7 +84,7 @@ impl<'a> CommentCursor<'a> {
     fn breaks_between(&self, a: u32, b: u32) -> bool {
         let (from, to) = if a <= b { (a, b) } else { (b, a) };
         (self.text.get(from as usize..to as usize))
-            .is_some_and(|t| t.contains(['\n', '\r', '\u{2028}', '\u{2029}']))
+            .is_some_and(|t| t.contains(is_ecmascript_line_terminator))
     }
 
     /// Whether `b` is on a later line than `a`.
@@ -251,14 +252,13 @@ impl CommentCursor<'_> {
 /// Sets what is next to each comment on its line, over the blank space and the other comments
 /// around it.
 fn mark_lines(text: &str, comments: &mut [Note]) {
-    let is_break = |c: char| matches!(c, '\n' | '\r' | '\u{2028}' | '\u{2029}');
     let blank = |t: &str| t.chars().all(char::is_whitespace);
     for i in 0..comments.len() {
         let from = i
             .checked_sub(1)
             .map_or(0, |p| comments[p].span.end as usize);
         let gap = &text[from..comments[i].span.start as usize];
-        comments[i].starts_line = match gap.rfind(is_break) {
+        comments[i].starts_line = match gap.rfind(is_ecmascript_line_terminator) {
             Some(at) => blank(&gap[at..]),
             None if blank(gap) => i.checked_sub(1).is_none_or(|p| comments[p].starts_line),
             None => false,
@@ -270,7 +270,7 @@ fn mark_lines(text: &str, comments: &mut [Note]) {
             .map_or(text.len(), |n| n.span.start as usize);
         let gap = &text[comments[i].span.end as usize..to];
         comments[i].ends_line = comments[i].shape == Shape::Line
-            || match gap.find(is_break) {
+            || match gap.find(is_ecmascript_line_terminator) {
                 Some(at) => blank(&gap[..at]),
                 None if blank(gap) => comments.get(i + 1).is_none_or(|n| n.ends_line),
                 None => false,
