@@ -1,8 +1,9 @@
 use oxc_ast::ast::{BindingPattern, Expression};
 
+use super::tree::{ends_with_linebreak, only_ws, starts_with_linebreak};
 use super::{
     LayoutInstructionIdentifier, Printer, R, Span, TemplateNode, TemplateNodeIdentifier,
-    Unsupported, ends_with_linebreak, only_ws, starts_with_linebreak,
+    Unsupported,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]

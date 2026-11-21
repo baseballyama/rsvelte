@@ -1,10 +1,11 @@
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 use super::children::Child;
+use super::tree::only_ws;
 use super::{
     Attribute, AttributeKind, AttributeValue, Component, Cow, ElementKind,
     LayoutInstructionIdentifier, LayoutInstructions, Part, Printer, R, Span, TagAttributes,
-    TemplateNode, TemplateNodeIdentifier, Unsupported, only_ws,
+    TemplateNode, TemplateNodeIdentifier, Unsupported,
 };
 use crate::options::Part as SortPart;
 
