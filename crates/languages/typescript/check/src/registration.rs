@@ -33,10 +33,7 @@ pub fn register(registry: &mut Registry) {
             |_| Vec::new(),
             |script| {
                 let document = context.document;
-                let path = document
-                    .file
-                    .as_deref()
-                    .unwrap_or_else(|| Path::new(&document.path));
+                let path = document.file_path();
                 let program = script.tree.get_program(script.root);
                 kit::insertions(path, source, program, || hooks_module(path))
             },

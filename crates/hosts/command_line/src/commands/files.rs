@@ -19,12 +19,18 @@ pub(crate) fn load(
     tasks: &[&str],
     ignore_files: &[&str],
 ) -> Result<Vec<Document>, String> {
+    read_all(reg, found(reg, paths, tasks, ignore_files)?, tasks)
+}
+
+/// The files [`load`] reads.
+pub(crate) fn found(
+    reg: &Registry,
+    paths: &[&str],
+    tasks: &[&str],
+    ignore_files: &[&str],
+) -> Result<Vec<PathBuf>, String> {
     let walk = Walk { ignore_files };
-    read_all(
-        reg,
-        find(paths, &walk, &|path| applies(reg, tasks, path))?,
-        tasks,
-    )
+    find(paths, &walk, &|path| applies(reg, tasks, path))
 }
 
 /// Whether a task of `tasks` reads the file at `path`.
@@ -35,8 +41,18 @@ pub(crate) fn applies(reg: &Registry, tasks: &[&str], path: &Path) -> bool {
 
 /// The document of the file at `path`, with the text `tasks` read it with.
 pub(crate) fn read(reg: &Registry, path: PathBuf, tasks: &[&str]) -> Result<Document, String> {
-    let text = (reg.read(&path, tasks)).map_err(|e| format!("{}: {e}", path.display()))?;
-    document(path, text)
+    read_as(reg, path.to_string_lossy().into_owned(), path, tasks)
+}
+
+/// The document named `name` of the file at `file`, with the text `tasks` read it with.
+pub(crate) fn read_as(
+    reg: &Registry,
+    name: String,
+    file: PathBuf,
+    tasks: &[&str],
+) -> Result<Document, String> {
+    let text = (reg.read(&file, tasks)).map_err(|e| format!("{}: {e}", file.display()))?;
+    named(name, file, text)
 }
 
 /// The documents of the files at `paths`, in their order, with the text `tasks` read them with.
@@ -73,8 +89,12 @@ pub(crate) fn find(
 
 /// The document of `text`, read from `file`.
 pub(crate) fn document(file: PathBuf, text: String) -> Result<Document, String> {
-    let document = Document::new(file.to_string_lossy().into_owned(), text)
-        .map_err(|e| format!("{}: {e:?}", file.display()))?;
+    named(file.to_string_lossy().into_owned(), file, text)
+}
+
+/// The document named `name` of `text`, read from `file`.
+fn named(name: String, file: PathBuf, text: String) -> Result<Document, String> {
+    let document = Document::new(name, text).map_err(|e| format!("{}: {e:?}", file.display()))?;
     Ok(document.read_from(file))
 }
 
@@ -84,12 +104,23 @@ pub(crate) fn run(
     documents: &[Document],
     tasks: &[&str],
 ) -> Result<Vec<DocumentResult>, ExitCode> {
+    run_per_document(reg, documents, tasks, &|_| tasks)
+}
+
+/// [`run`], where document `i` runs only the tasks among `tasks` that `tasks_of(i)` names.
+pub(crate) fn run_per_document<'t>(
+    reg: &Registry,
+    documents: &[Document],
+    tasks: &[&str],
+    tasks_of: &(dyn Fn(usize) -> &'t [&'t str] + Sync),
+) -> Result<Vec<DocumentResult>, ExitCode> {
     let options = RunOptions {
         tasks,
         sharing: Sharing::Shared,
         threads: None,
     };
-    pipeline::run(reg, documents, &options).map_err(|e| usage(&e.to_string()))
+    pipeline::run_per_document(reg, documents, &options, tasks_of)
+        .map_err(|e| usage(&e.to_string()))
 }
 
 fn collect(

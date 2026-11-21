@@ -18,7 +18,7 @@ use crate::usage;
 pub(crate) fn typecheck(reg: &Registry, tasks: &[&str]) -> ExitCode {
     let files = match project_files(reg, tasks) {
         Project::Files(files) => files,
-        Project::Reported(code) => return code,
+        Project::Problems(problems) => return problems.print(),
     };
     let documents = match files::read_all(reg, files, tasks) {
         Ok(documents) => documents,
@@ -28,30 +28,44 @@ pub(crate) fn typecheck(reg: &Registry, tasks: &[&str]) -> ExitCode {
         Ok(results) => results,
         Err(code) => return code,
     };
-    print_report(report(&documents, &results, here().as_deref()))
+    print(documents.iter().zip(&results))
 }
 
-/// The files of the project the tasks check, or what was printed instead of checking them.
+pub(crate) fn print<'a>(
+    checked: impl IntoIterator<Item = (&'a Document, &'a DocumentResult)>,
+) -> ExitCode {
+    print_report(report(checked, here().as_deref()))
+}
+
+/// The files of the project the tasks check, or what to print instead of checking them.
 pub(crate) enum Project {
     Files(Vec<PathBuf>),
-    /// The configuration's problems, as svelte-check prints them, or the error of reading it, were
-    /// printed with this exit code. It is success when no problem is an error.
-    Reported(ExitCode),
+    Problems(Problems),
+}
+
+/// The configuration's problems, as svelte-check prints them, or the error of reading it.
+pub(crate) struct Problems(Result<(String, usize), String>);
+
+impl Problems {
+    /// Prints them; success when no problem is an error.
+    pub(crate) fn print(self) -> ExitCode {
+        match self.0 {
+            Ok(report) => print_report(report),
+            Err(e) => usage(&e),
+        }
+    }
 }
 
 /// The files of the project the tasks check. A configuration with problems is reported instead.
 pub(crate) fn project_files(reg: &Registry, tasks: &[&str]) -> Project {
     let project = match reg.project_files(tasks) {
         Ok(project) => project,
-        Err(e) => return Project::Reported(usage(&e)),
+        Err(e) => return Project::Problems(Problems(Err(e))),
     };
     if project.problems.is_empty() {
         return Project::Files(project.files);
     }
-    Project::Reported(match problems(&project.problems, here().as_deref()) {
-        Ok(report) => print_report(report),
-        Err(e) => usage(&e),
-    })
+    Project::Problems(Problems(problems(&project.problems, here().as_deref())))
 }
 
 /// The current directory, which the report names files relative to.
@@ -61,19 +75,18 @@ fn here() -> Option<PathBuf> {
 
 /// One line per problem, `<file>(<line>,<column>): error <code>: <message>`, with paths relative
 /// to `here`, then how many errors were found in how many files; and that number.
-fn report(
-    documents: &[Document],
-    results: &[DocumentResult],
+fn report<'a>(
+    checked: impl IntoIterator<Item = (&'a Document, &'a DocumentResult)>,
     here: Option<&Path>,
 ) -> (String, usize) {
     let mut report = Report::new(here);
-    for (document, result) in documents.iter().zip(results) {
+    for (document, result) in checked {
         let found = (result.outputs.iter()).flat_map(|(_, output)| {
             (output.diagnostics.iter())
                 .chain(output.findings.iter().map(|finding| &finding.diagnostic))
         });
         report.file(
-            Path::new(&document.path),
+            document.file_path(),
             &document.text,
             result.panic.as_deref(),
             found,
