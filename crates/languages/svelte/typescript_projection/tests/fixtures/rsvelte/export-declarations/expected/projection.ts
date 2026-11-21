@@ -19,7 +19,7 @@ function $$render() {
       p;
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {
+  return (/** @type {typeof __rsvelte_export_component<globalThis.Record<string, never>, {
     a: typeof a;
     b: typeof b;
     c: typeof c;
@@ -30,5 +30,6 @@ function $$render() {
     Foo: typeof Foo;
   }, "">} */ (__rsvelte_export_component))();
 }
-const ExportDeclarations__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof ExportDeclarations__SvelteComponent_>} */ (ExportDeclarations__SvelteComponent_);
+export const ExportDeclarations__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof ExportDeclarations__SvelteComponent_>} ExportDeclarations__SvelteComponent_ */
+export default ExportDeclarations__SvelteComponent_;

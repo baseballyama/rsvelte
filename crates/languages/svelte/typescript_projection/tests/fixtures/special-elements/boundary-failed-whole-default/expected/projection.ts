@@ -18,7 +18,8 @@ function $$render() {
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, string>} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_isomorphic<{ [x: string]: never }, { [evt: string]: CustomEvent<any> }, {}, string>} */ (__rsvelte_export_isomorphic))()({});
 }
-const BoundaryFailedWholeDefault__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof BoundaryFailedWholeDefault__SvelteComponent_>} */ (BoundaryFailedWholeDefault__SvelteComponent_);
+export const BoundaryFailedWholeDefault__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {InstanceType<typeof BoundaryFailedWholeDefault__SvelteComponent_>} BoundaryFailedWholeDefault__SvelteComponent_ */
+export default BoundaryFailedWholeDefault__SvelteComponent_;

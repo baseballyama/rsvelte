@@ -19,7 +19,7 @@ function $$render() {
       });
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<globalThis.Record<string, never>, {}, "">();
 }
 const Instance__SvelteComponent_ = $$render();
 type Instance__SvelteComponent_ = ReturnType<typeof Instance__SvelteComponent_>;

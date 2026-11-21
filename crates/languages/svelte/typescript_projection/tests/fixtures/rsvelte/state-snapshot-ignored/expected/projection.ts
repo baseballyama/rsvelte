@@ -13,7 +13,8 @@ function $$render() {
       copy.f;
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_component))();
 }
-const StateSnapshotIgnored__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof StateSnapshotIgnored__SvelteComponent_>} */ (StateSnapshotIgnored__SvelteComponent_);
+export const StateSnapshotIgnored__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof StateSnapshotIgnored__SvelteComponent_>} StateSnapshotIgnored__SvelteComponent_ */
+export default StateSnapshotIgnored__SvelteComponent_;

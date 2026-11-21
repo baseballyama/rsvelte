@@ -1,0 +1,14 @@
+[
+	{
+		"code": 2339,
+		"message": "Property 'default' does not exist on type 'Record<never, boolean>'.",
+		"start": {
+			"line": 3,
+			"character": 13
+		},
+		"end": {
+			"line": 3,
+			"character": 20
+		}
+	}
+]

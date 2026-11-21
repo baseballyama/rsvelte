@@ -96,7 +96,6 @@ pub fn lower<'a>(
         props_hoisted: false,
         module_snippets: None,
         slot_elements: Vec::new(),
-        slots_by_elements: false,
         names: OnceCell::new(),
     };
     builder.tree.javascript = !component.checked_as_typescript(source);
@@ -132,8 +131,8 @@ pub fn lower<'a>(
             .scratch
             .push(builder.tree.push(Node::Statement(value)));
     }
-    let contract = builder.with_slot_def(contract);
-    builder.render(contract, generics);
+    let (component, instance) = builder.component(contract);
+    builder.render(component, instance, generics);
     builder.tree.root = builder.finish_list(0);
     Ok(builder.tree)
 }
@@ -174,10 +173,8 @@ struct Builder<'a> {
     props_hoisted: bool,
     /// The root snippets svelte2tsx moves before the render function.
     module_snippets: Option<NodeIdentifier>,
-    /// The attributes of each `<slot>` lowered, which type the slots when `slots_by_elements`.
+    /// The attributes of each `<slot>` lowered, which type the slots without `$$Slots`.
     slot_elements: Vec<Range>,
-    /// Whether the contract declares neither `$$Slots` nor `$$Events` and is not generic.
-    slots_by_elements: bool,
     /// What the component's names say about generated names, read when first needed.
     names: OnceCell<names::Names<'a>>,
 }

@@ -15,5 +15,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<{}, {}, "">} */ (__rsvelte_export_component))();
 }
-const LineComment__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof LineComment__SvelteComponent_>} */ (LineComment__SvelteComponent_);
+export const LineComment__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof LineComment__SvelteComponent_>} LineComment__SvelteComponent_ */
+export default LineComment__SvelteComponent_;

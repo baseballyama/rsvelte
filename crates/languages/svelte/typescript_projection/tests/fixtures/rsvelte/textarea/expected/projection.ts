@@ -74,5 +74,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "p">} */ (__rsvelte_export_component))();
 }
-const Textarea__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof Textarea__SvelteComponent_>} */ (Textarea__SvelteComponent_);
+export const Textarea__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof Textarea__SvelteComponent_>} Textarea__SvelteComponent_ */
+export default Textarea__SvelteComponent_;
