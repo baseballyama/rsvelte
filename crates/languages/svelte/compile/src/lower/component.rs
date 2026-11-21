@@ -3,6 +3,8 @@
 
 use oxc_allocator::ArenaBox;
 use oxc_ast::ast::{Expression, FormalParameters, ObjectPropertyKind, PropertyKind, Statement};
+use oxc_ast_visit::VisitMut;
+use oxc_span::{SPAN, Span};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
@@ -111,10 +113,44 @@ pub(super) fn is_dynamic(res: &Resolution, reference: &Expression<'_>) -> bool {
 pub(super) enum Callee {
     /// A name or member chain read once.
     Static(ExpressionIdentifier),
-    /// A component that may change: a dynamic name, or `<svelte:component this>`.
+    /// A name or member chain whose value may change.
     Dynamic(ExpressionIdentifier),
+    /// `<svelte:component this>`.
+    This(ExpressionIdentifier),
     /// `<svelte:self>`: the component's own function.
     OwnFunction,
+}
+
+impl Callee {
+    /// The value the call reads, as `lower` lowers it; `None` for the component's own function.
+    /// Upstream builds a name from the tag's text (`b.member_id(node.name)`), so no part of it
+    /// has a position, while `this` is a template expression and keeps its own.
+    pub(super) fn read<'o>(
+        self,
+        lower: impl FnOnce(ExpressionIdentifier) -> Expression<'o>,
+    ) -> Option<Expression<'o>> {
+        match self {
+            Self::Static(name) | Self::Dynamic(name) => {
+                let mut name = lower(name);
+                Unlocated.visit_expression(&mut name);
+                Some(name)
+            }
+            Self::This(this) => Some(lower(this)),
+            Self::OwnFunction => None,
+        }
+    }
+
+    pub(super) const fn is_dynamic(self) -> bool {
+        matches!(self, Self::Dynamic(_) | Self::This(_))
+    }
+}
+
+struct Unlocated;
+
+impl VisitMut<'_> for Unlocated {
+    fn visit_span(&mut self, it: &mut Span) {
+        *it = SPAN;
+    }
 }
 
 pub(super) fn callee(
@@ -131,7 +167,7 @@ pub(super) fn callee(
         ElementKind::Metadata(Some(MetadataTag::Component)) => {
             let this = element.this.expect("validation checked `this`");
             let this = &compiler_syntax_tree.attributes[this].value;
-            Callee::Dynamic(single_expression(this).expect("validation checked `this`"))
+            Callee::This(single_expression(this).expect("validation checked `this`"))
         }
         _ => {
             let reference = reference(compiler_syntax_tree, identifier);

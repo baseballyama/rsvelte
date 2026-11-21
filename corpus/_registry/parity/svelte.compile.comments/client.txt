@@ -1,4 +1,4 @@
-# svelte.compile.comments/client: 31595 match
+# svelte.compile.comments/client: 31602 match
 svelte/appwrite-console/src/lib/components/git/repositories.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/create/+page.svelte	missing
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/empty.svelte	missing
@@ -23,7 +23,6 @@ svelte/cnblocks/src/lib/components/blocks/hero/hero-seven.svelte	missing
 svelte/cnblocks/src/lib/components/blocks/hero/hero-six.svelte	missing
 svelte/cnblocks/src/lib/components/blocks/hero/hero-three.svelte	missing
 svelte/cnblocks/src/lib/components/blocks/hero/hero-two.svelte	missing
-svelte/cnblocks/src/lib/components/layout/nav-user.svelte	unexpected
 svelte/cnblocks/src/lib/components/ui/sidebar/sidebar-group-action.svelte	mismatch
 svelte/cnblocks/src/lib/components/ui/sidebar/sidebar-menu-action.svelte	mismatch
 svelte/edra/src/lib/edra/headless/components/menu/AI.svelte	missing
@@ -131,7 +130,6 @@ svelte/originui-svelte/src/lib/components/tables/table-13.svelte	missing
 svelte/originui-svelte/src/lib/components/tables/table-16.svelte	missing
 svelte/primo/src/lib/builder/components/Sidebar/Page_Sidebar.svelte	missing
 svelte/primo/src/lib/builder/views/editor/Layout/BlockToolbar.svelte	missing
-svelte/primo/src/lib/builder/views/editor/Layout/ComponentNode.svelte	unexpected
 svelte/primo/src/lib/builder/views/modal/SitePages/Item.svelte	skipped
 svelte/primo/src/lib/builder/views/modal/SitePages/SitePages.svelte	skipped
 svelte/primo/src/lib/components/ConnectDomain.svelte	missing
@@ -3803,14 +3801,10 @@ svelte/shadcn-svelte-extras/src/lib/components/ui/shadcn-svelte-spinner/spinner.
 svelte/shadcn-svelte-extras/src/lib/components/ui/tags-input/tags-input.svelte	missing
 svelte/shadcn-svelte/docs/src/lib/components/block-viewer-iframe.svelte	mismatch
 svelte/shadcn-svelte/docs/src/lib/components/mobile-nav.svelte	missing
-svelte/shadcn-svelte/docs/src/lib/registry/blocks/chart-pie-separator-none.svelte	unexpected
-svelte/shadcn-svelte/docs/src/lib/registry/blocks/sidebar-07/components/nav-main.svelte	unexpected
-svelte/shadcn-svelte/docs/src/lib/registry/blocks/sidebar-08/components/nav-main.svelte	unexpected
 svelte/shadcn-svelte/docs/src/lib/registry/ui/chart/chart-tooltip.svelte	missing
 svelte/shadcn-svelte/docs/src/lib/registry/ui/spinner/spinner.svelte	mismatch
 svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/icon-library-picker.svelte	missing
 svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte	skipped
-svelte/shadcn-svelte/sv-addons/registry/template/src/lib/registry/blocks/checkout-steps/checkout-steps.svelte	unexpected
 svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/avatar/svelte/filter.svelte	skipped
 svelte/skeleton/sites/skeleton.dev/src/components/examples/integrations/code-block/svelte/code-block.svelte	mismatch
 svelte/skeleton/sites/skeleton.dev/src/components/ui/header/search.svelte	missing
@@ -3874,6 +3868,5 @@ svelte/syntaxfm-website/src/lib/Loading.svelte	skipped
 svelte/syntaxfm-website/src/lib/transcript/Transcript.svelte	skipped
 svelte/threlte/apps/docs/src/components/ContactForm/ContactForm.svelte	skipped
 svelte/threlte/apps/docs/src/components/Hero/Intro/Intro.svelte	skipped
-svelte/threlte/apps/docs/src/examples/shaders/useFboScope/Scene.svelte	unexpected
 svelte/threlte/apps/docs/src/examples/studio/static-state-gap/Scene.svelte	mismatch
 svelte/threlte/packages/studio/src/routes/Scene.svelte	mismatch
