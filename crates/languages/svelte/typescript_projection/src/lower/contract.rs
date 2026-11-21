@@ -97,13 +97,12 @@ impl Builder<'_> {
                                 node_span(&declarator.id),
                             ));
                         }
-                        let annotation = declarator
-                            .type_annotation
-                            .as_deref()
-                            .map(PropsAnnotation::of);
+                        let typed = self.props_type(program, declaration, declarator);
+                        let declarator_at =
+                            props_type::before_comments(&program.comments, declarator.span.start);
                         props = Some(self.props(
-                            &declarator.id,
-                            annotation,
+                            (&declarator.id, declarator_at),
+                            typed,
                             document_span(declaration.span),
                             &mut bindings,
                             &mut edits,
@@ -285,18 +284,20 @@ impl Builder<'_> {
         exports.push(Export { name, value });
     }
 
+    /// The props of `$props()` assigned to `pattern`, whose declarator svelte2tsx types at `at`
+    /// in JavaScript.
     fn props(
         &mut self,
-        pattern: &BindingPattern<'_>,
-        annotation: Option<PropsAnnotation>,
+        (pattern, at): (&BindingPattern<'_>, u32),
+        typed: Option<PropsType>,
         declaration: Span,
         bindings: &mut Buffer<NodeIdentifier>,
         edits: &mut Buffer<Edit>,
     ) -> Result<NodeIdentifier> {
         let statement = declaration.start_offset;
         let BindingPattern::ObjectPattern(object) = pattern else {
-            if let Some(annotation) = annotation {
-                return Ok(self.props_alias(annotation, statement, edits));
+            if let Some(typed) = typed {
+                return Ok(self.typed_props(typed, statement, edits));
             }
             // svelte2tsx names an undeclared `$$ComponentProps` here, which TypeScript reads as
             // `any`.
@@ -305,7 +306,7 @@ impl Builder<'_> {
         // svelte2tsx types a route file's untyped props by their names alone.
         let route = self
             .route
-            .filter(|_| annotation.is_none() && !self.tree.javascript);
+            .filter(|_| typed.is_none() && !self.tree.javascript);
         let mut required = Buffer::new(0);
         let mut optional = Buffer::new(0);
         let rest = object.rest.is_some();
@@ -335,7 +336,7 @@ impl Builder<'_> {
                     reads.push(self.tree.push(Node::Statement(local)));
                 }
             }
-            if annotation.is_none() && route.is_none() {
+            if typed.is_none() && route.is_none() {
                 let name = self.source(property.key.span(), None);
                 let value = self.prop_default(default, &siblings);
                 let property = self.tree.push(Node::NamedProperty { name, value });
@@ -355,8 +356,8 @@ impl Builder<'_> {
                 replacement: Some(self.tree.push(Node::Statements(reads))),
             });
         }
-        if let Some(annotation) = annotation {
-            return Ok(self.props_alias(annotation, statement, edits));
+        if let Some(typed) = typed {
+            return Ok(self.typed_props(typed, statement, edits));
         }
         if let Some(route) = route {
             return Ok(self.route_props(route, object, (statement, pattern.span().end), edits));
@@ -379,9 +380,10 @@ impl Builder<'_> {
         self.scratch
             .push(self.tree.push(Node::Const { name, value }));
         let value = self.tree.push(Node::TypeQuery(name));
-        // JavaScript types a declaration in a JSDoc comment before it.
+        // JavaScript types a declarator in a JSDoc comment before it, which a comment of its own
+        // there overrides.
         let (at, replacement) = if self.tree.javascript {
-            (statement, Node::DeclaredType(value))
+            (at, Node::DeclaredType(value))
         } else {
             (pattern.span().end, Node::TypeAnnotation(value))
         };
@@ -503,6 +505,8 @@ pub(super) use events::Events;
 mod mode;
 mod props_alias;
 pub(super) use props_alias::PropsAnnotation;
+mod props_type;
+use props_type::PropsType;
 mod route;
 pub(super) use route::Route;
 mod siblings;

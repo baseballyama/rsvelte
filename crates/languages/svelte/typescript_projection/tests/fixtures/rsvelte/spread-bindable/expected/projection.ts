@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { value = $bindable(), text = $bindable('x'), ...properties } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { value = $bindable(), text = $bindable('x'), ...properties } = $props();
   value;
   text;
 

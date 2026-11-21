@@ -1,6 +1,7 @@
 //! A JavaScript projection's types, in `JSDoc`: TypeScript reads them in a `.js` file as it reads
 //! the TypeScript forms, without the errors that type syntax raises there.
 
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Range;
 
 use super::Printer;
@@ -27,6 +28,12 @@ impl Printer<'_> {
         self.output.push("/** @type {");
         self.in_type(|printer| printer.node(value));
         self.output.push("} */ ");
+    }
+
+    /// `comment({})`.
+    pub(super) fn comment_cast(&mut self, comment: Span) {
+        self.output.copy(self.source, comment);
+        self.output.push("({})");
     }
 
     /// `/** @typedef {value} name */`.

@@ -6,7 +6,7 @@ import A from './A.svelte';;
 function $$render() {
   
 	
-	/** @type {typeof __rsvelte_public_props0} */ let { depth = 0, other } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { depth = 0, other } = $props();
 	let current = $state(A);
 
 ;

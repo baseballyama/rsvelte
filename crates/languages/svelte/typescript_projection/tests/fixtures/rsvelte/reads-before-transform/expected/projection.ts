@@ -11,7 +11,7 @@ function $$render() {
     return __rsvelte_snippet_return;
   };
 
-	/** @type {typeof __rsvelte_public_props0} */ let { items } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { items } = $props();
 
 ;
 

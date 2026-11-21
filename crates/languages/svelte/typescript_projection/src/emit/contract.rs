@@ -60,6 +60,7 @@ impl Printer<'_> {
                 self.instantiated(callee, arguments);
             }
             Node::DeclaredType(value) => self.declared_type(value),
+            Node::CommentCast(comment) => self.comment_cast(comment),
             Node::TypeArguments { callee, arguments } => {
                 self.node(callee);
                 self.output.push("<");

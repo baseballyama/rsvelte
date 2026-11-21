@@ -1,0 +1,14 @@
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Prps'.",
+		"start": {
+			"line": 2,
+			"character": 12
+		},
+		"end": {
+			"line": 2,
+			"character": 16
+		}
+	}
+]

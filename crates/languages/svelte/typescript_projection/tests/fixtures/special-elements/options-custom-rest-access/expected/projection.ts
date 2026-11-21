@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-/** @type {typeof __rsvelte_public_props0} */ let {value,...rest}=$props();
+let /** @type {typeof __rsvelte_public_props0} */ {value,...rest}=$props();
 function change() { rest.other=1; rest.count++; let x; x=rest.other; return rest.other; }
 
 ;

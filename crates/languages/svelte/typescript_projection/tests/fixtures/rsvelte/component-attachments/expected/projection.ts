@@ -7,7 +7,7 @@ function $$render() {
   
 	
 	let x = $state(1);
-	/** @type {typeof __rsvelte_public_props0} */ let { D } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { D } = $props();
 	const a = (n) => {};
 
 ;

@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { p, q } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { p, q } = $props();
 	let group = $state([]);
 	let one = $state('');
 	let checked = $state(false);

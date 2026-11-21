@@ -6,7 +6,7 @@ import Foo from './Foo.svelte';;
 function $$render() {
   
 	
-	/** @type {typeof __rsvelte_public_props0} */ let { p = $bindable(), C } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { p = $bindable(), C } = $props();
   p;
 
 	let el;

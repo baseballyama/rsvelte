@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { focus = false, a = true } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { focus = false, a = true } = $props();
 	let s = $state(true);
 
 ;
