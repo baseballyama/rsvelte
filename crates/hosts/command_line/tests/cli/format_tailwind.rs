@@ -250,7 +250,8 @@ fn format_drops_a_duplicate_svelte_class_with_the_whitespace_the_plugin_drops() 
     let project = project(
         &[(
             "App.svelte",
-            "<div class=\"p-4 flex p-4\n  mt-2 block\n  grid\">a</div>\n<div class=\"flex\n  p-4 flex mt-2\">b</div>\n",
+            "<div class=\"p-4 flex p-4\n  mt-2 block\n  grid\">a</div>\n\
+             <div class=\"flex\n  p-4 flex mt-2\">b</div>\n",
         )],
         true,
     );
@@ -259,7 +260,8 @@ fn format_drops_a_duplicate_svelte_class_with_the_whitespace_the_plugin_drops() 
     let formatted = std::fs::read_to_string(project.join("App.svelte")).expect("file");
     assert_eq!(
         formatted,
-        "<div\n  class=\"mt-2 block flex\n  grid p-4\"\n>\n  a\n</div>\n<div\n  class=\"mt-2\n  flex p-4\"\n>\n  b\n</div>\n"
+        "<div\n  class=\"mt-2 block flex\n  grid p-4\"\n>\n  a\n</div>\n\
+         <div\n  class=\"mt-2\n  flex p-4\"\n>\n  b\n</div>\n"
     );
 }
 

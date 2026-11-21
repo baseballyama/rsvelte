@@ -58,7 +58,8 @@ for await (const line of createInterface({ input: process.stdin })) {
 		if (classes) {
 			answer = { sorted: (await sorter(settings)).sortClassAttributes(classes) };
 		} else {
-			const ordered = (await sorter({ ...settings, preserveDuplicates: true })).sortClassLists(lists);
+			const preserving = await sorter({ ...settings, preserveDuplicates: true });
+			const ordered = preserving.sortClassLists(lists);
 			// A class Tailwind CSS knows is one the sorter removes the second of.
 			const distinct = [...new Set(lists.flat())];
 			const pairs = (await sorter({ ...settings, preserveDuplicates: false })).sortClassLists(
