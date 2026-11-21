@@ -165,17 +165,20 @@ impl Parser<'_, '_> {
 
     fn comment(&mut self) -> ParseResult<TemplateNodeIdentifier> {
         let start_offset = self.position;
-        let Some(end) = memchr::memmem::find(self.rest().as_bytes(), b"-->") else {
+        // The `-->` is read after the `<!--`, so `<!-->` opens a comment and does not close one.
+        let data_start = start_offset + "<!--".len();
+        let after_opener = &self.source_text.as_bytes()[data_start..];
+        let Some(len) = memchr::memmem::find(after_opener, b"-->") else {
             // Upstream reads to the end before it requires the `-->`, and cannot start to read
             // at the end.
-            if start_offset + 4 == self.source_text.len() {
+            if data_start == self.source_text.len() {
                 return self.unexpected_eof();
             }
             self.position = self.source_text.len();
             return self.expected_token("-->");
         };
-        let data = Span::new((start_offset + 4) as u32, (start_offset + end) as u32);
-        self.position += end + 3;
+        let data = Span::new(data_start as u32, (data_start + len) as u32);
+        self.position = data_start + len + "-->".len();
         self.token(TokenType::MarkupComment, start_offset);
         Ok(self.push_node(TemplateNode::Comment {
             span: Span::new(start_offset as u32, self.position as u32),
