@@ -89,8 +89,8 @@ fn write_outputs(
         let (dir, variant) = task_files::location(task);
         let dir = actual.join(dir);
         std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        for (name, text) in task_files::files(variant, &document.text, out) {
-            let path = dir.join(name);
+        for (name, text) in task_files::files(&document.text, out) {
+            let path = dir.join(format!("{variant}.{name}"));
             std::fs::write(&path, text.as_bytes())
                 .map_err(|e| format!("{}: {e}", path.display()))?;
         }
