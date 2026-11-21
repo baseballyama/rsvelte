@@ -1072,7 +1072,6 @@ dependencies = [
  "oxc_ast_visit",
  "oxc_parser",
  "oxc_span",
- "oxc_syntax",
  "rsvelte_kernel",
  "rsvelte_markup_syntax",
  "rsvelte_stylesheet_syntax",
