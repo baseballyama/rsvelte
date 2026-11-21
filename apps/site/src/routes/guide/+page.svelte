@@ -70,9 +70,8 @@
 	<code>format</code> は <a href="https://oxc.rs/docs/guide/usage/formatter">oxfmt</a>
 	に Svelte の整形を組み込んだコマンドです。オプションは oxfmt と同じです（<code
 		>rsvelte format --help</code
-	>）。設定は oxfmt と同じく <code>.oxfmtrc.json</code>、<code>.editorconfig</code>、<code
-		>.prettierignore</code
-	>
+	>）。設定は <code>.oxfmtrc.json</code> と <code>.editorconfig</code> から、除外するファイルは
+	<code>.prettierignore</code>
 	から読みます。<code>--check</code> を付けると、ファイルを書き換えずに、整形が必要なファイルを表示します。
 </p>
 
@@ -103,7 +102,9 @@
 		対応していない設定があると、Svelte
 		ファイルごとにエラーを出し、ほかのファイルは整形します。エラーは、対応していない設定の名前を示します。
 	</li>
-	<li>設定ファイルに <code>"svelte": false</code> と書くと、Svelte ファイルを整形しません。</li>
+	<li>
+		<code>.oxfmtrc.json</code> に <code>"svelte": false</code> と書くと、Svelte ファイルを整形しません。
+	</li>
 </ul>
 
 <p>
@@ -122,8 +123,10 @@
 </p>
 
 <p>
-	読むのは現在のディレクトリの <code>tsconfig.json</code> です。設定ファイルに
-	<code>typescript.check</code> があるときは、設定ファイルと同じディレクトリのものを読みます。
+	読むのは現在のディレクトリの <code>tsconfig.json</code> です。<a href="#config">設定ファイル</a>で
+	<code>typescript.check</code> を設定したときは、その <code>tsconfig</code>
+	を読みます。省くと、設定ファイルと同じディレクトリの
+	<code>tsconfig.json</code> を読みます。
 </p>
 
 <p>
@@ -141,8 +144,8 @@ npm install --save-dev @typescript/native-preview   # 7.1 以降`}</code
 
 <p>
 	<code>lint</code> と <code>typecheck</code> は、rsvelte の設定ファイル
-	<code>rsvelte.config.json</code>
-	を読みます。<code>.js</code> や <code>.ts</code> の設定ファイルは Node
+	<code>rsvelte.config.json</code> を読みます。<code>rsvelte.config.js</code> や
+	<code>rsvelte.config.ts</code> も使え、Node
 	で評価します。現在のディレクトリから親へたどり、最初に見つかったファイルを使います。<code
 		>--config &lt;ファイル&gt;</code
 	>
@@ -189,7 +192,7 @@ npm install --save-dev @typescript/native-preview   # 7.1 以降`}</code
 
 <p>
 	<code>rules</code>
-	を書くと、既定のルールは使われず、書いたルールだけが動きます。設定の中のパスは、設定ファイルのディレクトリから数えます。知らないキーはエラーになります。全項目は<a
+	を書くと、既定のルールは使われず、書いたルールだけが動きます。設定の中のパスは、設定ファイルのディレクトリを基準にします。知らないキーはエラーになります。全項目は<a
 		href="https://github.com/baseballyama/rsvelte/blob/main/crates/hosts/configuration_loading/README.md"
 		>設定の説明</a
 	>（英語）にあります。
@@ -242,7 +245,7 @@ export default [
 		>flat/recommended</code
 	>
 	は <code>correctness</code> のルールだけを無効にします。rsvelte
-	の設定とは関係なく無効にするので、同じルールを
+	で動かしていないルールも無効にするため、無効にしたルールは
 	<code>rsvelte.config.json</code> で有効にしてください。
 </p>
 

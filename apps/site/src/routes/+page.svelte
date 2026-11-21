@@ -41,9 +41,9 @@ npx @rsvelte/cli typecheck</code
 </div>
 
 <p>
-	対象は Svelte 5 のルーンモードのコンポーネントと、TypeScript と JavaScript のファイルです（<a
-		href={resolve('/guide') + '#legacy'}>Svelte 4 の場合</a
-	>）。
+	対象は Svelte 5 のルーンモードのコンポーネントと、TypeScript と JavaScript のファイルです。<a
+		href={resolve('/guide') + '#legacy'}>Svelte 4 には対応していません</a
+	>。
 </p>
 
 <p>

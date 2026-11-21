@@ -39,7 +39,8 @@
 </p>
 
 <p>
-	対象に JavaScript と TypeScript を含む <code>svelte/</code> のルールは、<code>.jsx</code> と
+	「対象」の列に JavaScript と TypeScript を含む <code>svelte/</code> のルールは、<code>.jsx</code>
+	と
 	<code>.tsx</code> も検査します。
 </p>
 

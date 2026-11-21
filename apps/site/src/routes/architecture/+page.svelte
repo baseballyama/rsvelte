@@ -5,8 +5,8 @@
 <h1>仕組み</h1>
 
 <p>
-	rsvelte の開発に参加する人向けの概要です。1
-	回の実行の中では、各ファイルを一度だけ解析し、その結果を複数の処理で共有します。
+	rsvelte の開発に参加する人向けの概要です。rsvelte は 1
+	回の実行の中で各ファイルを一度だけ解析し、その結果をタスクの間で共有します。
 </p>
 
 <h2 id="flow">一度読んで共有する</h2>
@@ -58,7 +58,8 @@
 		<tr>
 			<td><code>crates/bridges/</code></td>
 			<td
-				>あるフレームワークのコンポーネントを、別のフレームワークのランタイム向けにコンパイルする部分</td
+				>Vue のコンポーネントを Svelte
+				のランタイム向けにコンパイルするなど、フレームワークをまたぐコンパイル</td
 			>
 		</tr>
 		<tr>
@@ -83,8 +84,9 @@
 <h2 id="typecheck">型検査</h2>
 
 <p>
-	<code>typecheck</code> は Svelte コンポーネントを TypeScript のコードに変換します。TypeScript 7
-	の型検査器はそのコードを検査し、エラーの位置を元の Svelte ファイルの位置に戻して返します。変換は
+	<code>typecheck</code> は Svelte コンポーネントを TypeScript
+	のコードに変換し、元の位置との対応表を付けて型検査器へ渡します。型検査器は、この対応表でエラーの位置を元の
+	Svelte ファイルの位置に戻します。変換は
 	<code>crates/languages/svelte/typescript_projection</code> にあります。
 </p>
 
