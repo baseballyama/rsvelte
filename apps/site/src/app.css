@@ -1,5 +1,6 @@
 :root {
-	--rust: #ce422b;
+	/* The Rust logo is black; gray keeps it readable in both themes. */
+	--logo: #3a3a3a;
 	--bg: #ffffff;
 	--fg: #1c1c1f;
 	--muted: #5f6066;
@@ -15,6 +16,7 @@
 
 @media (prefers-color-scheme: dark) {
 	:root {
+		--logo: #c4c4c8;
 		--bg: #17171a;
 		--fg: #e8e8ec;
 		--muted: #a2a3aa;
