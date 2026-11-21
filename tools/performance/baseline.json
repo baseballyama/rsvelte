@@ -23,8 +23,8 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 25433111,
-	"alloc_bytes": 4068315340,
+	"allocs": 25433150,
+	"alloc_bytes": 4068317164,
 	"peak_live_growth_bytes": 3262529,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -144,18 +144,18 @@
 		},
 		"svelte.parse": {
 			"calls": 36896,
-			"allocs": 426521,
-			"alloc_bytes": 95807839
+			"allocs": 426534,
+			"alloc_bytes": 95808447
 		},
 		"svelte.parse.checked": {
 			"calls": 2033,
-			"allocs": 17613,
-			"alloc_bytes": 3546276
+			"allocs": 17626,
+			"alloc_bytes": 3546884
 		},
 		"svelte.parse.typescript": {
 			"calls": 2153,
-			"allocs": 19162,
-			"alloc_bytes": 3866205
+			"allocs": 19175,
+			"alloc_bytes": 3866813
 		},
 		"svelte.render_plan": {
 			"calls": 34748,
