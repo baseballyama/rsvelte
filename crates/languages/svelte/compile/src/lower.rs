@@ -32,7 +32,7 @@ mod tests;
 mod unsupported_syntax;
 mod validation;
 
-pub use attributes::{DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select};
+pub use attributes::{DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute};
 pub(crate) use builder::Builder;
 pub use client::PASSIVE_EVENTS;
 pub(crate) use module::lower_module;
