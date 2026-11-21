@@ -5,11 +5,12 @@ function $$render() {
 
 ;
 
-  return (/** @type {typeof __rsvelte_export_component<Partial<{
+  return (/** @type {typeof __rsvelte_export_isomorphic<{
+    id?: typeof id;
+  }, { [evt: string]: CustomEvent<any> }, {
     id: typeof id;
-  }>, {
-    id: typeof id;
-  }, string>} */ (__rsvelte_export_component))();
+  }, string>} */ (__rsvelte_export_isomorphic))()({});
 }
-const PropsIdExport__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof PropsIdExport__SvelteComponent_>} */ (PropsIdExport__SvelteComponent_);
+export const PropsIdExport__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {InstanceType<typeof PropsIdExport__SvelteComponent_>} PropsIdExport__SvelteComponent_ */
+export default PropsIdExport__SvelteComponent_;

@@ -15,8 +15,8 @@ function $$render() {
   async () => {
     $a;
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
 }
 const StoreSubscriptionDeclared__SvelteComponent_ = $$render();
-type StoreSubscriptionDeclared__SvelteComponent_ = ReturnType<typeof StoreSubscriptionDeclared__SvelteComponent_>;
+type StoreSubscriptionDeclared__SvelteComponent_ = InstanceType<typeof StoreSubscriptionDeclared__SvelteComponent_>;
 export default StoreSubscriptionDeclared__SvelteComponent_;

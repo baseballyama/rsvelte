@@ -29,5 +29,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "value" | "text">} */ (__rsvelte_export_component))();
 }
-const SpreadBindable__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof SpreadBindable__SvelteComponent_>} */ (SpreadBindable__SvelteComponent_);
+export const SpreadBindable__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof SpreadBindable__SvelteComponent_>} SpreadBindable__SvelteComponent_ */
+export default SpreadBindable__SvelteComponent_;

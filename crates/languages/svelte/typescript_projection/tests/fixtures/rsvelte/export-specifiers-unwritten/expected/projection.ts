@@ -34,5 +34,6 @@ function $$render() {
     class: typeof _class;
   }, "">} */ (__rsvelte_export_component))();
 }
-const ExportSpecifiersUnwritten__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof ExportSpecifiersUnwritten__SvelteComponent_>} */ (ExportSpecifiersUnwritten__SvelteComponent_);
+export const ExportSpecifiersUnwritten__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof ExportSpecifiersUnwritten__SvelteComponent_>} ExportSpecifiersUnwritten__SvelteComponent_ */
+export default ExportSpecifiersUnwritten__SvelteComponent_;

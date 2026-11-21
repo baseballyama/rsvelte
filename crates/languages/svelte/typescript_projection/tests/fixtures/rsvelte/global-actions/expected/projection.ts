@@ -29,7 +29,8 @@ function $$render() {
       svelteHTML.createElement("svelte:window", __sveltets_2_union(__rsvelte_action0), {});
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_component))();
 }
-const GlobalActions__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof GlobalActions__SvelteComponent_>} */ (GlobalActions__SvelteComponent_);
+export const GlobalActions__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof GlobalActions__SvelteComponent_>} GlobalActions__SvelteComponent_ */
+export default GlobalActions__SvelteComponent_;

@@ -60,5 +60,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }
-const SpreadMixed__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof SpreadMixed__SvelteComponent_>} */ (SpreadMixed__SvelteComponent_);
+export const SpreadMixed__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof SpreadMixed__SvelteComponent_>} SpreadMixed__SvelteComponent_ */
+export default SpreadMixed__SvelteComponent_;
