@@ -12,7 +12,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_svelte_syntax::syntax_tree::{decode_attribute, escape_markup};
 
-use super::{ServerCompilationContext, known_string};
+use super::ServerCompilationContext;
 use crate::lower::attributes::{lowercase, needs_clsx};
 use crate::lower::builder::Runtime;
 
@@ -106,7 +106,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                         quasis
                             .last_mut()
                             .expect("never empty")
-                            .push_str(&known_string(&evaluated.value));
+                            .push_str(&evaluated.value.to_template_string());
                     } else {
                         let v = self.expression(*expression);
                         let v = if evaluated.is_string && evaluated.is_defined {

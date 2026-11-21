@@ -47,7 +47,8 @@ use super::{Builder, Prepared, takes_props, uses_slots};
 use crate::input::Target;
 use crate::render_plan::RenderPlan;
 
-const PASSIVE_EVENTS: &[&str] = &["touchstart", "touchmove"];
+/// Svelte's passive events: a listener for them cannot prevent the default.
+pub const PASSIVE_EVENTS: &[&str] = &["touchstart", "touchmove"];
 
 type R<T> = Result<T, Diagnostic>;
 

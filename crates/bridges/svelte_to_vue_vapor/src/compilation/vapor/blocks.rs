@@ -47,7 +47,7 @@ impl<'o> Emitter<'_, 'o> {
         while i < nodes.len() {
             if let Some(end) = self.if_run_end(nodes, i) {
                 let branch = self.if_chain(&nodes[i..end]);
-                result.push(self.b.id(&self.declare(branch, body)));
+                result.push(self.b.id(self.declare(branch, body)));
                 i = end;
             } else {
                 result.push(self.loop_or_node(nodes[i], body));
@@ -134,6 +134,6 @@ impl<'o> Emitter<'_, 'o> {
         } else {
             self.call("createFor", arguments)
         };
-        b.id(&self.declare(call, body))
+        b.id(self.declare(call, body))
     }
 }

@@ -34,6 +34,7 @@ mod validation;
 
 pub use attributes::{DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select};
 pub(crate) use builder::Builder;
+pub use client::PASSIVE_EVENTS;
 pub(crate) use module::lower_module;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Program, Statement};

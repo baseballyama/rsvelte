@@ -63,18 +63,18 @@ impl<'o> Emitter<'_, 'o> {
         let tag = self.name();
         body.push(b.declaration(
             VariableDeclarationKind::Let,
-            [b.declarator(b.binding(&tag), None)],
+            [b.declarator(b.binding(tag), None)],
         ));
-        let getter = self.arrow(b.assign_name(&tag, value));
+        let getter = self.arrow(b.assign_name(tag, value));
         let document = || b.id("document");
         let node = match self.namespace(identifier) {
             Namespace::Html => {
-                let markup = b.call(b.member(document(), "createElement"), [b.id(&tag)]);
+                let markup = b.call(b.member(document(), "createElement"), [b.id(tag)]);
                 let svg = b.call(
                     b.member(document(), "createElementNS"),
-                    [b.string(SVG), b.id(&tag)],
+                    [b.string(SVG), b.id(tag)],
                 );
-                let test = b.binary(b.id(&tag), BinaryOperator::StrictEquality, b.string("svg"));
+                let test = b.binary(b.id(tag), BinaryOperator::StrictEquality, b.string("svg"));
                 b.conditional(test, svg, markup)
             }
             namespace => {
@@ -85,7 +85,7 @@ impl<'o> Emitter<'_, 'o> {
                 };
                 b.call(
                     b.member(document(), "createElementNS"),
-                    [b.string(uri), b.id(&tag)],
+                    [b.string(uri), b.id(tag)],
                 )
             }
         };
@@ -95,17 +95,17 @@ impl<'o> Emitter<'_, 'o> {
         let mut statements = content.finish(b);
         statements.push(b.return_(Some(node)));
         let present = self.run(statements, false);
-        let render = b.conditional(b.id(&tag), present, b.array([]));
+        let render = b.conditional(b.id(tag), present, b.array([]));
         let render = self.arrow(render);
         let fragment = self.keyed_fragment(getter, render);
-        b.id(&self.declare(fragment, body))
+        b.id(self.declare(fragment, body))
     }
 
     fn element_body(
         &mut self,
         identifier: CompilerNodeIdentifier,
         body: &mut Body<'o>,
-        dynamic: Option<String>,
+        dynamic: Option<&'o str>,
     ) -> Expression<'o> {
         let b = self.b;
         let tree = self.tree;
@@ -150,7 +150,7 @@ impl<'o> Emitter<'_, 'o> {
             }
         } else {
             let markup = self.markup(el, tag);
-            b.id(&self.template(&markup, namespace, body))
+            b.id(self.template(&markup, namespace, body))
         };
         let attribute_order = self.reserve_effect_order();
         let child_ids = tree.children(el.children);
@@ -254,11 +254,11 @@ impl<'o> Emitter<'_, 'o> {
                         dom.then(|| effects::reads(&value, &self.memoized, &self.dom_callbacks));
                     let callback = self.declare(value, body);
                     if let Some(reads) = reads {
-                        self.dom_callbacks.insert(callback.clone(), reads);
+                        self.dom_callbacks.insert(callback, reads);
                     }
-                    let call = b.call(b.id(&callback), [self.copy_output(node)]);
+                    let call = b.call(b.id(callback), [self.copy_output(node)]);
                     self.effect(call, dom, body);
-                    let cleanup = self.arrow(b.call(b.id(&callback), [b.null()]));
+                    let cleanup = self.arrow(b.call(b.id(callback), [b.null()]));
                     let dispose = self.call("onScopeDispose", [cleanup]);
                     body.push(b.statement(dispose));
                 }
@@ -385,7 +385,7 @@ impl<'o> Emitter<'_, 'o> {
         }
         let render = self.arrow(b.call(b.id("$$raw_markup"), arguments));
         let fragment = self.keyed_fragment(key, render);
-        b.id(&self.declare(fragment, body))
+        b.id(self.declare(fragment, body))
     }
 
     fn static_text(&mut self, element: &Element, body: &mut Body<'o>) -> Expression<'o> {
@@ -405,7 +405,7 @@ impl<'o> Emitter<'_, 'o> {
         // Vapor treats a text-only template as a literal string.
         let markup = format!("<{tag}>{}</{tag}>", value.text(self.source_text));
         let wrapper = self.template(&markup, Namespace::Html, body);
-        b.id(&self.declare(b.member(b.id(&wrapper), "firstChild"), body))
+        b.id(self.declare(b.member(b.id(wrapper), "firstChild"), body))
     }
 
     /// A `<title>`'s text: its parts joined.

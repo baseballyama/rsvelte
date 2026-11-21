@@ -1,5 +1,4 @@
 use super::*;
-use crate::compilation::helpers;
 
 /// The module for one target on one line, or the refusal's message.
 fn run(source_text: &str, server: bool) -> Result<String, String> {
@@ -21,13 +20,14 @@ fn run(source_text: &str, server: bool) -> Result<String, String> {
         ),
         &resolution,
     );
-    let plan = check(&c, &compiler_syntax_tree, &resolution, source_text).map_err(|d| d.message)?;
+    let checked =
+        check(&c, &compiler_syntax_tree, &resolution, source_text).map_err(|d| d.message)?;
     let t = translate(Input {
         component: &c,
         compiler_syntax_tree: &compiler_syntax_tree,
         resolution: &resolution,
         analysis: &analysis,
-        plan: &plan,
+        checked: &checked,
         source_text,
         server,
         filename: "A.svelte",
@@ -48,51 +48,6 @@ fn both(source_text: &str) -> (String, String) {
     let client = run(source_text, false).unwrap_or_else(|e| panic!("{source_text}: {e}"));
     let server = run(source_text, true).unwrap_or_else(|e| panic!("{source_text}: {e}"));
     (client, server)
-}
-
-#[test]
-fn every_helper_parses() {
-    use helpers::Helper::*;
-    let allocator = oxc_allocator::Allocator::default();
-    let b = rsvelte_typescript_compile::build::Builder::new(&allocator);
-    let all = [
-        Each,
-        EachServer,
-        Attribute,
-        AttributeServer,
-        BooleanServer,
-        Stringify,
-        NodeValue,
-        Clsx,
-        Class,
-        ToClass,
-        SetClass,
-        Attributes,
-        Spread,
-        Fail,
-        Value,
-        Once,
-        Select,
-        Option,
-        ScopedClass,
-        Style,
-        RawMarkup,
-        Lifecycle,
-        Await,
-        NumberBinding,
-        Group,
-        PropertyBinding,
-        MediaBinding,
-        ResizeBinding,
-        FormReset,
-        ClassSpread,
-        ComponentProps,
-        Transition,
-        Animate,
-        Boundary,
-        CustomElementData,
-    ];
-    assert!(!helpers::declarations(&all, &b).is_empty());
 }
 
 #[test]

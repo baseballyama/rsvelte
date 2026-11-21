@@ -60,13 +60,7 @@ impl<'t> Template<'_, '_, 't> {
         }
         let tag = el.name.text(source_text);
         let attributes = compiler_syntax_tree.attributes(el.attributes);
-        let namespace = self
-            .i
-            .plan
-            .namespaces
-            .as_ref()
-            .expect("translation uses a checked plan")
-            .named(identifier);
+        let namespace = self.i.checked.namespaces.named(identifier);
         let scope = self.i.analysis.scoped[identifier]
             .then_some(self.stylesheet_hash)
             .flatten();

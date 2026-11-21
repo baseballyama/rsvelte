@@ -18,7 +18,7 @@ struct Update<'o> {
     at: usize,
     order: usize,
     expression: Expression<'o>,
-    reads: Vec<String>,
+    reads: Vec<&'o str>,
 }
 
 impl<'o> Body<'o> {
@@ -34,7 +34,7 @@ impl<'o> Body<'o> {
         }
     }
 
-    pub(super) fn effect(&mut self, order: usize, expression: Expression<'o>, reads: Vec<String>) {
+    pub(super) fn effect(&mut self, order: usize, expression: Expression<'o>, reads: Vec<&'o str>) {
         self.updates.push(Update {
             at: self.statements.len(),
             order,
@@ -68,7 +68,7 @@ impl<'o> Body<'o> {
         let mut reads = Vec::new();
         for update in &self.updates {
             for read in &update.reads {
-                if seen.insert(read.as_str()) {
+                if seen.insert(*read) {
                     reads.push(b.statement(b.member(b.id(read), "value")));
                 }
             }
@@ -84,23 +84,23 @@ impl<'o> Body<'o> {
 }
 
 /// The memoized cells `update` reads, through the DOM callbacks it calls too, in order.
-pub(super) fn reads(
+pub(super) fn reads<'o>(
     update: &Expression<'_>,
-    memoized: &FxHashSet<String>,
-    callbacks: &FxHashMap<String, Vec<String>>,
-) -> Vec<String> {
-    struct Reads<'r> {
-        memoized: &'r FxHashSet<String>,
-        callbacks: &'r FxHashMap<String, Vec<String>>,
-        out: Vec<String>,
+    memoized: &FxHashSet<&'o str>,
+    callbacks: &FxHashMap<&'o str, Vec<&'o str>>,
+) -> Vec<&'o str> {
+    struct Reads<'r, 'o> {
+        memoized: &'r FxHashSet<&'o str>,
+        callbacks: &'r FxHashMap<&'o str, Vec<&'o str>>,
+        out: Vec<&'o str>,
     }
-    impl<'a> Visit<'a> for Reads<'_> {
+    impl<'a> Visit<'a> for Reads<'_, '_> {
         fn visit_static_member_expression(&mut self, it: &StaticMemberExpression<'a>) {
             if let Expression::Identifier(object) = &it.object
                 && it.property.name == "value"
-                && self.memoized.contains(object.name.as_str())
+                && let Some(&cell) = self.memoized.get(object.name.as_str())
             {
-                self.out.push(object.name.to_string());
+                self.out.push(cell);
                 return;
             }
             walk::walk_static_member_expression(self, it);
@@ -108,7 +108,7 @@ pub(super) fn reads(
 
         fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
             if let Some(reads) = self.callbacks.get(it.name.as_str()) {
-                self.out.extend(reads.iter().cloned());
+                self.out.extend_from_slice(reads);
             }
         }
     }
