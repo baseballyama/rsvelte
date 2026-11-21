@@ -15,7 +15,7 @@ mod check;
 mod parentheses;
 mod program;
 mod recorded;
-pub use program::Rejected;
+pub use program::{Holes, Rejected, WithHoles};
 pub use recorded::{Part as RecordedPart, Recorded};
 
 /// No rule unchecked: the list a host starts with.

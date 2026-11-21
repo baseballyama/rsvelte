@@ -18,7 +18,6 @@ mod standalone;
 pub use standalone::lower_alone;
 mod tag;
 mod type_assertion;
-mod unparsed_script;
 use std::cell::OnceCell;
 
 use oxc_ast::ast::{AssignmentTarget, ChainElement, Expression};
@@ -28,7 +27,6 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode, TokenType};
 use rsvelte_typescript_tree::{ExpressionIdentifier, document_span};
-pub use unparsed_script::{UnparsedScript, unparsed_script};
 
 use crate::buffers::Buffer;
 use crate::syntax_tree::{Node, NodeIdentifier, SourceExpression, SyntaxTree};
@@ -128,8 +126,10 @@ pub fn lower<'a>(
         }
     }
     let body = builder.finish_list(start);
-    if !builder.tree.children(body).is_empty() {
-        let value = builder.tree.push(Node::Template(body));
+    // TypeScript reads a cut-short script on into the template's head, even an empty template's.
+    let head = component.instance.as_ref().and_then(crate::cut_short_at);
+    if !builder.tree.children(body).is_empty() || head.is_some() {
+        let value = builder.tree.push(Node::Template { body, head });
         builder
             .scratch
             .push(builder.tree.push(Node::Statement(value)));

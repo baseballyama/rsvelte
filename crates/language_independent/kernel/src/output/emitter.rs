@@ -68,6 +68,14 @@ impl Emitter {
         self.atom_since(start, original);
     }
 
+    /// [`Self::atom`] when there is an `original`, else [`Self::push`].
+    pub fn atom_at(&mut self, text: &str, original: Option<Span>) {
+        match original {
+            Some(original) => self.atom(text, original),
+            None => self.push(text),
+        }
+    }
+
     /// Maps the text pushed since the output offset `start` as a whole to `original`.
     pub fn atom_since(&mut self, start: u32, original: Span) {
         self.atoms.push(Atom {

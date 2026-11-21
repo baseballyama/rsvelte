@@ -1,7 +1,7 @@
 //! svelte2tsx walks every node of the instance script: it moves each import and removes each
 //! `export` it finds, at any depth.
 
-use oxc_ast::ast::{Declaration, Program, Statement};
+use oxc_ast::ast::{Declaration, Statement};
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::GetSpan;
 use rsvelte_typescript_tree::document_span;
@@ -16,13 +16,6 @@ pub(super) struct Nested {
 }
 
 impl Nested {
-    /// Those in `program`, its top level included.
-    pub(super) fn of(program: &Program<'_>) -> Self {
-        let mut found = Self::default();
-        found.visit_program(program);
-        found
-    }
-
     /// Those inside `statement`, not `statement` itself.
     pub(super) fn inside(statement: &Statement<'_>) -> Self {
         let mut found = Self::default();

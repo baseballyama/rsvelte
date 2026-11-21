@@ -3,7 +3,7 @@ use oxc_ast::ast::{
     VariableDeclarationKind,
 };
 use oxc_span::GetSpan;
-use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
+use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, Script, TemplateNode};
 use rsvelte_typescript_tree::document_span;
 
 use super::generic::Generics;
@@ -92,7 +92,7 @@ impl Builder<'_> {
                 }
             }
             edits.sort_by_key(|edit| edit.span.start_offset);
-            self.script_parts(script.content, &edits);
+            self.script_parts(script, &edits);
             self.scratch[generated_start..].rotate_right(1);
         }
         let runes = props.is_some() || self.runes_mode(generics.asynchronous);
@@ -504,15 +504,18 @@ impl Builder<'_> {
                 .is_some()
     }
 
-    fn script_parts(&mut self, span: Span, edits: &[Edit]) {
+    fn script_parts(&mut self, script: &Script, edits: &[Edit]) {
+        let span = script.content;
+        let end_tag = crate::cut_short_at(script);
         if edits.is_empty() {
-            self.scratch.push(self.tree.push(Node::Program { span }));
+            self.scratch
+                .push(self.tree.push(Node::Program { span, end_tag }));
             return;
         }
         let holes = edits.iter().map(|edit| (edit.span, edit.replacement));
         let parts = self.spliced(span, holes);
         self.scratch
-            .push(self.tree.push(Node::ProgramParts { parts }));
+            .push(self.tree.push(Node::ProgramParts { parts, end_tag }));
     }
 }
 

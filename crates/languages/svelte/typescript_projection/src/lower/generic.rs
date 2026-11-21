@@ -275,8 +275,10 @@ impl Builder<'_> {
         }
         if self.scratch.len() > start {
             let parts = self.finish_list(start);
-            self.scratch
-                .push(self.tree.push(Node::ProgramParts { parts }));
+            self.scratch.push(self.tree.push(Node::ProgramParts {
+                parts,
+                end_tag: None,
+            }));
         }
         Ok(())
     }
@@ -321,7 +323,7 @@ impl Builder<'_> {
             return Ok(());
         };
         let program = self.component.javascript.get_program(script.program);
-        instance_only(program, 0).map_or(Ok(()), Err)
+        instance_only(program).map_or(Ok(()), Err)
     }
 
     /// Wraps the instance and the template, from `generics.start`, in the render function that
@@ -361,15 +363,11 @@ impl Builder<'_> {
     }
 }
 
-/// The error for the first declaration in `program` that only the instance script may make, with
-/// `program`'s spans `offset` bytes into the component.
-pub(super) fn instance_only(program: &Program<'_>, offset: u32) -> Option<Refusal> {
+/// The error for the first declaration in `program` that only the instance script may make.
+fn instance_only(program: &Program<'_>) -> Option<Refusal> {
     DollarGenerics::of(program)
         .instance_only
-        .map(|(span, message)| Refusal::Thrown {
-            message,
-            span: Span::new(span.start_offset + offset, span.end_offset + offset),
-        })
+        .map(|(span, message)| Refusal::Thrown { message, span })
 }
 
 /// An error svelte2tsx throws without a position, which svelte-check reports at the start.

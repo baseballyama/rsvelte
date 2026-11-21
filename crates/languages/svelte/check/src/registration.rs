@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::{Registry, ReplacedFile, ReplacedFiles};
+use rsvelte_svelte_typescript_projection::{Unprojected, unprojected};
 use rsvelte_typescript_check::{
     Check, Documents, MappedLanguage, MappedLanguages, TypeScriptDocument, TypeScriptStandIn,
     TypeScriptView,
@@ -58,33 +59,16 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         typescript_view(context, env.as_ref())
     });
     reg.provide::<TypeScriptStandIn>("svelte", rsvelte_svelte_syntax::matches, |context| {
-        // svelte-check reads a component svelte2tsx throws on as its bare script, which declares
-        // globals for the whole project when it neither imports nor exports.
-        if let Some(Ok(TypeScriptDocument::Rejected { .. })) = context.facet::<TypeScriptView>() {
-            return Some(bare_script(&context.document.text));
-        }
-        let own = rsvelte_svelte_typescript_projection::read(context)
-            .ok()
-            .and_then(|read| {
-                rsvelte_svelte_typescript_projection::stand_in(
-                    read.component,
-                    &context.document.text,
-                )
-            });
-        Some(own.unwrap_or_else(|| rsvelte_svelte_typescript_projection::STAND_IN.to_owned()))
+        let rejected = matches!(
+            context.facet::<TypeScriptView>(),
+            Some(Ok(TypeScriptDocument::Rejected { .. }))
+        );
+        let why = match rsvelte_svelte_typescript_projection::read(context) {
+            Ok(read) if !rejected => Unprojected::Unsupported(read.component),
+            _ => Unprojected::Thrown,
+        };
+        Some(unprojected(&context.document.text, why))
     });
-}
-
-/// svelte-check's text of a component svelte2tsx throws on: its instance script, else its module
-/// script.
-fn bare_script(source_text: &str) -> String {
-    rsvelte_svelte_syntax::parse::parse_without_scripts(source_text)
-        .ok()
-        .and_then(|component| {
-            let script = component.instance.as_ref().or(component.module.as_ref())?;
-            Some(script.content.text(source_text).to_owned())
-        })
-        .unwrap_or_default()
 }
 
 /// A script a component may import, such as a `.svelte.ts` module.
