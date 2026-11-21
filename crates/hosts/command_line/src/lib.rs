@@ -241,9 +241,7 @@ fn dispatch(
             let files: Vec<PathBuf> = files.iter().map(PathBuf::from).collect();
             run_files(reg, files, tasks)
         }
-        ["lint", paths @ ..] => {
-            lint::lint(reg, if paths.is_empty() { &["."] } else { paths }, tasks)
-        }
+        ["lint", paths @ ..] => lint::lint(reg, paths, tasks),
         ["format", paths @ ..] => {
             let paths = if paths.is_empty() { &["."] } else { paths };
             match commands::files::load(reg, paths, tasks, format::IGNORE_FILES) {

@@ -17,6 +17,7 @@ npx @rsvelte/cli format [<path>...] [--check]
 npx @rsvelte/cli typecheck
 npx @rsvelte/cli help [<command>]
 npx @rsvelte/cli version
+npx @rsvelte/cli format lint typecheck [<path>...] [--check]
 ```
 
 `npx` runs the project's copy, or downloads one when the project has none. In `package.json`
@@ -82,6 +83,14 @@ type errors that svelte-check reports. It runs a TypeScript 7 type checker from 
 `format` exits with the codes of oxfmt. It exits with 1 when `--check` finds a file to format
 or when the configuration is invalid. It exits with 2 when a file does not format or when no
 path matches a file.
+
+Name more than one command to run them together, as `rsvelte format lint typecheck --check` in CI.
+The paths go to `lint` and `format`, `--check` goes to `format`, and the `--config` options go
+to `lint` and `typecheck`. To pass other oxfmt options, run `format` alone. `format` runs first,
+and the other commands read what it wrote. `lint` and `typecheck` then run together and read each
+file once. Each prints what it prints alone. The run exits with the worst exit code of its
+commands. rsvelte reads each leading `lint`, `format` or `typecheck` as a command, so write a
+directory named `lint` as `./lint`.
 
 ## Svelte 5 runes mode only
 

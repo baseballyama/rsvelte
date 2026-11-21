@@ -14,6 +14,10 @@ Commands:
   version                        Print the versions of the tools rsvelte matches and is built on
   help [<command>]               Print this help, or the guide to one command
 
+  <command> <command>... [<path>...] [--check]
+                                 Run several of lint, format and typecheck. format runs
+                                 first; lint and typecheck then read each file once
+
 Options:
   -h, --help                     Print this help, or with a command, its guide
   -V, --version                  Print the version
