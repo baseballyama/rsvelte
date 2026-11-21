@@ -1,14 +1,14 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Frag, Lists, R};
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, NodeVar, R};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `KeyBlock` (client): `$.key(node, () => key, ($$anchor) => { … })`.
     pub(in crate::lower::client) fn key_block(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         frag: &mut Frag<'o>,
         l: &mut Lists<'o>,
     ) -> R<()> {
@@ -22,7 +22,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let body = self.fragment(body)?;
         let render = self.anchor_arrow(body);
         l.initializer
-            .push(b.statement(b.runtime("key", [b.id(node), key, render])));
+            .push(b.statement(b.runtime("key", [node.id(b), key, render])));
         Ok(())
     }
 }

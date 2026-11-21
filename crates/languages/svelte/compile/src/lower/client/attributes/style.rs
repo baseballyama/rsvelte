@@ -5,14 +5,14 @@ use rsvelte_svelte_semantic::resolve::BindingKind;
 use crate::input::Target;
 use crate::lower::attributes::style_directives_object;
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Lists, Memo};
+use crate::lower::client::{ClientCompilationContext, Lists, Memo, NodeVar};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_set_style`; `attribute` is `None` for the empty `style` upstream's analysis
     /// adds.
     pub(in crate::lower::client) fn set_style(
         &self,
-        node: &str,
+        node: &NodeVar,
         attribute: Option<&Attribute>,
         directives: &[&Attribute],
         memo: &mut Memo<'o>,
@@ -40,7 +40,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
         }
         let mut set_style =
-            b.runtime_some("set_style", vec![Some(b.id(node)), Some(value), prev, next]);
+            b.runtime_some("set_style", vec![Some(node.id(b)), Some(value), prev, next]);
         if let Some(name) = previous_id {
             set_style = b.assign_name(&name, set_style);
         }

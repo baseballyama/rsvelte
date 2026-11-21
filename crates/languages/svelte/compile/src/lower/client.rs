@@ -29,9 +29,9 @@ mod title;
 use std::borrow::Cow;
 
 use oxc_allocator::ArenaBox;
-use oxc_ast::ast::{Expression, FormalParameters, Statement};
+use oxc_ast::ast::{Expression, FormalParameters, Statement, VariableDeclarationKind};
 use oxc_semantic::{ScopeId, SymbolId};
-use oxc_span::Span;
+use oxc_span::{SPAN, Span};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, CompilerSyntaxTree};
@@ -126,11 +126,48 @@ struct Lists<'o> {
 enum Prev {
     Call {
         method: &'static str,
-        of: String,
+        of: NodeVar,
         /// Reads the children of a `<template>`'s content.
         content: bool,
     },
-    Identifier(String),
+    Identifier(NodeVar),
+}
+
+/// A template node's variable (upstream's `id`). A regular element's carries its tag name's span,
+/// upstream's `name_loc`, so every read of it places comments where upstream's does.
+#[derive(Clone)]
+struct NodeVar {
+    name: String,
+    span: Span,
+}
+
+impl NodeVar {
+    const fn new(name: String, span: Span) -> Self {
+        Self { name, span }
+    }
+
+    fn bare(name: impl Into<String>) -> Self {
+        Self::new(name.into(), SPAN)
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn id<'o>(&self, b: &Builder<'o>) -> Expression<'o> {
+        b.id_at(&self.name, self.span)
+    }
+
+    /// `name = value`
+    fn assign<'o>(&self, b: &Builder<'o>, value: Expression<'o>) -> Expression<'o> {
+        b.assign_name_at(&self.name, self.span, value)
+    }
+
+    /// `var name = init;`
+    fn declare<'o>(&self, b: &Builder<'o>, init: Expression<'o>) -> Statement<'o> {
+        let declarator = b.declarator(b.binding_at(&self.name, self.span), Some(init));
+        b.declaration(VariableDeclarationKind::Var, [declarator])
+    }
 }
 
 struct ClientCompilationContext<'c, 'o> {
@@ -275,7 +312,7 @@ struct Walk {
 
 impl Walk {
     /// The node a static element would be visited with (upstream passes the parent's state).
-    fn prev_name(&self) -> String {
+    fn prev_name(&self) -> NodeVar {
         match &self.prev {
             Prev::Identifier(n) => n.clone(),
             Prev::Call { of, .. } => of.clone(),
@@ -284,6 +321,13 @@ impl Walk {
 }
 
 impl<'o> ClientCompilationContext<'_, 'o> {
+    /// What upstream names a regular element's variable after, and where it reads it:
+    /// `element.name` and `element.name_loc`.
+    fn element_name(&self, tag: rsvelte_kernel::source::positions::Span) -> (&str, Span) {
+        let location = Span::new(tag.start_offset, tag.end_offset);
+        (tag.text(self.source_text), location)
+    }
+
     /// The component's function; its body holds the instance script's statements and stands
     /// where the script does, `instance_span`.
     fn component_function(

@@ -13,7 +13,9 @@ use crate::lower::attributes::{
 };
 use crate::lower::bindings::needs_special_value;
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Frag, Lists, Memo, R, normalize_attribute};
+use crate::lower::client::{
+    ClientCompilationContext, Frag, Lists, Memo, NodeVar, R, normalize_attribute,
+};
 use crate::lower::unsupported;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -23,7 +25,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         identifier: CompilerNodeIdentifier,
         tag: &str,
         attributes: &[Attribute],
-        node: &str,
+        node: &NodeVar,
         frag: &mut Frag<'o>,
         l: &mut Lists<'o>,
     ) -> R<()> {
@@ -163,7 +165,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 
     /// Upstream reads an `autofocus` value once, unmemoized, when the element is created.
-    fn autofocus(&self, node: &str, a: &Attribute) -> R<Statement<'o>> {
+    fn autofocus(&self, node: &NodeVar, a: &Attribute) -> R<Statement<'o>> {
         let b = self.b;
         let value = match &a.value {
             AttributeValue::Boolean => b.boolean(true),
@@ -172,18 +174,18 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             | AttributeValue::Shorthand(expression)) => self.expression(expression),
             _ => return unsupported("an interpolated `autofocus` attribute", a.span),
         };
-        Ok(b.statement(b.runtime("autofocus", [b.id(node), value])))
+        Ok(b.statement(b.runtime("autofocus", [node.id(b), value])))
     }
 
     /// Upstream sets a custom element's attribute as data, each in its own effect, since a
     /// setter need not be idempotent; the name keeps its case.
-    fn custom_element_data(&self, node: &str, name: &str, a: &Attribute) -> Statement<'o> {
+    fn custom_element_data(&self, node: &NodeVar, name: &str, a: &Attribute) -> Statement<'o> {
         let b = self.b;
         let mut memo = Memo::default();
         let (value, has_state) = self.attribute_value(a, &mut memo, false);
         let call = b.runtime(
             "set_custom_element_data",
-            [b.id(node), b.string(name), value],
+            [node.id(b), b.string(name), value],
         );
         if !has_state {
             return b.statement(call);
@@ -251,13 +253,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_element_attribute_update`.
     fn attribute_update(
         &self,
-        node: &str,
+        node: &NodeVar,
         name: &str,
         value: Expression<'o>,
         defaults: Defaults,
     ) -> Expression<'o> {
         let b = self.b;
-        let x = b.id(node);
+        let x = node.id(b);
         match name {
             "defaultValue" if defaults.value => b.runtime("set_default_value", [x, value]),
             "defaultChecked" if defaults.checked => b.runtime("set_default_checked", [x, value]),

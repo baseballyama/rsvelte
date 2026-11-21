@@ -4,7 +4,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 
 use super::template::Template;
-use super::{ClientCompilationContext, Frag, Lists, Prev, R};
+use super::{ClientCompilationContext, Frag, Lists, NodeVar, Prev, R};
 use crate::lower::builder::Runtime;
 use crate::lower::component::Standalone;
 use crate::lower::unsupported;
@@ -80,10 +80,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             _ => None,
         };
         let root = if let Some(identifier) = lone_fragment {
-            self.special_element(identifier, "", &mut frag, &mut l)?;
+            self.special_element(identifier, &NodeVar::bare(""), &mut frag, &mut l)?;
             None
         } else if let Some((el, name)) = single_element {
-            let identifier = self.names.generate(name.text(self.source_text));
+            let (name, location) = self.element_name(name);
+            let identifier = NodeVar::new(self.names.generate(name), location);
             self.element(el, &identifier, &mut frag, &mut l)?;
             let flags = if frag.tpl.needs_import_node {
                 TEMPLATE_USE_IMPORT_NODE
@@ -93,22 +94,17 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             let callee = self.transform_template(&frag.tpl, cleaned.namespace, "root", flags);
             Some((identifier, b.call(callee, [])))
         } else if let [Item::Text { data, .. }] = items.as_ref() {
-            let identifier = self.names.generate("text");
-            Some((
-                identifier,
-                b.runtime(
-                    "text",
-                    [b.string(data.get(self.source_text, self.compiler_syntax_tree))],
-                ),
-            ))
+            let identifier = NodeVar::bare(self.names.generate("text"));
+            let data = b.string(data.get(self.source_text, self.compiler_syntax_tree));
+            Some((identifier, b.runtime("text", [data])))
         } else {
-            let identifier = self.names.generate("fragment");
+            let identifier = NodeVar::bare(self.names.generate("fragment"));
             let use_space_template = items.iter().any(|i| matches!(i, Item::Expression(_)))
                 && items
                     .iter()
                     .all(|i| matches!(i, Item::Text { .. } | Item::Expression(_)));
             if use_space_template {
-                let text = self.names.generate("text");
+                let text = NodeVar::bare(self.names.generate("text"));
                 let initial = Prev::Identifier(text.clone());
                 self.process_children(items, initial, false, &mut frag, &mut l)?;
                 Some((text, b.runtime("text", [])))
@@ -121,10 +117,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             ) {
                 // A lone static component or render tag has no markup to clone, so it mounts at
                 // the anchor.
+                let anchor = NodeVar::bare("$$anchor");
                 match standalone {
-                    Standalone::Render(tag) => self.render_tag(tag, "$$anchor", &mut frag, &mut l),
+                    Standalone::Render(tag) => self.render_tag(tag, &anchor, &mut frag, &mut l),
                     Standalone::Component(component) => {
-                        self.component(component, "$$anchor", true, &mut frag, &mut l)?;
+                        self.component(component, &anchor, true, &mut frag, &mut l)?;
                     }
                 }
                 None
@@ -144,7 +141,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
         };
         let close = root.map(|(identifier, call)| {
-            l.initializer.insert(0, b.var(&identifier, call));
+            l.initializer.insert(0, identifier.declare(b, call));
             self.append(&identifier)
         });
 
@@ -204,9 +201,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         Ok(())
     }
 
-    fn append(&self, identifier: &str) -> Statement<'o> {
+    fn append(&self, node: &NodeVar) -> Statement<'o> {
         let b = self.b;
-        b.statement(b.runtime("append", [b.id("$$anchor"), b.id(identifier)]))
+        b.statement(b.runtime("append", [b.id("$$anchor"), node.id(b)]))
     }
 
     /// Upstream `build_render_statement`.

@@ -2,14 +2,14 @@ use oxc_ast::ast::{Expression, Statement};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Frag, Lists, R};
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, NodeVar, R};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `IfBlock` (client), with `{:else if}` chains flattened.
     pub(in crate::lower::client) fn if_block(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         frag: &mut Frag<'o>,
         l: &mut Lists<'o>,
     ) -> R<()> {
@@ -56,7 +56,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         let f = b.arrow_block(b.parameters(["$$render"]), chain, false);
         // Upstream's third argument marks a nested `{:else if}` block; a chain is one node here.
-        statements.push(b.statement(b.runtime("if", [b.id(node), f])));
+        statements.push(b.statement(b.runtime("if", [node.id(b), f])));
         l.initializer.push(b.block(statements));
         Ok(())
     }
