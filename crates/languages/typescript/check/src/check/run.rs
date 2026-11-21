@@ -169,7 +169,7 @@ impl Tsc {
             .chain(syntactic.into_iter().map(|d| (true, d)))
             .chain(semantic.into_iter().map(|d| (false, d)))
             // The command line reports errors only; svelte-check's errors are the oracle.
-            .filter(|(_, d)| d.category == ERROR)
+            .filter(|(_, d)| d.is_error())
             .map(|(syntactic, d)| {
                 located(&d, &root, &index, &lines, syntactic)
                     .ok_or_else(|| unlocated(&self.checker, &d))
@@ -431,9 +431,6 @@ fn base_project(
             .flatten(),
     })
 }
-
-/// `DiagnosticCategory.Error`.
-const ERROR: u8 = 1;
 
 /// What native TypeScript adds to a finding in code a content mapper synthesized.
 const VIRTUAL_CODE: &str = "This location is in virtual code produced by the content mapper";

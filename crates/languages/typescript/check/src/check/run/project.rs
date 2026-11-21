@@ -82,9 +82,9 @@ fn root_files(
         return Err("the checker opened no project".to_owned());
     };
     let overlay_has_no_inputs =
-        (project.errors.iter()).any(|error| error.category == ERROR && error.code == NO_INPUTS);
+        (project.errors.iter()).any(|error| error.is_error() && error.code == NO_INPUTS);
     let problems: Vec<_> = (own.errors.iter())
-        .filter(|error| error.category == ERROR)
+        .filter(|error| error.is_error())
         .filter(|error| error.code != NO_INPUTS || overlay_has_no_inputs)
         .map(|error| problem(error, config))
         .collect::<Result<_, _>>()?;
@@ -157,8 +157,6 @@ fn reported(file: &Path, languages: &[MappedLanguage], skip_lib_check: bool) -> 
     }
 }
 
-/// `DiagnosticCategory.Error`.
-const ERROR: u8 = 1;
 /// "No inputs were found in config file".
 const NO_INPUTS: u32 = 18003;
 
