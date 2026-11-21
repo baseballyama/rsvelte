@@ -8,6 +8,7 @@ mod const_tags;
 mod derived;
 mod errors;
 mod exports;
+mod keywords;
 mod lets;
 mod patterns;
 mod props;

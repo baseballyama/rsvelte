@@ -6,7 +6,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{ClientCompilationContext, Lists};
+use super::{ClientCompilationContext, Lists, NodeVar};
 use crate::lower::bindings::{BindStrategy, attribute_value, property_of};
 use crate::lower::builder::Runtime;
 
@@ -22,7 +22,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         &mut self,
         attributes: &[Attribute],
         tag: &str,
-        node: &str,
+        node: &NodeVar,
         mut handlers: Option<&mut Vec<Statement<'o>>>,
     ) -> Lists<'o> {
         let b = self.b;
@@ -50,7 +50,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     }
                 }
                 AttributeValue::Bind(expression) if a.name.text(self.source_text) == "this" => {
-                    let call = self.bind_this(expression, b.id(node), tag != "svelte:element");
+                    let call = self.bind_this(expression, node.id(b), tag != "svelte:element");
                     directives.initializer.push(b.statement(call));
                 }
                 AttributeValue::Bind(_) => {
@@ -81,7 +81,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 
     /// Upstream `TransitionDirective` and `AnimateDirective`, which run after the update.
-    pub(super) fn motion(&self, attribute: &Attribute, node: &str) -> Option<Statement<'o>> {
+    pub(super) fn motion(&self, attribute: &Attribute, node: &NodeVar) -> Option<Statement<'o>> {
         let b = self.b;
         let call = match attribute.value {
             AttributeValue::Transition {
@@ -103,7 +103,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 }
                 let mut arguments = vec![
                     b.number(f64::from(flags)),
-                    b.id(node),
+                    node.id(b),
                     b.thunk(self.expression(function)),
                 ];
                 arguments.extend(argument.map(|e| b.thunk(self.expression(e))));
@@ -113,7 +113,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 let argument = argument.map_or_else(|| b.null(), |e| b.thunk(self.expression(e)));
                 b.runtime(
                     "animation",
-                    [b.id(node), b.thunk(self.expression(function)), argument],
+                    [node.id(b), b.thunk(self.expression(function)), argument],
                 )
             }
             _ => return None,
@@ -126,7 +126,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         &self,
         action: ExpressionIdentifier,
         argument: Option<ExpressionIdentifier>,
-        node: &str,
+        node: &NodeVar,
     ) -> Expression<'o> {
         let b = self.b;
         let mut parameters = vec!["$$node"];
@@ -134,7 +134,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             parameters.push("$$action_arg");
         }
         let call = b.optional_call(self.expression(action), parameters.iter().map(|&p| b.id(p)));
-        let mut arguments = vec![b.id(node), b.arrow(b.parameters(parameters), call)];
+        let mut arguments = vec![node.id(b), b.arrow(b.parameters(parameters), call)];
         arguments.extend(argument.map(|e| b.thunk(self.expression(e))));
         b.runtime("action", arguments)
     }
@@ -146,7 +146,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         attribute: &Attribute,
         attributes: &[Attribute],
         tag: &str,
-        node: &str,
+        node: &NodeVar,
     ) -> Expression<'o> {
         let AttributeValue::Bind(target) = attribute.value else {
             unreachable!("called on bindings")
@@ -167,7 +167,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             b.runtime(method, arguments)
         };
-        let node = b.id(node);
+        let node = node.id(b);
         match property.strategy {
             BindStrategy::Event(event) => {
                 let mut arguments = vec![b.string(name), b.string(event), node, set];
@@ -272,9 +272,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 
     /// Upstream `AttachTag` (client).
-    pub(super) fn attach(&self, e: ExpressionIdentifier, node: &str) -> Expression<'o> {
+    pub(super) fn attach(&self, e: ExpressionIdentifier, node: &NodeVar) -> Expression<'o> {
         let b = self.b;
-        b.runtime("attach", [b.id(node), b.thunk(self.expression(e))])
+        b.runtime("attach", [node.id(b), b.thunk(self.expression(e))])
     }
 }
 

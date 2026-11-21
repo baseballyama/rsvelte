@@ -4,6 +4,8 @@ use oxc_ast::{AstKind, AstType};
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 
+use super::word::{Home, Word};
+
 /// What acorn reports about a node around oxc's label, found as the tree is walked.
 #[derive(Debug)]
 pub struct Locator {
@@ -17,6 +19,12 @@ pub struct Locator {
     pub(super) declares: bool,
     /// For [`Find::Redeclared`], whether the first declaration is a type alias or an interface.
     pub(super) first_is_type: bool,
+    /// For [`Find::Home`], where acorn reads the name the label is.
+    pub(super) home: Option<Home>,
+    /// For [`Find::Home`], the name the label is in the tree.
+    pub(super) word: Option<Word>,
+    /// Whether the walk took in any node: a part oxc could not read has no tree.
+    pub(super) walked: bool,
 }
 
 /// What decides how acorn reads an optional rest element, from the nodes around it.
@@ -77,6 +85,9 @@ pub(super) enum Find {
     /// The type alias or interface whose name is the label, or the parameter list around it,
     /// where the label redeclares the name the span is.
     Redeclared(oxc_span::Span),
+    /// Where acorn reads the name the label is: the innermost function, class static block or
+    /// class field initializer around it.
+    Home,
 }
 
 impl Locator {
@@ -87,6 +98,9 @@ impl Locator {
             found: None,
             declares: false,
             first_is_type: false,
+            home: None,
+            word: None,
+            walked: false,
             rest: AroundRest {
                 ambient: false,
                 reading: Reading::Binding,
@@ -149,8 +163,26 @@ impl Locator {
         }
     }
 
+    fn enter_home(&mut self, kind: AstKind<'_>) {
+        let name = match kind {
+            AstKind::IdentifierReference(it) => Some(&it.name),
+            AstKind::BindingIdentifier(it) => Some(&it.name),
+            AstKind::LabelIdentifier(it) => Some(&it.name),
+            _ => None,
+        };
+        if let Some(name) = name.filter(|_| kind.span() == self.label) {
+            self.word = Some(Word::named(name, self.label));
+        }
+        if let Some((governs, home)) = governed(kind)
+            && governs.contains_inclusive(self.label)
+        {
+            self.home = Some(home);
+        }
+    }
+
     /// Takes in a node of the walk, outer nodes before inner ones.
     pub fn enter(&mut self, kind: AstKind<'_>) {
+        self.walked = true;
         let around = kind.span().contains_inclusive(self.label);
         if matches!(self.find, Find::Binding)
             && around
@@ -172,6 +204,9 @@ impl Locator {
         }
         if let Find::Redeclared(first) = self.find {
             return self.enter_redeclared(first, kind, around);
+        }
+        if matches!(self.find, Find::Home) {
+            return self.enter_home(kind);
         }
         let found = match (self.find, kind) {
             // A method's function is the method, which comes first in the walk.
@@ -219,6 +254,37 @@ impl Locator {
             _ => return,
         };
         self.found = Some((found, kind.ty()));
+    }
+}
+
+/// The home `kind` is, and the source it governs, where acorn reads a name in that home.
+fn governed(kind: AstKind<'_>) -> Option<(oxc_span::Span, Home)> {
+    let function = |span, is_async, is_generator| {
+        Some((
+            span,
+            Home::Function {
+                is_async,
+                is_generator,
+            },
+        ))
+    };
+    match kind {
+        // acorn reads a declaration's name before it enters the function, and an expression's in
+        // it.
+        AstKind::Function(it) => {
+            let id = it.id.as_ref().filter(|_| it.is_declaration());
+            let start = id.map_or(it.span.start, |id| id.span.end);
+            function(
+                oxc_span::Span::new(start, it.span.end),
+                it.r#async,
+                it.generator,
+            )
+        }
+        AstKind::ArrowFunctionExpression(it) => function(it.span, it.r#async, false),
+        AstKind::StaticBlock(it) => Some((it.span, Home::StaticBlock)),
+        AstKind::PropertyDefinition(it) => Some((it.value.as_ref()?.span(), Home::Initializer)),
+        AstKind::AccessorProperty(it) => Some((it.value.as_ref()?.span(), Home::Initializer)),
+        _ => None,
     }
 }
 

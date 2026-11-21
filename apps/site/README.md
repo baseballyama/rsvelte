@@ -1,34 +1,23 @@
 # rsvelte site
 
-The rsvelte site, a SvelteKit app for Cloudflare Workers, introduces the project and explains
-the toolchain. Contributors use this directory to edit pages and run the site locally.
+The rsvelte site, a static SvelteKit app in Japanese. GitHub Pages serves it at
+[the project's page](https://baseballyama.github.io/rsvelte/).
 
-| Route               | Purpose                                                     |
-| ------------------- | ----------------------------------------------------------- |
-| `/`                 | Project introduction                                        |
-| `/why`              | Reasons for the rewrite                                     |
-| `/guide`            | User guide: setup, file processing, and browser integration |
-| `/learn`            | Developer guide with source excerpts                        |
-| `/learn/playground` | Run language tasks and inspect the pipeline                 |
+| Route           | Purpose                                                                   |
+| --------------- | ------------------------------------------------------------------------- |
+| `/`             | What rsvelte is, and how to start                                         |
+| `/guide`        | The user guide: install, the three commands, configuration, exit codes    |
+| `/rules`        | The rules of `rsvelte lint`, read from `apps/eslint-plugin/rules.json`    |
+| `/playground`   | Compile, format and lint a component with the WebAssembly build in a page |
+| `/architecture` | How the toolchain works, for contributors                                 |
 
-## Relationship to the toolchain
-
-`apps/site` has the pages and interactive controls.
-[`crates/hosts/browser`](../../crates/hosts/README.md#browser--webassembly) has the
-WebAssembly bindings those controls call. The language crates and the kernel do the work. The
-site does not call the native command-line host; both hosts use the same toolchain.
-
-The pipeline playground builds `crates/hosts/browser` and runs the real Svelte, Vue and
-Vue-syntax/Svelte-compiler plugins in the browser. It shows task outputs, artifact computation
-and cache access, and snapshots of the parsed trees and analysis. Tasks use the same registry
-and scheduler as native runs, without browser threads. Type checking needs an external
-TypeScript process, so the playground does not offer it.
+The guide repeats [the user guide of `@rsvelte/cli`](../cli/README.md) in Japanese; change both
+together. The playground runs the [browser host](../../crates/hosts/README.md#browser--webassembly).
 
 ## Local development
 
 Use the repository's pinned Rust toolchain, the Node and pnpm versions in `mise.toml`, and
-wasm-pack 0.15.1. The site is one package of the repository's pnpm workspace, so install from
-the root:
+wasm-pack 0.15.1. Install from the repository root:
 
 ```sh
 rustup target add wasm32-unknown-unknown
@@ -37,9 +26,8 @@ pnpm install --frozen-lockfile
 pnpm --dir apps/site run dev
 ```
 
-`dev`, `test`, `check`, `build` and `deploy` first run `pnpm run generate`. It writes to
-`generated/`, which Git ignores, everything the site reads but does not commit. That is the
-Wasm bindings, and the emitter and layer data that the `rsvelte_command_line` examples print.
-Vite includes the `.wasm` asset in the client build. The LayoutInstruction widget initializes
-Wasm on mount. It shows loading or initialization errors, and it does not call the printer
-during server rendering.
+`dev`, `check` and `build` first run `pnpm run generate`, which builds the WebAssembly bindings
+into `generated/`. Git ignores that directory.
+
+`.github/workflows/pages.yml` deploys the site on each push to `main`. It builds with
+`PAGES=1`, which serves the site below `/rsvelte`.

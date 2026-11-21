@@ -13,8 +13,8 @@ use super::{
 use crate::input::Target;
 use crate::lower::builder::Runtime;
 use crate::lower::component::{
-    Callee, DefaultSlot, Entry, Prop, SlotCallback, callee, child_snippets, props,
-    props_expression, push_accessors, push_binding, push_children,
+    DefaultSlot, Entry, Prop, SlotCallback, callee, child_snippets, props, props_expression,
+    push_accessors, push_binding, push_children,
 };
 use crate::lower::lets::{pattern, slot_lets};
 
@@ -92,14 +92,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         push_children(b, &mut parts, &snippets, callbacks, default)?;
         let props = props_expression(b, parts, Target::Server);
         let callee = callee(tree, self.javascript, self.res, identifier);
-        let function = match callee {
-            Callee::Static(reference) | Callee::Dynamic(reference) => self.expression(reference),
-            Callee::OwnFunction => b.id(self.component_name),
-        };
+        let read = || callee.read(|e| self.expression(e));
+        let function = read().unwrap_or_else(|| b.id(self.component_name));
         let statement = b.statement(b.call(function, [b.id("$$renderer"), props]));
-        let dynamic = matches!(callee, Callee::Dynamic(_));
-        let statement = if let Callee::Dynamic(reference) = callee {
-            let test = self.expression(reference);
+        let dynamic = callee.is_dynamic();
+        let statement = if dynamic && let Some(test) = read() {
             let consequent = b.block([
                 self.push_literal(BLOCK_OPEN),
                 statement,

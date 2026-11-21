@@ -1,4 +1,4 @@
-import { scan } from '../src/lib/build/rust-items.ts';
+import { scan } from './rust-scan.ts';
 
 type Token = {
 	text: string;

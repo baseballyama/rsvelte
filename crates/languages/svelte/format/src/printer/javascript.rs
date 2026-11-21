@@ -100,6 +100,11 @@ impl<'x> Printer<'_, '_, 'x> {
         // Prettier reads a component's code as a module, so `await` is an operator.
         .with_module(true);
         let mut options = embedder.options.clone();
+        // oxfmt formats only the scripts; the plugin formats the template's code with Prettier.
+        if part != Part::Script {
+            options.sort_imports = None;
+            options.jsdoc = None;
+        }
         if single_quote {
             options.quote_style = QuoteStyle::Single;
         }

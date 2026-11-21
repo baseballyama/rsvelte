@@ -2,7 +2,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, CompilerNodeIdentifier, ElementKind, MetadataTag, NodeKind,
 };
 
-use super::{ClientCompilationContext, Frag, Lists, R};
+use super::{ClientCompilationContext, Frag, Lists, NodeVar, R};
 use crate::lower::attributes::event_attribute;
 use crate::lower::builder::Runtime;
 use crate::lower::unsupported;
@@ -56,13 +56,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             _ => {}
         }
-        self.special_element(identifier, "", frag, lists)
+        self.special_element(identifier, &NodeVar::bare(""), frag, lists)
     }
 
     pub(super) fn special_element(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         frag: &mut Frag<'o>,
         lists: &mut Lists<'o>,
     ) -> R<()> {
@@ -89,11 +89,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             ElementKind::Metadata(Some(
                 tag @ (MetadataTag::Window | MetadataTag::Document | MetadataTag::Body),
             )) => {
-                let target = match tag {
+                let target = &NodeVar::bare(match tag {
                     MetadataTag::Window => "$.window",
                     MetadataTag::Document => "$.document",
                     _ => "$.document.body",
-                };
+                });
                 for attribute in tree.attributes(element.attributes) {
                     if matches!(attribute.value, AttributeValue::On { .. }) {
                         let call = self.event_directive(attribute, target, true, lists);

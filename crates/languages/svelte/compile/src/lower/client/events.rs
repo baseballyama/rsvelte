@@ -2,7 +2,7 @@ use oxc_ast::ast::Expression;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue, Modifiers};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{ClientCompilationContext, Lists, PASSIVE_EVENTS};
+use super::{ClientCompilationContext, Lists, NodeVar, PASSIVE_EVENTS};
 use crate::lower::builder::Runtime;
 
 const DELEGATED_EVENTS: &[&str] = &[
@@ -37,7 +37,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         &mut self,
         raw_name: &str,
         handler: ExpressionIdentifier,
-        node: &str,
+        node: &NodeVar,
         l: &mut Lists<'o>,
     ) {
         self.event_on(raw_name, handler, node, true, l);
@@ -47,7 +47,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         &mut self,
         raw_name: &str,
         handler: ExpressionIdentifier,
-        node: &str,
+        node: &NodeVar,
         allow_delegation: bool,
         l: &mut Lists<'o>,
     ) {
@@ -69,9 +69,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             self.events.push(event_name.to_owned());
         }
         let x = if allow_delegation {
-            b.id(node)
+            node.id(b)
         } else {
-            self.global_event_target(node)
+            self.global_event_target(node.name())
         };
         let passive = PASSIVE_EVENTS.contains(&event_name).then_some(true);
         let call = self.build_event(
@@ -125,7 +125,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn event_directive(
         &mut self,
         attribute: &Attribute,
-        target: &str,
+        target: &NodeVar,
         global: bool,
         lists: &mut Lists<'o>,
     ) -> Expression<'o> {
@@ -150,9 +150,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
         }
         let target = if global {
-            self.global_event_target(target)
+            self.global_event_target(target.name())
         } else {
-            b.id(target)
+            target.id(b)
         };
         let passive = if modifiers.contains(Modifiers::PASSIVE) {
             Some(true)
