@@ -1,9 +1,13 @@
-use rsvelte_kernel::index::{IndexRange, IndexVector};
+use std::borrow::Cow;
 
-use super::{
-    Attributes, Cow, Embed, LineIndex, Node, NodeIdentifier, NodeKind, R, SingleFileComponent,
-    Span, TagAttributes, TemplateNode, TemplateNodeIdentifier, Tree, Unsupported, only_ws,
+use rsvelte_kernel::diagnostics::Unsupported;
+use rsvelte_kernel::index::{IndexRange, IndexVector};
+use rsvelte_kernel::source::positions::{LineIndex, Span};
+use rsvelte_vue_syntax::syntax_tree::{
+    SingleFileComponent, TagAttributes, TemplateNode, TemplateNodeIdentifier,
 };
+
+use super::{Attributes, Embed, Node, NodeIdentifier, NodeKind, R, Tree, only_ws};
 
 /// Elements whose `white-space` is not `normal` (`CSS_WHITE_SPACE_TAGS`) or whose attributes
 /// prettier formats with a language this port does not have.

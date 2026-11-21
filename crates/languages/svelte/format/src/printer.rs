@@ -223,7 +223,7 @@ fn javascript_options(options: &Options, core: CoreFormatOptions) -> JsFormatOpt
 /// The plugin's `langTsRegex` (`/\slang=["']?ts["']?/`) on a `<script>` tag: its value starts
 /// with `ts`.
 fn is_typescript(c: &Component, source_text: &str) -> bool {
-    (c.module.iter().chain(&c.instance)).any(|script| in_typescript(script, source_text))
+    c.scripts().any(|script| in_typescript(script, source_text))
 }
 
 /// Whether the plugin reads `script` with Prettier's TypeScript parser: its `lang` starts with

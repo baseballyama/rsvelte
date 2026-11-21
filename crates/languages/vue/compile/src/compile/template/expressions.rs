@@ -1,14 +1,18 @@
 //! `transformExpression` and `processExpression`.
 
-use oxc_ast::ast::IdentifierReference;
-use rsvelte_typescript_tree::document_span;
-use rsvelte_vue_semantic::expressions::is_global;
+use oxc_ast::ast::{Expression, IdentifierReference};
+use oxc_semantic::ReferenceId;
+use rsvelte_kernel::diagnostics::Unsupported;
+use rsvelte_typescript_tree::{ExpressionIdentifier, document_span};
+use rsvelte_vue_semantic::expressions::{Parent, can_prefix, collect_identifiers, is_global};
+use rsvelte_vue_semantic::resolve::BindingType;
+use rsvelte_vue_syntax::syntax_tree::DirectiveName;
 
 use super::{
-    BindingType, CAN_CACHE, CAN_SKIP_PATCH, CAN_STRINGIFY, DirectiveName, Exp, Expression,
-    ExpressionIdentifier, Helper, NOT_CONSTANT, Node, Parent, Property, R, RefInfo, ReferenceId,
-    Transform, TransformNodeIdentifier, Unsupported, can_prefix, collect_identifiers, ref_info,
+    CAN_CACHE, CAN_SKIP_PATCH, CAN_STRINGIFY, Exp, Helper, NOT_CONSTANT, Node, Property, RefInfo,
+    Transform, TransformNodeIdentifier, ref_info,
 };
+use crate::compile::R;
 
 impl Transform<'_> {
     /// `transformExpression` on an element: every directive's expression but `v-on`'s, which

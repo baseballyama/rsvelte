@@ -5,7 +5,7 @@ use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use super::conversions::{join, to_integer, to_number, to_string, to_uint32};
 use super::operators::{same_value_zero, strict_equals};
 use super::{Global, Value};
-use crate::number::{exponentiate, number};
+use crate::number::{exponentiate, math_max, math_min, math_round, math_sign, number};
 
 /// Names every object inherits, whose values (functions) this module cannot hold.
 const OBJECT_PROTOTYPE: [&str; 12] = [
@@ -145,34 +145,8 @@ pub(super) fn global_method(global: Global, name: &str, arguments: &[Value]) -> 
                 .collect::<Option<Vec<u16>>>()?;
             from_units(&units)?
         }
-        (Global::Math, "max") => Value::Number(
-            numbers()?
-                .into_iter()
-                .try_fold(f64::NEG_INFINITY, |acc, n| {
-                    (!n.is_nan()).then(|| {
-                        if n > acc || (n == 0.0 && acc == 0.0 && n.is_sign_positive()) {
-                            n
-                        } else {
-                            acc
-                        }
-                    })
-                })
-                .unwrap_or(f64::NAN),
-        ),
-        (Global::Math, "min") => Value::Number(
-            numbers()?
-                .into_iter()
-                .try_fold(f64::INFINITY, |acc, n| {
-                    (!n.is_nan()).then(|| {
-                        if n < acc || (n == 0.0 && acc == 0.0 && n.is_sign_negative()) {
-                            n
-                        } else {
-                            acc
-                        }
-                    })
-                })
-                .unwrap_or(f64::NAN),
-        ),
+        (Global::Math, "max") => Value::Number(math_max(numbers()?)),
+        (Global::Math, "min") => Value::Number(math_min(numbers()?)),
         (Global::Math, "pow") => {
             let second = arguments.get(1).unwrap_or(&Value::Undefined);
             Value::Number(exponentiate(to_number(first)?, to_number(second)?))
@@ -183,17 +157,8 @@ pub(super) fn global_method(global: Global, name: &str, arguments: &[Value]) -> 
                 "abs" => n.abs(),
                 "ceil" => n.ceil(),
                 "floor" => n.floor(),
-                "round" => {
-                    let floor = n.floor();
-                    if n - floor >= 0.5 { floor + 1.0 } else { floor }
-                }
-                "sign" => {
-                    if n.is_nan() || n == 0.0 {
-                        n
-                    } else {
-                        n.signum()
-                    }
-                }
+                "round" => math_round(n),
+                "sign" => math_sign(n),
                 "sqrt" => n.sqrt(),
                 "cbrt" => n.cbrt(),
                 "trunc" => n.trunc(),

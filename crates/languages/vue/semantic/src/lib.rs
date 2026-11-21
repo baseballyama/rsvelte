@@ -10,4 +10,4 @@ pub mod expressions;
 pub mod resolve;
 
 pub(crate) mod computation;
-pub use computation::{Lowered, PLUGIN, Resolved, register};
+pub use computation::{Lowered, Resolved, register};

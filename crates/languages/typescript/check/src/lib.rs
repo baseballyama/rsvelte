@@ -11,5 +11,5 @@ mod kit;
 pub use extension::{EXTENSION, NEEDS_TYPE_CHECKER, TASK, type_checker};
 mod registration;
 mod type_checker;
-pub use registration::{PLUGIN, register, register_service};
+pub use registration::{register, register_service};
 pub use type_checker::TypeChecker;

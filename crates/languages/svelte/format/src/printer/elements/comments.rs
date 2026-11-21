@@ -2,6 +2,7 @@
 //! after it, or to the last one when none follows (`attachAttributeComments`), and Prettier prints
 //! them around that attribute (`printComments`).
 
+use rsvelte_kernel::source::characters::is_ecmascript_line_terminator;
 use rsvelte_kernel::source::tokens::TokenKind;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 
@@ -47,7 +48,7 @@ fn without_trailing_newline(s: &str) -> &str {
 /// Prettier's `hasNewline` backwards: a newline ends `s` before its spaces and tabs.
 fn ends_with_newline(s: &str) -> bool {
     s.trim_end_matches([' ', '\t'])
-        .ends_with(['\n', '\r', '\u{2028}', '\u{2029}'])
+        .ends_with(is_ecmascript_line_terminator)
 }
 
 fn starts_with_newline(s: &str) -> bool {

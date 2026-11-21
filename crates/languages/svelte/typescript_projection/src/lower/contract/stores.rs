@@ -140,11 +140,9 @@ impl Builder<'_> {
             return Vec::new();
         };
         let scoping = resolution.scoping();
-        let programs = [&self.component.module, &self.component.instance];
         let statement_end = |at: oxc_span::Span| {
-            programs
-                .iter()
-                .filter_map(|script| script.as_ref())
+            self.component
+                .scripts()
                 .flat_map(|script| &self.component.javascript.get_program(script.program).body)
                 .find(|statement| {
                     let s = statement.span();

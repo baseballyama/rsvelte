@@ -162,7 +162,8 @@ pub(super) fn state_exports(
     let promoted = |symbol: SymbolId| {
         scoping.get_resolved_reference_ids(symbol).iter().any(|&r| {
             let at = resolution.reference_span(r);
-            let in_script = (component.module.iter().chain(&component.instance))
+            let in_script = component
+                .scripts()
                 .any(|s| s.span.start_offset <= at.start && at.end <= s.span.end_offset);
             // The statements are in source order, so the one that may hold `at` is found by halves.
             let statement = body.partition_point(|s| oxc_span::GetSpan::span(s).end <= at.start);

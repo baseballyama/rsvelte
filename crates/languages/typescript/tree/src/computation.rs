@@ -67,7 +67,7 @@ impl Artifact for Parsed {
     }
 }
 
-pub static PLUGIN: Plugin = Plugin {
+pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "typescript.tree",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[],

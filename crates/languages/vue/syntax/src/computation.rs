@@ -28,7 +28,7 @@ impl Artifact for Parsed {
     }
 }
 
-pub static PLUGIN: Plugin = Plugin {
+pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "vue.syntax",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[],

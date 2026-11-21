@@ -1,4 +1,7 @@
-use super::{is_ecmascript_whitespace, split_ecmascript_whitespace, trim_ecmascript};
+use super::{
+    is_ecmascript_line_terminator, is_ecmascript_whitespace, split_ecmascript_whitespace,
+    trim_ecmascript,
+};
 
 #[test]
 fn ecmascript_whitespace_is_unicode_white_space_with_bom_and_without_nel() {
@@ -17,4 +20,14 @@ fn ecmascript_whitespace_splits_words() {
         ["a\u{85}b", "c"]
     );
     assert_eq!(split_ecmascript_whitespace(" \t").count(), 0);
+}
+
+#[test]
+fn ecmascript_line_terminators_are_four_whitespace_characters() {
+    let terminators: Vec<char> = (0..=0x10_FFFF)
+        .filter_map(char::from_u32)
+        .filter(|&c| is_ecmascript_line_terminator(c))
+        .collect();
+    assert_eq!(terminators, ['\n', '\r', '\u{2028}', '\u{2029}']);
+    assert!(terminators.iter().all(|&c| is_ecmascript_whitespace(c)));
 }

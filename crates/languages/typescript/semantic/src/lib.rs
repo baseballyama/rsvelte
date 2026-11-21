@@ -7,4 +7,4 @@ pub mod semantic;
 pub mod static_value;
 
 pub(crate) mod computation;
-pub use computation::{PLUGIN, Resolved, register};
+pub use computation::{Resolved, register};

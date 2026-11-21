@@ -4,6 +4,7 @@
 use std::borrow::Cow;
 
 use regress::{Flags, Regex};
+use rsvelte_kernel::source::characters::is_ecmascript_line_terminator;
 
 /// A compiled option string: `/^foo/u` is an ECMAScript regular expression, anything else matches
 /// only itself.
@@ -79,7 +80,7 @@ fn split(option: &str) -> Option<(&str, &str)> {
     let slash = rest.rfind('/')?;
     let (body, flags) = (&rest[..slash], &rest[slash + 1..]);
     // `.` stops at a line terminator.
-    let one_line = !body.contains(['\n', '\r', '\u{2028}', '\u{2029}']);
+    let one_line = !body.contains(is_ecmascript_line_terminator);
     (!body.is_empty() && one_line && flags.bytes().all(|b| b.is_ascii_alphabetic()))
         .then_some((body, flags))
 }

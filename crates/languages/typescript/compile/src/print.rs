@@ -82,13 +82,8 @@ fn options() -> CodegenOptions {
     }
 }
 
-/// [`print()`]; with `lines`, which indexes `program.source_text` by `\n`, also a point mapping
-/// wherever the printer maps a node back into the source.
-#[must_use]
-pub fn emit(program: &Program<'_>, lines: Option<&LineIndex>) -> Emitter {
-    emit_with(program, lines, Comments::Attached)
-}
-
+/// [`print_with()`]; with `lines`, which indexes `program.source_text` by `\n`, also a point
+/// mapping wherever the printer maps a node back into the source.
 #[must_use]
 pub fn emit_with(program: &Program<'_>, lines: Option<&LineIndex>, comments: Comments) -> Emitter {
     lines.map_or_else(

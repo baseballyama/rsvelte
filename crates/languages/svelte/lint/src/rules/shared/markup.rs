@@ -269,9 +269,8 @@ pub(crate) fn start_tags(component: &Component) -> impl Iterator<Item = StartTag
             attributes: Attributes::Template(component.attributes(*attributes)),
         })
     });
-    let scripts = [&component.module, &component.instance]
-        .into_iter()
-        .flatten()
+    let scripts = component
+        .scripts()
         .map(|script| (script.span, &*script.attributes));
     let style = component
         .style

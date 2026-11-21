@@ -140,5 +140,60 @@ pub fn exponentiate(base: f64, exponent: f64) -> f64 {
     base.powf(exponent)
 }
 
+/// `Math.round`: halves round up, and a negative number that rounds to zero keeps its sign.
+#[must_use]
+pub fn math_round(x: f64) -> f64 {
+    if !x.is_finite() || x.fract() == 0.0 {
+        return x;
+    }
+    let floor = x.floor();
+    let r = if x - floor >= 0.5 { floor + 1.0 } else { floor };
+    if r == 0.0 && x < 0.0 { -0.0 } else { r }
+}
+
+/// `Math.max`: NaN when any value is, and +0 above -0.
+#[must_use]
+pub fn math_max(values: impl IntoIterator<Item = f64>) -> f64 {
+    values
+        .into_iter()
+        .try_fold(f64::NEG_INFINITY, |max, n| {
+            (!n.is_nan()).then(|| {
+                if n > max || (n == 0.0 && max == 0.0 && n.is_sign_positive()) {
+                    n
+                } else {
+                    max
+                }
+            })
+        })
+        .unwrap_or(f64::NAN)
+}
+
+/// `Math.min`: NaN when any value is, and -0 below +0.
+#[must_use]
+pub fn math_min(values: impl IntoIterator<Item = f64>) -> f64 {
+    values
+        .into_iter()
+        .try_fold(f64::INFINITY, |min, n| {
+            (!n.is_nan()).then(|| {
+                if n < min || (n == 0.0 && min == 0.0 && n.is_sign_negative()) {
+                    n
+                } else {
+                    min
+                }
+            })
+        })
+        .unwrap_or(f64::NAN)
+}
+
+/// `Math.sign`: a zero or NaN is returned as it is.
+#[must_use]
+pub fn math_sign(x: f64) -> f64 {
+    if x.is_nan() || x == 0.0 {
+        x
+    } else {
+        x.signum()
+    }
+}
+
 #[cfg(test)]
 mod tests;

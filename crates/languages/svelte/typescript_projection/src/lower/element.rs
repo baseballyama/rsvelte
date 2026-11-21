@@ -1,9 +1,8 @@
 //! An element or component: its call, with what svelte2tsx writes around it, and its children.
 
-use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, Range};
-use rsvelte_typescript_tree::{ExpressionIdentifier, document_span};
+use rsvelte_typescript_tree::{ExpressionIdentifier, node_span};
 
 use super::{Builder, Result, attributes, binding, directive, refuse, source_expression};
 use crate::syntax_tree::{Node, NodeIdentifier};
@@ -175,8 +174,7 @@ impl Builder<'_> {
                 && let AttributeValue::Parts(parts) = attribute.value
                 && let [Part::Expression { expression, .. }] = self.component.parts(parts)
             {
-                let value =
-                    source_expression(document_span(self.expression(*expression).span()), None);
+                let value = source_expression(node_span(self.expression(*expression)), None);
                 self.scratch.push(self.tree.push(Node::Expression(value)));
             }
         }
