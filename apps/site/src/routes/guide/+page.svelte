@@ -99,8 +99,9 @@
 		<code>sortImports</code>、<code>sortTailwindcss</code>、<code>jsdoc</code> にはまだ対応していません。
 	</li>
 	<li>
-		対応していない設定があると、Svelte
-		ファイルごとにエラーを出し、ほかのファイルは整形します。エラーは、対応していない設定の名前を示します。
+		対応していない設定があると、どの Svelte
+		ファイルも整形せず、ファイルごとにその設定の名前をエラーで示します。Svelte
+		以外のファイルは整形します。終了コードは 2 です。
 	</li>
 	<li>
 		<code>.oxfmtrc.json</code> に <code>"svelte": false</code> と書くと、Svelte ファイルを整形しません。
@@ -125,8 +126,8 @@
 <p>
 	<a href="#config">設定ファイル</a>に <code>typescript.check</code>
 	がなければ、現在のディレクトリの
-	<code>tsconfig.json</code> を読みます。あれば、その <code>tsconfig</code>
-	で指定したファイルを読みます。指定がなければ、設定ファイルと同じディレクトリの
+	<code>tsconfig.json</code> を読みます。あれば、その中の <code>tsconfig</code>
+	に書いたファイルを読みます。指定がなければ、設定ファイルと同じディレクトリの
 	<code>tsconfig.json</code> です。
 </p>
 
@@ -237,17 +238,18 @@ import rsvelte from '@rsvelte/eslint-plugin';
 
 export default [
   ...svelte.configs.recommended,
-  ...rsvelte.configs['flat/all'], // 最後に置く
+  ...rsvelte.configs['flat/recommended'], // 最後に置く
 ];`}</code
 	></pre>
 
 <p>
-	<code>flat/all</code> は開発中（<code>nursery</code>）以外の全ルールを、<code
-		>flat/recommended</code
+	<code>flat/recommended</code> は
+	<a href={resolve('/rules') + '#correctness'}><code>correctness</code></a>
+	に分類されたルールを ESLint で無効にします。<code>flat/all</code> は、開発中（<code>nursery</code
+	>）以外の全ルールを無効にします。無効にしたルールのうち使いたいものは、<code
+		>rsvelte.config.json</code
 	>
-	は <code>correctness</code>（<a href={resolve('/rules') + '#correctness'}>分類</a
-	>）のルールだけを無効にします。rsvelte で動かしていないルールも ESLint
-	側では無効になります。ESLint で無効にしたルールは、すべて <code>rsvelte.config.json</code> で有効にしてください。
+	で有効にしてください。有効にしないと、そのルールはどちらでも動きません。
 </p>
 
 <p>スクリプトでは rsvelte を先に動かします：<code>"lint": "rsvelte lint && eslint"</code></p>
