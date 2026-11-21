@@ -13,6 +13,7 @@
 //! cover is an [`Unsupported`] error, never an approximation.
 
 use std::borrow::Cow;
+use std::sync::Arc;
 
 use oxc_allocator::Allocator;
 use oxc_formatter::JsFormatOptions;
@@ -150,13 +151,14 @@ fn print(
     allocator: &Allocator,
 ) -> R<String> {
     let mut docs = LayoutInstructions::new();
+    let sorter = (options.tailwind.as_ref()).map(crate::tailwind::Tailwind::session_sorter);
     let mut f = Printer {
         c,
         options,
         source_text,
         docs: &mut docs,
         embedder: javascript::Embedder {
-            embedding: Embedding::new(allocator, core),
+            embedding: Embedding::with_tailwind_sorter(allocator, core, sorter),
             typescript: is_typescript(c, source_text),
             options: javascript_options(options, core),
             kept: Vec::new(),
@@ -210,6 +212,8 @@ fn javascript_options(options: &Options, core: CoreFormatOptions) -> JsFormatOpt
         line_ending: core.line_ending,
         sort_imports: options.sort_imports.clone(),
         jsdoc: options.jsdoc.clone(),
+        sort_tailwindcss: (options.tailwind.as_ref())
+            .map(|tailwind| Arc::clone(&tailwind.javascript)),
         ..options.script().style()
     }
 }
