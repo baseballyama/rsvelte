@@ -4,6 +4,7 @@ use oxc_ast::ast::Expression;
 use oxc_syntax::operator::{BinaryOperator, UnaryOperator};
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{
@@ -20,6 +21,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-class-directive",
     files: Files::Components,
+    category: Category::Style,
     configure,
 };
 

@@ -1,5 +1,6 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::Expression;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_tree::node_span;
 
@@ -8,6 +9,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-svelte-internal",
     files: Files::All,
+    category: Category::Correctness,
     configure: without_options::<NoSvelteInternal>,
 };
 

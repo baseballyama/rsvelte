@@ -9,6 +9,8 @@ test('the sources of the programs ship, their tests and docs do not', () => {
 		'crates/languages/svelte/typescript_projection/projection.d.ts',
 		'apps/cli/launcher.js',
 		'apps/cli/README.md',
+		'apps/eslint-plugin/configs.cjs',
+		'apps/eslint-plugin/rules.json',
 	])
 		assert.equal(ships(file), true, file);
 	for (const file of [
@@ -21,6 +23,8 @@ test('the sources of the programs ship, their tests and docs do not', () => {
 		'tools/release/stage.ts',
 		'apps/cli/package.json',
 		'apps/cli/CHANGELOG.md',
+		'apps/eslint-plugin/index.test.ts',
+		'apps/eslint-plugin/package.json',
 		'corpus/svelte/a/input.svelte',
 	])
 		assert.equal(ships(file), false, file);

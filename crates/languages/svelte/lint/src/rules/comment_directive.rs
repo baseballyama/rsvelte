@@ -1,3 +1,4 @@
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use serde::Deserialize;
 
@@ -10,6 +11,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(crate) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/comment-directive",
     files: Files::Components,
+    category: Category::Correctness,
     configure,
 };
 

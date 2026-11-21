@@ -1,5 +1,6 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{Argument, CallExpression, Expression, FormalParameters, Statement};
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_tree::node_span;
@@ -11,6 +12,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-derived-over-derived-by",
     files: Files::All,
+    category: Category::Style,
     configure: without_options::<PreferDerivedOverDerivedBy>,
 };
 

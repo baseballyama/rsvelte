@@ -8,9 +8,9 @@
 use oxc_ast::ast::{BindingIdentifier, FormalParameters};
 use oxc_semantic::SymbolId;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_lint_runner::catalog::{Leveled, all, levels};
+use rsvelte_lint_runner::catalog::{Category, Leveled, all, levels};
 use rsvelte_lint_runner::configuration::RuleLevels;
-use rsvelte_lint_runner::rule::{Reporter, Rule};
+use rsvelte_lint_runner::rule::{BuiltIn, Reporter, Rule};
 use rsvelte_markup_lint::button_type::{Allowed, Problem, check_static};
 use rsvelte_markup_syntax::character_references::{Place, Rules, decode};
 use rsvelte_vue_semantic::resolve::Resolution;
@@ -28,7 +28,7 @@ pub(crate) struct RuleContext<'a> {
     pub resolution: &'a Resolution,
 }
 
-pub(crate) type VueRule = dyn for<'a> Rule<RuleContext<'a>>;
+pub(crate) type VueRule = dyn for<'a> BuiltIn<RuleContext<'a>>;
 
 /// A rule that runs, at its configured severity.
 pub(crate) type Enabled = Leveled<'static, VueRule>;
@@ -40,6 +40,13 @@ static RULES: &[&VueRule] = &[
     &MultiWordComponentNames,
     &VueNoUnusedVariables,
 ];
+
+/// Every rule's name and category.
+pub fn rules() -> impl Iterator<Item = (&'static str, Category)> {
+    RULES
+        .iter()
+        .map(|rule| (rule.identifier(), rule.category()))
+}
 
 /// Every rule at its own severity.
 pub(crate) fn every_rule() -> Vec<Enabled> {
@@ -288,3 +295,27 @@ impl<'a> Rule<RuleContext<'a>> for MultiWordComponentNames {
 
 #[cfg(test)]
 mod tests;
+
+impl BuiltIn<RuleContext<'_>> for NoUnusedVariables {
+    fn category(&self) -> Category {
+        Category::Correctness
+    }
+}
+
+impl BuiltIn<RuleContext<'_>> for MarkupButtonHasType {
+    fn category(&self) -> Category {
+        Category::Restriction
+    }
+}
+
+impl BuiltIn<RuleContext<'_>> for MultiWordComponentNames {
+    fn category(&self) -> Category {
+        Category::Style
+    }
+}
+
+impl BuiltIn<RuleContext<'_>> for VueNoUnusedVariables {
+    fn category(&self) -> Category {
+        Category::Correctness
+    }
+}

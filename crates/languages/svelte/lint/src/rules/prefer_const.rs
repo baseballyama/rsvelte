@@ -2,6 +2,7 @@ use oxc_ast::ast::{
     BindingPattern, Declaration, Expression, ModuleExportName, Statement, VariableDeclaration,
 };
 use oxc_semantic::{ScopeId, Scoping, SymbolId};
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_typescript_lint::{PreferConstOptions, ProgramStatements};
@@ -16,6 +17,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-const",
     files: Files::All,
+    category: Category::Style,
     configure,
 };
 

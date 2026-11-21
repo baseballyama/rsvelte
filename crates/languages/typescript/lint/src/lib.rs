@@ -10,7 +10,7 @@ mod task;
 use rsvelte_lint_runner::configuration::RuleLevels;
 use rsvelte_plugin_interface::{CallError, Extension};
 use serde::Deserialize;
-pub use task::{Lint, PLUGIN, register};
+pub use task::{Lint, PLUGIN, register, rules};
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]

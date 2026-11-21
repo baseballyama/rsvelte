@@ -1,4 +1,5 @@
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::shared::svelte_store::{Function, store_calls};
@@ -7,6 +8,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-store-async",
     files: Files::All,
+    category: Category::Correctness,
     configure: without_options::<NoStoreAsync>,
 };
 

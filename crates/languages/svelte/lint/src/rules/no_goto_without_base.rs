@@ -1,4 +1,5 @@
 use oxc_ast::ast::Expression;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_typescript_tree::node_span;
 
@@ -11,6 +12,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-goto-without-base",
     files: Files::All,
+    category: Category::Suspicious,
     configure: without_options::<NoGotoWithoutBase>,
 };
 

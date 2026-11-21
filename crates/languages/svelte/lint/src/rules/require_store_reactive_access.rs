@@ -5,6 +5,7 @@ use oxc_ast::ast::{
 };
 use oxc_semantic::{AstNode, SymbolId};
 use oxc_syntax::operator::{AssignmentOperator, BinaryOperator, UnaryOperator};
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{
@@ -20,6 +21,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/require-store-reactive-access",
     files: Files::Components,
+    category: Category::Correctness,
     configure: without_options::<RequireStoreReactiveAccess>,
 };
 
