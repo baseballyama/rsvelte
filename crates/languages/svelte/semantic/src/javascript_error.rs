@@ -3,7 +3,7 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_syntax::Parsed;
-use rsvelte_svelte_syntax::syntax_tree::Component;
+use rsvelte_svelte_syntax::syntax_tree::{Component, Style};
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::{Acorn, SyntaxError, Tree};
 
@@ -65,10 +65,9 @@ pub fn fully_parsed<'a>(context: &'a DocumentContext<'_>) -> Result<&'a Componen
     };
     // A parsed component's error is its style sheet's; [`of_document`] knows where the parser
     // raised a parse error.
-    let raised_at = match context.get::<Parsed>() {
-        Ok(_) => error.span.start_offset,
-        Err(_) => u32::MAX,
-    };
+    let raised_at = (context.get::<Parsed>().as_ref().ok())
+        .and_then(|component| component.style.as_ref())
+        .map_or(u32::MAX, Style::raised_at);
     let javascript = of_document(context, |javascript| {
         javascript.span.start_offset < raised_at
     });

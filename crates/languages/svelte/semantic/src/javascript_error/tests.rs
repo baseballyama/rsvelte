@@ -41,6 +41,11 @@ fn acorn_throws_in_a_part_before_the_parser_raises_its_own_error() {
         ("<svelte:options customElement={delete x} />", deleting, 31),
         ("{delete x}<style>a{</style>", deleting, 1),
         ("<script>delete x</script><style>a{</style>", deleting, 8),
+        (
+            "<script>delete x</script><style>a{</style><div>",
+            deleting,
+            8,
+        ),
     ] {
         assert_eq!(
             first_error(source),
@@ -59,6 +64,33 @@ fn the_parsers_error_stands_where_acorn_throws_in_no_part_before_it() {
             "<style>a{</style>{delete x}<div>",
             "css_expected_identifier",
             9,
+        ),
+        // Upstream raises a sheet's error as it reads the `<style>` element, so a script after
+        // it never runs, wherever the CSS parser stopped.
+        (
+            "<style>a{</style><script>delete x</script>",
+            "unexpected_eof",
+            42,
+        ),
+        (
+            "<style>a{</style><p>x</p><script>delete x</script>",
+            "unexpected_eof",
+            50,
+        ),
+        (
+            "<style>a{color:red</style><script>delete x</script>",
+            "unexpected_eof",
+            51,
+        ),
+        (
+            "<style>/* x</style><script>delete x</script>",
+            "expected_token",
+            44,
+        ),
+        (
+            "<style>a{</style><p>x</p><script>delete x</script><div>",
+            "unexpected_eof",
+            55,
         ),
         // Names the template declares twice are upstream's `declaration_duplicate`, later.
         ("{#each a as [b, b]}{/each}<div>", "element_unclosed", 26),

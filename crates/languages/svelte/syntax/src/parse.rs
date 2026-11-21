@@ -58,7 +58,7 @@ impl ParseError {
     }
 
     /// How far the parser had read when it raised the error: where it stopped, or the style
-    /// sheet's error, which it raises as it meets the sheet.
+    /// element whose sheet failed, which it raises as it reads that element.
     #[must_use]
     pub const fn raised_at(&self) -> u32 {
         self.raised_at
@@ -250,12 +250,10 @@ fn parse_as(
         lang_read = parser.lang_read;
         // The style sheet's error came first in the document, so it is the one upstream reports.
         parser.component.root = root.map_err(|e| {
-            let style_error =
-                (parser.component.style.as_ref()).and_then(|style| style.sheet.as_ref().err());
-            let (error, at) = style_error.map_or_else(
-                || (acorn_position(e), parser.position as u32),
-                |error| (error.clone(), error.span.start_offset),
-            );
+            let style_error = (parser.component.style.as_ref())
+                .and_then(|style| Some((style.sheet.as_ref().err()?.clone(), style.raised_at())));
+            let (error, at) =
+                style_error.unwrap_or_else(|| (acorn_position(e), parser.position as u32));
             raised_at = at;
             error
         })?;
