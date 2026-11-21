@@ -3,12 +3,13 @@ use oxc_ast::ast::{BindingPattern, Expression, VariableDeclaration, VariableDecl
 use oxc_ast_visit::{VisitMut, walk_mut};
 use rsvelte_typescript_tree::node_span;
 
-use super::super::derived::{Created, callback, keeps_callee};
-use super::super::javascript::without_typescript;
-use super::super::names::Names;
-use super::super::paths::{Destructure, Paths};
-use super::{ScriptRewrite, Target, should_proxy_read};
+use super::{ScriptRewrite, should_proxy_read};
+use crate::input::Target;
 use crate::lower::builder::Runtime;
+use crate::lower::derived::{Created, callback, keeps_callee};
+use crate::lower::javascript::into_without_typescript;
+use crate::lower::names::Names;
+use crate::lower::paths::{Destructure, Paths};
 
 /// Lowers a `$state`, `$state.raw`, `$derived` or `$derived.by` declarator at any depth in
 /// place; `false` when `d` is none of them.
@@ -159,12 +160,13 @@ pub(super) fn lower_destructured_state<'o>(
 /// `$derived(x as T)` may keep `x`.
 fn rune_argument<'o>(rw: &ScriptRewrite<'_, 'o>, d: &mut VariableDeclarator<'o>) -> Expression<'o> {
     let b = rw.b;
-    let Some(Expression::CallExpression(mut call)) = d.init.take().map(without_typescript) else {
+    let Some(Expression::CallExpression(mut call)) = d.init.take().map(into_without_typescript)
+    else {
         unreachable!("a rune is a call")
     };
     call.arguments.first_mut().map_or_else(
         || b.void0(),
-        |argument| without_typescript(argument.take_in(b).into_expression()),
+        |argument| into_without_typescript(argument.take_in(b).into_expression()),
     )
 }
 
@@ -205,7 +207,7 @@ pub(super) fn rune_value<'o>(
             let value = value.expect("validation keeps a derived's argument");
             let callback = b.arrow(b.parameters([]), value);
             let callback = if storage.keeps {
-                super::super::builder::unthunk(callback)
+                crate::lower::builder::unthunk(callback)
             } else {
                 callback
             };

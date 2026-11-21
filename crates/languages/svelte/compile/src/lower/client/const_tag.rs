@@ -1,10 +1,11 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{BindingPattern, PropertyKey};
 use oxc_ast_visit::VisitMut;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use rsvelte_typescript_tree::DeclarationIdentifier;
 
+use super::{ClientCompilationContext, Lists};
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, CompilerNodeIdentifier, Lists, NodeKind};
 use crate::lower::paths::bound_names;
 use crate::lower::script::{self, Read};
 

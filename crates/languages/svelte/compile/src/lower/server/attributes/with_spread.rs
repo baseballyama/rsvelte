@@ -1,13 +1,16 @@
+use std::borrow::Cow;
+
 use oxc_ast::ast::{Expression, ObjectPropertyKind};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind,
+};
 
 use super::escaped_text;
+use crate::lower::attributes::{event_attribute, implicit_attributes, is_behaviour};
 use crate::lower::builder::Runtime;
-use crate::lower::server::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind, ServerCompilationContext,
-    Template, capture_event, capture_load_events, event_attribute, is_behaviour,
-    push_captured_events,
-};
-use crate::lower::template::implicit_attributes;
+use crate::lower::server::ServerCompilationContext;
+use crate::lower::server::events::{capture_event, capture_load_events, push_captured_events};
+use crate::lower::server::template::Template;
 
 const ELEMENT_IS_INPUT: u32 = 1 << 2;
 
@@ -51,7 +54,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 AttributeValue::Bind(e) => {
                     // `prepare_element_spread_object` keeps every binding.
                     let value = if all {
-                        Some((self.attribute_name(identifier, raw_name), self.bound(e)))
+                        Some((
+                            self.attribute_name(identifier, raw_name).into_owned(),
+                            self.bound(e),
+                        ))
                     } else {
                         self.bound_value(identifier, tag, list, a)
                     };
@@ -92,9 +98,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             }
             let mut name = self.attribute_name(identifier, raw_name);
             if tag == "select" && name == "defaultvalue" {
-                "defaultValue".clone_into(&mut name);
+                name = Cow::Borrowed("defaultValue");
             }
-            let trim = matches!(name.as_str(), "class" | "style");
+            let trim = matches!(&*name, "class" | "style");
             let value = match &a.value {
                 AttributeValue::Static(v) => b.string(&escaped_text(v, trim)),
                 // `prepare_element_spread_object` writes a class as it is, without `clsx`.
@@ -118,11 +124,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             }))
         });
         let hash = if self.an.scoped[identifier] {
-            self.identity.stylesheet_hash.clone()
+            self.identity.stylesheet_hash.as_deref()
         } else {
             None
         };
-        let hash = hash.map(|h| b.string(&h));
+        let hash = hash.map(|h| b.string(h));
         let flags = self.spread_flags(identifier, tag);
         let flags = (flags != 0).then(|| b.number(f64::from(flags)));
         let styles = self.spread_styles(&style_directives);

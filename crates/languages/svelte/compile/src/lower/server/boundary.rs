@@ -1,12 +1,11 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::Statement;
-use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Element, NodeKind, Snippet};
 
-use super::{
-    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, Element, NodeKind, R, ServerCompilationContext,
-    Template,
-};
+use super::template::Template;
+use super::{BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, R, ServerCompilationContext};
 use crate::lower::Builder;
+use crate::lower::attributes::single_expression;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// The child `{#snippet name()}` of `element`.
@@ -34,8 +33,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             declarations.push(self.snippet_declaration(snippet)?);
             Some(b.id(self.snippet_name(snippet)))
         } else if let Some(attribute) = failed_attribute {
-            let expression = super::super::template::single_expression(&attribute.value)
-                .expect("a validated boundary attribute");
+            let expression =
+                single_expression(&attribute.value).expect("a validated boundary attribute");
             Some(self.expression(expression))
         } else {
             None
@@ -71,8 +70,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             .iter()
             .find(|a| a.name.text(self.source_text) == "pending");
         if let Some(attribute) = pending_attribute {
-            let expression = super::super::template::single_expression(&attribute.value)
-                .expect("a validated boundary attribute");
+            let expression =
+                single_expression(&attribute.value).expect("a validated boundary attribute");
             let callee = self.expression(expression);
             // The callee is both the test and the call when the pending value may be absent.
             let call = b.call(callee.clone_in(b.allocator()), [b.id("$$renderer")]);

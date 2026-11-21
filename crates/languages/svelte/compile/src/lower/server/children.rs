@@ -1,5 +1,10 @@
-use super::{Item, NodeKind, R, ServerCompilationContext, Template, escape_markup, known_string};
+use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
+use rsvelte_svelte_syntax::syntax_tree::escape_markup;
+
+use super::template::Template;
+use super::{R, ServerCompilationContext, known_string};
 use crate::lower::builder::Runtime;
+use crate::render_plan::Item;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `process_children` (server).

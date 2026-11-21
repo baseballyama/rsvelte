@@ -83,7 +83,7 @@ pub(crate) fn member_root<'e>(mut e: &'e Expression<'e>) -> Option<&'e Identifie
 }
 
 /// `e` without the TypeScript wrappers upstream erases before it compiles.
-pub(crate) fn without_typescript(mut e: Expression<'_>) -> Expression<'_> {
+pub(crate) fn into_without_typescript(mut e: Expression<'_>) -> Expression<'_> {
     loop {
         e = match e {
             Expression::TSAsExpression(x) => x.unbox().expression,

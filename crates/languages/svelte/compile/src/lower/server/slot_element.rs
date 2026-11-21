@@ -1,8 +1,9 @@
-use super::super::slot_element::{SlotAttribute, slot_attributes, slot_call};
-use super::{
-    BLOCK_CLOSE, BLOCK_OPEN, CompilerNodeIdentifier, NodeKind, R, ServerCompilationContext, Target,
-    Template,
-};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
+
+use super::template::Template;
+use super::{BLOCK_CLOSE, BLOCK_OPEN, R, ServerCompilationContext};
+use crate::input::Target;
+use crate::lower::slot_element::{SlotAttribute, slot_attributes, slot_call};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `SlotElement` (server): the call between a block's comments.

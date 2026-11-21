@@ -5,12 +5,14 @@ use std::collections::hash_map::Entry;
 use oxc_ast::ast::IdentifierReference;
 use oxc_ast_visit::Visit;
 use oxc_semantic::SymbolId;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerNodeIdentifier};
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerNodeIdentifier, NodeKind};
+use rsvelte_svelte_semantic::resolve::Resolution;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::paths::bound_names;
-use super::{CompileInput, Diagnostic, NodeKind, Resolution};
+use crate::input::CompileInput;
 use crate::lower::invalid;
+use crate::lower::paths::bound_names;
 
 /// Upstream raises this only outside runes mode, where it sorts the tags; in runes mode it keeps
 /// their order, and a tag that reads a later one throws when it runs.

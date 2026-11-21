@@ -4,12 +4,13 @@ use oxc_ast::ast::{
     ExportDeclaration, ExportNamedDeclaration, ModuleExportName, VariableDeclarationKind,
 };
 use oxc_semantic::SymbolId;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::BindingKind;
 use rsvelte_typescript_tree::node_span;
 
 use super::RuneWalk;
+use crate::lower::invalid;
 use crate::lower::paths::bound_names;
-use crate::lower::{Diagnostic, invalid};
 
 impl RuneWalk<'_> {
     /// Upstream raises these after it visits the declaration: an exported derived, an exported

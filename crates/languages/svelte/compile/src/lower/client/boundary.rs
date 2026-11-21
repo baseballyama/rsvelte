@@ -1,6 +1,8 @@
 use oxc_allocator::{CloneIn, GetAllocator};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 
-use super::{ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R};
+use super::{ClientCompilationContext, Frag, Lists, R};
+use crate::lower::attributes::single_expression;
 use crate::lower::builder::Runtime;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -18,8 +20,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         let mut properties = Vec::new();
         for attribute in tree.attributes(element.attributes) {
-            let expression = super::super::template::single_expression(&attribute.value)
-                .expect("boundary attributes are validated");
+            let expression =
+                single_expression(&attribute.value).expect("boundary attributes are validated");
             let value = self.expression(expression);
             let name = attribute.name.text(self.source_text);
             let property = if self.an.meta(expression).has_state {

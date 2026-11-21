@@ -6,16 +6,15 @@ use oxc_ast_visit::VisitMut;
 use oxc_semantic::{SymbolFlags, SymbolId};
 use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    AttributeValue, Each, EachKey, ElementKind, MetadataTag,
+    AttributeValue, CompilerNodeIdentifier, Each, EachKey, ElementKind, MetadataTag, NodeKind,
 };
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
+use crate::lower::attributes::has_dependency;
 use crate::lower::builder::Runtime;
-use crate::lower::client::{
-    ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R, Read,
-    has_dependency,
-};
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, R};
+use crate::lower::script::Read;
 
 const EACH_ITEM_REACTIVE: u32 = 1;
 

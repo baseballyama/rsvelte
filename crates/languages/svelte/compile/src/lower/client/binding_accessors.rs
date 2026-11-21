@@ -7,13 +7,13 @@ use oxc_ast_visit::Visit;
 use oxc_semantic::{ScopeId, SymbolId};
 use oxc_span::SPAN;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerSyntaxTree, NodeKind};
-use rsvelte_svelte_semantic::resolve::{Resolution, TemplateScope};
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution, TemplateScope};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rustc_hash::FxHashSet;
 
-use super::{ClientCompilationContext, Read, ScriptRewrite};
-use crate::lower::BindingKind;
+use super::ClientCompilationContext;
 use crate::lower::builder::Runtime;
+use crate::lower::script::{Read, ScriptRewrite};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn binding_accessors(

@@ -1,7 +1,7 @@
 use oxc_ast::ast::Expression;
-use rsvelte_svelte_semantic::compiler_syntax_tree::MetadataTag;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue, MetadataTag};
 
-use super::{Attribute, AttributeValue, ClientCompilationContext, Lists};
+use super::{ClientCompilationContext, Lists};
 use crate::lower::builder::Runtime;
 use crate::lower::global_binding_table::GlobalBinding;
 

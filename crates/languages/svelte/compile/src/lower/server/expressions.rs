@@ -4,7 +4,9 @@ use oxc_ast_visit::VisitMut;
 use rsvelte_svelte_semantic::evaluate::{Evaluation, Evaluator};
 use rsvelte_typescript_tree::{ExpressionIdentifier, ParametersIdentifier};
 
-use super::{ScriptRewrite, ServerCompilationContext, Target};
+use super::ServerCompilationContext;
+use crate::input::Target;
+use crate::lower::script::ScriptRewrite;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     pub(super) fn rewrite(&self) -> ScriptRewrite<'_, 'o> {

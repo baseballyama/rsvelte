@@ -1,8 +1,10 @@
 use oxc_ast::ast::{Expression, LogicalOperator};
+use rsvelte_svelte_semantic::compiler_syntax_tree::Part;
 use rsvelte_svelte_semantic::evaluate::{Evaluator, Value};
+use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 
-use super::{ClientCompilationContext, Item, Memo, Part, decode_attribute};
-use crate::render_plan::Text;
+use super::{ClientCompilationContext, Memo};
+use crate::render_plan::{Item, Text};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_template_chunk`.

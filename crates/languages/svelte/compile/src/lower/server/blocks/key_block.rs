@@ -1,6 +1,7 @@
-use crate::lower::server::{
-    CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind, R, ServerCompilationContext, Template,
-};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
+
+use crate::lower::server::template::Template;
+use crate::lower::server::{EMPTY_COMMENT, R, ServerCompilationContext};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `KeyBlock` (server): the body between two empty comments.

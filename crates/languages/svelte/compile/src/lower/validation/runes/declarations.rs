@@ -4,9 +4,8 @@ use oxc_ast::ast::{
     BindingPattern, BindingProperty, ImportDeclaration, ImportDeclarationSpecifier,
     ModuleExportName, PropertyKey, VariableDeclarator,
 };
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_typescript_tree::node_span;
-
-use crate::lower::Diagnostic;
 
 /// Upstream's `ImportDeclaration` checks in runes mode.
 pub(super) fn imports(import: &ImportDeclaration<'_>) -> Result<(), Diagnostic> {

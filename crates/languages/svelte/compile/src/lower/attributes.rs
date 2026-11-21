@@ -1,16 +1,34 @@
+//! What both targets read off an element and its attributes.
+
+use std::borrow::Cow;
+
 use oxc_ast::ast::{ArrowFunctionExpression, Expression, Function, IdentifierReference};
 use oxc_ast_visit::{Visit, walk};
 use oxc_syntax::scope::ScopeFlags;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
-use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerSyntaxTree, Element, Modifiers, NodeKind,
+};
+use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{
-    Attribute, AttributeValue, Builder, CompilerSyntaxTree, Element, NodeKind, Resolution, Target,
-};
+use super::Builder;
+use crate::input::Target;
 
 #[cfg(test)]
 mod tests;
+
+/// `name` in lowercase, borrowed when it has nothing to lower.
+pub(super) fn lowercase(name: &str) -> Cow<'_, str> {
+    if name
+        .bytes()
+        .any(|byte| !byte.is_ascii() || byte.is_ascii_uppercase())
+    {
+        Cow::Owned(name.to_lowercase())
+    } else {
+        Cow::Borrowed(name)
+    }
+}
 
 pub const DOM_BOOLEAN_ATTRIBUTES: &[&str] = &[
     "allowfullscreen",
@@ -308,14 +326,14 @@ pub(super) const fn single_expression(v: &AttributeValue) -> Option<ExpressionId
 
 /// What a `<svelte:element>` renders as its tag.
 pub(super) enum DynamicTag<'a> {
-    Text(std::borrow::Cow<'a, str>),
+    Text(Cow<'a, str>),
     Expression(ExpressionIdentifier),
 }
 
 /// The tag `this` names: its text, or its expression.
 pub(super) fn dynamic_tag(value: &AttributeValue) -> DynamicTag<'_> {
     match value {
-        AttributeValue::Static(text) => DynamicTag::Text(std::borrow::Cow::Borrowed(text)),
+        AttributeValue::Static(text) => DynamicTag::Text(Cow::Borrowed(text)),
         value => DynamicTag::Expression(
             single_expression(value).expect("validation keeps an expression in `this`"),
         ),
