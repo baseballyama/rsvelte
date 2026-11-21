@@ -11,7 +11,7 @@ use oxc_span::SPAN;
 use rsvelte_typescript_compile::build::Builder;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::constructors::key_name;
+use super::constructors::field_key;
 use super::emit::{ScriptRewrite, rune_value};
 use super::runes;
 
@@ -77,7 +77,7 @@ impl<'t> ScriptRewrite<'_, 't> {
         for mut member in members {
             if let ClassElement::PropertyDefinition(p) = &member
                 && p.value.is_none()
-                && let Some(key) = key_name(&p.key)
+                && let Some(key) = field_key(&p.key)
                 && !key.starts_with('#')
                 && constructor_fields.contains(&key)
             {
@@ -149,7 +149,7 @@ impl<'t> ScriptRewrite<'_, 't> {
                 ClassElement::MethodDefinition(m) => &m.key,
                 _ => continue,
             };
-            occupied.extend(key_name(key));
+            occupied.extend(field_key(key));
         }
         (private_fields, occupied)
     }
