@@ -3,11 +3,13 @@
 pub(crate) mod check;
 pub use check::{
     Check, CheckedDocument, Documents, Hidden, Import, MapBack, MappedLanguage, MappedLanguages,
-    Tsc, TypeChecker, TypeScriptDocument, TypeScriptEnv, TypeScriptStandIn, TypeScriptView,
+    Tsc, TypeScriptDocument, TypeScriptEnv, TypeScriptStandIn, TypeScriptView,
 };
 
 mod extension;
 mod kit;
 pub use extension::{EXTENSION, NEEDS_TYPE_CHECKER, TASK, type_checker};
 mod registration;
+mod type_checker;
 pub use registration::{PLUGIN, register, register_service};
+pub use type_checker::TypeChecker;

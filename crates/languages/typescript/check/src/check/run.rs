@@ -10,7 +10,8 @@ use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_typescript_api::{DiagnosticKind, Layer, Position, Project, Session};
 
-use super::{CONTRACT, Tsc, TypeChecker, TypeScriptEnv};
+use super::{Tsc, TypeScriptEnv};
+use crate::type_checker::{CONTRACT, TypeChecker};
 
 #[derive(Debug)]
 pub(crate) struct CheckRequest<'a> {
