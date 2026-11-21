@@ -10,7 +10,7 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::Script;
-use rsvelte_typescript_tree::document_span;
+use rsvelte_typescript_tree::{document_span, node_span};
 
 use super::contract::Edit;
 use super::hoistable::{Hoisted, hoisted};
@@ -480,7 +480,7 @@ impl<'a> Visit<'a> for DollarGenerics {
                     .type_arguments
                     .iter()
                     .flat_map(|arguments| &arguments.params)
-                    .map(|argument| document_span(argument.span()))
+                    .map(node_span)
                     .collect(),
             });
         } else {

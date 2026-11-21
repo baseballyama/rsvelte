@@ -1,6 +1,7 @@
 //! prettier's `print/tag.js`, and the node queries it reads.
+use rsvelte_document_printer::LayoutInstructionIdentifier;
 
-use super::{LayoutInstructionIdentifier, Node, NodeIdentifier, NodeKind, Printer, R};
+use super::{Node, NodeIdentifier, NodeKind, Printer, R};
 
 impl<'a> Printer<'a, '_, '_> {
     pub(super) fn lit(&mut self, s: &'static str) -> LayoutInstructionIdentifier {

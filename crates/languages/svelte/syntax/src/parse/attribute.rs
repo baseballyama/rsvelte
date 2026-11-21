@@ -88,7 +88,7 @@ impl Parser<'_, '_> {
                     return Ok((self.attributes_since(start), true));
                 }
                 Some(b'/') if self.rest().starts_with("//") || self.rest().starts_with("/*") => {
-                    self.tag_comment()?;
+                    self.tag_comment();
                 }
                 // Upstream ends the attributes at a `/` and then requires the `>` right after it.
                 Some(b'/') => {
@@ -109,21 +109,21 @@ impl Parser<'_, '_> {
         }
     }
 
-    fn tag_comment(&mut self) -> ParseResult<()> {
+    fn tag_comment(&mut self) {
         let start_offset = self.position;
         let end = if self.rest().starts_with("//") {
             self.rest().find('\n').unwrap_or_else(|| self.rest().len())
         } else {
-            match self.rest().find("*/") {
-                Some(i) => i + 2,
-                None => return self.unexpected_eof(),
-            }
+            // Upstream reads to the `*/` after the `/*`, or to the end, where the tag is left open.
+            let after_opener = &self.rest()["/*".len()..];
+            after_opener
+                .find("*/")
+                .map_or_else(|| self.rest().len(), |len| "/*".len() + len + "*/".len())
         };
         self.position += end;
         self.token(TokenType::JavaScriptComment, start_offset);
         let span = Span::new(start_offset as u32, self.position as u32);
         self.component.tag_comments.push(span);
-        Ok(())
     }
 
     fn attributes_since(&self, start: usize) -> Range {

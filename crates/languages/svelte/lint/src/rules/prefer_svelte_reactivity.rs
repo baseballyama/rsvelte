@@ -8,7 +8,6 @@ use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::node_span;
 use rustc_hash::FxHashMap;
 
-use super::shared::runes::is_svelte_file;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -60,7 +59,7 @@ const URL_PROPERTIES: &[&str] = &[
 
 impl SvelteRule for PreferSvelteReactivity {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        if !is_svelte_file(file) {
+        if !file.is_svelte_file() {
             return;
         }
         let semantic = file.semantic();

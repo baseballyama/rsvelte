@@ -316,7 +316,7 @@ impl Tree {
 }
 
 mod computation;
-pub use computation::{PLUGIN, Parsed, Script, is_jsx, is_typescript, matches, register};
+pub use computation::{Parsed, Script, is_jsx, is_typescript, matches, register};
 
 /// The document span of an oxc node, whose offsets are already the document's.
 #[must_use]

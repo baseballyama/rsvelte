@@ -1,4 +1,4 @@
-// The English prose check: which Markdown files it reads, and the linter it runs on them.
+// The English prose check: which Markdown files it reads, and the linter it and the site run.
 
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';

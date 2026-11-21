@@ -2,7 +2,7 @@ use std::sync::{Arc, OnceLock};
 
 use serde::Deserialize;
 
-use crate::Pattern;
+use crate::pattern::Pattern;
 
 /// `ESLint`'s `settings.svelte`.
 #[derive(Debug, Default, Deserialize)]
@@ -117,14 +117,14 @@ impl LintSettings {
 
     /// The compiled [`LintSettings::ignore_warnings`]; empty until `svelte/system` compiles them.
     #[must_use]
-    pub fn ignored_rules(&self) -> &[Pattern] {
+    pub(crate) fn ignored_rules(&self) -> &[Pattern] {
         self.ignored_rules.get().map_or(&[], Vec::as_slice)
     }
 
     /// `SvelteKit`'s routes directory for a document with `svelte_config`: the settings', then the
     /// config's, then the default, without a leading `/` as `eslint-plugin-svelte` reads it.
     #[must_use]
-    pub fn routes<'a>(&'a self, svelte_config: Option<&'a SvelteConfig>) -> &'a str {
+    pub(crate) fn routes<'a>(&'a self, svelte_config: Option<&'a SvelteConfig>) -> &'a str {
         let routes = self
             .kit
             .as_ref()

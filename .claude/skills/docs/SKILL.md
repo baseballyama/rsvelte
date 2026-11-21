@@ -1,6 +1,6 @@
 ---
 name: docs
-description: Write or edit text that people read - the site's Japanese pages and the repository's English Markdown (README, AGENTS.md, skills). Makes each page as easy to read and as short as it can be, then checks it with textlint and a fresh reader. Use for "write the docs", "make this clearer", "rewrite this page", "/docs".
+description: Write or edit text that people read - the site and the repository's English Markdown (README, AGENTS.md, skills). Makes each page as easy to read and as short as it can be, then checks it with textlint and a fresh reader. Use for "write the docs", "make this clearer", "rewrite this page", "/docs".
 user_invocable: true
 ---
 
@@ -18,8 +18,6 @@ that does not help the reader, and keep every fact.
 
 ## 2. Writing rules
 
-Both languages:
-
 - One sentence, one idea. The subject and its verb stay close together.
 - Say what something does before you name it. Define a term at its first use on the page.
 - Use the active voice and positive statements. Name the input, the operation and the result.
@@ -31,32 +29,20 @@ Both languages:
 - Write a code name as code (`SourceLocation`), and explain it once, at its first use. Do not
   replace it with a long description in running text: the reader cannot match it to the code.
 - Give one thing one name on the whole site. Pick it, and use it everywhere.
-- A commit hash in prose needs a reason to be there. Say what the commit did: 「境界を直した
-  変更（コミット `573ac584b6`）」. Leave it out when the sentence does not depend on it.
+- A commit hash in prose needs a reason to be there. Say what the commit did: "the change that
+  fixed the boundary (commit `573ac584b6`)". Leave it out when the sentence does not depend on it.
 - Readers open one page at a time. Explain a term from another page in one short phrase, or
   link to it, at its first use on this page.
-
-Japanese (the site):
-
-- Aim for 40 to 60 characters per sentence; textlint stops at 80.
-- Put a space between Japanese and half-width text or inline code: 「UTF-8 の文字列」「`parse` を呼ぶ」.
-- Write in hiragana what reads easier in hiragana: こと, とき, ください, できる.
-- Avoid the stiff connectors that lengthen sentences: 〜において, 〜することで, 〜を行う, 〜となります.
-- Use full-width parentheses and colons inside Japanese sentences.
-
-English (Markdown):
-
 - Plain American English, present tense, second person for instructions ("Run ...").
 - Prefer the short word: `use`, not `utilize`; `about`, not `approximately`.
 
 ## 3. Remove AI writing patterns
 
-Read `.claude/skills/humanizer/SKILL.md` and apply it. Its patterns hold in Japanese too. Look
-for these in particular:
+Read `.claude/skills/humanizer/SKILL.md` and apply it. Look for these in particular:
 
-- A contrast that only adds weight: 「〜ではなく、〜です」
+- A contrast that only adds weight: "not X, but Y"
 - Groups of three written by habit, and a closing line that repeats the point.
-- Inflated words: 重要, 強力, さまざまな
+- Inflated words: crucial, powerful, seamless
 - A bold label on every item.
 
 ## 4. Check
@@ -66,7 +52,7 @@ finding about your own prose, rewrite the sentence. Do not add an exception or a
 Add a word to `tools/writing/words.ts` only for a real technical term.
 
 ```sh
-pnpm --dir apps/site run lint:prose        # the site's Japanese text
+pnpm --dir apps/site run lint:prose        # the site's text
 pnpm --dir apps/site run lint:code-names
 pnpm --filter @rsvelte-experimental/writing run writing [file ...] # English Markdown
 ```

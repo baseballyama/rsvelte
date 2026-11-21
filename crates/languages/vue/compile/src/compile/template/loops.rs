@@ -1,10 +1,13 @@
 //! `transformFor`.
+use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_vue_semantic::compiler_syntax_tree::{PropertyIdentifier, PropertyKind};
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{
-    Codegen, DirectiveExpression, DirectiveName, Exit, ExpressionIdentifier, Helper, NOT_CONSTANT,
-    Node, Property, PropertyIdentifier, PropertyKind, R, Transform, TransformNodeIdentifier,
+    Codegen, Exit, Helper, NOT_CONSTANT, Node, Property, Transform, TransformNodeIdentifier,
     VChildren, VNodeArgs, patch,
 };
+use crate::compile::R;
 
 impl Transform<'_> {
     /// `processFor`, and the codegen `transformFor` creates before the children are traversed.

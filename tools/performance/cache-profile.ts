@@ -14,12 +14,12 @@ import {
 } from './cachegrind.ts';
 import {
 	sampleOrder,
-	validateWorkload,
-	validateWorkloadOutput,
-	type Workload,
-} from './workload.ts';
+	validateCounterConfig,
+	validateCounterOutput,
+	type CounterConfig,
+} from './counter-config.ts';
 
-type Config = Workload & {
+type Config = CounterConfig & {
 	inputs: string[];
 	sources: string[];
 	revision?: string;
@@ -53,7 +53,7 @@ export async function main(args: string[]): Promise<void> {
 	const [configPath, reportPath] = args;
 	if (!configPath || !reportPath) throw new Error('expected <config.json> <report.json>');
 	const config: Config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-	validateWorkload(config);
+	validateCounterConfig(config);
 	if (config.baseline && path.resolve(config.baseline) === path.resolve(reportPath))
 		throw new Error('baseline and output report must be separate files');
 	const model = config.model ?? DEFAULT_CACHE_MODEL;
@@ -86,7 +86,7 @@ export async function main(args: string[]): Promise<void> {
 		harnesses: manifest([
 			import.meta.filename,
 			path.resolve(import.meta.dirname, 'cachegrind.ts'),
-			path.resolve(import.meta.dirname, 'workload.ts'),
+			path.resolve(import.meta.dirname, 'counter-config.ts'),
 		]),
 		binaries: config.arms.map((arm) => ({
 			name: arm.name,
@@ -103,7 +103,7 @@ export async function main(args: string[]): Promise<void> {
 	for (const arm of sampleOrder(config.arms, config.repetitions)) {
 		const raw = path.join(directory, `${samples.length}.cg`);
 		const counts = runCachegrind(arm.command, raw, model);
-		validateWorkloadOutput(config, fs.readFileSync(`${raw}.stdout`, 'utf8'));
+		validateCounterOutput(config, fs.readFileSync(`${raw}.stdout`, 'utf8'));
 		const annotation = spawnSync(
 			'cg_annotate',
 			['--auto=no', '--threshold=0', '--sort=D1mr,D1mw', raw],

@@ -1,6 +1,6 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, Element};
 
-use crate::lower::attributes::{is_customizable_select, synthetic_value};
+use crate::lower::attributes::synthetic_value;
 use crate::lower::server::template::Template;
 use crate::lower::server::{R, ServerCompilationContext};
 
@@ -33,7 +33,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             true,
         );
         arguments.insert(1, Some(body));
-        if is_customizable_select(compiler_syntax_tree, self.source_text, el) {
+        if compiler_syntax_tree.is_customizable_select(el, self.source_text) {
             // Upstream passes `true` after the attributes, the scoping class, classes, styles
             // and flags.
             arguments.resize_with(6, || None);

@@ -62,7 +62,7 @@ impl Classes<'_> {
             if let ClassElement::PropertyDefinition(p) = member
                 && p.value.is_some()
                 && !p.computed
-                && let Some(key) = key_name(&p.key)
+                && let Some(key) = field_key(&p.key)
             {
                 initialized.insert(key);
             }
@@ -141,7 +141,7 @@ fn this_property(target: &AssignmentTarget<'_>) -> Option<String> {
 }
 
 /// A field's name as the translation keys it: `x`, or `#x` for a private one.
-pub(super) fn key_name(key: &PropertyKey<'_>) -> Option<String> {
+pub(super) fn field_key(key: &PropertyKey<'_>) -> Option<String> {
     match key {
         PropertyKey::StaticIdentifier(id) => Some(id.name.as_str().to_owned()),
         PropertyKey::PrivateIdentifier(id) => Some(format!("#{}", id.name)),

@@ -6,8 +6,8 @@ pub mod options;
 pub use options::{Options, unported};
 
 mod task;
-use task::{Format, register_with_options};
-pub use task::{format, register};
+use task::register_with_options;
+pub use task::{TASK, format, register};
 
 /// Takes [`Options`], under Prettier's names.
 pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_interface::Extension {
@@ -18,10 +18,8 @@ pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_inter
             .map(|o| o.value)
             .unwrap_or_default();
         // Said once for the run, not on every document, and only to a run that formats.
-        if settings.runs(
-            Format::IDENTIFIER,
-            rsvelte_plugin_interface::TaskKind::Document,
-        ) && let Some(name) = unported(&options)
+        if settings.runs(TASK, rsvelte_plugin_interface::TaskKind::Document)
+            && let Some(name) = unported(&options)
         {
             return Err(rsvelte_plugin_interface::CallError(format!(
                 "{}: the formatter does not print this `{name}` value yet",

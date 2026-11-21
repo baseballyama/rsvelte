@@ -38,5 +38,3 @@ Vue embed CSS, HTML and TypeScript, and neither uses the other. Crates under `br
 A task needs only the kernel and the plugin interface. The lint runner and the document printer
 are there for the tasks that want them. `tools/structure/crates.test.ts` checks who may depend on
 whom.
-
-How the crates depend on each other is in the [root README](../README.md).

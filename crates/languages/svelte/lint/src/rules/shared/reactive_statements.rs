@@ -7,7 +7,6 @@ use rsvelte_kernel::source::tokens::{Token, TokenIdentifier, Tokens};
 use rsvelte_svelte_semantic::legacy::reactive_body;
 use rsvelte_svelte_syntax::syntax_tree::TokenType;
 
-use super::runes::runes_mode;
 use crate::rule::File;
 
 /// The top-level `$:` statements with their bodies, in source order; none in runes mode, where
@@ -21,8 +20,7 @@ pub(crate) fn reactive_statements<'f, 'a: 'f>(
         .filter_map(|statement| reactive_body(statement).map(|body| (statement, body)))
         .peekable();
     // Deciding the mode reads `svelte.config.js` and walks every name, so only `$:` asks.
-    let runes = statements.peek().is_some()
-        && (file.component()).is_some_and(|component| runes_mode(file, component));
+    let runes = statements.peek().is_some() && file.is_component() && file.runes() == Some(true);
     statements.filter(move |_| !runes)
 }
 

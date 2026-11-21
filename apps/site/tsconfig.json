@@ -5,5 +5,5 @@
 		"sourceMap": true,
 		"types": ["$app/types", "node"]
 	},
-	"include": ["src", "scripts", "*"]
+	"include": ["src", "scripts", "*", "../../tools/writing/modules.d.ts"]
 }

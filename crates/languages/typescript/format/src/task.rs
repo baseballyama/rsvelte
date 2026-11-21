@@ -10,7 +10,7 @@ use rsvelte_typescript_tree::Parsed;
 
 use crate::Options;
 
-pub static PLUGIN: Plugin = Plugin {
+pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "typescript.format",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
@@ -29,7 +29,7 @@ pub fn register(registry: &mut Registry) {
 /// # Panics
 ///
 /// When [`Options::formatter`] refuses them; the caller checks that first.
-pub fn register_with_options(registry: &mut Registry, options: &Options) {
+pub(crate) fn register_with_options(registry: &mut Registry, options: &Options) {
     registry.plugin(&PLUGIN);
     rsvelte_typescript_tree::register(registry);
     let formatter = options
@@ -39,7 +39,7 @@ pub fn register_with_options(registry: &mut Registry, options: &Options) {
 }
 
 #[derive(Debug)]
-pub struct Format {
+pub(crate) struct Format {
     formatter: JsFormatOptions,
 }
 

@@ -7,7 +7,7 @@ use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineBreaks;
 use rsvelte_vue_syntax::Parsed;
 
-pub static PLUGIN: Plugin = Plugin {
+pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "vue.format",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
@@ -23,7 +23,7 @@ pub fn register(registry: &mut Registry) {
 }
 
 #[derive(Debug)]
-pub struct Format;
+pub(crate) struct Format;
 
 impl Task for Format {
     fn identifier(&self) -> &'static str {

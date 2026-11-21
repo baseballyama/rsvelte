@@ -3,10 +3,10 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte_syntax::names::is_component_name;
 use rsvelte_svelte_syntax::syntax_tree::{TemplateNode, TokenType, decode_text};
 use serde::Deserialize;
 
+use super::shared::element_kind::{ElementKind, element_kind};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -118,7 +118,7 @@ impl SvelteRule for MarkupSelfClosing {
                 continue;
             }
             let name_text = name.text(source);
-            let kind = element_type(name_text);
+            let kind = element_type(node, name_text, source);
             let should_close = match self.0[kind] {
                 Value::Ignore => continue,
                 Value::Always => true,
@@ -164,18 +164,13 @@ const VOID: usize = 0;
 
 /// An index into [`Values`]. eslint-plugin-svelte's void elements (`src/utils/element-types.ts`)
 /// add the obsolete `keygen` and `menuitem` to HTML's; its SVG and math lists are Svelte's.
-fn element_type(name: &str) -> usize {
-    if is_component_name(name) {
-        4
-    } else if name.starts_with("svelte:") {
-        5
-    } else if rsvelte_markup_syntax::is_void(name) || matches!(name, "keygen" | "menuitem") {
-        VOID
-    } else if rsvelte_svelte_semantic::namespaces::is_svg(name) {
-        2
-    } else if rsvelte_svelte_semantic::namespaces::is_mathml(name) {
-        3
-    } else {
-        1
+fn element_type(node: &TemplateNode, name: &str, source: &str) -> usize {
+    match element_kind(node, source) {
+        Some(ElementKind::Component) => 4,
+        Some(ElementKind::Special) => 5,
+        _ if rsvelte_markup_syntax::is_void(name) || matches!(name, "keygen" | "menuitem") => VOID,
+        _ if rsvelte_svelte_semantic::namespaces::is_svg(name) => 2,
+        _ if rsvelte_svelte_semantic::namespaces::is_mathml(name) => 3,
+        _ => 1,
     }
 }

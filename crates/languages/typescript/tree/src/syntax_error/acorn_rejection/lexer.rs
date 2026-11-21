@@ -1,6 +1,7 @@
 //! What acorn reports where its lexer reads a token oxc's does not.
 
 use oxc_parser::{Kind, Token};
+use rsvelte_kernel::source::characters::is_ecmascript_line_terminator;
 
 use super::fails;
 use crate::syntax_error::Acorn;
@@ -35,7 +36,7 @@ pub(super) fn regular_expression(
     let (mut escaped, mut class) = (false, false);
     let mut end = None;
     for (at, character) in body.char_indices() {
-        if matches!(character, '\r' | '\n' | '\u{2028}' | '\u{2029}') {
+        if is_ecmascript_line_terminator(character) {
             return Some(unterminated);
         }
         if escaped {

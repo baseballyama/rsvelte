@@ -22,10 +22,7 @@ pub(super) fn warnings(
     for &closed in &component.implicitly_closed {
         implicitly_closed(component, source, closed, found);
     }
-    for script in [&component.module, &component.instance]
-        .into_iter()
-        .flatten()
-    {
+    for script in component.scripts() {
         for attribute in &script.attributes {
             if !SCRIPT_ATTRIBUTES.contains(&attribute.0.text(source)) {
                 let span = tag_attribute(component, attribute);

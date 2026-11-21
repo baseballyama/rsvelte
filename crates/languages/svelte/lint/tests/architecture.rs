@@ -367,3 +367,40 @@ fn style_rules_share_inline_styles_and_the_style_verdict_without_scopes() {
         ]
     );
 }
+
+/// The artifacts a lint of `path` with a scope rule computes.
+fn module_scope_artifacts(path: &str, source_text: &str) -> Vec<&'static str> {
+    let mut registry = Registry::new();
+    rsvelte_svelte_lint::register(&mut registry);
+    let document = Document::new(path.to_owned(), source_text.to_owned()).expect("valid input");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let rules = configuration(&[("svelte/prefer-const", Severity::Error)]);
+    assert_eq!(
+        rsvelte_svelte_lint::lint(&context, &rules)
+            .expect("source parses")
+            .len(),
+        1,
+        "prefer-const reports the `let`"
+    );
+    context.computed()
+}
+
+#[test]
+fn a_module_the_shared_parse_accepts_reads_the_shared_scopes() {
+    let computed = module_scope_artifacts("test.svelte.js", "let x = 1;\n");
+    assert!(computed.contains(&"ts.resolve"), "{computed:?}");
+    assert!(
+        !computed.contains(&"svelte.lint.module_as_typescript_semantic"),
+        "{computed:?}"
+    );
+}
+
+#[test]
+fn a_module_only_typescript_reads_gets_its_scopes_from_lint() {
+    let computed = module_scope_artifacts("test.js", "let x: number = 1;\n");
+    assert!(
+        computed.contains(&"svelte.lint.module_as_typescript_semantic"),
+        "{computed:?}"
+    );
+    assert!(!computed.contains(&"ts.resolve"), "{computed:?}");
+}

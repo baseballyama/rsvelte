@@ -38,7 +38,7 @@ impl BuiltIn<Semantic> for NoUnusedVariables {
     }
 }
 
-pub static PLUGIN: Plugin = Plugin {
+pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "typescript.lint",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
@@ -77,7 +77,7 @@ pub(crate) fn register_with(registry: &mut Registry, rules: Vec<Leveled<'static,
 }
 
 #[derive(Debug)]
-pub struct Lint {
+pub(crate) struct Lint {
     rules: Vec<Leveled<'static, TypeScriptRule>>,
 }
 

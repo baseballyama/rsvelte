@@ -1,9 +1,13 @@
 //! `transformIf`.
+use rsvelte_kernel::diagnostics::Unsupported;
+use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_vue_syntax::syntax_tree::DirectiveName;
 
 use super::{
-    CAN_CACHE, Codegen, CodegenIdentifier, DirectiveName, Exit, ExpressionIdentifier, Helper, Lit,
-    NOT_CONSTANT, Node, R, Transform, TransformNodeIdentifier, Unsupported,
+    CAN_CACHE, Codegen, CodegenIdentifier, Exit, Helper, Lit, NOT_CONSTANT, Node, Transform,
+    TransformNodeIdentifier,
 };
+use crate::compile::R;
 
 impl Transform<'_> {
     /// `processIf`. `None` when the element joined an earlier `v-if`: it is traversed here and
@@ -92,7 +96,10 @@ impl Transform<'_> {
         if_node: TransformNodeIdentifier,
     ) -> usize {
         let siblings = self.children_of(parent);
-        let at = siblings.iter().position(|&s| s == if_node).unwrap_or(0);
+        let at = siblings
+            .iter()
+            .position(|&s| s == if_node)
+            .expect("the if node replaced a child of its parent");
         siblings[..at]
             .iter()
             .map(|&s| match &self.tree[s] {

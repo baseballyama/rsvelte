@@ -293,17 +293,6 @@ pub(super) fn synthetic_value(
     }
 }
 
-/// Upstream `is_customizable_select_element`: a `<select>`, `<optgroup>` or `<option>` holding
-/// more than plain options and text.
-#[must_use]
-pub fn is_customizable_select(
-    compiler_syntax_tree: &CompilerSyntaxTree,
-    source_text: &str,
-    el: &Element,
-) -> bool {
-    compiler_syntax_tree.is_customizable_select(el, source_text)
-}
-
 /// Upstream `is_load_error_element`.
 #[must_use]
 pub(super) fn is_load_error_element(name: &str) -> bool {

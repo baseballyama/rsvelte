@@ -5,9 +5,8 @@ use std::collections::BTreeSet;
 use std::fmt::Write;
 
 use oxc_allocator::{Allocator, GetAllocator, StringBuilder};
-use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKind, Statement};
+use oxc_ast::ast::{Expression, Statement};
 use oxc_semantic::SymbolId;
-use oxc_span::SPAN;
 use rsvelte_svelte_compile::render_plan::Namespace;
 use rsvelte_typescript_compile::build::Builder;
 use rsvelte_typescript_compile::print::Expansion;
@@ -97,7 +96,7 @@ fn compile_in(t: &Translation, res: &Resolution, allocator: &Allocator) -> Strin
     let mut body = body.finish(&b);
     body.push(b.return_(Some(result)));
     let setup = e.setup_function(body, &mut module);
-    fields.push(method(&b, "setup", setup));
+    fields.push(b.method("setup", setup));
     let helper = if t.server {
         "defineComponent"
     } else {
@@ -110,27 +109,13 @@ fn compile_in(t: &Translation, res: &Resolution, allocator: &Allocator) -> Strin
     {
         component = e.custom_element(component, options, &mut module);
     }
-    let export = Statement::new_export_default_declaration(SPAN, component.into(), &b);
+    let export = b.export_default(component);
     module.insert(0, e.import());
     module.push(export);
     let source_text = b.str(t.javascript.source_text());
     let expand: &dyn for<'s, 'x> Fn(&'s Statement<'x>) -> Option<Expansion<'s>> =
         &|s| prelude::text(s).map(Expansion::Text);
     rsvelte_typescript_compile::print::print_expanding(&program(&b, source_text, module), expand)
-}
-
-/// `name(params) { body }`, from a function expression.
-fn method<'o>(b: &Builder<'o>, name: &str, function: Expression<'o>) -> ObjectPropertyKind<'o> {
-    ObjectPropertyKind::new_object_property(
-        SPAN,
-        PropertyKind::Init,
-        b.key(name),
-        function,
-        true,
-        false,
-        false,
-        b,
-    )
 }
 
 struct Emitter<'a, 'o> {

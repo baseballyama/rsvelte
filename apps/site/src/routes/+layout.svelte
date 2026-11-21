@@ -7,34 +7,35 @@
 	let { children } = $props();
 
 	const links = [
-		{ route: '/guide', href: resolve('/guide'), label: '使い方' },
-		{ route: '/rules', href: resolve('/rules'), label: 'ルール' },
-		{ route: '/playground', href: resolve('/playground'), label: 'プレイグラウンド' },
-		{ route: '/architecture', href: resolve('/architecture'), label: '仕組み' },
+		{ route: '/guide', href: resolve('/guide'), label: 'Guide' },
+		{ route: '/rules', href: resolve('/rules'), label: 'Rules' },
+		{ route: '/playground', href: resolve('/playground'), label: 'Playground' },
+		{ route: '/architecture', href: resolve('/architecture'), label: 'Architecture' },
 	];
 </script>
 
-<header>
-	<a class="home" href={resolve('/')}><Logo /> rsvelte</a>
-	<nav>
-		{#each links as link (link.href)}
-			<a href={link.href} aria-current={page.route.id === link.route ? 'page' : undefined}>
-				{link.label}
-			</a>
-		{/each}
-		<a href="https://github.com/baseballyama/rsvelte">GitHub</a>
-	</nav>
-</header>
+<!-- The playground needs the whole window for its two panes. -->
+<div class="site" class:wide={page.route.id === '/playground'}>
+	<header>
+		<a class="home" href={resolve('/')}><Logo /> rsvelte</a>
+		<nav>
+			{#each links as link (link.href)}
+				<a href={link.href} aria-current={page.route.id === link.route ? 'page' : undefined}>
+					{link.label}
+				</a>
+			{/each}
+			<a href="https://github.com/baseballyama/rsvelte">GitHub</a>
+		</nav>
+	</header>
 
-<main>
-	{@render children()}
-</main>
+	<main>
+		{@render children()}
+	</main>
 
-<footer class="muted">
-	MIT License ・ <a href="https://github.com/baseballyama/rsvelte"
-		>github.com/baseballyama/rsvelte</a
-	>
-</footer>
+	<footer class="muted">
+		MIT License · <a href="https://github.com/baseballyama/rsvelte">Source on GitHub</a>
+	</footer>
+</div>
 
 <style>
 	header {
@@ -43,7 +44,7 @@
 		gap: 0.5rem 1.5rem;
 		align-items: center;
 		justify-content: space-between;
-		max-width: 60rem;
+		max-width: var(--width);
 		margin: 0 auto;
 		padding: 1rem 1.25rem;
 	}
@@ -75,13 +76,21 @@
 	}
 
 	main {
-		max-width: 60rem;
+		max-width: var(--width);
 		margin: 0 auto;
 		padding: 0 1.25rem 3rem;
 	}
 
+	.site {
+		--width: 60rem;
+	}
+
+	.wide {
+		--width: 100rem;
+	}
+
 	footer {
-		max-width: 60rem;
+		max-width: var(--width);
 		margin: 0 auto;
 		padding: 1.5rem 1.25rem 2.5rem;
 		border-top: 1px solid var(--line);

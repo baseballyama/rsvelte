@@ -3,15 +3,14 @@ use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::output::edits::Edits;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_stylesheet_syntax::syntax_tree::{Rule, RuleKind, Simple};
-
-use super::StyleInput;
+use rsvelte_vue_syntax::syntax_tree::Style;
 
 /// # Errors
 ///
 /// [`Unsupported`] for a scoped selector the port does not rewrite yet.
 pub(super) fn compile(
     source_text: &str,
-    style: &StyleInput<'_>,
+    style: &Style,
     identifier: &str,
 ) -> Result<String, Unsupported> {
     let mut edits = Edits::default();
@@ -61,16 +60,10 @@ fn visit(
                     for part in &sel.parts {
                         for s in &part.simple {
                             match s {
-                                Simple::PseudoClass { .. } | Simple::PseudoElement { .. } => {
-                                    let name = match s {
-                                        Simple::PseudoClass { name, .. }
-                                        | Simple::PseudoElement { name, .. } => {
-                                            name.text(source_text)
-                                        }
-                                        _ => "",
-                                    };
+                                Simple::PseudoClass { name, .. }
+                                | Simple::PseudoElement { name, .. } => {
                                     if matches!(
-                                        name,
+                                        name.text(source_text),
                                         "deep"
                                             | "global"
                                             | "slotted"

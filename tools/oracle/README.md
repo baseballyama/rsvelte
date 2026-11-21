@@ -9,7 +9,8 @@ ledger; see [rsvelte_corpus](../../crates/language_independent/corpus/README.md)
 ```sh
 F=tools/oracle/oracle.ts   # zsh: keep only the path in the variable
 mise exec -- node $F regen       # write the official output to every source's expected/
-mise exec -- node $F run-all     # write rsvelte's output to every source's actual/
+mise exec -- node $F run-all     # write rsvelte's output to every source's actual/, loose per unit
+CORPUS_ACTUAL=1 cargo test -p rsvelte_command_line --test corpus   # rsvelte's output as packs beside expected/
 mise exec -- node $F upgrade     # after changing an oracle's version in package.json
 ```
 
