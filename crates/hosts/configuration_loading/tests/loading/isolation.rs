@@ -1,8 +1,8 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
-
 use rsvelte_configuration_loading::Loader;
 use rsvelte_configuration_loading::process::ProcessLoader;
 use rsvelte_plugin_interface::{FunctionReference, TextContract};
+
+use crate::Directory;
 
 static CONTRACT: TextContract = TextContract {
     identifier: "example.name",
@@ -12,24 +12,16 @@ static CONTRACT: TextContract = TextContract {
 
 #[test]
 fn callback_and_input_errors_leave_the_runtime_usable() {
-    static NEXT: AtomicUsize = AtomicUsize::new(0);
-    let directory = std::env::temp_dir().join(format!(
-        "rsvelte-config-isolation-{}-{}",
-        std::process::id(),
-        NEXT.fetch_add(1, Ordering::Relaxed)
-    ));
-    std::fs::create_dir_all(&directory).expect("test directory");
-    let path = directory.join("config.mjs");
-    std::fs::write(
-        &path,
+    let directory = Directory::new();
+    let path = directory.write(
+        "config.mjs",
         "
         export default {plugins: {example: {callback: ({name}) => {
             if (name === 'bad') throw Error('bad document');
             return 'ok-' + name;
         }}}};
     ",
-    )
-    .expect("config");
+    );
     let loaded = ProcessLoader::node("node".into(), Vec::new())
         .load(&path)
         .expect("runtime");
@@ -48,5 +40,4 @@ fn callback_and_input_errors_leave_the_runtime_usable() {
     assert_eq!(function.call(&["good"]).expect("next document"), "ok-good");
     drop(function);
     drop(loaded);
-    std::fs::remove_dir_all(directory).expect("remove test directory");
 }
