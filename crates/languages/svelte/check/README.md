@@ -21,7 +21,8 @@ as one a package ships. The `contentMapper` option names the executable; the def
 cargo install --path crates/languages/svelte/typescript_projection
 ```
 
-The crate's fixture tests build their own thin mapper executable on the same implementation.
+The fixture test uses `rsvelte-typescript-content-mapper`, which serves only the projections the
+check stored, so build it first: `cargo build -p rsvelte_typescript_content_mapper --bins`.
 
 `tests/fixtures.rs` runs the compiler's hand-written inputs (`../compile/tests/fixtures`); only
 the checker's expected and actual outputs live here. The corpus runs in the `corpus` test of
