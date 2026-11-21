@@ -81,6 +81,27 @@ const fmt = (n: number) => n.toLocaleString('en-US');
 const pct = (a: number, b: number) =>
 	a === 0 ? (b === 0 ? '0%' : '+inf') : `${b >= a ? '+' : ''}${(((b - a) / a) * 100).toFixed(2)}%`;
 
+interface Comparison {
+	rows: Row[];
+	population: string[];
+}
+
+const exact = (metric: string, was: number | undefined, now: number | undefined): Row => ({
+	metric,
+	was,
+	now,
+	verdict:
+		was === undefined
+			? 'NEW'
+			: now === undefined
+				? 'GONE'
+				: now > was
+					? 'REGRESSED'
+					: now < was
+						? 'IMPROVED (baseline not updated)'
+						: 'ok',
+});
+
 function took(cmd: string, argv: string[], started: number) {
 	// A slow CI job names its slow step.
 	const seconds = ((performance.now() - started) / 1000).toFixed(1);
@@ -107,7 +128,7 @@ export async function main(args: string[]): Promise<void> {
 		},
 	});
 	if (!values.allocations && (!values.instructions || values.update))
-		throw new Error('--no-allocations needs --instructions, and only a full run may --update');
+		throw new Error('--no-allocations needs --instructions and cannot be combined with --update');
 
 	/** Runs a command; resolves with its stderr. */
 	function start(
@@ -132,15 +153,16 @@ export async function main(args: string[]): Promise<void> {
 		});
 	}
 
+	/** The Cargo profile of each measured build, with its features. */
+	const FEATURES = { metrics: ['--features', 'metrics'], dist: [] as string[] };
+
 	/**
-	 * A private copy, so a later build cannot swap the binary while it is measured. Each flavour
+	 * A private copy, so a later build cannot swap the binary while it is measured. Each profile
 	 * has its own target directory, so the two builds run at once.
 	 */
-	async function build(flavour: 'metrics' | 'plain', directory: string): Promise<string> {
-		const dir = path.join(ROOT, 'target', `performance-${flavour}`);
-		const features = flavour === 'metrics' ? ['--features', 'metrics'] : [];
-		const profile = flavour === 'metrics' ? 'metrics' : 'dist';
-		// Each binary of the package has its own LTO link, and only rsvelte-dev is measured.
+	async function build(profile: keyof typeof FEATURES, directory: string): Promise<string> {
+		const dir = path.join(ROOT, 'target', `performance-${profile}`);
+		// Only rsvelte-dev is measured, so only it is built.
 		const stderr = await start(
 			'cargo',
 			[
@@ -152,7 +174,7 @@ export async function main(args: string[]): Promise<void> {
 				'rsvelte_command_line',
 				'--bin',
 				'rsvelte-dev',
-				...features,
+				...FEATURES[profile],
 			],
 			{
 				...process.env,
@@ -162,9 +184,9 @@ export async function main(args: string[]): Promise<void> {
 		// Crates the cache did not restore, so a slow build can be told apart from a cold cache. CI
 		// colours cargo's output, and a colour code sits between `Compiling` and its space.
 		const compiled = stripVTControlCharacters(stderr).match(/^\s*Compiling /gm)?.length ?? 0;
-		console.error(`  ${flavour}: ${compiled} crates compiled`);
-		fs.mkdirSync(path.join(directory, flavour));
-		const copy = path.join(directory, flavour, 'rsvelte-dev');
+		console.error(`  ${profile}: ${compiled} crates compiled`);
+		fs.mkdirSync(path.join(directory, profile));
+		const copy = path.join(directory, profile, 'rsvelte-dev');
 		fs.copyFileSync(path.join(dir, profile, 'rsvelte-dev'), copy);
 		return copy;
 	}
@@ -235,7 +257,7 @@ export async function main(args: string[]): Promise<void> {
 			values.allocations
 				? build('metrics', directory).then((metrics) => allocations(metrics, directory))
 				: undefined,
-			values.instructions ? build('plain', directory).then(instructions) : undefined,
+			values.instructions ? build('dist', directory).then(instructions) : undefined,
 		]);
 	} finally {
 		fs.rmSync(directory, { recursive: true, force: true });
@@ -274,57 +296,63 @@ export async function main(args: string[]): Promise<void> {
 		? (JSON.parse(fs.readFileSync(BASELINE, 'utf8')) as Baseline)
 		: undefined;
 
-	const rows: Row[] = [];
-	const population: string[] = [];
-	const exact = (metric: string, was: number | undefined, now: number | undefined) => {
-		const verdict: Row['verdict'] =
-			was === undefined
-				? 'NEW'
-				: now === undefined
-					? 'GONE'
-					: now > was
-						? 'REGRESSED'
-						: now < was
-							? 'IMPROVED (baseline not updated)'
-							: 'ok';
-		rows.push({ metric, was, now, verdict });
-	};
-	function compareAllocations(a: Baseline, b: NonNullable<typeof measuredAllocations>) {
-		if (JSON.stringify(a.population) !== JSON.stringify(b.population)) {
-			population.push(
-				`population changed: ${JSON.stringify(a.population)} -> ${JSON.stringify(b.population)}`,
-			);
-		}
-		exact('allocs', a.allocs, b.allocs);
-		exact('alloc_bytes', a.alloc_bytes, b.alloc_bytes);
-		exact('peak_live_growth_bytes', a.peak_live_growth_bytes, b.peak_live_growth_bytes);
+	function compareAllocations(a: Baseline, b: NonNullable<typeof measuredAllocations>): Comparison {
+		const population =
+			JSON.stringify(a.population) === JSON.stringify(b.population)
+				? []
+				: [
+						`population changed: ${JSON.stringify(a.population)} -> ${JSON.stringify(b.population)}`,
+					];
+		const rows = [
+			exact('allocs', a.allocs, b.allocs),
+			exact('alloc_bytes', a.alloc_bytes, b.alloc_bytes),
+			exact('peak_live_growth_bytes', a.peak_live_growth_bytes, b.peak_live_growth_bytes),
+		];
 		for (const name of [
 			...new Set([...Object.keys(a.phases), ...Object.keys(b.phases)]),
 		].toSorted()) {
 			for (const k of ['calls', 'allocs', 'alloc_bytes'] as const)
-				exact(`phase ${name} ${k}`, a.phases[name]?.[k], b.phases[name]?.[k]);
+				rows.push(exact(`phase ${name} ${k}`, a.phases[name]?.[k], b.phases[name]?.[k]));
 		}
+		return { rows, population };
 	}
-	function compareInstructions(a: Baseline, b: Instructions) {
-		if (JSON.stringify(a.instruction_sample) !== JSON.stringify(b.sample)) {
-			population.push(
-				`instruction sample changed: ${JSON.stringify(a.instruction_sample ?? 'every unit')} -> ${JSON.stringify(b.sample)}`,
-			);
-		}
-		for (const [label, was, now] of [
-			['instructions', a.instructions[platform], b.warm],
-			['load instructions', a.load_instructions?.[platform], b.load],
-		] as const) {
-			const verdict: Row['verdict'] =
+	function compareInstructions(a: Baseline, b: Instructions): Comparison {
+		const population =
+			JSON.stringify(a.instruction_sample) === JSON.stringify(b.sample)
+				? []
+				: [
+						`instruction sample changed: ${JSON.stringify(a.instruction_sample ?? 'every unit')} -> ${JSON.stringify(b.sample)}`,
+					];
+		const rows = (
+			[
+				['instructions', a.instructions[platform], b.warm],
+				['load instructions', a.load_instructions?.[platform], b.load],
+			] as const
+		).map(([label, was, now]): Row => ({
+			metric: `${label} ${platform}`,
+			was,
+			now,
+			verdict:
 				was === undefined
 					? 'NEW'
 					: now > was * (1 + INSTRUCTION_TOLERANCE)
 						? 'REGRESSED'
 						: now < was * (1 - INSTRUCTION_TOLERANCE)
 							? 'IMPROVED (baseline not updated)'
-							: 'ok';
-			rows.push({ metric: `${label} ${platform}`, was, now, verdict });
-		}
+							: 'ok',
+		}));
+		return { rows, population };
+	}
+	/** Every measured counter against `baseline`. */
+	function compare(baseline: Baseline): Comparison {
+		const parts = [
+			measuredAllocations && compareAllocations(baseline, measuredAllocations),
+			instr && compareInstructions(baseline, instr),
+		].filter((part) => part !== undefined);
+		return {
+			rows: parts.flatMap((part) => part.rows),
+			population: parts.flatMap((part) => part.population),
+		};
 	}
 
 	if (report !== undefined) {
@@ -348,7 +376,8 @@ export async function main(args: string[]): Promise<void> {
 		);
 	}
 
-	if (values.update && measuredAllocations !== undefined) {
+	if (values.update) {
+		if (measuredAllocations === undefined) throw new Error('--update needs the allocation counts');
 		const next: Baseline = {
 			...measuredAllocations,
 			instructions: { ...old?.instructions, ...measuredInstructions?.instructions },
@@ -361,9 +390,7 @@ export async function main(args: string[]): Promise<void> {
 		};
 		fs.writeFileSync(BASELINE, JSON.stringify(next, null, '\t') + '\n');
 		if (old) {
-			compareAllocations(old, measuredAllocations);
-			if (instr !== undefined) compareInstructions(old, instr);
-			for (const row of rows.filter((r) => r.verdict !== 'ok')) {
+			for (const row of compare(old).rows.filter((r) => r.verdict !== 'ok')) {
 				console.log(
 					`  ${row.metric}: ${row.was === undefined ? '-' : fmt(row.was)} -> ${row.now === undefined ? '-' : fmt(row.now)}`,
 				);
@@ -377,13 +404,14 @@ export async function main(args: string[]): Promise<void> {
 		console.error(`no baseline at ${path.relative(ROOT, BASELINE)}; run with --update`);
 		process.exit(1);
 	}
-	if (measuredAllocations !== undefined) compareAllocations(old, measuredAllocations);
-	if (instr !== undefined) compareInstructions(old, instr);
-	else if (
-		old.instructions[platform] !== undefined ||
-		old.load_instructions?.[platform] !== undefined
+	const { rows, population } = compare(old);
+	if (
+		instr === undefined &&
+		(old.instructions[platform] !== undefined || old.load_instructions?.[platform] !== undefined)
 	)
-		console.log(`  instructions ${platform}: UNMEASURED (pass --instructions)`);
+		console.log(
+			`  instructions ${platform}: not measured in this run (--instructions, or CI's performance (instructions) job)`,
+		);
 	const bad = rows.filter((r) => r.verdict !== 'ok');
 	for (const p of population) console.error(`FAIL ${p}`);
 	for (const r of bad) {

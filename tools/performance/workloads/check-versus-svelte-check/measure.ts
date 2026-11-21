@@ -15,7 +15,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { revision } from '../revision.ts';
+import { revision, revisionOrNull } from '../revision.ts';
 import { type Diagnostic, type Parsed, parsers, TASK } from './parse.ts';
 import { expectedErrors } from './synthetic.ts';
 
@@ -323,7 +323,7 @@ const env = {
 	typescript6: versionOf(ts6),
 	tsgo: nativeVersion(ts7Native),
 	tsrs: nativeVersion(tsrsNative),
-	projectRevision: output('git', ['rev-parse', 'HEAD']).stdout.trim() || null,
+	projectRevision: revisionOrNull(workspace),
 	projectTypescript: (() => {
 		const own = resolvePackage('typescript', path.dirname(tsconfig));
 		return own && versionOf(own);

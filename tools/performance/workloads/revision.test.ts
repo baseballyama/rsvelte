@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { revision } from './revision.ts';
+import { revision, revisionOrNull } from './revision.ts';
 
 const root = path.resolve(import.meta.dirname, '../../..');
 
@@ -19,4 +19,9 @@ test('a directory inside a checkout or outside every checkout throws', () => {
 	} finally {
 		fs.rmSync(outside, { recursive: true });
 	}
+});
+
+test('revisionOrNull gives null where revision throws', () => {
+	assert.equal(revisionOrNull(root), revision(root));
+	assert.equal(revisionOrNull(path.join(root, 'tools')), null);
 });

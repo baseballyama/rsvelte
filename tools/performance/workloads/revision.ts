@@ -18,3 +18,12 @@ export function revision(directory: string): string {
 	if (!/^[a-f0-9]{40}$/.test(hash)) throw new Error(`git rev-parse in ${directory} gave ${hash}`);
 	return hash;
 }
+
+/** `revision(directory)`, or null where `directory` is not the top of a checkout of its own. */
+export function revisionOrNull(directory: string): string | null {
+	try {
+		return revision(directory);
+	} catch {
+		return null;
+	}
+}
