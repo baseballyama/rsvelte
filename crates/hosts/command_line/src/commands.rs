@@ -9,7 +9,9 @@ pub(crate) mod performance;
 pub(crate) mod run;
 pub(crate) mod typecheck;
 
+use std::io::Write as _;
 use std::path::Path;
+use std::process::ExitCode;
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 
@@ -56,4 +58,15 @@ fn write_report(command: &str, json: Option<&Path>, report: &str) -> bool {
         return false;
     }
     true
+}
+
+/// Prints a report and how many errors it counts; exit code 1 when there is one.
+fn print_report((text, errors): (String, usize)) -> ExitCode {
+    // A closed pipe, as `| head` closes it, only cuts the report short.
+    drop(std::io::stdout().lock().write_all(text.as_bytes()));
+    if errors > 0 {
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    }
 }

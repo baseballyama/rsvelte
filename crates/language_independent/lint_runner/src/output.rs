@@ -10,6 +10,8 @@ use crate::finding::{Finding, PARSE_ERROR, UNUSED_DIRECTIVE};
 use crate::findings::Findings;
 use crate::rule::Rule;
 
+pub mod stylish;
+
 /// Bytes of one finding's pretty JSON beyond its rule and message, with room for large positions,
 /// so the output is allocated once.
 const FINDING_BYTES: usize = 200;
