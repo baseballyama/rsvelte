@@ -321,7 +321,8 @@ fn typecheck_reads_a_javascript_component_as_untyped_javascript() {
     let annotated = "<script>\n\tlet { n }: { n: number } = $props();\n</script>\n\n{n}\n";
     let page = |from: &str| {
         format!(
-            "<script lang=\"ts\">\n\timport Annotated from \"{from}\";\n</script>\n\n<Annotated n=\"str\" />\n"
+            "<script lang=\"ts\">\n\timport Annotated from \"{from}\";\n</script>\n\n\
+             <Annotated n=\"str\" />\n"
         )
     };
     let (linked, local) = (page("dep/src/Annotated.svelte"), page("./Annotated.svelte"));

@@ -2,4 +2,4 @@
 '@rsvelte/cli': patch
 ---
 
-typecheck: a JavaScript component imported through a package, or from a `.ts` file, gives TS7016 at the import as svelte-check does, and its own findings are not reported when only that import reaches it.
+The `typecheck` command reports TS7016 at an import of a JavaScript component, as svelte-check does, also through a package or from a `.ts` file. It no longer reports the findings of a JavaScript component that only such an import reaches.
