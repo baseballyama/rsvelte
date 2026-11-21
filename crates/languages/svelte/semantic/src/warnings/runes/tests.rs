@@ -313,9 +313,15 @@ fn a_var_declared_again_replaces_the_binding_upstream_checks() {
             None,
         ),
     ];
+    assert_first_raised(&cases);
+}
+
+/// Each `(source, with runes, without)`: the offset of the `dollar_prefix_invalid` the compiler
+/// throws with `runes: true` and with `runes: false`, or none.
+fn assert_first_raised(cases: &[(&str, Option<u32>, Option<u32>)]) {
     let mut registry = Registry::new();
     crate::register(&mut registry);
-    for (source, with_runes, without) in cases {
+    for &(source, with_runes, without) in cases {
         let document = Document::new("Test.svelte".to_owned(), source.to_owned()).expect("small");
         let context = DocumentContext::new(&document, registry.artifacts());
         let component = context.get::<Parsed>().as_ref().expect("parses");
@@ -330,15 +336,75 @@ fn a_var_declared_again_replaces_the_binding_upstream_checks() {
                 resolution,
                 runes,
             );
-            let raised: Vec<_> = errors
-                .iter()
-                .map(|(_, e)| (e.code.to_string(), e.span.start_offset))
-                .collect();
-            let expected: Vec<_> = expected
-                .map(|at| ("dollar_prefix_invalid".to_owned(), at))
-                .into_iter()
-                .collect();
+            // The compiler throws the first error it raises.
+            let raised = (errors.iter().min_by_key(|(raised, _)| *raised))
+                .map(|(_, e)| (e.code.to_string(), e.span.start_offset));
+            let expected = expected.map(|at| ("dollar_prefix_invalid".to_owned(), at));
             assert_eq!(raised, expected, "{source} runes={runes}");
         }
     }
+}
+
+#[test]
+fn a_var_in_a_catch_clause_declares_the_functions_binding() {
+    // What svelte 5.57.3 raises, in bytes: upstream's catch scope is porous, so a `var` there
+    // declares the function's binding, and the walk finds the parameter's from inside the clause.
+    let cases = [
+        (
+            "<script>function f(){ try {} catch ($c) { var $c = 1 } }</script>",
+            Some(36),
+            None,
+        ),
+        (
+            "<script>function f(){ try {} catch ($c) { { var $c = 1 } } }</script>",
+            Some(36),
+            None,
+        ),
+        (
+            "<script>function f(){ var $c; try {} catch ($c) { var $c = 1 } }</script>",
+            Some(54),
+            None,
+        ),
+        (
+            "<script>function f(){ try {} catch ($c) { var $c = 1 } var $c }</script>",
+            Some(36),
+            None,
+        ),
+        (
+            "<script>function f(){ try {} catch ($c) { var $c = 1; var $c = 2 } }</script>",
+            Some(36),
+            None,
+        ),
+        (
+            "<script>function f(){ try {} catch ($c) { for (var $c of x); } }</script>",
+            Some(36),
+            None,
+        ),
+        (
+            "<script>function f(){ try {} catch ($c) {} var $c = 1 }</script>",
+            Some(47),
+            None,
+        ),
+        (
+            "<script>function f(){ try {} catch ($c) {} }</script>",
+            None,
+            None,
+        ),
+        (
+            "<script>try {} catch ($c) { var $c = 1 }</script>",
+            Some(22),
+            Some(22),
+        ),
+        (
+            "<script module>function f(){ try {} catch ($c) { var $c = 1 } }</script>",
+            Some(43),
+            Some(43),
+        ),
+        (
+            "{(() => { try {} catch ($c) { var $c = 1 } })()}",
+            Some(24),
+            None,
+        ),
+    ];
+    assert_first_raised(&cases);
 }

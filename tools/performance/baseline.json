@@ -23,8 +23,8 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 25424585,
-	"alloc_bytes": 4054846285,
+	"allocs": 25424689,
+	"alloc_bytes": 4054852941,
 	"peak_live_growth_bytes": 3262213,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -49,8 +49,8 @@
 		},
 		"svelte.compile.warnings": {
 			"calls": 73792,
-			"allocs": 627152,
-			"alloc_bytes": 57936739
+			"allocs": 627202,
+			"alloc_bytes": 57939939
 		},
 		"svelte.compile/client": {
 			"calls": 36896,
@@ -129,13 +129,13 @@
 		},
 		"svelte.lower.client": {
 			"calls": 36388,
-			"allocs": 4895833,
-			"alloc_bytes": 410090292
+			"allocs": 4895836,
+			"alloc_bytes": 410090484
 		},
 		"svelte.lower.server": {
 			"calls": 36388,
-			"allocs": 2892235,
-			"alloc_bytes": 209392737
+			"allocs": 2892238,
+			"alloc_bytes": 209392929
 		},
 		"svelte.output_identity": {
 			"calls": 34748,
@@ -189,8 +189,8 @@
 		},
 		"svelte.validate": {
 			"calls": 34748,
-			"allocs": 184762,
-			"alloc_bytes": 15773643
+			"allocs": 184810,
+			"alloc_bytes": 15776715
 		},
 		"svelte/block-lang": {
 			"calls": 8,
@@ -384,10 +384,10 @@
 		}
 	},
 	"instructions": {
-		"arm64-linux": 2012175163
+		"arm64-linux": 2012744854
 	},
 	"load_instructions": {
-		"arm64-linux": 146335109
+		"arm64-linux": 146339128
 	},
 	"instruction_sample": {
 		"every": 20,
