@@ -1,34 +1,37 @@
 use rsvelte_svelte_syntax::parse::parse;
+use rsvelte_svelte_syntax::syntax_tree::Component;
 
-use crate::compiler_syntax_tree::{NodeKind, lower};
-use crate::resolve::resolve;
+use super::Analysis;
+use crate::compiler_syntax_tree::{CompilerSyntaxTree, NodeKind, lower};
+use crate::input::ComponentInput;
+
+/// Analyzes `source` as `App.svelte` and hands `f` the parsed, lowered and analyzed component.
+fn analyzed<R>(source: &str, f: impl FnOnce(&Component, &CompilerSyntaxTree, &Analysis) -> R) -> R {
+    let component = parse(source).expect("parses");
+    let lowered = lower(&component, source);
+    let res = crate::resolve_component(&component, &lowered);
+    let input = ComponentInput::new(&component, &lowered, source, "App.svelte");
+    f(&component, &lowered, &super::analyze(&input, &res))
+}
 
 /// Whether each argument of each `{@render}` tag in `source` has a call, in document order.
 fn render_calls(source: &str) -> Vec<Vec<bool>> {
-    let component = parse(source).expect("parses");
-    let lowered = lower(&component, source);
-    let res = resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        None,
-        &lowered,
-    );
-    let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
-    let analysis = super::analyze(&input, &res);
-    lowered
-        .nodes
-        .iter()
-        .filter_map(|node| match node.kind {
-            NodeKind::Render { expression } => Some(
-                analysis
-                    .render_arguments(expression)
-                    .iter()
-                    .map(|m| m.has_call)
-                    .collect(),
-            ),
-            _ => None,
-        })
-        .collect()
+    analyzed(source, |_, lowered, analysis| {
+        lowered
+            .nodes
+            .iter()
+            .filter_map(|node| match node.kind {
+                NodeKind::Render { expression } => Some(
+                    analysis
+                        .render_arguments(expression)
+                        .iter()
+                        .map(|m| m.has_call)
+                        .collect(),
+                ),
+                _ => None,
+            })
+            .collect()
+    })
 }
 
 #[test]
@@ -42,64 +45,32 @@ fn each_render_argument_has_its_own_metadata() {
 #[test]
 fn a_render_tag_needs_no_context_for_its_call() {
     let source = "<script>let { children, f } = $props();</script>{@render children?.()}";
-    let component = parse(source).expect("parses");
-    let lowered = lower(&component, source);
-    let res = resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        None,
-        &lowered,
-    );
-    let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
-    assert!(!super::analyze(&input, &res).needs_context);
+    assert!(!analyzed(source, |_, _, analysis| analysis.needs_context));
     let with_call = "<script>let { children, f } = $props();</script>{@render children(f())}";
-    let component = parse(with_call).expect("parses");
-    let lowered = lower(&component, with_call);
-    let res = resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        None,
-        &lowered,
-    );
-    let input = crate::svelte_input(&component, &lowered, with_call, "App.svelte");
-    assert!(super::analyze(&input, &res).needs_context);
+    assert!(analyzed(with_call, |_, _, analysis| analysis.needs_context));
 }
 
 #[test]
 fn a_global_block_scopes_no_element_and_uses_its_rules() {
     let source = "<div class=\"tabs\"><a>x</a></div><p class=\"x\">y</p>\n\
                   <style>:global { .tabs { & > a { color: red } } } .x { color: red }</style>";
-    let component = parse(source).expect("parses");
-    let lowered = lower(&component, source);
-    let res = resolve(&component.javascript, None, None, &lowered);
-    let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
-    let analysis = super::analyze(&input, &res);
-    let scoped: Vec<&str> = lowered
-        .nodes
-        .iter_enumerated()
-        .filter(|&(identifier, _)| analysis.scoped[identifier])
-        .map(|(_, node)| {
-            &source[node.span.start_offset as usize..node.span.start_offset as usize + 2]
-        })
-        .collect();
-    assert_eq!(scoped, ["<p"]);
-    assert!(analysis.stylesheet_used.iter().all(|&used| used));
+    analyzed(source, |_, lowered, analysis| {
+        let scoped: Vec<&str> = lowered
+            .nodes
+            .iter_enumerated()
+            .filter(|&(identifier, _)| analysis.scoped[identifier])
+            .map(|(_, node)| {
+                &source[node.span.start_offset as usize..node.span.start_offset as usize + 2]
+            })
+            .collect();
+        assert_eq!(scoped, ["<p"]);
+        assert!(analysis.stylesheet_used.iter().all(|&used| used));
+    });
 }
 
 #[test]
 fn a_call_in_a_snippet_default_needs_context_and_one_in_a_block_pattern_does_not() {
-    let needs = |source: &str| {
-        let component = parse(source).expect("parses");
-        let lowered = lower(&component, source);
-        let res = resolve(
-            &component.javascript,
-            component.instance.as_ref().map(|s| s.program),
-            None,
-            &lowered,
-        );
-        let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
-        super::analyze(&input, &res).needs_context
-    };
+    let needs = |source: &str| analyzed(source, |_, _, analysis| analysis.needs_context);
     let script = "<script>let { f, xs } = $props();</script>";
     assert!(!needs(&format!(
         "{script}{{#snippet s(v = 1)}}{{v}}{{/snippet}}{{@render s()}}"
@@ -119,57 +90,49 @@ fn a_call_in_a_snippet_default_needs_context_and_one_in_a_block_pattern_does_not
 #[test]
 fn a_store_subscription_is_state_and_asks_of_its_store() {
     // Each template expression's text with its metadata, and whether the component needs context.
-    let analyzed = |source: &str| {
-        let component = parse(source).expect("parses");
-        let lowered = lower(&component, source);
-        let res = resolve(
-            &component.javascript,
-            component.instance.as_ref().map(|s| s.program),
-            None,
-            &lowered,
-        );
-        let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
-        let analysis = super::analyze(&input, &res);
-        let mut metas: Vec<(String, bool, bool, bool)> = component
-            .javascript
-            .expressions()
-            .filter_map(|(identifier, e)| {
-                let meta = analysis.expressions.get(&identifier)?;
-                let span = oxc_span::GetSpan::span(e);
-                let text = source[span.start as usize..span.end as usize].to_owned();
-                Some((
-                    text,
-                    meta.has_state,
-                    meta.has_call,
-                    meta.first_store_subscription.is_some(),
-                ))
-            })
-            .collect();
-        metas.sort();
-        (metas, analysis.needs_context)
+    let metas = |source: &str| {
+        analyzed(source, |component, _, analysis| {
+            let mut metas: Vec<(String, bool, bool, bool)> = component
+                .javascript
+                .expressions()
+                .filter_map(|(identifier, e)| {
+                    let meta = analysis.expressions.get(&identifier)?;
+                    let span = oxc_span::GetSpan::span(e);
+                    let text = source[span.start as usize..span.end as usize].to_owned();
+                    Some((
+                        text,
+                        meta.has_state,
+                        meta.has_call,
+                        meta.first_store_subscription.is_some(),
+                    ))
+                })
+                .collect();
+            metas.sort();
+            (metas, analysis.needs_context)
+        })
     };
     // Whether svelte 5.57.3 pushes a context for each, in runes mode.
     let local = "<script>const f = { subscribe: (fn) => { fn(() => 1); return () => {}; } };\
                  </script><p>{$f()}</p>";
     assert_eq!(
-        analyzed(local),
+        metas(local),
         (vec![("$f()".to_owned(), true, true, true)], false)
     );
     // A prop's subscription is unsafe as the prop is, so calling it needs context.
     let prop = "<script>let { f } = $props();</script><p>{$f()}</p>";
     assert_eq!(
-        analyzed(prop),
+        metas(prop),
         (vec![("$f()".to_owned(), true, true, true)], true)
     );
     let prop_read = "<script>let { f } = $props();</script><p>{$f}</p>";
     assert_eq!(
-        analyzed(prop_read),
+        metas(prop_read),
         (vec![("$f".to_owned(), true, false, true)], false)
     );
     let import = "<script>import { writable } from 'svelte/store'; const count = writable(0);\
                   </script><p>{$count}</p>";
     assert_eq!(
-        analyzed(import),
+        metas(import),
         (vec![("$count".to_owned(), true, false, true)], true)
     );
 }
@@ -188,40 +151,34 @@ fn no_selector_matches_an_element_inside_svelte_head() {
              {{#if a}}<span class=\"x\"></span>{{/if}}</svelte:head>\
              <p class=\"x\"></p><style>{style}</style>"
         );
-        let component = parse(&source).expect("parses");
-        let lowered = lower(&component, &source);
-        let res = resolve(&component.javascript, None, None, &lowered);
-        let input = crate::svelte_input(&component, &lowered, &source, "App.svelte");
-        let analysis = super::analyze(&input, &res);
-        let actual: Vec<&str> = lowered
-            .nodes
-            .iter_enumerated()
-            .filter(|&(identifier, _)| analysis.scoped[identifier])
-            .map(|(_, node)| {
-                &source[node.span.start_offset as usize..node.span.start_offset as usize + 2]
-            })
-            .collect();
-        assert_eq!(actual, scoped, "{style}");
-        assert_eq!(analysis.stylesheet_used, [used], "{style}");
+        analyzed(&source, |_, lowered, analysis| {
+            let actual: Vec<&str> = lowered
+                .nodes
+                .iter_enumerated()
+                .filter(|&(identifier, _)| analysis.scoped[identifier])
+                .map(|(_, node)| {
+                    &source[node.span.start_offset as usize..node.span.start_offset as usize + 2]
+                })
+                .collect();
+            assert_eq!(actual, scoped, "{style}");
+            assert_eq!(analysis.stylesheet_used, [used], "{style}");
+        });
     }
 }
 
 #[test]
 fn a_custom_element_with_attributes_makes_its_parent_s_children_dynamic() {
     let dynamic = |source: &str| {
-        let component = parse(source).expect("parses");
-        let lowered = lower(&component, source);
-        let res = resolve(&component.javascript, None, None, &lowered);
-        let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
-        let analysis = super::analyze(&input, &res);
-        let (div, _) = lowered
-            .nodes
-            .iter_enumerated()
-            .find(|(_, node)| {
-                matches!(&node.kind, NodeKind::Element(el) if el.name.text(source) == "div")
-            })
-            .expect("a div");
-        analysis.dynamic[div]
+        analyzed(source, |_, lowered, analysis| {
+            let (div, _) = lowered
+                .nodes
+                .iter_enumerated()
+                .find(|(_, node)| {
+                    matches!(&node.kind, NodeKind::Element(el) if el.name.text(source) == "div")
+                })
+                .expect("a div");
+            analysis.dynamic[div]
+        })
     };
     assert!(dynamic(
         "<div><custom-elements with=\"attributes\"></custom-elements></div>"
@@ -242,25 +199,17 @@ fn a_custom_element_with_attributes_makes_its_parent_s_children_dynamic() {
 fn a_rune_call_around_state_is_a_call_as_any_other() {
     let source = "<script>let s = $state([1]);</script>\
                   <p>{2 in $state.snapshot(s)}</p><p>{$state.snapshot(1)}</p>";
-    let component = parse(source).expect("parses");
-    let lowered = lower(&component, source);
-    let res = resolve(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        None,
-        &lowered,
-    );
-    let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
-    let analysis = super::analyze(&input, &res);
-    let mut calls: Vec<(String, bool)> = component
-        .javascript
-        .expressions()
-        .filter_map(|(identifier, e)| {
-            let meta = analysis.expressions.get(&identifier)?;
-            let text = oxc_span::GetSpan::span(e).source_text(source).to_owned();
-            Some((text, meta.has_call))
-        })
-        .collect();
+    let mut calls: Vec<(String, bool)> = analyzed(source, |component, _, analysis| {
+        component
+            .javascript
+            .expressions()
+            .filter_map(|(identifier, e)| {
+                let meta = analysis.expressions.get(&identifier)?;
+                let text = oxc_span::GetSpan::span(e).source_text(source).to_owned();
+                Some((text, meta.has_call))
+            })
+            .collect()
+    });
     calls.sort();
     // Upstream's CallExpression visitor: the rune's callee is pure, and only the first reads state.
     assert_eq!(
@@ -276,22 +225,19 @@ fn a_rune_call_around_state_is_a_call_as_any_other() {
 fn a_select_s_rich_content_makes_it_and_its_parent_dynamic() {
     // Whether the element's own children are dynamic, and whether its parent's are.
     let dynamic = |source: &str, tag: &str| {
-        let component = parse(source).expect("parses");
-        let lowered = lower(&component, source);
-        let res = resolve(&component.javascript, None, None, &lowered);
-        let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
-        let analysis = super::analyze(&input, &res);
-        let find = |name: &str| {
-            lowered
-                .nodes
-                .iter_enumerated()
-                .find(|(_, node)| {
-                    matches!(&node.kind, NodeKind::Element(el) if el.name.text(source) == name)
-                })
-                .expect("the element")
-                .0
-        };
-        (analysis.dynamic[find(tag)], analysis.dynamic[find("div")])
+        analyzed(source, |_, lowered, analysis| {
+            let find = |name: &str| {
+                lowered
+                    .nodes
+                    .iter_enumerated()
+                    .find(|(_, node)| {
+                        matches!(&node.kind, NodeKind::Element(el) if el.name.text(source) == name)
+                    })
+                    .expect("the element")
+                    .0
+            };
+            (analysis.dynamic[find(tag)], analysis.dynamic[find("div")])
+        })
     };
     let rich = "<div><select><option><strong>Bold</strong></option></select></div>";
     assert_eq!(dynamic(rich, "option"), (true, true));

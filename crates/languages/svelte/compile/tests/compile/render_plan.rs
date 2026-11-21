@@ -5,6 +5,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_compile::render_plan::{Item, Text};
 use rsvelte_svelte_compile::{RenderPlan, Target, lower};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerSyntaxTree, NodeKind};
+use rsvelte_svelte_semantic::input::ComponentInput;
 
 fn text(plan: &RenderPlan, children: Children, source: &str, tree: &CompilerSyntaxTree) -> String {
     plan.fragment(children)
@@ -33,7 +34,7 @@ fn whitespace_context_follows_regions_and_does_not_escape_pre() {
     );
     let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
     let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
-    let input = rsvelte_svelte_compile::CompileInput::from(rsvelte_svelte_semantic::svelte_input(
+    let input = rsvelte_svelte_compile::CompileInput::from(ComponentInput::new(
         &component,
         &tree,
         source,
@@ -80,7 +81,7 @@ fn plans_keep_decoded_text_and_markup_separate_and_outlive_the_parse() {
         let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, &source);
         let children = element(&tree, &source, "p");
         let plan = RenderPlan::build(&rsvelte_svelte_compile::CompileInput::from(
-            rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "App.svelte"),
+            ComponentInput::new(&component, &tree, &source, "App.svelte"),
         ));
         (plan, children, source, tree)
     };
@@ -97,7 +98,7 @@ fn texts(source: &str, element_name: &str) -> Vec<(Text, Text)> {
     let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
     let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
     let plan = RenderPlan::build(&rsvelte_svelte_compile::CompileInput::from(
-        rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "App.svelte"),
+        ComponentInput::new(&component, &tree, source, "App.svelte"),
     ));
     (plan
         .fragment(element(&tree, source, element_name))
@@ -148,9 +149,12 @@ fn whitespace_options_produce_separate_plans_without_changing_the_compiler_synta
     let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
     let before = format!("{tree:?}");
     let children = element(&tree, source, "p");
-    let mut input = rsvelte_svelte_compile::CompileInput::from(
-        rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "App.svelte"),
-    );
+    let mut input = rsvelte_svelte_compile::CompileInput::from(ComponentInput::new(
+        &component,
+        &tree,
+        source,
+        "App.svelte",
+    ));
     let normal = RenderPlan::build(&input);
     input.preserve_whitespace = true;
     let preserved = RenderPlan::build(&input);
@@ -170,7 +174,7 @@ fn empty_regions_are_valid_in_every_parent_context() {
         let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
         let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
         let plan = RenderPlan::build(&rsvelte_svelte_compile::CompileInput::from(
-            rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "App.svelte"),
+            ComponentInput::new(&component, &tree, source, "App.svelte"),
         ));
         for (_, element) in tree.elements() {
             assert!(plan.fragment(element.children).items.is_empty());

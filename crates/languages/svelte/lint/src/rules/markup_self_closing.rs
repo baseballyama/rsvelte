@@ -169,9 +169,9 @@ fn element_type(name: &str) -> usize {
         5
     } else if rsvelte_markup_syntax::is_void(name) || matches!(name, "keygen" | "menuitem") {
         VOID
-    } else if rsvelte_svelte_syntax::names::is_svg(name) {
+    } else if rsvelte_svelte_semantic::namespaces::is_svg(name) {
         2
-    } else if rsvelte_svelte_syntax::names::is_mathml(name) {
+    } else if rsvelte_svelte_semantic::namespaces::is_mathml(name) {
         3
     } else {
         1

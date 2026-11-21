@@ -257,7 +257,7 @@ fn a_cast_global_needs_no_context() {
             None,
             &lowered,
         );
-        let input = crate::svelte_input(&component, &lowered, &source, "App.svelte");
+        let input = crate::input::ComponentInput::new(&component, &lowered, &source, "App.svelte");
         let analysis = crate::analyze::analyze(&input, &res);
         assert_eq!(analysis.needs_context, needs, "{script}");
     }
