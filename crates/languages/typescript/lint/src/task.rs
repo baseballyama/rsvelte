@@ -3,9 +3,9 @@ use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
-use rsvelte_lint_runner::catalog::{Leveled, all, levels};
+use rsvelte_lint_runner::catalog::{Category, Leveled, all, levels};
 use rsvelte_lint_runner::configuration::RuleLevels;
-use rsvelte_lint_runner::rule::{Reporter, Rule};
+use rsvelte_lint_runner::rule::{BuiltIn, Reporter, Rule};
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::Parsed;
 
@@ -32,6 +32,12 @@ impl Rule<Semantic> for NoUnusedVariables {
     }
 }
 
+impl BuiltIn<Semantic> for NoUnusedVariables {
+    fn category(&self) -> Category {
+        Category::Correctness
+    }
+}
+
 pub static PLUGIN: Plugin = Plugin {
     identifier: "typescript.lint",
     version: env!("CARGO_PKG_VERSION"),
@@ -41,9 +47,16 @@ pub static PLUGIN: Plugin = Plugin {
     }],
 };
 
-type TypeScriptRule = dyn Rule<Semantic>;
+type TypeScriptRule = dyn BuiltIn<Semantic>;
 
 static RULES: &[&TypeScriptRule] = &[&NoUnusedVariables];
+
+/// Every rule's name and category.
+pub fn rules() -> impl Iterator<Item = (&'static str, Category)> {
+    RULES
+        .iter()
+        .map(|rule| (rule.identifier(), rule.category()))
+}
 
 /// The rules a `rules` object turns on; every rule at its own severity without one.
 pub(crate) fn configure(

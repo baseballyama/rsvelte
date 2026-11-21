@@ -5,12 +5,10 @@ use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{
     BindingIdentifier, BindingPattern, BindingProperty, BindingRestElement, Expression, PropertyKey,
 };
-use rsvelte_svelte_semantic::evaluate::Evaluator;
-use rsvelte_svelte_semantic::resolve::Resolution;
 
 use super::Builder;
 use super::builder::Runtime;
-use super::javascript::is_simple_expression_in;
+use super::javascript::{is_simple_expression_in, literal_key_name};
 
 /// What a caller of [`extract_paths`] decides: how its script reads the pattern's own
 /// expressions, and how it keeps an array the pattern destructures.
@@ -46,16 +44,15 @@ pub(super) struct Path<'a, 'o> {
     pub default: bool,
 }
 
-pub(super) struct Paths<'b, 'r, 'o, D> {
+pub(super) struct Paths<'b, 'o, D> {
     pub b: &'b Builder<'o>,
-    pub res: &'r Resolution,
     pub hooks: D,
     /// The names of the pattern's arrays, last first: upstream names every one before it visits
     /// a default value.
     pub reserved: Vec<String>,
 }
 
-impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, '_, 'o, D> {
+impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, 'o, D> {
     /// The paths of `pattern` read from `value`, in source order.
     pub(super) fn extract(
         &mut self,
@@ -183,18 +180,11 @@ impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, '_, 'o, D> {
     /// A key `exclude_from_object` leaves out of the rest: its name as a string.
     fn excluded_key(&mut self, property: &'a BindingProperty<'a>) -> Expression<'o> {
         let b = self.b;
-        match &property.key {
-            PropertyKey::StaticIdentifier(key) if !property.computed => b.string(&key.name),
-            key @ (PropertyKey::StringLiteral(_) | PropertyKey::NumericLiteral(_)) => {
-                let key = key.as_expression().expect("a literal key");
-                let value = Evaluator::new(self.res).evaluate(key).value;
-                b.string(&value.to_javascript_string())
-            }
-            key => {
-                let key = key.as_expression().expect("a computed key");
-                b.call(b.id("String"), [self.hooks.rewrite(key)])
-            }
+        if let Some(name) = literal_key_name(&property.key) {
+            return b.string(&name);
         }
+        let key = property.key.as_expression().expect("a computed key");
+        b.call(b.id("String"), [self.hooks.rewrite(key)])
     }
 
     fn array(

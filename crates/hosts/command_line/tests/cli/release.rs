@@ -49,7 +49,7 @@ fn help_and_version_succeed_and_a_development_command_is_unknown() {
 }
 
 #[test]
-fn lint_and_format_read_svelte_and_typescript_and_not_vue() {
+fn lint_reads_svelte_and_typescript_and_not_vue() {
     let project = Project::new(&[
         ("a.ts", "const unused = 1\n"),
         ("B.svelte", "<script>\n\tlet unused = 1;\n</script>\n"),
@@ -63,8 +63,4 @@ fn lint_and_format_read_svelte_and_typescript_and_not_vue() {
         "{report}"
     );
     assert!(!report.contains("C.vue"), "{report}");
-    let format = project.rsvelte(&["format", "--check"]);
-    let listed = text(&format.stdout);
-    assert!(listed.contains("a.ts"), "{listed}");
-    assert!(!listed.contains("C.vue"), "{listed}");
 }

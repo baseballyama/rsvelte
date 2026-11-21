@@ -14,6 +14,7 @@ use rustc_hash::FxHashMap;
 
 use super::super::{Plan, constructors, prop_cell, runes};
 use super::rune_value;
+use crate::compilation::markers;
 
 /// Copies script nodes into the translation's tree: `x.value` for `$state` and `$derived`,
 /// `$$props.<key>` for props, Vue's reactivity for the runes.
@@ -132,12 +133,12 @@ impl<'r, 't> ScriptRewrite<'r, 't> {
             BindingKind::Property if prop_cell(self.res, symbol) => {
                 b.member(b.id_at(name, span), "value")
             }
-            BindingKind::RestProperty => b.id("$$attrs"),
+            BindingKind::RestProperty => b.id(markers::REST_PROPS),
             BindingKind::Property => {
                 let PropertyKey::StaticIdentifier(key) = info.prop_key? else {
                     return None;
                 };
-                b.member(b.id("$$props"), key.name.as_str())
+                b.member(b.id(markers::SETUP_PROPS), key.name.as_str())
             }
             _ => return None,
         })

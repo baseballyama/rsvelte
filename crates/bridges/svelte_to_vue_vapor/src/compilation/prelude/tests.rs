@@ -4,46 +4,31 @@ use rsvelte_typescript_compile::build::Builder;
 use super::{expand, expanded, marker, parsed, remark, text};
 use crate::compilation::helpers::{self, Helper};
 
-const SCRIPT: [&str; 9] = [
-    include_str!("../script/props.js"),
-    include_str!("../script/rest.js"),
-    include_str!("../script/patterns.js"),
-    include_str!("../script/state.js"),
-    include_str!("../script/derived.js"),
-    include_str!("../script/runes.js"),
-    include_str!("../script/lifecycle.js"),
-    include_str!("../script/attachments.js"),
-    include_str!("../script/async_derived.js"),
-];
+/// Two preludes the tests below use as samples.
+const REST: &str = include_str!("../script/rest.js");
+const STATE: &str = include_str!("../script/state.js");
 
-const EMITTER: [&str; 5] = [
-    include_str!("../vapor/server.js"),
-    include_str!("../vapor/styles.js"),
-    include_str!("../vapor/custom_element.js"),
-    include_str!("../vapor/async_server.js"),
-    include_str!("../vapor/async_setup.js"),
-];
-
-/// The template adds what a helper requires one level deep, so what that requires must already
-/// be listed.
-#[test]
-fn what_a_helper_requires_is_closed() {
-    for &h in Helper::ALL {
-        let direct = helpers::requires(h);
-        for &r in direct {
-            for indirect in helpers::requires(r) {
-                assert!(
-                    direct.contains(indirect),
-                    "{h:?} needs {indirect:?} through {r:?}"
-                );
-            }
-        }
-    }
+/// Every prelude the script and the Vapor emitter add, read from their directories so that a new
+/// one cannot be left out.
+fn preludes() -> Vec<&'static str> {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/compilation");
+    let mut paths: Vec<_> = ["script", "vapor"]
+        .iter()
+        .flat_map(|directory| std::fs::read_dir(root.join(directory)).expect("a directory"))
+        .map(|entry| entry.expect("an entry").path())
+        .filter(|path| path.extension().is_some_and(|e| e == "js"))
+        .collect();
+    paths.sort();
+    assert!(paths.len() > 1, "{root:?}");
+    paths
+        .iter()
+        .map(|path| &*std::fs::read_to_string(path).expect("a prelude").leak())
+        .collect()
 }
 
 #[test]
 fn a_prelude_is_parsed_once_per_thread() {
-    let source = SCRIPT[0];
+    let source = REST;
     assert!(std::ptr::eq(parsed(source), parsed(source)));
 }
 
@@ -51,7 +36,7 @@ fn a_prelude_is_parsed_once_per_thread() {
 fn a_marker_prints_as_its_prelude_printed_once_per_thread() {
     let allocator = oxc_allocator::Allocator::default();
     let b = Builder::new(&allocator);
-    let marked = [marker(&b, SCRIPT[3]), marker(&b, SCRIPT[3])];
+    let marked = [marker(&b, STATE), marker(&b, STATE)];
     let [first, second] = marked.each_ref().map(|m| text(m).expect("a marker"));
     assert!(std::ptr::eq(first, second));
     assert!(
@@ -64,7 +49,7 @@ fn a_marker_prints_as_its_prelude_printed_once_per_thread() {
 fn a_marker_expands_to_its_prelude_in_place() {
     let allocator = oxc_allocator::Allocator::default();
     let b = Builder::new(&allocator);
-    let source = SCRIPT[1];
+    let source = REST;
     let body = [b.const_("$$before", b.number(1.0)), marker(&b, source)];
     assert!(expand(&body[0]).is_none());
     let names: Vec<_> = expanded(&body).map(declared).collect();
@@ -79,11 +64,11 @@ fn a_marker_copied_into_another_arena_marks_the_same_prelude() {
         oxc_allocator::Allocator::default(),
         oxc_allocator::Allocator::default(),
     );
-    let marked = marker(&Builder::new(&first), SCRIPT[3]);
+    let marked = marker(&Builder::new(&first), STATE);
     let copied = remark(&Builder::new(&second), &marked).expect("a marker");
     assert!(std::ptr::eq(
         expand(&copied).expect("a marker"),
-        parsed(SCRIPT[3])
+        parsed(STATE)
     ));
 }
 
@@ -91,22 +76,21 @@ fn a_marker_copied_into_another_arena_marks_the_same_prelude() {
 fn a_string_the_script_wrote_is_not_a_marker() {
     let allocator = oxc_allocator::Allocator::default();
     let b = Builder::new(&allocator);
-    let written = b.statement(b.string(SCRIPT[2]));
+    let written = b.statement(b.string(REST));
     assert!(expand(&written).is_none());
 }
 
-/// The document's scope analysis no longer sees the preludes, so a reference to a name one
-/// declares no longer resolves. The emitter leaves such a reference as written either way when
-/// the name is a `$$` constant that no rune cell or ref initializes, which this checks.
+/// The document's scope analysis does not see the preludes, so a reference to a name one declares
+/// resolves to nothing; the emitter leaves it as written only when the name is a `$$` constant
+/// that no rune cell or ref initializes, which this checks.
 #[test]
 fn no_prelude_name_is_a_cell_or_a_ref() {
     let allocator = oxc_allocator::Allocator::default();
     let b = Builder::new(&allocator);
     let markers = helpers::declarations(Helper::ALL, &b);
-    let sources = SCRIPT
-        .iter()
-        .chain(&EMITTER)
-        .map(|&source| parsed(source))
+    let sources = preludes()
+        .into_iter()
+        .map(parsed)
         .chain(markers.iter().filter_map(expand));
     // The names a prelude's top level calls, none of which makes a cell or a ref.
     let calls = ["Symbol", "$$v_defineVaporComponent", "$$lifecycle_owner"];

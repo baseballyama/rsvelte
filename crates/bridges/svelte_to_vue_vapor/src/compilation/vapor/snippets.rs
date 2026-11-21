@@ -103,7 +103,7 @@ impl<'o> Emitter<'_, 'o> {
         {
             fragment = self.call("createIf", [self.arrow(test), self.arrow(fragment)]);
         }
-        b.id(&self.declare(fragment, body))
+        b.id(self.declare(fragment, body))
     }
 
     fn snippet_argument(

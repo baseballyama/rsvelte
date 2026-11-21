@@ -9,15 +9,13 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::{Visit, VisitMut, walk_mut};
 use oxc_syntax::scope::ScopeFlags;
-use rsvelte_svelte_semantic::evaluate::Evaluator;
-use rsvelte_svelte_semantic::resolve::Resolution;
 
 use super::ScriptRewrite;
 use super::writes::mutates_signal;
 use crate::input::Target;
 use crate::lower::Builder;
 use crate::lower::builder::Runtime;
-use crate::lower::javascript::is_simple_expression;
+use crate::lower::javascript::{is_simple_expression, literal_key_name};
 use crate::lower::names::Names;
 
 impl<'o> ScriptRewrite<'_, 'o> {
@@ -51,7 +49,6 @@ impl<'o> ScriptRewrite<'_, 'o> {
         let left = assignment.left.clone_in_with_semantic_ids(b.allocator());
         let mut extract = Extract {
             b,
-            res: self.res,
             names,
             inserts: Vec::new(),
             paths: Vec::new(),
@@ -191,7 +188,6 @@ fn each_direct<'o>(statement: &mut Statement<'o>, f: &mut impl FnMut(&mut Expres
 /// reads from the right-hand side, and the `$$array`s that hold its array patterns.
 struct Extract<'b, 'r, 'o> {
     b: &'b Builder<'o>,
-    res: &'r Resolution,
     names: &'r Names<'r>,
     inserts: Vec<(String, Expression<'o>)>,
     paths: Vec<(AssignmentTarget<'o>, Expression<'o>)>,
@@ -281,24 +277,17 @@ impl<'o> Extract<'_, '_, 'o> {
     /// A key `exclude_from_object` leaves out of the rest: its name as a string.
     fn excluded(&self, property: &AssignmentTargetProperty<'o>) -> Expression<'o> {
         let b = self.b;
-        let (key, computed) = match property {
+        let key = match property {
             AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(p) => {
                 return b.string(&p.binding.name);
             }
-            AssignmentTargetProperty::AssignmentTargetPropertyProperty(p) => (&p.name, p.computed),
+            AssignmentTargetProperty::AssignmentTargetPropertyProperty(p) => &p.name,
         };
-        match key {
-            PropertyKey::StaticIdentifier(key) if !computed => b.string(&key.name),
-            key @ (PropertyKey::StringLiteral(_) | PropertyKey::NumericLiteral(_)) => {
-                let key = key.as_expression().expect("a literal key");
-                let value = Evaluator::new(self.res).evaluate(key).value;
-                b.string(&value.to_javascript_string())
-            }
-            key => {
-                let key = key.as_expression().expect("a computed key");
-                b.call(b.id("String"), [key.clone_in(b.allocator())])
-            }
+        if let Some(name) = literal_key_name(key) {
+            return b.string(&name);
         }
+        let key = key.as_expression().expect("a computed key");
+        b.call(b.id("String"), [key.clone_in(b.allocator())])
     }
 }
 

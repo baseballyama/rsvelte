@@ -14,7 +14,9 @@ use rsvelte_vue_semantic::resolve::{DefineProps, Resolution, unwrap_typescript};
 use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
 use rustc_hash::FxHashMap;
 
-use crate::compilation::context::{Class, Declared, Info, Names, Prop, R, Top, unsupported};
+use crate::compilation::info::{Class, Declared, Info, Prop, Top};
+use crate::compilation::names::Names;
+use crate::compilation::{R, unsupported};
 
 const VUE_APIS: [&str; 4] = ["ref", "computed", "reactive", "onMounted"];
 
@@ -493,7 +495,7 @@ fn is_literal(e: &Expression<'_>) -> bool {
 
 /// A value Vue's `ref` and Svelte's `$state` store alike: no object the component did not create
 /// here, so neither runtime's proxy can be told apart from the other's.
-fn fresh(info: &Info<'_>, e: &Expression<'_>) -> bool {
+fn stored_alike(info: &Info<'_>, e: &Expression<'_>) -> bool {
     match unwrap_typescript(e) {
         Expression::StringLiteral(_)
         | Expression::NumericLiteral(_)
@@ -503,23 +505,29 @@ fn fresh(info: &Info<'_>, e: &Expression<'_>) -> bool {
         | Expression::FunctionExpression(_) => true,
         Expression::Identifier(i) => i.name == "undefined" && info.symbol(i).is_none(),
         Expression::UnaryExpression(u) => {
-            u.operator != UnaryOperator::Delete && fresh(info, &u.argument)
+            u.operator != UnaryOperator::Delete && stored_alike(info, &u.argument)
         }
-        Expression::BinaryExpression(b) => fresh(info, &b.left) && fresh(info, &b.right),
-        Expression::LogicalExpression(l) => fresh(info, &l.left) && fresh(info, &l.right),
+        Expression::BinaryExpression(b) => {
+            stored_alike(info, &b.left) && stored_alike(info, &b.right)
+        }
+        Expression::LogicalExpression(l) => {
+            stored_alike(info, &l.left) && stored_alike(info, &l.right)
+        }
         Expression::ConditionalExpression(c) => {
-            fresh(info, &c.test) && fresh(info, &c.consequent) && fresh(info, &c.alternate)
+            stored_alike(info, &c.test)
+                && stored_alike(info, &c.consequent)
+                && stored_alike(info, &c.alternate)
         }
-        Expression::TemplateLiteral(t) => t.expressions.iter().all(|x| fresh(info, x)),
+        Expression::TemplateLiteral(t) => t.expressions.iter().all(|x| stored_alike(info, x)),
         Expression::ArrayExpression(array) => array.elements.iter().all(|element| match element {
             ArrayExpressionElement::SpreadElement(_) => false,
             ArrayExpressionElement::Elision(_) => true,
             _ => element
                 .as_expression()
-                .is_some_and(|element| fresh(info, element)),
+                .is_some_and(|element| stored_alike(info, element)),
         }),
         Expression::ObjectExpression(object) => object.properties.iter().all(|p| match p {
-            ObjectPropertyKind::ObjectProperty(p) if !p.computed => fresh(info, &p.value),
+            ObjectPropertyKind::ObjectProperty(p) if !p.computed => stored_alike(info, &p.value),
             _ => false,
         }),
         Expression::StaticMemberExpression(m)

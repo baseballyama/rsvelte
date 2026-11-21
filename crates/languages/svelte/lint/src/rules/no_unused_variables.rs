@@ -4,6 +4,7 @@ use oxc_ast::ast::{
 };
 use oxc_semantic::{AstNodes, NodeId, Reference, ReferenceId, ScopeId, Scoping, SymbolId};
 use oxc_span::GetSpan;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{AttributeValue, ElementKind, NodeKind};
 use rsvelte_svelte_semantic::resolve::TemplateScope;
@@ -23,6 +24,7 @@ mod tests;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "no-unused-vars",
     files: Files::Components,
+    category: Category::Correctness,
     configure: without_options::<NoUnusedVariables>,
 };
 

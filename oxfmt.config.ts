@@ -14,6 +14,8 @@ export default defineConfig({
 		'crates/**/tests/**',
 		'tools/oracle/behaviour/tests/**',
 		'apps/site/src/lib/data/**',
+		// Written by the eslint_plugin test of rsvelte_command_line.
+		'apps/eslint-plugin/rules.json',
 		// Text that a compiler embeds in its output byte for byte (include_str!).
 		'crates/bridges/svelte_to_vue_vapor/src/compilation/**/*.js',
 		'crates/languages/svelte/typescript_projection/projection.d.ts',

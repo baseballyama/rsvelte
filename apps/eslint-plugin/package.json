@@ -1,0 +1,46 @@
+{
+	"name": "@rsvelte-experimental/eslint-plugin",
+	"private": true,
+	"description": "@rsvelte/eslint-plugin: turns off the ESLint rules rsvelte lint runs; tools/release writes the package npm publishes from this manifest",
+	"files": [
+		"configs.cjs",
+		"index.cjs",
+		"index.d.cts",
+		"rules-by-category.cjs",
+		"rules-by-category.d.cts",
+		"rules-by-scope.cjs",
+		"rules-by-scope.d.cts",
+		"rules.json"
+	],
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./index.d.cts",
+			"default": "./index.cjs"
+		},
+		"./rules-by-category": {
+			"types": "./rules-by-category.d.cts",
+			"default": "./rules-by-category.cjs"
+		},
+		"./rules-by-scope": {
+			"types": "./rules-by-scope.d.cts",
+			"default": "./rules-by-scope.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"test": "node --test '*.test.ts'",
+		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
+	},
+	"devDependencies": {
+		"@typescript-eslint/eslint-plugin": "8.72.1",
+		"eslint": "10.14.0",
+		"eslint-plugin-oxlint": "1.94.0",
+		"eslint-plugin-svelte": "3.23.1",
+		"eslint-plugin-vue": "10.12.0",
+		"typescript": "6.0.3"
+	},
+	"engines": {
+		"node": ">=26"
+	}
+}

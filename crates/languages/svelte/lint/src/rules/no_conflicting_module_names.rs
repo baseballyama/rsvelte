@@ -1,3 +1,4 @@
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 
 use crate::project::{SameNamedFile, SameNamedFileOnDisk};
@@ -6,6 +7,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-conflicting-module-names",
     files: Files::All,
+    category: Category::Correctness,
     configure: without_options::<NoConflictingModuleNames>,
 };
 

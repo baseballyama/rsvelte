@@ -3,7 +3,8 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 
-use super::{Steps, Template, static_type};
+use super::properties::static_type;
+use super::{Steps, Template};
 use crate::compilation::helpers::Helper;
 use crate::compilation::{R, unsupported};
 

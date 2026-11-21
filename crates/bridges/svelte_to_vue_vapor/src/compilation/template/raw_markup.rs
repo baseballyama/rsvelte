@@ -29,13 +29,7 @@ impl Template<'_, '_, '_> {
             children: vue::Children::default(),
         });
         let node = self.vb.node(kind, span, parent, 0);
-        let namespace = self
-            .i
-            .plan
-            .namespaces
-            .as_ref()
-            .expect("translation uses a checked plan")
-            .get(identifier);
+        let namespace = self.i.checked.namespaces.get(identifier);
         if namespace != Namespace::Html {
             self.namespaces.insert(node, namespace);
         }

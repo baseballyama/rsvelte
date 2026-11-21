@@ -5,7 +5,7 @@ use oxc_ast::ast::BindingPattern;
 use oxc_semantic::SymbolId;
 use rsvelte_svelte_semantic::resolve::Resolution;
 
-use super::javascript::prop_alias;
+use super::javascript::literal_key_name;
 
 /// Whether the rest prop `symbol` leaves out `key`: upstream's `exclude_props`, the keys the
 /// `$props()` pattern names, which `rest.key` reads from `rest` instead of `$$props`.
@@ -22,5 +22,5 @@ fn pattern_keys(res: &Resolution, symbol: SymbolId) -> impl Iterator<Item = Cow<
         },
         _ => &[],
     };
-    properties.iter().map(|p| prop_alias(&p.key))
+    properties.iter().filter_map(|p| literal_key_name(&p.key))
 }

@@ -70,5 +70,5 @@ pub(crate) fn tracked<'t>(
     if !tracking {
         return value;
     }
-    b.call(b.id("$$tracked"), [b.arrow(b.parameters([]), value)])
+    b.call(b.id(markers::TRACKED), [b.arrow(b.parameters([]), value)])
 }

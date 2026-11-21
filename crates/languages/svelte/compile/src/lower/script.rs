@@ -185,8 +185,8 @@ impl<'o> ScriptRewrite<'_, 'o> {
                 if writes::is_prop_source(self.res, self.accessors, symbol) {
                     return Some(b.call(x(), []));
                 }
-                let key = info.prop_key?;
-                Some(b.member_key(b.id("$$props"), &super::javascript::prop_alias(key)))
+                let key = super::javascript::literal_key_name(info.prop_key?)?;
+                Some(b.member_key(b.id("$$props"), &key))
             }
             (
                 Target::Client,

@@ -35,14 +35,14 @@ impl<'o> Emitter<'_, 'o> {
             } else {
                 let argument = self.name();
                 output.push(if optional {
-                    self.optional(&argument)
+                    self.optional(argument)
                 } else {
-                    b.parameter(b.binding(&argument))
+                    b.parameter(b.binding(argument))
                 });
-                let mut value = b.member(b.id(&argument), "value");
+                let mut value = b.member(b.id(argument), "value");
                 if let Some(default) = &parameter.initializer {
                     let test = b.binary(
-                        b.member(b.id(&argument), "value"),
+                        b.member(b.id(argument), "value"),
                         BinaryOperator::StrictEquality,
                         b.id("undefined"),
                     );
@@ -67,7 +67,7 @@ impl<'o> Emitter<'_, 'o> {
                 let selected = self.declare(computed, body);
                 for (index, name) in names.iter().enumerate() {
                     let index = f64::from(u32::try_from(index).expect("fewer than u32::MAX names"));
-                    let value = b.computed(b.member(b.id(&selected), "value"), b.number(index));
+                    let value = b.computed(b.member(b.id(selected), "value"), b.number(index));
                     let value = self.call("computed", [self.arrow(value)]);
                     body.push(b.const_(&name.name, value));
                 }

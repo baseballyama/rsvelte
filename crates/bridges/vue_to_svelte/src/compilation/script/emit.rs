@@ -11,8 +11,11 @@ use rsvelte_vue_semantic::resolve::unwrap_typescript;
 use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
 use rustc_hash::FxHashMap;
 
-use super::{fresh, vue_call};
-use crate::compilation::context::{Class, Helper, Info, Names, Prop, R, Rewriter, unsupported};
+use super::{stored_alike, vue_call};
+use crate::compilation::info::{Class, Info, Prop};
+use crate::compilation::names::{Helper, Names};
+use crate::compilation::rewrite::Rewriter;
+use crate::compilation::{R, unsupported};
 
 /// The instance script.
 ///
@@ -112,7 +115,7 @@ fn lower_declarator<'a>(
     let (rune, value) = match class {
         Class::Ref => {
             if let Some(a) = argument
-                && !value.is_some_and(|v| fresh(info, v))
+                && !value.is_some_and(|v| stored_alike(info, v))
             {
                 return Err(unsupported(
                     "`ref` of a value created elsewhere (Vue's `reactive` and Svelte's `$state` \
@@ -127,7 +130,7 @@ fn lower_declarator<'a>(
                 if matches!(
                     unwrap_typescript(v),
                     Expression::ObjectExpression(_) | Expression::ArrayExpression(_)
-                ) && fresh(info, v) =>
+                ) && stored_alike(info, v) =>
             {
                 ("$state", Some(v))
             }

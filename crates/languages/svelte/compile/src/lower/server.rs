@@ -47,15 +47,6 @@ const BLOCK_OPEN_ELSE: &str = "<!--[!-->";
 const BLOCK_CLOSE: &str = "<!--]-->";
 const EMPTY_COMMENT: &str = "<!---->";
 
-/// `String(value ?? '')` for a known value.
-fn known_string(v: &rsvelte_svelte_semantic::evaluate::Value) -> String {
-    match v {
-        rsvelte_svelte_semantic::evaluate::Value::Null
-        | rsvelte_svelte_semantic::evaluate::Value::Undefined => String::new(),
-        v => v.to_javascript_string(),
-    }
-}
-
 struct ServerCompilationContext<'c, 'o> {
     b: &'c Builder<'o>,
     javascript: &'o Tree,
@@ -225,7 +216,8 @@ fn bind_props<'o>(
         }
         let key = info
             .prop_key
-            .map_or(Cow::Borrowed(name), super::javascript::prop_alias);
+            .and_then(super::javascript::literal_key_name)
+            .unwrap_or(Cow::Borrowed(name));
         bound.push(b.init(&key, b.id(name)));
     }
     bound.extend(super::javascript::export_properties(b, exports));

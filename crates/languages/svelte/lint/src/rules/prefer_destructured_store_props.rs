@@ -9,6 +9,7 @@ use oxc_semantic::{AstNodes, NodeId, ReferenceId, ScopeId, Scoping, SymbolId};
 use oxc_syntax::scope::ScopeFlags;
 use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::tokens::TokenIdentifier;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_semantic::resolve::{RUNE_ROOTS, Resolution};
@@ -25,6 +26,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/prefer-destructured-store-props",
     files: Files::All,
+    category: Category::Perf,
     configure: without_options::<PreferDestructuredStoreProps>,
 };
 

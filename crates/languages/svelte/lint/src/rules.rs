@@ -198,3 +198,20 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &valid_prop_names_in_kit_pages::RULE,
     &valid_style_parse::RULE,
 ];
+
+/// The built-in rules that report something: not the plugin's own machinery, which reads
+/// directives and runs the processor, and not the rules that report nothing here.
+pub fn reporting() -> impl Iterator<Item = &'static RuleDefinition> {
+    let silent: [&RuleDefinition; 6] = [
+        &comment_directive::RULE,
+        &system::RULE,
+        &inactive::EXPERIMENTAL_REQUIRE_STRICT_EVENTS,
+        &inactive::NO_UNUSED_PROPS,
+        &inactive::REQUIRE_EVENT_DISPATCHER_TYPES,
+        &inactive::REQUIRE_EVENT_PREFIX,
+    ];
+    BUILT_IN
+        .iter()
+        .copied()
+        .filter(move |rule| !silent.iter().any(|s| std::ptr::eq(*s, *rule)))
+}

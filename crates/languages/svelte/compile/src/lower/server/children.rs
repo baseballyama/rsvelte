@@ -2,7 +2,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
 use rsvelte_svelte_syntax::syntax_tree::escape_markup;
 
 use super::template::Template;
-use super::{R, ServerCompilationContext, known_string};
+use super::{R, ServerCompilationContext};
 use crate::lower::builder::Runtime;
 use crate::render_plan::Item;
 
@@ -62,7 +62,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 Item::Expression(e) => {
                     let evaluated = self.evaluate(*e);
                     if evaluated.is_known {
-                        let s = known_string(&evaluated.value);
+                        let s = evaluated.value.to_template_string();
                         quasis
                             .last_mut()
                             .expect("never empty")

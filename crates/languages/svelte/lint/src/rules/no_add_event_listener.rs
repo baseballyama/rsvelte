@@ -2,6 +2,7 @@ use oxc_ast::AstKind;
 use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_tree::node_span;
@@ -11,6 +12,7 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-add-event-listener",
     files: Files::All,
+    category: Category::Restriction,
     configure: without_options::<NoAddEventListener>,
 };
 

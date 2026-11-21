@@ -1,16 +1,31 @@
-pub(crate) mod context;
+pub(crate) mod info;
+pub(crate) mod names;
+pub(crate) mod rewrite;
 pub(crate) mod script;
 pub(crate) mod template;
 
-use context::{Info, Names, R, unsupported};
+use info::Info;
+use names::Names;
 use oxc_ast::ast::Program;
 use oxc_ast_visit::VisitMut;
 use oxc_span::{SPAN, SourceType};
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_compile::{CompileInput, Target};
 use rsvelte_typescript_compile::build::Builder;
 use rsvelte_typescript_compile::strip::Strip;
 use rsvelte_typescript_tree::{ProgramIdentifier, Tree, document_span};
 use rsvelte_vue_semantic::resolve::Resolution;
+
+pub(crate) type R<T> = Result<T, Diagnostic>;
+
+pub(crate) fn unsupported(what: impl std::fmt::Display, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "compile_unsupported",
+        format!("not supported by svue: {what}"),
+        span,
+    )
+}
 
 /// The component as the Svelte compiler reads it: a runes instance program and a Svelte HIR, in a
 /// tree of their own over the `.vue` document's text.

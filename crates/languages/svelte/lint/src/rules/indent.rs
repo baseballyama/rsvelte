@@ -1,4 +1,5 @@
 use rsvelte_kernel::source::positions::LineBreaks;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use serde::Deserialize;
 
@@ -15,6 +16,7 @@ use tokens::Tokens;
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/indent",
     files: Files::Components,
+    category: Category::Style,
     configure,
 };
 

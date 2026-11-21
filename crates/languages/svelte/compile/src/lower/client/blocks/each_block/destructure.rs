@@ -38,7 +38,6 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let mut paths = Vec::new();
         let mut walker = Paths {
             b,
-            res: self.res,
             hooks: Hooks {
                 context: self,
                 declarations,
