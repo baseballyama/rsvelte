@@ -6,7 +6,7 @@ mod lower;
 pub mod syntax_tree;
 pub use lower::{Refusal, Resolve, lower, lower_alone, store_reads};
 mod emit;
-pub use emit::emit;
+pub use emit::{default_export_name, emit};
 mod computation;
 mod read;
 pub use computation::{
@@ -35,43 +35,6 @@ pub const DECLARATIONS: (&str, &str) = (
         include_str!("../projection.d.ts")
     ),
 );
-
-/// svelte2tsx's `classNameFromFilename`: the name a component's default export declares.
-///
-/// It is the part of the file name before the first `.` in `PascalCase`, without the characters
-/// a name cannot have, and with the suffix that keeps it apart from the component's own names.
-#[must_use]
-pub fn default_export_name(path: &str) -> String {
-    const SUFFIX: &str = "__SvelteComponent_";
-    let file = path.rsplit(['/', '\\']).next().unwrap_or(path);
-    let stem = file.split('.').next().unwrap_or(file);
-    // One allocation per document: the name never outgrows the stem, an `A` and the suffix.
-    let mut out = String::with_capacity(1 + stem.len() + SUFFIX.len());
-    let valid = |c: &char| c.is_ascii_alphanumeric() || matches!(c, '_' | '-');
-    // A name starts at its first letter; JavaScript's `substr(-1)` keeps the last character
-    // when there is none.
-    let start = stem
-        .find(|c: char| c.is_ascii_alphabetic())
-        .unwrap_or_else(|| {
-            out.push('A');
-            stem.char_indices()
-                .rfind(|(_, c)| valid(c))
-                .map_or(stem.len(), |(i, _)| i)
-        });
-    let mut upper = true;
-    for c in stem[start..].chars().filter(valid) {
-        if matches!(c, '_' | '-') {
-            upper = true;
-        } else if upper {
-            out.push(c.to_ascii_uppercase());
-            upper = false;
-        } else {
-            out.push(c);
-        }
-    }
-    out.push_str(SUFFIX);
-    out
-}
 
 /// What an import of a component that is not projected reads: a component of any props whose
 /// instance is `any`, since neither its props nor its exports are known.
