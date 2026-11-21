@@ -52,12 +52,14 @@ pub(crate) fn difference(expected: &str, actual: &str) -> Result<Difference, Unp
     }
 }
 
-/// One key per comment: `<comment> | <word> <token> ^ <token> <word> #<k> | <before> <after>`,
+/// One key per comment: `<comment> | <word> <token> ^ <token> <word> #<k>.<j> | <before> <after>`,
 /// where the tokens are the ones next to it, the words the nearest identifiers or keywords, `k`
-/// counts the places between tokens before it with the same tokens and words around them,
-/// `before` is `own` when a line break separates it from the token before it and `trail`
-/// otherwise, and `after` is `eol` when a line break separates it from the token after it and
-/// `inline` otherwise.
+/// counts the places between tokens before it with the same tokens and words around them, `j`
+/// counts the comments before it in the same place, and `after` is `eol` when a line break
+/// separates it from the token after it and `inline` otherwise. A line comment also has `before`:
+/// `own` when a line break separates it from the token before it and `trail` otherwise. A block
+/// comment does not, so a block comment moved onto its own line, such as a reflowed `JSDoc`
+/// comment, is layout.
 pub(crate) fn places(text: &str) -> Result<Vec<String>, String> {
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, text, SourceType::mjs())
@@ -80,18 +82,26 @@ pub(crate) fn places(text: &str) -> Result<Vec<String>, String> {
         return Ok(Vec::new());
     }
     let gaps = gaps(text, &tokens);
+    let mut previous = None;
+    let mut j = 0;
     Ok(comments
         .into_iter()
         .map(|c| {
             let after = tokens.partition_point(|t| t.end() <= c.span.start);
+            j = if previous == Some(after) { j + 1 } else { 0 };
+            previous = Some(after);
             let (context, k) = &gaps[after];
             let from = after.checked_sub(1).map(|i| tokens[i].end() as usize);
             let to = tokens.get(after).map_or(text.len(), |t| t.start() as usize);
-            let own_line = from.is_none_or(|from| breaks(&text[from..c.span.start as usize]));
+            let before = match from {
+                _ if !c.is_line() => "",
+                Some(from) if !breaks(&text[from..c.span.start as usize]) => "trail ",
+                _ => "own ",
+            };
             let ends_line =
                 c.is_line() || to == text.len() || breaks(&text[c.span.end as usize..to]);
             format!(
-                "{} | {} {} ^ {} {} #{k} | {} {}",
+                "{} | {} {} ^ {} {} #{k}.{j} | {before}{}",
                 c.span
                     .source_text(text)
                     .split_whitespace()
@@ -101,7 +111,6 @@ pub(crate) fn places(text: &str) -> Result<Vec<String>, String> {
                 context[1],
                 context[2],
                 context[3],
-                if own_line { "own" } else { "trail" },
                 if ends_line { "eol" } else { "inline" },
             )
         })

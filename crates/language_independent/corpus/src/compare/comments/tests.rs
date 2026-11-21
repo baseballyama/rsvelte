@@ -10,13 +10,13 @@ fn a_comment_is_keyed_by_its_text_its_neighbours_its_occurrence_and_its_line() {
     assert_eq!(
         places("let a = 1;\n// note\nf(\n\t/* x */ 'y'\n);").as_deref(),
         Ok(&[
-            "// note | a ; ^ f f #0 | own eol".to_owned(),
-            "/* x */ | f ( ^ y EOF #0 | own inline".to_owned()
+            "// note | a ; ^ f f #0.0 | own eol".to_owned(),
+            "/* x */ | f ( ^ y EOF #0.0 | inline".to_owned()
         ][..])
     );
     assert_eq!(
         places("// only").as_deref(),
-        Ok(&["// only | EOF EOF ^ EOF EOF #0 | own eol".to_owned()][..])
+        Ok(&["// only | EOF EOF ^ EOF EOF #0.0 | own eol".to_owned()][..])
     );
 }
 
@@ -25,6 +25,12 @@ fn layout_and_quotes_do_not_count() {
     assert!(same("f('a', // c\n\tb);", "f(\n\t\"a\", // c\n\tb\n);\n"));
     assert!(same("/**\n * doc\n */\nf();", "\t/** * doc */\n\n\tf();"));
     assert!(same("f(a, /* c */ b);", "f(\n\ta, /* c */ b\n);"));
+    // A block comment on its own line or on the line before is layout.
+    assert!(same(
+        "f(); /* a */ /* b */ g();",
+        "f();\n/* a */ /* b */ g();"
+    ));
+    assert!(same("f(a, /* c */ b);", "f(\n\ta,\n\t/* c */ b\n);"));
     assert!(same(
         "$.next();\n/* c */ $.next();",
         "\t$.next();\n\n\t\t/* c */  $.next();"
@@ -62,7 +68,6 @@ fn a_move_between_like_tokens_counts() {
     assert!(!same("a();\n/* c */ b();", "a(); /* c */\nb();"));
     assert!(!same("a(); /* c */\nb();", "a();\n/* c */ b();"));
     assert!(!same("f();\n/* c */\ng();", "f(); /* c */ g();"));
-    assert!(!same("f(a, /* c */ b);", "f(\n\ta,\n\t/* c */ b\n);"));
     assert!(!same("f(a, /* c */ b);", "f(a, /* c */\n\tb);"));
 }
 
@@ -88,6 +93,11 @@ fn a_move_between_identical_places_counts() {
         "$.a(); $.b(); $.a(); /* c */ $.b();"
     ));
     assert!(!same("f(); // c\nf();\nf();", "f();\nf(); // c\nf();"));
+    // Two comments in one place that swap.
+    assert!(!same(
+        "f(); /* a */ /* b */ g();",
+        "f(); /* b */ /* a */ g();"
+    ));
 }
 
 #[test]

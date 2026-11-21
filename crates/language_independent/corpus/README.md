@@ -35,9 +35,11 @@ compares JavaScript as a syntax tree, so comments, layout and the spelling of li
 count. Each compile task also has a comments ledger (`svelte.compile.comments`,
 `svelte.compileModule.comments`). Its key for a comment holds the comment's text, the tokens
 next to it and the nearest word on each side. It also counts the earlier places that have the
-same tokens and words around them, so a move between two identical places counts. Last, the key
-says whether a line break comes before the comment and whether one comes after it. A unit matches when both outputs hold the
-same keys. The verdict is `missing` when only the official output has keys that rsvelte's
+same tokens and words around them, so a move between two identical places counts. It counts the
+comments before it in the same place too, so two comments that swap count. Last, the key says
+whether a line break comes after the comment, and for a line comment whether one comes before
+it. Whether a block comment is on its own line or on the line before is layout, on purpose, so
+a `JSDoc` comment laid out over other lines stays equal. A unit matches when both outputs hold the same keys. The verdict is `missing` when only the official output has keys that rsvelte's
 lacks, `unexpected` when only rsvelte's has extra keys, and `mismatch` when both happen. The key
 leaves out `@__PURE__` marks and the line that upstream writes above a module. Each unit that the
 comments ledger does not compare still gets a line. The line says `official-rejected` when the
