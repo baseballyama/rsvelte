@@ -68,7 +68,7 @@ test('only handwritten sources are measured and an empty population fails', () =
 	for (const file of [
 		'corpus/input.svelte',
 		'crates/a/vendor/types.d.ts',
-		'apps/site/generated/wasm/kernel/index.js',
+		'apps/site/generated/wasm/rsvelte_browser.js',
 		'tools/oracle/behaviour/tests/wrong/input.svelte',
 		'crates/languages/svelte/compile/tests/fixtures/rsvelte/counter/input.svelte',
 		'crates/languages/svelte/compile/tests/fixtures/rsvelte/counter/expected/client.js',

@@ -67,7 +67,6 @@ export const words = [
 	'[Cc]hangesets?',
 	'checkboxes',
 	'executables',
-	'Cloudflare',
 	'codegen',
 	'configs?',
 	'Config',

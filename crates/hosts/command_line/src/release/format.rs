@@ -5,6 +5,7 @@ use std::any::Any;
 use std::panic::AssertUnwindSafe;
 use std::process::ExitCode;
 
+use oxc_formatter::JsFormatOptions;
 use oxfmt::{HostFormatter, HostFormatters, Language};
 use rsvelte_kernel::performance::stack;
 use rsvelte_kernel::source::positions::LineIndex;
@@ -34,8 +35,15 @@ pub(crate) fn format(arguments: &[String]) -> ExitCode {
 struct Svelte;
 
 impl HostFormatter for Svelte {
-    fn format(&self, source_text: &str, options: &Value) -> Result<String, String> {
-        let options = svelte_options(options)?;
+    fn format(
+        &self,
+        source_text: &str,
+        options: &Value,
+        javascript: &JsFormatOptions,
+    ) -> Result<String, String> {
+        let mut options = svelte_options(options)?;
+        options.sort_imports.clone_from(&javascript.sort_imports);
+        options.jsdoc.clone_from(&javascript.jsdoc);
         if let Some(name) = rsvelte_svelte_format::unported(&options) {
             return Err(unprinted(&format!("this `{name}` value")));
         }
@@ -60,11 +68,7 @@ const PLUMBING: &[&str] = &[
     "filepath",
     "_useSveltePlugin",
     "vueIndentScriptAndStyle",
-    "_oxfmtPluginOptionsJson",
 ];
-
-/// The oxfmt-only options oxfmt applies to the scripts prettier-plugin-svelte hands back to it.
-const OXFMT_SCRIPT_OPTIONS: &[&str] = &["sortImports", "jsdoc"];
 
 /// The options Prettier would give prettier-plugin-svelte, or the first option oxfmt would apply
 /// to a Svelte file that the Svelte formatter does not.
@@ -79,14 +83,6 @@ fn svelte_options(prettier: &Value) -> Result<Options, String> {
         } else if name == "_useTailwindPlugin" || name.starts_with("tailwind") {
             return Err(unprinted("`sortTailwindcss`"));
         } else if !PLUMBING.contains(&name.as_str()) {
-            return Err(unprinted(&format!("`{name}`")));
-        }
-    }
-    if let Some(Value::String(payload)) = options.get("_oxfmtPluginOptionsJson") {
-        let payload: Value = serde_json::from_str(payload).map_err(|error| error.to_string())?;
-        let set =
-            |name: &&&str| !matches!(payload["config"][**name], Value::Null | Value::Bool(false));
-        if let Some(name) = OXFMT_SCRIPT_OPTIONS.iter().find(set) {
             return Err(unprinted(&format!("`{name}`")));
         }
     }

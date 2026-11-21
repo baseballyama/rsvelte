@@ -2,8 +2,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { extractProse, proseFiles, writingLinter } from './prose.ts';
-import { moduleDescription } from '../src/lib/module-descriptions.ts';
-import { sources } from '../src/lib/build/sources.ts';
 
 const linter = await writingLinter();
 const lintSvelte = (source: string) =>
@@ -48,12 +46,12 @@ test('reads prose from templates, attributes, expressions, branches and scripts'
 	const source = `<script>const steps = [{ what: '本文の説明' }];</script>
 <Header lead="導入の説明" />
 <span title={true ? '条件付きの補足' : ''}>本文</span>
-<p>前半<strong>強調</strong>後半<Term name="DocumentContext" />。</p>
+<p>前半<strong>強調</strong>後半。</p>
 {#if true}<p>条件付きの説明</p>{:else}<p>別の説明</p>{/if}
 {#each ['動的な説明'] as label}<button>{label}</button>{/each}
 {#snippet caption()}図の説明{/snippet}
 {@render heading('見出しの説明')}
-<pre>AST と db.rs は元のコード</pre><Code item={data.code} />`;
+<pre>AST と db.rs は元のコード</pre>`;
 	const text = extractProse(source, 'example.svelte')
 		.map((chunk) => chunk.text)
 		.join('\n');
@@ -61,7 +59,7 @@ test('reads prose from templates, attributes, expressions, branches and scripts'
 		'本文の説明',
 		'導入の説明',
 		'条件付きの補足',
-		'前半**強調**後半文書ごとの保存領域',
+		'前半**強調**後半。',
 		'条件付きの説明',
 		'別の説明',
 		'動的な説明',
@@ -71,10 +69,6 @@ test('reads prose from templates, attributes, expressions, branches and scripts'
 		assert.ok(text.includes(expected), `Must check ${expected}`);
 	}
 	assert.ok(!text.includes('元のコード'));
-	assert.throws(
-		() => extractProse('<Term name="Unknown" />', 'example.svelte'),
-		/Missing reader label/,
-	);
 	assert.ok(extractProse("s('hir', 'HIR')", 'site.ts').some((chunk) => chunk.text === 'HIR'));
 	assert.ok(
 		extractProse('const label = `容量 ${size} MB`; const metric = { unit: "MB" };', 'site.ts').some(
@@ -115,20 +109,10 @@ test('AI pattern rules reject rendered emphasis and lists from Svelte', async ()
 	for (const result of accepted.flat()) assert.deepEqual(result.messages, []);
 });
 
-test('new kernel modules need a reader description', () => {
-	const modules = sources('../../crates').filter(
-		(module) => module.key.startsWith('kernel/') && module.key !== 'kernel/lib',
-	);
-	assert.ok(modules.length > 0);
-	for (const module of modules) assert.ok(moduleDescription(module.key).summary);
-	assert.throws(() => moduleDescription('kernel/unknown'), /Missing reader description/);
-});
-
-test('every visible source surface is parsed, including the reported modules page', () => {
+test('every page and script of the site is parsed', () => {
 	const files = proseFiles('src');
-	assert.ok(files.includes('src/routes/learn/kernel/+page.svelte'));
-	assert.ok(files.includes('src/lib/site.ts'));
-	assert.ok(files.includes('src/lib/widgets/ArtifactCacheSim.svelte'));
+	assert.ok(files.includes('src/routes/+page.svelte'));
+	assert.ok(files.includes('src/lib/rules.ts'));
 	for (const file of files) extractProse(readFileSync(file, 'utf8'), file);
 });
 

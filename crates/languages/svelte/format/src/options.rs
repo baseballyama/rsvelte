@@ -5,6 +5,7 @@
 //! `plugins`, `filepath`, `cursorOffset`), the other languages' options (`vueIndentScriptAndStyle`,
 //! the Pug plugin's `pugTabWidth`) and `svelte5CompilerPath` are not options here.
 
+use oxc_formatter::{JsdocOptions, SortImportsOptions};
 pub use rsvelte_typescript_format::options::{
     ArrowParens, EmbeddedLanguageFormatting, EndOfLine, ObjectWrap, OperatorPosition, QuoteProps,
     TrailingComma,
@@ -85,6 +86,13 @@ pub struct Options {
     pub svelte_sort_order: SortOrder,
     pub svelte_allow_shorthand: bool,
     pub svelte_indent_script_and_style: bool,
+    /// oxfmt's `sortImports`, which it applies to each script's imports. Not Prettier's, so a host
+    /// sets it.
+    #[serde(skip)]
+    pub sort_imports: Option<SortImportsOptions>,
+    /// oxfmt's `jsdoc`, which it applies to the `/** */` comments in the component.
+    #[serde(skip)]
+    pub jsdoc: Option<JsdocOptions>,
 }
 
 impl Default for Options {
@@ -117,6 +125,8 @@ impl Default for Options {
             svelte_sort_order: SortOrder::default(),
             svelte_allow_shorthand: true,
             svelte_indent_script_and_style: true,
+            sort_imports: None,
+            jsdoc: None,
         }
     }
 }
@@ -252,6 +262,8 @@ pub fn unported(o: &Options) -> Option<&'static str> {
         svelte_sort_order: _,
         svelte_allow_shorthand: _,
         svelte_indent_script_and_style: _,
+        sort_imports: _,
+        jsdoc: _,
     } = o;
     let d = Options::default();
     [
