@@ -149,9 +149,7 @@ pub fn lower_document<'o>(
     target: Target,
     allocator: &'o Allocator,
 ) -> Result<Program<'o>, Diagnostic> {
-    if let Err(e) = rsvelte_svelte_syntax::fully_parsed(context) {
-        return Err(e.clone());
-    }
+    rsvelte_svelte_semantic::javascript_error::fully_parsed(context)?;
     let input =
         crate::computation::compile_input(context).expect("a parsed component is lowered to HIR");
     let res = context

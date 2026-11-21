@@ -85,8 +85,8 @@ fn an_error_before_the_script_stops_both_reads_there() {
         let strict = parse(source).expect_err(source);
         let past = parse_reading_scripts_as_typescript(source).expect_err(source);
         assert_eq!(
-            (strict.code, strict.span),
-            (past.code, past.span),
+            (&strict.code, strict.span),
+            (&past.code, past.span),
             "{source}"
         );
         assert!(strict.span.start_offset < at(source, "<script"), "{source}");

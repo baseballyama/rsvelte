@@ -74,8 +74,8 @@ fn other_rules_do_not_look_for_a_same_named_file() {
         [
             "svelte.lint.configuration",
             "svelte.parse",
-            "svelte.compiler_syntax_tree",
-            "svelte.resolve"
+            "svelte.resolve",
+            "svelte.compiler_syntax_tree"
         ]
     );
 }

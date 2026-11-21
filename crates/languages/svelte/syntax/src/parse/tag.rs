@@ -62,7 +62,9 @@ impl Parser<'_, '_> {
         };
         let declaration = match statement {
             Statement::VariableDeclaration(declaration) => declaration,
-            // `{let}` or `{constant + 1}` is an expression, as upstream reads it.
+            // `{type}` is an expression. Upstream rejects `{let}` as a statement; oxc leaves that
+            // reserved word to its checker, which reports it in the expression read instead,
+            // before any later error.
             Statement::ExpressionStatement(_) => {
                 self.builder.rewind(mark);
                 return Ok(None);

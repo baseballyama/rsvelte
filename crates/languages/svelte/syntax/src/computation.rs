@@ -4,6 +4,7 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
 
+use crate::parse::ParseError;
 use crate::syntax_tree::Component;
 
 #[must_use]
@@ -15,7 +16,7 @@ pub fn matches(document: &Document) -> bool {
 pub struct Parsed;
 
 impl Artifact for Parsed {
-    type Output = Result<Component, Diagnostic>;
+    type Output = Result<Component, ParseError>;
 
     const NAME: &'static str = "svelte.parse";
 
@@ -69,7 +70,7 @@ pub fn parsed_reading_scripts_as_typescript<'a>(
     context
         .get::<Parsed>()
         .as_ref()
-        .map_or_else(|_| context.get::<ParsedAsTypeScript>().as_ref(), Ok)
+        .or_else(|_| context.get::<ParsedAsTypeScript>().as_ref())
 }
 
 pub static PLUGIN: Plugin = Plugin {

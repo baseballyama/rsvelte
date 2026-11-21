@@ -101,9 +101,7 @@ pub(crate) fn validate_unit(
     unit: Unit,
 ) -> Result<Validation, Diagnostic> {
     // Acorn rejects at parse time what oxc's semantic checker finds after the parser.
-    if let Some(error) =
-        rsvelte_svelte_semantic::javascript_error::parse_error(&input.component, res)
-    {
+    if let Some(error) = rsvelte_svelte_semantic::javascript_error::parse_error(res) {
         return Err(error);
     }
     if res.awaits() {
@@ -181,9 +179,7 @@ pub(crate) fn rune_error(
 pub(crate) fn mode_independent_errors(input: &CompileInput<'_>, res: &Resolution) -> CompileErrors {
     let parse = |error| (raised_in_parse(), error);
     let mut raised = Vec::new();
-    if let Some(error) =
-        rsvelte_svelte_semantic::javascript_error::parse_error(&input.component, res)
-    {
+    if let Some(error) = rsvelte_svelte_semantic::javascript_error::parse_error(res) {
         raised.push(parse(error));
     } else {
         raised.extend(check_awaits(input).err().map(parse));
