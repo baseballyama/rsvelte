@@ -139,7 +139,7 @@
 		<code>typescript.check</code> に <code>"tsconfig"</code> がある：そこに書いたパスのファイル
 	</li>
 	<li>
-		<code>typescript.check</code> に <code>"tsconfig"</code>
+		<code>typescript.check</code> はあるが、<code>"tsconfig"</code>
 		がない：設定ファイルと同じディレクトリの
 		<code>tsconfig.json</code>
 	</li>
@@ -201,7 +201,10 @@ npm install --save-dev @typescript/native-preview   # 7.1 以降`}</code
 		</tr>
 		<tr>
 			<td><code>typescript.check</code></td>
-			<td>型検査器のコマンド（<code>command</code>）と <code>tsconfig</code></td>
+			<td>
+				型検査器のコマンド（<code>command</code>。省くと <code>tsrs</code> などを自動で探します）と
+				<code>tsconfig</code>
+			</td>
 		</tr>
 	</tbody>
 </table>
@@ -263,11 +266,9 @@ export default [
 	<code>flat/recommended</code> は
 	<a href={resolve('/rules') + '#correctness'}><code>correctness</code></a
 	>（誤りや無意味なコード）に分類されたルールを ESLint で無効にします。<code>flat/all</code>
-	は、開発中（<code>nursery</code
-	>）以外の全ルールを無効にします。無効にしたルールのうち使いたいものは、<code
-		>rsvelte.config.json</code
-	>
-	で有効にしてください。有効にしないと、そのルールはどちらでも動きません。
+	は、開発中（<code>nursery</code>）以外の全ルールを無効にします。rsvelte
+	で動いていないルールは、どちらでも動かなくなります。使いたいルールは
+	<code>rsvelte.config.json</code> の <code>rules</code> に書いてください。
 </p>
 
 <p>スクリプトの例：<code>"lint": "rsvelte lint && eslint"</code></p>

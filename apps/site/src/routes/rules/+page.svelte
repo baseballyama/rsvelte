@@ -31,9 +31,12 @@
 </p>
 
 <p>
-	ルールは <code>rsvelte.config.json</code> で有効にします（<a href={resolve('/guide') + '#config'}
-		>設定</a
-	>）。<code>@typescript-eslint/no-unused-vars</code> は <code>typescript.lint</code>
+	<a href={resolve('/guide') + '#lint'}>既定で動く 3 つ</a>のほかは、<code>rsvelte.config.json</code
+	>
+	で有効にします（<a href={resolve('/guide') + '#config'}>設定</a>）。<code
+		>@typescript-eslint/no-unused-vars</code
+	>
+	は <code>typescript.lint</code>
 	に、ほかのルールは
 	<code>svelte.lint</code> に書きます。
 </p>
