@@ -1,4 +1,4 @@
-# `eslint-plugin-rsvelte`
+# `@rsvelte/eslint-plugin`
 
 Turn off all rules already supported by [rsvelte](https://github.com/baseballyama/rsvelte). It
 works like [`eslint-plugin-oxlint`](https://github.com/oxc-project/eslint-plugin-oxlint), with the
@@ -8,7 +8,7 @@ and ESLint.
 ## Installation
 
 ```sh
-npm install --save-dev eslint-plugin-rsvelte
+npm install --save-dev @rsvelte/eslint-plugin
 ```
 
 Use the version that matches your version of `@rsvelte/cli`.
@@ -32,7 +32,7 @@ Add this script to your `package.json`:
 ```js
 // eslint.config.js
 import svelte from 'eslint-plugin-svelte';
-import rsvelte from 'eslint-plugin-rsvelte';
+import rsvelte from '@rsvelte/eslint-plugin';
 
 export default [
   ...svelte.configs.recommended,
@@ -50,7 +50,7 @@ For ESLint's legacy configuration (ESLint 8 and earlier):
 module.exports = {
   extends: [
     // Other presets.
-    'plugin:rsvelte/recommended',
+    'plugin:@rsvelte/recommended',
   ],
 };
 ```
@@ -98,11 +98,11 @@ As in `eslint-plugin-oxlint`, `all` and `flat/all` leave out the rules of `nurse
 ```js
 configs: {
   // Only the `correctness` category.
-  recommended: { plugins: ['rsvelte'], overrides: [...] },
+  recommended: { plugins: ['@rsvelte'], overrides: [...] },
   'flat/recommended': [...],
 
   // Every rule but those of `nursery`.
-  all: { plugins: ['rsvelte'], overrides: [...] },
+  all: { plugins: ['@rsvelte'], overrides: [...] },
   'flat/all': [...],
 
   // By plugin.
@@ -122,5 +122,5 @@ configs: {
 }
 ```
 
-`eslint-plugin-rsvelte/rules-by-scope` and `eslint-plugin-rsvelte/rules-by-category` export the
+`@rsvelte/eslint-plugin/rules-by-scope` and `@rsvelte/eslint-plugin/rules-by-category` export the
 rules of each plugin and of each category, as `eslintRules` or `correctnessRules`.

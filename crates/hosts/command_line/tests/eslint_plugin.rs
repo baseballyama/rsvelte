@@ -1,4 +1,4 @@
-//! `apps/eslint-plugin/rules.json`, the rules `eslint-plugin-rsvelte` turns off, stays the set of
+//! `apps/eslint-plugin/rules.json`, the rules `@rsvelte/eslint-plugin` turns off, stays the set of
 //! rules `rsvelte lint` runs. `UPDATE_EXPECT=1` writes it.
 
 use std::collections::BTreeMap;

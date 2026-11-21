@@ -55,7 +55,7 @@ function flat(name, rules) {
 
 /** The same rules for ESLint's legacy configuration (`.eslintrc`). @param {Rules} rules */
 const legacy = (rules) => ({
-	plugins: ['rsvelte'],
+	plugins: ['@rsvelte'],
 	overrides: flat('', rules).map(({ files, rules: group }) => ({ files, rules: group })),
 });
 

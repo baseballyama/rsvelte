@@ -204,7 +204,7 @@ test('the legacy configurations turn off the same rules in the same files', () =
 		['recommended', 'flat/recommended'],
 	] as const) {
 		const config = plugin.configs[legacy];
-		assert.deepEqual(config.plugins, ['rsvelte']);
+		assert.deepEqual(config.plugins, ['@rsvelte']);
 		assert.deepEqual(
 			config.overrides?.map(({ files, rules }) => ({ files, rules })),
 			plugin.configs[flat].map(({ files, rules }) => ({ files, rules })),

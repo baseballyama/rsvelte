@@ -27,8 +27,8 @@ const DESCRIPTION = 'Lint, format and type check Svelte and TypeScript, fast';
 /** The package people install; npm refuses `rsvelte` as too close to `svelte`. */
 export const COMMAND_PACKAGE = '@rsvelte/cli';
 
-/** Turns off in ESLint the rules `rsvelte lint` runs, so a project can run both. */
-export const ESLINT_PLUGIN_PACKAGE = 'eslint-plugin-rsvelte';
+/** Turns off in ESLint the rules `rsvelte lint` runs; npm refuses `eslint-plugin-rsvelte` as too close to `eslint-plugin-svelte`. */
+export const ESLINT_PLUGIN_PACKAGE = '@rsvelte/eslint-plugin';
 
 const ESLINT_PLUGIN = path.join(ROOT, 'apps/eslint-plugin');
 

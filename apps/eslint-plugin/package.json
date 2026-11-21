@@ -1,7 +1,7 @@
 {
 	"name": "@rsvelte-experimental/eslint-plugin",
 	"private": true,
-	"description": "eslint-plugin-rsvelte: turns off the ESLint rules rsvelte lint runs; tools/release writes the package npm publishes from this manifest",
+	"description": "@rsvelte/eslint-plugin: turns off the ESLint rules rsvelte lint runs; tools/release writes the package npm publishes from this manifest",
 	"files": [
 		"configs.cjs",
 		"index.cjs",

@@ -99,7 +99,7 @@ test(
 	},
 );
 
-test('the staged eslint-plugin-rsvelte loads on its own and reports the release version', async () => {
+test('the staged @rsvelte/eslint-plugin loads on its own and reports the release version', async () => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-stage-plugin-'));
 	try {
 		const artifacts = path.join(root, 'artifacts');
