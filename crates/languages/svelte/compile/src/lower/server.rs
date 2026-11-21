@@ -216,7 +216,8 @@ fn bind_props<'o>(
         }
         let key = info
             .prop_key
-            .map_or(Cow::Borrowed(name), super::javascript::prop_alias);
+            .and_then(super::javascript::literal_key_name)
+            .unwrap_or(Cow::Borrowed(name));
         bound.push(b.init(&key, b.id(name)));
     }
     bound.extend(super::javascript::export_properties(b, exports));
