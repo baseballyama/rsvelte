@@ -97,6 +97,31 @@ fn acorn_tells_a_strict_name_declared_from_one_assigned() {
 }
 
 #[test]
+fn acorn_names_a_reserved_word_by_its_value_however_it_is_escaped() {
+    // What svelte 5.57.3 reports for each as a component's script.
+    for (text, word, at) in [
+        ("\\u006cet;", "let", 0),
+        ("l\\u0065t;", "let", 0),
+        ("\\u{6c}et;", "let", 0),
+        ("y\\u0069eld;", "yield", 0),
+        ("\\u0069mplements;", "implements", 0),
+        ("var \\u0073tatic = 1;", "static", 4),
+        ("let \\u006cet = 1;", "let", 4),
+        ("function f(\\u006cet) {}", "let", 11),
+        ("var static = 1;", "static", 4),
+    ] {
+        let expected = Some((format!("The keyword '{word}' is reserved"), at));
+        for source_type in [SourceType::mjs(), SourceType::ts().with_module(true)] {
+            assert_eq!(
+                acorn_reports(text, source_type, &[]),
+                expected,
+                "{text:?} {source_type:?}"
+            );
+        }
+    }
+}
+
+#[test]
 fn acorn_reports_a_private_name_no_class_declares_and_await_in_a_static_block() {
     for (text, message, at) in [
         (

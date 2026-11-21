@@ -21,6 +21,7 @@ mod exports;
 mod found;
 mod ignore;
 mod raised;
+mod rest_props;
 mod runes;
 mod script;
 mod selectors;
@@ -36,6 +37,7 @@ use exports::{state_exports, unused_exports};
 use found::{Found, VisitOrder};
 pub use ignore::code_for_v5;
 pub use raised::{Phase, Raised, Section};
+pub use rest_props::rest_prop_member_errors;
 pub use runes::dollar_name_errors;
 use runes::{custom_element, declaration_errors, runes};
 use selectors::unused_selectors;
@@ -207,12 +209,14 @@ pub fn warnings(
     deprecated_tag(component, source, &mut out.errors);
     let runes = runes(component, resolution, source, &out.awaits, options.runes);
     out.runes = runes;
+    let javascript = &component.javascript;
+    let instance = component.instance.as_ref().map(|s| s.program);
+    let module = component.module.as_ref().map(|s| s.program);
     out.errors.extend(dollar_name_errors(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        component.module.as_ref().map(|s| s.program),
-        resolution,
-        runes,
+        javascript, instance, module, resolution, runes,
+    ));
+    out.errors.extend(rest_prop_member_errors(
+        javascript, instance, module, resolution, runes,
     ));
     declaration_errors(component, resolution, runes, &mut out.errors);
     let mut found = Found::default();
