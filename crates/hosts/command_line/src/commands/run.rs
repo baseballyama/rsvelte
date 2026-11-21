@@ -121,6 +121,6 @@ fn run_once(
     text: &str,
     tasks: &[&str],
 ) -> Result<DocumentResult, ExitCode> {
-    let document = files::document(reg, file.to_owned(), text.to_owned()).map_err(|e| usage(&e))?;
+    let document = files::document(file.to_owned(), text.to_owned()).map_err(|e| usage(&e))?;
     files::run(reg, std::slice::from_ref(&document), tasks).map(|mut results| results.remove(0))
 }

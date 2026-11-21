@@ -1,5 +1,18 @@
 # @rsvelte/cli
 
+## 0.3.0
+
+### Minor Changes
+
+- 0b08084: `format` is now oxfmt with a built-in Svelte formatter. It formats each file type that oxfmt formats in Rust, and it takes the options and the `.oxfmtrc.json` of oxfmt. It no longer reads `.prettierrc`, the `prettier` field of `package.json`, or the `svelte.format` and `typescript.format` options of `rsvelte.config`.
+- aaf6775: New package `@rsvelte/eslint-plugin`, the counterpart of `eslint-plugin-oxlint`: it turns off each ESLint rule that `rsvelte lint` runs, so a project can run both. Each rule now has one of oxlint's categories.
+
+### Patch Changes
+
+- 0f52a42: `rsvelte typecheck` now checks a component whose script has a syntax error with its props and default export, as svelte-check does, instead of reporting "has no default export" at each import of it. A dependency component the check cannot project now reads its module script's exports, as a project component does.
+- 176499f: A `10n` key in a `$props()` pattern no longer panics the client compiler. It names the prop by its decimal digits, as Svelte does.
+- 997f3f9: Compile a snippet whose name starts with `$`, such as `{#snippet $s()}`, which panicked.
+
 ## 0.2.5
 
 ### Patch Changes

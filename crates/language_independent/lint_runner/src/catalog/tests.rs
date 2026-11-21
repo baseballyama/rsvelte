@@ -1,6 +1,6 @@
 use rsvelte_kernel::diagnostics::Severity;
 
-use super::{Definition, EnabledRules, Plugin, check_plugins, find, levels};
+use super::{Definition, EnabledRules, RulePlugin, check_plugins, find, levels};
 
 #[derive(Debug)]
 struct Named(&'static str);
@@ -11,10 +11,10 @@ impl Definition for Named {
     }
 }
 
-fn plugin(prefix: &'static str, rule: &'static str) -> &'static Plugin<Named> {
+fn plugin(prefix: &'static str, rule: &'static str) -> &'static RulePlugin<Named> {
     let rules: &'static [&'static Named] =
         Box::leak(Box::new([&*Box::leak(Box::new(Named(rule)))]));
-    Box::leak(Box::new(Plugin { prefix, rules }))
+    Box::leak(Box::new(RulePlugin { prefix, rules }))
 }
 
 #[test]

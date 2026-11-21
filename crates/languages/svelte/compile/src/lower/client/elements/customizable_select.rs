@@ -1,7 +1,7 @@
 use oxc_ast::ast::Statement;
 
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Frag, Lists, Memo, Prev, R};
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, Memo, NodeVar, Prev, R};
 use crate::render_plan::{Item, Namespace};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -11,7 +11,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn customizable_select(
         &mut self,
         items: &[Item],
-        node: &str,
+        node: &NodeVar,
         tag: &str,
         namespace: Namespace,
         frag: &mut Frag<'o>,
@@ -19,7 +19,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let b = self.b;
         // The hydration marker that `$.child` finds inside the element.
         frag.tpl.push_comment();
-        let fragment = self.names.generate("fragment");
+        let fragment = NodeVar::bare(self.names.generate("fragment"));
         let anchor = self.names.generate("anchor");
         let mut content = Frag {
             memo: Memo {
@@ -43,16 +43,16 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             crate::lower::client::fragments::TEMPLATE_FRAGMENT,
         );
         let mut body = vec![
-            b.var(&anchor, b.runtime("child", [b.id(node)])),
-            b.var(&fragment, b.call(template, [])),
+            b.var(&anchor, b.runtime("child", [node.id(b)])),
+            fragment.declare(b, b.call(template, [])),
         ];
         body.append(&mut lists.initializer);
         if !lists.update.is_empty() {
             body.push(self.render_statement(&mut content, lists.update));
         }
         body.append(&mut lists.after);
-        body.push(b.statement(b.runtime("append", [b.id(&anchor), b.id(&fragment)])));
+        body.push(b.statement(b.runtime("append", [b.id(&anchor), fragment.id(b)])));
         let callback = b.arrow_block(b.parameters([]), body, false);
-        Ok(b.statement(b.runtime("customizable_select", [b.id(node), callback])))
+        Ok(b.statement(b.runtime("customizable_select", [node.id(b), callback])))
     }
 }

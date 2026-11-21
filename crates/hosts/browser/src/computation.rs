@@ -222,9 +222,8 @@ fn execute(
             observations: Arc::clone(&observations),
         })
     });
-    let document = reg
-        .document(filename, source)
-        .map_err(|e| format!("invalid document: {e:?}"))?;
+    let document =
+        Document::new(filename, source).map_err(|e| format!("invalid document: {e:?}"))?;
     let mut json = StructuredDataWriter::new(false);
     json.begin_object()
         .key("ok")

@@ -26,12 +26,13 @@ impl Document {
     /// # Errors
     ///
     /// [`DocumentError::TooLarge`] if `text` is `MAXIMUM_SOURCE_LENGTH` bytes or longer.
-    pub fn new(path: String, text: String) -> Result<Self, DocumentError> {
+    pub fn new(path: impl Into<String>, text: impl Into<String>) -> Result<Self, DocumentError> {
+        let text = text.into();
         if text.len() >= MAXIMUM_SOURCE_LENGTH as usize {
             return Err(DocumentError::TooLarge(text.len()));
         }
         Ok(Self {
-            path,
+            path: path.into(),
             text,
             file: None,
         })

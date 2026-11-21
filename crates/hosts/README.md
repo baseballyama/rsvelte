@@ -7,10 +7,10 @@ implementations live in `../languages/`; shared data and task scheduling live in
 [configuration](configuration_loading/README.md): JSON, JS/TS or custom settings, and the
 runtime functions they name. Node is optional.
 
-| Host            | Who uses it                                                         | Interface                                          |
-| --------------- | ------------------------------------------------------------------- | -------------------------------------------------- |
-| `command_line/` | People running rsvelte in a terminal, and toolchain developers      | The native `rsvelte` and `rsvelte-dev` executables |
-| `browser/`      | Developers embedding rsvelte in a web page; for now, the Learn site | JavaScript bindings to WebAssembly                 |
+| Host            | Who uses it                                                                | Interface                                          |
+| --------------- | -------------------------------------------------------------------------- | -------------------------------------------------- |
+| `command_line/` | People running rsvelte in a terminal, and toolchain developers             | The native `rsvelte` and `rsvelte-dev` executables |
+| `browser/`      | Developers embedding rsvelte in a web page; for now, the site's playground | JavaScript bindings to WebAssembly                 |
 
 A host knows no language. It installs the plugins' extensions and runs their tasks; a page
 installs them without a file system, and shows each artifact a task computed through the
@@ -88,8 +88,7 @@ registers its tools. See [the corpus guide](../../corpus/README.md) for oracle c
 ## Browser / WebAssembly
 
 The browser host exposes Rust functions to JavaScript through `wasm-bindgen`. Web application
-developers call these functions directly. The Learn site's playground UI calls the same
-bindings.
+developers call these functions directly. The site's playground calls the same bindings.
 
 Build the bindings with `pnpm run generate` from `apps/site/`. See
 [the site setup](../../apps/site/README.md) for prerequisites and build steps. Initialize the
@@ -109,7 +108,7 @@ console.log(result.steps);
 | ------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `runPipeline(source, filename, plugins, tasks, shared)` | Run language tasks and return a JSON string with outputs, diagnostics, and computation traces |
 
-`plugins` is a comma-separated selection of `svelte`, `vue`, `svue` and `vuelte`. `tasks`
+`plugins` is a comma-separated selection of `typescript`, `svelte`, `vue`, `svue` and `vuelte`. `tasks`
 selects `compile-client`, `compile-server`, `format` and `lint` in the same form. The plugin and
 the filename decide which tasks are available. `shared = true` lets tasks reuse derived facts;
 `false` keeps each task's computations apart, for comparison.

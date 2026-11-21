@@ -258,9 +258,7 @@ impl Conformance {
         let inputs = source.inputs()?;
         let mut documents = Vec::with_capacity(inputs.len());
         for e in inputs.entries().filter(|e| selected(&source.key(e.path))) {
-            let d = self
-                .registry
-                .document(e.path, e.body)
+            let d = Document::new(e.path, e.body)
                 .map_err(|err| format!("{}: {err:?}", source.key(e.path)))?;
             documents.push(d);
         }
@@ -307,10 +305,8 @@ impl Conformance {
                     let Some((_, out)) = result.outputs.iter().find(|(t, _)| *t == c.task) else {
                         continue;
                     };
-                    let (_, variant) = task_files::location(c.task);
-                    for (name, text) in task_files::files(variant, &document.text, out) {
-                        let name = name[variant.len() + 1..].to_owned();
-                        files.push((document.path.clone(), name, text.into_owned()));
+                    for (name, text) in task_files::files(&document.text, out) {
+                        files.push((document.path.clone(), name.to_owned(), text.into_owned()));
                     }
                 }
             }
@@ -487,7 +483,7 @@ fn summarize(task: &str, now: &BTreeMap<String, Verdict>) {
         .filter(|(_, n)| *n > 0)
         .map(|(v, n)| format!("{n} {}", v.label()))
         .collect();
-    let matched = counts[Verdict::ALL.len() - 1];
+    let matched = now.values().filter(|v| **v == Verdict::Match).count();
     #[expect(
         clippy::cast_precision_loss,
         reason = "a percentage of a count far below 2^52"

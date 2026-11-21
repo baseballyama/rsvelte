@@ -20,7 +20,7 @@ pub fn emit(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
         default_export: if path.is_empty() {
             "$$Component".to_owned()
         } else {
-            crate::default_export_name(path)
+            default_export_name(path)
         },
         output: projection_emitter(source.len()),
         indent: 0,
@@ -31,6 +31,43 @@ pub fn emit(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
     // The database keeps the projection, so spare room would stay live: 3.6% more peak memory.
     printer.output.out.shrink_to_fit();
     printer.output
+}
+
+/// svelte2tsx's `classNameFromFilename`: the name a component's default export declares.
+///
+/// It is the part of the file name before the first `.` in `PascalCase`, without the characters
+/// a name cannot have, and with the suffix that keeps it apart from the component's own names.
+#[must_use]
+fn default_export_name(path: &str) -> String {
+    const SUFFIX: &str = "__SvelteComponent_";
+    let file = path.rsplit(['/', '\\']).next().unwrap_or(path);
+    let stem = file.split('.').next().unwrap_or(file);
+    // One allocation per document: the name never outgrows the stem, an `A` and the suffix.
+    let mut out = String::with_capacity(1 + stem.len() + SUFFIX.len());
+    let valid = |c: &char| c.is_ascii_alphanumeric() || matches!(c, '_' | '-');
+    // A name starts at its first letter; JavaScript's `substr(-1)` keeps the last character
+    // when there is none.
+    let start = stem
+        .find(|c: char| c.is_ascii_alphabetic())
+        .unwrap_or_else(|| {
+            out.push('A');
+            stem.char_indices()
+                .rfind(|(_, c)| valid(c))
+                .map_or(stem.len(), |(i, _)| i)
+        });
+    let mut upper = true;
+    for c in stem[start..].chars().filter(valid) {
+        if matches!(c, '_' | '-') {
+            upper = true;
+        } else if upper {
+            out.push(c.to_ascii_uppercase());
+            upper = false;
+        } else {
+            out.push(c);
+        }
+    }
+    out.push_str(SUFFIX);
+    out
 }
 
 struct Printer<'a> {
@@ -222,7 +259,7 @@ impl Printer<'_> {
         self.node(value);
     }
 
-    pub(super) fn default_export_name(&mut self) {
+    pub(super) fn push_default_export(&mut self) {
         self.output.push(&self.default_export);
     }
 
@@ -396,3 +433,6 @@ impl Printer<'_> {
         self.output.mark(expression.end);
     }
 }
+
+#[cfg(test)]
+mod tests;

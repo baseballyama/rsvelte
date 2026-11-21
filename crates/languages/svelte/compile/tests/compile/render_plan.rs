@@ -1,6 +1,7 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
+use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_compile::render_plan::{Item, Text};
 use rsvelte_svelte_compile::{RenderPlan, Target, lower};
@@ -188,12 +189,11 @@ fn empty_regions_are_valid_in_every_parent_context() {
 fn both_targets_reuse_the_document_plan() {
     let mut registry = Registry::new();
     rsvelte_svelte_compile::register(&mut registry);
-    let document = registry
-        .document(
-            "App.svelte",
-            include_str!("../preserve_whitespace/App.svelte"),
-        )
-        .expect("valid document");
+    let document = Document::new(
+        "App.svelte",
+        include_str!("../preserve_whitespace/App.svelte"),
+    )
+    .expect("valid document");
     let context = DocumentContext::new(&document, registry.artifacts());
     let plan = context
         .get::<rsvelte_svelte_compile::Planned>()

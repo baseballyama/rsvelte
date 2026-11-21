@@ -8,7 +8,7 @@ use rsvelte_svelte_syntax::syntax_tree::Component;
 
 use crate::Options;
 
-pub static PLUGIN: Plugin = Plugin {
+static PLUGIN: Plugin = Plugin {
     identifier: "svelte.format",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[
@@ -27,19 +27,19 @@ pub fn register(registry: &mut Registry) {
     register_with_options(registry, Options::default());
 }
 
-pub fn register_with_options(registry: &mut Registry, options: Options) {
+pub(crate) fn register_with_options(registry: &mut Registry, options: Options) {
     registry.plugin(&PLUGIN);
     rsvelte_svelte_semantic::register(registry);
     registry.task(Format { options });
 }
 
 #[derive(Debug)]
-pub struct Format {
+pub(crate) struct Format {
     options: Options,
 }
 
 impl Format {
-    pub const IDENTIFIER: &'static str = "svelte.format/default";
+    pub(crate) const IDENTIFIER: &'static str = "svelte.format/default";
 }
 
 impl Task for Format {

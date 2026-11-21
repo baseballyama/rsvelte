@@ -200,7 +200,8 @@ fn core_options(options: &Options) -> R<CoreFormatOptions> {
     })
 }
 
-/// Prettier's options for the JavaScript in the component; [`unported`] has refused the others.
+/// Prettier's options for the JavaScript in the component, and oxfmt's own that oxfmt applies to
+/// it; [`unported`] has refused the others.
 fn javascript_options(options: &Options, core: CoreFormatOptions) -> JsFormatOptions {
     JsFormatOptions {
         indent_style: core.indent_style,
@@ -213,20 +214,10 @@ fn javascript_options(options: &Options, core: CoreFormatOptions) -> JsFormatOpt
             QuoteStyle::Double
         },
         bracket_same_line: BracketSameLine::from(options.bracket_same_line),
+        sort_imports: options.sort_imports.clone(),
+        jsdoc: options.jsdoc.clone(),
         ..JsFormatOptions::default()
     }
-}
-
-/// The errors inside a script's `body`: the TypeScript errors oxc reported for the scripts, and the
-/// ones the compiler lets pass.
-fn script_errors(c: &Component, body: Span) -> impl Iterator<Item = &SyntaxError> {
-    let inside = move |error: &&SyntaxError| {
-        let at = error.diagnostic.span.start_offset;
-        body.start_offset <= at && at <= body.end_offset
-    };
-    (c.script_typescript_errors.iter())
-        .chain(c.javascript.unchecked_errors())
-        .filter(inside)
 }
 
 /// The plugin's `langTsRegex` (`/\slang=["']?ts["']?/`) on a `<script>` tag: its value starts
@@ -361,41 +352,6 @@ enum ElementKind {
     Other,
 }
 
-/// HTML's ASCII whitespace, which is Rust's.
-const fn is_collapse_ws(c: char) -> bool {
-    c.is_ascii_whitespace()
-}
-
-const fn only_ws(s: &str) -> bool {
-    s.trim_ascii().is_empty()
-}
-
-/// `^([\t\f\r ]*\n){n}`.
-fn starts_with_linebreak(s: &str, n: usize) -> bool {
-    let mut rest = s;
-    for _ in 0..n {
-        let t = rest.trim_start_matches(['\t', '\x0C', '\r', ' ']);
-        let Some(after) = t.strip_prefix('\n') else {
-            return false;
-        };
-        rest = after;
-    }
-    true
-}
-
-/// `(\n[\t\f\r ]*){n}$`.
-fn ends_with_linebreak(s: &str, n: usize) -> bool {
-    let mut rest = s;
-    for _ in 0..n {
-        let t = rest.trim_end_matches(['\t', '\x0C', '\r', ' ']);
-        let Some(before) = t.strip_suffix('\n') else {
-            return false;
-        };
-        rest = before;
-    }
-    true
-}
-
 mod attributes;
 mod awaits;
 mod blocks;
@@ -408,6 +364,7 @@ mod line_endings;
 mod patterns;
 mod tree;
 mod unparsed;
+mod whitespace;
 
 #[cfg(test)]
 mod tests;

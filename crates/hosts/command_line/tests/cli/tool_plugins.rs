@@ -33,7 +33,7 @@ fn core_registers_facts_without_selecting_tools() {
     rsvelte_typescript_semantic::register(&mut registry);
     assert_eq!(registry.document_task_identifiers(), Vec::<&str>::new());
     for path in ["App.svelte", "App.vue", "app.ts"] {
-        let document = registry.document(path, "").expect("valid source size");
+        let document = Document::new(path, "").expect("valid source size");
         assert!(
             !registry
                 .artifacts()
@@ -47,9 +47,7 @@ fn a_replacement_lint_runs_beside_the_selected_formatter() {
     let mut registry = Registry::new();
     rsvelte_svelte_format::register(&mut registry);
     registry.task(ReplacementLint);
-    let document = registry
-        .document("App.svelte", "<p>Hello</p>")
-        .expect("valid source size");
+    let document = Document::new("App.svelte", "<p>Hello</p>").expect("valid source size");
     let context = DocumentContext::new(&document, registry.artifacts());
     let parsed = context.get::<Parsed>();
     assert!(std::ptr::eq(parsed, context.get::<Parsed>()));

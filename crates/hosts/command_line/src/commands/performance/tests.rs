@@ -24,8 +24,8 @@ fn a_panicking_document_is_reported_not_measured_as_less_work() {
     let mut reg = Registry::new();
     reg.task(Panics);
     let docs = [
-        reg.document("fine.txt", "").expect("small"),
-        reg.document("panics.txt", "").expect("small"),
+        Document::new("fine.txt", "").expect("small"),
+        Document::new("panics.txt", "").expect("small"),
     ];
     let m = measure(&reg, &docs, &["test.panics"], 1);
     assert_eq!(

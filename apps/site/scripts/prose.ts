@@ -3,7 +3,6 @@ import path from 'node:path';
 import { parse, type AST } from 'svelte/compiler';
 import ts from 'typescript';
 import { createLinter, loadTextlintrc } from 'textlint';
-import { term } from '../src/lib/terms.ts';
 import noAbbreviations from './no-abbreviations.ts';
 
 type Chunk = { text: string; line: number };
@@ -179,32 +178,12 @@ export function extractProse(source: string, file: string): Chunk[] {
 		function visit(node: TemplateNode) {
 			if ('expression' in node && node.expression && node.type !== 'ExpressionTag')
 				expression(node.expression);
-			if (node.type === 'Component' && node.name === 'Term') {
-				const name = node.attributes.find(
-					(attribute) => 'name' in attribute && attribute.name === 'name',
-				);
-				if (
-					!name ||
-					name.type !== 'Attribute' ||
-					!Array.isArray(name.value) ||
-					name.value.length !== 1 ||
-					name.value[0].type !== 'Text'
-				)
-					throw new Error(`Term needs a static name in ${file}`);
-				text += term(name.value[0].data);
-				return;
-			}
 			if (node.type === 'Text') {
 				if (!text) start = node.start;
 				text += node.data;
 				return;
 			}
 			if (node.type === 'RegularElement' && ['pre', 'script', 'style'].includes(node.name)) return;
-			if (node.type === 'Component' && node.name === 'Code') return;
-			if (node.type === 'Component' && node.name === 'Note') {
-				fragment(node.fragment);
-				return;
-			}
 			if (node.type === 'RegularElement' && node.name === 'code') {
 				const value = node.fragment.nodes
 					.map((n) =>

@@ -1,6 +1,7 @@
+use super::whitespace::{ends_with_linebreak, is_collapse_ws, only_ws, starts_with_linebreak};
 use super::{
     Cow, ElementKind, LayoutInstructionIdentifier, LayoutInstructions, Printer, TemplateNode,
-    TemplateNodeIdentifier, ends_with_linebreak, is_collapse_ws, only_ws, starts_with_linebreak,
+    TemplateNodeIdentifier,
 };
 use crate::options::WhitespaceSensitivity;
 

@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
 use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::source::document::Document;
 use rsvelte_plugin_interface::{NoFunctions, Selection, Settings};
 
 #[expect(clippy::print_stdout, reason = "This example prints the task output.")]
@@ -22,8 +23,7 @@ fn main() -> Result<(), String> {
         &mut settings,
     )
     .map_err(|error| error.0)?;
-    let document = registry
-        .document("App.svelte", "<main><p>Hello</p></main>")
+    let document = Document::new("App.svelte", "<main><p>Hello</p></main>")
         .map_err(|error| format!("invalid document: {error:?}"))?;
     let results = run(
         &registry,

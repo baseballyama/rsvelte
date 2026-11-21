@@ -3,7 +3,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue};
 use crate::lower::attributes::is_directive;
 use crate::lower::bindings::binds;
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Lists};
+use crate::lower::client::{ClientCompilationContext, Lists, NodeVar};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream's `$.remove_input_defaults` condition for an `<input>`; a binding is named by its
@@ -13,7 +13,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         &self,
         attributes: &[Attribute],
         has_spread: bool,
-        node: &str,
+        node: &NodeVar,
         l: &mut Lists<'o>,
     ) -> bool {
         let source_text = self.source_text;
@@ -36,7 +36,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         let b = self.b;
         l.initializer
-            .push(b.statement(b.runtime("remove_input_defaults", [b.id(node)])));
+            .push(b.statement(b.runtime("remove_input_defaults", [node.id(b)])));
         false
     }
 
@@ -45,7 +45,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         &self,
         attributes: &[Attribute],
         has_spread: bool,
-        node: &str,
+        node: &NodeVar,
         l: &mut Lists<'o>,
     ) {
         let source_text = self.source_text;
@@ -63,7 +63,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if has_spread || bound || reset {
             let b = self.b;
             l.initializer
-                .push(b.statement(b.runtime("remove_textarea_child", [b.id(node)])));
+                .push(b.statement(b.runtime("remove_textarea_child", [node.id(b)])));
         }
     }
 }

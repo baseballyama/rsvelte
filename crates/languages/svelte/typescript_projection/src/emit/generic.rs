@@ -64,10 +64,10 @@ impl Printer<'_> {
             self.output.push(if index == 0 { "any" } else { ", any" });
         }
         self.output.push(">>>['__rsvelte_bindings']>; }\nconst ");
-        self.default_export_name();
+        self.push_default_export();
         self.output
             .push(": __rsvelte_generic_component = null as any;\n// @ts-ignore\ntype ");
-        self.default_export_name();
+        self.push_default_export();
         for part in [
             "<",
             plain,
@@ -78,7 +78,7 @@ impl Printer<'_> {
         ] {
             self.output.push(part);
         }
-        self.default_export_name();
+        self.push_default_export();
         self.output.push(";\n");
     }
 

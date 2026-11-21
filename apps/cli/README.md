@@ -1,7 +1,7 @@
 # rsvelte
 
-rsvelte lints, formats and type checks Svelte 5 and TypeScript files with native programs
-built from Rust. This release is experimental.
+rsvelte lints, formats and type checks Svelte 5, TypeScript and JavaScript files with native
+programs built from Rust. This release is experimental.
 
 ## Install
 
@@ -15,6 +15,7 @@ npm install --save-dev @rsvelte/cli
 npx @rsvelte/cli lint [<path>...]
 npx @rsvelte/cli format [<path>...] [--check]
 npx @rsvelte/cli typecheck
+npx @rsvelte/cli help [<command>]
 ```
 
 `npx` runs the project's copy, or downloads one when the project has none. In `package.json`
@@ -30,16 +31,26 @@ scripts, the command is `rsvelte`:
 }
 ```
 
-Without a path, `lint` reads every file below the current directory. It skips `node_modules`
+`lint` reads these files:
+
+- Svelte: `.svelte`
+- JavaScript: `.js`, `.mjs` and `.cjs`
+- TypeScript: `.ts`, `.mts` and `.cts`
+
+Without a path, it reads every such file below the current directory. It skips `node_modules`
 and what `.gitignore` skips.
+A `svelte.lint` rule that applies to modules, such as `svelte/no-inspect`, also runs on
+JavaScript and TypeScript files, `.jsx` and `.tsx` included.
 
 `format` is [oxfmt](https://oxc.rs/docs/guide/usage/formatter) with a built-in Svelte
 formatter. It takes oxfmt's options (`rsvelte format --help`) and reads oxfmt's configuration:
 `.oxfmtrc.json`, `.editorconfig` and `.prettierignore`. It formats each file that oxfmt formats
 in Rust, such as TypeScript, JSON, CSS and Markdown files. It formats a `.svelte` file with the
-options that oxfmt would give prettier-plugin-svelte. `format` never runs Prettier, so it skips
-the files that oxfmt hands to Prettier. `"svelte": false` in the configuration turns Svelte
-formatting off. `rsvelte.config` does not configure `format`.
+options that oxfmt would give prettier-plugin-svelte, and it sorts imports and formats `/** */`
+comments in its scripts as oxfmt does. It also formats the `svelte` code blocks of a Markdown
+file. `format` never runs Prettier, so it skips the files that oxfmt hands to Prettier.
+`"svelte": false` in the configuration turns Svelte formatting off. `rsvelte.config` does not
+configure `format`.
 
 The Svelte formatter prints only the default value of these options:
 
@@ -47,11 +58,12 @@ The Svelte formatter prints only the default value of these options:
 - `arrowParens`, `bracketSpacing` and `quoteProps`
 - `objectWrap`
 
-It does not apply `sortImports`, `sortTailwindcss` or `jsdoc` yet. With another value of these
-options, or with one of these three, `format` reports an error for each Svelte file and formats
+It does not sort Tailwind CSS classes (`sortTailwindcss`) yet. With another value of these
+options, or with `sortTailwindcss`, `format` reports an error for each Svelte file and formats
 the other files.
 
-`typecheck` checks the project of `tsconfig.json` in the current directory and reports the
+`typecheck` checks the project of `tsconfig.json` in the current directory, or next to
+`rsvelte.config` when it gives `typescript.check` options, and reports the
 type errors that svelte-check reports. It runs a TypeScript 7 type checker from the project's
 `node_modules`. Install one of these:
 
@@ -94,11 +106,15 @@ options from `plugins`:
 ```json
 {
   "plugins": {
-    "svelte.lint": { "rules": { "no-unused-vars": "warn" } },
+    "svelte.lint": { "rules": { "no-unused-vars": "warn", "svelte/button-has-type": "error" } },
     "typescript.check": { "tsconfig": "tsconfig.app.json" }
   }
 }
 ```
+
+A `rules` object replaces the default rules. For Svelte files, those are `no-unused-vars` and
+`svelte/button-has-type`. A path in the options starts from the directory of the configuration
+file.
 
 ## License
 
