@@ -20,7 +20,7 @@ pub(in super::super) enum PropsType {
     },
     /// Another `JSDoc` comment that mentions `@type`, whose cast of `({})` svelte2tsx makes the
     /// props.
-    JsDoc(Span),
+    TypeComment(Span),
     /// A plain comment that mentions `@type`: TypeScript reads svelte2tsx's `comment({})` as `{}`.
     Plain,
 }
@@ -50,7 +50,7 @@ impl Builder<'_> {
             });
         }
         Some(if comment.is_jsdoc() {
-            PropsType::JsDoc(span)
+            PropsType::TypeComment(span)
         } else {
             PropsType::Plain
         })
@@ -80,7 +80,7 @@ impl Builder<'_> {
             }
             // The comment moves to the cast, the one copy TypeScript checks, and the declaration
             // reads the cast's type where the comment was.
-            PropsType::JsDoc(comment) => {
+            PropsType::TypeComment(comment) => {
                 let name = self.props_name();
                 let value = self.tree.push(Node::CommentCast(comment));
                 self.scratch
