@@ -2,4 +2,4 @@
 '@rsvelte/cli': patch
 ---
 
-`rsvelte check` types the props of a JavaScript component by the `JSDoc` comment before `$props()`, as svelte2tsx does, so an importer's wrong prop and a default that does not match are reported.
+`rsvelte check` types a JavaScript component's props by the `JSDoc` comment before `$props()`, as svelte2tsx does. It now reports a wrong prop from an importer and a default of the wrong type.
