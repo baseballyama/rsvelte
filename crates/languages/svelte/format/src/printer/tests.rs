@@ -135,6 +135,10 @@ fn a_block_pattern_upstream_would_change_or_throw_on_is_refused() {
             "{#each xs as {'a': {b}}}{b}{/each}\n",
             "a quoted key before a nested pattern",
         ),
+        (
+            "{#each xs as {10n: {b}}}{b}{/each}\n",
+            "a quoted key before a nested pattern",
+        ),
     ] {
         assert_eq!(refusal(source_text).0, what, "{source_text}");
     }
@@ -154,6 +158,10 @@ fn a_block_pattern_prints_as_expand_node_does() {
     assert_eq!(
         formatted("{#await p then {a: [b]}}{b}{/await}\n"),
         "{#await p then { a: [b] }}{b}{/await}\n"
+    );
+    assert_eq!(
+        formatted("{#each xs as {10n:a, 0x1Fn: b}}{a}{/each}\n"),
+        "{#each xs as { 10n: a, 0x1Fn: b }}{a}{/each}\n"
     );
 }
 
