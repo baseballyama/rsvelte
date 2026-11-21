@@ -92,7 +92,10 @@ impl Transform<'_> {
         if_node: TransformNodeIdentifier,
     ) -> usize {
         let siblings = self.children_of(parent);
-        let at = siblings.iter().position(|&s| s == if_node).unwrap_or(0);
+        let at = siblings
+            .iter()
+            .position(|&s| s == if_node)
+            .expect("the if node replaced a child of its parent");
         siblings[..at]
             .iter()
             .map(|&s| match &self.tree[s] {

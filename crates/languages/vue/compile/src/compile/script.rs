@@ -36,7 +36,7 @@ pub(super) fn script_setup<'o>(
     b: &Builder<'o>,
     out: &mut Vec<Statement<'o>>,
 ) -> R<()> {
-    let (javascript, source_text) = (input.javascript, input.source_text);
+    let (javascript, source_text) = (&input.component.javascript, input.source_text);
     let statements = &javascript.get_program(program).body;
     let SetupStatements {
         imports,
@@ -58,7 +58,7 @@ pub(super) fn script_setup<'o>(
             document_span(d.call.span),
         ));
     }
-    if input.typescript {
+    if input.component.typescript {
         out.push(define_component_import(b));
     }
     let tpl = template::transform(javascript, compiler_syntax_tree, source_text, res, true)?;
@@ -100,7 +100,7 @@ pub(super) fn script_setup<'o>(
     let setup = b.function_expression(None, b.parameters(["__props"]), setup_body, false);
     fields.push(b.method("setup", setup));
     let defined = options.map(|o| o.clone_in(b.allocator()));
-    let main = component_object(b, fields, defined, input.typescript);
+    let main = component_object(b, fields, defined, input.component.typescript);
     out.push(b.declare(VariableDeclarationKind::Const, "_sfc_main", Some(main)));
     Ok(())
 }

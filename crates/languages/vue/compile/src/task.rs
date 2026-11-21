@@ -49,11 +49,11 @@ impl Task for Compile {
         let compiled = {
             let _p = measurement::phase("vue.compile");
             let compiler_syntax_tree = context.get::<Lowered>().as_ref();
-            let input = crate::compile::CompileInput::from_single_file_component(
-                c,
+            let input = crate::compile::CompileInput {
+                component: c,
                 compiler_syntax_tree,
-                context.source_text(),
-            );
+                source_text: context.source_text(),
+            };
             crate::compile::compile(&input, res, &context.document.path)
         };
         match compiled {
