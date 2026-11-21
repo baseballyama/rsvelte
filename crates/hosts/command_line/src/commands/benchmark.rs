@@ -153,7 +153,7 @@ pub(crate) fn benchmark(
     tasks: &[&str],
     options: &Options,
 ) -> ExitCode {
-    let (docs, _, skipped) = match crate::input::load(reg, &[root], 1) {
+    let (docs, _, skipped) = match super::units::load(&[root], 1) {
         Ok(loaded) => loaded,
         Err(error) => return crate::usage(&error),
     };

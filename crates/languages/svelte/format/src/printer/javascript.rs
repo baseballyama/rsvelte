@@ -13,7 +13,7 @@ use rsvelte_document_printer::{Embedding, LayoutInstructionIdentifier};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::ProgramIdentifier;
 
-use super::{Printer, R, Unsupported, script_errors};
+use super::{Component, Printer, R, SyntaxError, Unsupported};
 
 /// The embedded parts and how this component's JavaScript formats.
 pub(super) struct Embedder<'x> {
@@ -345,6 +345,18 @@ fn is_token(element: &FormatElement<'_>, token: &str) -> bool {
 fn last_content(ir: &[FormatElement<'_>]) -> Option<usize> {
     ir.iter()
         .rposition(|e| !matches!(e, FormatElement::Tag(t) if t.is_end()))
+}
+
+/// The errors inside a script's `body`: the TypeScript errors oxc reported for the scripts, and the
+/// ones the compiler lets pass.
+pub(super) fn script_errors(c: &Component, body: Span) -> impl Iterator<Item = &SyntaxError> {
+    let inside = move |error: &&SyntaxError| {
+        let at = error.diagnostic.span.start_offset;
+        body.start_offset <= at && at <= body.end_offset
+    };
+    (c.script_typescript_errors.iter())
+        .chain(c.javascript.unchecked_errors())
+        .filter(inside)
 }
 
 #[cfg(test)]

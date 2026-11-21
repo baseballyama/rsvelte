@@ -15,7 +15,7 @@ fn compile(path: &str, source: &str, target: Target) -> String {
 fn output(path: &str, source: &str, target: Target) -> TaskOutput {
     let mut registry = Registry::new();
     crate::register(&mut registry);
-    let document = registry.document(path, source).expect("small");
+    let document = Document::new(path, source).expect("small");
     let task = CompileModule { target };
     let result = run(
         &registry,
@@ -209,7 +209,7 @@ fn a_declaration_file_is_no_module_to_compile() {
     let task = CompileModule {
         target: Target::Client,
     };
-    let applies = |path| task.applies(&registry.document(path, "export {};\n").expect("small"));
+    let applies = |path| task.applies(&Document::new(path, "export {};\n").expect("small"));
     assert!(applies("a.svelte.ts"));
     assert!(!applies("a.d.svelte.ts"));
 }

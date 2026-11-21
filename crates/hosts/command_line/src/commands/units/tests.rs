@@ -24,7 +24,7 @@ fn units_named(test: &str, names: &[String]) -> PathBuf {
 }
 
 fn picked(root: &Path, every: u64) -> Vec<String> {
-    let (docs, _, skipped) = load(&Registry::new(), &[root], every).expect("a directory");
+    let (docs, _, skipped) = load(&[root], every).expect("a directory");
     assert_eq!(skipped, 0);
     docs.into_iter().map(|doc| doc.path).collect()
 }
@@ -59,4 +59,37 @@ fn adding_a_unit_keeps_the_others_sampled_or_not() {
     std::fs::remove_dir_all(&root).expect("removable temp dir");
     assert!(!before.is_empty() && before.len() < 40, "{before:?}");
     assert_eq!(before, after);
+}
+
+/// Names that sort around the separator (`-` and `.` below `/`, a letter and a non-ASCII byte
+/// above), nested three deep, one unit in each: the walk yields them in `Path::cmp` order, with
+/// paths relative to the root.
+#[test]
+fn units_come_in_path_order_relative_to_the_root() {
+    let root = std::env::temp_dir().join(format!("rsvelte-units-{}", std::process::id()));
+    let source = root.join("family").join("source");
+    let names = ["a", "a-b", "a.b", "ab", "é", "~x"];
+    let mut dirs = vec![source];
+    for _ in 0..3 {
+        let last = std::mem::take(&mut dirs);
+        dirs = last
+            .iter()
+            .flat_map(|d| names.iter().map(|n| d.join(n)))
+            .collect();
+        for d in &dirs {
+            std::fs::create_dir_all(d.join("actual")).unwrap();
+            std::fs::write(d.join("input.svelte"), "").unwrap();
+            std::fs::write(d.join("actual").join("input.svelte"), "").unwrap();
+        }
+    }
+    let got = units(&root.join("family"));
+    std::fs::remove_dir_all(&root).unwrap();
+    assert_eq!(got.len(), 6 + 36 + 216);
+    assert!(got.is_sorted_by(|a, b| a.input < b.input));
+    for u in &got {
+        let rel = u.dir.strip_prefix(root.join("family")).unwrap();
+        let want = rel.to_str().unwrap();
+        assert_eq!(u.path, want, "{}", u.input.display());
+        assert_eq!(u.input.parent(), Some(u.dir.as_path()));
+    }
 }

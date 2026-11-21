@@ -109,7 +109,7 @@ console.log(result.steps);
 | ------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `runPipeline(source, filename, plugins, tasks, shared)` | Run language tasks and return a JSON string with outputs, diagnostics, and computation traces |
 
-`plugins` is a comma-separated selection of `svelte`, `vue`, `svue` and `vuelte`. `tasks`
+`plugins` is a comma-separated selection of `typescript`, `svelte`, `vue`, `svue` and `vuelte`. `tasks`
 selects `compile-client`, `compile-server`, `format` and `lint` in the same form. The plugin and
 the filename decide which tasks are available. `shared = true` lets tasks reuse derived facts;
 `false` keeps each task's computations apart, for comparison.

@@ -1,5 +1,7 @@
-//! svelte2tsx's generic component: the instance and the template in a function of the
-//! `generics` type parameters, and a default export whose call signature takes them.
+//! svelte2tsx's render function, which every component has: the imports and hoistable types
+//! moved before it, the instance and the template inside it, and the default export after it.
+//! A generic component's render function takes the `generics` type parameters, and its default
+//! export's call signature takes them too.
 
 use oxc_ast::ast::{
     Declaration, ExportDeclaration, Program, Statement, TSInterfaceDeclaration, TSType,
@@ -257,7 +259,7 @@ impl Builder<'_> {
             }
         }
         if !generic {
-            for hoisted in self.hoistable(program) {
+            for hoisted in self.hoistable_types(program) {
                 match hoisted {
                     Hoisted::Statement(at) => moved(self, at),
                     Hoisted::ComponentProps(annotation) => {
@@ -282,7 +284,7 @@ impl Builder<'_> {
     }
 
     /// svelte2tsx's hoistable types of a component whose instance is `program`.
-    fn hoistable(&self, program: &Program<'_>) -> Vec<Hoisted> {
+    fn hoistable_types(&self, program: &Program<'_>) -> Vec<Hoisted> {
         let module = self
             .component
             .module

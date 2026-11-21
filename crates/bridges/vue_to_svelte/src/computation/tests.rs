@@ -11,8 +11,7 @@ const SERVER: &str = "svue.compile/server";
 fn compile(source_text: &str, task: &str) -> (Option<String>, Vec<String>) {
     let mut reg = Registry::new();
     register(&mut reg);
-    let documents =
-        [Document::new("Component.vue".into(), source_text.into()).expect("a document")];
+    let documents = [Document::new("Component.vue", source_text).expect("a document")];
     let options = RunOptions {
         tasks: &[task],
         sharing: Sharing::Isolated,

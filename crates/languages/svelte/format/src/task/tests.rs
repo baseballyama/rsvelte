@@ -5,12 +5,12 @@ use super::*;
 fn task_output(source_text: &str) -> TaskOutput {
     let mut registry = Registry::new();
     register(&mut registry);
-    let document = registry.document("A.svelte", source_text).expect("small");
+    let document = Document::new("A.svelte", source_text).expect("small");
     let result = run(
         &registry,
         &[document],
         &RunOptions {
-            tasks: &["svelte.format/default"],
+            tasks: &[Format::IDENTIFIER],
             sharing: Sharing::Shared,
             threads: Some(1),
         },

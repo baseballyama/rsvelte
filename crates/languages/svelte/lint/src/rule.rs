@@ -62,7 +62,7 @@ pub enum Files {
 }
 
 /// Rules a plugin adds. Each rule's name is `<prefix>/<rule>`.
-pub type LintPlugin = rsvelte_lint_runner::catalog::Plugin<RuleDefinition>;
+pub type LintPlugin = rsvelte_lint_runner::catalog::RulePlugin<RuleDefinition>;
 
 /// The [`Contribution`] list of plugin rules; a plugin adds to it before `svelte.lint` installs.
 #[derive(Debug)]

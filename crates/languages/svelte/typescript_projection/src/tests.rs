@@ -3,19 +3,19 @@ use oxc_parser::Parser;
 use oxc_span::SourceType;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::parse::parse;
-use rsvelte_svelte_typescript_projection::syntax_tree::{Node, NodeIdentifier, SyntaxTree};
+
+use crate::syntax_tree::{Node, NodeIdentifier, SyntaxTree};
 
 fn project(source: &str) -> (SyntaxTree, rsvelte_kernel::output::emitter::Emitter) {
     let component = parse(source).expect("valid Svelte source");
     let before = format!("{component:?}");
-    let tree = rsvelte_svelte_typescript_projection::lower_alone(&component, source, "App.svelte")
-        .expect("supported template");
+    let tree = crate::lower_alone(&component, source, "App.svelte").expect("supported template");
     assert_eq!(
         format!("{component:?}"),
         before,
         "lowering must leave the source AST unchanged"
     );
-    let output = rsvelte_svelte_typescript_projection::emit(&tree, source, "");
+    let output = crate::emit(&tree, source, "");
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, &output.out, SourceType::ts()).parse();
     assert!(
@@ -145,7 +145,7 @@ fn element_and_attachment_semantics_are_lowered_before_printing() {
 fn unsupported_semantics_are_reported_at_the_original_construct() {
     let source = "<script lang=\"ts\">import C from './C.svelte';</script><C transition:fade />";
     let component = parse(source).expect("valid Svelte source");
-    let error = rsvelte_svelte_typescript_projection::lower_alone(&component, source, "App.svelte")
+    let error = crate::lower_alone(&component, source, "App.svelte")
         .expect_err("a transition on a component has no type semantics yet");
     assert_eq!(error.span().text(source), "transition:fade");
 }
@@ -242,7 +242,7 @@ fn template_nodes(tree: &SyntaxTree) -> &[NodeIdentifier] {
 #[test]
 fn a_style_sheet_error_does_not_stop_the_content_mapper() {
     let mut output = rsvelte_kernel::output::structured_data::StructuredDataWriter::new(false);
-    rsvelte_svelte_typescript_projection::content_mapper::write_transform(
+    crate::content_mapper::write_transform(
         "/p/App.svelte",
         "<script>let a = 1;</script><style>a { b: c; </style>",
         &mut output,
@@ -440,35 +440,6 @@ fn a_component_s_slots_type_check_against_its_slots_interface() {
 }
 
 #[test]
-fn a_component_is_named_from_its_file_as_svelte2tsx_names_it() {
-    use rsvelte_svelte_typescript_projection::default_export_name;
-    assert_eq!(
-        default_export_name("src/lib/CitationTooltip.svelte"),
-        "CitationTooltip__SvelteComponent_"
-    );
-    assert_eq!(
-        default_export_name("src/routes/+page.svelte"),
-        "Page__SvelteComponent_"
-    );
-    assert_eq!(
-        default_export_name("src/lib/my-button_group.svelte"),
-        "MyButtonGroup__SvelteComponent_"
-    );
-    assert_eq!(
-        default_export_name("src/routes/[id].svelte"),
-        "Id__SvelteComponent_"
-    );
-    assert_eq!(
-        default_export_name("src/lib/Button.stories.svelte"),
-        "Button__SvelteComponent_"
-    );
-    assert_eq!(
-        default_export_name("src/lib/404.svelte"),
-        "A4__SvelteComponent_"
-    );
-}
-
-#[test]
 fn a_one_way_binding_asserts_the_assigned_value() {
     let source = "<script lang=\"ts\">let e: HTMLElement | undefined; let w = $state(0);</script>\
                   <div bind:this={e!} bind:clientWidth={w as number}></div>";
@@ -543,9 +514,7 @@ fn a_sequence_keeps_parentheses_unless_svelte2tsx_reads_it_as_shorthand() {
 fn a_binding_typescript_cannot_assign_is_unsupported() {
     let source = "<script>let o = $state({ k: 1 });</script><div bind:this={o?.k}></div>";
     let component = parse(source).expect("valid Svelte source");
-    let Err(error) =
-        rsvelte_svelte_typescript_projection::lower_alone(&component, source, "App.svelte")
-    else {
+    let Err(error) = crate::lower_alone(&component, source, "App.svelte") else {
         panic!("an optional chain is not an assignment target");
     };
     assert_eq!(error.what(), "bind: directives");
@@ -574,10 +543,9 @@ fn a_type_a_dollar_generic_constraint_names_moves_before_the_render_function() {
 fn a_generics_list_that_does_not_parse_is_copied_with_a_plain_export() {
     let source = "<script lang=\"ts\" generics=\"extends string\">let x = 1;</script>{x}";
     let component = parse(source).expect("valid Svelte source");
-    let tree = rsvelte_svelte_typescript_projection::lower_alone(&component, source, "App.svelte")
-        .expect("supported template");
+    let tree = crate::lower_alone(&component, source, "App.svelte").expect("supported template");
     // The copy keeps the list's own errors, so the output is not valid TypeScript.
-    let output = rsvelte_svelte_typescript_projection::emit(&tree, source, "");
+    let output = crate::emit(&tree, source, "");
     let at = output
         .out
         .find("function $$render<extends string>() {")

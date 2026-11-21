@@ -119,17 +119,17 @@ fn registry() -> Registry {
     registry
 }
 
-fn documents(registry: &Registry) -> Vec<Document> {
+fn documents() -> Vec<Document> {
     [("a", "ab"), ("b", ""), ("c", "boom"), ("d", "cde")]
         .into_iter()
-        .map(|(p, t)| registry.document(p, t).expect("valid document"))
+        .map(|(p, t)| Document::new(p, t).expect("valid document"))
         .collect()
 }
 
 #[test]
 fn run_and_run_each_agree_for_every_sharing_and_thread_count() {
     let registry = registry();
-    let documents = documents(&registry);
+    let documents = documents();
     let expected: Vec<Summary> = vec![
         (
             None,
@@ -227,7 +227,7 @@ fn count<const ISOLATED: bool>(sharing: Sharing, counter: &AtomicUsize) -> usize
         .task(Reads::<ISOLATED>("second"));
     let documents: Vec<Document> = ["a", "b"]
         .into_iter()
-        .map(|p| registry.document(p, "x").expect("valid document"))
+        .map(|p| Document::new(p, "x").expect("valid document"))
         .collect();
     run(
         &registry,

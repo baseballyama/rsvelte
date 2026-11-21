@@ -1,17 +1,18 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing};
+use rsvelte_corpus::task_files;
+use rsvelte_kernel::computation::pipeline::{DocumentResult, RunOptions, Sharing};
 use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::source::document::Document;
 
-use crate::input::load;
-use crate::output::{report_metrics, write_outputs};
+use super::units::load;
 use crate::usage;
 
 pub(crate) fn corpus(reg: &Registry, roots: &[&Path], tasks: &[&str]) -> ExitCode {
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering::Relaxed;
-    let (docs, dirs, skipped) = match load(reg, roots, 1) {
+    let (docs, dirs, skipped) = match load(roots, 1) {
         Ok(loaded) => loaded,
         Err(error) => return usage(&error),
     };
@@ -39,17 +40,16 @@ pub(crate) fn corpus(reg: &Registry, roots: &[&Path], tasks: &[&str]) -> ExitCod
                 eprintln!("panic: {}: {p}", docs[i].path);
                 return;
             }
-            let mut f = 0;
-            match write_outputs(&docs[i], actual, &result, &mut f) {
-                Ok(written) => {
+            match write_outputs(&docs[i], actual, &result) {
+                Ok((written, with_diagnostics)) => {
                     files.fetch_add(written, Relaxed);
+                    failed.fetch_add(with_diagnostics, Relaxed);
                 }
                 Err(error) => {
                     unwritten.fetch_add(1, Relaxed);
                     eprintln!("cannot write: {error}");
                 }
             }
-            failed.fetch_add(f, Relaxed);
         });
     if let Err(e) = ran {
         return usage(&e.to_string());
@@ -72,3 +72,40 @@ pub(crate) fn corpus(reg: &Registry, roots: &[&Path], tasks: &[&str]) -> ExitCod
         ExitCode::SUCCESS
     }
 }
+
+/// Writes each task's files below `actual`; returns how many were written, and how many tasks
+/// reported diagnostics.
+///
+/// # Errors
+///
+/// The path that could not be created or written, and why.
+fn write_outputs(
+    document: &Document,
+    actual: &Path,
+    result: &DocumentResult,
+) -> Result<(usize, usize), String> {
+    let (mut written, mut with_diagnostics) = (0, 0);
+    for (task, out) in &result.outputs {
+        let (dir, variant) = task_files::location(task);
+        let dir = actual.join(dir);
+        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        for (name, text) in task_files::files(&document.text, out) {
+            let path = dir.join(format!("{variant}.{name}"));
+            std::fs::write(&path, text.as_bytes())
+                .map_err(|e| format!("{}: {e}", path.display()))?;
+        }
+        written += out.files.len();
+        with_diagnostics += usize::from(!out.diagnostics.is_empty());
+    }
+    Ok((written, with_diagnostics))
+}
+
+#[cfg(feature = "metrics")]
+fn report_metrics() {
+    for p in rsvelte_kernel::performance::measurement::snapshot() {
+        eprintln!("{p:?}");
+    }
+}
+
+#[cfg(not(feature = "metrics"))]
+const fn report_metrics() {}

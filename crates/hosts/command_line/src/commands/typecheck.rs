@@ -2,7 +2,6 @@
 //! errors, so editors and CI annotate them as they do TypeScript's.
 
 use std::fmt::Write as _;
-use std::io::Write as _;
 use std::path::{Component, Path, PathBuf};
 use std::process::ExitCode;
 
@@ -12,7 +11,7 @@ use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineIndex;
 
-use super::files;
+use super::{files, print_report};
 use crate::usage;
 
 /// Checks the files of the project the tasks check. Exit code 1 means an error was found.
@@ -29,7 +28,7 @@ pub(crate) fn typecheck(reg: &Registry, tasks: &[&str]) -> ExitCode {
         Ok(results) => results,
         Err(code) => return code,
     };
-    print(report(&documents, &results, here().as_deref()))
+    print_report(report(&documents, &results, here().as_deref()))
 }
 
 /// The files of the project the tasks check, or what was printed instead of checking them.
@@ -50,7 +49,7 @@ pub(crate) fn project_files(reg: &Registry, tasks: &[&str]) -> Project {
         return Project::Files(project.files);
     }
     Project::Reported(match problems(&project.problems, here().as_deref()) {
-        Ok(report) => print(report),
+        Ok(report) => print_report(report),
         Err(e) => usage(&e),
     })
 }
@@ -58,17 +57,6 @@ pub(crate) fn project_files(reg: &Registry, tasks: &[&str]) -> Project {
 /// The current directory, which the report names files relative to.
 fn here() -> Option<PathBuf> {
     std::env::current_dir().and_then(std::fs::canonicalize).ok()
-}
-
-/// Prints a report; exit code 1 when it counts an error.
-fn print((text, errors): (String, usize)) -> ExitCode {
-    // A closed pipe, as `| head` closes it, only cuts the report short.
-    drop(std::io::stdout().lock().write_all(text.as_bytes()));
-    if errors > 0 {
-        ExitCode::FAILURE
-    } else {
-        ExitCode::SUCCESS
-    }
 }
 
 /// One line per problem, `<file>(<line>,<column>): error <code>: <message>`, with paths relative

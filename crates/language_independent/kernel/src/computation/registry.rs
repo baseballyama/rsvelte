@@ -10,7 +10,7 @@ use crate::computation::database::{Artifact, ArtifactRegistry, DocumentContext, 
 use crate::computation::plugins::{Plugin, PluginError, Plugins};
 use crate::computation::task::{FinishTask, Task};
 use crate::diagnostics::Diagnostic;
-use crate::source::document::{Document, DocumentError};
+use crate::source::document::Document;
 
 #[derive(Default)]
 pub struct Registry {
@@ -254,18 +254,6 @@ impl Registry {
             .map(|t| t.identifier())
             .chain(self.finish_tasks.iter().map(|t| t.identifier()))
             .collect()
-    }
-
-    /// # Errors
-    ///
-    /// [`DocumentError::TooLarge`] if `text` is
-    /// `MAXIMUM_SOURCE_LENGTH` bytes or longer.
-    pub fn document(
-        &self,
-        path: impl Into<String>,
-        text: impl Into<String>,
-    ) -> Result<Document, DocumentError> {
-        Document::new(path.into(), text.into())
     }
 
     /// # Errors

@@ -231,3 +231,24 @@ fn check_runs_the_project_check_and_so_needs_a_type_checker() {
         "{stderr}"
     );
 }
+
+/// A misplaced flag is reported before the configuration is loaded, which may start programs.
+#[test]
+fn a_misplaced_flag_is_refused_before_the_configuration_is_loaded() {
+    let scratch = component();
+    for (arguments, message) in [
+        (
+            &["lint", "--fix", "--config", "missing.json"][..],
+            "--fix applies to `run` only",
+        ),
+        (
+            &["lint", "--check", "--config", "missing.json"],
+            "--check applies to `format` only",
+        ),
+    ] {
+        let output = rsvelte_in(&scratch, arguments);
+        let stderr = stderr(&output);
+        assert_eq!(output.status.code(), Some(2), "{arguments:?}: {stderr}");
+        assert!(stderr.contains(message), "{arguments:?}: {stderr}");
+    }
+}

@@ -3,10 +3,10 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Range;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct NodeIdentifier(pub u32);
+pub(crate) struct NodeIdentifier(pub(crate) u32);
 
 #[derive(Clone, Copy, Debug)]
-pub enum Node {
+pub(crate) enum Node {
     Source(SourceExpression),
     /// A script copied as it is, ended by a `;` at [`crate::cut_short_at`] when there is one.
     Program {
@@ -240,7 +240,7 @@ const _: () = assert!(size_of::<Node>() == 40, "`Node` is 40 bytes");
 
 /// A generic component's type parameters, without their angle brackets.
 #[derive(Clone, Copy, Debug)]
-pub enum TypeParameters {
+pub(crate) enum TypeParameters {
     /// The `generics` attribute's text, which the render function maps.
     Attribute(Span),
     /// The `$$Generic` aliases' [`Node::TypeParameter`]s, which nothing maps.
@@ -248,9 +248,9 @@ pub enum TypeParameters {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct SourceExpression {
-    pub span: Span,
-    pub end: u32,
+pub(crate) struct SourceExpression {
+    pub(crate) span: Span,
+    pub(crate) end: u32,
 }
 
 #[derive(Debug)]
@@ -282,12 +282,12 @@ impl Drop for SyntaxTree {
 
 impl SyntaxTree {
     #[must_use]
-    pub fn node(&self, identifier: NodeIdentifier) -> Node {
+    pub(crate) fn node(&self, identifier: NodeIdentifier) -> Node {
         self.nodes[identifier.0 as usize]
     }
 
     #[must_use]
-    pub fn children(&self, range: Range) -> &[NodeIdentifier] {
+    pub(crate) fn children(&self, range: Range) -> &[NodeIdentifier] {
         range.get(&self.children)
     }
 
@@ -298,7 +298,7 @@ impl SyntaxTree {
     }
 
     #[must_use]
-    pub const fn root(&self) -> Range {
+    pub(crate) const fn root(&self) -> Range {
         self.root
     }
 
@@ -326,7 +326,7 @@ impl SyntaxTree {
 
 /// How svelte2tsx writes a [`Node::Property`]'s name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Spelling {
+pub(crate) enum Spelling {
     AsWritten,
     Lowercase,
     /// `on:` before the event's name, where svelte-check reports a finding on the name.

@@ -10,7 +10,8 @@ use oxc_syntax::scope::ScopeFlags;
 use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
 use rsvelte_typescript_tree::{Reader, Recorded, SyntaxError};
 
-use super::{R, Span, Unsupported, in_typescript, script_errors};
+use super::javascript::script_errors;
+use super::{R, Span, Unsupported, in_typescript};
 
 /// The bodies of the scripts the plugin keeps as they are, as its parser throws on them;
 /// `rejected` is the first error a module rejects.

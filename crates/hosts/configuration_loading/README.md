@@ -1,9 +1,9 @@
 # Configuration hosts
 
-The kernel owns the `Contract` trait and typed `Function<C>` values. It has no dependency on
-JSON, Node, dynamic libraries or Svelte. Plugins own their function contracts. Before workers
-run, a host decodes settings, resolves function references and installs typed configuration
-facets.
+`rsvelte_plugin_interface` owns the `Contract` trait and typed `Function<C>` values, and the
+kernel has no dependency on JSON, Node, dynamic libraries or Svelte. Plugins own their function
+contracts. Before workers run, a host loads the configuration file and resolves function
+references, and each plugin decodes its own options.
 
 `Loader` and `FunctionResolver` are public extension points, and Rust callers can supply either
 directly. The CLI supports JSON, Node and external executable loaders. Node is optional; we

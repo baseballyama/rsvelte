@@ -10,6 +10,10 @@ use crate::finding::{Finding, PARSE_ERROR, UNUSED_DIRECTIVE};
 use crate::findings::Findings;
 use crate::rule::Rule;
 
+mod stylish;
+
+pub use stylish::render_stylish;
+
 /// Bytes of one finding's pretty JSON beyond its rule and message, with room for large positions,
 /// so the output is allocated once.
 const FINDING_BYTES: usize = 200;
@@ -46,7 +50,7 @@ impl<'a> Positions<'a> {
 
     /// The positions of `source_text` from its built `lines`.
     #[must_use]
-    pub fn of(lines: &'a LineIndex, source_text: &str) -> Self {
+    pub(crate) fn of(lines: &'a LineIndex, source_text: &str) -> Self {
         Self::with(Lines::Built(lines), source_text)
     }
 
@@ -201,7 +205,7 @@ pub fn render_parse_error(positions: Positions<'_>, message: &str, offset: u32) 
 
 /// The message `ESLint` reports for a parser that threw `message`.
 #[must_use]
-pub fn parsing_error(message: &str) -> String {
+pub(crate) fn parsing_error(message: &str) -> String {
     format!("Parsing error: {message}")
 }
 
