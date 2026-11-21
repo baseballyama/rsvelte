@@ -103,7 +103,8 @@ function $$render() {
       C;
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_component))();
 }
-const LetDirectives__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof LetDirectives__SvelteComponent_>} */ (LetDirectives__SvelteComponent_);
+export const LetDirectives__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof LetDirectives__SvelteComponent_>} LetDirectives__SvelteComponent_ */
+export default LetDirectives__SvelteComponent_;

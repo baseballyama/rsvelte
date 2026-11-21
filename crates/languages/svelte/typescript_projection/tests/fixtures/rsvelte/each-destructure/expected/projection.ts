@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { items, pairs, fixed } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { items, pairs, fixed } = $props();
 	let fallback = $state('none');
 	const plain = [{ name: 'a', tags: ['x'] }];
 
@@ -55,5 +55,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }
-const EachDestructure__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof EachDestructure__SvelteComponent_>} */ (EachDestructure__SvelteComponent_);
+export const EachDestructure__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof EachDestructure__SvelteComponent_>} EachDestructure__SvelteComponent_ */
+export default EachDestructure__SvelteComponent_;

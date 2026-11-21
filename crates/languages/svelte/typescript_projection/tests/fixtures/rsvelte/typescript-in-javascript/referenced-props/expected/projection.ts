@@ -12,5 +12,6 @@ let props: MyProps = $props();
   };
   return (/** @type {typeof __rsvelte_export_component<__rsvelte_props_type0, {}, "">} */ (__rsvelte_export_component))();
 }
-const ReferencedProps__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof ReferencedProps__SvelteComponent_>} */ (ReferencedProps__SvelteComponent_);
+export const ReferencedProps__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof ReferencedProps__SvelteComponent_>} ReferencedProps__SvelteComponent_ */
+export default ReferencedProps__SvelteComponent_;

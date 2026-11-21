@@ -20,7 +20,8 @@ function $$render() {
       (b);
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_component))();
 }
-const GlobalElementDirectives__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof GlobalElementDirectives__SvelteComponent_>} */ (GlobalElementDirectives__SvelteComponent_);
+export const GlobalElementDirectives__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof GlobalElementDirectives__SvelteComponent_>} GlobalElementDirectives__SvelteComponent_ */
+export default GlobalElementDirectives__SvelteComponent_;

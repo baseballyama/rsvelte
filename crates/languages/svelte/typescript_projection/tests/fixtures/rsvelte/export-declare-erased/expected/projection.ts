@@ -10,8 +10,8 @@ function $$render() {
   async () => {
     k;
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
 }
 const ExportDeclareErased__SvelteComponent_ = $$render();
-type ExportDeclareErased__SvelteComponent_ = ReturnType<typeof ExportDeclareErased__SvelteComponent_>;
+type ExportDeclareErased__SvelteComponent_ = InstanceType<typeof ExportDeclareErased__SvelteComponent_>;
 export default ExportDeclareErased__SvelteComponent_;

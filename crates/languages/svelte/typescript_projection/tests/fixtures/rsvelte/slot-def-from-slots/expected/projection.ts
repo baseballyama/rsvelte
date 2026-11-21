@@ -34,7 +34,7 @@ function $$render() {
       });
     }
   };
-  return __rsvelte_with_slots(__rsvelte_export_component<__rsvelte_props_with_children<$$ComponentProps>, {}, "">(), {
+  return __rsvelte_export_isomorphic_slots<$$ComponentProps, { [evt: string]: CustomEvent<any> }, {}, "">()({
     "default": {
       first: items[0],
       label: "",
@@ -50,5 +50,5 @@ function $$render() {
   });
 }
 const SlotDefFromSlots__SvelteComponent_ = $$render();
-type SlotDefFromSlots__SvelteComponent_ = ReturnType<typeof SlotDefFromSlots__SvelteComponent_>;
+type SlotDefFromSlots__SvelteComponent_ = InstanceType<typeof SlotDefFromSlots__SvelteComponent_>;
 export default SlotDefFromSlots__SvelteComponent_;

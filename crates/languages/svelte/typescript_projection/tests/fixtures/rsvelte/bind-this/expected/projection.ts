@@ -6,7 +6,7 @@ import Foo from './Foo.svelte';;
 function $$render() {
   
 	
-	/** @type {typeof __rsvelte_public_props0} */ let { p = $bindable(), C } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { p = $bindable(), C } = $props();
   p;
 
 	let el;
@@ -68,5 +68,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "p">} */ (__rsvelte_export_component))();
 }
-const BindThis__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof BindThis__SvelteComponent_>} */ (BindThis__SvelteComponent_);
+export const BindThis__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof BindThis__SvelteComponent_>} BindThis__SvelteComponent_ */
+export default BindThis__SvelteComponent_;

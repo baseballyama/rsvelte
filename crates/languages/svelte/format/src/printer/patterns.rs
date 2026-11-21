@@ -289,7 +289,9 @@ impl Printer<'_, '_, '_> {
                     out.push_str(identifier.name.as_str());
                     Ok(())
                 }
-                PropertyKey::StringLiteral(_) | PropertyKey::NumericLiteral(_) => {
+                PropertyKey::StringLiteral(_)
+                | PropertyKey::NumericLiteral(_)
+                | PropertyKey::BigIntLiteral(_) => {
                     out.push(' ');
                     out.push_str(node_span(key).text(self.source_text));
                     Ok(())

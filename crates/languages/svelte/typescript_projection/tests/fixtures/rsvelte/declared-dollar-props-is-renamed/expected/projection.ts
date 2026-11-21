@@ -18,7 +18,8 @@ function $$render() {
       f(1);
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_component))();
 }
-const DeclaredDollarPropsIsRenamed__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof DeclaredDollarPropsIsRenamed__SvelteComponent_>} */ (DeclaredDollarPropsIsRenamed__SvelteComponent_);
+export const DeclaredDollarPropsIsRenamed__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof DeclaredDollarPropsIsRenamed__SvelteComponent_>} DeclaredDollarPropsIsRenamed__SvelteComponent_ */
+export default DeclaredDollarPropsIsRenamed__SvelteComponent_;

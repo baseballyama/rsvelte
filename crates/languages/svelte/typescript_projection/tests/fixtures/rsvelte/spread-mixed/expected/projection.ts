@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { class: className, ...rest } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { class: className, ...rest } = $props();
 	let count = $state(0);
 	let active = $state(false);
 
@@ -60,5 +60,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }
-const SpreadMixed__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof SpreadMixed__SvelteComponent_>} */ (SpreadMixed__SvelteComponent_);
+export const SpreadMixed__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof SpreadMixed__SvelteComponent_>} SpreadMixed__SvelteComponent_ */
+export default SpreadMixed__SvelteComponent_;

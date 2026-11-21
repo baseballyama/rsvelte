@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { p = 1 } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { p = 1 } = $props();
 	let a = 1;
 	let s = $state(0);
 	let f = () => 1;
@@ -34,5 +34,6 @@ function $$render() {
     class: typeof _class;
   }, "">} */ (__rsvelte_export_component))();
 }
-const ExportSpecifiersUnwritten__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof ExportSpecifiersUnwritten__SvelteComponent_>} */ (ExportSpecifiersUnwritten__SvelteComponent_);
+export const ExportSpecifiersUnwritten__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof ExportSpecifiersUnwritten__SvelteComponent_>} ExportSpecifiersUnwritten__SvelteComponent_ */
+export default ExportSpecifiersUnwritten__SvelteComponent_;

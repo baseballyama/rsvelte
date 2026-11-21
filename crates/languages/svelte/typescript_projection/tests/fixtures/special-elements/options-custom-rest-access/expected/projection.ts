@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-/** @type {typeof __rsvelte_public_props0} */ let {value,...rest}=$props();
+let /** @type {typeof __rsvelte_public_props0} */ {value,...rest}=$props();
 function change() { rest.other=1; rest.count++; let x; x=rest.other; return rest.other; }
 
 ;
@@ -24,5 +24,6 @@ function change() { rest.other=1; rest.count++; let x; x=rest.other; return rest
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }
-const OptionsCustomRestAccess__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof OptionsCustomRestAccess__SvelteComponent_>} */ (OptionsCustomRestAccess__SvelteComponent_);
+export const OptionsCustomRestAccess__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof OptionsCustomRestAccess__SvelteComponent_>} OptionsCustomRestAccess__SvelteComponent_ */
+export default OptionsCustomRestAccess__SvelteComponent_;

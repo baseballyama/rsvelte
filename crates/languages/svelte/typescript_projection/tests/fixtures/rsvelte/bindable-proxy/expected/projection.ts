@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { items = $bindable([]), config = $bindable({ open: false }) } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { items = $bindable([]), config = $bindable({ open: false }) } = $props();
   items;
   config;
 
@@ -27,5 +27,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "items" | "config">} */ (__rsvelte_export_component))();
 }
-const BindableProxy__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof BindableProxy__SvelteComponent_>} */ (BindableProxy__SvelteComponent_);
+export const BindableProxy__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof BindableProxy__SvelteComponent_>} BindableProxy__SvelteComponent_ */
+export default BindableProxy__SvelteComponent_;

@@ -18,7 +18,8 @@ function $$render() {
       };
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_component))();
 }
-const BindContentBesideDynamicContenteditable__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof BindContentBesideDynamicContenteditable__SvelteComponent_>} */ (BindContentBesideDynamicContenteditable__SvelteComponent_);
+export const BindContentBesideDynamicContenteditable__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof BindContentBesideDynamicContenteditable__SvelteComponent_>} BindContentBesideDynamicContenteditable__SvelteComponent_ */
+export default BindContentBesideDynamicContenteditable__SvelteComponent_;

@@ -241,9 +241,12 @@ fn early_error(
     (start, end): (u32, u32),
     visit: impl FnOnce(&mut Locator),
 ) -> Option<Acorn> {
-    let second = || {
+    let second_label = || {
         let label = error.labels.get(1)?;
-        let (start, end) = (label.offset(), label.offset() + label.len());
+        Some((label.offset(), label.offset() + label.len()))
+    };
+    let second = || {
+        let (start, end) = second_label()?;
         Some((start, text.get(start as usize..end as usize)?))
     };
     match number {
@@ -266,7 +269,7 @@ fn early_error(
         "2524" => Some(fails("Await expression cannot be a default value", start)),
         "2523" => Some(fails("Yield expression cannot be a default value", start)),
         // A second declaration: oxc labels the first one first, and acorn fails at this one.
-        "2300" => Some(redeclaration((start, end), second()?, visit)),
+        "2300" => redeclaration((start, end), second_label()?, text, visit),
         "1114" => {
             let (at, name) = second()?;
             Some(Acorn::Fails {
@@ -452,25 +455,28 @@ fn after_member_name(
     words.nth(1).map(|token| token.start())
 }
 
-/// What acorn reports for `name` declared again at `at`, which oxc first labels at `first`.
-/// acorn-typescript checks a type alias only against the types before it.
+/// What acorn reports for the name oxc labels at `first` and declares again in `second`. acorn
+/// fails at the name; acorn-typescript checks a type alias only against the types before it.
 fn redeclaration(
     first: (u32, u32),
-    (at, name): (u32, &str),
+    second: (u32, u32),
+    text: &str,
     visit: impl FnOnce(&mut Locator),
-) -> Acorn {
-    let locator = redeclared(first, (at, at + name.len() as u32), visit);
+) -> Option<Acorn> {
+    let name = text.get(first.0 as usize..first.1 as usize)?;
+    let locator = redeclared(first, second, visit);
+    let at = locator.redeclared_name()?.start;
     let message = match (locator.found, locator.first_is_type) {
-        (Some((_, AstType::FormalParameters)), _) => return fails("Argument name clash", at),
+        (Some((_, AstType::FormalParameters)), _) => return Some(fails("Argument name clash", at)),
         (Some((_, AstType::TSTypeAliasDeclaration)), true) => {
             format!("type '{name}' has already been declared.")
         }
         _ => format!("Identifier '{name}' has already been declared"),
     };
-    Acorn::Fails {
+    Some(Acorn::Fails {
         message: Cow::Owned(message),
         at,
-    }
+    })
 }
 
 /// The walk for a name oxc labels at `first` and declares again at `second`.

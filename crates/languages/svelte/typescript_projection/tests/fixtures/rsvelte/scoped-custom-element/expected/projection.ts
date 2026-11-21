@@ -1,6 +1,6 @@
 ;
 function $$render() {
-  let c = $state('a'); /** @type {typeof __rsvelte_public_props0} */ let { p } = $props();
+  let c = $state('a'); let /** @type {typeof __rsvelte_public_props0} */ { p } = $props();
 ;
 
   const __rsvelte_public_props0 = __rsvelte_props({
@@ -45,5 +45,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }
-const ScopedCustomElement__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof ScopedCustomElement__SvelteComponent_>} */ (ScopedCustomElement__SvelteComponent_);
+export const ScopedCustomElement__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof ScopedCustomElement__SvelteComponent_>} ScopedCustomElement__SvelteComponent_ */
+export default ScopedCustomElement__SvelteComponent_;

@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { load, other } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { load, other } = $props();
 	let count = $state(0);
 
 ;
@@ -67,5 +67,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }
-const AwaitBlock__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof AwaitBlock__SvelteComponent_>} */ (AwaitBlock__SvelteComponent_);
+export const AwaitBlock__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof AwaitBlock__SvelteComponent_>} AwaitBlock__SvelteComponent_ */
+export default AwaitBlock__SvelteComponent_;

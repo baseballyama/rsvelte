@@ -39,7 +39,7 @@ impl Printer<'_> {
             ">['props']>, {}, {}> & ReturnType<__rsvelte_Render<",
             arguments,
             ">['exports']> { return null as any; } }\n// @ts-ignore\n",
-            "interface __rsvelte_generic_component { <",
+            "interface $$IsomorphicComponent { <",
             plain,
             ">(internals: Parameters<import('svelte').Component>[0], props: \
                 ReturnType<__rsvelte_Render<",
@@ -66,7 +66,7 @@ impl Printer<'_> {
         self.output.push(">>>['__rsvelte_bindings']>; }\nconst ");
         self.push_default_export();
         self.output
-            .push(": __rsvelte_generic_component = null as any;\n// @ts-ignore\ntype ");
+            .push(": $$IsomorphicComponent = null as any;\n// @ts-ignore\ntype ");
         self.push_default_export();
         for part in [
             "<",

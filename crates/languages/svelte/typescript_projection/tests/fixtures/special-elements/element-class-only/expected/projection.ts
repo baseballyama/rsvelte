@@ -1,6 +1,6 @@
 ;
 function $$render() {
-  /** @type {typeof __rsvelte_public_props0} */ let { tag, active } = $props();
+  let /** @type {typeof __rsvelte_public_props0} */ { tag, active } = $props();
 ;
 
   const __rsvelte_public_props0 = __rsvelte_props({
@@ -15,5 +15,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }
-const ElementClassOnly__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof ElementClassOnly__SvelteComponent_>} */ (ElementClassOnly__SvelteComponent_);
+export const ElementClassOnly__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof ElementClassOnly__SvelteComponent_>} ElementClassOnly__SvelteComponent_ */
+export default ElementClassOnly__SvelteComponent_;
