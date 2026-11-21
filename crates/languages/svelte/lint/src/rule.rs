@@ -85,6 +85,7 @@ pub struct File<'a> {
     comments: Vec<&'a Comment>,
     /// The configuration's globals as the comments set them, or `None` when no comment sets one.
     globals: OnceLock<Option<Declared>>,
+    runes: OnceLock<Option<bool>>,
 }
 
 #[derive(Debug)]
@@ -144,6 +145,7 @@ impl<'a> File<'a> {
             programs,
             comments,
             globals: OnceLock::new(),
+            runes: OnceLock::new(),
         })
     }
 
@@ -159,6 +161,15 @@ impl<'a> File<'a> {
             })
             .as_ref()
             .unwrap_or(self.configured_globals)
+    }
+
+    /// Whether the document is in runes mode as `svelte-eslint-parser` decides it; `None` for a
+    /// module that is not a `.svelte.js` or `.svelte.ts` module.
+    #[must_use]
+    pub(crate) fn runes(&self) -> Option<bool> {
+        *self
+            .runes
+            .get_or_init(|| crate::rules::shared::runes::runes(self))
     }
 
     /// Every JavaScript comment of the document, the scripts' and the template's, in document
