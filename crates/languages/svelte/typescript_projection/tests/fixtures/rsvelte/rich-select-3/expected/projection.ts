@@ -6,7 +6,7 @@ import Option from './Option.svelte';;
 function $$render() {
   
 	
-	/** @type {typeof __rsvelte_public_props0} */ let { p, c } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { p, c } = $props();
 
 ;
 

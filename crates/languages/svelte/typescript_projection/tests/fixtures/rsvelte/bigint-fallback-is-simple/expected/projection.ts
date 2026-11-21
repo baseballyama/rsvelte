@@ -8,7 +8,7 @@ function $$render() {
     return __rsvelte_snippet_return;
   };
 
-	/** @type {typeof __rsvelte_public_props0} */ let { p = 1n } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { p = 1n } = $props();
 
 ;
 

@@ -189,6 +189,9 @@ pub(crate) enum Node {
     QuotedText(Span),
     /// Source text without a mapping, so neither findings nor typed lint see this copy.
     UnmappedSource(Span),
+    /// svelte2tsx's `comment({})` for the `JSDoc` comment that types a JavaScript component's
+    /// props, which TypeScript reads as a cast.
+    CommentCast(Span),
     /// `(parts) as written`, as svelte2tsx writes a type assertion `<written>parts`.
     AsType {
         parts: Range,

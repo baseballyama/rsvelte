@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { results } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { results } = $props();
 
 ;
 

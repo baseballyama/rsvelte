@@ -1,0 +1,26 @@
+[
+	{
+		"code": 2322,
+		"message": "Type 'number' is not assignable to type 'string'.",
+		"start": {
+			"line": 3,
+			"character": 7
+		},
+		"end": {
+			"line": 3,
+			"character": 8
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'extra' does not exist on type '$$ComponentProps'.",
+		"start": {
+			"line": 3,
+			"character": 14
+		},
+		"end": {
+			"line": 3,
+			"character": 19
+		}
+	}
+]
