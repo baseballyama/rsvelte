@@ -17,10 +17,11 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
 
-# corpus/svelte is most of the tree, and the jobs that do not read it check out without it
-# (`no-corpus` below). git still lists the excluded files, so such a job must not read a tracked
-# file under corpus/svelte: tools/structure reads every tracked file and runs on the whole tree;
-# tools/writing reads every tracked *.md, and corpus/svelte holds none.
+# corpus/svelte is most of the tree's bytes and corpus/_own most of its files; only `oracle import`
+# reads corpus/_own. The jobs that do not read them check out without them (`no-corpus` below).
+# git still lists the excluded files, so such a job must not read a tracked file under them:
+# tools/structure reads every tracked file and runs on the whole tree; tools/writing reads every
+# tracked *.md and skips corpus/.
 jobs:
   rust-format:
     runs-on: ubuntu-24.04
@@ -32,6 +33,7 @@ jobs:
           sparse-checkout: &no-corpus |
             /*
             !/corpus/svelte/
+            !/corpus/_own/
           sparse-checkout-cone-mode: false
       - run: |
           toolchain=$(sed -n 's/^rustfmt = "\(.*\)"$/\1/p' mise.toml)
@@ -66,10 +68,12 @@ jobs:
       matrix:
         include:
           # The corpus test is the only reader of corpus/svelte, and optimizing it saves more time
-          # than the optimized build costs. An empty sparse-checkout checks out the whole tree.
+          # than the optimized build costs.
           - part: command-line
             packages: -p rsvelte_command_line
-            sparse-checkout: ''
+            sparse-checkout: |
+              /*
+              !/corpus/_own/
             opt-level: 1
           - part: workspace
             packages: --workspace --exclude rsvelte_command_line
@@ -225,6 +229,7 @@ jobs:
           sparse-checkout: |
             /*
             !/corpus/svelte/*/expected/
+            !/corpus/_own/
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
