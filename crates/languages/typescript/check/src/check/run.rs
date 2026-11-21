@@ -172,16 +172,26 @@ impl Tsc {
             resolve,
         )
         .map_err(failed)?;
-        let [program, syntactic, semantic] = checked.found;
-        let index = path_index(&paths);
-        let untyped = untyped::imports(req, &checked.modules, &root, &index);
-        // TypeScript loads a JavaScript file an untyped import reads only when the tsconfig
-        // selects it.
-        let selected: std::collections::HashSet<&Path> =
-            checked.selected.iter().map(PathBuf::as_path).collect();
-        let unloaded =
-            |file: usize| untyped.read.contains(&file) && !selected.contains(paths[file].as_path());
         // The session ends when it drops, which frees the snapshot with the process.
+        self.findings(req, checked, &root, &paths)
+    }
+
+    /// The errors of `checked`, at the documents' lines, with each untyped import's TS7016.
+    fn findings(
+        &self,
+        req: &CheckRequest<'_>,
+        checked: Checked,
+        root: &Path,
+        paths: &[PathBuf],
+    ) -> Result<Vec<TypeScriptDiagnostic>, String> {
+        let [program, syntactic, semantic] = checked.found;
+        let index = path_index(paths);
+        let untyped = untyped::imports(req, &checked.modules, root, &index);
+        // TypeScript does not load a JavaScript file that the tsconfig's program reaches only
+        // through an untyped import. A document the program does not reach at all is one the
+        // run was given, which svelte-check checks as a root.
+        let unloaded =
+            |file: usize| untyped.read.contains(&file) && checked.reached.contains(&paths[file]);
         let lines: Vec<LineIndex> = (0..req.files.len())
             .map(|i| LineIndex::new(req.text(i)))
             .collect();
@@ -193,7 +203,7 @@ impl Tsc {
             // The command line reports errors only; svelte-check's errors are the oracle.
             .filter(|(_, d)| d.is_error())
             .map(|(syntactic, d)| {
-                located(&d, &root, &index, &lines, syntactic)
+                located(&d, root, &index, &lines, syntactic)
                     .ok_or_else(|| unlocated(&self.checker, &d))
             })
             .filter(|found| {
@@ -265,15 +275,18 @@ const MOST_PROCESSES: usize = 4;
 
 type Helper = std::thread::JoinHandle<Result<Session, String>>;
 type Found = Vec<rsvelte_typescript_api::Diagnostic>;
+/// The modules each import of a document reads, by document.
+type Modules = Vec<(usize, Vec<Option<PathBuf>>)>;
 
 /// What the processes found in the project of `config`.
 struct Checked {
     /// The program, syntactic and semantic findings.
     found: [Found; 3],
     /// The modules each document's imports read, by document, when asked to resolve them.
-    modules: Vec<(usize, Vec<Option<PathBuf>>)>,
-    /// The root files of the project of the selection config, if any.
-    selected: Vec<PathBuf>,
+    modules: Modules,
+    /// The files the project of the selection config, if any, has only because an import
+    /// reaches them, not because the tsconfig selects them.
+    reached: std::collections::HashSet<PathBuf>,
 }
 
 /// The documents whose imports the processes resolve, at their paths.
@@ -311,7 +324,16 @@ fn check_shares(
         configs.extend(selection);
         let mut projects = session.open(&configs, layer)?.into_iter();
         let project = projects.next().ok_or("the checker opened no project")?;
-        let selected = projects.next().map(|p| p.root_files).unwrap_or_default();
+        let reached = match projects.next() {
+            Some(selection) => {
+                let roots: std::collections::HashSet<PathBuf> =
+                    selection.root_files.iter().cloned().collect();
+                (session.source_file_names(&selection)?.into_iter())
+                    .filter(|file| !roots.contains(file))
+                    .collect()
+            }
+            None => std::collections::HashSet::new(),
+        };
         let program = session.diagnostics(&project, DiagnosticKind::Program, None)?;
         let syntactic = session.diagnostics(&project, DiagnosticKind::Syntactic, Some(files))?;
         let (mut semantic, mut modules) = shares.check(session, &project)?;
@@ -325,7 +347,7 @@ fn check_shares(
         Ok(Checked {
             found: [program, syntactic, semantic],
             modules,
-            selected,
+            reached,
         })
     })
 }
@@ -365,11 +387,7 @@ impl<'a> Shares<'a> {
 
     /// The semantic findings of each share `session` takes, and the modules of its documents'
     /// imports when asked.
-    fn check(
-        &self,
-        session: &mut Session,
-        project: &Project,
-    ) -> Result<(Found, Vec<(usize, Vec<Option<PathBuf>>)>), String> {
+    fn check(&self, session: &mut Session, project: &Project) -> Result<(Found, Modules), String> {
         let mut found = Vec::new();
         let mut modules = Vec::new();
         while let Some(share) = self.take() {
