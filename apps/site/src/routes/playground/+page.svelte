@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import Code from '#lib/Code.svelte';
 	import { example, load, operations, view, type Operation, type Result } from '#lib/playground.ts';
 
 	let source = $state(example);
@@ -47,7 +48,9 @@
 </div>
 
 <div class="panes">
-	<textarea bind:value={source} spellcheck="false" aria-label="Source of App.svelte"></textarea>
+	<div class="editor">
+		<Code bind:value={source} file="App.svelte" label="Source of App.svelte" />
+	</div>
 	<div class="output" aria-live="polite">
 		{#if failure}
 			<p>rsvelte did not load: {failure}</p>
@@ -66,7 +69,9 @@
 				{/each}
 				{#each shown.files as file (file.name)}
 					{#if shown.files.length > 1}<p class="muted">{file.name}</p>{/if}
-					<pre>{file.text}</pre>
+					<div class="file">
+						<Code value={file.text} file={file.name} label={file.name} readonly />
+					</div>
 				{/each}
 				{#if operation === 'lint' && shown.problems.length === 0}
 					<p class="muted">No problems found.</p>
@@ -90,18 +95,13 @@
 		gap: 1rem;
 	}
 
-	textarea {
-		width: 100%;
+	.editor {
+		min-width: 0;
 		height: max(28rem, calc(100vh - 20rem));
-		padding: 0.9rem 1rem;
-		border: 1px solid var(--line);
-		border-radius: 8px;
-		color: inherit;
-		background: var(--code-bg);
-		font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-		font-size: 0.9em;
-		line-height: 1.55;
-		resize: none;
+	}
+
+	.file {
+		margin-bottom: 1rem;
 	}
 
 	.output {
@@ -110,12 +110,8 @@
 		overflow: auto;
 	}
 
-	.output pre {
-		margin-top: 0;
-	}
-
 	@media (max-width: 50rem) {
-		textarea {
+		.editor {
 			height: 24rem;
 		}
 
