@@ -6,12 +6,13 @@ use oxc_ast::ast::{
     VariableDeclaration, VariableDeclarationKind,
 };
 use oxc_ast_visit::{Visit, walk};
-use oxc_semantic::{ScopeId, SymbolFlags};
+use oxc_semantic::{NodeId, ScopeId, Scoping, SymbolFlags, SymbolId};
+use oxc_span::Span as OxcSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Component, Part};
 use rsvelte_typescript_tree::{ProgramIdentifier, Tree, document_span};
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::found::{Found, Stage};
 use super::{Phase, Raised, Section, error, warning};
@@ -84,23 +85,30 @@ pub fn dollar_name_errors(
         | SymbolFlags::EnumMember
         | SymbolFlags::NamespaceModule
         | SymbolFlags::ValueModule;
+    let hoisted = hoisted_from_catch_clauses(nodes, scoping);
     for symbol in scoping.symbol_ids() {
         let flags = scoping.symbol_flags(symbol);
-        if flags.intersects(erased) || !scoping.symbol_name(symbol).starts_with('$') {
+        let name = scoping.symbol_name(symbol);
+        if flags.intersects(erased) || !name.starts_with('$') {
             continue;
         }
-        // Upstream declares a binding at each declaration and checks no parameter's name.
-        let declared = (
-            scoping.symbol_declaration(symbol),
-            scoping.symbol_span(symbol),
-        );
-        let redeclarations = scoping.symbol_redeclarations(symbol);
-        let checked = || {
-            (redeclarations.iter().map(|r| (r.declaration, r.span)))
-                .chain(redeclarations.is_empty().then_some(declared))
-                .filter(|&(node, _)| !is_parameter(nodes, node))
+        let scope = scoping.symbol_scope_id(symbol);
+        // Each declaration oxc binds to the symbol finds its binding, as upstream's walk does.
+        let visits =
+            || declarations(scoping, symbol).filter(|&(node, _)| !is_parameter(nodes, node));
+        // Upstream declares a binding at each declaration and checks no parameter's name. Its
+        // catch scope is porous: a `var` there, which oxc binds to the catch parameter, is a
+        // declaration of the function's binding.
+        let in_catch_parameter = |&(node, _): &(NodeId, OxcSpan)| is_catch_parameter(nodes, node);
+        let mut binding: Vec<(NodeId, OxcSpan)> = if visits().any(|d| in_catch_parameter(&d)) {
+            visits().filter(in_catch_parameter).collect()
+        } else {
+            visits()
+                .chain(hoisted.get(&(scope, name)).into_iter().flatten().copied())
+                .collect()
         };
-        let Some(first) = checked().next() else {
+        binding.sort_unstable_by_key(|&(_, span)| span.start);
+        let (Some(&first), Some(&last)) = (binding.first(), binding.last()) else {
             continue;
         };
         let first_at = document_span(first.1).start_offset;
@@ -111,7 +119,6 @@ pub fn dollar_name_errors(
         } else {
             Section::Template
         };
-        let scope = scoping.symbol_scope_id(symbol);
         let scope_node = nodes.kind(scoping.get_node_id(scope));
         // A class expression's own name is not in the compiler's scopes.
         if matches!(scope_node, AstKind::Class(_)) {
@@ -121,46 +128,44 @@ pub fn dollar_name_errors(
         let names_function_expression = matches!(scope_node, AstKind::Function(f)
             if f.is_expression() && f.id.as_ref().and_then(|id| id.symbol_id.get()) == Some(symbol));
         // The walk checks function and class declarations and variable declarators, and visits
-        // a `{@const}`'s declarator only through its id and value.
-        let walked = runes
-            && checked().any(|(node, _)| match nodes.kind(node) {
-                AstKind::Function(function) => function.is_declaration(),
-                AstKind::Class(class) => class.is_declaration(),
-                AstKind::VariableDeclarator(_) => {
-                    resolution.binding(symbol).kind != BindingKind::Template
+        // a `{@const}`'s declarator only through its id and value. It raises at the first, for
+        // the binding's last declaration, which a `var` declared again left in its place.
+        let walked = visits().find(|&(node, _)| {
+            runes
+                && match nodes.kind(node) {
+                    AstKind::Function(function) => function.is_declaration(),
+                    AstKind::Class(class) => class.is_declaration(),
+                    AstKind::VariableDeclarator(_) => {
+                        resolution.binding(symbol).kind != BindingKind::Template
+                    }
+                    _ => false,
                 }
-                _ => false,
-            });
-        // Creating the scopes checks the first binding, the walk the one a `var` declared again
-        // left in its place.
-        let last = checked().next_back().unwrap_or(first);
-        let (phase, (_, span)) = match section {
+        });
+        // Creating the scopes checks each binding as it declares it, so the first raises.
+        let ((phase, at), (_, span)) = match (section, walked) {
             // Upstream's template scopes sit more than one function below the module's, out of
             // reach of the check creating the scopes makes.
-            Section::Template if walked => (Phase::Walk, last),
-            Section::Template => continue,
-            Section::Module | Section::Instance if flags.intersects(SymbolFlags::Enum) => {
-                (Phase::Scopes, first)
+            (Section::Template, Some(visit)) => ((Phase::Walk, visit.1), last),
+            (Section::Template, None) => continue,
+            (Section::Module | Section::Instance, _) if flags.intersects(SymbolFlags::Enum) => {
+                ((Phase::Scopes, first.1), first)
             }
-            Section::Module | Section::Instance => {
+            (Section::Module | Section::Instance, walked) => {
                 let depth = function_depth(resolution, scope, section == Section::Instance)
                     - u32::from(names_function_expression);
-                if depth <= 1 {
-                    (Phase::Scopes, first)
-                } else if walked {
-                    (Phase::Walk, last)
-                } else {
-                    continue;
+                match walked {
+                    _ if depth <= 1 => ((Phase::Scopes, first.1), first),
+                    Some(visit) => ((Phase::Walk, visit.1), last),
+                    None => continue,
                 }
             }
         };
-        let at = document_span(span);
         let raised = Raised {
             phase,
             section,
-            at: at.start_offset,
+            at: document_span(at).start_offset,
         };
-        found.push((raised, at));
+        found.push((raised, document_span(span)));
     }
     for (raised, span) in found {
         out.push((raised, reserved(span, source)));
@@ -168,9 +173,57 @@ pub fn dollar_name_errors(
     out
 }
 
+/// The declarations oxc binds to `symbol`, with their nodes.
+fn declarations(scoping: &Scoping, symbol: SymbolId) -> impl Iterator<Item = (NodeId, OxcSpan)> {
+    let redeclarations = scoping.symbol_redeclarations(symbol);
+    let declared = (
+        scoping.symbol_declaration(symbol),
+        scoping.symbol_span(symbol),
+    );
+    (redeclarations.iter().map(|r| (r.declaration, r.span)))
+        .chain(redeclarations.is_empty().then_some(declared))
+}
+
+/// The `var`s that redeclare a catch clause's parameter, by the var scope around the clause and
+/// the name: upstream declares them in that scope, and oxc binds them to the parameter.
+fn hoisted_from_catch_clauses<'s>(
+    nodes: &oxc_semantic::AstNodes<'_>,
+    scoping: &'s Scoping,
+) -> FxHashMap<(ScopeId, &'s str), Vec<(NodeId, OxcSpan)>> {
+    let mut hoisted: FxHashMap<_, Vec<_>> = FxHashMap::default();
+    for symbol in scoping.symbol_ids() {
+        let name = scoping.symbol_name(symbol);
+        let in_catch_parameter = |(node, _): (NodeId, OxcSpan)| is_catch_parameter(nodes, node);
+        if !name.starts_with('$') || !declarations(scoping, symbol).any(in_catch_parameter) {
+            continue;
+        }
+        let var_scope = scoping
+            .scope_ancestors(scoping.symbol_scope_id(symbol))
+            .find(|&scope| scoping.scope_flags(scope).is_var());
+        for declaration in declarations(scoping, symbol) {
+            if let Some(var_scope) = var_scope
+                && !in_catch_parameter(declaration)
+            {
+                hoisted
+                    .entry((var_scope, name))
+                    .or_default()
+                    .push(declaration);
+            }
+        }
+    }
+    hoisted
+}
+
+/// Whether the declaration at `node` is in a catch clause's parameter.
+fn is_catch_parameter(nodes: &oxc_semantic::AstNodes<'_>, node: NodeId) -> bool {
+    std::iter::once(nodes.kind(node))
+        .chain(nodes.ancestor_kinds(node))
+        .any(|kind| matches!(kind, AstKind::CatchParameter(_)))
+}
+
 /// Whether the declaration at `node` is a parameter, whose symbol is declared at the parameter
 /// node itself.
-fn is_parameter(nodes: &oxc_semantic::AstNodes<'_>, node: oxc_semantic::NodeId) -> bool {
+fn is_parameter(nodes: &oxc_semantic::AstNodes<'_>, node: NodeId) -> bool {
     std::iter::once(nodes.kind(node))
         .chain(nodes.ancestor_kinds(node))
         .any(|kind| {
