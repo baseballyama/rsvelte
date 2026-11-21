@@ -10,7 +10,7 @@ fn task_output(source_text: &str) -> TaskOutput {
         &registry,
         &[document],
         &RunOptions {
-            tasks: &["svelte.format/default"],
+            tasks: &[Format::IDENTIFIER],
             sharing: Sharing::Shared,
             threads: Some(1),
         },

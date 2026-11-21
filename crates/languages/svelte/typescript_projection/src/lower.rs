@@ -1,4 +1,3 @@
-mod attribute;
 mod attributes;
 mod awaits;
 mod binding;
@@ -8,11 +7,11 @@ mod contract;
 mod directive;
 mod each;
 mod element;
-mod generic;
 mod names;
 mod nested;
 pub use contract::store_reads;
 mod hoistable;
+mod render;
 mod root_snippets;
 mod standalone;
 pub use standalone::lower_alone;

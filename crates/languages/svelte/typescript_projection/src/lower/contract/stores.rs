@@ -4,6 +4,7 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::Statement;
 use oxc_span::GetSpan;
+use oxc_syntax::symbol::SymbolId;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_typescript_tree::document_span;
 
@@ -21,9 +22,7 @@ enum StoreAt {
 
 /// Each store subscription `$x` whose store `x` a variable or an import of the instance binds, for
 /// which svelte2tsx declares `$x`: the name, the store's symbol, and whether an import binds it.
-fn subscribed_stores(
-    resolution: &Resolution,
-) -> impl Iterator<Item = (&str, oxc_syntax::symbol::SymbolId, bool)> {
+fn subscribed_stores(resolution: &Resolution) -> impl Iterator<Item = (&str, SymbolId, bool)> {
     let scoping = resolution.scoping();
     resolution
         .unresolved_names()
@@ -43,9 +42,7 @@ fn subscribed_stores(
 
 /// Each `$x` the component declares itself at the top of a script and reads: svelte2tsx still
 /// declares a subscription for it, which TypeScript reports as declared twice.
-fn declared_subscriptions(
-    resolution: &Resolution,
-) -> impl Iterator<Item = oxc_syntax::symbol::SymbolId> {
+fn declared_subscriptions(resolution: &Resolution) -> impl Iterator<Item = SymbolId> {
     let scoping = resolution.scoping();
     let top = [resolution.instance_scope(), scoping.root_scope_id()];
     scoping.symbol_ids().filter(move |&symbol| {
@@ -60,10 +57,14 @@ fn declared_subscriptions(
 #[must_use]
 pub fn store_reads(resolution: &Resolution) -> Vec<(Span, Vec<Span>)> {
     let scoping = resolution.scoping();
+    let instance = resolution.instance_scope();
+    let root = scoping.root_scope_id();
+    let top = std::iter::once(instance).chain((root != instance).then_some(root));
     subscribed_stores(resolution)
         .map(|(name, symbol, _)| {
-            let declared = declared_subscriptions(resolution)
-                .filter(|&own| scoping.symbol_name(own) == name)
+            let declared = top
+                .clone()
+                .filter_map(|scope| scoping.get_binding(scope, name.into()))
                 .flat_map(|own| scoping.get_resolved_reference_ids(own));
             let reads = (scoping.root_unresolved_references().get(name).into_iter())
                 .flatten()

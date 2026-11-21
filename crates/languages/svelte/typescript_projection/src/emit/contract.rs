@@ -132,15 +132,15 @@ impl Printer<'_> {
             return self.javascript_export(value);
         }
         self.output.push("const ");
-        self.default_export_name();
+        self.push_default_export();
         self.output.push(" = ");
         self.node(value);
         self.output.push(";\ntype ");
-        self.default_export_name();
+        self.push_default_export();
         self.output.push(" = ReturnType<typeof ");
-        self.default_export_name();
+        self.push_default_export();
         self.output.push(">;\nexport default ");
-        self.default_export_name();
+        self.push_default_export();
         self.output.push(";\n");
     }
 

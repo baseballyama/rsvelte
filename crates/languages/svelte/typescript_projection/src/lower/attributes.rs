@@ -205,3 +205,5 @@ impl Builder<'_> {
         Ok(bindings)
     }
 }
+
+mod attribute;

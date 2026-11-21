@@ -42,14 +42,14 @@ impl Printer<'_> {
     /// read it as `any`, as the run declares.
     pub(super) fn javascript_export(&mut self, value: NodeIdentifier) {
         self.output.push("const ");
-        self.default_export_name();
+        self.push_default_export();
         self.output.push(" = ");
         self.node(value);
         self.output
             .push(";\nexport default /** @type {__rsvelte_javascript_export<typeof ");
-        self.default_export_name();
+        self.push_default_export();
         self.output.push(">} */ (");
-        self.default_export_name();
+        self.push_default_export();
         self.output.push(");\n");
     }
 

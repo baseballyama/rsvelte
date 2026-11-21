@@ -6,8 +6,8 @@ use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, Script, TemplateNode};
 use rsvelte_typescript_tree::document_span;
 
-use super::generic::Generics;
 use super::nested::Nested;
+use super::render::Generics;
 use super::{Buffer, Builder, Node, NodeIdentifier, Range, Result, Span, refuse};
 
 pub(super) struct Edit {
