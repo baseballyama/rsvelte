@@ -189,27 +189,42 @@ impl Artifact for ModuleAsTypeScriptSemantic {
     }
 }
 
-/// The scopes of [`module`]: the shared ones when the shared parse succeeds, since a tree is
-/// analyzed once; `None` when the module does not parse.
-pub(crate) fn module_semantic<'a>(context: &'a DocumentContext<'_>) -> Option<&'a Semantic> {
+/// Which parse [`module`] reads, so that its tree and its scopes come from one choice.
+enum ModuleRead<'a> {
+    Shared(&'a Script),
+    AsTypeScript(&'a Script),
+}
+
+/// The one the shared tasks parse, or, when that fails, the module read as TypeScript, as
+/// typescript-eslint reads every module.
+fn read_module<'a>(context: &'a DocumentContext<'_>) -> Result<ModuleRead<'a>, &'a Diagnostic> {
     match context.get::<rsvelte_typescript_tree::Parsed>() {
-        Ok(_) => context
-            .get::<rsvelte_typescript_semantic::Resolved>()
-            .as_ref(),
-        Err(_) => context.get::<ModuleAsTypeScriptSemantic>().as_ref(),
+        Ok(script) => Ok(ModuleRead::Shared(script)),
+        Err(error) => (context.get::<ModuleAsTypeScript>().as_ref())
+            .map(ModuleRead::AsTypeScript)
+            .or(Err(error)),
     }
 }
 
-/// The module lint reads: the one the shared tasks parse, or, when that fails, the module read as
-/// TypeScript, as typescript-eslint reads every module.
+/// The module lint reads ([`read_module`]).
 ///
 /// # Errors
 ///
 /// The shared parse's error.
 pub(crate) fn module<'a>(context: &'a DocumentContext<'_>) -> Result<&'a Script, &'a Diagnostic> {
-    match context.get::<rsvelte_typescript_tree::Parsed>() {
-        Ok(script) => Ok(script),
-        Err(error) => (context.get::<ModuleAsTypeScript>().as_ref()).or(Err(error)),
+    read_module(context).map(|read| match read {
+        ModuleRead::Shared(script) | ModuleRead::AsTypeScript(script) => script,
+    })
+}
+
+/// The scopes of [`module`]: the shared ones for the shared parse, since a tree is analyzed once;
+/// `None` when the module does not parse.
+pub(crate) fn module_semantic<'a>(context: &'a DocumentContext<'_>) -> Option<&'a Semantic> {
+    match read_module(context).ok()? {
+        ModuleRead::Shared(_) => context
+            .get::<rsvelte_typescript_semantic::Resolved>()
+            .as_ref(),
+        ModuleRead::AsTypeScript(_) => context.get::<ModuleAsTypeScriptSemantic>().as_ref(),
     }
 }
 
