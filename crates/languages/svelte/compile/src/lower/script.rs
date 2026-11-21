@@ -14,7 +14,7 @@ mod stores;
 mod writes;
 
 pub(super) use classes::Classes;
-pub(super) use exports::{Export, default_exports};
+pub(super) use exports::Export;
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::ast::{
     Argument, ArrowFunctionExpression, BindingIdentifier, ClassBody, Expression, Function,
@@ -30,15 +30,16 @@ pub use patterns::is_expression_async;
 pub(super) use program::{ScriptContext, lower_declaration_tag, lower_script, props_id};
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rustc_hash::FxHashMap;
-
-/// What upstream's transforms call a `$$props` the source declares.
-const SANITIZED_PROPS: &str = "$$sanitized_props";
 use statements::{Inspect, inspect, inspects_with, is_effect};
 pub(super) use writes::mutates_signal;
 
+use super::Builder;
+use super::builder::Runtime;
 use super::names::Names;
-use super::{Builder, Target};
-use crate::lower::builder::Runtime;
+use crate::input::Target;
+
+/// What upstream's transforms call a `$$props` the source declares.
+const SANITIZED_PROPS: &str = "$$sanitized_props";
 
 pub(super) struct ScriptRewrite<'r, 'o> {
     pub b: &'r Builder<'o>,
@@ -528,6 +529,15 @@ pub(super) fn with_prologue<'o>(b: &Builder<'o>, mut function: Statement<'o>) ->
         hoist_body(b, body);
     }
     function
+}
+
+/// Where the instance script stands in the source, or [`SPAN`](oxc_span::SPAN) without one.
+/// Upstream gives the block that holds the script's statements this position, so that its printer
+/// writes the script's comments there.
+pub(super) fn instance_span(component: rsvelte_svelte_semantic::input::ComponentInput<'_>) -> Span {
+    component.instance.map_or(oxc_span::SPAN, |instance| {
+        component.javascript.get_program(instance).span
+    })
 }
 
 fn hoist_body<'o>(b: &Builder<'o>, body: &mut oxc_ast::ast::FunctionBody<'o>) {

@@ -1,8 +1,9 @@
-use super::super::slot_element::{SlotAttribute, slot_attributes, slot_call};
-use super::{
-    ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, Memo, NodeKind, Target,
-};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
+
+use super::{ClientCompilationContext, Frag, Lists, Memo};
+use crate::input::Target;
 use crate::lower::builder::Runtime;
+use crate::lower::slot_element::{SlotAttribute, slot_attributes, slot_call};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `SlotElement` (client): a value with a call is read from a derived, and those

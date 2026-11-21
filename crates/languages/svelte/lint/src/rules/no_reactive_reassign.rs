@@ -10,9 +10,8 @@ use rsvelte_typescript_tree::node_span;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
-use super::shared::legacy_reactivity::{
-    Variable, bindings, expression_node, legacy, property_name,
-};
+use super::shared::legacy_reactivity::{Variable, bindings, legacy};
+use super::shared::nodes::property_name;
 use super::shared::runes::runes_mode;
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
@@ -127,7 +126,7 @@ fn reassignment(
             return None;
         }
         let at = || (node_span(&nodes.kind(parent)), !path.is_empty());
-        let is_node = |expression: &Expression<'_>| expression_node(expression) == node;
+        let is_node = |expression: &Expression<'_>| expression.node_id() == node;
         let target = nodes.kind(node).span();
         match nodes.kind(parent) {
             // A template expression, whose parent upstream is its directive.

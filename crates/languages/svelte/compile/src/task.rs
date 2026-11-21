@@ -109,9 +109,10 @@ pub(crate) fn compiled<'a>(
     let javascript = rsvelte_typescript_tree::with_scratch_arena(|allocator| {
         let module = lower_document(context, target, allocator)?;
         let _p = measurement::phase("js.print");
-        Ok::<_, Diagnostic>(print::emit(
+        Ok::<_, Diagnostic>(print::emit_with(
             &module,
             mapped.then(|| context.lines(LineBreaks::Newline)),
+            print::Comments::Placed,
         ))
     })?;
     let validated = context.get::<Validated>().as_ref().map_err(Clone::clone)?;
@@ -202,6 +203,6 @@ pub fn compile_to_javascript(
             lower::lower_with_plan(input, res, an, target, &plan, allocator)?
         };
         let _p = measurement::phase("js.print");
-        Ok(print::print(&module))
+        Ok(print::print_with(&module, print::Comments::Placed))
     })
 }

@@ -1,11 +1,12 @@
 use oxc_ast::ast::{BinaryOperator, Expression};
-use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier, Part,
+};
+use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{
-    Attribute, AttributeValue, Part, ServerCompilationContext, decode_attribute,
-    is_boolean_attribute, is_directive,
-};
+use super::ServerCompilationContext;
+use crate::lower::attributes::{is_boolean_attribute, is_directive};
 use crate::lower::bindings::{BindStrategy, attribute_value, property_of};
 use crate::lower::builder::Runtime;
 
@@ -43,7 +44,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 .group_checked(attributes, e)
                 .map(|c| ("checked".to_owned(), c));
         }
-        Some((self.attribute_name(element, name), self.bound(e)))
+        Some((
+            self.attribute_name(element, name).into_owned(),
+            self.bound(e),
+        ))
     }
 
     /// A group checks the input whose `value` it holds: one of a checkbox group's values, or a

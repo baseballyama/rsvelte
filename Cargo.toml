@@ -10,7 +10,7 @@ members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.2.4"
+version = "0.2.5"
 license = "MIT"
 publish = false
 
@@ -59,20 +59,20 @@ rsvelte_vue_compile = { path = "crates/languages/vue/compile" }
 # revision once `parse_expression_at`, `parse_statement_at`, `with_start`,
 # `ExpressionRoot::without_parent` and `SemanticBuilder::build_with_host` merge.
 # Every oxc crate stays on one revision; `oxc_formatter` is not on crates.io.
-oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
-oxc_ast = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
-oxc_ast_visit = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
-oxc_codegen = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
-oxc_diagnostics = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
-oxc_formatter = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
-oxc_formatter_core = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
-oxc_formatter_css = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
-oxc_parser = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
-oxc_semantic = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
-oxc_span = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
-oxc_str = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
-oxc_syntax = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
-oxc_transformer = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "584f2f93390f7d42a8e940b6e97cacca409cc495" }
+oxc_ast = { git = "https://github.com/baseballyama/oxc", rev = "584f2f93390f7d42a8e940b6e97cacca409cc495" }
+oxc_ast_visit = { git = "https://github.com/baseballyama/oxc", rev = "584f2f93390f7d42a8e940b6e97cacca409cc495" }
+oxc_codegen = { git = "https://github.com/baseballyama/oxc", rev = "584f2f93390f7d42a8e940b6e97cacca409cc495" }
+oxc_diagnostics = { git = "https://github.com/baseballyama/oxc", rev = "584f2f93390f7d42a8e940b6e97cacca409cc495" }
+oxc_formatter = { git = "https://github.com/baseballyama/oxc", rev = "584f2f93390f7d42a8e940b6e97cacca409cc495" }
+oxc_formatter_core = { git = "https://github.com/baseballyama/oxc", rev = "584f2f93390f7d42a8e940b6e97cacca409cc495" }
+oxc_formatter_css = { git = "https://github.com/baseballyama/oxc", rev = "584f2f93390f7d42a8e940b6e97cacca409cc495" }
+oxc_parser = { git = "https://github.com/baseballyama/oxc", rev = "584f2f93390f7d42a8e940b6e97cacca409cc495" }
+oxc_semantic = { git = "https://github.com/baseballyama/oxc", rev = "584f2f93390f7d42a8e940b6e97cacca409cc495" }
+oxc_span = { git = "https://github.com/baseballyama/oxc", rev = "584f2f93390f7d42a8e940b6e97cacca409cc495" }
+oxc_str = { git = "https://github.com/baseballyama/oxc", rev = "584f2f93390f7d42a8e940b6e97cacca409cc495" }
+oxc_syntax = { git = "https://github.com/baseballyama/oxc", rev = "584f2f93390f7d42a8e940b6e97cacca409cc495" }
+oxc_transformer = { git = "https://github.com/baseballyama/oxc", rev = "584f2f93390f7d42a8e940b6e97cacca409cc495" }
 self_cell = "1.2.0"
 rayon = "1.12.0"
 ignore = "0.4.25"
@@ -203,7 +203,7 @@ unescaped_backticks = "deny"
 # oxc's CSS parser comes from crates.io and allocates in `oxc_allocator`'s arena, which must be
 # the one the rest of oxc uses.
 [patch.crates-io]
-oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "f8892eb33c3ded896ce4c6e41489468f5b564945" }
+oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "584f2f93390f7d42a8e940b6e97cacca409cc495" }
 
 [profile.release]
 debug = "line-tables-only"

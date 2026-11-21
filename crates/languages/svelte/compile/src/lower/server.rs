@@ -22,32 +22,22 @@ mod template;
 
 use std::borrow::Cow;
 
-use events::{capture_event, capture_load_events, push_captured_events};
 use oxc_ast::ast::{Statement, UnaryOperator, VariableDeclarationKind};
 use oxc_semantic::SymbolId;
-use oxc_span::SPAN;
+use oxc_span::{SPAN, Span};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
-    NodeKind, Part,
+    AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree,
 };
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
-use rsvelte_svelte_syntax::parse::is_void;
-use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_typescript_tree::Tree;
 use rustc_hash::{FxHashMap, FxHashSet};
-use template::Template;
 
+use super::builder::{Runtime, export_default, import};
 use super::names::Names;
-use super::script::ScriptRewrite;
-use super::slot_element::has_slot_element;
-use super::{
-    Builder, Item, Prepared, Target, escape_markup, event_attribute, is_behaviour,
-    is_boolean_attribute, is_customizable_select, is_directive, is_load_error_element, needs_clsx,
-    synthetic_value, unsupported, uses_slots,
-};
-use crate::lower::builder::{Runtime, export_default, import};
+use super::{Builder, Prepared, takes_props, uses_slots};
+use crate::input::{CompileInput, Target};
 use crate::render_plan::RenderPlan;
 
 type R<T> = Result<T, Diagnostic>;
@@ -90,42 +80,33 @@ struct ServerCompilationContext<'c, 'o> {
     component_name: &'c str,
 }
 
-/// Upstream's condition for the `$$props` parameter.
-fn takes_props(
-    an: &Analysis,
-    res: &Resolution,
-    exports: bool,
-    input: &super::CompileInput<'_>,
-) -> bool {
-    an.needs_context
-        || res.uses_props()
-        || exports
-        || has_slot_element(input.component.compiler_syntax_tree)
-        || uses_slots(res)
-}
-
 /// The statements upstream puts around the component's body: `$.props_id` first, the
-/// `$$renderer.component` callback that gives it a context, and `$$slots` outside it.
+/// `$$renderer.component` callback that gives it a context, and `$$slots` outside it. The block
+/// that holds the instance script's statements stands at `instance`: the callback's body, or else
+/// the function's, whose position comes back with the statements.
 fn wrap_body<'o>(
     b: &Builder<'o>,
     an: &Analysis,
     res: &Resolution,
     props_id: Option<&str>,
     mut body: Vec<Statement<'o>>,
-) -> Vec<Statement<'o>> {
+    instance: Span,
+) -> (Vec<Statement<'o>>, Span) {
+    let mut function_body = instance;
     if let Some(id) = props_id {
         body.insert(0, b.const_(id, b.runtime("props_id", [b.id("$$renderer")])));
     }
     if an.needs_context {
-        let callback = b.arrow_block(b.parameters(["$$renderer"]), body, false);
+        let callback = b.arrow_block_at(instance, b.parameters(["$$renderer"]), body, false);
         let call = b.call(b.member(b.id("$$renderer"), "component"), [callback]);
         body = vec![b.statement(call)];
+        function_body = SPAN;
     }
     if uses_slots(res) {
         let slots = b.runtime("sanitize_slots", [b.id("$$props")]);
         body.insert(0, b.const_("$$slots", slots));
     }
-    body
+    (body, function_body)
 }
 
 pub(super) fn lower_prepared<'c, 'o>(
@@ -193,7 +174,8 @@ pub(super) fn lower_prepared<'c, 'o>(
     body.extend(template);
     body.extend(bind_props(b, res, &exports));
     let stylesheet = super::embedded_stylesheet(b, &facts, Target::Server);
-    let mut body = wrap_body(b, an, res, props_id.as_deref(), body);
+    let instance = super::script::instance_span(input.component);
+    let (mut body, body_span) = wrap_body(b, an, res, props_id.as_deref(), body, instance);
     if stylesheet.is_some() {
         let add = b.member(
             b.member(b.member(b.id("$$renderer"), "global"), "css"),
@@ -202,10 +184,16 @@ pub(super) fn lower_prepared<'c, 'o>(
         body.insert(0, b.statement(b.call(add, [b.id("$$css")])));
     }
     let mut parameters = vec!["$$renderer"];
-    if takes_props(an, res, !exports.is_empty(), input) {
+    if takes_props(
+        an,
+        res,
+        !exports.is_empty(),
+        input.component.compiler_syntax_tree,
+    ) {
         parameters.push("$$props");
     }
-    let function = b.function_declaration(&component_name, b.parameters(parameters), body, false);
+    let parameters = b.parameters(parameters);
+    let function = b.function_declaration_at(body_span, &component_name, parameters, body, false);
     let function = super::script::with_prologue(b, function);
     let mut program = vec![import(b, Some("$"), Target::Server.runtime())];
     program.extend(hoisted);
@@ -310,7 +298,7 @@ fn set_settled<'o>(b: &Builder<'o>, value: bool) -> Statement<'o> {
 }
 
 /// Upstream `analysis.uses_component_bindings`.
-fn uses_component_bindings(input: &super::CompileInput<'_>) -> bool {
+fn uses_component_bindings(input: &CompileInput<'_>) -> bool {
     let tree = input.component.compiler_syntax_tree;
     tree.elements().any(|(_, element)| {
         element.kind.renders_component()

@@ -1,7 +1,7 @@
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
+
+use super::{ClientCompilationContext, Frag, Lists};
 use crate::lower::builder::Runtime;
-use crate::lower::client::{
-    ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind,
-};
 use crate::render_plan::Namespace;
 
 impl<'o> ClientCompilationContext<'_, 'o> {

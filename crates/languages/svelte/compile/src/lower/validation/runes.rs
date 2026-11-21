@@ -7,14 +7,18 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::stack::grow;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, ElementKind, MetadataTag, NodeKind,
 };
+use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_typescript_tree::{ExpressionIdentifier, document_span, node_span};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::lower::{CompileInput, Diagnostic, Resolution, Span, Target};
+use crate::input::{CompileInput, Target};
+use crate::lower::attributes::event_attribute;
 
 mod assignments;
 mod calls;
@@ -29,7 +33,6 @@ use declarations::{check_props_pattern, imports};
 pub(in crate::lower) use errors::{script_and_template_errors, script_error};
 use places::place_of;
 
-use super::state_invalid_placement;
 use crate::lower::class_fields::{ClassFields, StateField, class_fields, key_name, member_name};
 
 fn state_field_invalid_assignment<T>(span: Span) -> Result<T, Diagnostic> {
@@ -213,7 +216,7 @@ fn walk_template<'a>(input: &CompileInput<'a>, mut walk: RuneWalk<'a>) -> Result
                 )
         })
         .flat_map(|(_, el)| tree.attributes(el.attributes))
-        .filter_map(|a| crate::lower::template::event_attribute(input.component.source_text, a))
+        .filter_map(|a| event_attribute(input.component.source_text, a))
         .collect();
     let tags: FxHashMap<ExpressionIdentifier, Span> = (tree.nodes.iter())
         .filter_map(|n| match n.kind {

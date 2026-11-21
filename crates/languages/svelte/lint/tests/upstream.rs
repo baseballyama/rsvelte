@@ -16,8 +16,9 @@ use rsvelte_kernel::computation::task::Task;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_lint_runner::finding::{Finding, apply_fix, apply_fixes};
-use rsvelte_svelte_lint::computation::{PostcssConfiguration, SvelteConfiguration, SvelteKit};
-use rsvelte_svelte_lint::project::{Location, SvelteKitProject};
+use rsvelte_svelte_lint::project::{
+    Location, PostcssConfiguration, SvelteConfiguration, SvelteKit, SvelteKitProject,
+};
 use rsvelte_svelte_lint::{Configuration, Kit, LintSettings};
 use serde::Deserialize;
 use serde::de::IgnoredAny;

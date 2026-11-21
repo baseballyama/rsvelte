@@ -10,8 +10,8 @@ use rsvelte_svelte_semantic::warnings::{CompileWarnings, code_for_v5};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
 use rsvelte_typescript_tree::{ProgramIdentifier, document_span};
 
-use crate::computation::PostcssConfiguration;
-use crate::project::PostcssConfigurationOnDisk;
+use super::markup::lang_attribute;
+use crate::project::{PostcssConfiguration, PostcssConfigurationOnDisk};
 use crate::rule::File;
 use crate::settings::ExperimentalAsync;
 use crate::words::words;
@@ -43,20 +43,14 @@ const STYLESHEET_CODES: &[&str] = &[
 ];
 
 /// `getSvelteIgnoreItems`: JavaScript comments, then template comments.
-pub(crate) fn ignores(component: &Component, source: &str) -> Ignores {
+pub(crate) fn ignores(file: &File<'_>) -> Ignores {
     let mut out = Ignores::default();
-    let tree = &component.javascript;
-    let comments = component
-        .scripts()
-        .flat_map(|script| &tree.get_program(script.program).comments)
-        .chain(tree.comments());
-    for comment in comments {
-        let comment = document_span(comment.span);
-        // `//` and `/*` are two bytes, and so is a block comment's `*/`.
-        let value = Span::new(comment.start_offset + 2, block_end(comment, source));
-        read(value, comment, source, &mut out);
+    let source = file.source();
+    for comment in file.comments() {
+        let value = document_span(comment.content_span());
+        read(value, document_span(comment.span), source, &mut out);
     }
-    for node in &component.nodes {
+    for node in file.component().into_iter().flat_map(|c| &c.nodes) {
         if let TemplateNode::Comment { span, data } = *node {
             read(data, span, source, &mut out);
         }
@@ -64,14 +58,6 @@ pub(crate) fn ignores(component: &Component, source: &str) -> Ignores {
     // Stable, so a comment's codes keep their order.
     out.items.sort_by_key(|item| item.comment.start_offset);
     out
-}
-
-fn block_end(comment: Span, source: &str) -> u32 {
-    if comment.text(source).starts_with("/*") {
-        comment.end_offset - 2
-    } else {
-        comment.end_offset
-    }
 }
 
 /// `/^\s*svelte-ignore\s+/` and the codes after it, separated by spaces or commas; a
@@ -330,10 +316,8 @@ fn is_stylesheet(
     source: &str,
     postcss: impl FnOnce() -> bool,
 ) -> bool {
-    attributes
-        .iter()
-        .find(|(name, _)| name.text(source) == "lang")
-        .and_then(|(_, value)| *value)
+    lang_attribute(attributes, source)
+        .and_then(|&(_, value)| value)
         .is_none_or(|value| {
             let lang = value.text(source).to_ascii_lowercase();
             lang == "css" || (matches!(lang.as_str(), "postcss" | "pcss") && postcss())

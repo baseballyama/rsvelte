@@ -2,14 +2,14 @@ mod parameters;
 
 use oxc_ast::ast::Statement;
 pub(super) use parameters::Hooks;
-use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind, Snippet};
 
-use super::super::derived::{Created, callback};
-use super::super::snippets::{
+use super::{ClientCompilationContext, Frag, Lists, R};
+use crate::lower::builder::Runtime;
+use crate::lower::derived::{Created, callback};
+use crate::lower::snippets::{
     Place, is_dynamic_render, place, render_arguments, render_call, snippet_name,
 };
-use super::{ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R};
-use crate::lower::builder::Runtime;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `SnippetBlock`: a top-level snippet is declared beside the component, so that the

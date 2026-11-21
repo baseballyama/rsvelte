@@ -24,34 +24,27 @@ mod special;
 mod stores;
 mod template;
 mod template_chunk;
-#[cfg(test)]
-mod tests;
 mod title;
+
+use std::borrow::Cow;
 
 use oxc_allocator::ArenaBox;
 use oxc_ast::ast::{Expression, FormalParameters, Statement};
 use oxc_semantic::{ScopeId, SymbolId};
+use oxc_span::Span;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::analyze::Analysis;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
-    NodeKind, Part,
-};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, CompilerSyntaxTree};
 use rsvelte_svelte_semantic::resolve::Resolution;
-use rsvelte_svelte_syntax::parse::is_void;
-use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use super::attributes::lowercase;
+use super::builder::{Runtime, export_default, import};
 use super::names::Names;
-use super::script::{Read, ScriptRewrite};
-use super::slot_element::has_slot_element;
-use super::{
-    Builder, Item, Prepared, Target, escape_markup, event_attribute, has_dependency, is_behaviour,
-    is_customizable_select, is_directive, is_load_error_element, needs_clsx, synthetic_value,
-    unsupported, uses_slots,
-};
-use crate::lower::builder::{Runtime, export_default, import};
+use super::script::Read;
+use super::{Builder, Prepared, takes_props, uses_slots};
+use crate::input::Target;
 use crate::render_plan::RenderPlan;
 
 const PASSIVE_EVENTS: &[&str] = &["touchstart", "touchmove"];
@@ -60,9 +53,9 @@ type R<T> = Result<T, Diagnostic>;
 
 /// Upstream `normalize_attribute`.
 #[must_use]
-pub(super) fn normalize_attribute(name: &str) -> String {
-    let lower = name.to_lowercase();
-    rsvelte_markup_syntax::property_name(&lower).map_or(lower, str::to_owned)
+pub(super) fn normalize_attribute(name: &str) -> Cow<'_, str> {
+    let lower = lowercase(name);
+    rsvelte_markup_syntax::property_name(&lower).map_or(lower, Cow::Borrowed)
 }
 
 use binding_accessors::each_scopes;
@@ -163,7 +156,9 @@ struct ClientCompilationContext<'c, 'o> {
     identity: &'c crate::OutputIdentity,
     component_name: String,
     custom_element: Option<&'c super::custom_element::CustomElement>,
-    needs_props: bool,
+    /// The client's own reasons for the `$$props` parameter, which [`takes_props`] leaves out:
+    /// a `$host` read or a bubbled `on:` event.
+    host_or_bubbled_event: bool,
     /// The snippets the block being lowered declares (upstream `state.snippets`).
     snippets: Vec<Statement<'o>>,
     /// Top-level snippets that read only module-level names, declared after the imports.
@@ -225,9 +220,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         identity,
         component_name,
         custom_element,
-        needs_props: res.unresolved_names().any(|name| name == "$host")
-            || has_slot_element(input.component.compiler_syntax_tree)
-            || uses_slots(res),
+        host_or_bubbled_event: res.unresolved_names().any(|name| name == "$host"),
         snippets: Vec::new(),
         module_snippets: Vec::new(),
         instance_snippets: Vec::new(),
@@ -243,6 +236,7 @@ pub(super) fn lower_prepared<'c, 'o>(
     returned.extend(context.custom_element_exports());
     let func = context.component_function(
         instance,
+        super::script::instance_span(input.component),
         template,
         returned,
         stylesheet.is_some(),
@@ -289,9 +283,12 @@ impl Walk {
 }
 
 impl<'o> ClientCompilationContext<'_, 'o> {
+    /// The component's function; its body holds the instance script's statements and stands
+    /// where the script does, `instance_span`.
     fn component_function(
         &mut self,
         instance: Vec<Statement<'o>>,
+        instance_span: Span,
         template: Vec<Statement<'o>>,
         exports: Vec<oxc_ast::ast::ObjectPropertyKind<'o>>,
         stylesheet: bool,
@@ -342,21 +339,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             body.insert(0, b.const_(id, b.runtime("props_id", [])));
         }
         let mut parameters = vec!["$$anchor"];
-        if self.res.uses_props() || needs_context || self.needs_props {
+        if takes_props(self.an, self.res, has_exports, self.compiler_syntax_tree)
+            || self.host_or_bubbled_event
+        {
             parameters.push("$$props");
         }
-        b.function_declaration(&self.component_name, b.parameters(parameters), body, false)
-    }
-}
-
-/// `name` in lowercase, borrowed when it has nothing to lower.
-fn lowercase(name: &str) -> std::borrow::Cow<'_, str> {
-    if name
-        .bytes()
-        .any(|byte| !byte.is_ascii() || byte.is_ascii_uppercase())
-    {
-        std::borrow::Cow::Owned(name.to_lowercase())
-    } else {
-        std::borrow::Cow::Borrowed(name)
+        let parameters = b.parameters(parameters);
+        b.function_declaration_at(instance_span, &self.component_name, parameters, body, false)
     }
 }

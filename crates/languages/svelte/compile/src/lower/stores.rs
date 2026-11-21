@@ -3,14 +3,17 @@
 
 use oxc_ast::ast::Ident;
 use oxc_semantic::ReferenceId;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, ElementKind, MetadataTag, NodeKind,
 };
-use rsvelte_svelte_semantic::resolve::is_rune;
+use rsvelte_svelte_semantic::resolve::{Resolution, is_rune};
 use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::FxHashSet;
 
-use super::{CompileInput, Diagnostic, Resolution, Span, Unit};
+use super::Unit;
+use crate::input::CompileInput;
 
 /// The `$name`s no binding declares, each with its references, in upstream's order: the module
 /// script's, the instance script's, then the template's, each in the order upstream's scope walk

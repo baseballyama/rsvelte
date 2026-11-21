@@ -7,13 +7,13 @@ use oxc_ast::ast::{
     ObjectPropertyKind, PropertyKey, PropertyKind,
 };
 use oxc_span::SPAN;
-use rsvelte_svelte_semantic::compiler_syntax_tree::MetadataTag;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerSyntaxTree, Element, ElementKind, MetadataTag, NodeKind,
+};
 use rsvelte_typescript_tree::Tree;
 
-use super::{
-    Attribute, AttributeValue, Builder, CompilerSyntaxTree, Element, ElementKind, NodeKind, Target,
-    unsupported,
-};
+use super::{Builder, unsupported};
+use crate::input::Target;
 use crate::render_plan::slot_name;
 
 /// A `let:` directive: the slot prop it reads, and the name or pattern it binds, if any.

@@ -7,13 +7,14 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::Visit;
 use oxc_semantic::SymbolId;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind,
+};
 use rsvelte_svelte_semantic::resolve::{Resolution, TemplateScope};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
+use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::{
-    AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, FxHashMap, FxHashSet, NodeKind,
-    names,
-};
+use super::names;
 
 #[derive(Default)]
 pub(super) struct BindingGroups {

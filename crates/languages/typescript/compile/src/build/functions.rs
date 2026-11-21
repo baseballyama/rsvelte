@@ -81,13 +81,24 @@ impl<'o> Builder<'o> {
         body: impl IntoIterator<Item = Statement<'o>>,
         is_async: bool,
     ) -> Expression<'o> {
+        self.arrow_block_at(SPAN, parameters, body, is_async)
+    }
+
+    /// [`Builder::arrow_block`] whose body stands at `body_span` in the source.
+    pub fn arrow_block_at(
+        &self,
+        body_span: Span,
+        parameters: ArenaBox<'o, FormalParameters<'o>>,
+        body: impl IntoIterator<Item = Statement<'o>>,
+        is_async: bool,
+    ) -> Expression<'o> {
         Expression::new_arrow_function_expression(
             SPAN,
             is_async,
             None,
             parameters,
             None,
-            ArrowFunctionBody::FunctionBody(self.function_body(body)),
+            ArrowFunctionBody::FunctionBody(self.function_body_at(body_span, body)),
             self,
         )
     }
@@ -96,7 +107,15 @@ impl<'o> Builder<'o> {
         &self,
         body: impl IntoIterator<Item = Statement<'o>>,
     ) -> ArenaBox<'o, FunctionBody<'o>> {
-        FunctionBody::boxed(SPAN, [], self.vec(body), self)
+        self.function_body_at(SPAN, body)
+    }
+
+    fn function_body_at(
+        &self,
+        span: Span,
+        body: impl IntoIterator<Item = Statement<'o>>,
+    ) -> ArenaBox<'o, FunctionBody<'o>> {
+        FunctionBody::boxed(span, [], self.vec(body), self)
     }
 
     pub fn function_expression(
@@ -129,6 +148,18 @@ impl<'o> Builder<'o> {
         body: impl IntoIterator<Item = Statement<'o>>,
         is_async: bool,
     ) -> Statement<'o> {
+        self.function_declaration_at(SPAN, name, parameters, body, is_async)
+    }
+
+    /// [`Builder::function_declaration`] whose body stands at `body_span` in the source.
+    pub fn function_declaration_at(
+        &self,
+        body_span: Span,
+        name: &str,
+        parameters: ArenaBox<'o, FormalParameters<'o>>,
+        body: impl IntoIterator<Item = Statement<'o>>,
+        is_async: bool,
+    ) -> Statement<'o> {
         Statement::new_function_declaration(
             SPAN,
             FunctionType::FunctionDeclaration,
@@ -140,7 +171,7 @@ impl<'o> Builder<'o> {
             None,
             parameters,
             None,
-            Some(self.function_body(body)),
+            Some(self.function_body_at(body_span, body)),
             self,
         )
     }

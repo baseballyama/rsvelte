@@ -1,26 +1,22 @@
 //! `ESLint`'s `/* global name, name: setting */` comments (or `/* globals */`), which set a
 //! document's global variables over the configuration's.
 
+use oxc_ast::Comment;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
-use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_semantic::globals::Setting;
+use rsvelte_typescript_tree::document_span;
 
-use crate::lint::directive_comments::justification_start;
+use super::directive_comments::justification_start;
 use crate::words::words;
 
 /// The globals the block comments among `comments` set, in order, so that a later one wins.
 ///
 /// A name without a setting is read-only. `ESLint` reports a setting it does not know, which sets
 /// nothing here.
-pub(crate) fn settings(comments: &[Span], source: &str) -> Vec<(Box<str>, Setting)> {
+pub(crate) fn settings(comments: &[&Comment], source: &str) -> Vec<(Box<str>, Setting)> {
     let mut out = Vec::new();
-    for comment in comments {
-        let Some(list) = comment
-            .text(source)
-            .strip_prefix("/*")
-            .and_then(|inner| inner.strip_suffix("*/"))
-            .and_then(directive)
-        else {
+    for comment in comments.iter().filter(|comment| comment.is_block()) {
+        let Some(list) = directive(document_span(comment.content_span()).text(source)) else {
             continue;
         };
         let list = collapse(list);

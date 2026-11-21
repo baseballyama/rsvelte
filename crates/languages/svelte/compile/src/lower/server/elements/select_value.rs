@@ -1,7 +1,8 @@
-use crate::lower::server::{
-    CompilerNodeIdentifier, Element, R, ServerCompilationContext, Template, is_customizable_select,
-    synthetic_value,
-};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, Element};
+
+use crate::lower::attributes::{is_customizable_select, synthetic_value};
+use crate::lower::server::template::Template;
+use crate::lower::server::{R, ServerCompilationContext};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `RegularElement`'s `is_select_special` / `is_option_special` branches: the

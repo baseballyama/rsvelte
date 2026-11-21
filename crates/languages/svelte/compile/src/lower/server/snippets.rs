@@ -1,12 +1,13 @@
 use oxc_ast::ast::Statement;
 use oxc_syntax::symbol::SymbolFlags;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, Snippet};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    CompilerNodeIdentifier, ElementKind, NodeKind, Snippet,
+};
 use rsvelte_typescript_tree::node_span;
 
-use super::super::snippets::{Place, place, render_arguments, render_call, snippet_name};
-use super::{
-    CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind, R, ServerCompilationContext, Template,
-};
+use super::template::Template;
+use super::{EMPTY_COMMENT, R, ServerCompilationContext};
+use crate::lower::snippets::{Place, place, render_arguments, render_call, snippet_name};
 use crate::lower::unsupported;
 
 impl<'o> ServerCompilationContext<'_, 'o> {

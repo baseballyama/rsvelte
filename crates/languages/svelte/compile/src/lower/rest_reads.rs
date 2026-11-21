@@ -3,8 +3,8 @@ use std::borrow::Cow;
 use oxc_ast::AstKind;
 use oxc_ast::ast::BindingPattern;
 use oxc_semantic::SymbolId;
+use rsvelte_svelte_semantic::resolve::Resolution;
 
-use super::Resolution;
 use super::javascript::prop_alias;
 
 /// Whether the rest prop `symbol` leaves out `key`: upstream's `exclude_props`, the keys the

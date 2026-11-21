@@ -16,9 +16,8 @@ use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
 use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::shared::legacy_reactivity::{
-    Variable, expression_node, is_top_level, legacy, property_name,
-};
+use super::shared::legacy_reactivity::{Variable, is_top_level, legacy};
+use super::shared::nodes::property_name;
 use super::shared::runes::runes_mode;
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
@@ -314,13 +313,13 @@ impl<'f> ReactiveVariables<'f> {
                         AstKind::ComputedMemberExpression(member) => &member.object,
                         _ => continue,
                     };
-                    if expression_node(object) != node {
+                    if object.node_id() != node {
                         continue;
                     }
                     let assignment = nodes.parent_id(up);
                     if let Some(property) = property_name(member)
                         && let AstKind::AssignmentExpression(expression) = nodes.kind(assignment)
-                        && expression_node(&expression.right) == up
+                        && expression.right.node_id() == up
                         && let AssignmentTarget::AssignmentTargetIdentifier(left) = &expression.left
                         && reactive(nodes, assignment)
                     {
@@ -332,7 +331,7 @@ impl<'f> ReactiveVariables<'f> {
                     }
                 }
                 AstKind::AssignmentExpression(assignment)
-                    if expression_node(&assignment.right) == node && reactive(nodes, up) =>
+                    if assignment.right.node_id() == node && reactive(nodes, up) =>
                 {
                     let AssignmentTarget::ObjectAssignmentTarget(pattern) = &assignment.left else {
                         continue;
