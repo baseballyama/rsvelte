@@ -170,3 +170,66 @@ fn an_optional_chain_target_is_its_own_error() {
     let error = parse("{f() = 1}").expect_err("a call");
     assert_eq!(error.message.lines().next(), Some("Assigning to rvalue"));
 }
+
+#[test]
+fn a_destructuring_pattern_fails_at_its_first_parenthesized_element() {
+    // What svelte 5.57.3 reports, in bytes: acorn checks the pattern as a whole before its
+    // elements, at the first element whose operand is parenthesized and is no simple target.
+    for (source, at) in [
+        ("{[(a?.b)] = o}", 2),
+        ("{[(f())] = o}", 2),
+        ("{[(a + 1)] = o}", 2),
+        ("{[(this)] = o}", 2),
+        ("{[(a.b())] = o}", 2),
+        ("{[(f()) + 1] = o}", 2),
+        ("{[a?.b, (c?.d)] = o}", 8),
+        ("{[f(), (a?.b)] = o}", 7),
+        ("{[x, ((a?.b))] = o}", 5),
+        ("{[...(a?.b)] = o}", 5),
+        ("{({ ...(a?.b) } = o)}", 7),
+        ("{({ x: (a?.b) } = o)}", 7),
+        ("{({ [k]: (f()) } = o)}", 9),
+        ("{[[(f())]] = o}", 3),
+        ("{({ a: [(f())] } = o)}", 8),
+        ("{[[a?.b], (f())] = o}", 10),
+        ("{x = [(f())] = o}", 6),
+        ("{(a, [(f())] = o)}", 6),
+        ("<script>[(a?.b)] = o</script>", 9),
+        ("<script lang=\"ts\">[(a?.b)] = o</script>", 19),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert_eq!(
+            (
+                error.message.lines().next().unwrap_or_default(),
+                error.span.start_offset
+            ),
+            ("Assigning to rvalue", at),
+            "{source}"
+        );
+    }
+    // A simple target, a subscript after the parentheses and a default record nothing.
+    for source in [
+        "{[(a)] = o}",
+        "{[(a.b)] = o}",
+        "{[(f().x)] = o}",
+        "{[(f()).x] = o}",
+        "{[x = (f())] = o}",
+        "{({ a = (f()) } = o)}",
+    ] {
+        parse(source).expect(source);
+    }
+    // Outside a pattern, acorn reports the target inside the parentheses, an optional chain in its
+    // own words.
+    let error = parse("{[a?.b] = o}").expect_err("an element's own error");
+    assert_eq!(
+        error.message.lines().next(),
+        Some("Optional chaining cannot appear in left-hand side")
+    );
+    assert_eq!(
+        parse("{(f()) = 1}")
+            .expect_err("no pattern")
+            .span
+            .start_offset,
+        2
+    );
+}
