@@ -53,7 +53,7 @@ fn help_prints_the_guide_to_the_command_it_names() {
     let project = Project::new(&[]);
     let overview = text(&project.rsvelte(&["help"]).stdout);
     assert_eq!(overview, text(&project.rsvelte(&["--help"]).stdout));
-    for command in ["lint", "typecheck"] {
+    for command in ["lint", "typecheck", "version"] {
         let usage = format!("Usage: rsvelte {command} ");
         for arguments in [
             &["help", command][..],
@@ -110,4 +110,63 @@ fn lint_reads_svelte_and_typescript_and_not_vue() {
         "{report}"
     );
     assert!(!report.contains("C.vue"), "{report}");
+}
+
+#[test]
+fn version_names_the_oracles_of_the_corpus_and_the_type_checker() {
+    #[derive(serde::Deserialize)]
+    struct Task {
+        oracles: std::collections::BTreeMap<String, String>,
+    }
+    let oracles = include_str!("../../../../../corpus/_registry/oracles.json");
+    let tasks: std::collections::BTreeMap<String, Task> = serde_json::from_str(oracles).unwrap();
+    let config = crate::typecheck::typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
+    let project = Project::new(&[("rsvelte.config.json", &config)]);
+    let output = project.rsvelte(&["version"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let report = text(&output.stdout);
+    assert!(
+        report.starts_with(concat!("rsvelte ", env!("CARGO_PKG_VERSION"), " (")),
+        "{report}"
+    );
+    for (task, covers) in [
+        ("svelte.lint", "lint of Svelte files"),
+        ("svelte.format", "format of Svelte files"),
+        ("svelte.check", "typecheck of Svelte files"),
+    ] {
+        let section = report
+            .split(&format!("\n  {covers}:\n"))
+            .nth(1)
+            .unwrap_or_else(|| panic!("no {covers}: {report}"));
+        for (name, version) in &tasks[task].oracles {
+            assert!(
+                section.contains(&format!("    {name} {version}\n")),
+                "{name}: {report}"
+            );
+        }
+    }
+    for built_on in ["oxfmt", "oxc"] {
+        let line = format!("\n  {built_on} ");
+        let version = report
+            .split(&line)
+            .nth(1)
+            .and_then(|rest| rest.chars().next());
+        assert!(
+            version.is_some_and(|c| c.is_ascii_digit()),
+            "{built_on}: {report}"
+        );
+    }
+    let checker = report
+        .split("\nType checker that typecheck runs here:\n  ")
+        .nth(1)
+        .unwrap_or_else(|| panic!("{report}"));
+    let (program, _) = rsvelte_test_harness::NodePackages::locate().type_checker();
+    assert!(checker.starts_with(&*program.to_string_lossy()), "{report}");
+    let without = Project::new(&[]);
+    let report = text(&without.rsvelte(&["version"]).stdout);
+    assert!(report.contains("runs here:\n  none: "), "{report}");
+    assert_eq!(without.rsvelte(&["version", "x"]).status.code(), Some(2));
+    let broken = without.rsvelte(&["version", "--config", "missing.json"]);
+    assert_eq!(broken.status.code(), Some(2));
+    assert_eq!(text(&broken.stdout), "");
 }
