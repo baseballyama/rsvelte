@@ -7,7 +7,7 @@ use rsvelte_plugin_interface::{
 };
 use serde::Deserialize;
 
-use crate::check::version_before_7_1;
+use crate::type_checker::version_before_7_1;
 use crate::{Check, Documents, MappedLanguages, Tsc, TypeChecker};
 
 pub static EXTENSION: Extension = Extension {

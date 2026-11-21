@@ -64,16 +64,6 @@ pub enum InlineNode {
     },
 }
 
-impl Declaration {
-    /// `PostCSS`'s value: the text of [`Declaration::value`] unless it was cleaned.
-    #[must_use]
-    pub fn value_text<'a>(&'a self, source: &'a str) -> &'a str {
-        self.cleaned_value
-            .as_deref()
-            .unwrap_or_else(|| self.value.text(source))
-    }
-}
-
 impl InlineNode {
     #[must_use]
     pub const fn span(&self) -> Span {
@@ -99,6 +89,16 @@ pub struct Declaration {
     pub property_holes: u32,
     /// Holes in the declaration outside its property and value.
     pub other_holes: u32,
+}
+
+impl Declaration {
+    /// `PostCSS`'s value: the text of [`Declaration::value`] unless it was cleaned.
+    #[must_use]
+    pub fn value_text<'a>(&'a self, source: &'a str) -> &'a str {
+        self.cleaned_value
+            .as_deref()
+            .unwrap_or_else(|| self.value.text(source))
+    }
 }
 
 /// The declarations, comments and holes of an inline style (`style="…"`), or `None` when it
@@ -284,8 +284,6 @@ impl<'a> Parser<'a> {
     const fn end_of_file(&self) -> bool {
         self.returned.is_empty() && self.position >= self.end
     }
-
-    // Parser.
 
     fn parse(&mut self) -> R<()> {
         while !self.end_of_file() {

@@ -1787,7 +1787,6 @@ dependencies = [
  "rsvelte_typescript_tree",
  "rsvelte_vue_semantic",
  "rsvelte_vue_syntax",
- "rustc-hash",
  "sha2",
 ]
 

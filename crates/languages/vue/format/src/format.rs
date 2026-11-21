@@ -39,15 +39,19 @@ const TAB_WIDTH: usize = 2;
 ///
 /// [`Unsupported`] if the component holds a construct this formatter does not print.
 /// `lines` is `source_text`'s, which the pipeline builds once per document.
-pub(crate) fn format(c: &SingleFileComponent, source_text: &str, lines: &LineIndex) -> R<String> {
-    let tree = Tree::build(c, source_text, lines)?;
+pub(crate) fn format(
+    component: &SingleFileComponent,
+    source_text: &str,
+    lines: &LineIndex,
+) -> R<String> {
+    let tree = Tree::build(component, source_text, lines)?;
     let mut docs = LayoutInstructions::new();
     let allocator = Allocator::default();
     let core = core_options();
     let mut p = Printer {
-        c,
+        component,
         source_text,
-        t: &tree,
+        tree: &tree,
         docs: &mut docs,
         embedding: Embedding::new(&allocator, core),
         options: JsFormatOptions {
@@ -56,9 +60,9 @@ pub(crate) fn format(c: &SingleFileComponent, source_text: &str, lines: &LineInd
         },
     };
     let children = p.children(NodeIdentifier::ROOT)?;
-    let body = p.d().group(&children);
-    let h = p.d().hardline();
-    let root = p.d().concat(&[body, h]);
+    let body = p.docs.group(&children);
+    let h = p.docs.hardline();
+    let root = p.docs.concat(&[body, h]);
     let embedding = p.embedding;
     embedding.print(&docs, root, source_text.len())
 }
@@ -166,7 +170,7 @@ impl<'a> Node<'a> {
 /// The preprocessed document (`print-preprocess.js`).
 #[derive(Debug)]
 struct Tree<'a> {
-    n: IndexVector<NodeIdentifier, Node<'a>>,
+    nodes: IndexVector<NodeIdentifier, Node<'a>>,
     lines: &'a LineIndex,
     source_text: &'a str,
 }
@@ -177,18 +181,12 @@ const fn only_ws(s: &str) -> bool {
 }
 
 struct Printer<'a, 'd, 'x> {
-    c: &'a SingleFileComponent,
+    component: &'a SingleFileComponent,
     source_text: &'a str,
-    t: &'a Tree<'a>,
+    tree: &'a Tree<'a>,
     docs: &'d mut LayoutInstructions,
     embedding: Embedding<'x>,
     options: JsFormatOptions,
-}
-
-impl Printer<'_, '_, '_> {
-    const fn d(&mut self) -> &mut LayoutInstructions {
-        self.docs
-    }
 }
 
 mod javascript;

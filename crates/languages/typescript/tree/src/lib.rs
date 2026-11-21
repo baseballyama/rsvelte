@@ -3,7 +3,6 @@
 //! Every span is an offset into the whole document: a `<script>` element and a template
 //! expression parse in place, so the trees and the embedding language share one position type.
 
-use std::num::NonZeroU32;
 use std::rc::Rc;
 
 use oxc_allocator::Allocator;
@@ -14,6 +13,7 @@ use oxc_ast::ast::{
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::index::IndexVector;
 use rsvelte_kernel::source::document::Document;
 
 mod acorn_grammar;
@@ -64,12 +64,12 @@ struct Rare {
 
 struct Trees<'a> {
     source_text: &'a str,
-    programs: Vec<Program<'a>>,
-    expressions: Vec<Expression<'a>>,
-    patterns: Vec<FormalParameter<'a>>,
-    parameters: Vec<FormalParameters<'a>>,
-    declarations: Vec<VariableDeclaration<'a>>,
-    type_parameters: Vec<TSTypeParameterDeclaration<'a>>,
+    programs: IndexVector<ProgramIdentifier, Program<'a>>,
+    expressions: IndexVector<ExpressionIdentifier, Expression<'a>>,
+    patterns: IndexVector<PatternIdentifier, FormalParameter<'a>>,
+    parameters: IndexVector<ParametersIdentifier, FormalParameters<'a>>,
+    declarations: IndexVector<DeclarationIdentifier, VariableDeclaration<'a>>,
+    type_parameters: IndexVector<TypeParametersIdentifier, TSTypeParameterDeclaration<'a>>,
     /// The comments of every part but the programs, which keep their own, in document order.
     comments: Vec<Comment>,
     /// Boxed, so that a document with neither costs one pointer in every tree.
@@ -103,72 +103,29 @@ impl std::fmt::Debug for Tree {
     }
 }
 
-/// The identifier of a part in its list.
-trait Identifier {
-    /// The identifier of the part at `index` of its list.
-    fn at(index: usize) -> Self;
-}
-
-/// Adds `item` to its list and returns its identifier.
-fn push<I: Identifier, T>(list: &mut Vec<T>, item: T) -> I {
-    let identifier = I::at(list.len());
-    list.push(item);
-    identifier
-}
-
-/// Each item of a list with its identifier, in the order kept.
-fn listed<I: Identifier, T>(list: &[T]) -> impl ExactSizeIterator<Item = (I, &T)> {
-    list.iter()
-        .enumerate()
-        .map(|(index, item)| (I::at(index), item))
-}
-
-macro_rules! identifier {
-    ($(#[$doc:meta])* $name:ident) => {
-        $(#[$doc])*
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-        pub struct $name(NonZeroU32);
-
-        impl Identifier for $name {
-            fn at(index: usize) -> Self {
-                let index = u32::try_from(index).expect("a document has fewer than u32::MAX parts");
-                Self(NonZeroU32::MIN.saturating_add(index))
-            }
-        }
-
-        impl $name {
-
-            const fn index(self) -> usize {
-                (self.0.get() - 1) as usize
-            }
-
-        }
-    };
-}
-
-identifier!(
+rsvelte_kernel::newtype_index!(
     /// A program parsed by [`TreeBuilder::program`].
-    ProgramIdentifier
+    pub struct ProgramIdentifier;
 );
-identifier!(
+rsvelte_kernel::newtype_index!(
     /// An expression a [`TreeBuilder`] keeps.
-    ExpressionIdentifier
+    pub struct ExpressionIdentifier;
 );
-identifier!(
+rsvelte_kernel::newtype_index!(
     /// A binding pattern with its type annotation, parsed by [`TreeBuilder::pattern`].
-    PatternIdentifier
+    pub struct PatternIdentifier;
 );
-identifier!(
+rsvelte_kernel::newtype_index!(
     /// A parameter list parsed by [`TreeBuilder::parameters`].
-    ParametersIdentifier
+    pub struct ParametersIdentifier;
 );
-identifier!(
+rsvelte_kernel::newtype_index!(
     /// A variable declaration kept by [`TreeBuilder::keep_declaration`].
-    DeclarationIdentifier
+    pub struct DeclarationIdentifier;
 );
-identifier!(
+rsvelte_kernel::newtype_index!(
     /// A type parameter list parsed by [`TreeBuilder::type_parameters`].
-    TypeParametersIdentifier
+    pub struct TypeParametersIdentifier;
 );
 
 impl Tree {
@@ -269,27 +226,27 @@ impl Tree {
 
     #[must_use]
     pub fn get_program(&self, identifier: ProgramIdentifier) -> &Program<'_> {
-        &self.0.borrow_dependent().programs[identifier.index()]
+        &self.0.borrow_dependent().programs[identifier]
     }
 
     #[must_use]
     pub fn get_expression(&self, identifier: ExpressionIdentifier) -> &Expression<'_> {
-        &self.0.borrow_dependent().expressions[identifier.index()]
+        &self.0.borrow_dependent().expressions[identifier]
     }
 
     #[must_use]
     pub fn get_pattern(&self, identifier: PatternIdentifier) -> &FormalParameter<'_> {
-        &self.0.borrow_dependent().patterns[identifier.index()]
+        &self.0.borrow_dependent().patterns[identifier]
     }
 
     #[must_use]
     pub fn get_parameters(&self, identifier: ParametersIdentifier) -> &FormalParameters<'_> {
-        &self.0.borrow_dependent().parameters[identifier.index()]
+        &self.0.borrow_dependent().parameters[identifier]
     }
 
     #[must_use]
     pub fn get_declaration(&self, identifier: DeclarationIdentifier) -> &VariableDeclaration<'_> {
-        &self.0.borrow_dependent().declarations[identifier.index()]
+        &self.0.borrow_dependent().declarations[identifier]
     }
 
     #[must_use]
@@ -297,7 +254,7 @@ impl Tree {
         &self,
         identifier: TypeParametersIdentifier,
     ) -> &TSTypeParameterDeclaration<'_> {
-        &self.0.borrow_dependent().type_parameters[identifier.index()]
+        &self.0.borrow_dependent().type_parameters[identifier]
     }
 
     /// Every program, with its identifier, in the order kept.
@@ -309,28 +266,28 @@ impl Tree {
     pub fn expressions(
         &self,
     ) -> impl ExactSizeIterator<Item = (ExpressionIdentifier, &Expression<'_>)> {
-        listed(&self.0.borrow_dependent().expressions)
+        self.0.borrow_dependent().expressions.iter_enumerated()
     }
 
     /// Every declaration kept apart from a program, with its identifier, in the order kept.
     pub fn declarations(
         &self,
     ) -> impl ExactSizeIterator<Item = (DeclarationIdentifier, &VariableDeclaration<'_>)> {
-        listed(&self.0.borrow_dependent().declarations)
+        self.0.borrow_dependent().declarations.iter_enumerated()
     }
 
     /// Every pattern kept apart from a program, with its identifier, in the order kept.
     pub fn patterns(
         &self,
     ) -> impl ExactSizeIterator<Item = (PatternIdentifier, &FormalParameter<'_>)> {
-        listed(&self.0.borrow_dependent().patterns)
+        self.0.borrow_dependent().patterns.iter_enumerated()
     }
 
     /// Every parameter list kept apart from a program, with its identifier, in the order kept.
     pub fn parameters(
         &self,
     ) -> impl ExactSizeIterator<Item = (ParametersIdentifier, &FormalParameters<'_>)> {
-        listed(&self.0.borrow_dependent().parameters)
+        self.0.borrow_dependent().parameters.iter_enumerated()
     }
 
     /// Every type parameter list kept apart from a program, with its identifier, in the order
@@ -339,7 +296,7 @@ impl Tree {
         &self,
     ) -> impl ExactSizeIterator<Item = (TypeParametersIdentifier, &TSTypeParameterDeclaration<'_>)>
     {
-        listed(&self.0.borrow_dependent().type_parameters)
+        self.0.borrow_dependent().type_parameters.iter_enumerated()
     }
 
     /// The comments outside the programs, in document order.

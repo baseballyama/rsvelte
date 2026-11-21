@@ -2,7 +2,7 @@
 
 `known_properties.rs` is `data/all.json` of
 [known-css-properties](https://github.com/known-css-properties/known-css-properties) 0.37.0
-(MIT, see `LICENSE`), the list `eslint-plugin-svelte` checks style directives against, sorted
+(MIT, see `LICENSE.known-css-properties.md`), the list `eslint-plugin-svelte` checks style directives against, sorted
 and deduplicated. To regenerate it from an unpacked package:
 
 ```sh
