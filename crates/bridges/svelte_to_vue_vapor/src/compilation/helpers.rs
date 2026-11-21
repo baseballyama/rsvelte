@@ -194,3 +194,6 @@ pub(crate) fn boolean_names<'t>(name: &str, b: &Builder<'t>) -> Statement<'t> {
         .map(|name| b.string(name));
     b.const_(name, b.array(values))
 }
+
+#[cfg(test)]
+mod tests;

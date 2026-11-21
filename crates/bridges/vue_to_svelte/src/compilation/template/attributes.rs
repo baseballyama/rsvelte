@@ -8,10 +8,13 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 use rsvelte_typescript_tree::{document_span, node_span};
 use rsvelte_vue_semantic::compiler_syntax_tree::{Directive, Property};
 
-use super::{T, expression_of, include_boolean_attribute, renderable};
-use crate::compilation::context::{Declared, Helper, R, Rewriter, unsupported};
+use super::{Template, expression_of, include_boolean_attribute, renderable};
+use crate::compilation::info::Declared;
+use crate::compilation::names::Helper;
+use crate::compilation::rewrite::Rewriter;
+use crate::compilation::{R, unsupported};
 
-impl<'a> T<'_, '_, '_, 'a> {
+impl<'a> Template<'_, '_, '_, 'a> {
     /// `normalizeClass([…items])`.
     fn normalize_class(&mut self, items: Vec<Expression<'a>>) -> Expression<'a> {
         let list = self.b.array(items);

@@ -24,7 +24,7 @@ use rsvelte_svelte_compile::render_plan::{Namespace, Parent};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, CompilerNodeIdentifier, ElementKind, NodeKind, Part,
 };
-use rsvelte_svelte_semantic::evaluate::{Evaluation, Evaluator, Value};
+use rsvelte_svelte_semantic::evaluate::{Evaluation, Evaluator};
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_typescript_compile::build::{Builder, sanitize_template_string};
@@ -65,9 +65,6 @@ pub(crate) struct CustomElementValues {
     pub props: Option<ExpressionIdentifier>,
     pub extend: Option<ExpressionIdentifier>,
 }
-
-/// Svelte's passive events: a listener for them cannot prevent the default.
-const PASSIVE_EVENTS: &[&str] = &["touchstart", "touchmove"];
 
 /// Builds the Vue HIR, and the snippet declarations the setup program needs.
 ///
@@ -113,21 +110,27 @@ pub(crate) fn build<'t>(
         namespaces: FxHashMap::default(),
         declarations,
     };
-    if !i.server && i.plan.async_values {
+    if !i.server && i.checked.script.async_values {
         t.helpers.insert(Helper::Async);
     }
-    if !i.server && i.plan.auxiliary.contains_key("$effect.pending") {
+    if !i.server
+        && i.checked
+            .script
+            .called_runes
+            .contains_key("$effect.pending")
+    {
         t.helpers.insert(Helper::Pending);
     }
     let root = t.list(
         Parent::Root,
         compiler_syntax_tree.children(compiler_syntax_tree.root),
         None,
-        i.plan.preserve_whitespace,
+        i.checked.options.preserve_whitespace,
         Span::default(),
     )?;
     let custom_element = i
-        .plan
+        .checked
+        .options
         .custom_element
         .as_ref()
         .map(|options| t.custom_element_values(options));
@@ -174,13 +177,6 @@ struct Template<'i, 'r, 't> {
     namespaces: FxHashMap<vue::CompilerNodeIdentifier, Namespace>,
     /// What the setup program declares for the template: snippet names and attachment keys.
     declarations: Vec<Statement<'t>>,
-}
-
-fn known_string(v: &Value) -> String {
-    match v {
-        Value::Null | Value::Undefined => String::new(),
-        v => v.to_javascript_string(),
-    }
 }
 
 impl<'i, 't> Template<'i, '_, 't> {
@@ -316,7 +312,7 @@ impl<'i, 't> Template<'i, '_, 't> {
                 Part::Expression { expression, .. } => {
                     let evaluated = self.evaluate(expression);
                     if evaluated.is_known {
-                        text.push_str(&known_string(&evaluated.value));
+                        text.push_str(&evaluated.value.to_template_string());
                         continue;
                     }
                     quasis.push(sanitize_template_string(&text).into_owned());
@@ -498,11 +494,10 @@ fn template_element(
 }
 
 mod properties;
-use properties::{binding_event, is_boolean, is_primitive, reads_this, static_type};
 
 mod check;
 pub(crate) use check::check;
-pub(crate) use options::{CssMode, CustomElement, Options};
+pub(crate) use options::{CssMode, Options};
 
 mod attributes;
 mod await_block;

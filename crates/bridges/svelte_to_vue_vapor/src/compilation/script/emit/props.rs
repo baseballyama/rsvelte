@@ -16,7 +16,7 @@ pub(crate) fn prop_member<'t>(
     let symbol = res.symbol(identifier)?;
     let info = res.binding(symbol);
     if info.kind == BindingKind::RestProperty {
-        return Some(b.id_at("$$attrs", identifier.span));
+        return Some(b.id_at(markers::REST_PROPS, identifier.span));
     }
     if prop_cell(res, symbol) {
         return Some(b.id_at(&identifier.name, identifier.span));
@@ -27,7 +27,8 @@ pub(crate) fn prop_member<'t>(
     let PropertyKey::StaticIdentifier(key) = info.prop_key? else {
         return None;
     };
-    let Expression::StaticMemberExpression(mut m) = b.member(b.id("$$props"), &key.name) else {
+    let Expression::StaticMemberExpression(mut m) = b.member(b.id(markers::SETUP_PROPS), &key.name)
+    else {
         unreachable!("a member")
     };
     m.span = identifier.span;
@@ -53,7 +54,7 @@ pub(super) fn prop_declarations<'t>(rw: &mut ScriptRewrite<'_, 't>, body: &mut V
         let value = b.call(
             b.id(markers::PROP_CELL),
             [
-                b.id("$$props"),
+                b.id(markers::SETUP_PROPS),
                 b.string(&key.name),
                 b.arrow(b.parameters([]), fallback),
                 b.boolean(server),

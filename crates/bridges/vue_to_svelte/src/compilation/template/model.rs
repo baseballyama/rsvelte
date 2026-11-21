@@ -8,8 +8,10 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 use rsvelte_typescript_tree::{ExpressionIdentifier, document_span, node_span};
 use rsvelte_vue_semantic::compiler_syntax_tree::{Directive, Property};
 
-use super::{T, expression_of, vmodel};
-use crate::compilation::context::{Class, Declared, Helper, R, output_span, unsupported};
+use super::{Template, expression_of, output_span, vmodel};
+use crate::compilation::info::{Class, Declared};
+use crate::compilation::names::Helper;
+use crate::compilation::{R, unsupported};
 
 /// An attribute waiting for the element it goes on.
 type Pending = Box<dyn FnOnce(SvelteNodeIdentifier, &Property) -> Attribute>;
@@ -26,7 +28,7 @@ fn member_root<'e, 'v>(mut e: &'e Expression<'v>) -> &'e Expression<'v> {
     }
 }
 
-impl<'a> T<'_, '_, '_, 'a> {
+impl<'a> Template<'_, '_, '_, 'a> {
     /// `v-model`. On the client, Vue's own directive runs on the element through an attachment;
     /// on the server, the attribute compiler-ssr's `ssrTransformModel` renders.
     pub(super) fn model(

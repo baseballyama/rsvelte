@@ -9,7 +9,7 @@ use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
 use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
-use super::{Template, directive, known_string};
+use super::{Template, directive};
 use crate::compilation::helpers::Helper;
 use crate::compilation::{R, markers, unsupported};
 
@@ -23,12 +23,7 @@ impl<'t> Template<'_, '_, 't> {
         at: Span,
     ) -> R<vue::Children> {
         let (compiler_syntax_tree, source_text) = (self.i.compiler_syntax_tree, self.i.source_text);
-        let namespaces = self
-            .i
-            .plan
-            .namespaces
-            .as_ref()
-            .expect("translation uses a checked plan");
+        let namespaces = &self.i.checked.namespaces;
         let (_, drops_whitespace) = namespaces.fragment(compiler_syntax_tree, source_text, ids);
         let cleaned = clean_nodes(
             compiler_syntax_tree,
@@ -302,7 +297,7 @@ impl<'t> Template<'_, '_, 't> {
         let b = self.b;
         let evaluated = self.evaluate(e);
         if evaluated.is_known {
-            return b.string(&known_string(&evaluated.value));
+            return b.string(&evaluated.value.to_template_string());
         }
         let x = self.template_expression(e);
         if self.i.server {

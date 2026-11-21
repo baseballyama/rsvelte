@@ -37,7 +37,7 @@ export const load = () => ({
 		svueRegister: 'svue/computation/register',
 		svueTranslated: 'svue/computation/impl Artifact for Translated',
 		svueInput: 'svue/compilation/Translation::compile_input',
-		svueClass: 'svue/compilation/template/attributes/T::dynamic_class',
+		svueClass: 'svue/compilation/template/attributes/Template::dynamic_class',
 		vuelteRegister: 'vuelte/computation/register',
 		vuelteModule: 'vuelte/computation/Compile::module',
 		vuelteRef: 'vuelte/compilation/vapor/elements/Emitter::element_directives',

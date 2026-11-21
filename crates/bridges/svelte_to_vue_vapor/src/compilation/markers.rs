@@ -46,10 +46,21 @@ pub(crate) const COMPUTED: &str = "$$computed";
 pub(crate) const PROP_CELL: &str = "$$prop_cell";
 /// The script's async derived cell constructor.
 pub(crate) const ASYNC_DERIVED: &str = "$$async_derived";
+/// The wrapper that makes `$effect.tracking()` true while a value is read.
+pub(crate) const TRACKED: &str = "$$tracked";
 /// The source of a `bind:group` binding.
 pub(crate) const GROUP_SOURCE: &str = "$$group_source";
 /// The client's `onMount`.
 pub(crate) const ON_MOUNT: &str = "$$on_mount";
+
+/// The setup's `defineProps()` object.
+pub(crate) const SETUP_PROPS: &str = "$$props";
+/// The setup's rest props.
+pub(crate) const REST_PROPS: &str = "$$attrs";
+/// The setup's `$host()` function.
+pub(crate) const HOST: &str = "$$host";
+/// The setup's custom element host, which `$host()` returns.
+pub(crate) const HOST_VALUE: &str = "$$host_value";
 
 /// A snippet's declared name, `$$snippet_<suffix>`, as a literal that `format!` can take.
 macro_rules! snippet_name {

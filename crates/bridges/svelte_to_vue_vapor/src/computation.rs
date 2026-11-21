@@ -5,14 +5,12 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
 
-use crate::compilation::script;
-
 /// `check` on the Svelte plugin's artifacts, shared by both targets.
 #[derive(Debug)]
 pub(crate) struct Checked;
 
 impl Artifact for Checked {
-    type Output = R<script::Plan>;
+    type Output = R<CheckedComponent>;
 
     const NAME: &'static str = "vuelte.check";
 
@@ -59,7 +57,7 @@ pub(crate) struct Compile {
 
 impl Compile {
     fn module(&self, context: &DocumentContext<'_>) -> R<(String, Option<String>)> {
-        let plan = context.get::<Checked>().as_ref().map_err(Clone::clone)?;
+        let checked = context.get::<Checked>().as_ref().map_err(Clone::clone)?;
         let c = rsvelte_svelte_syntax::fully_parsed(context).map_err(Clone::clone)?;
         let compiler_syntax_tree = context
             .get::<rsvelte_svelte_semantic::Lowered>()
@@ -80,7 +78,7 @@ impl Compile {
                 compiler_syntax_tree,
                 resolution,
                 analysis,
-                plan,
+                checked,
                 source_text: context.source_text(),
                 server: self.server,
                 filename: &context.document.path,
@@ -126,4 +124,4 @@ impl Task for Compile {
 #[cfg(test)]
 mod tests;
 
-use crate::compilation::{Input, R, check, compile, translate};
+use crate::compilation::{CheckedComponent, Input, R, check, compile, translate};

@@ -105,7 +105,7 @@ impl<'t> Template<'_, '_, 't> {
     /// `let { a, b } = $state(v)`: a cell per name, as the script lowers it.
     fn rune_pattern(&self, declarator: &oxc_ast::ast::VariableDeclarator<'_>) -> Statement<'t> {
         let b = self.b;
-        let tracking = self.i.plan.tracking(self.i.server);
+        let tracking = self.i.checked.script.tracking(self.i.server);
         let Some(Expression::CallExpression(call)) = &declarator.init else {
             unreachable!("a rune is a call")
         };
