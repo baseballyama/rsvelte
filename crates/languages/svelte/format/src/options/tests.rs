@@ -66,6 +66,9 @@ fn a_sort_order_is_none_or_all_four_parts_once() {
 fn an_unknown_option_is_refused() {
     parse(r#"{"printwidth": 80}"#).expect_err("a misspelled name");
     parse(r#"{"trailingComma": "always"}"#).expect_err("a value Prettier does not have");
+    // oxfmt has no range option, so neither has the formatter it hosts.
+    parse(r#"{"rangeStart": 1}"#).expect_err("not an oxfmt option");
+    parse(r#"{"rangeEnd": 10}"#).expect_err("not an oxfmt option");
 }
 
 #[test]
@@ -73,14 +76,6 @@ fn a_whole_number_may_be_written_with_a_fraction_of_zero() {
     assert_eq!(
         parse(r#"{"printWidth": 80.0}"#).map(|o| o.print_width),
         Ok(80)
-    );
-    assert_eq!(
-        parse(r#"{"rangeEnd": null}"#).map(|o| o.range_end),
-        Ok(None)
-    );
-    assert_eq!(
-        parse(r#"{"rangeEnd": 5}"#).map(|o| o.range_end),
-        Ok(Some(5))
     );
     parse(r#"{"tabWidth": 2.5}"#).expect_err("not whole");
     parse(r#"{"tabWidth": -1}"#).expect_err("negative");
@@ -108,8 +103,6 @@ fn every_option_value_not_printed_yet_is_refused() {
         (r#"{"printWidth": 0}"#, "printWidth"),
         (r#"{"printWidth": 321}"#, "printWidth"),
         (r#"{"tabWidth": 25}"#, "tabWidth"),
-        (r#"{"rangeStart": 1}"#, "rangeStart"),
-        (r#"{"rangeEnd": 10}"#, "rangeEnd"),
         (
             r#"{"experimentalTernaries": true}"#,
             "experimentalTernaries",
