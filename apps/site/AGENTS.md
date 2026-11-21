@@ -3,16 +3,11 @@
 Write the site in Japanese for frontend engineers. Follow the `docs` skill
 (`.claude/skills/docs/SKILL.md`); this file lists only what is specific to the site.
 
-- Say what a module does before you show its implementation name.
-- Use well-known acronyms (`acronyms` in `tools/writing/words.ts`) as they are, and define AST
-  and HIR at their first use on a page. Spell out every other acronym and shortened name.
-  Rename shortened project names in the code too, then update the quoted excerpts.
-- `Term` adds a Japanese explanation to a word. It must not hide a shortened name.
-- Keep quoted code exact. Rust keywords, Cargo's layout, library names, language syntax and
-  public protocol fields keep their own spelling.
-- A comparison names the other tool's relevant feature and links its official page, with the
-  date you checked it. A cache claim says when the value expires.
-- Animation must not suggest a measured speed, and the text must work with motion turned off.
+- Keep each page short. A fact belongs to one page; link to it from the others.
+- Check each fact against the code or `apps/cli/README.md`. Do not state a number that the
+  build does not compute.
+- Use well-known acronyms (`acronyms` in `tools/writing/words.ts`) as they are. Write any other
+  name as code, or spell it out.
 
 ## Checks
 

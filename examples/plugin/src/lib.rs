@@ -1,5 +1,5 @@
-//! A plugin that counts a component's top-level elements: the smallest whole plugin, as the
-//! site's plugin guide walks through it.
+//! A plugin that counts a component's top-level elements: the smallest whole plugin, a model for
+//! new plugins.
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};

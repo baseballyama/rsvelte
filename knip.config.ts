@@ -10,8 +10,8 @@ export default {
 		},
 		'apps/site': {
 			entry: ['scripts/*.ts'],
-			// wasm-pack's output, which only the site job builds.
-			ignoreUnresolved: [/^#generated\/wasm\//],
+			// The Rust tool that builds the playground's WebAssembly.
+			ignoreBinaries: ['wasm-pack'],
 		},
 		'tools/oracle': {
 			// Loaded by URL into a browser, a worker or a child process, not imported.

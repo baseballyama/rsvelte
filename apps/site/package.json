@@ -1,10 +1,9 @@
 {
 	"name": "@rsvelte-experimental/site",
 	"private": true,
-	"description": "The rsvelte site: landing page and the /learn developer guide. SvelteKit on Cloudflare Workers.",
+	"description": "The rsvelte site: the user guide, the lint rules, a playground and how the toolchain works. A static SvelteKit site on GitHub Pages.",
 	"type": "module",
 	"imports": {
-		"#lib": "./src/lib",
 		"#lib/*": "./src/lib/*",
 		"#generated/*": "./generated/*"
 	},
@@ -19,30 +18,24 @@
 		"prebuild": "pnpm run generate",
 		"build": "pnpm run lint && pnpm run build:bundle",
 		"build:bundle": "vite build",
-		"preview": "wrangler dev",
-		"predeploy": "pnpm run generate",
+		"preview": "vite preview",
 		"precheck": "pnpm run generate",
-		"deploy": "pnpm run build && wrangler deploy",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"pretest": "pnpm run generate",
-		"test": "node --test scripts/*.test.ts && pnpm run lint && vitest run"
+		"test": "node --test 'scripts/*.test.ts' 'src/**/*.test.ts' && pnpm run lint"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-cloudflare": "8.0.2",
+		"@sveltejs/adapter-static": "4.0.1",
 		"@sveltejs/kit": "3.1.1",
 		"@sveltejs/vite-plugin-svelte": "7.3.1",
-		"@tailwindcss/vite": "4.3.4",
 		"@textlint-ja/textlint-rule-no-dropping-i": "3.0.0",
 		"@textlint-ja/textlint-rule-no-filler": "1.1.0",
 		"@textlint-ja/textlint-rule-no-insert-dropping-sa": "2.0.1",
 		"@textlint-ja/textlint-rule-no-synonyms": "1.3.0",
 		"@textlint-ja/textlint-rule-preset-ai-writing": "1.7.0",
 		"@types/node": "26.6.6",
-		"shiki": "4.6.0",
 		"sudachi-synonyms-dictionary": "20.0.0",
 		"svelte": "5.57.3",
 		"svelte-check": "4.7.8",
-		"tailwindcss": "4.3.4",
 		"textlint": "15.8.0",
 		"textlint-rule-ja-hiragana-daimeishi": "1.0.0",
 		"textlint-rule-ja-hiragana-hojodoushi": "1.1.0",
@@ -56,9 +49,7 @@
 		"textlint-rule-preset-jtf-style": "3.0.3",
 		"textlint-rule-prh": "6.1.1",
 		"typescript": "6.0.3",
-		"vite": "8.3.5",
-		"vitest": "5.1.0",
-		"wrangler": "4.156.2"
+		"vite": "8.3.5"
 	},
 	"engines": {
 		"node": ">=26"

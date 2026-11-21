@@ -22,7 +22,7 @@ const rule: Rule = (context) => {
 			report(
 				node,
 				new RuleError(
-					`略語「${match[0]}」を使わず、日本語で意味を書いてください。実装名は Term またはコード引用で示してください。`,
+					`略語「${match[0]}」を使わず、日本語で意味を書いてください。実装名はコードとして書いてください。`,
 					{ index: match.index },
 				),
 			);
