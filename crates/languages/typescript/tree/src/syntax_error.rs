@@ -122,6 +122,7 @@ pub(crate) use acorn_rejection::{acorn, reported};
 mod locator;
 mod readers;
 mod typescript_eslint;
+mod word;
 
 pub use readers::{Reader, babel_typescript_throws, function_as_body, typescript_estree_throws};
 pub(crate) use typescript_eslint::typescript_eslint_at;
