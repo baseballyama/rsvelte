@@ -24,6 +24,9 @@
 	});
 
 	const result = $derived(run?.(settled, operation));
+	const shown = $derived(result?.ok ? result.steps.map(view) : []);
+	// Positions belong to the settled source; while typing, the old marks would point elsewhere.
+	const marks = $derived(settled === source ? shown.flatMap((step) => step.problems) : []);
 </script>
 
 <svelte:head>
@@ -49,7 +52,7 @@
 
 <div class="panes">
 	<div class="editor">
-		<Code bind:value={source} file="App.svelte" label="Source of App.svelte" />
+		<Code bind:value={source} file="App.svelte" label="Source of App.svelte" problems={marks} />
 	</div>
 	<div class="output" aria-live="polite">
 		{#if failure}
@@ -59,21 +62,21 @@
 		{:else if !result.ok}
 			<p>Error: {result.message}</p>
 		{:else}
-			{#each result.steps.map(view) as shown, i (i)}
-				{#each shown.problems as problem, j (j)}
+			{#each shown as step, i (i)}
+				{#each step.problems as problem, j (j)}
 					<p class="problem">
-						<code>{problem.line}:{problem.column}</code>
+						<code>{problem.start.line}:{problem.start.column}</code>
 						{problem.message}
 						<span class="muted">{problem.rule}</span>
 					</p>
 				{/each}
-				{#each shown.files as file (file.name)}
-					{#if shown.files.length > 1}<p class="muted">{file.name}</p>{/if}
+				{#each step.files as file (file.name)}
+					{#if step.files.length > 1}<p class="muted">{file.name}</p>{/if}
 					<div class="file">
 						<Code value={file.text} file={file.name} label={file.name} readonly />
 					</div>
 				{/each}
-				{#if operation === 'lint' && shown.problems.length === 0}
+				{#if operation === 'lint' && step.problems.length === 0}
 					<p class="muted">No problems found.</p>
 				{/if}
 			{/each}

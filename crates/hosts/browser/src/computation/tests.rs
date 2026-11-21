@@ -52,6 +52,11 @@ fn snapshots_stop_at_the_character_limit() {
 fn input_errors_are_reported() {
     let json = run_pipeline("<p>", "App.svelte", "svelte", "format", true);
     assert!(json.contains(r#""diagnostics":[{"code":"#), "{json}");
+    assert!(
+        json.contains(r#""start":{"line":1,"column":"#)
+            && json.contains(r#""end":{"line":1,"column":"#),
+        "{json}"
+    );
     let json = run_pipeline("", "App.svelte", "unknown", "format", true);
     assert!(json.contains(r#""ok":false"#), "{json}");
 }

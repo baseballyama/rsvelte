@@ -20,16 +20,31 @@ test('shows lint findings and diagnostics as problems, and other files as files'
 			{ name: 'lint.json', text: lint },
 			{ name: 'js', text: 'export {}' },
 		],
-		diagnostics: [{ code: 'parse_error', message: 'oops', severity: 'error', line: 1, column: 2 }],
+		diagnostics: [
+			{
+				code: 'parse_error',
+				message: 'oops',
+				severity: 'error',
+				start: { line: 1, column: 2 },
+				end: { line: 1, column: 3 },
+			},
+		],
 	});
 	assert.deepEqual(shown.files, [{ name: 'js', text: 'export {}' }]);
 	assert.deepEqual(shown.problems, [
-		{ line: 1, column: 2, rule: 'parse_error', message: 'oops' },
 		{
-			line: 3,
-			column: 7,
+			start: { line: 1, column: 2 },
+			end: { line: 1, column: 3 },
+			rule: 'parse_error',
+			message: 'oops',
+			severity: 'error',
+		},
+		{
+			start: { line: 3, column: 7 },
+			end: { line: 3, column: 13 },
 			rule: 'no-unused-vars',
 			message: "'unused' is assigned a value but never used.",
+			severity: 'warning',
 		},
 	]);
 });

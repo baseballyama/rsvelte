@@ -3,18 +3,27 @@
 	import { css } from '@codemirror/lang-css';
 	import { javascript } from '@codemirror/lang-javascript';
 	import { bracketMatching, HighlightStyle, syntaxHighlighting } from '@codemirror/language';
-	import { EditorState, type Extension } from '@codemirror/state';
+	import { setDiagnostics, type Diagnostic } from '@codemirror/lint';
+	import { EditorState, type Extension, type Text } from '@codemirror/state';
 	import { drawSelection, EditorView, keymap, lineNumbers } from '@codemirror/view';
 	import { tags } from '@lezer/highlight';
 	import { svelte } from '@replit/codemirror-lang-svelte';
 	import { untrack } from 'svelte';
+	import type { Problem } from '#lib/playground.ts';
 
 	let {
 		value = $bindable(),
 		file,
 		label,
 		readonly = false,
-	}: { value: string; file: string; label: string; readonly?: boolean } = $props();
+		problems = [],
+	}: {
+		value: string;
+		file: string;
+		label: string;
+		readonly?: boolean;
+		problems?: Problem[];
+	} = $props();
 
 	// The colors are CSS variables in app.css, so the light and dark themes both apply.
 	const highlight = HighlightStyle.define([
@@ -54,12 +63,19 @@
 		'.cm-content': { padding: '0.9rem 0', caretColor: 'var(--fg)' },
 		'.cm-gutters': { background: 'transparent', border: 'none', color: 'var(--muted)' },
 		'.cm-cursor': { borderLeftColor: 'var(--fg)' },
+		'.cm-tooltip': {
+			border: '1px solid var(--line)',
+			borderRadius: '6px',
+			color: 'var(--fg)',
+			background: 'var(--bg)',
+		},
 		'&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
 			background: 'var(--selection) !important',
 		},
 	});
 
-	let view: EditorView | undefined;
+	// State, so the effects below run again once the editor exists.
+	let view: EditorView | undefined = $state.raw();
 
 	// An attachment runs again when what it reads changes; the editor is created once.
 	const mount = (node: HTMLElement) => untrack(() => create(node));
@@ -92,6 +108,29 @@
 		});
 		return () => view?.destroy();
 	}
+
+	// A 1-based line and column, clamped to the document.
+	function offset(doc: Text, { line, column }: { line: number; column: number }) {
+		if (line > doc.lines) return doc.length;
+		const { from, to } = doc.line(Math.max(line, 1));
+		return Math.min(from + column - 1, to);
+	}
+
+	$effect(() => {
+		if (!view) return;
+		const doc = view.state.doc;
+		const marks: Diagnostic[] = problems.map((problem) => {
+			const from = offset(doc, problem.start);
+			return {
+				from,
+				to: Math.max(from, offset(doc, problem.end)),
+				severity: problem.severity,
+				message: problem.message,
+				source: problem.rule ?? undefined,
+			};
+		});
+		view.dispatch(setDiagnostics(view.state, marks));
+	});
 
 	// Output changes from outside; the editor's own typing already matches `value`.
 	$effect(() => {
