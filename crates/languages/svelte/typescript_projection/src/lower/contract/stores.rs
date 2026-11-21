@@ -60,11 +60,15 @@ fn declared_subscriptions(
 #[must_use]
 pub fn store_reads(resolution: &Resolution) -> Vec<(Span, Vec<Span>)> {
     let scoping = resolution.scoping();
+    // Walked once, on the first store, rather than once per store.
+    let mut declared_all: Option<Vec<oxc_syntax::symbol::SymbolId>> = None;
     subscribed_stores(resolution)
         .map(|(name, symbol, _)| {
-            let declared = declared_subscriptions(resolution)
-                .filter(|&own| scoping.symbol_name(own) == name)
-                .flat_map(|own| scoping.get_resolved_reference_ids(own));
+            let declared = declared_all
+                .get_or_insert_with(|| declared_subscriptions(resolution).collect())
+                .iter()
+                .filter(|&&own| scoping.symbol_name(own) == name)
+                .flat_map(|&own| scoping.get_resolved_reference_ids(own));
             let reads = (scoping.root_unresolved_references().get(name).into_iter())
                 .flatten()
                 .chain(declared)
