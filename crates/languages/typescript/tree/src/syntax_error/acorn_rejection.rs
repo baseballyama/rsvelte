@@ -3,10 +3,11 @@
 use std::borrow::Cow;
 
 use oxc_ast::AstType;
+use oxc_ast::ast::Expression;
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, Parser, Token};
-use oxc_span::SourceType;
+use oxc_span::{GetSpan, SourceType};
 
 use super::Acorn;
 use super::locator::{Find, Holder, Locator, Reading, locate};
@@ -154,7 +155,7 @@ pub(crate) fn acorn(
                 .start(),
         )),
         "2364" | "2701" | "2357" | "2406" | "2487" | "2777" | "2778" | "2779" | "2780" | "2781" => {
-            unassignable(number, start, read())
+            unassignable(number, text, (start, end))
         }
         "1127" => unexpected_character(text, start, end),
         // A word reserved in strict code, or `await` outside an async function, which acorn reads
@@ -195,29 +196,32 @@ pub(crate) fn acorn(
 }
 
 /// What acorn reports for a target that cannot be assigned, which tsc's code `number` names apart
-/// when it is an optional chain, and which oxc labels from its outermost parentheses at `start`:
-/// acorn reports it at the target inside them, or at them around an object or an array.
-fn unassignable(number: &str, start: u32, tokens: impl Iterator<Item = Token>) -> Option<Acorn> {
+/// when it is an optional chain.
+fn unassignable(number: &str, text: &str, label: (u32, u32)) -> Option<Acorn> {
     let message = match number {
         "2777" | "2778" | "2779" | "2780" | "2781" => {
             "Optional chaining cannot appear in left-hand side"
         }
         _ => "Assigning to rvalue",
     };
-    let mut tokens = tokens.skip_while(|token| token.start() < start);
-    let first = tokens.next()?;
-    let inside = std::iter::once(first)
-        .chain(tokens)
-        .find(|token| token.kind() != Kind::LParen)?;
-    let pattern = matches!(inside.kind(), Kind::LCurly | Kind::LBrack);
-    Some(fails(
-        message,
-        if pattern {
-            first.start()
-        } else {
-            inside.start()
-        },
-    ))
+    Some(fails(message, rejected(text, label)?))
+}
+
+/// Where acorn reports a target that oxc labels `start..end` as tsc does, with the parentheses and
+/// type assertions around it: at the expression inside them, where acorn's node starts, or at the
+/// outermost parenthesis around an object or an array, which acorn reads as a pattern.
+#[cold]
+fn rejected(text: &str, (start, end): (u32, u32)) -> Option<u32> {
+    let target = text.get(start as usize..end as usize)?;
+    crate::scratch::with_scratch_arena(|allocator| {
+        let target = Parser::new(allocator, target, SourceType::ts())
+            .parse_expression()
+            .ok()?;
+        Some(match target.get_inner_expression() {
+            Expression::ObjectExpression(_) | Expression::ArrayExpression(_) => start,
+            inner => start + inner.span().start,
+        })
+    })
 }
 
 /// What acorn reports for an error of the analysis, which oxc labels from `start` to `end` and

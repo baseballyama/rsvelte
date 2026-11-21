@@ -38,6 +38,29 @@ fn acorn_reports_each_error_in_its_own_words_and_place() {
             15,
         ),
         ("{(a + 1) = 2}", "Assigning to rvalue", 2),
+        ("{(f)() = 1}", "Assigning to rvalue", 1),
+        ("{((f))() = 1}", "Assigning to rvalue", 1),
+        ("{(f)()++}", "Assigning to rvalue", 1),
+        ("{(a) + 1 = 2}", "Assigning to rvalue", 1),
+        ("{((a) + 1) = 2}", "Assigning to rvalue", 2),
+        ("{(a)`t` = 1}", "Assigning to rvalue", 1),
+        ("{(a, b) = 1}", "Assigning to rvalue", 2),
+        ("{[(f)()] = x}", "Assigning to rvalue", 2),
+        (
+            "<script lang=\"ts\">((f)() as any) = 1</script>",
+            "Assigning to rvalue",
+            19,
+        ),
+        (
+            "<script lang=\"ts\">(f)()! = 1</script>",
+            "Assigning to rvalue",
+            18,
+        ),
+        (
+            "<script lang=\"ts\">(({}) as any) = x</script>",
+            "Assigning to rvalue",
+            18,
+        ),
         ("{++(f())}", "Assigning to rvalue", 4),
         ("{f()++}", "Assigning to rvalue", 1),
         (
@@ -154,6 +177,23 @@ fn an_optional_chain_target_is_its_own_error() {
         ("<script lang=\"ts\">a?.b = 1</script>", 18),
         ("<script lang=\"ts\">(a?.b)! = 1</script>", 19),
         ("<script lang=\"ts\">(a?.b as any) = 1</script>", 19),
+        // A parenthesized object starts the chain, as it starts acorn's node.
+        ("{(a)?.b = x}", 1),
+        ("{((a))?.b = x}", 1),
+        ("{(a).b?.c = x}", 1),
+        ("{((a)?.b) = x}", 2),
+        ("{(a)?.b++}", 1),
+        ("{++(a)?.b}", 3),
+        ("{[(a)?.b] = x}", 2),
+        ("{({x: (a)?.b} = y)}", 6),
+        ("{[...(a)?.b] = x}", 5),
+        ("<script>[(a)?.b] = o</script>", 9),
+        ("<script>for ((a)?.b of x);</script>", 13),
+        ("<script>for ((a)?.b in x);</script>", 13),
+        ("<script lang=\"ts\">((a)?.b)! = 1</script>", 19),
+        ("<script lang=\"ts\">((a)?.b as any) = 1</script>", 19),
+        ("<script lang=\"ts\">(a)?.b! = 1</script>", 18),
+        ("<script lang=\"ts\">(<any>(a)?.b) = 1</script>", 24),
     ] {
         let error = parse(source).expect_err(source);
         assert_eq!(
