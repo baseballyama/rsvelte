@@ -85,7 +85,7 @@ fn read(
     close: Option<&[u8]>,
     lint: Option<Dialect>,
 ) -> R<StyleSheet> {
-    let mut p = P::new(source_text, start, end, close, lint);
+    let mut p = Parser::new(source_text, start, end, close, lint);
     let rules = p.rules(false)?;
     Ok(StyleSheet {
         content: Span::new(start as u32, p.position as u32),
@@ -102,7 +102,7 @@ fn read(
     })
 }
 
-impl<'a> P<'a> {
+impl<'a> Parser<'a> {
     fn new(
         source_text: &'a str,
         start: usize,
@@ -110,7 +110,7 @@ impl<'a> P<'a> {
         close: Option<&'a [u8]>,
         lint: Option<Dialect>,
     ) -> Self {
-        P {
+        Parser {
             tolerant: lint.is_some(),
             scss: lint == Some(Dialect::Scss),
             b: source_text.as_bytes(),
@@ -133,7 +133,7 @@ impl<'a> P<'a> {
     }
 }
 
-struct P<'a> {
+struct Parser<'a> {
     /// [`parse_for_lint`]'s reading.
     tolerant: bool,
     scss: bool,
@@ -155,7 +155,7 @@ struct P<'a> {
     escaped: FxHashMap<Span, Atom>,
 }
 
-impl P<'_> {
+impl Parser<'_> {
     /// The error of Svelte's `eat(token, true)`.
     fn expected_token(&self, token: &str) -> ParseError {
         ParseError {

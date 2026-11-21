@@ -6,22 +6,27 @@ use super::{
 
 /// The Vue frontend: the template as written, to the HIR. `None` without a `<template>`.
 #[must_use]
-pub fn lower(c: &SingleFileComponent, source_text: &str) -> Option<CompilerSyntaxTree> {
-    let t = c.template.as_ref()?;
-    let mut b = SurfaceBuilder {
-        c,
+pub fn lower(component: &SingleFileComponent, source_text: &str) -> Option<CompilerSyntaxTree> {
+    let t = component.template.as_ref()?;
+    let mut surface = SurfaceBuilder {
+        component,
         source_text,
-        b: CompilerSyntaxTreeBuilder::new(c.nodes.len(), c.attributes.len()),
+        builder: CompilerSyntaxTreeBuilder::new(component.nodes.len(), component.attributes.len()),
         in_pre: 0,
     };
-    let root = b.list(c.children(t.root), None, Whitespace::Condense, false);
-    Some(b.b.finish(root))
+    let root = surface.list(
+        component.children(t.root),
+        None,
+        Whitespace::Condense,
+        false,
+    );
+    Some(surface.builder.finish(root))
 }
 
 pub(super) struct SurfaceBuilder<'a> {
-    c: &'a SingleFileComponent,
+    component: &'a SingleFileComponent,
     source_text: &'a str,
-    b: CompilerSyntaxTreeBuilder,
+    builder: CompilerSyntaxTreeBuilder,
     /// Open `<pre>` elements (`inPre`).
     in_pre: u32,
 }
@@ -47,13 +52,13 @@ impl SurfaceBuilder<'_> {
         ws: Whitespace,
         ignore_newline: bool,
     ) -> Children {
-        let (c, source_text) = (self.c, self.source_text);
+        let (component, source_text) = (self.component, self.source_text);
         // `None` once condensing removes the text; upstream reads its neighbours in the list it
         // is filtering.
         let mut kept: Vec<Option<(TemplateNodeIdentifier, Option<Text>)>> = list
             .iter()
             .map(|&t| {
-                let text = match c.node(t) {
+                let text = match component.node(t) {
                     TemplateNode::Text { span } => {
                         Some(Text::decoded(*span, source_text, Place::Text))
                     }
@@ -75,7 +80,7 @@ impl SurfaceBuilder<'_> {
                 let neighbour = |j: Option<usize>| {
                     j.and_then(|j| kept.get(j))
                         .and_then(|k| k.as_ref())
-                        .map(|&(t, _)| c.node(t))
+                        .map(|&(t, _)| component.node(t))
                 };
                 let remove = match (neighbour(i.checked_sub(1)), neighbour(Some(i + 1))) {
                     (None, _)
@@ -120,13 +125,14 @@ impl SurfaceBuilder<'_> {
             .into_iter()
             .flatten()
             .map(|(t, text)| match text {
-                Some(text) => self
-                    .b
-                    .node(NodeKind::Text(text), c.node(t).span(), parent, t),
+                Some(text) => {
+                    self.builder
+                        .node(NodeKind::Text(text), component.node(t).span(), parent, t)
+                }
                 None => self.node(t, parent),
             })
             .collect();
-        self.b.children(&identifiers)
+        self.builder.children(&identifiers)
     }
 
     fn node(
@@ -134,8 +140,8 @@ impl SurfaceBuilder<'_> {
         t: TemplateNodeIdentifier,
         parent: Option<CompilerNodeIdentifier>,
     ) -> CompilerNodeIdentifier {
-        let (c, source_text) = (self.c, self.source_text);
-        let surface = c.node(t);
+        let (component, source_text) = (self.component, self.source_text);
+        let surface = component.node(t);
         let kind = match *surface {
             TemplateNode::Text { .. } => unreachable!("`list` adds text"),
             TemplateNode::Comment { data, .. } => NodeKind::Comment { data },
@@ -148,14 +154,17 @@ impl SurfaceBuilder<'_> {
                 children,
                 ..
             } => {
-                let props = self.b.props(
-                    c.attributes(attributes)
+                let props = self.builder.props(
+                    component
+                        .attributes(attributes)
                         .iter()
                         .enumerate()
                         .map(|(i, a)| prop(source_text, a, attributes.start + i as u32)),
                 );
-                let tag_type = self.b.tag_type(name.text(source_text), props, source_text);
-                let identifier = self.b.node(
+                let tag_type = self
+                    .builder
+                    .tag_type(name.text(source_text), props, source_text);
+                let identifier = self.builder.node(
                     NodeKind::Element(Element {
                         tag: Name::Source(name),
                         tag_type,
@@ -177,14 +186,18 @@ impl SurfaceBuilder<'_> {
                     Whitespace::Condense
                 };
                 let ignore_newline = matches!(tag, "pre" | "textarea");
-                let children =
-                    self.list(c.children(children), Some(identifier), ws, ignore_newline);
+                let children = self.list(
+                    component.children(children),
+                    Some(identifier),
+                    ws,
+                    ignore_newline,
+                );
                 self.in_pre -= u32::from(pre);
-                self.b.set_element_children(identifier, children);
+                self.builder.set_element_children(identifier, children);
                 return identifier;
             }
         };
-        self.b.node(kind, surface.span(), parent, t)
+        self.builder.node(kind, surface.span(), parent, t)
     }
 }
 

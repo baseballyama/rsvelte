@@ -1,8 +1,8 @@
 use rsvelte_markup_syntax::script_language::is_typescript;
 
-use super::{Diagnostic, P, R, Script, Span, Style, TagAttributes, Template, TokenType};
+use super::{Diagnostic, Parser, R, Script, Span, Style, TagAttributes, Template, TokenType};
 
-impl P<'_, '_> {
+impl Parser<'_, '_> {
     pub(super) fn blocks(&mut self) -> R<()> {
         loop {
             let rest = self.rest();
@@ -126,14 +126,14 @@ impl P<'_, '_> {
         {
             return Self::err_at(*name, "this template attribute is not supported yet");
         }
-        if self.c.template.is_some() {
+        if self.markup.template.is_some() {
             return self.err("a component can have only one <template>");
         }
         let content_start_offset = self.position;
         let root = self.fragment(Some("template"))?;
         let content = Span::new(content_start_offset as u32, self.position as u32);
         self.close_tag("template")?;
-        self.c.template = Some(Template {
+        self.markup.template = Some(Template {
             span: Span::new(start_offset as u32, self.position as u32),
             attributes,
             content,
@@ -167,12 +167,12 @@ impl P<'_, '_> {
         let lang = has("lang").and_then(|(_, lang)| *lang);
         self.lang_read = Some(lang.is_some_and(|lang| is_typescript(lang.text(self.source_text))));
         let content = self.raw_text("script")?;
-        if self.c.script.is_some() {
+        if self.markup.script.is_some() {
             return Self::err_at(content, "a component can have only one <script setup>");
         }
         let program = self.program(content)?;
         self.close_tag("script")?;
-        self.c.script = Some(Script {
+        self.markup.script = Some(Script {
             span: Span::new(start_offset as u32, self.position as u32),
             attributes,
             content,
@@ -194,11 +194,11 @@ impl P<'_, '_> {
             .iter()
             .any(|(n, _)| n.text(self.source_text) == "scoped");
         let content = self.raw_text("style")?;
-        self.c.tokens.push(TokenType::Stylesheet, content);
+        self.markup.tokens.push(TokenType::Stylesheet, content);
         self.close_tag("style")?;
         let sheet = rsvelte_stylesheet_syntax::parse(self.source_text, content)
             .map_err(|e| Diagnostic::error(e.code, e.message, e.span))?;
-        self.c.styles.push(Style {
+        self.markup.styles.push(Style {
             span: Span::new(start_offset as u32, self.position as u32),
             attributes,
             content,

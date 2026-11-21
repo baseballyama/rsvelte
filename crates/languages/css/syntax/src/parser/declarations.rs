@@ -1,9 +1,9 @@
 use rsvelte_kernel::source::positions::Span;
 
-use super::{P, ParseError, R, push, trim};
+use super::{ParseError, Parser, R, push, trim};
 use crate::syntax_tree::{Declaration, Rule};
 
-impl P<'_> {
+impl Parser<'_> {
     pub(super) fn body(&mut self) -> R<(Vec<Declaration>, Vec<Rule>)> {
         let mut declarations = Vec::new();
         let mut children = Vec::new();
