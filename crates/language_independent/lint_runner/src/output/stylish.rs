@@ -10,17 +10,17 @@ use rsvelte_kernel::source::positions::{LineBreaks, LineIndex};
 use super::{Positions, parsing_error};
 use crate::finding::{PARSE_ERROR, UNUSED_DIRECTIVE};
 
-/// The report in `ESLint`'s `stylish` layout, and how many errors it lists.
+/// The report in `ESLint`'s `stylish` layout of each document with its result, and how many
+/// errors it lists.
 #[must_use]
-pub fn render_stylish(
-    documents: &[Document],
-    results: &[DocumentResult],
+pub fn render_stylish<'a>(
+    linted: impl IntoIterator<Item = (&'a Document, &'a DocumentResult)>,
     colors: bool,
 ) -> (String, usize) {
     let mut out = String::new();
     let (mut errors, mut warnings) = (0, 0);
     let (mut fixable_errors, mut fixable_warnings) = (0, 0);
-    for (document, result) in documents.iter().zip(results) {
+    for (document, result) in linted {
         if let Some(panic) = &result.panic {
             writeln!(out, "\n{}\n  rsvelte panicked: {panic}", document.path)
                 .expect("writing to a String");

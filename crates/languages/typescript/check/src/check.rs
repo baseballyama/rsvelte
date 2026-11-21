@@ -280,7 +280,7 @@ impl FinishTask for Check {
                 .is_some_and(|imported| imported(context.document))
         {
             return Some(Box::new(StandIn {
-                path: context.document.path.clone(),
+                path: context.document.file_path().to_string_lossy().into_owned(),
                 text: context.source_text().to_owned(),
             }));
         }
@@ -317,7 +317,7 @@ impl FinishTask for Check {
                 None
             }
             Ok(TypeScriptDocument::Checked(document)) => Some(Box::new(Prepared {
-                path: context.document.path.clone(),
+                path: context.document.file_path().to_string_lossy().into_owned(),
                 source_text: context.source_text().to_owned(),
                 document: Arc::clone(document),
             })),
@@ -375,7 +375,7 @@ impl Check {
             .and_then(Clone::clone)
             .or_else(|| self.stand_in.map(str::to_owned))?;
         Some(Box::new(StandIn {
-            path: context.document.path.clone(),
+            path: context.document.file_path().to_string_lossy().into_owned(),
             text,
         }))
     }

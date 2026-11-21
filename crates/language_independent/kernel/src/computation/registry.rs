@@ -136,18 +136,27 @@ impl Registry {
     ///
     /// `file` cannot be read.
     pub fn read(&self, file: &std::path::Path, tasks: &[&str]) -> std::io::Result<String> {
-        let mut replaced = (self.contributions::<ReplacedFiles>().iter())
-            .filter(|replaced| replaced.tasks.iter().any(|task| tasks.contains(task)))
-            .peekable();
         // Only a file the tasks may read replaced needs its real path.
-        if replaced.peek().is_none() {
+        if self.replaced(tasks).next().is_none() {
             return std::fs::read_to_string(file);
         }
         let real = std::fs::canonicalize(file)?;
-        replaced.find(|replaced| replaced.path == real).map_or_else(
-            || std::fs::read_to_string(file),
-            |replaced| Ok(replaced.text.clone()),
-        )
+        self.replacement(&real, tasks)
+            .map_or_else(|| std::fs::read_to_string(file), |text| Ok(text.to_owned()))
+    }
+
+    /// The text a task among `tasks` reads the file at the real path `real` with in place of the
+    /// disk's, if one replaces it.
+    #[must_use]
+    pub fn replacement(&self, real: &std::path::Path, tasks: &[&str]) -> Option<&str> {
+        (self.replaced(tasks))
+            .find(|replaced| replaced.path == real)
+            .map(|replaced| replaced.text.as_str())
+    }
+
+    fn replaced(&self, tasks: &[&str]) -> impl Iterator<Item = &ReplacedFile> {
+        (self.contributions::<ReplacedFiles>().iter())
+            .filter(move |replaced| replaced.tasks.iter().any(|task| tasks.contains(task)))
     }
 
     /// The files of the project that the tasks among `tasks` check, each once, in the order the

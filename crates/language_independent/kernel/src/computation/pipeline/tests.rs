@@ -535,3 +535,53 @@ mod plugins {
         );
     }
 }
+
+#[test]
+fn each_document_runs_only_its_own_tasks_and_a_finish_task_sees_only_its_documents() {
+    let mut reg = Registry::new();
+    reg.artifact::<Len>().finish_task(Total).task(Selected {
+        identifier: "path",
+        matches: matches_t,
+    });
+    let docs: Vec<Document> = [("a.t", "ab"), ("b.t", "x"), ("c.t", "cde")]
+        .into_iter()
+        .map(|(p, t)| Document::new(p, t).unwrap())
+        .collect();
+    let own: [&[&str]; 3] = [&["path", "total"], &["path"], &["total"]];
+    let results = run_per_document(&reg, &docs, &options(&["path", "total"]), &|i| own[i]);
+    let got: Vec<Vec<String>> = (results.unwrap().iter())
+        .map(|r| {
+            (r.outputs.iter())
+                .map(|(identifier, o)| format!("{identifier}={}", o.files[0].text))
+                .collect()
+        })
+        .collect();
+    assert_eq!(
+        got,
+        [
+            vec!["path=path", "total=2/5"],
+            vec!["path=path"],
+            vec!["total=3/5"]
+        ]
+    );
+}
+
+#[test]
+fn take_moves_the_outputs_of_some_tasks_into_their_own_result() {
+    let (reg, docs) = setup();
+    let mut results = run(&reg, &docs[..1], &options(&["total", "count"])).unwrap();
+    let mut first = results.remove(0);
+    let taken = first.take(&["count"]);
+    let tasks = |result: &DocumentResult| -> Vec<&str> {
+        result.outputs.iter().map(|(task, _)| *task).collect()
+    };
+    assert_eq!(
+        (tasks(&taken), tasks(&first)),
+        (vec!["count"], vec!["total"])
+    );
+    let mut panicked = run(&reg, &docs[..1], &options(&["panics"]))
+        .unwrap()
+        .remove(0);
+    assert!(panicked.panic.is_some());
+    assert_eq!(panicked.take(&["count"]).panic, panicked.panic);
+}
