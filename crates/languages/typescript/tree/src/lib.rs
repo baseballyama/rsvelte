@@ -134,28 +134,38 @@ impl Tree {
     /// # Errors
     ///
     /// The first error `parse` returns.
-    #[expect(
-        clippy::missing_panics_doc,
-        reason = "the arena is kept only after `parse` has returned its output"
-    )]
     pub fn build<T>(
         source_text: &str,
         parse: impl for<'a> FnOnce(&mut TreeBuilder<'a>) -> Result<T, Diagnostic>,
     ) -> Result<(Self, T), Diagnostic> {
+        Self::build_keeping_parts(source_text, parse).map_err(|(error, _)| error)
+    }
+
+    /// [`Self::build`], which keeps on an error the parts `parse` read before it, for a host
+    /// whose parser raises errors in them before the one `parse` returns.
+    ///
+    /// # Errors
+    ///
+    /// The first error `parse` returns, and the trees of the parts it read.
+    #[expect(
+        clippy::missing_panics_doc,
+        reason = "`parse` has returned once the cell is built"
+    )]
+    pub fn build_keeping_parts<T>(
+        source_text: &str,
+        parse: impl for<'a> FnOnce(&mut TreeBuilder<'a>) -> Result<T, Diagnostic>,
+    ) -> Result<(Self, T), (Diagnostic, Self)> {
         let mut output = None;
-        let cell = Cell::try_new_or_recover(scratch::TREES.take(), |allocator| {
+        let cell = Cell::new(scratch::TREES.take(), |allocator| {
             let mut builder = TreeBuilder::new(allocator, allocator.alloc_str(source_text));
-            output = Some(parse(&mut builder)?);
-            Ok::<_, Diagnostic>(builder.finish())
-        })
-        .map_err(|(allocator, error)| {
-            scratch::TREES.give_back(allocator);
-            error
-        })?;
-        Ok((
-            Self(Rc::new(Kept(Some(cell)))),
-            output.expect("`parse` returned"),
-        ))
+            output = Some(parse(&mut builder));
+            builder.finish()
+        });
+        let tree = Self(Rc::new(Kept(Some(cell))));
+        match output.expect("`parse` returned") {
+            Ok(output) => Ok((tree, output)),
+            Err(error) => Err((error, tree)),
+        }
     }
 
     /// A document that is one program, such as a `.ts` file.
@@ -245,6 +255,11 @@ impl Tree {
         identifier: TypeParametersIdentifier,
     ) -> &TSTypeParameterDeclaration<'_> {
         &self.0.borrow_dependent().type_parameters[identifier]
+    }
+
+    /// Every program, with its identifier, in the order kept.
+    pub fn programs(&self) -> impl ExactSizeIterator<Item = (ProgramIdentifier, &Program<'_>)> {
+        self.0.borrow_dependent().programs.iter_enumerated()
     }
 
     /// Every expression kept apart from a program, with its identifier, in the order kept.

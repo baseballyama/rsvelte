@@ -39,6 +39,52 @@ use crate::syntax_tree::{
 
 type ParseResult<T> = Result<T, Diagnostic>;
 
+/// A component the parser rejects: its error, and the trees of the parts it read.
+///
+/// Acorn throws an error in a part, such as `delete x`, as it reads it, before the parser goes on
+/// to the error here; oxc finds it after the parser, in these trees.
+#[derive(Clone, Debug)]
+pub struct ParseError {
+    error: Diagnostic,
+    read: Tree,
+    raised_at: u32,
+}
+
+impl ParseError {
+    /// The trees of the parts the parser read.
+    #[must_use]
+    pub const fn read(&self) -> &Tree {
+        &self.read
+    }
+
+    /// How far the parser had read when it raised the error: where it stopped, or the style
+    /// sheet's error, which it raises as it meets the sheet.
+    #[must_use]
+    pub const fn raised_at(&self) -> u32 {
+        self.raised_at
+    }
+}
+
+impl std::ops::Deref for ParseError {
+    type Target = Diagnostic;
+
+    fn deref(&self) -> &Diagnostic {
+        &self.error
+    }
+}
+
+impl From<ParseError> for Diagnostic {
+    fn from(error: ParseError) -> Self {
+        error.error
+    }
+}
+
+impl<'a> From<&'a ParseError> for &'a Diagnostic {
+    fn from(error: &'a ParseError) -> Self {
+        &error.error
+    }
+}
+
 /// How deeply elements and blocks may nest. The official parser stops below 1,000 under Node's
 /// default stack.
 pub const MAX_NESTING: u32 = 1 << 16;
@@ -64,7 +110,7 @@ pub const ACORN_UNCHECKED_TYPESCRIPT_RULES: &[&str] = &[
 /// code, message and position, or `parse_error` at syntax this parser does not support. A style
 /// sheet's error alone is kept on [`Style::sheet`](crate::syntax_tree::Style::sheet);
 /// [`crate::fully_parsed`] reports it.
-pub fn parse(source_text: &str) -> ParseResult<Component> {
+pub fn parse(source_text: &str) -> Result<Component, ParseError> {
     parse_with(source_text, Scripts::Read, false)
 }
 
@@ -75,7 +121,7 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
 ///
 /// As [`parse`], for the markup.
 pub fn parse_without_scripts(source_text: &str) -> ParseResult<Component> {
-    parse_with(source_text, Scripts::Left, false)
+    Ok(parse_with(source_text, Scripts::Left, false)?)
 }
 
 /// The component as Prettier's Svelte plugin reads it.
@@ -88,7 +134,7 @@ pub fn parse_without_scripts(source_text: &str) -> ParseResult<Component> {
 ///
 /// As [`parse`], outside the scripts.
 pub fn parse_reading_scripts_as_typescript(source_text: &str) -> ParseResult<Component> {
-    parse_with(source_text, Scripts::ReadAsTypeScript, false)
+    Ok(parse_with(source_text, Scripts::ReadAsTypeScript, false)?)
 }
 
 /// The component as svelte-check's checker reads svelte2tsx's output.
@@ -115,7 +161,7 @@ pub fn parse_as_checked(source_text: &str) -> ParseResult<Component> {
     if read_as(&component) == typescript {
         return Ok(component);
     }
-    parse_as(source_text, Scripts::ReadAsChecked, false, typescript).0
+    Ok(parse_as(source_text, Scripts::ReadAsChecked, false, typescript).0?)
 }
 
 /// The component as svelte-eslint-parser reads it: as
@@ -126,7 +172,7 @@ pub fn parse_as_checked(source_text: &str) -> ParseResult<Component> {
 ///
 /// As [`parse_reading_scripts_as_typescript`].
 pub fn parse_as_svelte_eslint_parser(source_text: &str) -> ParseResult<Component> {
-    parse_with(source_text, Scripts::ReadAsTypeScript, true)
+    Ok(parse_with(source_text, Scripts::ReadAsTypeScript, true)?)
 }
 
 /// How the parser reads each script's content.
@@ -146,7 +192,7 @@ fn parse_with(
     source_text: &str,
     scripts: Scripts,
     self_closing_blocks: bool,
-) -> ParseResult<Component> {
+) -> Result<Component, ParseError> {
     rsvelte_markup_syntax::script_language::parse_guessing_typescript(source_text, |typescript| {
         parse_as(source_text, scripts, self_closing_blocks, typescript)
     })
@@ -159,9 +205,10 @@ fn parse_as(
     scripts: Scripts,
     self_closing_blocks: bool,
     typescript: bool,
-) -> (ParseResult<Component>, Option<bool>) {
+) -> (Result<Component, ParseError>, Option<bool>) {
     let mut lang_read = None;
-    let parsed = Tree::build(source_text, |builder| {
+    let mut raised_at = u32::MAX;
+    let parsed = Tree::build_keeping_parts(source_text, |builder| {
         builder.leave_unchecked(&ACORN_UNCHECKED_TYPESCRIPT_RULES);
         builder.read_as_acorn();
         let mut parser = Parser {
@@ -203,25 +250,40 @@ fn parse_as(
         lang_read = parser.lang_read;
         // The style sheet's error came first in the document, so it is the one upstream reports.
         parser.component.root = root.map_err(|e| {
-            parser
-                .component
-                .style
-                .as_ref()
-                .and_then(|style| style.sheet.as_ref().err())
-                .cloned()
-                .unwrap_or_else(|| acorn_position(e))
+            let style_error =
+                (parser.component.style.as_ref()).and_then(|style| style.sheet.as_ref().err());
+            let (error, at) = style_error.map_or_else(
+                || (acorn_position(e), parser.position as u32),
+                |error| (error.clone(), error.span.start_offset),
+            );
+            raised_at = at;
+            error
         })?;
         Ok(parser.component)
     });
-    let component = parsed.and_then(|(javascript, template)| {
-        let component = template.into_component(javascript);
-        // Upstream reads the options once the template is parsed; a style sheet's error comes
-        // first.
-        if component.style_error().is_none() {
-            options::read_options(&component, source_text)?;
+    let component = match parsed {
+        Ok((javascript, template)) => {
+            let component = template.into_component(javascript);
+            // Upstream reads the options once the template is parsed; a style sheet's error comes
+            // first.
+            match component.style_error().map_or_else(
+                || options::read_options(&component, source_text),
+                |_| Ok(()),
+            ) {
+                Ok(()) => Ok(component),
+                Err(error) => Err(ParseError {
+                    error,
+                    read: component.javascript.clone(),
+                    raised_at,
+                }),
+            }
         }
-        Ok(component)
-    });
+        Err((error, read)) => Err(ParseError {
+            error,
+            read,
+            raised_at,
+        }),
+    };
     (component, lang_read)
 }
 

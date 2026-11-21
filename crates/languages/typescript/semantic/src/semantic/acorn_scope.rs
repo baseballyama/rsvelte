@@ -68,6 +68,25 @@ impl Semantic {
         })
     }
 
+    /// Whether the name declared again at `at` is in a scope a host opened, such as the scope of a
+    /// template block, rather than one its JavaScript opens: acorn reads the parts apart, so it
+    /// sees no name declared twice there.
+    #[must_use]
+    pub fn redeclares_in_host_scope(&self, at: u32) -> bool {
+        let scoping = self.scoping();
+        scoping.symbol_ids().any(|symbol| {
+            scoping
+                .symbol_redeclarations(symbol)
+                .iter()
+                .any(|declaration| declaration.span.start == at)
+                && matches!(
+                    self.nodes()
+                        .kind(scoping.get_node_id(scoping.symbol_scope_id(symbol))),
+                    AstKind::Program(_)
+                )
+        })
+    }
+
     fn binding(
         &self,
         flags: SymbolFlags,

@@ -24,21 +24,23 @@ pub(super) fn typescript_view(
     context: &DocumentContext<'_>,
     env: Option<&Result<Arc<TypeScriptEnv>, String>>,
 ) -> Result<TypeScriptDocument, Diagnostic> {
+    // Svelte's parser also rejects the template's JavaScript; svelte2tsx blanks the scripts first.
+    let javascript_error =
+        rsvelte_svelte_semantic::javascript_error::of_document(context, |error| {
+            !rsvelte_svelte_syntax::parse::in_script_content(
+                &context.document.text,
+                error.span.start_offset,
+            )
+        });
     // svelte-check type-checks a component whose style sheet does not parse, and svelte2tsx
     // throws Svelte's parse error of the markup, which svelte-check reports as it is.
     let read = match rsvelte_svelte_typescript_projection::read(context) {
         Ok(read) => read,
-        Err(error) => return Ok(rejected(error)),
+        Err(error) => return Ok(rejected(javascript_error.as_ref().unwrap_or(error))),
     };
     let component = read.component;
-    // Svelte's parser also rejects the template's JavaScript; svelte2tsx blanks the scripts first.
-    if let Some(error) = rsvelte_svelte_semantic::javascript_error::of_document(context)
-        && !rsvelte_svelte_syntax::parse::in_script_content(
-            &context.document.text,
-            error.span.start_offset,
-        )
-    {
-        return Ok(rejected(&error));
+    if let Some(error) = &javascript_error {
+        return Ok(rejected(error));
     }
     // svelte-check reads the component as TypeScript when either script is, else as JavaScript.
     let typescript = component.checked_as_typescript(&context.document.text);

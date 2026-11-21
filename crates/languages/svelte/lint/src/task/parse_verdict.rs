@@ -29,16 +29,15 @@ pub(super) fn parse_verdict<'a>(context: &'a DocumentContext<'_>) -> Verdict<'a>
             Verdict::Throws(message, at)
         });
     }
-    let javascript_error;
-    let (error, component) = match context.get::<rsvelte_svelte_syntax::Parsed>() {
-        Err(error) => (error, None),
-        Ok(component) => {
-            javascript_error = rsvelte_svelte_semantic::javascript_error::of_document(context);
-            match &javascript_error {
-                Some(error) => (error, Some(component)),
-                None => return unchecked_verdict(component),
-            }
-        }
+    let javascript_error =
+        rsvelte_svelte_semantic::javascript_error::of_document(context, |_| true);
+    let (error, component) = match (
+        context.get::<rsvelte_svelte_syntax::Parsed>(),
+        &javascript_error,
+    ) {
+        (Err(error), javascript_error) => (javascript_error.as_ref().unwrap_or(error), None),
+        (Ok(component), Some(error)) => (error, Some(component)),
+        (Ok(component), None) => return unchecked_verdict(component),
     };
     // svelte-eslint-parser reads a self-closing `<script …/>` or `<style …/>` as an element.
     if !rsvelte_svelte_syntax::parse::in_script_content(

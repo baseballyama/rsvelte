@@ -2,7 +2,7 @@ use super::*;
 
 /// The module for one target on one line, or the refusal's message.
 fn run(source_text: &str, server: bool) -> Result<String, String> {
-    let c = rsvelte_svelte_syntax::parse::parse(source_text).map_err(|d| d.message)?;
+    let c = rsvelte_svelte_syntax::parse::parse(source_text).map_err(|d| d.message.clone())?;
     let compiler_syntax_tree =
         rsvelte_svelte_semantic::compiler_syntax_tree::lower(&c, source_text);
     let resolution = rsvelte_svelte_semantic::resolve::resolve(
