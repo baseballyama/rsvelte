@@ -52,8 +52,8 @@ fn project() -> Scratch {
         ),
         (
             "src/App.svelte",
-            "<script lang=\"ts\">\n\tlet unused = 1;\n\tconst n: number = 'x';\n</script>\n\n{n}\n\n\
-             <style>\n\t.a { color: red; }}\n</style>\n",
+            "<script lang=\"ts\">\n\tlet unused = 1;\n\tconst n: number = 'x';\n</script>\n\n\
+             {n}\n\n<style>\n\t.a { color: red; }}\n</style>\n",
         ),
         (
             "src/wrong.ts",
