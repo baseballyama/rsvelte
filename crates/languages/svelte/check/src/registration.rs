@@ -10,7 +10,8 @@ use rsvelte_typescript_check::{
 
 use crate::Configuration;
 
-pub(crate) const TASK: &str = "svelte.check/default";
+/// The identifier of the task that type checks every component.
+pub const TASK: &str = "svelte.check/default";
 
 static PLUGIN: Plugin = Plugin {
     identifier: "svelte.check",
