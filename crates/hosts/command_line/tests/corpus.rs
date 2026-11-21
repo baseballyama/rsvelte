@@ -211,7 +211,13 @@ fn generics_list(
         .and_then(|&(_, value)| value)?;
     let copy = (projection.mappings.iter())
         .find(|m| m.source_text == value.start_offset && m.len == value.len())?;
-    Some(copy.generated - 1..copy.generated + copy.len + 1)
+    // A JavaScript component's list sits in an ignored range after its start comment.
+    let list = (projection.ignored.iter())
+        .find(|range| (range.start_offset..range.end_offset).contains(&copy.generated))
+        .map_or(copy.generated..copy.generated + copy.len + 1, |range| {
+            range.start_offset..range.end_offset
+        });
+    Some(list.start - 1..list.end)
 }
 
 /// Whether JavaScript's grammar rejects a projection svelte-check reads as JavaScript beyond

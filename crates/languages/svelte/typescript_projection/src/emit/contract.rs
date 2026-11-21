@@ -179,10 +179,12 @@ impl Printer<'_> {
                 // closing quote.
                 let after = Span::new(span.end_offset, span.end_offset + 1);
                 if self.tree.javascript {
-                    // svelte2tsx writes the list and its `>` between its ignore comments, whose end
-                    // also closes a comment the list leaves open. The `>` maps to the opening
-                    // quote, which nothing else maps from.
+                    // svelte2tsx writes the list and its `>` between its ignore comments: the start
+                    // keeps `</` from reading as a closing tag, and the end closes a comment the
+                    // list leaves open. The `>` maps to the opening quote, which nothing else maps
+                    // from.
                     let start = self.output.out.len() as u32;
+                    self.output.push("/*\u{3a9}ignore_start\u{3a9}*/");
                     self.output.copy(self.source, span);
                     let before = Span::new(span.start_offset - 1, span.start_offset);
                     self.output.atom(">", before);
