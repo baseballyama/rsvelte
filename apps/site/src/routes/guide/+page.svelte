@@ -29,7 +29,8 @@
 	></pre>
 
 <p>
-	<code>rsvelte help</code> で全体の説明を、<code>rsvelte help lint</code> のようにコマンド名を付けるとそのコマンドの説明を表示します。
+	<code>rsvelte help</code> で全体の説明を、<code>rsvelte help lint</code> や
+	<code>rsvelte lint --help</code> でそのコマンドの説明を表示します。
 </p>
 
 <h2 id="lint">lint：コードを検査する</h2>
@@ -124,10 +125,16 @@
 	1 行に 1 つずつ表示します。
 </p>
 
-<p>読む <code>tsconfig.json</code> は、<a href="#config">設定ファイル</a>によって決まります。</p>
+<p>
+	読む <code>tsconfig.json</code> は、<code>rsvelte.config.json</code>（<a href="#config">設定</a
+	>）の <code>typescript.check</code> で決まります。
+</p>
 
 <ul>
-	<li><code>typescript.check</code> がない：現在のディレクトリの <code>tsconfig.json</code></li>
+	<li>
+		<code>typescript.check</code> がない、または設定ファイルがない：現在のディレクトリの
+		<code>tsconfig.json</code>
+	</li>
 	<li>
 		<code>typescript.check</code> に <code>"tsconfig"</code> がある：そこに書いたパスのファイル
 	</li>
@@ -263,7 +270,7 @@ export default [
 	で有効にしてください。有効にしないと、そのルールはどちらでも動きません。
 </p>
 
-<p>スクリプトでは rsvelte を先に動かします：<code>"lint": "rsvelte lint && eslint"</code></p>
+<p>スクリプトの例：<code>"lint": "rsvelte lint && eslint"</code></p>
 
 <h2 id="legacy">Svelte 4 とレガシーモード</h2>
 

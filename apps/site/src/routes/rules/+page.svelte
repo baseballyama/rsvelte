@@ -27,7 +27,7 @@
 
 <p>
 	<code>rsvelte lint</code> が実装している {rules.length} 個のルールです。リンク先の ESLint、typescript-eslint、eslint-plugin-svelte
-	のルールを移植したものです。
+	のルールを移植したものです。<code>$:</code> などレガシー構文向けのルールも含みます。
 </p>
 
 <p>
