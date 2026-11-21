@@ -1,5 +1,5 @@
 type Arm = { name: string; command: [string, ...string[]] };
-export type Workload = {
+export type CounterConfig = {
 	rounds: number;
 	repetitions: number;
 	arms: Arm[];
@@ -7,7 +7,7 @@ export type Workload = {
 	minimum_output_bytes?: number;
 };
 
-export function validateWorkload(config: Workload): void {
+export function validateCounterConfig(config: CounterConfig): void {
 	for (const value of [config.rounds, config.repetitions])
 		if (!Number.isSafeInteger(value) || value < 1)
 			throw new Error('invalid measurement population');
@@ -48,7 +48,7 @@ export function validateWorkload(config: Workload): void {
 	}
 }
 
-export function validateWorkloadOutput(config: Workload, text: string): void {
+export function validateCounterOutput(config: CounterConfig, text: string): void {
 	if (config.expect_stdout === undefined && config.minimum_output_bytes === undefined) return;
 	const stdout: unknown = JSON.parse(text);
 	if (stdout === null || typeof stdout !== 'object' || Array.isArray(stdout))

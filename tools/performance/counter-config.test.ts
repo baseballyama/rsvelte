@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
 	sampleOrder,
-	validateWorkload,
-	validateWorkloadOutput,
-	type Workload,
-} from './workload.ts';
+	validateCounterConfig,
+	validateCounterOutput,
+	type CounterConfig,
+} from './counter-config.ts';
 
 test('all counter backends use the same sample order and population checks', () => {
 	assert.deepEqual(
@@ -17,22 +17,28 @@ test('all counter backends use the same sample order and population checks', () 
 		['rewrite', 'old', 'official', 'official', 'old', 'rewrite'],
 	);
 	const arm = { name: 'compiler', command: ['/compiler'] as [string] };
-	validateWorkload({ rounds: 2, repetitions: 1, arms: [arm] });
-	assert.throws(() => validateWorkload({ rounds: 0, repetitions: 1, arms: [arm] }), /population/);
-	assert.throws(() => validateWorkload({ rounds: 2, repetitions: 1, arms: [arm, arm] }), /arms/);
+	validateCounterConfig({ rounds: 2, repetitions: 1, arms: [arm] });
+	assert.throws(
+		() => validateCounterConfig({ rounds: 0, repetitions: 1, arms: [arm] }),
+		/population/,
+	);
+	assert.throws(
+		() => validateCounterConfig({ rounds: 2, repetitions: 1, arms: [arm, arm] }),
+		/arms/,
+	);
 });
 
 test('output controls reject skipped or empty work without accepting invalid counts', () => {
-	const config: Workload = {
+	const config: CounterConfig = {
 		rounds: 2,
 		repetitions: 1,
 		arms: [{ name: 'compiler', command: ['/compiler'] }],
 		expect_stdout: { documents: 3, skipped: 0, rounds: 2, metrics: false },
 		minimum_output_bytes: 16,
 	};
-	validateWorkload(config);
+	validateCounterConfig(config);
 	const output = { documents: 3, skipped: 0, rounds: 2, metrics: false, output_bytes: 16 };
-	validateWorkloadOutput(config, JSON.stringify(output));
+	validateCounterOutput(config, JSON.stringify(output));
 	for (const defect of [
 		{ documents: 0 },
 		{ skipped: 1 },
@@ -43,16 +49,16 @@ test('output controls reject skipped or empty work without accepting invalid cou
 		{ output_bytes: 16.5 },
 	]) {
 		assert.throws(
-			() => validateWorkloadOutput(config, JSON.stringify({ ...output, ...defect })),
+			() => validateCounterOutput(config, JSON.stringify({ ...output, ...defect })),
 			/workload/,
 		);
 	}
 	for (const text of ['null', '[]', '16', '{}', 'invalid json'])
-		assert.throws(() => validateWorkloadOutput(config, text));
-	validateWorkloadOutput({ rounds: 1, repetitions: 1, arms: [] }, 'plain stdout');
-	assert.throws(() => validateWorkload({ ...config, minimum_output_bytes: 0 }), /minimum/);
+		assert.throws(() => validateCounterOutput(config, text));
+	validateCounterOutput({ rounds: 1, repetitions: 1, arms: [] }, 'plain stdout');
+	assert.throws(() => validateCounterConfig({ ...config, minimum_output_bytes: 0 }), /minimum/);
 	assert.throws(
-		() => validateWorkload({ ...config, expect_stdout: { documents: Number.NaN } }),
+		() => validateCounterConfig({ ...config, expect_stdout: { documents: Number.NaN } }),
 		/value/,
 	);
 });

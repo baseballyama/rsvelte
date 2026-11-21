@@ -39,7 +39,7 @@ The config has these fields:
 | `inputs`, `sources`     | Lists of input files and files used by the build; hashed before profiling |
 | `revision`              | Full base commit hash for a frozen snapshot; otherwise read from Git      |
 | `model`                 | Optional `i1`, `d1`, `ll` cache objects: `bytes`, `ways`, `line_bytes`    |
-| `expect_stdout`         | Optional expected fields in a JSON workload summary                       |
+| `expect_stdout`         | Optional expected fields in the JSON summary the command prints           |
 | `minimum_output_bytes`  | Optional lower bound on that summary's `output_bytes`                     |
 | `baseline`              | Optional previous complete report to compare                              |
 | `tolerance`             | Optional relative tolerance for the two-sided gate; default 0.02          |
@@ -115,5 +115,5 @@ compiler workloads, so that a sample with skipped units or empty output fails. C
 these fields may print plain text.
 
 CI runs a real sequential and strided memory control, and checks that the baseline gate rejects
-the deliberate rise in misses. The cache gate is for pinned workload configs and does not touch
+the deliberate rise in misses. The cache gate is for pinned counter configs and does not touch
 the allocation and instruction baseline of the whole corpus.

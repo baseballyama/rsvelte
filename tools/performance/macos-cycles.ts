@@ -6,10 +6,10 @@ import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import {
 	sampleOrder,
-	validateWorkload,
-	validateWorkloadOutput,
-	type Workload,
-} from './workload.ts';
+	validateCounterConfig,
+	validateCounterOutput,
+	type CounterConfig,
+} from './counter-config.ts';
 import {
 	checkLoad,
 	hostRecord,
@@ -41,8 +41,8 @@ export async function main(args: string[]): Promise<void> {
 				? Number.NaN
 				: Number(values['max-load']);
 	if (!Number.isFinite(loadLimit) || loadLimit < 0) throw new Error('invalid --max-load');
-	const config: Workload = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-	validateWorkload(config);
+	const config: CounterConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+	validateCounterConfig(config);
 	const executables = new Map(
 		config.arms.map((arm) => [arm.name, resolveExecutable(arm.command[0])]),
 	);
@@ -92,7 +92,7 @@ export async function main(args: string[]): Promise<void> {
 		);
 		if (result.status !== 0)
 			throw new Error(`${arm.name} exited ${result.status}: ${result.stderr}`);
-		validateWorkloadOutput(config, result.stdout);
+		validateCounterOutput(config, result.stdout);
 		if (!fs.existsSync(counterPath))
 			throw new Error(
 				`${arm.name}: hardware counter report is missing (a protected binary, or a process that replaced itself with exec)`,
