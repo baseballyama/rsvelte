@@ -39,6 +39,8 @@ scripts, the command is `rsvelte`:
 
 Without a path, it reads every such file below the current directory. It skips `node_modules`
 and what `.gitignore` skips.
+A `svelte.lint` rule that applies to modules, such as `svelte/no-inspect`, also runs on
+JavaScript and TypeScript files, `.jsx` and `.tsx` included.
 
 `format` is [oxfmt](https://oxc.rs/docs/guide/usage/formatter) with a built-in Svelte
 formatter. It takes oxfmt's options (`rsvelte format --help`) and reads oxfmt's configuration:

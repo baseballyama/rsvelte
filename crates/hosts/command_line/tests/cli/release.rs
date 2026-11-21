@@ -76,8 +76,13 @@ fn help_prints_the_guide_to_the_command_it_names() {
         assert_eq!(output.status.code(), Some(0), "{arguments:?}");
         assert_eq!(text(&output.stdout), oxfmt, "{arguments:?}");
     }
-    let guide = text(&project.rsvelte(&["help", "help"]).stdout);
-    assert!(guide.starts_with("Usage: rsvelte help "), "{guide}");
+    for arguments in [&["help", "help"][..], &["help", "--help"]] {
+        let guide = text(&project.rsvelte(arguments).stdout);
+        assert!(
+            guide.starts_with("Usage: rsvelte help "),
+            "{arguments:?}: {guide}"
+        );
+    }
     let unknown = project.rsvelte(&["help", "check"]);
     assert_eq!(unknown.status.code(), Some(2));
     assert!(text(&unknown.stderr).contains("unknown command `check`"));

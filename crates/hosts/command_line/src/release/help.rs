@@ -34,6 +34,8 @@ Usage: rsvelte lint [<path>...] [options]
 Lints the .svelte, .js, .mjs, .cjs, .ts, .mts and .cts files below each path, by default the
 current directory, and prints the problems as ESLint's stylish formatter does. It skips
 node_modules and what .gitignore skips, but reads a file named on the command line.
+A svelte.lint rule that applies to modules, such as svelte/no-inspect, also runs on JavaScript
+and TypeScript files, .jsx and .tsx included.
 
 The rules of Svelte files are set under svelte.lint, and those of the other files under
 typescript.lint, in rsvelte.config.json. A rules object replaces the default rules, which for

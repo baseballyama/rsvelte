@@ -70,7 +70,7 @@ pub fn release() -> ExitCode {
     }
     // Asked for help, the user gets it even past a mistake in the other arguments.
     if help || positional.first() == Some(&"help") {
-        return print_help(&positional);
+        return print_help(&positional, help);
     }
     if let Some(mistake) = mistake {
         return usage(&mistake);
@@ -118,9 +118,10 @@ pub fn release() -> ExitCode {
 }
 
 /// `rsvelte help [<command>]`, or `--help` with the positional arguments: the guide to the command
-/// they name, else the overview. `format`'s is oxfmt's help.
-fn print_help(positional: &[&str]) -> ExitCode {
+/// they name, else the overview. `format`'s is oxfmt's help. `flag`: `-h` or `--help` was given.
+fn print_help(positional: &[&str], flag: bool) -> ExitCode {
     let guide = match positional {
+        ["help"] if flag => help::HELP,
         [] | ["help"] => help::OVERVIEW,
         ["help", "help"] => help::HELP,
         ["help", _, extra, ..] => {
