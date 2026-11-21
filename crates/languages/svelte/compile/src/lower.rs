@@ -45,6 +45,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, CompilerSyntaxTree};
 use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_svelte_semantic::warnings::Section;
 pub(crate) use rsvelte_svelte_syntax::svelte_diagnostics::error;
 use rustc_hash::FxHashMap;
 pub use script::is_expression_async;
@@ -205,6 +206,23 @@ fn takes_props(an: &Analysis, res: &Resolution, exports: bool, tree: &CompilerSy
 fn uses_slots(res: &Resolution) -> bool {
     res.unbound(|name| name == "$$slots")
         .any(|(_, references)| !references.is_empty())
+}
+
+/// The part of the component whose program holds `offset`.
+fn section_at(input: &CompileInput<'_>, offset: u32) -> Section {
+    let holds = |program: Option<_>| {
+        program.is_some_and(|p| {
+            let span = input.component.javascript.get_program(p).span;
+            span.start <= offset && offset < span.end
+        })
+    };
+    if holds(input.component.module) {
+        Section::Module
+    } else if holds(input.component.instance) {
+        Section::Instance
+    } else {
+        Section::Template
+    }
 }
 
 /// The code of what this port refuses, which upstream compiles.

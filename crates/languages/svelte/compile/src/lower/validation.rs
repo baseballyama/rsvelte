@@ -24,7 +24,7 @@ use runes::script_and_template_errors;
 pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, script_error};
 
 use super::snippets::hoistable;
-use super::{custom_element, stores, unsupported_syntax};
+use super::{custom_element, section_at, stores, unsupported_syntax};
 use crate::input::{CompileInput, Target};
 
 /// An error upstream raises as it parses, before any other.
@@ -164,20 +164,7 @@ pub(crate) fn rune_error(
     let error =
         check_runes_with(input, res, Target::Client, custom_element, Awaits::Analysis).err()?;
     let at = error.span.start_offset;
-    let inside = |program: Option<_>| {
-        program.is_some_and(|program| {
-            let span = input.component.javascript.get_program(program).span;
-            (span.start..span.end).contains(&at)
-        })
-    };
-    let section = if inside(input.component.module) {
-        Section::Module
-    } else if inside(input.component.instance) {
-        Section::Instance
-    } else {
-        Section::Template
-    };
-    Some((raised_in_walk_of(section, at), error))
+    Some((raised_in_walk_of(section_at(input, at), at), error))
 }
 
 /// The errors of [`validate`] that upstream raises in legacy mode too, with when it raises each:
@@ -270,14 +257,9 @@ pub(super) fn check_analysis(
         });
     // A walk error waits for the scripts' first, which the later rune checks raise anyway.
     if errors.iter().any(|(raised, _)| raised.phase == Phase::Walk)
-        && let Some((module, error)) =
+        && let Some((section, error)) =
             script.unwrap_or_else(|| script_error(input, res, custom_element))
     {
-        let section = if module {
-            Section::Module
-        } else {
-            Section::Instance
-        };
         errors.push((raised_in_walk_of(section, error.span.start_offset), error));
     }
     errors.sort_by_key(|&(raised, _)| raised);
@@ -305,13 +287,7 @@ pub(super) fn template_error(input: &CompileInput<'_>) -> Option<(u32, Diagnosti
 /// Upstream `legacy_props_invalid` and `legacy_rest_props_invalid` at a name no script declares.
 fn check_legacy_props(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
     // Upstream reads `$$props` first, and meets the scripts' references before the template's.
-    let javascript = input.component.javascript;
-    let scripted = |offset: u32| {
-        input.component.programs().any(|p| {
-            let span = javascript.get_program(p).span;
-            span.start <= offset && offset < span.end
-        })
-    };
+    let scripted = |offset| section_at(input, offset) != Section::Template;
     for (name, code, message) in [
         (
             "$$props",
