@@ -231,10 +231,12 @@ npm install --save-dev @typescript/native-preview   # 7.1 以降`}</code
 		</tr>
 		<tr>
 			<td><code>format</code></td>
-			<td><code>--check</code> で未整形のファイルを見つけた、または oxfmt の設定が不正</td>
+			<td
+				><code>--check</code> で未整形のファイルを見つけた、または oxfmt の設定ファイルの書き方が誤っている</td
+			>
 			<td>
 				整形できないファイルがあった（Svelte
-				の整形が対応していない設定を含む）、またはパスに合うファイルがない
+				の整形が対応していないオプションの値を含む）、またはパスに合うファイルがない
 			</td>
 		</tr>
 	</tbody>
