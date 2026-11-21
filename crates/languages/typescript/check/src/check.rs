@@ -63,7 +63,7 @@ pub struct CheckedDocument {
     pub env: Arc<TypeScriptEnv>,
     /// The extension the checker reads a content-mapped projection as, such as `.ts`.
     pub extension: &'static str,
-    /// Each relative module the document imports.
+    /// Each module the document imports.
     pub imports: Vec<Import>,
     /// Each Svelte store by its name's range, with where the component reads `$store`:
     /// svelte-check reports a store that is no store at each of those reads.
@@ -78,8 +78,8 @@ pub struct CheckedDocument {
     pub inserted: Vec<(Span, Span)>,
 }
 
-/// A relative module specifier a document imports, by its string literal's range, with the
-/// names the import binds.
+/// A module specifier a document imports, by its string literal's range, with the names the
+/// import binds.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Import {
     pub at: Span,
@@ -435,22 +435,13 @@ fn check_projected(
                                 ..*a
                             })
                             .collect(),
-                        imports: document
-                            .imports
-                            .iter()
-                            .filter(|import| import.at.start_offset >= bom)
-                            .map(|import| Import {
-                                at: Span::new(
-                                    import.at.start_offset - bom,
-                                    import.at.end_offset - bom,
-                                ),
-                                ..import.clone()
-                            })
-                            .collect(),
                     })
             })
             .collect(),
         env,
+        imports: (docs.iter())
+            .map(|d| run::checked_imports(&d.document, &d.source_text))
+            .collect(),
         files: docs
             .iter()
             .map(|d| d.document.projection.out.as_str())

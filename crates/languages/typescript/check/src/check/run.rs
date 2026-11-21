@@ -24,6 +24,8 @@ pub(crate) struct CheckRequest<'a> {
     pub env: &'a TypeScriptEnv,
     /// Documents the run does not check, by path, with what an import of each one reads.
     pub stand_ins: Vec<(String, String)>,
+    /// Each document's imports.
+    pub imports: Vec<Vec<CheckedImport>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -152,14 +154,33 @@ impl Tsc {
             tsconfig_json(base.as_deref(), req, &own, &roots, &store),
         );
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
-        let [program, syntactic, semantic] =
-            check_shares(&mut session, helpers, &config, &layer, &files).map_err(failed)?;
+        // Where an untyped import is reported, the checker resolves each import, and a project
+        // beside the overlay names the files the tsconfig selects.
+        let selection = (base.as_deref().filter(|_| own.untyped)).map(|base| {
+            let (path, text) = untyped::selection(req, &overlay, base, &store);
+            layer.files.insert(path.clone(), text);
+            path
+        });
+        let resolve = own.untyped.then_some((req, paths.as_slice()));
+        let checked = check_shares(
+            &mut session,
+            helpers,
+            &config,
+            selection.as_deref(),
+            &layer,
+            &files,
+            resolve,
+        )
+        .map_err(failed)?;
+        let [program, syntactic, semantic] = checked.found;
         let index = path_index(&paths);
-        let (untyped, untyped_names) = if own.untyped {
-            untyped::imports(req, &root, &paths, &index)
-        } else {
-            (Vec::new(), Vec::new())
-        };
+        let untyped = untyped::imports(req, &checked.modules, &root, &index);
+        // TypeScript loads a JavaScript file an untyped import reads only when the tsconfig
+        // selects it.
+        let selected: std::collections::HashSet<&Path> =
+            checked.selected.iter().map(PathBuf::as_path).collect();
+        let unloaded =
+            |file: usize| untyped.read.contains(&file) && !selected.contains(paths[file].as_path());
         // The session ends when it drops, which frees the snapshot with the process.
         let lines: Vec<LineIndex> = (0..req.files.len())
             .map(|i| LineIndex::new(req.text(i)))
@@ -177,11 +198,11 @@ impl Tsc {
             })
             .filter(|found| {
                 !found.as_ref().is_ok_and(|found| {
-                    req.mapped(found.file)
-                        .is_some_and(|mapped| untyped::hides(found, &untyped_names, &mapped.source))
+                    unloaded(found.file)
+                        || untyped::hides(found, &untyped.names, req.text(found.file))
                 })
             })
-            .chain(untyped.into_iter().map(Ok))
+            .chain(untyped.found.into_iter().map(Ok))
             .collect()
     }
 
@@ -245,17 +266,33 @@ const MOST_PROCESSES: usize = 4;
 type Helper = std::thread::JoinHandle<Result<Session, String>>;
 type Found = Vec<rsvelte_typescript_api::Diagnostic>;
 
-/// The program, syntactic and semantic findings of `files` in the project of `config`. Every
-/// process opens the project at the same time and takes shares of the files from `Shares` until
-/// none is left; `session` also asks for the program and syntactic findings.
+/// What the processes found in the project of `config`.
+struct Checked {
+    /// The program, syntactic and semantic findings.
+    found: [Found; 3],
+    /// The modules each document's imports read, by document, when asked to resolve them.
+    modules: Vec<(usize, Vec<Option<PathBuf>>)>,
+    /// The root files of the project of the selection config, if any.
+    selected: Vec<PathBuf>,
+}
+
+/// The documents whose imports the processes resolve, at their paths.
+type Resolve<'r> = Option<(&'r CheckRequest<'r>, &'r [PathBuf])>;
+
+/// The program, syntactic and semantic findings of `files` in the project of `config`, and the
+/// modules their imports read when `resolve` asks. Every process opens the project at the same
+/// time and takes shares of the files from `Shares` until none is left; `session` also asks for
+/// the program and syntactic findings, and opens the project of `selection` in its snapshot.
 fn check_shares(
     session: &mut Session,
     helpers: Vec<Helper>,
     config: &Path,
+    selection: Option<&Path>,
     layer: &Layer,
     files: &[&Path],
-) -> Result<[Found; 3], String> {
-    let shares = Shares::new(files, helpers.len() + 1);
+    resolve: Resolve<'_>,
+) -> Result<Checked, String> {
+    let shares = Shares::new(files, helpers.len() + 1, resolve);
     let shares = &shares;
     std::thread::scope(|scope| {
         let running: Vec<_> = helpers
@@ -270,18 +307,26 @@ fn check_shares(
                 })
             })
             .collect();
-        let project = session.open(&[config], layer)?.remove(0);
+        let mut configs = vec![config];
+        configs.extend(selection);
+        let mut projects = session.open(&configs, layer)?.into_iter();
+        let project = projects.next().ok_or("the checker opened no project")?;
+        let selected = projects.next().map(|p| p.root_files).unwrap_or_default();
         let program = session.diagnostics(&project, DiagnosticKind::Program, None)?;
         let syntactic = session.diagnostics(&project, DiagnosticKind::Syntactic, Some(files))?;
-        let mut semantic = shares.check(session, &project)?;
+        let (mut semantic, mut modules) = shares.check(session, &project)?;
         for helper in running {
-            semantic.extend(
-                helper
-                    .join()
-                    .unwrap_or_else(|panic| std::panic::resume_unwind(panic))?,
-            );
+            let (found, resolved) = helper
+                .join()
+                .unwrap_or_else(|panic| std::panic::resume_unwind(panic))?;
+            semantic.extend(found);
+            modules.extend(resolved);
         }
-        Ok([program, syntactic, semantic])
+        Ok(Checked {
+            found: [program, syntactic, semantic],
+            modules,
+            selected,
+        })
     })
 }
 
@@ -292,18 +337,20 @@ struct Shares<'a> {
     files: &'a [&'a Path],
     processes: usize,
     taken: std::sync::Mutex<usize>,
+    resolve: Resolve<'a>,
 }
 
 impl<'a> Shares<'a> {
-    const fn new(files: &'a [&'a Path], processes: usize) -> Self {
+    const fn new(files: &'a [&'a Path], processes: usize, resolve: Resolve<'a>) -> Self {
         Self {
             files,
             processes,
             taken: std::sync::Mutex::new(0),
+            resolve,
         }
     }
 
-    fn take(&self) -> Option<&'a [&'a Path]> {
+    fn take(&self) -> Option<std::ops::Range<usize>> {
         let mut taken = self
             .taken
             .lock()
@@ -313,16 +360,31 @@ impl<'a> Shares<'a> {
         *taken += left.div_ceil(2 * self.processes);
         let end = *taken;
         drop(taken);
-        (left != 0).then(|| &self.files[start..end])
+        (left != 0).then_some(start..end)
     }
 
-    /// The semantic findings of each share `session` takes.
-    fn check(&self, session: &mut Session, project: &Project) -> Result<Found, String> {
+    /// The semantic findings of each share `session` takes, and the modules of its documents'
+    /// imports when asked.
+    fn check(
+        &self,
+        session: &mut Session,
+        project: &Project,
+    ) -> Result<(Found, Vec<(usize, Vec<Option<PathBuf>>)>), String> {
         let mut found = Vec::new();
+        let mut modules = Vec::new();
         while let Some(share) = self.take() {
-            found.extend(session.diagnostics(project, DiagnosticKind::Semantic, Some(share))?);
+            let files = &self.files[share.clone()];
+            found.extend(session.diagnostics(project, DiagnosticKind::Semantic, Some(files))?);
+            if let Some((req, paths)) = self.resolve {
+                for file in share {
+                    let resolved = untyped::modules(req, session, project, paths, file)?;
+                    if !resolved.is_empty() {
+                        modules.push((file, resolved));
+                    }
+                }
+            }
         }
-        Ok(found)
+        Ok((found, modules))
     }
 }
 
@@ -494,6 +556,7 @@ mod project;
 mod script_module;
 mod untyped;
 pub(crate) use mapped::ContentMappedInput;
+pub(crate) use untyped::{CheckedImport, checked_imports};
 
 #[cfg(test)]
 mod tests;

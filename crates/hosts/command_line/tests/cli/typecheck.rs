@@ -310,6 +310,70 @@ fn typecheck_reports_every_file_of_the_program_that_svelte_check_reports() {
     );
 }
 
+/// A JavaScript component is untyped where TypeScript reads JavaScript as untyped: each import of
+/// it reports TS7016, from a component or a script and through a package or a relative path, and
+/// one only a package's import reaches is not checked. The expected lines are svelte-check
+/// 4.7.8's, which prints the paths from the root.
+#[cfg(unix)]
+#[test]
+fn typecheck_reads_a_javascript_component_as_untyped_javascript() {
+    let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
+    let annotated = "<script>\n\tlet { n }: { n: number } = $props();\n</script>\n\n{n}\n";
+    let page = |from: &str| {
+        format!(
+            "<script lang=\"ts\">\n\timport Annotated from \"{from}\";\n</script>\n\n<Annotated n=\"str\" />\n"
+        )
+    };
+    let (linked, local) = (page("dep/src/Annotated.svelte"), page("./Annotated.svelte"));
+    let project = Project::new(&[
+        ("app/rsvelte.config.json", &config),
+        (
+            "app/tsconfig.json",
+            r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
+"types":[]},"include":["src"]}"#,
+        ),
+        ("app/src/Annotated.svelte", annotated),
+        ("app/src/DepPage.svelte", &linked),
+        ("app/src/Page.svelte", &local),
+        (
+            "app/src/use.ts",
+            "import Local from \"./Annotated.svelte\";\n\
+             import Linked from \"dep/src/Annotated.svelte\";\n\
+             export const components = [Local, Linked];\n",
+        ),
+        ("dep/package.json", r#"{"name":"dep","type":"module"}"#),
+        ("dep/src/Annotated.svelte", annotated),
+    ]);
+    let app = project.0.join("app");
+    std::fs::create_dir_all(app.join("node_modules")).expect("node_modules");
+    std::os::unix::fs::symlink("../../dep", app.join("node_modules/dep")).expect("link");
+    let output = project.rsvelte_in("app", &["typecheck"]);
+    let untyped = |specifier: &str, file: &str| {
+        format!(
+            "error TS7016: Could not find a declaration file for module '{specifier}'. '{file}' \
+             implicitly has an 'any' type."
+        )
+    };
+    let dep = project.0.join("dep/src/Annotated.svelte");
+    let dep = dep.display().to_string();
+    assert_eq!(
+        format!("{}{}", text(&output.stdout), text(&output.stderr)),
+        format!(
+            "src/Annotated.svelte(2,12): error TS8008: Type aliases can only be used in \
+             TypeScript files.\n\
+             src/DepPage.svelte(2,24): {}\n\
+             src/Page.svelte(2,24): {}\n\
+             src/use.ts(1,19): {}\n\
+             src/use.ts(2,20): {}\n\
+             \nFound 5 errors in 4 files.\n",
+            untyped("dep/src/Annotated.svelte", &dep),
+            untyped("./Annotated.svelte", "src/Annotated.svelte"),
+            untyped("./Annotated.svelte", "src/Annotated.svelte"),
+            untyped("dep/src/Annotated.svelte", &dep),
+        )
+    );
+}
+
 /// A project whose component imports svelte's types, checked without `skipLibCheck` and with
 /// `lib`, and its `rsvelte.config.json`, which names its tsconfig so the CLI runs from anywhere.
 #[cfg(unix)]

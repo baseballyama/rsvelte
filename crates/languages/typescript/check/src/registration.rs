@@ -29,8 +29,8 @@ pub fn register(registry: &mut Registry) {
             return Ok(TypeScriptDocument::Unchecked);
         }
         let source = context.source_text();
-        let insertions = context.get::<Parsed>().as_ref().map_or_else(
-            |_| Vec::new(),
+        let (insertions, imports) = context.get::<Parsed>().as_ref().map_or_else(
+            |_| (Vec::new(), Vec::new()),
             |script| {
                 let document = context.document;
                 let path = document
@@ -38,7 +38,10 @@ pub fn register(registry: &mut Registry) {
                     .as_deref()
                     .unwrap_or_else(|| Path::new(&document.path));
                 let program = script.tree.get_program(script.root);
-                kit::insertions(path, source, program, || hooks_module(path))
+                (
+                    kit::insertions(path, source, program, || hooks_module(path)),
+                    crate::imports(program),
+                )
             },
         );
         let mut projection = Emitter::default();
@@ -60,7 +63,7 @@ pub fn register(registry: &mut Registry) {
             map_back: Emitter::lookup_overlap,
             env: Arc::clone(&env),
             extension: ".ts",
-            imports: Vec::new(),
+            imports,
             store_reads: Vec::new(),
             hidden: Vec::new(),
             drops_unmapped: false,
