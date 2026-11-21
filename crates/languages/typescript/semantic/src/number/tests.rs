@@ -1,6 +1,11 @@
-use super::{exponentiate, math_max, math_min, math_round, math_sign, string_to_number, to_int32};
+use oxc_ast::ast::BinaryOperator;
 
-// Expected values are what Node prints for `Number(s)`, `n | 0` and `a ** b`.
+use super::{
+    exponentiate, math_max, math_min, math_round, math_sign, numeric_binary, string_to_number,
+    to_int32,
+};
+
+// Expected values are what Node prints for `Number(s)`, `n | 0`, `a ** b` and `a op b`.
 
 #[test]
 fn string_to_number_rounds_radix_literals_once() {
@@ -90,4 +95,32 @@ fn math_keeps_the_sign_of_zero() {
     ] {
         assert!(same(math_sign(x), expected), "sign({x})");
     }
+}
+
+#[test]
+fn numeric_binary_masks_shift_counts_and_keeps_signs_as_javascript_does() {
+    use BinaryOperator as B;
+    for (operator, a, b, expected) in [
+        (B::ShiftLeft, 1.0, 33.0, 2.0_f64),
+        (B::ShiftLeft, 1.0, -1.0, -2_147_483_648.0),
+        (B::ShiftRightZeroFill, -1.0, 0.0, 4_294_967_295.0),
+        (B::ShiftRightZeroFill, 1.0, 32.0, 1.0),
+        (B::ShiftRightZeroFill, -1.0, 31.0, 1.0),
+        (B::ShiftRight, -8.0, 1.0, -4.0),
+        (B::BitwiseOR, 4_294_967_301.0, 0.0, 5.0),
+        (B::BitwiseAnd, 7.0, -0.5, 0.0),
+        (B::BitwiseXOR, f64::NAN, 3.0, 3.0),
+        (B::Remainder, -5.0, 3.0, -2.0),
+        (B::Exponential, 2.0, -1074.0, 5e-324),
+    ] {
+        let actual = numeric_binary(operator, a, b).expect("an arithmetic operator");
+        assert_eq!(actual.to_bits(), expected.to_bits(), "{a} {operator:?} {b}");
+    }
+    for (operator, a, b) in [
+        (B::Remainder, 5.0, -0.0),
+        (B::Exponential, 1.0, f64::INFINITY),
+    ] {
+        assert!(numeric_binary(operator, a, b).expect("arithmetic").is_nan());
+    }
+    assert_eq!(numeric_binary(B::Addition, 1.0, 2.0), None);
 }

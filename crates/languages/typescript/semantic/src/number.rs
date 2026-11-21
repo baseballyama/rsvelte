@@ -1,3 +1,4 @@
+use oxc_ast::ast::BinaryOperator;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 /// # Panics
@@ -193,6 +194,29 @@ pub fn math_sign(x: f64) -> f64 {
     } else {
         x.signum()
     }
+}
+
+/// A binary operator whose operands are both numbers once converted: `None` for `+`, which also
+/// joins strings, and for any operator that is not arithmetic.
+#[must_use]
+pub fn numeric_binary(operator: BinaryOperator, a: f64, b: f64) -> Option<f64> {
+    use BinaryOperator as B;
+    let (x, y) = (to_int32(a), to_int32(b));
+    let count = y.cast_unsigned() & 31;
+    Some(match operator {
+        B::Subtraction => a - b,
+        B::Multiplication => a * b,
+        B::Division => a / b,
+        B::Remainder => a % b,
+        B::Exponential => exponentiate(a, b),
+        B::BitwiseAnd => f64::from(x & y),
+        B::BitwiseOR => f64::from(x | y),
+        B::BitwiseXOR => f64::from(x ^ y),
+        B::ShiftLeft => f64::from(x.wrapping_shl(count)),
+        B::ShiftRight => f64::from(x >> count),
+        B::ShiftRightZeroFill => f64::from(x.cast_unsigned() >> count),
+        _ => return None,
+    })
 }
 
 #[cfg(test)]

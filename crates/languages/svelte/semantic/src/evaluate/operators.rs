@@ -1,5 +1,5 @@
 use oxc_syntax::operator::{BinaryOperator, UnaryOperator};
-use rsvelte_typescript_semantic::number::{exponentiate, to_int32};
+use rsvelte_typescript_semantic::number::{numeric_binary, to_int32};
 
 use super::{Value, bigint};
 
@@ -27,13 +27,6 @@ pub(super) fn binary(op: BinaryOperator, a: &Value, b: &Value) -> Option<Value> 
     if matches!(a, Value::BigInt(_)) || matches!(b, Value::BigInt(_)) {
         return bigint::binary(op, a, b);
     }
-    let num = |f: fn(f64, f64) -> f64| Some(Value::Number(f(a.to_number(), b.to_number())));
-    let int = |f: fn(i32, i32) -> i32| {
-        Some(Value::Number(f64::from(f(
-            to_int32(a.to_number()),
-            to_int32(b.to_number()),
-        ))))
-    };
     match op {
         Add => {
             if matches!(a, Value::String(_)) || matches!(b, Value::String(_)) {
@@ -43,24 +36,12 @@ pub(super) fn binary(op: BinaryOperator, a: &Value, b: &Value) -> Option<Value> 
                     b.to_javascript_string()
                 )))
             } else {
-                num(|x, y| x + y)
+                Some(Value::Number(a.to_number() + b.to_number()))
             }
         }
-        Sub => num(|x, y| x - y),
-        Mul => num(|x, y| x * y),
-        Div => num(|x, y| x / y),
-        Remainder => num(|x, y| x % y),
-        Exp => num(exponentiate),
-        BitAnd => int(|x, y| x & y),
-        BitOr => int(|x, y| x | y),
-        BitXor => int(|x, y| x ^ y),
-        Shl => int(|x, y| x.wrapping_shl(y.cast_unsigned() & 31)),
-        Shr => int(|x, y| x.wrapping_shr(y.cast_unsigned() & 31)),
-        UShr => Some(Value::Number(f64::from(
-            to_int32(a.to_number())
-                .cast_unsigned()
-                .wrapping_shr(to_int32(b.to_number()).cast_unsigned() & 31),
-        ))),
+        Sub | Mul | Div | Remainder | Exp | BitAnd | BitOr | BitXor | Shl | Shr | UShr => {
+            numeric_binary(op, a.to_number(), b.to_number()).map(Value::Number)
+        }
         StrictEq => Some(Value::Boolean(strict_eq(a, b))),
         StrictNotEq => Some(Value::Boolean(!strict_eq(a, b))),
         Eq => Some(Value::Boolean(loose_eq(a, b))),
