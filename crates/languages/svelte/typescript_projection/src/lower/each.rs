@@ -1,12 +1,12 @@
 //! An `{#each}` block, whose iterable Svelte reads outside the names the block binds.
 
-use oxc_ast::ast::{BindingIdentifier, IdentifierReference};
+use oxc_ast::ast::BindingIdentifier;
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 use rsvelte_typescript_tree::{ExpressionIdentifier, PatternIdentifier, node_span};
 
-use super::{Builder, Node, NodeIdentifier, Result, source_expression};
+use super::{Builder, Node, NodeIdentifier, Result, reads_any, source_expression};
 
 impl Builder<'_> {
     /// The block as svelte2tsx writes it: a `for…of` over the iterable, then the fallback.
@@ -71,12 +71,7 @@ impl Builder<'_> {
         for pattern in bindings.into_iter().flatten() {
             names.visit_binding_pattern(&javascript.get_pattern(pattern).pattern);
         }
-        let mut reads = Reads {
-            names: &names.0,
-            found: false,
-        };
-        reads.visit_expression(javascript.get_expression(expression));
-        if !reads.found {
+        if !reads_any(javascript.get_expression(expression), &names.0) {
             return iterable;
         }
         let name = self.unused_name("__rsvelte_iterable");
@@ -95,17 +90,5 @@ struct Names<'a>(Vec<&'a str>);
 impl<'a> Visit<'a> for Names<'a> {
     fn visit_binding_identifier(&mut self, it: &BindingIdentifier<'a>) {
         self.0.push(it.name.as_str());
-    }
-}
-
-/// Whether an expression reads one of `names`.
-struct Reads<'n, 'a> {
-    names: &'n [&'a str],
-    found: bool,
-}
-
-impl<'a> Visit<'a> for Reads<'_, 'a> {
-    fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
-        self.found |= self.names.contains(&it.name.as_str());
     }
 }

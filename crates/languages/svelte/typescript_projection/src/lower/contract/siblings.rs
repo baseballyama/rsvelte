@@ -1,7 +1,8 @@
 //! Which `$props()` defaults the props object can be inferred from.
 
-use oxc_ast::ast::{BindingPattern, Expression, IdentifierReference};
-use oxc_ast_visit::Visit;
+use oxc_ast::ast::{BindingPattern, Expression};
+
+use crate::lower::reads_any;
 
 /// The bindings of one `$props()` pattern. The props object is inferred from the defaults, so a
 /// default that reads a sibling would infer the object from itself (TS7022).
@@ -53,24 +54,8 @@ impl<'e> Siblings<'e> {
                 default = next?;
                 continue;
             }
-            let mut reads = Reads {
-                names: &self.names,
-                found: false,
-            };
-            reads.visit_expression(default);
-            return (!reads.found).then_some(default);
+            return (!reads_any(default, &self.names)).then_some(default);
         }
         None
-    }
-}
-
-struct Reads<'n, 'e> {
-    names: &'n [&'e str],
-    found: bool,
-}
-
-impl<'a> Visit<'a> for Reads<'_, '_> {
-    fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
-        self.found |= self.names.contains(&it.name.as_str());
     }
 }
