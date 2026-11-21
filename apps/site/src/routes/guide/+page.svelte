@@ -10,14 +10,14 @@
 
 <h2 id="install">Install</h2>
 
-<pre><code>npm install --save-dev @rsvelte/cli</code></pre>
+<pre><code class="language-sh">npm install --save-dev @rsvelte/cli</code></pre>
 
 <p>
 	To use <code>typecheck</code>, also install a <a href="#typecheck">type checker</a>. In
 	<code>package.json</code> scripts, the command is <code>rsvelte</code>:
 </p>
 
-<pre><code
+<pre><code class="language-json"
 		>{`{
   "scripts": {
     "lint": "rsvelte lint",
@@ -34,7 +34,7 @@
 
 <h2 id="lint"><code>lint</code></h2>
 
-<pre><code>rsvelte lint [path...]</code></pre>
+<pre><code class="language-sh">rsvelte lint [path...]</code></pre>
 
 <p>
 	<code>lint</code> checks the Svelte, JavaScript and TypeScript files below each path. By default, the
@@ -75,7 +75,7 @@
 
 <h2 id="format"><code>format</code></h2>
 
-<pre><code>rsvelte format [path...] [--check]</code></pre>
+<pre><code class="language-sh">rsvelte format [path...] [--check]</code></pre>
 
 <p>
 	<code>format</code> is <a href="https://oxc.rs/docs/guide/usage/formatter">oxfmt</a>, the
@@ -122,7 +122,7 @@
 
 <h2 id="typecheck"><code>typecheck</code></h2>
 
-<pre><code>rsvelte typecheck</code></pre>
+<pre><code class="language-sh">rsvelte typecheck</code></pre>
 
 <p>
 	<code>typecheck</code> type checks the files that a <code>tsconfig.json</code> selects, and
@@ -135,7 +135,7 @@
 	these. The project also needs <code>svelte</code>.
 </p>
 
-<pre><code
+<pre><code class="language-sh"
 		>{`npm install --save-dev tsrs                         # recommended: a Rust port of TypeScript 7
 npm install --save-dev typescript                   # 7.1 or newer
 npm install --save-dev @typescript/native-preview   # 7.1 or newer`}</code
@@ -170,7 +170,7 @@ npm install --save-dev @typescript/native-preview   # 7.1 or newer`}</code
 	error.
 </p>
 
-<pre><code
+<pre><code class="language-json"
 		>{`{
   "plugins": {
     "svelte.lint": {
@@ -252,9 +252,9 @@ npm install --save-dev @typescript/native-preview   # 7.1 or newer`}</code
 	<code>@rsvelte/cli</code>.
 </p>
 
-<pre><code>npm install --save-dev @rsvelte/eslint-plugin</code></pre>
+<pre><code class="language-sh">npm install --save-dev @rsvelte/eslint-plugin</code></pre>
 
-<pre><code
+<pre><code class="language-js"
 		>{`// eslint.config.js
 import svelte from 'eslint-plugin-svelte';
 import rsvelte from '@rsvelte/eslint-plugin';
