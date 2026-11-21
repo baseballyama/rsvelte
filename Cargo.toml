@@ -204,7 +204,7 @@ unescaped_backticks = "deny"
 # oxc's CSS parser comes from crates.io and allocates in `oxc_allocator`'s arena, which must be
 # the one the rest of oxc uses.
 [patch.crates-io]
-oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "1063835f10e988b7168d9c807d6526f7dcda9b0f" }
+oxc_allocator = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_allocator" }
 
 [profile.release]
 debug = "line-tables-only"
@@ -216,3 +216,36 @@ codegen-units = 1
 inherits = "release"
 debug = false
 strip = true
+
+[patch."https://github.com/baseballyama/oxc"]
+oxc_allocator = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_allocator" }
+oxc_ast = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_ast" }
+oxc_ast_macros = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_ast_macros" }
+oxc_ast_visit = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_ast_visit" }
+oxc_codegen = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_codegen" }
+oxc_compat = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_compat" }
+oxc_config = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_config" }
+oxc_data_structures = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_data_structures" }
+oxc_diagnostics = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_diagnostics" }
+oxc_ecmascript = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_ecmascript" }
+oxc_estree = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_estree" }
+oxc_formatter = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_formatter" }
+oxc_formatter_core = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_formatter_core" }
+oxc_formatter_css = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_formatter_css" }
+oxc_formatter_graphql = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_formatter_graphql" }
+oxc_formatter_htmlish = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_formatter_htmlish" }
+oxc_formatter_json = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_formatter_json" }
+oxc_formatter_markdown = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_formatter_markdown" }
+oxc_formatter_tests = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_formatter_tests" }
+oxc_formatter_toml = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_formatter_toml" }
+oxc_formatter_yaml = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_formatter_yaml" }
+oxc_jsdoc = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_jsdoc" }
+oxc_parser = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_parser" }
+oxc_regular_expression = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_regular_expression" }
+oxc_semantic = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_semantic" }
+oxc_span = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_span" }
+oxc_str = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_str" }
+oxc_syntax = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_syntax" }
+oxc_transformer = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_transformer" }
+oxc_traverse = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/crates/oxc_traverse" }
+oxfmt = { path = "/Users/baseballyama/git/rsvelte/.claude/worktrees/general/poc-oxfmt-share/apps/oxfmt" }

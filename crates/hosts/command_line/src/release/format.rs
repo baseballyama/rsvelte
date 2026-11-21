@@ -31,7 +31,7 @@ pub(crate) fn format(arguments: &[String]) -> ExitCode {
     ExitCode::from(result.exit_code())
 }
 
-struct Svelte;
+pub(super) struct Svelte;
 
 impl HostFormatter for Svelte {
     fn format(&self, source_text: &str, options: &Value) -> Result<String, String> {
@@ -68,7 +68,7 @@ const OXFMT_SCRIPT_OPTIONS: &[&str] = &["sortImports", "jsdoc"];
 
 /// The options Prettier would give prettier-plugin-svelte, or the first option oxfmt would apply
 /// to a Svelte file that the Svelte formatter does not.
-fn svelte_options(prettier: &Value) -> Result<Options, String> {
+pub(super) fn svelte_options(prettier: &Value) -> Result<Options, String> {
     let Value::Object(options) = prettier else {
         return Err(format!("the options are not an object: {prettier}"));
     };

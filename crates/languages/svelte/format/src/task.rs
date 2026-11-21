@@ -52,30 +52,30 @@ impl Task for Format {
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-        // The plugin takes the style sheet out before Svelte parses, so its errors do not count.
-        let c = match rsvelte_svelte_syntax::parsed_reading_scripts_as_typescript(context) {
-            Ok(c) => c,
-            Err(e) => {
-                out.diagnostics.push(e.clone());
-                return;
-            }
-        };
-        let own;
-        let rejected = if context.get::<rsvelte_svelte_syntax::Parsed>().is_ok() {
-            (context.get::<rsvelte_svelte_semantic::Resolved>().as_ref())
-                .and_then(|resolution| resolution.javascript_syntax_error())
-        } else {
-            // A component only the TypeScript read gives has no resolution of its own. Its first
-            // error refuses even where Babel recovers, which is conservative: a later one Babel
-            // throws on is not known.
-            own = crate::printer::first_module_syntax_error(c, context.source_text());
-            own.as_ref()
-        };
-        match formatted(c, context.source_text(), &self.options, rejected) {
+        match format_document(context, &self.options) {
             Ok(text) => out.file("svelte", text),
             Err(diagnostic) => out.diagnostics.push(diagnostic),
         }
     }
+}
+
+/// [`format`] of a document, from the parse the document's other tasks share.
+///
+/// # Errors
+///
+/// The parse error, or the first construct the formatter does not handle yet.
+pub fn format_document(context: &DocumentContext<'_>, options: &Options) -> Result<String, Diagnostic> {
+    // The plugin takes the style sheet out before Svelte parses, so its errors do not count.
+    let c = rsvelte_svelte_syntax::parsed_reading_scripts_as_typescript(context).map_err(Clone::clone)?;
+    let own;
+    let rejected = if context.get::<rsvelte_svelte_syntax::Parsed>().is_ok() {
+        (context.get::<rsvelte_svelte_semantic::Resolved>().as_ref())
+            .and_then(|resolution| resolution.javascript_syntax_error())
+    } else {
+        own = crate::printer::first_module_syntax_error(c, context.source_text());
+        own.as_ref()
+    };
+    formatted(c, context.source_text(), options, rejected)
 }
 
 /// Formats a component as prettier with prettier-plugin-svelte and `options` does.

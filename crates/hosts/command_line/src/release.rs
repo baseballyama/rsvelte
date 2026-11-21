@@ -9,6 +9,7 @@ use crate::commands::{lint, typecheck};
 use crate::{Installation, configuration, configured_registry, usage};
 
 mod format;
+mod shared;
 mod help;
 
 /// The plugins `rsvelte` installs for `lint` and `typecheck`, in installation order.
@@ -47,6 +48,9 @@ pub fn release() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     if let Some(("format", rest)) = arguments.split_first().map(|(c, r)| (c.as_str(), r)) {
         return format::format(rest);
+    }
+    if arguments.first().map(String::as_str) == Some("poc-format-lint") {
+        return shared::format_and_lint(arguments.iter().any(|a| a == "--check"));
     }
     let mut config = configuration::Options::default();
     let mut positional = Vec::new();
@@ -135,6 +139,22 @@ fn print_help(positional: &[&str], flag: bool) -> ExitCode {
     };
     print!("{guide}");
     ExitCode::SUCCESS
+}
+
+/// What `lint` or `typecheck` installs to run `tasks`.
+fn installation(tasks: &[&str]) -> Installation {
+    let defaults = if tasks == TYPECHECK {
+        (TYPECHECK_DEFAULTS.iter())
+            .map(|&plugin| (plugin, "{}".to_owned()))
+            .collect()
+    } else {
+        Vec::new()
+    };
+    Installation {
+        extensions: EXTENSIONS,
+        selection: Selection::Named(tasks.iter().map(|&task| task.to_owned()).collect()),
+        defaults,
+    }
 }
 
 #[cfg(test)]
