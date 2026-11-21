@@ -56,8 +56,10 @@ mise run structure
 pnpm install && pnpm run check    # the site and tools/: oxfmt, oxlint, knip, tsc, the English prose lint
 ```
 
-All JavaScript-side code is TypeScript that Node 26 runs directly, in one pnpm workspace
-(`apps/site`, `tools/*`). A tool writes local output to its own ignored `generated/`.
+All JavaScript-side code is TypeScript that Node 26 runs directly, in one pnpm workspace:
+`apps/cli`, `apps/eslint-plugin`, `apps/site` and `tools/*`. The two npm packages also ship
+plain JavaScript that their users' Node loads (`launcher.js`, `*.cjs`). A tool writes local
+output to its own ignored `generated/`.
 
 ## Measuring
 

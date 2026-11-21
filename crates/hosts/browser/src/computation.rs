@@ -319,20 +319,29 @@ fn step_json(
     json.end_array().end_object();
 }
 
+// The same `start` and `end` as a finding in `lint.json`, so the page marks both alike.
 fn diagnostic_json(json: &mut StructuredDataWriter, diagnostic: &Diagnostic, index: &LineIndex) {
-    let at = index.line_column(diagnostic.span.start_offset);
     json.begin_object()
         .key("code")
         .write_string(&diagnostic.code)
         .key("message")
         .write_string(&diagnostic.message)
         .key("severity")
-        .write_string(diagnostic.severity.as_str())
-        .key("line")
-        .write_number(at.line)
-        .key("column")
-        .write_number(at.column + 1)
-        .end_object();
+        .write_string(diagnostic.severity.as_str());
+    for (key, byte) in [
+        ("start", diagnostic.span.start_offset),
+        ("end", diagnostic.span.end_offset),
+    ] {
+        let at = index.line_column(byte);
+        json.key(key)
+            .begin_object()
+            .key("line")
+            .write_number(at.line)
+            .key("column")
+            .write_number(at.column + 1)
+            .end_object();
+    }
+    json.end_object();
 }
 
 #[cfg(test)]

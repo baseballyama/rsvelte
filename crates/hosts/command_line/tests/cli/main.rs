@@ -6,10 +6,13 @@ use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 mod arguments;
+mod combined;
 mod configuration;
 mod documents;
+mod eslint_plugin;
 mod format;
 mod format_options;
+mod format_tailwind;
 mod lint;
 mod lint_globals;
 mod project_check;

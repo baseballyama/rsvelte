@@ -21,7 +21,7 @@ pub(super) fn refuse_misread_awaits(
     source_text: &str,
     unparsed_scripts: &[Span],
 ) -> R<()> {
-    for script in c.module.iter().chain(&c.instance) {
+    for script in c.scripts() {
         if unparsed_scripts.contains(&script.content) {
             continue;
         }

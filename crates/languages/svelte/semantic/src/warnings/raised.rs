@@ -34,7 +34,9 @@ pub enum Section {
 }
 
 impl Section {
-    /// The part of `component` that holds `offset`.
+    /// The part of `component` that holds `offset`;
+    /// [`ComponentInput::section`](crate::input::ComponentInput::section) answers the same from the
+    /// programs alone.
     #[must_use]
     pub fn of(component: &Component, offset: u32) -> Self {
         let holds = |script: &Option<Script>| {

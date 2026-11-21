@@ -6,17 +6,17 @@ import { spawnSync } from 'node:child_process';
 import { HARDWARE_EVENTS, parsePerfStat, type HardwareCounts } from './perf-stat.ts';
 import {
 	sampleOrder,
-	validateWorkload,
-	validateWorkloadOutput,
-	type Workload,
-} from './workload.ts';
+	validateCounterConfig,
+	validateCounterOutput,
+	type CounterConfig,
+} from './counter-config.ts';
 
 export async function main(args: string[]): Promise<void> {
 	if (process.platform !== 'linux') throw new Error('perf hardware counters require Linux');
 	const [configPath, reportPath] = args;
 	if (!configPath || !reportPath) throw new Error('expected <config.json> <report.json>');
-	const config: Workload = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-	validateWorkload(config);
+	const config: CounterConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+	validateCounterConfig(config);
 	const directory = path.resolve(`${reportPath}.samples`);
 	fs.mkdirSync(directory, { recursive: true });
 	fs.rmSync(reportPath, { force: true });
@@ -73,7 +73,7 @@ export async function main(args: string[]): Promise<void> {
 			process.exitCode = 1;
 			break;
 		}
-		validateWorkloadOutput(config, run.stdout);
+		validateCounterOutput(config, run.stdout);
 		save('running');
 	}
 	if (!process.exitCode) save('complete');

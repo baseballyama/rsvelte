@@ -1,152 +1,88 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { extractProse, proseFiles, writingLinter } from './prose.ts';
-import { moduleDescription } from '../src/lib/module-descriptions.ts';
-import { sources } from '../src/lib/build/sources.ts';
+import { englishLinter } from '../../../tools/writing/linter.ts';
+import { extractProse, lintPage, proseFiles } from './prose.ts';
 
-const linter = await writingLinter();
-const lintSvelte = (source: string) =>
-	Promise.all(
-		extractProse(source, 'control.svelte').map((chunk) =>
-			linter.lintText(chunk.text, 'control.md'),
-		),
-	);
+const linter = await englishLinter();
+const lintSvelte = async (source: string) =>
+	(await lintPage(linter, extractProse(source, 'control.svelte'))).map(({ chunk, message }) => ({
+		line: chunk.line,
+		rule: message.ruleId,
+	}));
 
-test('rejects abbreviations, jargon, hype, redundancy and long sentences', async () => {
-	const cases = [
-		['CFG を作ります。', 'no-abbreviations'],
-		['32 MB を使います。', 'no-abbreviations'],
-		['`db.rs` と `Ctx` を使います。', 'no-abbreviations'],
-		['アーティファクトを使います。', 'prh'],
-		['革命的な技術です。', 'no-ai-hype-expressions'],
-		['検査を実行します。', 'ja-no-redundant-expression'],
-		['これは' + '長い説明を続けます'.repeat(15) + '。', 'sentence-length'],
-	] as const;
-	const results = await Promise.all(cases.map(([text]) => linter.lintText(text, 'control.md')));
-	for (const [i, [text, rule]] of cases.entries()) {
-		assert.ok(
-			results[i]!.messages.some((message) => message.ruleId.includes(rule)),
-			`${rule} must reject ${text}`,
-		);
-	}
-	assert.deepEqual(
-		(await linter.lintText('構文解析の結果を保存して再利用します。', 'control.md')).messages,
-		[],
+test('the English check reports a finding at the line of its passage', async () => {
+	const findings = await lintSvelte(
+		'<h2>Install</h2>\n<p>Run it.</p>\n<p>It reads zorbled files.</p>',
 	);
-	const clean = await Promise.all(
-		[
-			'AST（抽象構文木）を保持します。',
-			'HIR（高水準の中間表現）を生成します。',
-			'`AST` と `HIR` を保持します。',
-		].map((text) => linter.lintText(text, 'control.md')),
-	);
-	for (const result of clean) assert.deepEqual(result.messages, []);
+	assert.deepEqual(findings, [{ line: 3, rule: 'spelling' }]);
 });
 
-test('reads prose from templates, attributes, expressions, branches and scripts', () => {
-	const source = `<script>const steps = [{ what: '本文の説明' }];</script>
-<Header lead="導入の説明" />
-<span title={true ? '条件付きの補足' : ''}>本文</span>
-<p>前半<strong>強調</strong>後半<Term name="DocumentContext" />。</p>
-{#if true}<p>条件付きの説明</p>{:else}<p>別の説明</p>{/if}
-{#each ['動的な説明'] as label}<button>{label}</button>{/each}
-{#snippet caption()}図の説明{/snippet}
-{@render heading('見出しの説明')}
-<pre>AST と db.rs は元のコード</pre><Code item={data.code} />`;
+test('a heading followed by text is not an empty section', async () => {
+	assert.deepEqual(
+		await lintSvelte('<h1>Guide</h1><h2>Install</h2><p>rsvelte reads each file once.</p>'),
+		[],
+	);
+});
+
+test('the English check reads the meta description and visible script strings', async () => {
+	const findings = await lintSvelte(
+		`<script>const result = { message: 'It reads zorbled files.' };</script>
+<svelte:head><meta name="description" content="It reads zorbled files." /></svelte:head>`,
+	);
+	assert.deepEqual(
+		findings.map((finding) => finding.rule),
+		['spelling', 'spelling'],
+	);
+});
+
+test('reads prose from templates, attributes, branches and visible script strings', () => {
+	const source = `<script>const operations = [{ label: 'Visible label', id: 'hidden-id' }];</script>
+<Header title="An attribute" />
+<p>Before <strong>strong</strong> after.</p>
+{#if true}<p>One branch</p>{:else}<p>Other branch</p>{/if}
+{#snippet caption()}A caption{/snippet}
+<pre>code that stays out</pre>`;
 	const text = extractProse(source, 'example.svelte')
 		.map((chunk) => chunk.text)
 		.join('\n');
 	for (const expected of [
-		'本文の説明',
-		'導入の説明',
-		'条件付きの補足',
-		'前半**強調**後半文書ごとの保存領域',
-		'条件付きの説明',
-		'別の説明',
-		'動的な説明',
-		'図の説明',
-		'見出しの説明',
+		'Visible label',
+		'An attribute',
+		'Before **strong** after.',
+		'One branch',
+		'Other branch',
+		'A caption',
 	]) {
 		assert.ok(text.includes(expected), `Must check ${expected}`);
 	}
-	assert.ok(!text.includes('元のコード'));
-	assert.throws(
-		() => extractProse('<Term name="Unknown" />', 'example.svelte'),
-		/Missing reader label/,
-	);
-	assert.ok(extractProse("s('hir', 'HIR')", 'site.ts').some((chunk) => chunk.text === 'HIR'));
-	assert.ok(
-		extractProse('const label = `容量 ${size} MB`; const metric = { unit: "MB" };', 'site.ts').some(
-			(chunk) => chunk.text === 'MB',
-		),
-	);
-	assert.deepEqual(extractProse('throw new Error(`ASCII only: ${code}`)', 'internal.ts'), []);
-	assert.ok(
-		extractProse('const label = `説明 ${flag ? "条件の補足" : "別の補足"}`', 'site.ts').some(
-			(chunk) => chunk.text === '条件の補足',
-		),
-	);
+	assert.ok(!text.includes('hidden-id'));
+	assert.ok(!text.includes('code that stays out'));
+	assert.deepEqual(extractProse('throw new Error(`Internal: ${code}`)', 'internal.ts'), []);
 });
 
-test('AI pattern rules reject rendered emphasis and lists from Svelte', async () => {
-	const rejected = [
-		['<p><strong>重要</strong>：解析結果を共有します。</p>', 'no-ai-emphasis-patterns'],
-		['<ul><li><strong>速度</strong>：解析結果を共有します。</li></ul>', 'no-ai-list-formatting'],
-		['<h2><strong>解析結果を共有する</strong></h2>', 'no-ai-emphasis-patterns'],
-		['<p>それでは詳しく見ていきましょう。</p>', 'prh'],
-	] as const;
-	const rejectedResults = await Promise.all(rejected.map(([source]) => lintSvelte(source)));
-	for (const [i, [, rule]] of rejected.entries()) {
-		assert.ok(
-			rejectedResults[i]!.some((result) =>
-				result.messages.some((message) => message.ruleId.includes(rule)),
-			),
-			`${rule} must reject rendered prose`,
-		);
-	}
-	const accepted = await Promise.all(
-		[
-			'<p>構文解析は<strong>一度だけ</strong>です。</p>',
-			'<ul><li>結果を保存します。</li></ul>',
-			'<h2>解析結果を共有する</h2>',
-		].map(lintSvelte),
-	);
-	for (const result of accepted.flat()) assert.deepEqual(result.messages, []);
-});
-
-test('new kernel modules need a reader description', () => {
-	const modules = sources('../../crates').filter(
-		(module) => module.key.startsWith('kernel/') && module.key !== 'kernel/lib',
-	);
-	assert.ok(modules.length > 0);
-	for (const module of modules) assert.ok(moduleDescription(module.key).summary);
-	assert.throws(() => moduleDescription('kernel/unknown'), /Missing reader description/);
-});
-
-test('every visible source surface is parsed, including the reported modules page', () => {
+test('every page and script of the site is parsed', () => {
 	const files = proseFiles('src');
-	assert.ok(files.includes('src/routes/learn/kernel/+page.svelte'));
-	assert.ok(files.includes('src/lib/site.ts'));
-	assert.ok(files.includes('src/lib/widgets/ArtifactCacheSim.svelte'));
+	assert.ok(files.includes('src/routes/+page.svelte'));
+	assert.ok(files.includes('src/lib/rules.ts'));
 	for (const file of files) extractProse(readFileSync(file, 'utf8'), file);
 });
 
 test('a dynamic value reads as inline code, also inside a code element', () => {
-	const chunks = extractProse('<p>結果は <code>{count}</code> 件です。{label}</p>', 'page.svelte');
+	const chunks = extractProse('<p>It found <code>{count}</code> files. {label}</p>', 'page.svelte');
 	assert.deepEqual(
 		chunks.map((chunk) => chunk.text),
-		['結果は `value` 件です。`value`'],
+		['It found `value` files. `value`'],
 	);
 });
 
 test('a title and the next element are separate passages', () => {
 	const chunks = extractProse(
-		'<svelte:head><title>リファレンス — rsvelte</title></svelte:head><header><span>付録</span></header>',
+		'<svelte:head><title>Guide · rsvelte</title></svelte:head><header><span>Appendix</span></header>',
 		'page.svelte',
 	);
 	assert.deepEqual(
 		chunks.map((chunk) => chunk.text),
-		['リファレンス — rsvelte', '付録'],
+		['Guide · rsvelte', 'Appendix'],
 	);
 });

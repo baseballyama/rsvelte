@@ -1,9 +1,4 @@
 {
 	"maxLines": 600,
-	"exceptions": {
-		"apps/site/src/lib/widgets/PipelinePlayground.svelte": {
-			"maxLines": 915,
-			"reason": "Its markup and style share one component's state; keep its size until it is split."
-		}
-	}
+	"exceptions": {}
 }

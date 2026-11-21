@@ -5,7 +5,7 @@ use oxc_ast::ast::{
     Program, StringLiteral,
 };
 use oxc_ast_visit::{Visit, walk};
-use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_tree::node_span;
 
 use crate::Import;
 
@@ -25,7 +25,7 @@ impl Specifiers {
         // A specifier with a lone surrogate names no file.
         if let Some(specifier) = source.value.as_str() {
             self.0.push(Import {
-                at: Span::new(source.span.start, source.span.end),
+                at: node_span(source),
                 specifier: specifier.to_owned(),
                 names,
             });

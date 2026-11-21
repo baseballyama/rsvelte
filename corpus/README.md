@@ -20,7 +20,9 @@ corpus/
 └── <family>/<source>/        one source, e.g. svelte/bits-ui/
     ├── inputs.pack           every unit's file, with its language and mode
     ├── expected/<task>/<variant>.pack   the official tools' output
-    └── actual/               rsvelte's output, on request (ignored by git)
+    └── actual/               rsvelte's output, on request (ignored by git): packs
+                              <task>/<variant>.pack from CORPUS_ACTUAL=1 cargo test --test corpus,
+                              loose <unit path>/<task>/ files from oracle run-all
 ```
 
 The corpus holds only the `svelte` family today. The `vue` and `cross` languages in

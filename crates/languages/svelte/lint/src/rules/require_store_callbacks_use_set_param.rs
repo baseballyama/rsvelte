@@ -7,9 +7,6 @@ use rsvelte_typescript_tree::document_span;
 use super::shared::svelte_store::{Function, Scopes, rename, store_calls};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
-#[cfg(test)]
-mod tests;
-
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/require-store-callbacks-use-set-param",
     files: Files::All,

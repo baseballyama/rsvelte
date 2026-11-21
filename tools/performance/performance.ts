@@ -1,6 +1,7 @@
 // performance <command> [options]
 //
-//   ratchet [--update] [--instructions] [--json <file>]   the allocation (and instruction) ratchet
+//   ratchet [--update] [--instructions] [--no-allocations] [--json <file>]
+//                                                         the allocation (and instruction) ratchet
 //   ratchet-linux [--update]                              the ratchet with instruction counts, in ratchet-linux.Dockerfile
 //   cache-profile <config.json> <report.json>             cachegrind's cache and branch profile
 //   hardware-counters <config.json> <report.json>         Linux hardware counters through perf stat

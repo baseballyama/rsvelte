@@ -4,50 +4,9 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_semantic::number::string_to_number;
 
 use super::{Static, tables};
-
-/// JavaScript's `Number(text)`.
-pub(super) fn number(text: &str) -> f64 {
-    let text = text.trim_matches(is_ecmascript_whitespace);
-    if text.is_empty() {
-        return 0.0;
-    }
-    if let Some(radix) = ["0x", "0X", "0o", "0O", "0b", "0B"]
-        .iter()
-        .any(|p| text.starts_with(p))
-        .then(|| match text.as_bytes()[1] {
-            b'x' | b'X' => 16,
-            b'o' | b'O' => 8,
-            _ => 2,
-        })
-    {
-        let digits = &text[2..];
-        if digits.is_empty() {
-            return f64::NAN;
-        }
-        return digits
-            .chars()
-            .try_fold(0.0_f64, |n, c| {
-                c.to_digit(radix)
-                    .map(|d| n.mul_add(f64::from(radix), f64::from(d)))
-            })
-            .unwrap_or(f64::NAN);
-    }
-    match text.strip_prefix(['+', '-']).unwrap_or(text) {
-        "Infinity" if text.starts_with('-') => return f64::NEG_INFINITY,
-        "Infinity" => return f64::INFINITY,
-        _ => {}
-    }
-    let numeric = text
-        .bytes()
-        .all(|b| b.is_ascii_digit() || matches!(b, b'+' | b'-' | b'.' | b'e' | b'E'));
-    if numeric {
-        text.parse::<f64>().unwrap_or(f64::NAN)
-    } else {
-        f64::NAN
-    }
-}
 
 /// Svelte's `list`: `a`, `a or b`, `a, b or c`.
 pub(super) fn list(items: &[&str], conjunction: &str) -> String {
@@ -99,7 +58,7 @@ pub(super) fn aria_value(
             "a11y_incorrect_aria_attribute_type",
             format!("The value of '{name}' must be a non-empty string"),
         ),
-        "number" if value.is_empty() || number(value).is_nan() => (
+        "number" if value.is_empty() || string_to_number(value).is_nan() => (
             "a11y_incorrect_aria_attribute_type",
             format!("The value of '{name}' must be a number"),
         ),
@@ -114,7 +73,7 @@ pub(super) fn aria_value(
                     DOM element IDs"
             ),
         ),
-        "integer" if value.is_empty() || !is_integer(number(value)) => (
+        "integer" if value.is_empty() || !is_integer(string_to_number(value)) => (
             "a11y_incorrect_aria_attribute_type_integer",
             format!("The value of '{name}' must be an integer"),
         ),

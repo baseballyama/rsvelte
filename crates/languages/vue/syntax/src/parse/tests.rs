@@ -9,3 +9,15 @@ fn the_script_lang_decides_how_the_template_reads() {
     let error = parse(javascript).expect_err(javascript);
     assert_eq!(error.code, "js_parse_error");
 }
+
+#[test]
+fn an_attribute_name_may_hold_non_ascii_characters() {
+    let source_text = r#"<template><p ä="1" data-ö/></template>"#;
+    let component = parse(source_text).expect(source_text);
+    let names: Vec<&str> = component
+        .attributes
+        .iter()
+        .map(|a| a.name.text(source_text))
+        .collect();
+    assert_eq!(names, ["ä", "data-ö"]);
+}

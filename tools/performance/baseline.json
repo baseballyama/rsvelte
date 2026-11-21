@@ -23,8 +23,8 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 25426715,
-	"alloc_bytes": 4035257575,
+	"allocs": 25424585,
+	"alloc_bytes": 4054846285,
 	"peak_live_growth_bytes": 3262213,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -34,8 +34,8 @@
 		},
 		"js.print": {
 			"calls": 69357,
-			"allocs": 238099,
-			"alloc_bytes": 146819216
+			"allocs": 238094,
+			"alloc_bytes": 146818915
 		},
 		"no-unused-vars": {
 			"calls": 34926,
@@ -49,28 +49,28 @@
 		},
 		"svelte.compile.warnings": {
 			"calls": 73792,
-			"allocs": 627154,
-			"alloc_bytes": 58624457
+			"allocs": 627152,
+			"alloc_bytes": 57936739
 		},
 		"svelte.compile/client": {
 			"calls": 36896,
-			"allocs": 93197,
-			"alloc_bytes": 13203499
+			"allocs": 125072,
+			"alloc_bytes": 20008201
 		},
 		"svelte.compile/server": {
 			"calls": 36896,
-			"allocs": 93202,
-			"alloc_bytes": 13203189
+			"allocs": 125077,
+			"alloc_bytes": 20007891
 		},
 		"svelte.compileModule/client": {
 			"calls": 2681,
-			"allocs": 78668,
-			"alloc_bytes": 30407881
+			"allocs": 78746,
+			"alloc_bytes": 30409759
 		},
 		"svelte.compileModule/server": {
 			"calls": 2681,
-			"allocs": 78668,
-			"alloc_bytes": 30407881
+			"allocs": 78746,
+			"alloc_bytes": 30409759
 		},
 		"svelte.compiler_syntax_tree": {
 			"calls": 34863,
@@ -99,8 +99,8 @@
 		},
 		"svelte.lint.parse_as_svelte_eslint_parser": {
 			"calls": 9,
-			"allocs": 44,
-			"alloc_bytes": 11738
+			"allocs": 48,
+			"alloc_bytes": 11834
 		},
 		"svelte.lint.resolve_as_svelte_eslint_parser": {
 			"calls": 115,
@@ -124,13 +124,13 @@
 		},
 		"svelte.lint/default": {
 			"calls": 36896,
-			"allocs": 197234,
-			"alloc_bytes": 22306135
+			"allocs": 229107,
+			"alloc_bytes": 29110775
 		},
 		"svelte.lower.client": {
 			"calls": 36388,
-			"allocs": 5001472,
-			"alloc_bytes": 410417507
+			"allocs": 4895833,
+			"alloc_bytes": 410090292
 		},
 		"svelte.lower.server": {
 			"calls": 36388,
@@ -144,18 +144,18 @@
 		},
 		"svelte.parse": {
 			"calls": 36896,
-			"allocs": 424712,
-			"alloc_bytes": 95764151
+			"allocs": 426521,
+			"alloc_bytes": 95807839
 		},
 		"svelte.parse.checked": {
 			"calls": 2033,
-			"allocs": 15979,
-			"alloc_bytes": 3506957
+			"allocs": 17613,
+			"alloc_bytes": 3546276
 		},
 		"svelte.parse.typescript": {
 			"calls": 2153,
-			"allocs": 17552,
-			"alloc_bytes": 3827224
+			"allocs": 19162,
+			"alloc_bytes": 3866205
 		},
 		"svelte.render_plan": {
 			"calls": 34748,
@@ -164,8 +164,8 @@
 		},
 		"svelte.resolve": {
 			"calls": 34863,
-			"allocs": 751106,
-			"alloc_bytes": 217358485
+			"allocs": 751094,
+			"alloc_bytes": 217358283
 		},
 		"svelte.typescript_projection.ast": {
 			"calls": 36896,
@@ -179,8 +179,8 @@
 		},
 		"svelte.typescript_projection.resolve_as_checked": {
 			"calls": 161,
-			"allocs": 3591,
-			"alloc_bytes": 538569
+			"allocs": 3586,
+			"alloc_bytes": 538521
 		},
 		"svelte.typescript_projection/default": {
 			"calls": 36896,
@@ -189,13 +189,13 @@
 		},
 		"svelte.validate": {
 			"calls": 34748,
-			"allocs": 184764,
-			"alloc_bytes": 15773705
+			"allocs": 184762,
+			"alloc_bytes": 15773643
 		},
 		"svelte/block-lang": {
 			"calls": 8,
 			"allocs": 91,
-			"alloc_bytes": 8177
+			"alloc_bytes": 7601
 		},
 		"svelte/button-has-type": {
 			"calls": 34926,
@@ -354,8 +354,8 @@
 		},
 		"ts.tree": {
 			"calls": 2683,
-			"allocs": 11844,
-			"alloc_bytes": 2518150
+			"allocs": 11923,
+			"alloc_bytes": 2520046
 		},
 		"vuelte.check": {
 			"calls": 71644,
@@ -374,20 +374,20 @@
 		},
 		"vuelte.translate": {
 			"calls": 53396,
-			"allocs": 4110352,
-			"alloc_bytes": 512873160
+			"allocs": 4112996,
+			"alloc_bytes": 512936616
 		},
 		"vuelte.vapor": {
 			"calls": 50752,
-			"allocs": 4013468,
-			"alloc_bytes": 851992899
+			"allocs": 4013444,
+			"alloc_bytes": 851992495
 		}
 	},
 	"instructions": {
-		"arm64-linux": 2011268860
+		"arm64-linux": 2007952370
 	},
 	"load_instructions": {
-		"arm64-linux": 146414660
+		"arm64-linux": 146335109
 	},
 	"instruction_sample": {
 		"every": 20,

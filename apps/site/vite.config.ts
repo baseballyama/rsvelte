@@ -1,25 +1,16 @@
-import adapter from '@sveltejs/adapter-cloudflare';
+import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vitest/config';
-import { fileURLToPath } from 'node:url';
-import { rsvelteSource } from './src/lib/build/source-plugin.ts';
+import { defineConfig } from 'vite';
+import { highlight } from './scripts/highlight.ts';
 
 export default defineConfig({
 	plugins: [
-		tailwindcss(),
-		rsvelteSource(),
 		sveltekit({
 			adapter: adapter(),
-			preprocess: vitePreprocess(),
 			compilerOptions: { runes: true },
+			preprocess: [highlight()],
+			// GitHub Pages serves the site below /rsvelte (PAGES=1); a local build serves it at the root.
+			paths: { base: process.env.PAGES === '1' ? '/rsvelte' : '' },
 		}),
 	],
-	server: {
-		fs: { allow: [fileURLToPath(new URL('../../crates', import.meta.url))] },
-	},
-	test: {
-		include: ['src/**/*.test.ts'],
-	},
 });

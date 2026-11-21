@@ -7,7 +7,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_svelte_syntax::parse::is_void;
 
-use crate::lower::attributes::{is_customizable_select, lowercase};
+use crate::lower::attributes::lowercase;
 use crate::lower::server::template::Template;
 use crate::lower::server::{R, ServerCompilationContext};
 
@@ -134,7 +134,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             self.process_children(&cleaned.items, template)?;
             // The hydration marker of rich content, which upstream puts after it.
             if matches!(tag, "optgroup" | "select")
-                && is_customizable_select(compiler_syntax_tree, self.source_text, el)
+                && compiler_syntax_tree.is_customizable_select(el, self.source_text)
             {
                 template.text("<!>");
             }

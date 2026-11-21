@@ -18,7 +18,7 @@ use crate::rule::{File, SvelteRule};
 /// [start, end], messageId?, fix?: {range, text}, suggestions?: [{message, fix}]}`, where a range
 /// counts UTF-16 code units, as a JavaScript string does. A failure or an invalid report fails the
 /// document, as a throwing `ESLint` rule does.
-pub static CONTRACT: TextContract = TextContract {
+pub(crate) static CONTRACT: TextContract = TextContract {
     identifier: "svelte.lint.rule",
     version: 1,
     arguments: &["path", "source", "options"],

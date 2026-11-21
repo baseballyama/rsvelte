@@ -4,6 +4,8 @@ use oxc_ast::{AstKind, AstType};
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 
+use super::word::{Home, Read, Word};
+
 /// What acorn reports about a node around oxc's label, found as the tree is walked.
 #[derive(Debug)]
 pub struct Locator {
@@ -17,6 +19,29 @@ pub struct Locator {
     pub(super) declares: bool,
     /// For [`Find::Redeclared`], whether the first declaration is a type alias or an interface.
     pub(super) first_is_type: bool,
+    /// For [`Find::Home`], where acorn reads the name the label is.
+    pub(super) home: Option<Home>,
+    /// For [`Find::Home`], the name the label is in the tree, and how acorn reads it.
+    pub(super) word: Option<(Word, Read)>,
+    /// For [`Find::Home`], the parameters around the label that acorn reads as expressions.
+    cover: Cover,
+    /// Whether the walk took in any node: a part oxc could not read has no tree.
+    pub(super) walked: bool,
+}
+
+/// The parameters around a label that acorn reads as an expression, before it meets the `=>`
+/// that makes them an arrow function's: its words are tokens, so `await` there is a keyword
+/// wherever acorn can await.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Cover {
+    None,
+    /// A parenthesized parameter list, or an async arrow's, which acorn reads as a call's
+    /// arguments, where a spread is an expression too; acorn then checks it as parameters.
+    List {
+        is_async: bool,
+    },
+    /// A plain arrow's one parameter without parentheses, an expression that `=>` ends.
+    Bare,
 }
 
 /// What decides how acorn reads an optional rest element, from the nodes around it.
@@ -77,6 +102,9 @@ pub(super) enum Find {
     /// The type alias or interface whose name is the label, or the parameter list around it,
     /// where the label redeclares the name the span is.
     Redeclared(oxc_span::Span),
+    /// Where acorn reads the name the label is: the innermost function, class static block or
+    /// class field initializer around it.
+    Home,
 }
 
 impl Locator {
@@ -87,6 +115,10 @@ impl Locator {
             found: None,
             declares: false,
             first_is_type: false,
+            home: None,
+            word: None,
+            cover: Cover::None,
+            walked: false,
             rest: AroundRest {
                 ambient: false,
                 reading: Reading::Binding,
@@ -149,8 +181,51 @@ impl Locator {
         }
     }
 
+    fn enter_home(&mut self, kind: AstKind<'_>) {
+        let name = match kind {
+            AstKind::IdentifierReference(it) => Some(&it.name),
+            AstKind::BindingIdentifier(it) => Some(&it.name),
+            AstKind::LabelIdentifier(it) => Some(&it.name),
+            _ => None,
+        };
+        if let Some(name) = name.filter(|_| kind.span() == self.label) {
+            let read = match self.cover {
+                Cover::None => Read::Name,
+                Cover::List { .. } => Read::Parameter,
+                Cover::Bare => Read::Expression,
+            };
+            self.word = Some((Word::named(name, self.label), read));
+        }
+        let holds = |span: oxc_span::Span| span.contains_inclusive(self.label);
+        self.cover = match kind {
+            AstKind::ArrowFunctionExpression(it) if it.params.span == self.label => {
+                // acorn reads an async arrow's one parameter without parentheses as a name.
+                if it.r#async { Cover::None } else { Cover::Bare }
+            }
+            AstKind::ArrowFunctionExpression(it) if holds(it.params.span) => Cover::List {
+                is_async: it.r#async,
+            },
+            // acorn reads a plain arrow's rest parameter, and a shorthand property, as names; a
+            // rest element nested in a pattern there is a spread, an expression.
+            AstKind::FormalParameterRest(it)
+                if holds(it.span) && self.cover == (Cover::List { is_async: false }) =>
+            {
+                Cover::None
+            }
+            AstKind::BindingProperty(it) if it.shorthand && holds(it.value.span()) => Cover::None,
+            _ => self.cover,
+        };
+        if let Some((governs, home)) = governed(kind)
+            && holds(governs)
+        {
+            self.home = Some(home);
+            self.cover = Cover::None;
+        }
+    }
+
     /// Takes in a node of the walk, outer nodes before inner ones.
     pub fn enter(&mut self, kind: AstKind<'_>) {
+        self.walked = true;
         let around = kind.span().contains_inclusive(self.label);
         if matches!(self.find, Find::Binding)
             && around
@@ -172,6 +247,9 @@ impl Locator {
         }
         if let Find::Redeclared(first) = self.find {
             return self.enter_redeclared(first, kind, around);
+        }
+        if matches!(self.find, Find::Home) {
+            return self.enter_home(kind);
         }
         let found = match (self.find, kind) {
             // A method's function is the method, which comes first in the walk.
@@ -219,6 +297,38 @@ impl Locator {
             _ => return,
         };
         self.found = Some((found, kind.ty()));
+    }
+}
+
+/// The home `kind` is, and the source it governs, where acorn reads a name in that home.
+fn governed(kind: AstKind<'_>) -> Option<(oxc_span::Span, Home)> {
+    let function = |span, is_async, is_generator| {
+        Some((
+            span,
+            Home::Function {
+                is_async,
+                is_generator,
+            },
+        ))
+    };
+    match kind {
+        // acorn reads a declaration's name before it enters the function, and an expression's in
+        // it.
+        AstKind::Function(it) => {
+            let id = it.id.as_ref().filter(|_| it.is_declaration());
+            let start = id.map_or(it.span.start, |id| id.span.end);
+            function(
+                oxc_span::Span::new(start, it.span.end),
+                it.r#async,
+                it.generator,
+            )
+        }
+        // acorn reads an arrow's parameters before it knows they are an arrow's.
+        AstKind::ArrowFunctionExpression(it) => function(it.body.span(), it.r#async, false),
+        AstKind::StaticBlock(it) => Some((it.span, Home::StaticBlock)),
+        AstKind::PropertyDefinition(it) => Some((it.value.as_ref()?.span(), Home::Initializer)),
+        AstKind::AccessorProperty(it) => Some((it.value.as_ref()?.span(), Home::Initializer)),
+        _ => None,
     }
 }
 

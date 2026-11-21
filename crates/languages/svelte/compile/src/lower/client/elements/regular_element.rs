@@ -5,14 +5,14 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 
 use crate::lower::attributes::{is_directive, is_load_error_element, lowercase};
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Frag, Lists, Memo, R};
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, Memo, NodeVar, R};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `RegularElement`.
     pub(in crate::lower::client) fn element(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         frag: &mut Frag<'o>,
         l: &mut Lists<'o>,
     ) -> R<()> {
@@ -69,7 +69,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if is_load_error_element(&tag) && (has_spread || has_use || load_error_events) {
             let b = self.b;
             l.after
-                .push(b.statement(b.runtime("replay_events", [b.id(node)])));
+                .push(b.statement(b.runtime("replay_events", [node.id(b)])));
         }
 
         self.element_body(identifier, node, directives, frag, l)?;
@@ -80,16 +80,16 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }) {
             // Chromium keeps an `auto` direction after the text changes unless it is set again.
             let b = self.b;
-            let dir = || b.member(b.id(node), "dir");
+            let dir = || b.member(node.id(b), "dir");
             l.update.push(b.statement(b.assign_member(dir(), dir())));
         }
         if tag == "selectedcontent" {
             let b = self.b;
             let assign = b.arrow(
                 b.parameters(["$$element"]),
-                b.assign_name(node, b.id("$$element")),
+                node.assign(b, b.id("$$element")),
             );
-            let call = b.runtime("selectedcontent", [b.id(node), assign]);
+            let call = b.runtime("selectedcontent", [node.id(b), assign]);
             l.initializer.push(b.statement(call));
         }
         if !has_spread {
@@ -104,7 +104,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     fn element_body(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         mut directives: Lists<'o>,
         frag: &mut Frag<'o>,
         l: &mut Lists<'o>,

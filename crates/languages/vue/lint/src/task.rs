@@ -8,7 +8,7 @@ use rsvelte_vue_syntax::Parsed;
 
 use crate::lint::Enabled;
 
-pub static PLUGIN: Plugin = Plugin {
+pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "vue.lint",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
@@ -29,7 +29,7 @@ pub(crate) fn register_with(registry: &mut Registry, rules: Vec<Enabled>) {
 }
 
 #[derive(Debug)]
-pub struct Lint {
+pub(crate) struct Lint {
     rules: Vec<Enabled>,
 }
 

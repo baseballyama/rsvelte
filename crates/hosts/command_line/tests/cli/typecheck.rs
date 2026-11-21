@@ -32,7 +32,7 @@ fn text(bytes: &[u8]) -> String {
 }
 
 /// `rsvelte.config.json` for a type check with the test checker and `content_mapper`.
-fn typecheck_config(content_mapper: &std::path::Path) -> String {
+pub(crate) fn typecheck_config(content_mapper: &std::path::Path) -> String {
     let packages = NodePackages::locate();
     let (program, arguments) = packages.type_checker();
     let command: Vec<String> = std::iter::once(program.to_string_lossy().into_owned())

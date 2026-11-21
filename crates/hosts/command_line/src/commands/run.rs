@@ -62,7 +62,7 @@ pub(crate) fn run_file(reg: &Registry, file: &Path, tasks: &[&str], fix: bool) -
 pub(crate) fn run_project(reg: &Registry, tasks: &[&str]) -> ExitCode {
     match typecheck::project_files(reg, tasks) {
         Project::Files(files) => run_files(reg, files, tasks),
-        Project::Reported(code) => code,
+        Project::Problems(problems) => problems.print(),
     }
 }
 

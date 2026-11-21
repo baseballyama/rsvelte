@@ -2,7 +2,7 @@
 //! JavaScript), and eslint-plugin-svelte's processor (`<!-- eslint-disable -->` in the template,
 //! the rules `settings.svelte.ignoreWarnings` names outside `<script>`).
 
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+use rsvelte_kernel::source::characters::{is_ecmascript_line_terminator, is_ecmascript_whitespace};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode};
 
@@ -64,9 +64,7 @@ pub(crate) fn markup_directives(component: &Component, source: &str) -> Vec<Mark
         }) else {
             continue;
         };
-        let single_line = !span
-            .text(source)
-            .contains(['\n', '\r', '\u{2028}', '\u{2029}']);
+        let single_line = !span.text(source).contains(is_ecmascript_line_terminator);
         if matches!(kind, Kind::DisableLine | Kind::DisableNextLine) && !single_line {
             continue;
         }

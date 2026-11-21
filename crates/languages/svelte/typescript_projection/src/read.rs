@@ -6,7 +6,7 @@ use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
-use rsvelte_svelte_semantic::{Resolved, compiler_syntax_tree, resolve_component};
+use rsvelte_svelte_semantic::{Resolved, resolve_alone};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Script};
 use rsvelte_svelte_syntax::{Parsed, ParsedAsChecked};
 
@@ -33,7 +33,10 @@ pub struct Read<'a> {
 /// The markup's syntax error, which svelte2tsx throws.
 pub fn read<'a>(context: &'a DocumentContext<'_>) -> Result<Read<'a>, &'a Diagnostic> {
     let checked = || context.get::<ParsedAsChecked>().as_ref();
-    let (component, parse) = first_read(context.get::<Parsed>().as_ref(), checked)?;
+    let (component, parse) = first_read(
+        context.get::<Parsed>().as_ref().map_err(|error| &**error),
+        checked,
+    )?;
     Ok(Read { component, parse })
 }
 
@@ -44,8 +47,11 @@ pub fn read<'a>(context: &'a DocumentContext<'_>) -> Result<Read<'a>, &'a Diagno
 /// As [`read`].
 pub fn read_alone(source_text: &str) -> Result<Component, Diagnostic> {
     let checked = || rsvelte_svelte_syntax::parse::parse_as_checked(source_text);
-    first_read(rsvelte_svelte_syntax::parse::parse(source_text), checked)
-        .map(|(component, _)| component)
+    first_read(
+        rsvelte_svelte_syntax::parse::parse(source_text).map_err(Diagnostic::from),
+        checked,
+    )
+    .map(|(component, _)| component)
 }
 
 /// The compiler's parse, else the checker's.
@@ -96,7 +102,6 @@ impl Artifact for ResolvedAsChecked {
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let component = context.get::<ParsedAsChecked>().as_ref().ok()?;
-        let lowered = compiler_syntax_tree::lower(component, context.source_text());
-        Some(resolve_component(component, &lowered))
+        Some(resolve_alone(component, context.source_text()))
     }
 }

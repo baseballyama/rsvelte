@@ -312,7 +312,8 @@ impl<'p, 'a> FunctionNode<'p, 'a> {
     }
 }
 
-/// The offset of the `=>` between `from` and `to`, past comments.
+/// The offset of the `=>` between `from` and `to`, past comments. No line terminator may come
+/// before `=>`, so a one-line block comment is the only comment that can sit there.
 fn arrow_token(source: &str, from: u32, to: u32) -> Option<u32> {
     let bytes = source.as_bytes();
     let mut i = from as usize;
@@ -320,7 +321,6 @@ fn arrow_token(source: &str, from: u32, to: u32) -> Option<u32> {
     while i + 1 < to {
         match (bytes[i], bytes[i + 1]) {
             (b'=', b'>') => return u32::try_from(i).ok(),
-            (b'/', b'/') => i = memchr_newline(bytes, i).unwrap_or(to),
             (b'/', b'*') => {
                 i = source[i + 2..to]
                     .find("*/")
@@ -330,13 +330,6 @@ fn arrow_token(source: &str, from: u32, to: u32) -> Option<u32> {
         }
     }
     None
-}
-
-fn memchr_newline(bytes: &[u8], from: usize) -> Option<usize> {
-    bytes[from..]
-        .iter()
-        .position(|&b| b == b'\n')
-        .map(|p| from + p)
 }
 
 fn find<'e, 'p, 'a>(exports: &'e [Export<'p, 'a>], name: &str) -> Option<&'e Export<'p, 'a>> {

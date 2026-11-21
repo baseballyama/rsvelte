@@ -1,10 +1,14 @@
 //! `transformElement`.
+use rsvelte_kernel::diagnostics::Unsupported;
+use rsvelte_vue_syntax::syntax_tree::DirectiveName;
 
+use super::events::{is_on, is_reserved};
+use super::generate::is_object_bind;
 use super::{
-    CAN_STRINGIFY, Codegen, CodegenIdentifier, DirectiveName, Helper, Lit, NOT_CONSTANT, Node,
-    Property, PropertyView, R, Transform, TransformNodeIdentifier, Unsupported, VChildren,
-    VNodeArgs, is_object_bind, is_on, is_reserved, patch,
+    CAN_STRINGIFY, Codegen, CodegenIdentifier, Helper, Lit, NOT_CONSTANT, Node, Property,
+    PropertyView, Transform, TransformNodeIdentifier, VChildren, VNodeArgs, patch,
 };
+use crate::compile::R;
 
 impl Transform<'_> {
     pub(super) fn prop_views(&self, n: TransformNodeIdentifier) -> Vec<PropertyView> {

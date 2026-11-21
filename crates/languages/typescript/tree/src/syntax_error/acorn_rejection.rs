@@ -10,6 +10,7 @@ use oxc_span::SourceType;
 
 use super::Acorn;
 use super::locator::{Find, Holder, Locator, Reading, locate};
+use super::word::{keyword, misused};
 
 mod lexer;
 use lexer::regular_expression;
@@ -73,10 +74,11 @@ pub(crate) fn acorn(
     let label = error.labels.first()?;
     let (start, end) = (label.offset(), label.offset() + label.len());
     let read = || tokens.iter().copied().chain(next);
-    let kind_at = |at: u32| {
+    let token_at = |at: u32| {
         let token = read().nth(tokens.partition_point(|token| token.start() < at))?;
-        (token.start() == at).then(|| token.kind())
+        (token.start() == at).then_some(token)
     };
+    let kind_at = |at: u32| token_at(at).map(|token| token.kind());
     // A script is a module, so acorn reads every reserved word in a binding as an error of its own.
     let reserved = |at: u32| {
         let kind = kind_at(at)?;
@@ -84,6 +86,9 @@ pub(crate) fn acorn(
             .then(|| keyword(kind.to_str(), at))
     };
     if error.code.scope.as_deref() != Some("TS") {
+        if let Some(acorn) = misused(start, end, read(), visit, false) {
+            return Some(acorn);
+        }
         // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.
         return regular_expression(text, start, read())
             .or_else(|| reserved(start).filter(|_| kind_at(start) == Some(Kind::Enum)));
@@ -148,15 +153,13 @@ pub(crate) fn acorn(
                 .last()?
                 .start(),
         )),
-        "2364" | "2701" | "2357" | "2406" | "2487" => {
-            Some(fails("Assigning to rvalue", rvalue(start, read())?))
+        "2364" | "2701" | "2357" | "2406" | "2487" | "2777" | "2778" | "2779" | "2780" | "2781" => {
+            unassignable(number, start, read())
         }
         "1127" => unexpected_character(text, start, end),
-        // A word reserved in strict code, which oxc names in acorn's words, by its value.
-        "1212" => Some(Acorn::Fails {
-            message: error.message.clone(),
-            at: start,
-        }),
+        // A word reserved in strict code, or `await` outside an async function, which acorn reads
+        // as a name.
+        "1212" | "1308" => misused(start, end, read(), visit, true),
         "1049" => Some(fails("setter should have exactly one param", start)),
         "1108" => Some(fails("'return' outside of function", start)),
         "1473" | "1474" => Some(fails(
@@ -191,28 +194,30 @@ pub(crate) fn acorn(
     }
 }
 
-/// Acorn's error at a reserved `word`.
-fn keyword(word: &str, at: u32) -> Acorn {
-    Acorn::Fails {
-        message: Cow::Owned(format!("The keyword '{word}' is reserved")),
-        at,
-    }
-}
-
-/// Where acorn reports a target that cannot be assigned, which oxc labels from its outermost
-/// parentheses at `start`: at the target inside them, or at them around an object or an array.
-fn rvalue(start: u32, tokens: impl Iterator<Item = Token>) -> Option<u32> {
+/// What acorn reports for a target that cannot be assigned, which tsc's code `number` names apart
+/// when it is an optional chain, and which oxc labels from its outermost parentheses at `start`:
+/// acorn reports it at the target inside them, or at them around an object or an array.
+fn unassignable(number: &str, start: u32, tokens: impl Iterator<Item = Token>) -> Option<Acorn> {
+    let message = match number {
+        "2777" | "2778" | "2779" | "2780" | "2781" => {
+            "Optional chaining cannot appear in left-hand side"
+        }
+        _ => "Assigning to rvalue",
+    };
     let mut tokens = tokens.skip_while(|token| token.start() < start);
     let first = tokens.next()?;
     let inside = std::iter::once(first)
         .chain(tokens)
         .find(|token| token.kind() != Kind::LParen)?;
     let pattern = matches!(inside.kind(), Kind::LCurly | Kind::LBrack);
-    Some(if pattern {
-        first.start()
-    } else {
-        inside.start()
-    })
+    Some(fails(
+        message,
+        if pattern {
+            first.start()
+        } else {
+            inside.start()
+        },
+    ))
 }
 
 /// What acorn reports for an error of the analysis, which oxc labels from `start` to `end` and

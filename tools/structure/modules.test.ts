@@ -159,3 +159,26 @@ test('the check finds an item that only one child uses and keeps a shared one', 
 		[],
 	);
 });
+
+/** Integration test files that also exist as a module of a test binary in the same crate. */
+function duplicatedTestFiles(files: string[]): string[] {
+	const present = new Set(files);
+	return files.filter((file) => {
+		const match = /^(.*\/tests)\/([a-z_0-9]+)\/([a-z_0-9]+\.rs)$/.exec(file);
+		if (!match) return false;
+		const [, tests = '', binary = '', name = ''] = match;
+		return present.has(`${tests}/${binary}/main.rs`) && present.has(`${tests}/${name}`);
+	});
+}
+
+test('no integration test file is also a module of a test binary', () => {
+	const failures = duplicatedTestFiles(rustFiles());
+	assert.deepEqual(failures, [], 'delete the copy at the top of tests/');
+});
+
+test('the check finds a test file copied out of a test binary', () => {
+	const binary = ['c/tests/cli/main.rs', 'c/tests/cli/a.rs', 'c/tests/b.rs'];
+	assert.deepEqual(duplicatedTestFiles(binary), []);
+	assert.deepEqual(duplicatedTestFiles([...binary, 'c/tests/a.rs']), ['c/tests/cli/a.rs']);
+	assert.deepEqual(duplicatedTestFiles(['c/tests/fixtures/a.rs', 'c/tests/a.rs']), []);
+});

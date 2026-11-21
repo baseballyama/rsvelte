@@ -13,7 +13,6 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::shared::legacy_reactivity::{TopLevel, Variable, legacy};
 use super::shared::nodes;
-use super::shared::runes::runes;
 use super::shared::svelte_names::{TopLevelNames, has_reactive_statement};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -43,7 +42,7 @@ impl SvelteRule for NoUnusedVariables {
 /// snippets.
 fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     let mut skipped = FxHashSet::default();
-    let runes = runes(file) != Some(false);
+    let runes = file.runes() != Some(false);
     virtually_read(file, runes, &mut skipped);
     let top_level = TopLevelNames::new(file);
     let mut reads = FxHashMap::default();

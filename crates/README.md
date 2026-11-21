@@ -19,7 +19,6 @@ crates/
 │   ├── lint/                  lint tasks, or what linters share (html: button types)
 │   └── check/                 type check tasks (svelte, typescript, vue)
 ├── languages/svelte/typescript_projection/  Svelte to TypeScript, for type checks
-├── languages/svelte/site/     prints the Svelte trees and source maps the site draws
 ├── languages/typescript/tree/  TypeScript's syntax crate: JavaScript and TypeScript as oxc trees
 ├── languages/typescript/api/   a client for the API of native TypeScript 7.1
 ├── languages/typescript/content_mapper/  the protocol to the native TypeScript checker
@@ -39,5 +38,3 @@ Vue embed CSS, HTML and TypeScript, and neither uses the other. Crates under `br
 A task needs only the kernel and the plugin interface. The lint runner and the document printer
 are there for the tasks that want them. `tools/structure/crates.test.ts` checks who may depend on
 whom.
-
-How the crates depend on each other is in the [root README](../README.md).

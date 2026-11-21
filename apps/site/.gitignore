@@ -1,5 +1,4 @@
 /node_modules/
 /.svelte-kit/
-/.wrangler/
 /build/
 /generated/

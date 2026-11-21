@@ -8,6 +8,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, Range, decode_attribute,
 };
+use rsvelte_typescript_semantic::number::string_to_number;
 use rustc_hash::FxHashMap;
 
 mod elements;
@@ -19,7 +20,6 @@ mod tests;
 mod values;
 
 use elements::has_content;
-use values::number;
 
 /// An element and the attributes it must be named by: aria-query's `ARIARoleRelationConcept`.
 type Schema = (
@@ -377,7 +377,7 @@ impl Element<'_, '_> {
                 // `!isNaN(value) && +value > 0`, where a valueless attribute's value is `true`.
                 let positive = match static_value(self.component, self.source, attribute) {
                     Static::Bare => true,
-                    Static::Text(text) => number(&text) > 0.0,
+                    Static::Text(text) => string_to_number(&text) > 0.0,
                     Static::Unknown => false,
                 };
                 if positive {

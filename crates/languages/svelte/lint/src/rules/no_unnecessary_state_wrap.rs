@@ -10,7 +10,6 @@ use rsvelte_typescript_tree::document_span;
 use serde::Deserialize;
 
 use super::shared::nodes::is_named;
-use super::shared::runes::meets_runes_condition;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -49,7 +48,7 @@ struct NoUnnecessaryStateWrap(Options);
 
 impl SvelteRule for NoUnnecessaryStateWrap {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        if !meets_runes_condition(file) {
+        if file.runes() != Some(true) {
             return;
         }
         let source = file.source();

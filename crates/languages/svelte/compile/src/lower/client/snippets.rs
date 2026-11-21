@@ -4,7 +4,7 @@ use oxc_ast::ast::Statement;
 pub(super) use parameters::Hooks;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind, Snippet};
 
-use super::{ClientCompilationContext, Frag, Lists, R};
+use super::{ClientCompilationContext, Frag, Lists, NodeVar, R};
 use crate::lower::builder::Runtime;
 use crate::lower::derived::{Created, callback};
 use crate::lower::snippets::{
@@ -76,7 +76,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn render_tag(
         &self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         frag: &mut Frag<'o>,
         lists: &mut Lists<'o>,
     ) {
@@ -104,7 +104,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             arguments.push(b.thunk(value));
         }
         let callee = self.rewrite(call.callee.get_inner_expression());
-        let anchor = b.id(node);
+        let anchor = node.id(b);
         let call = if is_dynamic_render(self.res, call) {
             let callee = if optional {
                 b.logical(

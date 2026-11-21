@@ -1,5 +1,7 @@
-// Runs every rsvelte task over every corpus unit and writes each source's actual/ packs, the check
-// tasks with the oracle's own TypeScript 7 and packages, for inspecting every task's output at once.
+// Runs every rsvelte task over every corpus unit and writes loose files to each source's
+// actual/<unit path>/<task>/, the check tasks with the oracle's own TypeScript 7 and packages, for
+// inspecting every task's output at once. Packs that line up with expected/ come from the corpus
+// test with CORPUS_ACTUAL=1.
 // `--binary` defaults to the release build.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';

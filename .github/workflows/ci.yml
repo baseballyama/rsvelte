@@ -17,10 +17,11 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
 
-# corpus/svelte is most of the tree, and the jobs that do not read it check out without it
-# (`no-corpus` below). git still lists the excluded files, so such a job must not read a tracked
-# file under corpus/svelte: tools/structure reads every tracked file and runs on the whole tree;
-# tools/writing reads every tracked *.md, and corpus/svelte holds none.
+# corpus/svelte is most of the tree's bytes and corpus/_own most of its files; only `oracle import`
+# reads corpus/_own. The jobs that do not read them check out without them (`no-corpus` below).
+# git still lists the excluded files, so such a job must not read a tracked file under them:
+# tools/structure reads every tracked file and runs on the whole tree; tools/writing reads every
+# tracked *.md and skips corpus/.
 jobs:
   rust-format:
     runs-on: ubuntu-24.04
@@ -32,6 +33,7 @@ jobs:
           sparse-checkout: &no-corpus |
             /*
             !/corpus/svelte/
+            !/corpus/_own/
           sparse-checkout-cone-mode: false
       - run: |
           toolchain=$(sed -n 's/^rustfmt = "\(.*\)"$/\1/p' mise.toml)
@@ -66,10 +68,12 @@ jobs:
       matrix:
         include:
           # The corpus test is the only reader of corpus/svelte, and optimizing it saves more time
-          # than the optimized build costs. An empty sparse-checkout checks out the whole tree.
+          # than the optimized build costs.
           - part: command-line
             packages: -p rsvelte_command_line
-            sparse-checkout: ''
+            sparse-checkout: |
+              /*
+              !/corpus/_own/
             opt-level: 1
           - part: workspace
             packages: --workspace --exclude rsvelte_command_line
@@ -78,9 +82,11 @@ jobs:
     name: rust-test (${{ matrix.part }})
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    # rust-cache hashes CARGO_* variables into its key, so each level has its own cache entry.
+    # rust-cache hashes CARGO_* variables into its key, so each level has its own cache entry. No
+    # test reads debug info beyond the line numbers of a backtrace; the rest only grows the cache.
     env:
       CARGO_PROFILE_DEV_OPT_LEVEL: ${{ matrix.opt-level }}
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -155,11 +161,9 @@ jobs:
       run:
         working-directory: apps/site
     steps:
-      # The measure and polish chapters read every committed tools/performance/baseline.json.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: 0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26.13.0
@@ -176,8 +180,8 @@ jobs:
           path: ~/.cache/.wasm-pack
           key: wasm-pack-${{ runner.os }}-0.15.1-${{ hashFiles('Cargo.lock') }}
       - run: pnpm install --frozen-lockfile
-      # Nothing deploys from CI, so the site's WebAssembly and exporters need not be optimized as a
-      # release is.
+      # Nothing deploys from CI (pages.yml does), so the site's WebAssembly need not be optimized as
+      # a release is.
       - env:
           CARGO_PROFILE_RELEASE_LTO: false
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16
@@ -205,14 +209,25 @@ jobs:
           fi
 
   performance:
-    # The instruction baseline is recorded on arm64 Linux (`performance.ts ratchet-linux` runs the same
-    # environment locally); allocation counts are the same on every platform.
+    # The two ratchets build different programs, and on one runner the two builds share its four
+    # CPUs. The instruction baseline is recorded on arm64 Linux (`performance.ts ratchet-linux` runs
+    # the same environment locally); allocation counts are the same on every platform.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - part: allocations
+            options: ''
+          - part: instructions
+            options: --instructions --no-allocations
+    name: performance (${{ matrix.part }})
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     steps:
       # valgrind installs while the setup steps run. The image's package lists usually still name
       # it; updating them took 15 seconds.
-      - run: |
+      - if: matrix.part == 'instructions'
+        run: |
           (
             install() { sudo apt-get install -y --no-install-recommends valgrind; }
             if install || { sudo apt-get update && install; }; then status=0; else status=1; fi
@@ -225,24 +240,31 @@ jobs:
           sparse-checkout: |
             /*
             !/corpus/svelte/*/expected/
+            !/corpus/_own/
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26.13.0
           package-manager-cache: false
       - uses: ./.github/actions/rust
+        with:
+          key: ${{ matrix.part }}
       - run: cargo fetch --locked
-      - run: |
+      - if: matrix.part == 'instructions'
+        run: |
           until [ -s "$RUNNER_TEMP/valgrind.status" ]; do sleep 1; done
           cat "$RUNNER_TEMP/valgrind.log"
           exit "$(cat "$RUNNER_TEMP/valgrind.status")"
       # The cache simulation's test runs valgrind.
-      - run: node --run test
+      - if: matrix.part == 'instructions'
+        run: node --run test
         working-directory: tools/performance
-      - run: node tools/performance/performance.ts ratchet --instructions --json performance-report.json
+      - env:
+          OPTIONS: ${{ matrix.options }}
+        run: node tools/performance/performance.ts ratchet $OPTIONS --json performance-report.json
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: performance-report
+          name: performance-report-${{ matrix.part }}
           path: performance-report.json
           if-no-files-found: ignore

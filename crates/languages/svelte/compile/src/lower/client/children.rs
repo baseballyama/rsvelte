@@ -1,9 +1,10 @@
 use oxc_ast::ast::Expression;
+use oxc_span::{SPAN, Span};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, ElementKind, NodeKind,
 };
 
-use super::{ClientCompilationContext, Frag, Lists, Prev, R, Walk};
+use super::{ClientCompilationContext, Frag, Lists, NodeVar, Prev, R, Walk};
 use crate::lower::builder::Runtime;
 use crate::render_plan::Item;
 
@@ -32,7 +33,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 self.flush_sequence(&std::mem::take(&mut sequence), &mut st, frag, l);
             }
             let &Item::Node(identifier) = item else {
-                self.flush_node(&mut st, false, "node", l);
+                self.flush_node(&mut st, false, "node", SPAN, l);
                 frag.tpl.push_comment();
                 continue;
             };
@@ -54,13 +55,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     self.markup_tag(identifier, &node, true, frag, l);
                 }
             } else {
-                let name = match &self.compiler_syntax_tree.node(identifier).kind {
+                let (name, span) = match &self.compiler_syntax_tree.node(identifier).kind {
                     NodeKind::Element(el) if el.kind == ElementKind::Regular => {
-                        el.name.text(self.source_text).to_owned()
+                        self.element_name(el.name)
                     }
-                    _ => "node".to_owned(),
+                    _ => ("node", SPAN),
                 };
-                let node = self.flush_node(&mut st, false, &name, l);
+                let node = self.flush_node(&mut st, false, name, span, l);
                 self.visit(identifier, &node, frag, l)?;
             }
         }
@@ -79,16 +80,16 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     fn prev_expression(&self, prev: &Prev, is_text: bool) -> Expression<'o> {
         let b = self.b;
         match prev {
-            Prev::Identifier(name) => b.id(name),
+            Prev::Identifier(node) => node.id(b),
             Prev::Call {
                 method,
                 of,
                 content,
             } => {
                 let of = if *content {
-                    b.member(b.id(of), "content")
+                    b.member(of.id(b), "content")
                 } else {
-                    b.id(of)
+                    of.id(b)
                 };
                 b.runtime_some(method, vec![Some(of), is_text.then(|| b.boolean(true))])
             }
@@ -96,11 +97,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 
     /// The node `st` points at: a name when it is one already, else the call that reaches it.
-    fn get_node(&self, st: &Walk, is_text: bool) -> Result<String, Expression<'o>> {
+    fn get_node(&self, st: &Walk, is_text: bool) -> Result<NodeVar, Expression<'o>> {
         let b = self.b;
         if st.skipped == 0 {
-            if let Prev::Identifier(name) = &st.prev {
-                return Ok(name.clone());
+            if let Prev::Identifier(node) = &st.prev {
+                return Ok(node.clone());
             }
             return Err(self.prev_expression(&st.prev, is_text));
         }
@@ -110,18 +111,25 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         Err(b.runtime_some("sibling", vec![Some(p), n, t]))
     }
 
-    fn flush_node(&self, st: &mut Walk, is_text: bool, name: &str, l: &mut Lists<'o>) -> String {
-        let identifier = match self.get_node(st, is_text) {
-            Ok(identifier) => identifier,
+    fn flush_node(
+        &self,
+        st: &mut Walk,
+        is_text: bool,
+        name: &str,
+        span: Span,
+        l: &mut Lists<'o>,
+    ) -> NodeVar {
+        let node = match self.get_node(st, is_text) {
+            Ok(node) => node,
             Err(expression) => {
-                let identifier = self.names.generate(name);
-                l.initializer.push(self.b.var(&identifier, expression));
-                identifier
+                let node = NodeVar::new(self.names.generate(name), span);
+                l.initializer.push(node.declare(self.b, expression));
+                node
             }
         };
-        st.prev = Prev::Identifier(identifier.clone());
+        st.prev = Prev::Identifier(node.clone());
         st.skipped = 1;
-        identifier
+        node
     }
 
     fn flush_sequence(&self, seq: &[Item], st: &mut Walk, frag: &mut Frag<'o>, l: &mut Lists<'o>) {
@@ -140,8 +148,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         frag.tpl.push_text(" ".into());
         let (value, has_state) = self.template_chunk(seq, &mut frag.memo, false);
-        let identifier = self.flush_node(st, seq.len() == 1, "text", l);
-        let x = b.id(&identifier);
+        let node = self.flush_node(st, seq.len() == 1, "text", SPAN, l);
+        let x = node.id(b);
         let editable = seq.iter().any(|i| match i {
             Item::Expression(e) => self.plan.in_bound_editable(*e),
             _ => false,
@@ -159,7 +167,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     fn visit(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         frag: &mut Frag<'o>,
         l: &mut Lists<'o>,
     ) -> R<()> {

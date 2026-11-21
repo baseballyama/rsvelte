@@ -12,8 +12,11 @@ const WAIT_MS = 20_000;
 const CARGO = `#!/bin/sh
 if [ "$1" = --version ]; then echo 'cargo 0.0.0 (fake)'; exit 0; fi
 printf '%s' "$CARGO_BUILD_JOBS" > "$FAKE_DIR/jobs-$FAKE_ROLE"
-mkdir -p "$CARGO_TARGET_DIR/release"
-cat > "$CARGO_TARGET_DIR/release/rsvelte-dev.$$" <<'RSVELTE'
+previous=''
+for argument in "$@"; do [ "$previous" = --profile ] && profile="$argument"; previous="$argument"; done
+out="$CARGO_TARGET_DIR/$profile"
+mkdir -p "$out"
+cat > "$out/rsvelte-dev.$$" <<'RSVELTE'
 #!/bin/sh
 for argument in "$@"; do case "$argument" in json=*) out="\${argument#json=}";; esac; done
 printf '{"rev":"%s","metrics":true,"documents":%s,"source_bytes":1,"output_bytes":1,"tasks":[],"allocs":1,"alloc_bytes":1,"peak_live_growth_bytes":1,"phases":{}}' "$0" "$FAKE_DOCUMENTS" > "$out"
@@ -23,9 +26,9 @@ if [ "$FAKE_ROLE" = first ]; then
   while [ ! -e "$FAKE_DIR/wrote-second" ] && [ $tries -lt 400 ]; do sleep 0.05; tries=$((tries + 1)); done
 fi
 RSVELTE
-chmod +x "$CARGO_TARGET_DIR/release/rsvelte-dev.$$"
+chmod +x "$out/rsvelte-dev.$$"
 # A rename keeps the running script of the other run intact.
-mv "$CARGO_TARGET_DIR/release/rsvelte-dev.$$" "$CARGO_TARGET_DIR/release/rsvelte-dev"
+mv "$out/rsvelte-dev.$$" "$out/rsvelte-dev"
 `;
 
 /** Resolves when `file` exists; fails when `exit` settles first or after WAIT_MS. */
@@ -106,6 +109,78 @@ test(
 		} finally {
 			// The test owns this child; a failed assertion must not leave it waiting on the barrier.
 			if (first && first.exitCode === null && first.signalCode === null) first.kill();
+			fs.rmSync(directory, { recursive: true, force: true });
+		}
+	},
+);
+
+test('--no-allocations is refused without --instructions and with --update', () => {
+	const ratchet = path.join(source, 'performance.ts');
+	for (const argv of [['--no-allocations'], ['--no-allocations', '--instructions', '--update']]) {
+		const run = spawnSync(process.execPath, [ratchet, 'ratchet', ...argv], { encoding: 'utf8' });
+		assert.notEqual(run.status, 0, argv.join(' '));
+		assert.match(run.stderr, /--no-allocations needs --instructions/);
+	}
+});
+
+// A stand-in for valgrind whose instruction count grows with the rounds it is asked for.
+const VALGRIND = `#!/bin/sh
+for argument in "$@"; do case "$argument" in rounds=*) rounds="\${argument#rounds=}";; esac; done
+echo "==1== I   refs:      $((1000 + rounds * 100))" >&2
+`;
+
+test(
+	'--no-allocations compares the instruction counters alone',
+	{ skip: process.platform === 'win32', timeout: 3 * WAIT_MS },
+	() => {
+		const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-ratchet-'));
+		try {
+			fs.writeFileSync(path.join(directory, 'cargo'), CARGO, { mode: 0o755 });
+			fs.writeFileSync(path.join(directory, 'valgrind'), VALGRIND, { mode: 0o755 });
+			const root = path.join(directory, 'root');
+			fs.mkdirSync(path.join(root, 'tools/performance'), { recursive: true });
+			for (const file of ['performance.ts', 'ratchet.ts'])
+				fs.copyFileSync(path.join(source, file), path.join(root, 'tools/performance', file));
+			const platform = `${process.arch}-${process.platform}`;
+			// Every allocation counter is off by one; the instruction counters match the stand-ins.
+			const baseline = {
+				population: { documents: 1111, source_bytes: 1, tasks: [] },
+				allocs: 2,
+				alloc_bytes: 1,
+				peak_live_growth_bytes: 1,
+				phases: {},
+				instructions: { [platform]: 100 },
+				load_instructions: { [platform]: 1000 },
+				instruction_sample: { every: 20, documents: 1111, source_bytes: 1 },
+			};
+			fs.writeFileSync(
+				path.join(root, 'tools/performance/baseline.json'),
+				JSON.stringify(baseline),
+			);
+			const run = (...argv: string[]) =>
+				spawnSync(
+					process.execPath,
+					[path.join(root, 'tools/performance/performance.ts'), 'ratchet', ...argv],
+					{
+						cwd: root,
+						env: {
+							...process.env,
+							PATH: `${directory}${path.delimiter}${process.env.PATH}`,
+							FAKE_DIR: directory,
+							FAKE_ROLE: 'second',
+							FAKE_DOCUMENTS: '1111',
+						},
+						encoding: 'utf8',
+						timeout: WAIT_MS,
+					},
+				);
+			const instructions = run('--instructions', '--no-allocations');
+			assert.equal(instructions.status, 0, instructions.stderr);
+			assert.match(instructions.stdout, /^2 counters compared, 0 moved$/m);
+			const full = run('--instructions');
+			assert.notEqual(full.status, 0, full.stdout);
+			assert.match(full.stderr, /FAIL allocs: 2 -> 1/);
+		} finally {
 			fs.rmSync(directory, { recursive: true, force: true });
 		}
 	},

@@ -4,7 +4,9 @@
 use std::any::Any;
 use std::panic::AssertUnwindSafe;
 use std::process::ExitCode;
+use std::sync::Arc;
 
+use oxc_formatter::JsFormatOptions;
 use oxfmt::{HostFormatter, HostFormatters, Language};
 use rsvelte_kernel::performance::stack;
 use rsvelte_kernel::source::positions::LineIndex;
@@ -26,16 +28,43 @@ pub(crate) fn format(arguments: &[String]) -> ExitCode {
     };
     oxfmt::cli::init_tracing();
     oxfmt::cli::init_rayon(command.runtime_options.threads);
-    let hosts = HostFormatters::default().with(Language::Svelte, Svelte);
+    let tailwind = tailwind::Tailwind::default();
+    let hosts = HostFormatters::default()
+        .with(Language::Svelte, Svelte(tailwind.clone()))
+        .with_tailwind_sorter(tailwind);
     let result = oxfmt::cli::WalkRunner::new(command).with_hosts(hosts).run();
     ExitCode::from(result.exit_code())
 }
 
-struct Svelte;
+struct Svelte(tailwind::Tailwind);
 
 impl HostFormatter for Svelte {
-    fn format(&self, source_text: &str, options: &Value) -> Result<String, String> {
-        let options = svelte_options(options)?;
+    fn format(
+        &self,
+        source_text: &str,
+        options: &Value,
+        javascript: &JsFormatOptions,
+    ) -> Result<String, String> {
+        let prettier = options;
+        let mut options = svelte_options(prettier)?;
+        options.sort_imports.clone_from(&javascript.sort_imports);
+        options.jsdoc.clone_from(&javascript.jsdoc);
+        if let Some(sort) = &javascript.sort_tailwindcss {
+            if let Some(pattern) = sort.attributes.iter().find(|a| a.starts_with('/')) {
+                return Err(unprinted(&format!(
+                    "the classes of the attributes `sortTailwindcss` names by a pattern ({pattern})"
+                )));
+            }
+            let sorter = tailwind::ForFile {
+                tailwind: self.0.clone(),
+                options: prettier.clone(),
+            };
+            options.tailwind = Some(rsvelte_svelte_format::tailwind::Tailwind::new(
+                Arc::clone(sort),
+                prettier["tailwindPreserveDuplicates"] == true,
+                Arc::new(sorter),
+            ));
+        }
         if let Some(name) = rsvelte_svelte_format::unported(&options) {
             return Err(unprinted(&format!("this `{name}` value")));
         }
@@ -60,11 +89,19 @@ const PLUMBING: &[&str] = &[
     "filepath",
     "_useSveltePlugin",
     "vueIndentScriptAndStyle",
-    "_oxfmtPluginOptionsJson",
 ];
 
-/// The oxfmt-only options oxfmt applies to the scripts prettier-plugin-svelte hands back to it.
-const OXFMT_SCRIPT_OPTIONS: &[&str] = &["sortImports", "jsdoc"];
+/// What oxfmt gives a host for `sortTailwindcss`, which the host reads from the JavaScript options
+/// and its sorter reads from these.
+const TAILWIND: &[&str] = &[
+    "_useTailwindPlugin",
+    "tailwindConfig",
+    "tailwindStylesheet",
+    "tailwindFunctions",
+    "tailwindAttributes",
+    "tailwindPreserveWhitespace",
+    "tailwindPreserveDuplicates",
+];
 
 /// The options Prettier would give prettier-plugin-svelte, or the first option oxfmt would apply
 /// to a Svelte file that the Svelte formatter does not.
@@ -76,17 +113,7 @@ fn svelte_options(prettier: &Value) -> Result<Options, String> {
     for (name, value) in options {
         if NAMES.contains(&name.as_str()) {
             known.insert(name.clone(), value.clone());
-        } else if name == "_useTailwindPlugin" || name.starts_with("tailwind") {
-            return Err(unprinted("`sortTailwindcss`"));
-        } else if !PLUMBING.contains(&name.as_str()) {
-            return Err(unprinted(&format!("`{name}`")));
-        }
-    }
-    if let Some(Value::String(payload)) = options.get("_oxfmtPluginOptionsJson") {
-        let payload: Value = serde_json::from_str(payload).map_err(|error| error.to_string())?;
-        let set =
-            |name: &&&str| !matches!(payload["config"][**name], Value::Null | Value::Bool(false));
-        if let Some(name) = OXFMT_SCRIPT_OPTIONS.iter().find(set) {
+        } else if !PLUMBING.contains(&name.as_str()) && !TAILWIND.contains(&name.as_str()) {
             return Err(unprinted(&format!("`{name}`")));
         }
     }
@@ -102,6 +129,8 @@ fn panic_message(panic: &(dyn Any + Send)) -> &str {
         .or_else(|| panic.downcast_ref::<&str>().copied())
         .unwrap_or("a payload that is not a string")
 }
+
+mod tailwind;
 
 #[cfg(test)]
 mod tests;

@@ -141,3 +141,52 @@ fn a_module_script_and_a_module_keep_their_comments() {
         );
     }
 }
+
+#[test]
+fn an_element_variable_is_read_at_its_tag_name() {
+    // The lines of svelte 5.57.3's output: every read of an element's variable carries the tag
+    // name's position, so a comment in the template lands on the variable as upstream's does.
+    assert_lines(
+        "<script>let a = 1;</script>\n<button on:click={// why\na}>c</button>\n",
+        Target::Client,
+        "\t\tbutton, // why\n",
+    );
+    assert_lines(
+        "<script>\n\tconst id = /*c*/ $props.id();\n</script>\n<p>{id}</p>\n",
+        Target::Client,
+        "\tvar /*c*/\n\tp = root();\n",
+    );
+    assert_lines(
+        concat!(
+            "<script>let a = $state(1);</script>\n",
+            "<div><p>t</p>{#each [1] as x}<i onclick={// why\n() => a++}>{x}</i>{/each}</div>\n",
+        ),
+        Target::Client,
+        "\tvar node = $.sibling($.child(div // why\n\t));\n",
+    );
+}
+
+#[test]
+fn a_component_name_has_a_position_only_where_upstream_lines_up_the_call() {
+    // The lines of svelte 5.57.3's output. Upstream builds a component's name from the tag's text,
+    // so a script comment waiting for a position is dropped on the server and in `$.component`'s
+    // thunk, while the client's static call is lined up with the tag and writes it.
+    let bare = "<script>\n\t// c\n</script>\n<X>t</X>\n";
+    let server = printed(bare, Target::Server);
+    assert!(!server.contains("// c"), "{server}");
+    assert_lines(bare, Target::Client, "\t// c\n\tX($$anchor, {\n");
+    let dynamic = "<script>\n\tlet X = $state(null);\n\t// c\n</script>\n<X>t</X>\n";
+    let client = printed(dynamic, Target::Client);
+    assert!(!client.contains("// c"), "{client}");
+    assert_lines(
+        dynamic,
+        Target::Client,
+        "\t$.component(node, () => X, ($$anchor, X_1) => {\n",
+    );
+    // Inside an element nothing after the call has a position, so it waits for the body's end.
+    assert_lines(
+        "<script>\n\timport X from \"./X.svelte\";\n\t// c\n</script>\n<div><X /></div>\n",
+        Target::Server,
+        "\tX($$renderer, {});\n\t$$renderer.push(`<!----></div>`);\n\t// c\n}",
+    );
+}

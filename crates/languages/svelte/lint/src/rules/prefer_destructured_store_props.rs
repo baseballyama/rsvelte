@@ -19,7 +19,6 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::shared::legacy_reactivity::{Variable, is_top_level, legacy};
 use super::shared::nodes::property_name;
-use super::shared::runes::runes_mode;
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -36,14 +35,12 @@ struct PreferDestructuredStoreProps;
 impl SvelteRule for PreferDestructuredStoreProps {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         // Outside `<script>`: a component's template, or a whole module.
-        let (scripts, runes) = match (file.component(), file.module()) {
-            (Some(component), _) => (
-                component.scripts().map(|script| script.content).collect(),
-                runes_mode(file, component),
-            ),
-            (None, Some(_)) => (Vec::new(), file.is_svelte_module()),
+        let scripts: Vec<_> = match (file.component(), file.module()) {
+            (Some(component), _) => component.scripts().map(|script| script.content).collect(),
+            (None, Some(_)) => Vec::new(),
             (None, None) => return,
         };
+        let runes = file.runes() == Some(true);
         let in_script = |at: oxc_span::Span| {
             scripts
                 .iter()

@@ -1,8 +1,8 @@
 //! Output nodes the shared builder has no constructor for.
 
 use oxc_ast::ast::{
-    Argument, ArrayExpressionElement, BindingIdentifier, ExportDefaultDeclarationKind, Expression,
-    FormalParameters, ImportDeclarationSpecifier, ImportOrExportKind, Statement, StringLiteral,
+    Argument, ArrayExpressionElement, BindingIdentifier, Expression, FormalParameters,
+    ImportDeclarationSpecifier, ImportOrExportKind, Statement, StringLiteral,
 };
 use oxc_span::SPAN;
 use rsvelte_typescript_compile::build::Builder;
@@ -23,11 +23,6 @@ pub(super) fn import_default<'o>(b: &Builder<'o>, local: &str, source: &str) -> 
         ImportOrExportKind::Value,
         b,
     )
-}
-
-/// `export default value`.
-pub(super) fn export_default<'o>(b: &Builder<'o>, value: Expression<'o>) -> Statement<'o> {
-    Statement::new_export_default_declaration(SPAN, ExportDefaultDeclarationKind::from(value), b)
 }
 
 /// `/* @__PURE__ */ callee(arguments)`.
@@ -76,22 +71,4 @@ pub(super) fn spread_call<'o>(
 ) -> Expression<'o> {
     let argument = Argument::new_spread_element(SPAN, argument, b);
     Expression::new_call_expression(SPAN, callee, None, b.vec([argument]), false, b)
-}
-
-/// `name(…) { … }` for a function expression `function`.
-pub(super) fn method<'o>(
-    b: &Builder<'o>,
-    name: &str,
-    function: Expression<'o>,
-) -> oxc_ast::ast::ObjectPropertyKind<'o> {
-    oxc_ast::ast::ObjectPropertyKind::new_object_property(
-        SPAN,
-        oxc_ast::ast::PropertyKind::Init,
-        b.key(name),
-        function,
-        true,
-        false,
-        false,
-        b,
-    )
 }
