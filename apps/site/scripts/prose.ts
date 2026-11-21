@@ -2,16 +2,12 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { parse, type AST } from 'svelte/compiler';
 import ts from 'typescript';
-import { createLinter, loadTextlintrc } from 'textlint';
-import { term } from '../src/lib/terms.ts';
-import noAbbreviations from './no-abbreviations.ts';
+
+import type { englishLinter } from '../../../tools/writing/linter.ts';
 
 type Chunk = { text: string; line: number };
-// Expressions are walked without knowing their node types, so their fields are read as unknown.
-type Node = { type?: unknown; [key: string]: unknown };
 type TemplateNode = AST.Fragment['nodes'][number];
 
-const japanese = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
 const blocks = new Set([
 	'p',
 	'li',
@@ -36,17 +32,10 @@ const blocks = new Set([
 	'dt',
 	'dd',
 ]);
-const proseAttributes = new Set([
-	'lead',
-	'title',
-	'label',
-	'abstract',
-	'placeholder',
-	'aria-label',
-	'alt',
-]);
+// `content` is the page description of a meta element.
+const proseAttributes = new Set(['title', 'label', 'placeholder', 'aria-label', 'alt', 'content']);
 
-const isNode = (value: unknown): value is Node => typeof value === 'object' && value !== null;
+const visibleProperties = new Set(['title', 'label', 'message']);
 
 /** The source range of a script's body. Svelte's types omit the offsets that its parser sets on `content`. */
 export function contentRange(script: AST.Script): { start: number; end: number } {
@@ -62,23 +51,6 @@ export function contentRange(script: AST.Script): { start: number; end: number }
 		throw new Error('The Svelte parser gave a script without offsets');
 	}
 	return { start: content.start, end: content.end };
-}
-
-// The rule is added here because textlint resolves a configured rule path from its own package, not from the config file.
-export async function writingLinter() {
-	const loaded = await loadTextlintrc({
-		configFilePath: path.join(import.meta.dirname, '../.textlintrc.json'),
-	});
-	// The loader returns an empty rule set, not an error, when any one rule fails to load.
-	if (!loaded.configBaseDir || !loaded.rule.toKernelRulesFormat().length)
-		throw new Error('The writing rules failed to load');
-	const descriptor = loaded.shallowMerge({
-		rules: [
-			...loaded.rule.toKernelRulesFormat(),
-			{ ruleId: 'no-abbreviations', rule: noAbbreviations, options: true },
-		],
-	});
-	return createLinter({ descriptor });
 }
 
 // Each branch of a block, in the order the reader sees it.
@@ -103,6 +75,7 @@ export function extractProse(source: string, file: string): Chunk[] {
 		text = text.replace(/\s+/g, ' ').trim();
 		if (text) chunks.push({ text, line: source.slice(0, start).split('\n').length });
 	};
+	// A string in a script is prose when it is the value of a property the page shows.
 	function strings(sourceText: string, offset = 0) {
 		const tree = ts.createSourceFile(
 			file,
@@ -113,34 +86,18 @@ export function extractProse(source: string, file: string): Chunk[] {
 		);
 		function visit(node: ts.Node) {
 			const visible =
-				node.parent &&
-				((ts.isPropertyAssignment(node.parent) &&
-					['title', 'abstract', 'label', 'summary', 'what', 'unit'].includes(
-						node.parent.name.getText(tree),
-					)) ||
-					(ts.isCallExpression(node.parent) &&
-						node.parent.expression.getText(tree) === 's' &&
-						node.parent.arguments[1] === node));
-			if (ts.isTemplateExpression(node)) {
+				node.parent !== undefined &&
+				ts.isPropertyAssignment(node.parent) &&
+				visibleProperties.has(node.parent.name.getText(tree));
+			if (visible && ts.isTemplateExpression(node)) {
 				const text =
 					node.head.text + node.templateSpans.map((span) => '`value`' + span.literal.text).join('');
-				const code =
-					ts.isPropertyAssignment(node.parent) &&
-					['expr', 'code', 'source', 'src'].includes(node.parent.name.getText(tree));
-				const literal =
-					node.head.text + node.templateSpans.map((span) => span.literal.text).join('');
-				if (!code && (japanese.test(literal) || visible)) add(text, offset + node.getStart(tree));
-				if (!code) for (const span of node.templateSpans) visit(span.expression);
-				return;
-			}
-			if (
-				(ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
-				(japanese.test(node.text) || visible)
+				add(text, offset + node.getStart(tree));
+			} else if (
+				visible &&
+				(ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node))
 			) {
-				const code =
-					ts.isPropertyAssignment(node.parent) &&
-					['expr', 'code', 'source', 'src'].includes(node.parent.name.getText(tree));
-				if (!code) add(node.text, offset + node.getStart(tree));
+				add(node.text, offset + node.getStart(tree));
 			}
 			ts.forEachChild(node, visit);
 		}
@@ -151,24 +108,6 @@ export function extractProse(source: string, file: string): Chunk[] {
 		return chunks;
 	}
 	const syntax_tree = parse(source, { modern: true });
-	function expression(node: unknown) {
-		if (!isNode(node)) return;
-		const start = typeof node.start === 'number' ? node.start : undefined;
-		if (node.type === 'Literal' && typeof node.value === 'string' && japanese.test(node.value))
-			add(node.value, start);
-		if (
-			node.type === 'TemplateElement' &&
-			isNode(node.value) &&
-			typeof node.value.cooked === 'string' &&
-			japanese.test(node.value.cooked)
-		)
-			add(node.value.cooked, start);
-		for (const [key, value] of Object.entries(node)) {
-			if (key === 'metadata' || key === 'loc') continue;
-			if (Array.isArray(value)) value.forEach(expression);
-			else if (value && typeof value === 'object') expression(value);
-		}
-	}
 	function fragment(part: AST.Fragment, prefix = '') {
 		let text = '';
 		let start = 0;
@@ -177,34 +116,12 @@ export function extractProse(source: string, file: string): Chunk[] {
 			text = '';
 		};
 		function visit(node: TemplateNode) {
-			if ('expression' in node && node.expression && node.type !== 'ExpressionTag')
-				expression(node.expression);
-			if (node.type === 'Component' && node.name === 'Term') {
-				const name = node.attributes.find(
-					(attribute) => 'name' in attribute && attribute.name === 'name',
-				);
-				if (
-					!name ||
-					name.type !== 'Attribute' ||
-					!Array.isArray(name.value) ||
-					name.value.length !== 1 ||
-					name.value[0].type !== 'Text'
-				)
-					throw new Error(`Term needs a static name in ${file}`);
-				text += term(name.value[0].data);
-				return;
-			}
 			if (node.type === 'Text') {
 				if (!text) start = node.start;
 				text += node.data;
 				return;
 			}
 			if (node.type === 'RegularElement' && ['pre', 'script', 'style'].includes(node.name)) return;
-			if (node.type === 'Component' && node.name === 'Code') return;
-			if (node.type === 'Component' && node.name === 'Note') {
-				fragment(node.fragment);
-				return;
-			}
 			if (node.type === 'RegularElement' && node.name === 'code') {
 				const value = node.fragment.nodes
 					.map((n) =>
@@ -229,13 +146,8 @@ export function extractProse(source: string, file: string): Chunk[] {
 				)
 					continue;
 				const value = attribute.value;
-				if (value && typeof value === 'object' && !Array.isArray(value) && value.expression)
-					expression(value.expression);
-				if (Array.isArray(value)) {
+				if (Array.isArray(value))
 					add(value.map((n) => (n.type === 'Text' ? n.data : '`value`')).join(''), attribute.start);
-					for (const valuePart of value)
-						if (valuePart.type === 'ExpressionTag') expression(valuePart.expression);
-				}
 			}
 			if ('fragment' in node && node.fragment) {
 				if (block) {
@@ -263,7 +175,6 @@ export function extractProse(source: string, file: string): Chunk[] {
 			}
 			if (node.type === 'ExpressionTag') {
 				text += node.expression.type === 'Literal' ? String(node.expression.value) : '`value`';
-				if (node.expression.type !== 'Literal') expression(node.expression);
 			}
 			if (block) flush();
 		}
@@ -294,4 +205,18 @@ export function proseFiles(root: string): string[] {
 
 export function readProse(file: string): Chunk[] {
 	return extractProse(readFileSync(file, 'utf8'), file);
+}
+
+// One document per page, so a heading reads together with the text below it.
+export async function lintPage(linter: Awaited<ReturnType<typeof englishLinter>>, chunks: Chunk[]) {
+	const { messages } = await linter.lintText(
+		chunks.map((chunk) => chunk.text).join('\n\n'),
+		'prose.md',
+	);
+	return messages.map((message) => {
+		// Extraction collapses white space, so chunk i is line 2i + 1 of the document.
+		const chunk = chunks[Math.floor((message.line - 1) / 2)];
+		if (!chunk) throw new Error(`A finding on line ${message.line} is outside the page`);
+		return { chunk, message };
+	});
 }

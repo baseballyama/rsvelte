@@ -10,7 +10,6 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
 use super::shared::nodes::is_named;
-use super::shared::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 /// `ESLint`'s core rule, which leaves alone a declaration initialised by an excluded rune.
@@ -115,7 +114,7 @@ fn props(file: &File<'_>) -> FxHashSet<SymbolId> {
     let scoping = file.semantic().scoping();
     // With a `<script module>`, the instance's statements are in the module's scope.
     let scope = file.resolution().map(Resolution::instance_scope);
-    let runes_mode = runes(file) != Some(false);
+    let runes_mode = file.runes() != Some(false);
     let mut identifiers = Vec::new();
     for statement in &program.body {
         identifiers.clear();

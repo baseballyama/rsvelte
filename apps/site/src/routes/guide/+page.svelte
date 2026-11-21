@@ -1,425 +1,309 @@
 <script lang="ts">
-	import GuideCode from '#lib/components/GuideCode.svelte';
-	import { guideExamples, guideSections } from '#lib/guide.ts';
-	import { REPO_URL } from '#lib/site.ts';
+	import { resolve } from '$app/paths';
 </script>
 
 <svelte:head>
-	<title>使い方ガイド — rsvelte</title>
-	<meta
-		name="description"
-		content="rsvelte をブラウザで試す方法と、手元の Svelte ファイルをコンパイル・整形・検査する手順、Web アプリへの組み込み方。"
-	/>
+	<title>Guide · rsvelte</title>
 </svelte:head>
 
-<main
-	class="mx-auto max-w-[1200px] px-4 py-10 md:px-8 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-12 lg:py-14"
->
-	<aside class="hidden lg:block">
-		<nav
-			class="rounded-lg border border-line bg-sunken p-4 lg:sticky lg:top-24"
-			aria-label="ガイドの目次"
-		>
-			<p class="mb-3 text-[14px] font-medium">使い方ガイド</p>
-			<ol class="space-y-1">
-				{#each guideSections as section}
-					<li>
-						<a
-							class="block rounded px-2 py-1.5 text-[14px] text-fg-2 hover:bg-surface hover:text-fg"
-							href="#{section.id}">{section.title}</a
-						>
-					</li>
-				{/each}
-			</ol>
-			<a
-				class="mt-5 block border-t border-line pt-4 text-[13px] text-accent hover:underline"
-				href="/learn">内部の実装を学ぶ</a
-			>
-		</nav>
-	</aside>
-	<nav class="mb-8 lg:hidden" aria-label="ガイドの目次">
-		<details class="rounded-lg border border-line bg-sunken px-4 py-3">
-			<summary class="cursor-pointer text-[14px] font-medium">このページの目次</summary>
-			<ol class="mt-3 space-y-1">
-				{#each guideSections as section}
-					<li>
-						<a
-							class="block rounded px-2 py-1.5 text-[14px] text-fg-2 hover:bg-surface hover:text-fg"
-							href="#{section.id}">{section.title}</a
-						>
-					</li>
-				{/each}
-			</ol>
-		</details>
-	</nav>
+<h1>Guide</h1>
 
-	<article class="min-w-0 max-w-[760px]">
-		<header class="mb-10">
-			<p class="eyebrow">rsvelte を使う</p>
-			<h1 class="mt-3 text-[34px] leading-tight font-semibold sm:text-[42px]">使い方ガイド</h1>
-			<p class="mt-5 text-[17px] leading-[1.9] text-fg-2">
-				Svelte のファイルを rsvelte でコンパイル・整形・検査する手順です。Rust
-				のコードを読む必要はありません。手元で使うときは、ソースから実行ファイルをビルドします。
-			</p>
-			<p class="mt-4 text-[14px] leading-[1.8] text-muted">
-				対象は experimental ブランチの実装です。未対応の構文があり、公式ツール（公式の Svelte
-				コンパイラなど）と結果が違うこともあります。
-			</p>
-		</header>
+<h2 id="install">Install</h2>
 
-		<div class="prose-learn">
-			<section id="try">
-				<h2>{guideSections[0].title}</h2>
-				<p>
-					<a href="/learn/playground">プレイグラウンド</a
-					>なら、インストールせずにコンパイル・整形・検査を試せます。「入力」で Svelte
-					を選び、ソースを編集して「行う処理」を選び、「実行」を押します。
-				</p>
-				<p>
-					結果には、生成したファイルと診断が出ます。診断は、ソースの問題や未対応の構文を知らせるメッセージです。ブラウザでは型チェックを実行できません。
-				</p>
-			</section>
+<pre><code>npm install --save-dev @rsvelte/cli</code></pre>
 
-			<section id="setup">
-				<h2>{guideSections[1].title}</h2>
-				<p>
-					このページのコマンドは、macOS と Linux の bash や zsh 向けです。Windows
-					では確かめていません。
-				</p>
-				<p>
-					Git と Rust を用意してください。Rust の版は、リポジトリの <code>rust-toolchain.toml</code>
-					が決めます。ターミナルで次のコマンドを実行します。
-				</p>
-				<GuideCode code={guideExamples.setup} label="ソースの取得とビルド" />
-				<p>
-					以降のコマンドは、取得した <code>rsvelte</code>
-					ディレクトリで実行します。次のソースを <code>Counter.svelte</code>
-					として保存してください。クリックすると数が増える Svelte 5 のコンポーネントです。
-				</p>
-				<GuideCode code={guideExamples.source} label="Counter.svelte" />
-			</section>
+<p>
+	To use <code>typecheck</code>, also install a <a href="#typecheck">type checker</a>. In
+	<code>package.json</code> scripts, the command is <code>rsvelte</code>:
+</p>
 
-			<section id="compile">
-				<h2>{guideSections[2].title}</h2>
-				<p>ブラウザで動く JavaScript を生成します。</p>
-				<GuideCode code={guideExamples.compile} label="ブラウザ向けのコンパイル" />
-				<p>
-					処理は <code>--task</code>
-					で選びます。結果は標準出力に出て、入力ファイルは変わりません。出力は
-					<code>// svelte.compile/client js</code> という見出しの行で始まり、その後に JavaScript
-					が続きます。ソースにスタイルがあれば、<code>// svelte.compile/client css</code>
-					の後にスタイルも出ます。診断は <code>// svelte.compile/client diagnostics</code>
-					の後に JSON で出ます。
-				</p>
-				<p>
-					見出しの行を含むので、出力をそのまま JavaScript
-					ファイルとして保存しても動きません。生成したコードを動かすには、Svelte
-					のランタイムとアプリのビルド設定も必要です。
-				</p>
-				<p>サーバーでページの HTML を生成するときは、次の処理を選びます。</p>
-				<GuideCode code={guideExamples.server} label="サーバー向けのコンパイル" />
-			</section>
+<pre><code
+		>{`{
+  "scripts": {
+    "lint": "rsvelte lint",
+    "format": "rsvelte format",
+    "typecheck": "rsvelte typecheck"
+  }
+}`}</code
+	></pre>
 
-			<section id="format">
-				<h2>{guideSections[3].title}</h2>
-				<p>ソースを整形して、ファイルに書き戻します。</p>
-				<GuideCode code={guideExamples.format} label="ソースの整形" />
-				<p>
-					書き換えたファイルの名前が出ます。<code>--check</code>
-					を付けると、ファイルは書き換えず、整形が必要なファイルを一覧にして終了コード 1 を返します。ディレクトリを渡すと、その下のファイルをまとめて整形します。<code
-						>node_modules</code
-					>
-					は読みません。
-				</p>
-			</section>
+<p>
+	<code>rsvelte help</code> prints an overview. <code>rsvelte help lint</code> or
+	<code>rsvelte lint --help</code> prints help for one command.
+</p>
 
-			<section id="lint">
-				<h2>{guideSections[4].title}</h2>
-				<p>ソースの問題を探します。</p>
-				<GuideCode code={guideExamples.lint} label="ソースの検査" />
-				<p>
-					ESLint と同じ形で、問題ごとに位置（行と列）、重大度（error か
-					warning）、内容、ルール名が出ます。問題がなければ何も出ません。エラーが残ると、終了コードは
-					1 です。ディレクトリを渡すと、その下のファイルをまとめて検査します。<code
-						>node_modules</code
-					>
-					は読みません。
-				</p>
-				<p>
-					たとえば例のボタンから <code>type="button"</code> を消すと、<code
-						>svelte/button-has-type</code
-					>
-					の指摘が出ます。ボタンの種類を指定していない、という指摘です。
-				</p>
-				<p>
-					<code>run</code> に <code>--task svelte.lint/default</code> を渡すと、同じ結果が JSON で出ます。
-				</p>
-				<p>整形と検査を一度に実行するときは、<code>--task</code> を繰り返します。</p>
-				<GuideCode code={guideExamples.combined} label="整形と検査をまとめて実行" />
-				<p>検査は、整形する前の元のソースを読みます。</p>
-			</section>
+<h2 id="lint"><code>lint</code></h2>
 
-			<section id="check">
-				<h2>{guideSections[5].title}</h2>
-				<p>型チェックには次の三つが必要です。</p>
-				<ul>
-					<li>
-						TypeScript 7.1 以上のネイティブ版の実行ファイル。Node.js で動く従来の TypeScript
-						コマンドとは別のもので、npm のパッケージに入っています。
-					</li>
-					<li>型定義を読むための Svelte パッケージ。</li>
-					<li>
-						<code>rsvelte-svelte-content-mapper</code>。TypeScript が Svelte
-						ファイルを読むときに呼ぶ、rsvelte の実行ファイルです。Svelte から作った TypeScript
-						と、両者の位置の対応を返します。
-					</li>
-				</ul>
-				<p>
-					Node.js と npm も用意してください。<code>rsvelte</code>
-					のディレクトリで、次のコマンドを順に実行します。
-				</p>
-				<GuideCode code={guideExamples.checkSetup} label="型チェックに必要なものを用意する" />
-				<ol>
-					<li>
-						1 行目は、位置対応の実行ファイルを <code>~/.cargo/bin</code>
-						に入れます。このディレクトリが <code>PATH</code> に入っていることを確かめてください。
-					</li>
-					<li>
-						2 行目は、リポジトリの検証と同じ版の TypeScript と Svelte を
-						<code>typecheck-tools/node_modules</code> に取得します。
-					</li>
-					<li>
-						3 行目は、お使いの環境に合うネイティブ版の実行ファイルの絶対パスを、変数
-						<code>TSC</code> に入れます。4 行目がそのパスを表示します。
-					</li>
-				</ol>
-				<p>
-					<code>Counter.svelte</code>
-					を次の内容に置き換えます。数値の変数に文字列を入れているので、型の不一致が見つかるはずです。
-				</p>
-				<GuideCode code={guideExamples.typedSource} label="型の不一致を含む Counter.svelte" />
-				<p>
-					同じターミナルで次のコマンドを実行します。<code>$TSC</code>
-					は、さきほど入れたパスに置き換わります。
-				</p>
-				<GuideCode code={guideExamples.check} label="型チェックの実行" />
-				<p>
-					型の指摘は <code>// svelte.check/default json</code>
-					の後に出ます。この例では、数値の型に文字列を代入できないという <code>2322</code>
-					の指摘が出ます。<code>"zero"</code> を <code>0</code>
-					に変えると、この指摘は消えます。
-				</p>
-				<p>
-					位置の数え方はコード検査と違い、行と文字を 0 から数えます。公式の型チェックツール
-					svelte-check
-					と同じ形式だからです。設定が足りないときや、変換できない構文があるときは、別の診断として出ます。
-				</p>
-				<p>
-					型チェックの対象は <code>lang="ts"</code>
-					のスクリプトだけです。JavaScript のスクリプトは型チェックしません。
-				</p>
-				<h3>オプション</h3>
-				<p>
-					rsvelte
-					の処理は、プラグイン（言語や処理ごとに分かれた機能のまとまり）が提供します。型チェックの処理は、<code
-						>typescript.check</code
-					>
-					と <code>svelte.check</code> の二つのプラグインの設定を読みます。<code>--options</code>
-					は、プラグイン名と、そのオプションの JSON を受け取ります。
-				</p>
-				<div class="overflow-x-auto">
-					<table class="table">
-						<caption class="mb-2 text-left text-[14px] text-fg-2">型チェックのオプション</caption>
-						<thead><tr><th>オプション</th><th>指定する値</th></tr></thead>
-						<tbody>
-							<tr
-								><td><code>typescript.check</code> の <code>command</code></td><td
-									>型チェッカーとその引数</td
-								></tr
-							>
-							<tr
-								><td><code>typescript.check</code> の <code>tsconfig</code></td><td
-									>引き継ぐプロジェクトの設定ファイル。省略できます</td
-								></tr
-							>
-							<tr
-								><td><code>svelte.check</code> の <code>svelte</code></td><td
-									>Svelte パッケージのディレクトリ</td
-								></tr
-							>
-							<tr
-								><td><code>svelte.check</code> の <code>contentMapper</code></td><td
-									>位置対応の実行ファイル。省略できます</td
-								></tr
-							>
-						</tbody>
-					</table>
-				</div>
-				<p>
-					相対パスは、コマンドを実行したディレクトリから解決します。<code>tsconfig</code>
-					を省くと、そのディレクトリに <code>tsconfig.json</code>
-					があれば使います。この例は <code>rsvelte</code> のディレクトリで実行し、そこに
-					<code>tsconfig.json</code>
-					はないので、省いています。既存のプロジェクトを検査するときは、<code>tsconfig</code>
-					と <code>svelte</code> にそのプロジェクトのものを指定します。
-				</p>
-				<p>
-					型チェッカーには、TypeScript 7.1 の <code>tsc</code>
-					のほか、同じコマンドラインを持つ型チェッカー（<code>tsrs</code>
-					など）も使えます。名前だけを書くと、現在のディレクトリとその親の
-					<code>node_modules/.bin</code>
-					を探し、なければ <code>PATH</code> から探します。<code>contentMapper</code>
-					を省くと、<code>rsvelte-svelte-content-mapper</code> を使います。実行中の
-					<code>rsvelte</code> と同じディレクトリを探し、なければ <code>PATH</code> から探します。
-				</p>
-				<p>
-					型チェッカーが見つからない、版が古い、といった問題は、ファイルを読む前に報告します。同じ設定は、<code
-						>--config</code
-					>
-					で渡す設定ファイルの <code>plugins</code> にも書けます。
-				</p>
-			</section>
+<pre><code>rsvelte lint [path...]</code></pre>
 
-			<section id="browser">
-				<h2>{guideSections[6].title}</h2>
-				<p>
-					ブラウザ内でソースを処理するときは、WebAssembly
-					版を使います。リポジトリのルートで次のコマンドを実行してください。
-				</p>
-				<GuideCode
-					code={guideExamples.wasmBuild}
-					label="WebAssembly と JavaScript の接続ファイルを生成"
-				/>
-				<p>
-					ルートの <code>browser-package/</code> に、JavaScript、型定義、WebAssembly
-					のファイルができます。次のコードを、ルートに <code>main.js</code> として保存します。
-				</p>
-				<GuideCode code={guideExamples.wasmUse} label="main.js" />
-				<p>同じ場所に、<code>main.js</code> を読み込む <code>index.html</code> を作ります。</p>
-				<GuideCode code={guideExamples.wasmPage} label="index.html" />
-				<p>
-					ファイルから直接開くと、ブラウザは WebAssembly
-					を読み込めません。ルートで次のコマンドを実行し、Web サーバーを起動します（Python 3
-					が要ります）。
-				</p>
-				<GuideCode code={guideExamples.wasmServe} label="ルートを配信する Web サーバー" />
-				<p>
-					ブラウザで <code>http://localhost:8000/</code>
-					を開き、開発者ツールのコンソールを見ると、生成したファイルと診断が出ています。<code
-						>import</code
-					>
-					の相対パスは <code>main.js</code> の場所が基準なので、<code>browser-package/</code>
-					は <code>main.js</code> と同じディレクトリに置きます。
-				</p>
-				<p>
-					<code>init()</code> は WebAssembly の読み込みを待ちます。<code>runPipeline()</code>
-					は結果を JSON の文字列で返すので、<code>JSON.parse()</code> で値に変換します。
-				</p>
-				<div class="overflow-x-auto">
-					<table class="table">
-						<caption class="mb-2 text-left text-[14px] text-fg-2">runPipeline の引数</caption>
-						<thead><tr><th>順番</th><th>渡す値</th></tr></thead>
-						<tbody>
-							<tr><td>1</td><td>処理するソースの文字列</td></tr>
-							<tr><td>2</td><td>拡張子を含むファイル名。例は <code>App.svelte</code></td></tr>
-							<tr
-								><td>3</td><td
-									>使う言語プラグインをカンマで区切った文字列。例は <code>svelte</code></td
-								></tr
-							>
-							<tr><td>4</td><td>実行する処理をカンマで区切った文字列</td></tr>
-							<tr
-								><td>5</td><td
-									><code>true</code> なら、処理どうしで解析結果を共有します。<code>false</code>
-									なら、処理ごとに構文解析からやり直します</td
-								></tr
-							>
-						</tbody>
-					</table>
-				</div>
-				<p>言語プラグインは次の四つから選びます。</p>
-				<ul>
-					<li><code>svelte</code>：Svelte ファイルを処理します。</li>
-					<li><code>vue</code>：Vue ファイルを処理します。</li>
-					<li><code>svue</code>：Vue ファイルを Svelte のコンパイラでコンパイルします。</li>
-					<li><code>vuelte</code>：Svelte ファイルを Vue Vapor 向けにコンパイルします。</li>
-				</ul>
-				<p>
-					処理は <code>compile-client</code>、<code>compile-server</code>、<code>format</code
-					>、<code>lint</code> から選びます。コマンドラインの処理名とは違います。
-				</p>
-				<p>
-					返り値の <code>ok</code> が <code>false</code> なら、引数か実行に問題があります。理由は
-					<code>message</code> に入ります。<code>true</code> でも、ソースの問題は <code>steps</code>
-					の各処理の <code>diagnostics</code> に入ります。生成したファイルは <code>files</code>
-					に入ります。
-				</p>
-				<p>
-					解析結果の共有は、その呼び出しの中だけです。ブラウザ版は 1 回に 1 ファイルを処理し、入力は
-					UTF-8 で 65,536 バイトまでです。型チェックはできません。
-				</p>
-			</section>
+<p>
+	<code>lint</code> checks the Svelte, JavaScript and TypeScript files below each path. By default, the
+	path is the current directory. It reads these extensions:
+</p>
 
-			<section id="limits">
-				<h2>{guideSections[7].title}</h2>
-				<p>
-					rsvelte が対象にするのは、Svelte 5 のルーンモードのコンポーネントだけです。Svelte 4
-					のプロジェクトと、レガシーモードのコンポーネントには対応していません。
-				</p>
-				<p>
-					レガシーモードのコンポーネントとは、<code>export let</code>、<code>$:</code>、<code
-						>$$props</code
-					>
-					を使うか、<code>runes=&#123;false&#125;</code> を指定したものです。コンパイラはこれらをエラーにし、型チェックは誤った結果を返します。Svelte
-					4 のプロジェクトには公式のツールを使ってください。
-				</p>
-				<p>アプリ全体のビルドと Vite との接続も扱いません。</p>
-				<p>
-					<code>run</code>
-					は 1 ファイルずつ処理します。既存のプロジェクトで使う前に、処理したいファイルで結果を確かめてください。
-				</p>
-				<p>
-					<code>run</code>
-					は、診断や指摘が出ても終了コード 0 で終わります。自動検査に組み込むときは、出力の診断と指摘を調べてください。
-				</p>
-				<ul>
-					<li>
-						処理名が不明というメッセージが出たら、<code>--task</code>
-						の値をこのガイドの例と比べます。
-					</li>
-					<li>何も出力されないときは、ファイルの拡張子と処理の言語が合っているかを確かめます。</li>
-					<li>型チェックの設定エラーでは、実行ファイルとパッケージのパスを確かめます。</li>
-					<li>
-						ブラウザ版を読み込めないときは、開発者ツールで JavaScript と WebAssembly
-						のファイルが配信されているかを確かめます。
-					</li>
-				</ul>
-				<p>
-					問題は <a href="{REPO_URL}/issues">GitHub の課題一覧</a
-					>に報告してください。再現するソース、実行したコマンド、出力、使ったコミットを添えます。コミットは
-					<code>git rev-parse HEAD</code> で分かります。
-				</p>
-				<p>
-					内部の仕組みや処理の追加方法は、<a href="/learn">開発者向けの教材</a>にあります。
-				</p>
-			</section>
-		</div>
-	</article>
-</main>
+<ul class="inline">
+	<li><code>.svelte</code></li>
+	<li><code>.js</code></li>
+	<li><code>.mjs</code></li>
+	<li><code>.cjs</code></li>
+	<li><code>.ts</code></li>
+	<li><code>.mts</code></li>
+	<li><code>.cts</code></li>
+</ul>
 
-<style>
-	section {
-		scroll-margin-top: 6rem;
-	}
-	section + section {
-		margin-top: 3.5rem;
-		padding-top: 2rem;
-		border-top: 1px solid var(--border);
-	}
-	section > :global(* + *) {
-		margin-top: 1.25rem;
-	}
-	section > h2 {
-		margin-top: 0;
-	}
-</style>
+<p>
+	It skips <code>node_modules</code>, <code>.git</code>, and files that <code>.gitignore</code> or
+	<code>.ignore</code> excludes, but it reads a file you name on the command line.
+</p>
+
+<p>
+	It prints problems as ESLint's <code>stylish</code> formatter does. When you turn on a Svelte rule
+	that also applies to scripts, such as <code>svelte/no-inspect</code>, it also checks
+	<code>.jsx</code>
+	and
+	<code>.tsx</code> files.
+</p>
+
+<p>
+	Without a configuration, these rules run. The <a href={resolve('/rules')}>rules page</a> lists the others.
+</p>
+
+<ul>
+	<li>Svelte files: <code>no-unused-vars</code> and <code>svelte/button-has-type</code></li>
+	<li>TypeScript and JavaScript files: <code>@typescript-eslint/no-unused-vars</code></li>
+</ul>
+
+<h2 id="format"><code>format</code></h2>
+
+<pre><code>rsvelte format [path...] [--check]</code></pre>
+
+<p>
+	<code>format</code> is <a href="https://oxc.rs/docs/guide/usage/formatter">oxfmt</a>, the
+	formatter of the oxc project, with a built-in Svelte formatter. It accepts oxfmt's options (<code
+		>rsvelte format --help</code
+	>). It reads its settings from <code>.oxfmtrc.json</code> and <code>.editorconfig</code>, and the
+	files to skip from <code>.prettierignore</code>. With <code>--check</code>, it writes nothing and
+	lists the files that need formatting.
+</p>
+
+<p>
+	It formats each file that oxfmt formats itself, such as TypeScript, JSON, CSS and Markdown. It
+	also formats the <code>svelte</code> code blocks in Markdown. It skips the files that oxfmt hands to
+	Prettier.
+</p>
+
+<p>For Svelte files:</p>
+
+<ul>
+	<li>
+		These options support only their default value:
+		<ul class="inline">
+			<li><code>semi</code></li>
+			<li><code>singleQuote</code></li>
+			<li><code>trailingComma</code></li>
+			<li><code>arrowParens</code></li>
+			<li><code>bracketSpacing</code></li>
+			<li><code>quoteProps</code></li>
+			<li><code>objectWrap</code></li>
+		</ul>
+	</li>
+	<li>
+		<code>sortImports</code> and <code>jsdoc</code> work in the scripts of Svelte files as they do
+		in oxfmt.
+		<code>sortTailwindcss</code> is not supported yet.
+	</li>
+	<li>
+		With another value of these options, or with <code>sortTailwindcss</code>, <code>format</code> formats
+		no Svelte file. It reports an error that names the option for each Svelte file, formats the other
+		files, and exits with 2.
+	</li>
+	<li><code>"svelte": false</code> in <code>.oxfmtrc.json</code> turns Svelte formatting off.</li>
+</ul>
+
+<h2 id="typecheck"><code>typecheck</code></h2>
+
+<pre><code>rsvelte typecheck</code></pre>
+
+<p>
+	<code>typecheck</code> type checks the files that a <code>tsconfig.json</code> selects, and
+	reports the errors that svelte-check reports. It takes no paths. It prints one error per line, as
+	<code>tsc --pretty false</code> does.
+</p>
+
+<p>
+	It runs a TypeScript 7 type checker from the project's <code>node_modules</code>. Install one of
+	these. The project also needs <code>svelte</code>.
+</p>
+
+<pre><code
+		>{`npm install --save-dev tsrs                         # recommended: a Rust port of TypeScript 7
+npm install --save-dev typescript                   # 7.1 or newer
+npm install --save-dev @typescript/native-preview   # 7.1 or newer`}</code
+	></pre>
+
+<p>
+	The <code>typescript.check</code> entry of <code>rsvelte.config.json</code> (see
+	<a href="#config">Configuration</a>) picks the <code>tsconfig.json</code>:
+</p>
+
+<ul>
+	<li>
+		No configuration file, or no <code>typescript.check</code>: the <code>tsconfig.json</code> in the
+		current directory.
+	</li>
+	<li>
+		<code>typescript.check</code> with <code>"tsconfig"</code>: the file at that path.
+	</li>
+	<li>
+		<code>typescript.check</code> without <code>"tsconfig"</code>: the <code>tsconfig.json</code> next
+		to the configuration file.
+	</li>
+</ul>
+
+<h2 id="config">Configuration</h2>
+
+<p>
+	<code>lint</code> and <code>typecheck</code> read <code>rsvelte.config.json</code>. The file can
+	also be a <code>rsvelte.config.js</code> or <code>rsvelte.config.ts</code>, which Node evaluates.
+	rsvelte looks for the file in the current directory, then in each parent. Use
+	<code>--config &lt;file&gt;</code> to choose a file. Two configuration files in one directory are an
+	error.
+</p>
+
+<pre><code
+		>{`{
+  "plugins": {
+    "svelte.lint": {
+      "rules": { "no-unused-vars": "warn", "svelte/button-has-type": "error" }
+    },
+    "typescript.check": { "tsconfig": "tsconfig.app.json" }
+  }
+}`}</code
+	></pre>
+
+<p>Each key below <code>plugins</code> configures one part of rsvelte:</p>
+
+<table>
+	<thead>
+		<tr><th>Key</th><th>Main options</th></tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td><code>svelte.lint</code></td>
+			<td>
+				<code>rules</code>: every rule but <code>@typescript-eslint/no-unused-vars</code>, with
+				options as in ESLint. <code>languageOptions.globals</code>: the declared global variables.
+			</td>
+		</tr>
+		<tr>
+			<td><code>typescript.lint</code></td>
+			<td><code>rules</code>: <code>@typescript-eslint/no-unused-vars</code></td>
+		</tr>
+		<tr>
+			<td><code>typescript.check</code></td>
+			<td>
+				<code>command</code>: the type checker. Without it, rsvelte runs the first of
+				<code>tsrs</code>, <code>@typescript/native-preview</code> and <code>typescript</code> that
+				the project installs.
+				<code>tsconfig</code>: the <code>tsconfig.json</code> to check.
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<p>
+	A <code>rules</code> object replaces the default rules of its key. Paths start from the directory
+	of the configuration file. An unknown key is an error.
+	<a
+		href="https://github.com/baseballyama/rsvelte/blob/main/crates/hosts/configuration_loading/README.md"
+		>The configuration reference</a
+	> lists every option.
+</p>
+
+<h2 id="exit">Exit codes</h2>
+
+<table>
+	<thead>
+		<tr><th>Command</th><th>1</th><th>2</th></tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td><code>lint</code>, <code>typecheck</code></td>
+			<td>It found an error (warnings alone exit with 0)</td>
+			<td>It could not run</td>
+		</tr>
+		<tr>
+			<td><code>format</code></td>
+			<td><code>--check</code> found a file to format, or the oxfmt configuration is invalid</td>
+			<td>
+				<code>format</code> failed on a file (for example, because of an unsupported Svelte option), or
+				no path matched a file
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<h2 id="eslint">With ESLint</h2>
+
+<p>
+	<a href="https://www.npmjs.com/package/@rsvelte/eslint-plugin">@rsvelte/eslint-plugin</a> turns
+	off the ESLint rules that rsvelte implements, so you see each problem once. Use the version that
+	matches
+	<code>@rsvelte/cli</code>.
+</p>
+
+<pre><code>npm install --save-dev @rsvelte/eslint-plugin</code></pre>
+
+<pre><code
+		>{`// eslint.config.js
+import svelte from 'eslint-plugin-svelte';
+import rsvelte from '@rsvelte/eslint-plugin';
+
+export default [
+  ...svelte.configs.recommended,
+  ...rsvelte.configs['flat/recommended'], // last
+];`}</code
+	></pre>
+
+<p>
+	<code>flat/recommended</code> turns off the rules of the
+	<a href={resolve('/rules') + '#correctness'}><code>correctness</code></a> category, and
+	<code>flat/all</code> every rule outside the <code>nursery</code> category of rules in
+	development. If ESLint no longer runs a rule and rsvelte does not run it either, nothing checks
+	it. Turn on the rules you want under <code>rules</code> in <code>rsvelte.config.json</code>.
+</p>
+
+<p>A script that runs both: <code>"lint": "rsvelte lint && eslint"</code></p>
+
+<h2 id="legacy">Svelte 4 and legacy mode</h2>
+
+<p>
+	rsvelte supports Svelte 5 components in runes mode only. A component that uses one of these is in
+	legacy mode:
+</p>
+
+<ul class="inline">
+	<li><code>export let</code></li>
+	<li><code>$:</code></li>
+	<li><code>$$props</code></li>
+	<li><code>$$restProps</code></li>
+	<li><code>&lt;svelte:options runes=&#123;false&#125; /&gt;</code></li>
+</ul>
+
+<ul>
+	<li>
+		<code>typecheck</code> gives wrong results for a component in legacy mode. For one without
+		<code>&lt;script lang="ts"&gt;</code>, it can report no error at all.
+	</li>
+	<li>
+		<code>lint</code> and <code>format</code> read legacy syntax, but their results can differ from the
+		official tools.
+	</li>
+</ul>
+
+<p>
+	For a Svelte 4 project, use the official tools:
+	<a href="https://www.npmjs.com/package/svelte-check">svelte-check</a>,
+	<a href="https://www.npmjs.com/package/eslint-plugin-svelte">eslint-plugin-svelte</a> and
+	<a href="https://www.npmjs.com/package/prettier-plugin-svelte">prettier-plugin-svelte</a>.
+</p>

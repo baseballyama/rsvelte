@@ -3,7 +3,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind,
 };
 
-use super::{ClientCompilationContext, Frag, Lists, R};
+use super::{ClientCompilationContext, Frag, Lists, NodeVar, R};
 use crate::lower::attributes::{DynamicTag, dynamic_tag, is_behaviour, single_expression};
 use crate::lower::builder::Runtime;
 
@@ -11,7 +11,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn dynamic_element(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         frag: &mut Frag<'o>,
         lists: &mut Lists<'o>,
     ) -> R<()> {
@@ -27,7 +27,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             DynamicTag::Expression(e) => self.expression(e),
         };
         let get_tag = b.thunk(tag);
-        let name = self.names.generate("$$element");
+        let name = NodeVar::bare(self.names.generate("$$element"));
         let mut inner = Lists::default();
         let directives = self.element_directives(attributes, "svelte:element", &name, None);
         inner.initializer.extend(directives.initializer);
@@ -86,13 +86,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         body.extend(inner.after);
         body.extend(self.fragment(element.children)?);
         let callback = (!body.is_empty())
-            .then(|| b.arrow_block(b.parameters([name.as_str(), "$$anchor"]), body, false));
+            .then(|| b.arrow_block(b.parameters([name.name(), "$$anchor"]), body, false));
         let namespace = self.dynamic_namespace(attributes);
         let foreign = self.plan.named(identifier) != crate::render_plan::Namespace::Html;
         let call = b.runtime_some(
             "element",
             vec![
-                Some(b.id(node)),
+                Some(node.id(b)),
                 Some(get_tag),
                 Some(b.boolean(foreign)),
                 callback,

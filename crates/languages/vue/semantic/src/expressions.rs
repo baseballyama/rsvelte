@@ -68,15 +68,6 @@ pub fn to_handler_key(s: &str) -> String {
     })
 }
 
-/// compiler-core `isSimpleIdentifier`.
-#[must_use]
-pub fn is_simple_identifier(s: &str) -> bool {
-    let mut b = s.bytes();
-    b.next()
-        .is_some_and(|c| c.is_ascii_alphabetic() || c == b'_' || c == b'$')
-        && b.all(|c| c.is_ascii_alphanumeric() || c == b'_' || c == b'$')
-}
-
 /// What holds an identifier, as far as the template compiler asks.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Parent {

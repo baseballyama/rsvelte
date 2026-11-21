@@ -1,0 +1,67 @@
+# Deploys apps/site to GitHub Pages (https://baseballyama.github.io/rsvelte/). The ci.yml site job
+# tests the same site on every pull request.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    # A newer push replaces a build that has not finished; a deployment is never interrupted.
+    concurrency:
+      group: pages-build
+      cancel-in-progress: true
+    defaults:
+      run:
+        working-directory: apps/site
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.0
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      # No job caches a release-profile WebAssembly build, so this one starts cold. It saves no
+      # cache: another entry would push the repository past its cache limit.
+      - uses: ./.github/actions/rust
+        with:
+          targets: wasm32-unknown-unknown
+          save: 'false'
+      - run: cargo install wasm-pack --version 0.15.1 --locked
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/.wasm-pack
+          key: wasm-pack-${{ runner.os }}-0.15.1-${{ hashFiles('Cargo.lock') }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+        env:
+          PAGES: '1'
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: apps/site/build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

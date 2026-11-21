@@ -1,13 +1,13 @@
 use oxc_ast::ast::{
     Expression, LogicalOperator, ObjectPropertyKind, PropertyKey, PropertyKind, Statement,
 };
+use oxc_span::{GetSpanMut, SPAN, Span};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, Element, ElementKind, Modifiers, NodeKind,
-    Part,
+    Attribute, AttributeValue, CompilerNodeIdentifier, Element, Modifiers, NodeKind, Part,
 };
 use rsvelte_svelte_semantic::evaluate::Evaluator;
 
-use super::{ClientCompilationContext, Frag, Lists, Memo, R};
+use super::{ClientCompilationContext, Frag, Lists, Memo, NodeVar, R};
 use crate::input::Target;
 use crate::lower::builder::Runtime;
 use crate::lower::component::{
@@ -23,7 +23,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn component(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         standalone: bool,
         frag: &mut Frag<'o>,
         lists: &mut Lists<'o>,
@@ -36,10 +36,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let callee = callee(tree, self.javascript, self.res, identifier);
         // Upstream renders `<svelte:component>` through `$$component`, a name it never generates.
         let intermediate = match callee {
-            Callee::Dynamic(_) if element.kind == ElementKind::Component => {
-                Some(self.names.generate(element.name.text(self.source_text)))
-            }
-            Callee::Dynamic(_) => Some("$$component".to_owned()),
+            Callee::Dynamic(_) => Some(self.names.generate(element.name.text(self.source_text))),
+            Callee::This(_) => Some("$$component".to_owned()),
             Callee::Static(_) | Callee::OwnFunction => None,
         };
         let mut lets = self.let_directives(identifier, element)?;
@@ -92,9 +90,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         statements.extend(self.memo_deriveds(memo));
         // Upstream mounts a component with CSS custom properties in an element that holds them.
         let anchor = if custom_properties.is_empty() {
-            b.id(node)
+            node.id(b)
         } else {
-            b.member(b.id(node), "lastChild")
+            b.member(node.id(b), "lastChild")
         };
         let call = b.statement(self.instantiate(element, callee, intermediate, anchor, props));
         match self.mount(identifier, node, custom_properties, standalone, frag) {
@@ -120,7 +118,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     fn mount(
         &self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         custom_properties: Vec<ObjectPropertyKind<'o>>,
         standalone: bool,
         frag: &mut Frag<'o>,
@@ -143,8 +141,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             frag.tpl.pop_element();
             let properties = b.thunk(b.object(custom_properties));
             Some((
-                b.statement(b.runtime("css_props", [b.id(node), properties])),
-                b.statement(b.runtime("reset", [b.id(node)])),
+                b.statement(b.runtime("css_props", [node.id(b), properties])),
+                b.statement(b.runtime("reset", [node.id(b)])),
             ))
         }
     }
@@ -167,19 +165,24 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             Some(target) => self.bind_this(target, call, false),
             None => call,
         };
-        match (callee, intermediate) {
-            (Callee::Dynamic(reference), Some(intermediate)) => {
-                let inner = b.call(b.id(&intermediate), [b.id("$$anchor"), props]);
+        // Upstream lines the call up with the tag's name, which `<svelte:component>` lacks.
+        let location = match callee {
+            Callee::This(_) => SPAN,
+            _ => Span::new(element.name.start_offset, element.name.end_offset),
+        };
+        match (intermediate, callee.read(|e| self.expression(e))) {
+            (Some(intermediate), Some(read)) => {
+                let inner = b.call(b.id_at(&intermediate, location), [b.id("$$anchor"), props]);
                 let inner = b.statement(instance(inner));
                 let render =
                     b.arrow_block(b.parameters(["$$anchor", &intermediate]), [inner], false);
-                let get = b.thunk(self.expression(reference));
-                b.runtime("component", [anchor, get, render])
+                b.runtime("component", [anchor, b.thunk(read), render])
             }
-            (Callee::Static(reference), _) => {
-                instance(b.call(self.expression(reference), [anchor, props]))
+            (_, read) => {
+                let mut function = read.unwrap_or_else(|| b.id(&self.component_name));
+                *function.span_mut() = location;
+                instance(b.call(function, [anchor, props]))
             }
-            _ => instance(b.call(b.id(&self.component_name), [anchor, props])),
         }
     }
 

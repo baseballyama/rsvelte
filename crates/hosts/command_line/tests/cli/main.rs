@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 mod arguments;
 mod configuration;
 mod documents;
+mod eslint_plugin;
 mod format;
 mod format_options;
 mod lint;

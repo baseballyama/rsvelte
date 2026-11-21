@@ -1,7 +1,7 @@
 use oxc_ast::ast::Expression;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue, MetadataTag};
 
-use super::{ClientCompilationContext, Lists};
+use super::{ClientCompilationContext, Lists, NodeVar};
 use crate::lower::builder::Runtime;
 use crate::lower::global_binding_table::GlobalBinding;
 
@@ -20,7 +20,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let name = attribute.name.text(self.source_text);
         let binding = GlobalBinding::of(tag, name).expect("global bindings are validated");
         if matches!(binding, GlobalBinding::Element) {
-            let call = self.binding(attribute, attributes, "svelte:body", "$.document.body");
+            let call = self.binding(
+                attribute,
+                attributes,
+                "svelte:body",
+                &NodeVar::bare("$.document.body"),
+            );
             lists.after.push(b.statement(call));
             return;
         }

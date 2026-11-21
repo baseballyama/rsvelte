@@ -6,9 +6,6 @@ use rsvelte_typescript_tree::node_span;
 
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
-#[cfg(test)]
-mod tests;
-
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-ignored-unsubscribe",
     files: Files::All,

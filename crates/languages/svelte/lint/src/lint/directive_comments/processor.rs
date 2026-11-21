@@ -7,7 +7,7 @@ use rsvelte_svelte_syntax::syntax_tree::Component;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::{Kind, markup_directives};
-use crate::Pattern;
+use crate::pattern::Pattern;
 
 /// Which rules a directive of the processor applies to.
 #[derive(Clone, Copy)]

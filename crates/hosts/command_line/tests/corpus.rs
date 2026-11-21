@@ -250,7 +250,7 @@ fn script_errors(
     component: &rsvelte_svelte_syntax::syntax_tree::Component,
     source: &str,
 ) -> Vec<(String, u32)> {
-    let scripts = component.module.iter().chain(&component.instance);
+    let scripts = component.scripts();
     scripts
         .flat_map(|script| {
             let allocator = Allocator::default();

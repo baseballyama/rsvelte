@@ -13,7 +13,6 @@ use serde::Deserialize;
 
 use super::shared::legacy_reactivity::{Variable, bindings, legacy};
 use super::shared::nodes::property_name;
-use super::shared::runes::runes_mode;
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -58,7 +57,7 @@ const MUTATORS: &[&str] = &[
 impl SvelteRule for NoReactiveReassign {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        if runes_mode(file, component) {
+        if file.runes() == Some(true) {
             return;
         }
         let legacy = legacy(file);

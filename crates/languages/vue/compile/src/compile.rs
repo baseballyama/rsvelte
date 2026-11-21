@@ -4,6 +4,7 @@
 //! compileTemplate's render function), the plugin's `_export_sfc` tail, and compileStyle's CSS.
 
 mod out;
+mod script;
 mod style;
 pub(crate) mod template;
 
@@ -12,10 +13,11 @@ use oxc_ast::ast::{Expression, Program};
 use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_typescript_compile::build::Builder;
-use rsvelte_typescript_tree::{ProgramIdentifier, Tree, document_span};
+use rsvelte_typescript_tree::document_span;
 use rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTree;
-use rsvelte_vue_semantic::resolve::{BindingType, Resolution, call_name, is_static};
+use rsvelte_vue_semantic::resolve::Resolution;
 use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
+use script::script_setup;
 
 type R<T> = Result<T, Unsupported>;
 
@@ -27,56 +29,17 @@ pub(crate) struct Output {
     pub stylesheet: Option<String>,
 }
 
-/// A component as the compiler reads it, whatever syntax it was written in.
+/// A parsed component and its HIR ([`rsvelte_vue_semantic::compiler_syntax_tree::lower`]).
 ///
 /// What a name in its expressions refers to is on the [`Resolution`] built from the same tree and
 /// HIR ([`rsvelte_vue_semantic::resolve::resolve`]).
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct CompileInput<'a> {
-    /// Every JavaScript expression of the component, script and template.
-    pub javascript: &'a Tree,
-    /// The `<script setup>` program; `None` without one.
-    pub script: Option<ProgramIdentifier>,
+    pub component: &'a SingleFileComponent,
     /// The template; `None` without one.
     pub compiler_syntax_tree: Option<&'a CompilerSyntaxTree>,
-    pub styles: Vec<StyleInput<'a>>,
-    /// `<script setup lang="ts">`: the script and every template expression are TypeScript.
-    pub typescript: bool,
     /// The document: spans index into it.
     pub source_text: &'a str,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct StyleInput<'a> {
-    pub sheet: &'a rsvelte_stylesheet_syntax::StyleSheet,
-    pub scoped: bool,
-}
-
-impl<'a> CompileInput<'a> {
-    /// The Vue frontend's input: the parsed component and its HIR
-    /// ([`rsvelte_vue_semantic::compiler_syntax_tree::lower`]).
-    #[must_use]
-    pub(crate) fn from_single_file_component(
-        c: &'a SingleFileComponent,
-        compiler_syntax_tree: Option<&'a CompilerSyntaxTree>,
-        source_text: &'a str,
-    ) -> Self {
-        Self {
-            javascript: &c.javascript,
-            script: c.script.as_ref().map(|s| s.program),
-            compiler_syntax_tree,
-            styles: c
-                .styles
-                .iter()
-                .map(|s| StyleInput {
-                    sheet: &s.sheet,
-                    scoped: s.scoped,
-                })
-                .collect(),
-            typescript: c.typescript,
-            source_text,
-        }
-    }
 }
 
 /// `@vitejs/plugin-vue`'s scope identifier: the first 8 hex digits of the SHA-256 of the path.
@@ -90,27 +53,23 @@ pub(crate) fn scope_identifier(path: &str) -> String {
 ///
 /// [`Unsupported`] for what the port does not compile yet.
 pub(crate) fn compile(input: &CompileInput<'_>, res: &Resolution, path: &str) -> R<Output> {
-    let source_text = input.source_text;
+    let (component, source_text) = (input.component, input.source_text);
+    let javascript = &component.javascript;
+    let script = component.script.as_ref().map(|s| s.program);
     let identifier = scope_identifier(path);
-    let scoped = input.styles.iter().any(|s| s.scoped);
+    let scoped = component.styles.iter().any(|s| s.scoped);
     let allocator = Allocator::default();
     let b = Builder::new(&allocator);
     let mut body = Vec::new();
     let mut attached: Vec<(&str, Expression<'_>)> = Vec::new();
-    if let Some(program) = input.script {
+    if let Some(program) = script {
         script_setup(input, res, path, program, &b, &mut body)?;
     } else {
         // `const _sfc_main = {}`, then compileTemplate's module with `render` renamed.
         body.push(b.const_("_sfc_main", b.object([])));
         if let Some(compiler_syntax_tree) = input.compiler_syntax_tree {
-            let t = template::transform(
-                input.javascript,
-                compiler_syntax_tree,
-                source_text,
-                res,
-                false,
-            )?;
-            let (preamble, ret) = t.generate(input.javascript, res, false, &b);
+            let t = template::transform(javascript, compiler_syntax_tree, source_text, res, false)?;
+            let (preamble, ret) = t.generate(javascript, res, false, &b);
             body.extend(preamble);
             body.push(b.function_declaration(
                 "_sfc_render",
@@ -136,7 +95,7 @@ pub(crate) fn compile(input: &CompileInput<'_>, res: &Resolution, path: &str) ->
         let pairs = attached.into_iter().map(|(k, v)| b.array([b.string(k), v]));
         out::pure_call(&b, b.id("_export_sfc"), [main, b.array(pairs)])
     };
-    body.push(out::export_default(&b, default));
+    body.push(b.export_default(default));
     let mut program = Program::new(
         SPAN,
         SourceType::mjs(),
@@ -147,11 +106,11 @@ pub(crate) fn compile(input: &CompileInput<'_>, res: &Resolution, path: &str) ->
         b.vec(body),
         &b,
     );
-    if input.typescript {
+    if component.typescript {
         // Upstream's build hands compileScript's TypeScript to a transform that erases it.
-        if let Some(script) = input.script
+        if let Some(script) = script
             && let Some((_, span)) = rsvelte_typescript_compile::features::first_runtime_feature(
-                input.javascript.get_program(script),
+                javascript.get_program(script),
             )
         {
             return Err(Unsupported::at(
@@ -164,11 +123,11 @@ pub(crate) fn compile(input: &CompileInput<'_>, res: &Resolution, path: &str) ->
             &mut program,
         );
     }
-    let javascript = rsvelte_typescript_compile::print::print(&program);
-    let stylesheet = if input.styles.is_empty() {
+    let code = rsvelte_typescript_compile::print::print(&program);
+    let stylesheet = if component.styles.is_empty() {
         None
     } else {
-        let parts: Vec<String> = input
+        let parts: Vec<String> = component
             .styles
             .iter()
             .map(|s| style::compile(source_text, s, &identifier))
@@ -176,13 +135,10 @@ pub(crate) fn compile(input: &CompileInput<'_>, res: &Resolution, path: &str) ->
         Some(parts.join("\n"))
     };
     Ok(Output {
-        javascript,
+        javascript: code,
         stylesheet,
     })
 }
-
-mod script;
-use script::script_setup;
 
 #[cfg(test)]
 mod tests;

@@ -1,10 +1,12 @@
 //! `rewriteIdentifier`, applied to the expressions `generate` copies.
 
-use oxc_ast::ast::{IdentifierReference, ObjectProperty, SimpleAssignmentTarget};
+use oxc_ast::ast::{Expression, IdentifierReference, ObjectProperty, SimpleAssignmentTarget};
 use oxc_ast_visit::{VisitMut, walk_mut};
 use rsvelte_typescript_compile::build::Builder;
+use rsvelte_vue_semantic::expressions::can_prefix;
+use rsvelte_vue_semantic::resolve::{BindingType, Resolution};
 
-use super::{BindingType, Expression, Resolution, can_prefix, ref_info};
+use super::ref_info;
 
 /// Rewrites a copied template expression's names as inline-mode `rewriteIdentifier` does (or to
 /// `_ctx.x` without bindings).

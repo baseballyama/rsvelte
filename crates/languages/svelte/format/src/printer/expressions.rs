@@ -3,9 +3,10 @@
 use oxc_ast::ast::Expression;
 use oxc_ast_visit::Visit;
 use oxc_parser::Kind;
-use oxc_span::GetSpan;
 use rsvelte_kernel::source::tokens::{Token, TokenKind};
-use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier, document_span};
+use rsvelte_typescript_tree::{
+    DeclarationIdentifier, ExpressionIdentifier, document_span, node_span,
+};
 
 use super::javascript::{Adjust, Part, trim_semicolon};
 use super::patterns::has_typescript;
@@ -54,7 +55,7 @@ impl Printer<'_, '_, '_> {
         e: ExpressionIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
         let e = self.c.javascript.get_expression(e);
-        let span = document_span(e.span());
+        let span = node_span(e);
         let raw = span.text(self.source_text);
         let text = match e {
             Expression::Identifier(identifier) => identifier.name.as_str().to_owned(),
@@ -108,7 +109,7 @@ impl Printer<'_, '_, '_> {
         }
         let expression = self.c.javascript.get_expression(e);
         let sequence = bare_sequence && matches!(expression, Expression::SequenceExpression(_));
-        let written = document_span(expression.span());
+        let written = node_span(expression);
         let keeps_parentheses = sequence
             && comments == Comments::AsThePlugin
             && self.sequence_keeps_parentheses(written)?;
@@ -206,7 +207,7 @@ impl Printer<'_, '_, '_> {
 
     /// The source of `e`.
     pub(super) fn javascript_span(&self, e: ExpressionIdentifier) -> Span {
-        document_span(self.c.javascript.get_expression(e).span())
+        node_span(self.c.javascript.get_expression(e))
     }
 
     /// `{@const a = b}`'s declarator, which the plugin formats as the expression `a = b`.

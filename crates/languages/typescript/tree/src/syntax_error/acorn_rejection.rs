@@ -10,6 +10,7 @@ use oxc_span::SourceType;
 
 use super::Acorn;
 use super::locator::{Find, Holder, Locator, Reading, locate};
+use super::word::{keyword, misused};
 
 mod lexer;
 use lexer::regular_expression;
@@ -73,10 +74,11 @@ pub(crate) fn acorn(
     let label = error.labels.first()?;
     let (start, end) = (label.offset(), label.offset() + label.len());
     let read = || tokens.iter().copied().chain(next);
-    let kind_at = |at: u32| {
+    let token_at = |at: u32| {
         let token = read().nth(tokens.partition_point(|token| token.start() < at))?;
-        (token.start() == at).then(|| token.kind())
+        (token.start() == at).then_some(token)
     };
+    let kind_at = |at: u32| token_at(at).map(|token| token.kind());
     // A script is a module, so acorn reads every reserved word in a binding as an error of its own.
     let reserved = |at: u32| {
         let kind = kind_at(at)?;
@@ -84,6 +86,9 @@ pub(crate) fn acorn(
             .then(|| keyword(kind.to_str(), at))
     };
     if error.code.scope.as_deref() != Some("TS") {
+        if let Some(acorn) = misused(start, end, read(), visit, false) {
+            return Some(acorn);
+        }
         // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.
         return regular_expression(text, start, read())
             .or_else(|| reserved(start).filter(|_| kind_at(start) == Some(Kind::Enum)));
@@ -152,11 +157,9 @@ pub(crate) fn acorn(
             Some(fails("Assigning to rvalue", rvalue(start, read())?))
         }
         "1127" => unexpected_character(text, start, end),
-        // A word reserved in strict code, which oxc names in acorn's words, by its value.
-        "1212" => Some(Acorn::Fails {
-            message: error.message.clone(),
-            at: start,
-        }),
+        // A word reserved in strict code, or `await` outside an async function, which acorn reads
+        // as a name.
+        "1212" | "1308" => misused(start, end, read(), visit, true),
         "1049" => Some(fails("setter should have exactly one param", start)),
         "1108" => Some(fails("'return' outside of function", start)),
         "1473" | "1474" => Some(fails(
@@ -188,14 +191,6 @@ pub(crate) fn acorn(
             token(start, Some(Kind::Eq))?,
         )),
         _ => early_error(error, number, text, (start, end), visit),
-    }
-}
-
-/// Acorn's error at a reserved `word`.
-fn keyword(word: &str, at: u32) -> Acorn {
-    Acorn::Fails {
-        message: Cow::Owned(format!("The keyword '{word}' is reserved")),
-        at,
     }
 }
 

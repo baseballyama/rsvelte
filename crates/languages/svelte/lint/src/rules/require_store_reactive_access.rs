@@ -14,7 +14,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree, node_span};
 use rustc_hash::FxHashMap;
 
-use super::shared::element_kind::is_markup_element;
+use super::shared::element_kind::is_markup_like;
 use super::shared::svelte_store::store_calls;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -224,8 +224,8 @@ impl Check<'_, '_, '_> {
                 TemplateNode::Element {
                     name, attributes, ..
                 } => {
+                    let accepts = !is_markup_like(node, source);
                     let name = name.text(source);
-                    let accepts = !is_markup_element(name);
                     let special = matches!(name, "svelte:component" | "svelte:element");
                     for attribute in component.attributes(attributes) {
                         self.attribute(component, attribute, accepts, special);

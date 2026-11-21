@@ -1,9 +1,9 @@
 //! `createVNodeCall`, `transformText`, `getConstantType`, `cacheStatic` and the root codegen.
+use rsvelte_vue_syntax::syntax_tree::DirectiveName;
 
 use super::{
-    CAN_CACHE, CAN_SKIP_PATCH, CAN_STRINGIFY, Codegen, CodegenIdentifier, DirectiveName, Helper,
-    Lit, NOT_CONSTANT, Node, Property, Transform, TransformNodeIdentifier, VChildren, VNodeArgs,
-    patch,
+    CAN_CACHE, CAN_SKIP_PATCH, CAN_STRINGIFY, Codegen, CodegenIdentifier, Helper, Lit,
+    NOT_CONSTANT, Node, Property, Transform, TransformNodeIdentifier, VChildren, VNodeArgs, patch,
 };
 
 impl Transform<'_> {

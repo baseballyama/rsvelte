@@ -8,7 +8,7 @@ use rsvelte_typescript_tree::ExpressionIdentifier;
 use crate::input::Target;
 use crate::lower::attributes::{needs_clsx, scoped_class};
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Lists, Memo};
+use crate::lower::client::{ClientCompilationContext, Lists, Memo, NodeVar};
 use crate::lower::javascript::string_value;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -61,7 +61,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(in crate::lower::client) fn set_class(
         &self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         attribute: Option<&Attribute>,
         directives: &[&Attribute],
         memo: &mut Memo<'o>,
@@ -114,7 +114,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if stylesheet_hash.is_none() && next.is_some() {
             stylesheet_hash = Some(b.null());
         }
-        let x = b.id(node);
+        let x = node.id(b);
         let NodeKind::Element(element) = &self.compiler_syntax_tree.node(identifier).kind else {
             unreachable!("classes belong to elements")
         };

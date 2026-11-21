@@ -4,7 +4,7 @@ use rsvelte_stylesheet_syntax::properties::{is_known, vendor_prefix};
 use rsvelte_svelte_syntax::syntax_tree::AttributeKind;
 use serde::Deserialize;
 
-use crate::Pattern;
+use crate::pattern::Pattern;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

@@ -2,7 +2,7 @@
 //! TypeScript reads a script's directive at the top of the file, where it applies.
 
 use rsvelte_kernel::output::emitter::{Atom, Emitter, Mapping};
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+use rsvelte_kernel::source::characters::{is_ecmascript_line_terminator, is_ecmascript_whitespace};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 
@@ -21,7 +21,9 @@ fn leading_line_comments(content: &str) -> &str {
         let Some(body) = comment.strip_prefix("//") else {
             return &content[..end];
         };
-        let line = body.find(is_line_terminator).unwrap_or(body.len());
+        let line = body
+            .find(is_ecmascript_line_terminator)
+            .unwrap_or(body.len());
         let after = body[line..].trim_start_matches(is_ecmascript_whitespace);
         end = content.len() - after.len();
     }
@@ -51,11 +53,6 @@ fn directive(comments: &str) -> Option<&'static str> {
                     .then_some(line)
             })
         })
-}
-
-/// What JavaScript's `.` does not match.
-const fn is_line_terminator(c: char) -> bool {
-    matches!(c, '\n' | '\r' | '\u{2028}' | '\u{2029}')
 }
 
 /// The projection after `line`, its positions moved past it.

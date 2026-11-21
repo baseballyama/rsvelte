@@ -37,7 +37,7 @@ fn fixtures() -> rsvelte_test_harness::Fixtures {
     rsvelte_svelte_check::register(&mut registry, &configuration);
     rsvelte_test_harness::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
         .inputs_from(concat!(env!("CARGO_MANIFEST_DIR"), "/../compile"))
-        .snapshot("svelte.check/default", "findings")
+        .snapshot(rsvelte_svelte_check::TASK, "findings")
 }
 
 fn checker(packages: &NodePackages) -> rsvelte_typescript_check::TypeChecker {

@@ -5,12 +5,12 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
 use oxc_semantic::{ScopeFlags, SymbolFlags};
-use rsvelte_typescript_tree::{document_span, node_span};
+use rsvelte_kernel::diagnostics::Unsupported;
+use rsvelte_typescript_compile::build::Builder;
+use rsvelte_typescript_tree::{ProgramIdentifier, document_span, node_span};
+use rsvelte_vue_semantic::resolve::{BindingType, Resolution, call_name, is_static};
 
-use super::{
-    BindingType, Builder, CompileInput, ProgramIdentifier, R, Resolution, Unsupported, call_name,
-    is_static, out, template,
-};
+use super::{CompileInput, R, out, template};
 
 /// compiler-sfc's macros other than `defineProps` and `defineOptions`, none of which the port
 /// compiles yet.
@@ -36,7 +36,7 @@ pub(super) fn script_setup<'o>(
     b: &Builder<'o>,
     out: &mut Vec<Statement<'o>>,
 ) -> R<()> {
-    let (javascript, source_text) = (input.javascript, input.source_text);
+    let (javascript, source_text) = (&input.component.javascript, input.source_text);
     let statements = &javascript.get_program(program).body;
     let SetupStatements {
         imports,
@@ -58,7 +58,7 @@ pub(super) fn script_setup<'o>(
             document_span(d.call.span),
         ));
     }
-    if input.typescript {
+    if input.component.typescript {
         out.push(define_component_import(b));
     }
     let tpl = template::transform(javascript, compiler_syntax_tree, source_text, res, true)?;
@@ -98,9 +98,9 @@ pub(super) fn script_setup<'o>(
         fields.push(b.property(b.key("props"), runtime.clone_in(b.allocator()), false));
     }
     let setup = b.function_expression(None, b.parameters(["__props"]), setup_body, false);
-    fields.push(out::method(b, "setup", setup));
+    fields.push(b.method("setup", setup));
     let defined = options.map(|o| o.clone_in(b.allocator()));
-    let main = component_object(b, fields, defined, input.typescript);
+    let main = component_object(b, fields, defined, input.component.typescript);
     out.push(b.declare(VariableDeclarationKind::Const, "_sfc_main", Some(main)));
     Ok(())
 }
