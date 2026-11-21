@@ -15,7 +15,7 @@
 use std::borrow::Cow;
 
 use oxc_allocator::Allocator;
-use oxc_formatter::{BracketSameLine, JsFormatOptions, QuoteStyle};
+use oxc_formatter::JsFormatOptions;
 use oxc_formatter_core::{CoreFormatOptions, IndentStyle, LineEnding};
 use rsvelte_document_printer::{Embedding, LayoutInstructionIdentifier, LayoutInstructions};
 use rsvelte_kernel::diagnostics::{Diagnostic, Unsupported};
@@ -200,23 +200,17 @@ fn core_options(options: &Options) -> R<CoreFormatOptions> {
     })
 }
 
-/// Prettier's options for the JavaScript in the component, and oxfmt's own that oxfmt applies to
-/// it; [`unported`] has refused the others.
+/// Prettier's options for the JavaScript in the component, laid out as the component is, and
+/// oxfmt's own that oxfmt applies to it.
 fn javascript_options(options: &Options, core: CoreFormatOptions) -> JsFormatOptions {
     JsFormatOptions {
         indent_style: core.indent_style,
         indent_width: core.indent_width,
         line_width: core.line_width,
         line_ending: core.line_ending,
-        jsx_quote_style: if options.jsx_single_quote {
-            QuoteStyle::Single
-        } else {
-            QuoteStyle::Double
-        },
-        bracket_same_line: BracketSameLine::from(options.bracket_same_line),
         sort_imports: options.sort_imports.clone(),
         jsdoc: options.jsdoc.clone(),
-        ..JsFormatOptions::default()
+        ..options.script().style()
     }
 }
 

@@ -123,6 +123,35 @@ impl Default for Options {
     }
 }
 
+impl Options {
+    /// The options Prettier hands the JavaScript and TypeScript parts, which the plugin passes on
+    /// whole. The widths stay the defaults: the component's own come from its core options.
+    #[must_use]
+    pub fn script(&self) -> rsvelte_typescript_format::options::Options {
+        rsvelte_typescript_format::options::Options {
+            use_tabs: self.use_tabs,
+            semi: self.semi,
+            single_quote: self.single_quote,
+            jsx_single_quote: self.jsx_single_quote,
+            quote_props: self.quote_props,
+            trailing_comma: self.trailing_comma,
+            bracket_spacing: self.bracket_spacing,
+            bracket_same_line: self.bracket_same_line,
+            arrow_parens: self.arrow_parens,
+            end_of_line: self.end_of_line,
+            object_wrap: self.object_wrap,
+            single_attribute_per_line: self.single_attribute_per_line,
+            embedded_language_formatting: self.embedded_language_formatting,
+            experimental_ternaries: self.experimental_ternaries,
+            experimental_operator_position: self.experimental_operator_position,
+            require_pragma: self.require_pragma,
+            insert_pragma: self.insert_pragma,
+            check_ignore_pragma: self.check_ignore_pragma,
+            ..rsvelte_typescript_format::options::Options::default()
+        }
+    }
+}
+
 /// A JSON number that is a whole, non-negative value: to Prettier `80.0` is `80`.
 fn whole<'de, D: Deserializer<'de>>(deserializer: D) -> Result<usize, D::Error> {
     let value = f64::deserialize(deserializer)?;
@@ -224,8 +253,8 @@ pub fn unported(o: &Options) -> Option<&'static str> {
         print_width,
         tab_width,
         use_tabs: _,
-        semi,
-        single_quote,
+        semi: _,
+        single_quote: _,
         jsx_single_quote: _,
         quote_props,
         trailing_comma,
@@ -253,8 +282,6 @@ pub fn unported(o: &Options) -> Option<&'static str> {
     [
         ("printWidth", line_width(*print_width).is_none()),
         ("tabWidth", indent_width(*tab_width).is_none()),
-        ("semi", *semi != d.semi),
-        ("singleQuote", *single_quote != d.single_quote),
         ("quoteProps", *quote_props != d.quote_props),
         ("trailingComma", *trailing_comma != d.trailing_comma),
         ("bracketSpacing", *bracket_spacing != d.bracket_spacing),

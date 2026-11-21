@@ -93,8 +93,6 @@ fn names_lists_every_option() {
 #[test]
 fn every_option_value_not_printed_yet_is_refused() {
     let cases = [
-        (r#"{"semi": false}"#, "semi"),
-        (r#"{"singleQuote": true}"#, "singleQuote"),
         (r#"{"quoteProps": "consistent"}"#, "quoteProps"),
         (r#"{"trailingComma": "es5"}"#, "trailingComma"),
         (r#"{"bracketSpacing": false}"#, "bracketSpacing"),

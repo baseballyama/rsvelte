@@ -54,9 +54,8 @@ configure `format`.
 
 The Svelte formatter prints only the default value of these options:
 
-- `semi`, `singleQuote` and `trailingComma`
-- `arrowParens`, `bracketSpacing` and `quoteProps`
-- `objectWrap`
+- `trailingComma`, `arrowParens` and `bracketSpacing`
+- `quoteProps` and `objectWrap`
 
 It does not sort Tailwind CSS classes (`sortTailwindcss`) yet. With another value of these
 options, or with `sortTailwindcss`, `format` reports an error for each Svelte file and formats
