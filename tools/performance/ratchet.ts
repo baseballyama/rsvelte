@@ -1,11 +1,12 @@
 // The performance ratchet. Wall time moves with the machine, so what this gates is what does not:
 //
-// - allocations: `rsvelte-dev performance` (built with `metrics`) runs every document task over the committed
-//   corpus serially and counts the last, warm round's allocations and bytes, in total and per
-//   phase (every artifact and task), plus the peak live-heap growth. On one thread these are a
-//   function of the input and the binary, so they are compared exactly.
+// - allocations: `rsvelte-dev performance` (built with `metrics`, in the `metrics` profile) runs
+//   every document task over the committed corpus serially and counts the last, warm round's
+//   allocations and bytes, in total and per phase (every artifact and task), plus the peak
+//   live-heap growth. On one thread these are a function of the input and the binary, so they are
+//   compared exactly.
 // - instructions (`--instructions`, Linux with valgrind): cachegrind's instruction counts of the
-//   shipped build (no `metrics`), recorded per `<arch>-<os>` and compared within
+//   shipped build (the `dist` profile, no `metrics`), recorded per `<arch>-<os>` and compared within
 //   INSTRUCTION_TOLERANCE: one warm round, taken as the difference between `rounds=2` and
 //   `rounds=1`, and loading (`rounds=0`: start-up, reading the files and constructing the
 //   documents), which every invocation pays. cachegrind runs some fifty times slower than the
@@ -126,12 +127,14 @@ export async function main(args: string[]): Promise<void> {
 	async function build(flavour: 'metrics' | 'plain', directory: string): Promise<string> {
 		const dir = path.join(ROOT, 'target', `performance-${flavour}`);
 		const features = flavour === 'metrics' ? ['--features', 'metrics'] : [];
+		const profile = flavour === 'metrics' ? 'metrics' : 'dist';
 		// Each binary of the package has its own LTO link, and only rsvelte-dev is measured.
 		const stderr = await start(
 			'cargo',
 			[
 				'build',
-				'--release',
+				'--profile',
+				profile,
 				'--offline',
 				'-p',
 				'rsvelte_command_line',
@@ -150,7 +153,7 @@ export async function main(args: string[]): Promise<void> {
 		console.error(`  ${flavour}: ${compiled} crates compiled`);
 		fs.mkdirSync(path.join(directory, flavour));
 		const copy = path.join(directory, flavour, 'rsvelte-dev');
-		fs.copyFileSync(path.join(dir, 'release', 'rsvelte-dev'), copy);
+		fs.copyFileSync(path.join(dir, profile, 'rsvelte-dev'), copy);
 		return copy;
 	}
 

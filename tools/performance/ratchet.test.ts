@@ -12,8 +12,11 @@ const WAIT_MS = 20_000;
 const CARGO = `#!/bin/sh
 if [ "$1" = --version ]; then echo 'cargo 0.0.0 (fake)'; exit 0; fi
 printf '%s' "$CARGO_BUILD_JOBS" > "$FAKE_DIR/jobs-$FAKE_ROLE"
-mkdir -p "$CARGO_TARGET_DIR/release"
-cat > "$CARGO_TARGET_DIR/release/rsvelte-dev.$$" <<'RSVELTE'
+previous=''
+for argument in "$@"; do [ "$previous" = --profile ] && profile="$argument"; previous="$argument"; done
+out="$CARGO_TARGET_DIR/$profile"
+mkdir -p "$out"
+cat > "$out/rsvelte-dev.$$" <<'RSVELTE'
 #!/bin/sh
 for argument in "$@"; do case "$argument" in json=*) out="\${argument#json=}";; esac; done
 printf '{"rev":"%s","metrics":true,"documents":%s,"source_bytes":1,"output_bytes":1,"tasks":[],"allocs":1,"alloc_bytes":1,"peak_live_growth_bytes":1,"phases":{}}' "$0" "$FAKE_DOCUMENTS" > "$out"
@@ -23,9 +26,9 @@ if [ "$FAKE_ROLE" = first ]; then
   while [ ! -e "$FAKE_DIR/wrote-second" ] && [ $tries -lt 400 ]; do sleep 0.05; tries=$((tries + 1)); done
 fi
 RSVELTE
-chmod +x "$CARGO_TARGET_DIR/release/rsvelte-dev.$$"
+chmod +x "$out/rsvelte-dev.$$"
 # A rename keeps the running script of the other run intact.
-mv "$CARGO_TARGET_DIR/release/rsvelte-dev.$$" "$CARGO_TARGET_DIR/release/rsvelte-dev"
+mv "$out/rsvelte-dev.$$" "$out/rsvelte-dev"
 `;
 
 /** Resolves when `file` exists; fails when `exit` settles first or after WAIT_MS. */

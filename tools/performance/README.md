@@ -24,6 +24,9 @@ directory, so a later build or run in the same tree cannot change what it measur
 finishes between another run's build and its copy can still get copied, so run one ratchet per
 tree. Cargo reads `CARGO_BUILD_JOBS` from the environment.
 
+The allocation build uses the `metrics` profile, a release build without link-time optimization,
+and the instruction build uses `dist`, the profile npm ships.
+
 ## Cache profiles
 
 Run in Linux with `valgrind`, `cg_annotate`, Node and a release binary with debug line tables;

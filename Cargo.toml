@@ -216,3 +216,11 @@ codegen-units = 1
 inherits = "release"
 debug = false
 strip = true
+
+# The allocation ratchet's build. Allocation counts do not depend on how the program is linked, so
+# it skips the link-time optimization and the single codegen unit that make a release build slow.
+[profile.metrics]
+inherits = "release"
+lto = false
+codegen-units = 16
+debug = false
