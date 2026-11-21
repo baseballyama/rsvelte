@@ -104,6 +104,18 @@ impl Svelte {
 }
 
 impl HostLinter for Svelte {
+    fn globals(&self, path: &Path) -> &[&str] {
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default();
+        if name.ends_with(".svelte.js") || name.ends_with(".svelte.ts") {
+            &rsvelte_svelte_lint::RUNE_GLOBALS
+        } else {
+            &[]
+        }
+    }
+
     fn lint(&self, file: &HostFile<'_>) -> Vec<Message> {
         if file.rules.is_empty() {
             return Vec::new();
