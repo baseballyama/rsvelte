@@ -8,7 +8,7 @@ pub(crate) mod lint;
 pub(crate) mod performance;
 pub(crate) mod run;
 pub(crate) mod typecheck;
-pub(crate) mod units;
+mod units;
 
 use std::io::Write as _;
 use std::path::Path;

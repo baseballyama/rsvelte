@@ -1,8 +1,8 @@
 # The corpus comparison
 
 This crate compares rsvelte with the official tools over [the corpus](../../../corpus/README.md).
-The corpus test (`crates/hosts/command_line/tests/corpus.rs`) uses it, and so do `rsvelte-dev
-corpus` and `rsvelte-dev run`. The test reads and parses each unit once and runs every task on
+The corpus test (`crates/hosts/command_line/tests/corpus.rs`) uses it, and so does the
+command-line host wherever it loads corpus units or writes task files. The test reads and parses each unit once and runs every task on
 it. It compares each output as soon as the output is final.
 
 ```sh

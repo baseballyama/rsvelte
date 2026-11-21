@@ -125,14 +125,14 @@ pub fn development() -> ExitCode {
     if check && positional.first() != Some(&"format") {
         return usage("--check applies to `format` only");
     }
-    let selection = match (tasks.is_empty(), Defaults::of(positional.first().copied())) {
-        (true, Defaults::Named(named)) => {
-            tasks.extend_from_slice(named);
-            Selection::Named(named.iter().map(|&t| t.to_owned()).collect())
-        }
-        (true, Defaults::Every) => Selection::Every,
-        (true, Defaults::DocumentTasks) => Selection::DocumentTasks,
-        (false, _) => Selection::Named(tasks.iter().map(|&t| t.to_owned()).collect()),
+    let command = positional.first().copied();
+    if tasks.is_empty() {
+        tasks.extend_from_slice(default_tasks(command));
+    }
+    let selection = match command {
+        _ if !tasks.is_empty() => Selection::Named(tasks.iter().map(|&t| t.to_owned()).collect()),
+        Some("corpus" | "run") => Selection::Every,
+        _ => Selection::DocumentTasks,
     };
     let installation = Installation {
         extensions: EXTENSIONS,
@@ -149,22 +149,13 @@ pub fn development() -> ExitCode {
     dispatch(&reg, &positional, &tasks, tools, (fix, check))
 }
 
-/// The tasks a subcommand runs without `--task`.
-enum Defaults {
-    Named(&'static [&'static str]),
-    Every,
-    DocumentTasks,
-}
-
-impl Defaults {
-    fn of(command: Option<&str>) -> Self {
-        match command {
-            Some("lint") => Self::Named(lint::TASKS),
-            Some("format") => Self::Named(format::TASKS),
-            Some("check") => Self::Named(&[PROJECT_CHECK]),
-            Some("corpus" | "run") => Self::Every,
-            _ => Self::DocumentTasks,
-        }
+/// The tasks a subcommand runs without `--task`; none for one that runs every task it can.
+fn default_tasks(command: Option<&str>) -> &'static [&'static str] {
+    match command {
+        Some("lint") => lint::TASKS,
+        Some("format") => format::TASKS,
+        Some("check") => &[PROJECT_CHECK],
+        _ => &[],
     }
 }
 

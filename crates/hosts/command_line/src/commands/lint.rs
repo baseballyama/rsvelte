@@ -5,7 +5,7 @@ use std::io::IsTerminal;
 use std::process::ExitCode;
 
 use rsvelte_kernel::computation::registry::Registry;
-use rsvelte_lint_runner::output::stylish::stylish;
+use rsvelte_lint_runner::output::render_stylish;
 
 use super::{files, print_report};
 use crate::usage;
@@ -23,7 +23,7 @@ pub(crate) fn lint(reg: &Registry, paths: &[&str], tasks: &[&str]) -> ExitCode {
         Ok(results) => results,
         Err(code) => return code,
     };
-    print_report(stylish(
+    print_report(render_stylish(
         &documents,
         &results,
         std::io::stdout().is_terminal(),
