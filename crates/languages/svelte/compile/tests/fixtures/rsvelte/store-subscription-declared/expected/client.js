@@ -5,7 +5,7 @@ export default function Store_subscription_declared($$anchor, $$props) {
 	$.push($$props, true);
 	const $a = () => $.store_get(a, "$a", $$stores);
 	const [$$stores, $$cleanup] = $.setup_stores();
-	const a = writable(0);
+	const a = writable(0); // $a
 	$.next();
 	var text = $.text();
 	$.template_effect(() => $.set_text(text, $a()));

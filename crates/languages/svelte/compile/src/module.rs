@@ -97,7 +97,7 @@ pub(crate) fn compiled(
             lower::lower_module(&input, &res, target, allocator)?
         };
         let _p = measurement::phase("js.print");
-        Ok::<_, Diagnostic>(print::emit(&module, lines))
+        Ok::<_, Diagnostic>(print::emit_with(&module, lines, print::Comments::Placed))
     })?;
     let warnings = {
         let _p = measurement::phase("svelte.analyze");

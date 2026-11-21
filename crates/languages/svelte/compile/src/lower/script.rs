@@ -531,6 +531,15 @@ pub(super) fn with_prologue<'o>(b: &Builder<'o>, mut function: Statement<'o>) ->
     function
 }
 
+/// Where the instance script stands in the source, or [`SPAN`](oxc_span::SPAN) without one.
+/// Upstream gives the block that holds the script's statements this position, so that its printer
+/// writes the script's comments there.
+pub(super) fn instance_span(component: rsvelte_svelte_semantic::input::ComponentInput<'_>) -> Span {
+    component.instance.map_or(oxc_span::SPAN, |instance| {
+        component.javascript.get_program(instance).span
+    })
+}
+
 fn hoist_body<'o>(b: &Builder<'o>, body: &mut oxc_ast::ast::FunctionBody<'o>) {
     hoist_into(b, body);
     if let [Statement::ExpressionStatement(statement)] = body.statements.as_mut_slice()
