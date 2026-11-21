@@ -24,7 +24,7 @@ impl Artifact for Resolved {
     }
 }
 
-pub static PLUGIN: Plugin = Plugin {
+pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "typescript.semantic",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
