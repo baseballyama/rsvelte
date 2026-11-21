@@ -24,7 +24,7 @@ use std::borrow::Cow;
 
 use oxc_ast::ast::{Statement, UnaryOperator, VariableDeclarationKind};
 use oxc_semantic::SymbolId;
-use oxc_span::SPAN;
+use oxc_span::{SPAN, Span};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
@@ -81,27 +81,32 @@ struct ServerCompilationContext<'c, 'o> {
 }
 
 /// The statements upstream puts around the component's body: `$.props_id` first, the
-/// `$$renderer.component` callback that gives it a context, and `$$slots` outside it.
+/// `$$renderer.component` callback that gives it a context, and `$$slots` outside it. The block
+/// that holds the instance script's statements stands at `instance`: the callback's body, or else
+/// the function's, whose position comes back with the statements.
 fn wrap_body<'o>(
     b: &Builder<'o>,
     an: &Analysis,
     res: &Resolution,
     props_id: Option<&str>,
     mut body: Vec<Statement<'o>>,
-) -> Vec<Statement<'o>> {
+    instance: Span,
+) -> (Vec<Statement<'o>>, Span) {
+    let mut function_body = instance;
     if let Some(id) = props_id {
         body.insert(0, b.const_(id, b.runtime("props_id", [b.id("$$renderer")])));
     }
     if an.needs_context {
-        let callback = b.arrow_block(b.parameters(["$$renderer"]), body, false);
+        let callback = b.arrow_block_at(instance, b.parameters(["$$renderer"]), body, false);
         let call = b.call(b.member(b.id("$$renderer"), "component"), [callback]);
         body = vec![b.statement(call)];
+        function_body = SPAN;
     }
     if uses_slots(res) {
         let slots = b.runtime("sanitize_slots", [b.id("$$props")]);
         body.insert(0, b.const_("$$slots", slots));
     }
-    body
+    (body, function_body)
 }
 
 pub(super) fn lower_prepared<'c, 'o>(
@@ -169,7 +174,8 @@ pub(super) fn lower_prepared<'c, 'o>(
     body.extend(template);
     body.extend(bind_props(b, res, &exports));
     let stylesheet = super::embedded_stylesheet(b, &facts, Target::Server);
-    let mut body = wrap_body(b, an, res, props_id.as_deref(), body);
+    let instance = super::script::instance_span(input.component);
+    let (mut body, body_span) = wrap_body(b, an, res, props_id.as_deref(), body, instance);
     if stylesheet.is_some() {
         let add = b.member(
             b.member(b.member(b.id("$$renderer"), "global"), "css"),
@@ -186,7 +192,8 @@ pub(super) fn lower_prepared<'c, 'o>(
     ) {
         parameters.push("$$props");
     }
-    let function = b.function_declaration(&component_name, b.parameters(parameters), body, false);
+    let parameters = b.parameters(parameters);
+    let function = b.function_declaration_at(body_span, &component_name, parameters, body, false);
     let function = super::script::with_prologue(b, function);
     let mut program = vec![import(b, Some("$"), Target::Server.runtime())];
     program.extend(hoisted);
