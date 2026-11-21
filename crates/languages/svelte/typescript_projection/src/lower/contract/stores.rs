@@ -22,14 +22,11 @@ enum StoreAt {
 
 /// Each store subscription `$x` whose store `x` a variable or an import of the instance binds, for
 /// which svelte2tsx declares `$x`: the name, the store's symbol, and whether an import binds it.
-fn subscribed_stores<'a>(
-    resolution: &'a Resolution,
-    declared: &'a [SymbolId],
-) -> impl Iterator<Item = (&'a str, SymbolId, bool)> {
+fn subscribed_stores(resolution: &Resolution) -> impl Iterator<Item = (&str, SymbolId, bool)> {
     let scoping = resolution.scoping();
     resolution
         .unresolved_names()
-        .chain(declared.iter().map(|&symbol| scoping.symbol_name(symbol)))
+        .chain(declared_subscriptions(resolution).map(|symbol| scoping.symbol_name(symbol)))
         .filter(|name| resolution.is_store_subscription(name))
         .filter_map(move |name| {
             let symbol = scoping.find_binding(resolution.instance_scope(), name[1..].into())?;
@@ -45,17 +42,14 @@ fn subscribed_stores<'a>(
 
 /// Each `$x` the component declares itself at the top of a script and reads: svelte2tsx still
 /// declares a subscription for it, which TypeScript reports as declared twice.
-fn declared_subscriptions(resolution: &Resolution) -> Vec<SymbolId> {
+fn declared_subscriptions(resolution: &Resolution) -> impl Iterator<Item = SymbolId> {
     let scoping = resolution.scoping();
     let top = [resolution.instance_scope(), scoping.root_scope_id()];
-    scoping
-        .symbol_ids()
-        .filter(|&symbol| {
-            scoping.symbol_name(symbol).starts_with('$')
-                && top.contains(&scoping.symbol_scope_id(symbol))
-                && !scoping.get_resolved_reference_ids(symbol).is_empty()
-        })
-        .collect()
+    scoping.symbol_ids().filter(move |&symbol| {
+        scoping.symbol_name(symbol).starts_with('$')
+            && top.contains(&scoping.symbol_scope_id(symbol))
+            && !scoping.get_resolved_reference_ids(symbol).is_empty()
+    })
 }
 
 /// Each store `x` that the projection reads as `$x`, by its name's range, with where the
@@ -63,13 +57,15 @@ fn declared_subscriptions(resolution: &Resolution) -> Vec<SymbolId> {
 #[must_use]
 pub fn store_reads(resolution: &Resolution) -> Vec<(Span, Vec<Span>)> {
     let scoping = resolution.scoping();
-    let declared_all = declared_subscriptions(resolution);
-    subscribed_stores(resolution, &declared_all)
+    let instance = resolution.instance_scope();
+    let root = scoping.root_scope_id();
+    let top = std::iter::once(instance).chain((root != instance).then_some(root));
+    subscribed_stores(resolution)
         .map(|(name, symbol, _)| {
-            let declared = declared_all
-                .iter()
-                .filter(|&&own| scoping.symbol_name(own) == name)
-                .flat_map(|&own| scoping.get_resolved_reference_ids(own));
+            let declared = top
+                .clone()
+                .filter_map(|scope| scoping.get_binding(scope, name.into()))
+                .flat_map(|own| scoping.get_resolved_reference_ids(own));
             let reads = (scoping.root_unresolved_references().get(name).into_iter())
                 .flatten()
                 .chain(declared)
@@ -156,8 +152,7 @@ impl Builder<'_> {
                 })
                 .map(|statement| statement.span().end)
         };
-        let declared = declared_subscriptions(resolution);
-        let mut out: Vec<_> = subscribed_stores(resolution, &declared)
+        let mut out: Vec<_> = subscribed_stores(resolution)
             .filter_map(|(_, symbol, import)| {
                 let store = scoping.symbol_span(symbol);
                 let at = if import {
