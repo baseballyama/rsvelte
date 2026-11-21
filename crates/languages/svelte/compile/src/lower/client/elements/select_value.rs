@@ -6,7 +6,7 @@ use rsvelte_svelte_semantic::evaluate::Evaluator;
 use crate::lower::attributes::{is_directive, synthetic_value};
 use crate::lower::bindings::needs_special_value;
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Frag, Lists, normalize_attribute};
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, NodeVar, normalize_attribute};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// The tail of upstream `RegularElement` for `<option>`, `<select>` and a bound checkbox or
@@ -17,7 +17,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         el: &Element,
         tag: &str,
         attributes: &[Attribute],
-        node: &str,
+        node: &NodeVar,
         frag: &mut Frag<'o>,
         l: &mut Lists<'o>,
     ) {
@@ -48,7 +48,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         });
         if let Some(a) = default_value {
             let (value, has_state) = self.attribute_value(a, &mut frag.memo, false);
-            let s = b.statement(b.runtime("set_default_select_value", [b.id(node), value]));
+            let s = b.statement(b.runtime("set_default_select_value", [node.id(b), value]));
             if has_state {
                 l.update.push(s);
             } else {
@@ -63,7 +63,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         });
         if default_value.is_some() || dynamic_value || bound {
             l.initializer
-                .push(b.statement(b.runtime("init_select", [b.id(node)])));
+                .push(b.statement(b.runtime("init_select", [node.id(b)])));
         }
     }
 
@@ -71,7 +71,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     fn special_value(
         &self,
         tag: &str,
-        node: &str,
+        node: &NodeVar,
         (value, has_state): (Expression<'o>, bool),
         select_with_value: bool,
         synthetic: bool,
@@ -82,7 +82,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .evaluate(&value)
             .is_defined;
         let build_update = |v: Expression<'o>| {
-            let hidden = b.member(b.id(node), "__value");
+            let hidden = b.member(node.id(b), "__value");
             let second = select_with_value.then(|| v.clone_in(b.allocator()));
             let assignment = b.assign_member(hidden, v);
             let set_value = |assignment: Expression<'o>| {
@@ -91,10 +91,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 } else {
                     b.logical(assignment, LogicalOperator::Coalesce, b.string(""))
                 };
-                b.assign_member(b.member(b.id(node), "value"), rhs)
+                b.assign_member(b.member(node.id(b), "value"), rhs)
             };
             let e = if let Some(v) = second {
-                let select = b.runtime("select_option", [b.id(node), v]);
+                let select = b.runtime("select_option", [node.id(b), v]);
                 b.sequence([set_value(assignment), select])
             } else if synthetic {
                 assignment
@@ -104,7 +104,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             b.statement(e)
         };
         if has_state {
-            let identifier = self.names.generate(&format!("{node}_value"));
+            let identifier = self.names.generate(&format!("{}_value", node.name()));
             let initializer = (tag == "option").then(|| b.object([]));
             l.initializer
                 .push(b.declare(VariableDeclarationKind::Var, &identifier, initializer));

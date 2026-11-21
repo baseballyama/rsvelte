@@ -313,8 +313,14 @@ impl<'o> Builder<'o> {
     /// `name = value`.
     #[must_use]
     pub fn assign_name(&self, name: &str, value: Expression<'o>) -> Expression<'o> {
+        self.assign_name_at(name, SPAN, value)
+    }
+
+    /// `name = value`, with `name` read at `span` as [`Self::id_at`] reads it.
+    #[must_use]
+    pub fn assign_name_at(&self, name: &str, span: Span, value: Expression<'o>) -> Expression<'o> {
         let target =
-            SimpleAssignmentTarget::new_assignment_target_identifier(SPAN, self.str(name), self);
+            SimpleAssignmentTarget::new_assignment_target_identifier(span, self.str(name), self);
         self.assign(AssignmentOperator::Assign, target.into(), value)
     }
 

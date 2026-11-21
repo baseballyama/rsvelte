@@ -13,7 +13,7 @@ use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use crate::lower::attributes::has_dependency;
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Frag, Lists, R};
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, NodeVar, R};
 use crate::lower::script::Read;
 
 const EACH_ITEM_REACTIVE: u32 = 1;
@@ -50,7 +50,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(in crate::lower::client) fn each_block(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         controlled: bool,
         frag: &mut Frag<'o>,
         l: &mut Lists<'o>,
@@ -128,7 +128,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         let render = b.arrow_block(b.formal_parameters(render_args), body, false);
         let mut arguments = vec![
-            Some(b.id(node)),
+            Some(node.id(b)),
             Some(b.number(f64::from(flags))),
             Some(thunk),
             Some(key_function),

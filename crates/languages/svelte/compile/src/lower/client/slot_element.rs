@@ -1,6 +1,6 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 
-use super::{ClientCompilationContext, Frag, Lists, Memo};
+use super::{ClientCompilationContext, Frag, Lists, Memo, NodeVar};
 use crate::input::Target;
 use crate::lower::builder::Runtime;
 use crate::lower::slot_element::{SlotAttribute, slot_attributes, slot_call};
@@ -11,7 +11,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn slot_element(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         frag: &mut Frag<'o>,
         l: &mut Lists<'o>,
     ) -> super::R<()> {
@@ -50,7 +50,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let mut statements: Vec<_> = self.memo_deriveds(memo).collect();
         let call = slot_call(
             b,
-            b.id(node),
+            node.id(b),
             name,
             properties,
             spreads,

@@ -141,3 +141,27 @@ fn a_module_script_and_a_module_keep_their_comments() {
         );
     }
 }
+
+#[test]
+fn an_element_variable_is_read_at_its_tag_name() {
+    // The lines of svelte 5.57.3's output: every read of an element's variable carries the tag
+    // name's position, so a comment in the template lands on the variable as upstream's does.
+    assert_lines(
+        "<script>let a = 1;</script>\n<button on:click={// why\na}>c</button>\n",
+        Target::Client,
+        "\t\tbutton, // why\n",
+    );
+    assert_lines(
+        "<script>\n\tconst id = /*c*/ $props.id();\n</script>\n<p>{id}</p>\n",
+        Target::Client,
+        "\tvar /*c*/\n\tp = root();\n",
+    );
+    assert_lines(
+        concat!(
+            "<script>let a = $state(1);</script>\n",
+            "<div><p>t</p>{#each [1] as x}<i onclick={// why\n() => a++}>{x}</i>{/each}</div>\n",
+        ),
+        Target::Client,
+        "\tvar node = $.sibling($.child(div // why\n\t));\n",
+    );
+}
