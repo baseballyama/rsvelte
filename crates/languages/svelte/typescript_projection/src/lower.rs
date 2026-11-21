@@ -1,4 +1,3 @@
-mod attribute;
 mod attributes;
 mod awaits;
 mod binding;

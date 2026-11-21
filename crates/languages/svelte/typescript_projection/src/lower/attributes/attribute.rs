@@ -5,7 +5,7 @@ use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part};
 
-use super::{Builder, Node, NodeIdentifier, SourceExpression};
+use super::super::{Builder, Node, NodeIdentifier, SourceExpression};
 use crate::syntax_tree::Spelling;
 
 /// svelte2tsx's `numberOnlyAttributes`: an element's static value for one of these is a number.
