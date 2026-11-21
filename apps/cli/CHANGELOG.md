@@ -1,5 +1,21 @@
 # @rsvelte/cli
 
+## 0.2.5
+
+### Patch Changes
+
+- 6fb6b25: `rsvelte typecheck` now checks a component whose script only TypeScript reads, such as a plain `<script>` declaring `let { n }: { n: number } = $props()`, with its props and default export, as svelte-check does.
+- b468347: `compile` and `svelte/valid-compile` raise `props_illegal_name` for a `$$` key of `$props()` and a `$$` member of a rest prop, such as `rest.$$slots`, as Svelte does.
+- 8410329: A content binding such as `bind:innerHTML` without a static `contenteditable` now raises `attribute_contenteditable_missing` or `attribute_contenteditable_dynamic` as Svelte does. The compiler used to refuse it as unsupported.
+- 52a741c: `rsvelte format` names the `.editorconfig` property it refuses, such as `indent_size` or `max_line_length`, instead of the formatter option it maps to.
+- 9150665: The suggestion of `svelte/no-add-event-listener` now finds the arguments after a `//` comment that a carriage return or a line separator ends, and after a byte order mark, as ESLint does.
+- accd4b0: `svelte/no-useless-mustaches` now fixes a string literal that starts or ends with U+0085, as ESLint does.
+  Numeric `svelte.config.js` keys such as `1e21` or `1e-7` now get the names JavaScript gives them.
+- 9150665: `svelte/infinite-reactive-loop` and `svelte/no-immutable-reactive-statements` now read the `$:` statements of a component in source order, as ESLint does. When a `<script module>` with a `$:` statement came after the instance `<script>`, the first rule missed reports and the second reported statements that are reactive.
+- 8b23a89: A number key in a `$props()` pattern with a rest element is now excluded from the rest as a number, as Svelte does, so the rest keeps that prop.
+- 0eb266c: Name a reserved word written with escapes by its value, `The keyword 'let' is reserved`, as Svelte does.
+- 017107d: Reject a `$` or `$`-prefixed name that a declaration tag or a declaration inside a template expression declares in runes mode, as Svelte does.
+
 ## 0.2.4
 
 ### Patch Changes
