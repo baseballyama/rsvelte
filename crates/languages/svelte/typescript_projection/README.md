@@ -99,8 +99,8 @@ nor typed lint uses it yet.
 ```sh
 cargo test -p rsvelte_svelte_typescript_projection
 cargo test -p rsvelte_svelte_typescript_projection --test fixtures
-cargo run --release -p rsvelte_svelte_typescript_projection --example verify -- corpus/svelte
-cargo run --release -p rsvelte_svelte_typescript_projection --example benchmark -- corpus/svelte 20
+cargo run --release -p rsvelte_svelte_typescript_projection --example verify -- crates/languages/svelte/compile/tests/fixtures
+cargo run --release -p rsvelte_svelte_typescript_projection --example benchmark -- crates/languages/svelte/compile/tests/fixtures 20
 ```
 
 The verifier counts all Svelte inputs, parse failures, unsupported projections and invalid
