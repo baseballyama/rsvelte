@@ -347,9 +347,6 @@ fn last_content(ir: &[FormatElement<'_>]) -> Option<usize> {
         .rposition(|e| !matches!(e, FormatElement::Tag(t) if t.is_end()))
 }
 
-#[cfg(test)]
-mod tests;
-
 /// The errors inside a script's `body`: the TypeScript errors oxc reported for the scripts, and the
 /// ones the compiler lets pass.
 pub(super) fn script_errors(c: &Component, body: Span) -> impl Iterator<Item = &SyntaxError> {
@@ -361,3 +358,6 @@ pub(super) fn script_errors(c: &Component, body: Span) -> impl Iterator<Item = &
         .chain(c.javascript.unchecked_errors())
         .filter(inside)
 }
+
+#[cfg(test)]
+mod tests;

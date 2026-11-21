@@ -1,7 +1,7 @@
 use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
-use super::tree::{ends_with_linebreak, is_collapse_ws, only_ws, starts_with_linebreak};
+use super::whitespace::{ends_with_linebreak, is_collapse_ws, only_ws, starts_with_linebreak};
 use super::{
     Cow, LayoutInstructionIdentifier, Printer, R, TemplateNode, TemplateNodeIdentifier, TokenType,
 };

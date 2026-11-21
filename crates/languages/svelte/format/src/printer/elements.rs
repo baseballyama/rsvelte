@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 use super::expressions::Comments;
-use super::tree::is_collapse_ws;
+use super::whitespace::is_collapse_ws;
 use super::{
     Attribute, AttributeKind, AttributeValue, ElementKind, LayoutInstructionIdentifier, Part,
     Printer, R, TemplateNode, TemplateNodeIdentifier, TokenType, Unsupported,

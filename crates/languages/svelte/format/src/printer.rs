@@ -361,6 +361,7 @@ mod line_endings;
 mod patterns;
 mod tree;
 mod unparsed;
+mod whitespace;
 
 #[cfg(test)]
 mod tests;
