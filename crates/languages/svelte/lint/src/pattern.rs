@@ -9,7 +9,7 @@ use rsvelte_kernel::source::characters::is_ecmascript_line_terminator;
 /// A compiled option string: `/^foo/u` is an ECMAScript regular expression, anything else matches
 /// only itself.
 #[derive(Debug)]
-pub enum Pattern {
+pub(crate) enum Pattern {
     Exact(String),
     Regex {
         regex: Regex,
@@ -23,7 +23,7 @@ impl Pattern {
     /// # Errors
     ///
     /// The flags or the pattern are not valid, where `new RegExp` throws.
-    pub fn new(option: &str) -> Result<Self, String> {
+    pub(crate) fn new(option: &str) -> Result<Self, String> {
         let Some((body, flags)) = split(option) else {
             return Ok(Self::Exact(option.to_owned()));
         };
@@ -54,7 +54,7 @@ impl Pattern {
 
     /// `RegExp.prototype.test` on a fresh expression, or string equality.
     #[must_use]
-    pub fn matches(&self, text: &str) -> bool {
+    pub(crate) fn matches(&self, text: &str) -> bool {
         match self {
             Self::Exact(name) => name == text,
             Self::Regex {
