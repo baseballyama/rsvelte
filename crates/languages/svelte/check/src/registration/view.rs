@@ -75,7 +75,8 @@ pub(super) fn typescript_view(
     })))
 }
 
-/// The findings svelte-check's `isNoFalsePositive` hides in `component`.
+/// The findings svelte-check hides in `component`: by `isNoFalsePositive`, and in what svelte2tsx
+/// writes between its ignore comments.
 fn hidden(component: &Component, source_text: &str) -> Vec<Hidden> {
     // A name an element, `<svelte:window>` or `<svelte:body>` gives twice: svelte2tsx writes
     // each of its attributes and event handlers as a property.
@@ -110,6 +111,20 @@ fn hidden(component: &Component, source_text: &str) -> Vec<Hidden> {
             whole: false,
         }));
     }
+    // svelte2tsx writes a JavaScript component's `generics` between its ignore comments, with the
+    // characters around the value as the type parameters' brackets.
+    let generics = (component.instance.as_ref())
+        .filter(|_| !component.checked_as_typescript(source_text))
+        .and_then(|script| {
+            (script.attributes.iter())
+                .find(|(name, _)| name.text(source_text) == "generics")
+                .and_then(|&(_, value)| value)
+        });
+    hidden.extend(generics.map(|value| Hidden {
+        codes: &[],
+        at: Span::new(value.start_offset - 1, value.end_offset + 1),
+        whole: true,
+    }));
     if let Some(template) = pug_template(component, source_text) {
         hidden.push(Hidden {
             codes: &[],
