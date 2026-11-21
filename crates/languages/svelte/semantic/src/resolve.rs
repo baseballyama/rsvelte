@@ -27,7 +27,7 @@ mod runes;
 mod walk;
 
 pub use counts::Counts;
-pub use runes::{RUNE_ROOTS, RUNES, is_rune, lowers, rune_call};
+pub use runes::{RUNE_ROOTS, RUNES, is_rune, rune_call};
 pub use walk::{Roots, TemplateName, TemplateScope, walk};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
