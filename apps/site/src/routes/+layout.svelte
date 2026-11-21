@@ -7,10 +7,10 @@
 	let { children } = $props();
 
 	const links = [
-		{ route: '/guide', href: resolve('/guide'), label: '使い方' },
-		{ route: '/rules', href: resolve('/rules'), label: 'ルール' },
-		{ route: '/playground', href: resolve('/playground'), label: 'プレイグラウンド' },
-		{ route: '/architecture', href: resolve('/architecture'), label: '仕組み' },
+		{ route: '/guide', href: resolve('/guide'), label: 'Guide' },
+		{ route: '/rules', href: resolve('/rules'), label: 'Rules' },
+		{ route: '/playground', href: resolve('/playground'), label: 'Playground' },
+		{ route: '/architecture', href: resolve('/architecture'), label: 'Architecture' },
 	];
 </script>
 
@@ -31,9 +31,7 @@
 </main>
 
 <footer class="muted">
-	MIT License ・ <a href="https://github.com/baseballyama/rsvelte"
-		>github.com/baseballyama/rsvelte</a
-	>
+	MIT License · <a href="https://github.com/baseballyama/rsvelte">Source on GitHub</a>
 </footer>
 
 <style>

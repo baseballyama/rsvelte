@@ -15,10 +15,10 @@ export type Step = {
 export type Result = { ok: true; steps: Step[] } | { ok: false; message: string };
 
 export const operations = [
-	{ id: 'lint', label: 'コード検査' },
-	{ id: 'format', label: '整形' },
-	{ id: 'compile-client', label: 'クライアント向けコンパイル' },
-	{ id: 'compile-server', label: 'サーバー向けコンパイル' },
+	{ id: 'lint', label: 'Lint' },
+	{ id: 'format', label: 'Format' },
+	{ id: 'compile-client', label: 'Compile for the client' },
+	{ id: 'compile-server', label: 'Compile for the server' },
 ] as const;
 export type Operation = (typeof operations)[number]['id'];
 
@@ -71,7 +71,7 @@ export async function load(): Promise<(source: string, operation: Operation) => 
 			return JSON.parse(wasm.runPipeline(source, 'App.svelte', 'svelte', operation, true));
 		} catch (error) {
 			// A panic traps the WebAssembly instance, which may not run correctly again.
-			return { ok: false, message: `${String(error)}（ページを再読み込みしてください）` };
+			return { ok: false, message: `${String(error)} (reload the page)` };
 		}
 	};
 }

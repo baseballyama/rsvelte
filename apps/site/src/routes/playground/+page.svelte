@@ -26,18 +26,18 @@
 </script>
 
 <svelte:head>
-	<title>プレイグラウンド ・ rsvelte</title>
+	<title>Playground · rsvelte</title>
 </svelte:head>
 
-<h1>プレイグラウンド</h1>
+<h1>Playground</h1>
 
 <p>
-	Svelte
-	コンポーネントを書くと、コード検査、整形、コンパイルの結果がすぐに表示されます。コンパイルは、まだ
-	<code>rsvelte</code> コマンドにはありません。型検査はブラウザでは動きません。
+	Write a Svelte component to see rsvelte lint, format and compile it. rsvelte also has a Svelte
+	compiler, which the <code>rsvelte</code> command does not include yet. Type checking does not run in
+	a browser.
 </p>
 
-<div class="operations" role="radiogroup" aria-label="処理">
+<div class="operations" role="radiogroup" aria-label="Operation">
 	{#each operations as option (option.id)}
 		<label>
 			<input type="radio" name="operation" value={option.id} bind:group={operation} />
@@ -47,14 +47,14 @@
 </div>
 
 <div class="panes">
-	<textarea bind:value={source} spellcheck="false" aria-label="App.svelte の内容"></textarea>
+	<textarea bind:value={source} spellcheck="false" aria-label="Source of App.svelte"></textarea>
 	<div class="output" aria-live="polite">
 		{#if failure}
-			<p>読み込みに失敗しました：{failure}</p>
+			<p>rsvelte did not load: {failure}</p>
 		{:else if !result}
-			<p class="muted">読み込み中です。</p>
+			<p class="muted">Loading…</p>
 		{:else if !result.ok}
-			<p>エラー：{result.message}</p>
+			<p>Error: {result.message}</p>
 		{:else}
 			{#each result.steps.map(view) as shown, i (i)}
 				{#each shown.problems as problem, j (j)}
@@ -69,7 +69,7 @@
 					<pre>{file.text}</pre>
 				{/each}
 				{#if operation === 'lint' && shown.problems.length === 0}
-					<p class="muted">問題は見つかりませんでした。</p>
+					<p class="muted">No problems found.</p>
 				{/if}
 			{/each}
 		{/if}
