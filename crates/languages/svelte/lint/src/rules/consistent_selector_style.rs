@@ -1,3 +1,4 @@
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_stylesheet_syntax::nth_of_selectors;
 use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
@@ -13,6 +14,7 @@ use template::{Occurrences, Selections, Template};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/consistent-selector-style",
     files: Files::Components,
+    category: Category::Style,
     configure,
 };
 

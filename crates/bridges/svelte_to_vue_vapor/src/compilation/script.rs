@@ -24,29 +24,37 @@ use crate::compilation::{R, unsupported};
 pub(crate) struct Plan {
     constructors: constructors::Plan,
     pub(super) module_exports: FxHashMap<SymbolId, String>,
-    pub(super) core_patterns: bool,
+    /// Whether a value rune initializes a destructuring pattern.
+    pub(super) destructured_value_runes: bool,
     pub(super) exposed: Vec<SymbolId>,
     pub(super) async_values: bool,
-    pub(super) core_values: FxHashSet<&'static str>,
+    /// The value runes the script calls: `$state`, `$derived` and their variants.
+    pub(super) value_runes: FxHashSet<&'static str>,
     pub(super) lifecycle: Vec<(&'static str, SymbolId)>,
     pub(super) attachments: Vec<(&'static str, SymbolId)>,
-    /// `$props()`'s keys with their local names, and whether each default is a literal, in order;
-    /// `None` without a `$props()`.
-    props: Option<Vec<(String, SymbolId, bool)>>,
-    pub(crate) preserve_whitespace: bool,
-    pub(crate) stylesheet_mode: super::template::CssMode,
-    pub(crate) custom_element: Option<super::template::CustomElement>,
-    pub(crate) namespaces: Option<rsvelte_svelte_compile::render_plan::Namespaces>,
+    /// `$props()`'s keys in order; `None` without a `$props()`.
+    props: Option<Vec<PropKey>>,
     pub(super) props_id: Option<SymbolId>,
     /// `...rest` in `$props()`: read through Vue's `useAttrs()`.
     pub(crate) rest: Option<SymbolId>,
-    pub(super) auxiliary: FxHashMap<&'static str, Span>,
+    /// The other runes the script calls (`$effect`, `$host`, `$inspect`, ...), each with the span
+    /// of one call.
+    pub(super) called_runes: FxHashMap<&'static str, Span>,
+}
+
+/// A key of `$props()`.
+#[derive(Debug)]
+pub(super) struct PropKey {
+    pub(super) name: String,
+    pub(super) local: SymbolId,
+    /// Whether the default is a literal, which `defineProps` can hold.
+    pub(super) literal_default: bool,
 }
 
 impl Plan {
     /// Whether the client component reads `$effect.tracking()`.
     pub(crate) fn tracking(&self, server: bool) -> bool {
-        !server && self.auxiliary.contains_key("$effect.tracking")
+        !server && self.called_runes.contains_key("$effect.tracking")
     }
 }
 
@@ -377,11 +385,8 @@ fn check_writes(res: &Resolution) -> R<()> {
     Ok(())
 }
 
-/// Each key with its local name and whether its default is a literal, and the rest.
-type Props = (Vec<(String, SymbolId, bool)>, Option<SymbolId>);
-
 /// `let { a, b = 1, c: d, ...rest } = $props()`: plain keys with literal defaults, and the rest.
-fn props(res: &Resolution, pattern: &BindingPattern<'_>) -> R<Props> {
+fn props(res: &Resolution, pattern: &BindingPattern<'_>) -> R<(Vec<PropKey>, Option<SymbolId>)> {
     let refuse = |span: oxc_span::Span| {
         Err(unsupported(
             "a `$props()` pattern other than plain keys with literal defaults",
@@ -427,7 +432,11 @@ fn props(res: &Resolution, pattern: &BindingPattern<'_>) -> R<Props> {
                 document_span(key.span),
             ));
         }
-        out.push((name.to_owned(), symbol(local), literal));
+        out.push(PropKey {
+            name: name.to_owned(),
+            local: symbol(local),
+            literal_default: literal,
+        });
     }
     let rest = match object.rest.as_ref().map(|r| &r.argument) {
         None => None,
@@ -474,4 +483,6 @@ mod imports;
 mod module;
 pub(crate) mod patterns;
 pub(crate) mod runes;
-pub(crate) use emit::{ScriptRewrite, async_arrow, emit, prop_member, property_target, rune_value};
+pub(crate) use emit::{
+    ScriptRewrite, async_arrow, emit, prop_member, property_target, rune_value, tracked,
+};

@@ -1,7 +1,9 @@
 use std::borrow::Cow;
 
 use oxc_ast::ast::{Expression, IdentifierReference, ObjectPropertyKind, PropertyKey};
+use oxc_span::SPAN;
 use oxc_str::JSStr;
+use oxc_syntax::number::BigintBase;
 
 use super::Builder;
 
@@ -15,16 +17,39 @@ pub(super) fn export_properties<'o>(
         .map(|export| b.init(export.alias, b.id(export.name)))
 }
 
-/// Upstream's `prop_alias`: the name a `$props()` key reads, `String(key.value)` for a literal.
-pub(crate) fn prop_alias<'s>(key: &'s PropertyKey<'s>) -> Cow<'s, str> {
-    match key {
+/// A key's name as upstream reads it: an identifier's name, or `String(key.value)` for any
+/// `ESTree` `Literal`, computed or not; `None` for a key only the running code can name.
+pub(crate) fn literal_key_name<'s>(key: &'s PropertyKey<'s>) -> Option<Cow<'s, str>> {
+    Some(match key {
         PropertyKey::StaticIdentifier(identifier) => Cow::Borrowed(identifier.name.as_str()),
         PropertyKey::StringLiteral(literal) => string_value(literal.value),
         PropertyKey::NumericLiteral(literal) => {
             Cow::Owned(rsvelte_typescript_semantic::number::number(literal.value))
         }
-        _ => unreachable!("validation refuses a computed `$props()` key"),
-    }
+        PropertyKey::BigIntLiteral(literal) => Cow::Borrowed(literal.value.as_str()),
+        PropertyKey::BooleanLiteral(literal) => {
+            Cow::Borrowed(if literal.value { "true" } else { "false" })
+        }
+        PropertyKey::NullLiteral(_) => Cow::Borrowed("null"),
+        PropertyKey::RegExpLiteral(literal) => Cow::Owned(format!(
+            "/{}/{}",
+            literal.regex.pattern.text, literal.regex.flags
+        )),
+        _ => return None,
+    })
+}
+
+/// Upstream's `b.literal(key.value)` for a `$props()` key: its name, a number or `BigInt` kept as
+/// one.
+pub(crate) fn prop_key<'o>(b: &Builder<'o>, key: &PropertyKey<'_>) -> Option<Expression<'o>> {
+    let name = literal_key_name(key)?;
+    Some(match key {
+        PropertyKey::NumericLiteral(literal) => b.number(literal.value),
+        PropertyKey::BigIntLiteral(_) => {
+            Expression::new_big_int_literal(SPAN, b.str(&name), None, BigintBase::Decimal, b)
+        }
+        _ => b.string(&name),
+    })
 }
 
 /// A string literal's value; a lone surrogate prints as the replacement character.

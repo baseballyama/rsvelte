@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use oxc_ast::ast::{BindingIdentifier, BindingPattern, Declaration, Statement};
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_typescript_tree::node_span;
 
@@ -11,6 +12,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-export-load-in-svelte-module-in-kit-pages",
     files: Files::Components,
+    category: Category::Correctness,
     configure,
 };
 

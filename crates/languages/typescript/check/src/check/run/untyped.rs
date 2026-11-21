@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_typescript_api::{DiagnosticKind, Project, Session};
 
+use super::TypeScriptDiagnostic;
 use super::mapped::normalized;
-use super::{ERROR, TypeScriptDiagnostic};
 use crate::check::CheckRequest;
 
 /// The extensions the checker reads a projection as JavaScript by.
@@ -138,7 +138,7 @@ pub(super) fn reported(
     Ok(session
         .diagnostics(project, DiagnosticKind::Semantic, Some(&[probe.as_path()]))?
         .iter()
-        .any(|d| d.code == CODE && d.category == ERROR))
+        .any(|d| d.code == CODE && d.is_error()))
 }
 
 /// Tells a projection that an import of a JavaScript document is untyped, as TypeScript reads a

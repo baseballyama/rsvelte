@@ -3,7 +3,6 @@
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use std::sync::Arc;
 
 use rsvelte_kernel::computation::pipeline::{self, DocumentResult, RunOptions, Sharing};
 use rsvelte_kernel::computation::registry::Registry;
@@ -20,10 +19,7 @@ pub(crate) fn load(
     tasks: &[&str],
     ignore_files: &[&str],
 ) -> Result<Vec<Document>, String> {
-    let walk = Walk {
-        ignore_files,
-        prune: None,
-    };
+    let walk = Walk { ignore_files };
     read_all(
         reg,
         find(paths, &walk, &|path| applies(reg, tasks, path))?,
@@ -54,15 +50,9 @@ pub(crate) fn read_all(
         .collect()
 }
 
-/// Leaves the directories it says, without reading them.
-pub(crate) trait Prune: Send + Sync {
-    fn prunes(&self, directory: &Path) -> bool;
-}
-
 /// What a walk skips besides `node_modules`, `.git` and what `.gitignore` and `.ignore` skip.
 pub(crate) struct Walk<'a> {
     pub(crate) ignore_files: &'a [&'a str],
-    pub(crate) prune: Option<Arc<dyn Prune>>,
 }
 
 /// The files below `paths` that `keep` keeps and `walk` does not skip, sorted. A named file is
@@ -126,13 +116,7 @@ fn collect(
     for name in skip.ignore_files {
         walk.add_custom_ignore_filename(name);
     }
-    let prune = skip.prune.clone();
-    walk.filter_entry(move |entry| {
-        let skipped = matches!(entry.file_name().to_str(), Some("node_modules" | ".git"));
-        let directory = entry.depth() > 0 && entry.file_type().is_some_and(|kind| kind.is_dir());
-        let pruned = directory && prune.as_ref().is_some_and(|p| p.prunes(entry.path()));
-        !(skipped || pruned)
-    });
+    walk.filter_entry(|entry| !matches!(entry.file_name().to_str(), Some("node_modules" | ".git")));
     for entry in walk.build() {
         let entry = entry.map_err(|e| e.to_string())?;
         // A link to a directory is not followed, so a cycle cannot loop.

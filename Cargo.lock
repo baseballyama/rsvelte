@@ -99,6 +99,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "bpaf"
+version = "0.9.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ec87bdee42abd2534b8afb7b92086347dfff18e9c87751a7d25b062b33e87b4"
+dependencies = [
+ "bpaf_derive",
+ "owo-colors",
+ "supports-color",
+]
+
+[[package]]
+name = "bpaf_derive"
+version = "0.5.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f7e98cee839b19076cb3ce1afdb62bb182e04ff5f71f70188827002fae91094"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "bstr"
 version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -241,6 +263,21 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
+]
+
+[[package]]
+name = "dyn-clone"
+version = "1.0.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
+
+[[package]]
+name = "editorconfig-parser"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e587c7336689e4dbb79157eb50ca5de9b3f75a48b85f17c1297d9c31e9d3bbc3"
+dependencies = [
+ "globset",
 ]
 
 [[package]]
@@ -503,6 +540,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "is_ci"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7655c9839580ee829dfacba1d1278c2b7883e50a277ff7541299489d6bdfdc45"
+
+[[package]]
 name = "itertools"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -545,6 +588,12 @@ checksum = "e6da542c53c54a5df6dc91dff7dab9f196fd5f860162694782525290c58f1de9"
 dependencies = [
  "memchr",
 ]
+
+[[package]]
+name = "lazy_static"
+version = "1.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20870f649af7073d53e38067b2a84312175d56ea15217e1b15bc83506ec50afb"
 
 [[package]]
 name = "libc"
@@ -613,6 +662,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
 
 [[package]]
+name = "napi-build"
+version = "2.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b899b545d3aa6dca985939059f258c5488d34e4ecf39c274e20009748f4b846d"
+
+[[package]]
 name = "natord"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -635,6 +690,15 @@ name = "nonmax"
 version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "610a5acd306ec67f907abe5567859a3c693fb9886eb1f012ab8f2a47bef3db51"
+
+[[package]]
+name = "nu-ansi-term"
+version = "0.50.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
+dependencies = [
+ "windows-sys",
+]
 
 [[package]]
 name = "num-bigint"
@@ -686,6 +750,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a80800c0488c3a21695ea981a54918fbb37abf04f4d0720c453632255e2ff0e"
 
 [[package]]
+name = "owo-colors"
+version = "4.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13c45bb4a6ae1280ec0803b1ef9d3455eb50f01efbbe1447ab020f1d54fba9d8"
+
+[[package]]
 name = "oxc-browserslist"
 version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -710,9 +780,66 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxc-graphql-parser"
+version = "0.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "432777a8667de07a380b8e7785e1871ce0b39fd180dde50923b9c128792c0d6e"
+dependencies = [
+ "memchr",
+ "oxc_allocator",
+ "thiserror",
+]
+
+[[package]]
+name = "oxc-htmlish-parser"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "374d8f58d73d57bce8f703272cb82537f6af1f4b1cd506200dce8bf327078b43"
+dependencies = [
+ "memchr",
+ "oxc_allocator",
+]
+
+[[package]]
+name = "oxc-markdown-parser"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13691b88414d375b51238d171794143303f676ced5a600f8f64e6f7fa4271ba3"
+dependencies = [
+ "oxc_allocator",
+]
+
+[[package]]
+name = "oxc-schemars"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "389002e8171c184b310cc63563097a0f13ad5eccc9ae32adcae7f7a8a0dda57b"
+dependencies = [
+ "dyn-clone",
+ "oxc_schemars_derive",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "oxc-toml"
+version = "0.15.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f137e7a0d5b6c4086d78375fdb706dfb437524ecb507867471696894845c3c1c"
+
+[[package]]
+name = "oxc-yaml-parser"
+version = "0.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7909b626031c9f06dc94fdcdf16b439196d209399fa094db85148c4098c6fc3"
+dependencies = [
+ "oxc_allocator",
+]
+
+[[package]]
 name = "oxc_allocator"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "allocator-api2",
  "hashbrown",
@@ -723,7 +850,7 @@ dependencies = [
 [[package]]
 name = "oxc_ast"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "bitflags",
  "oxc_allocator",
@@ -740,7 +867,7 @@ dependencies = [
 [[package]]
 name = "oxc_ast_macros"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "phf",
  "proc-macro2",
@@ -751,7 +878,7 @@ dependencies = [
 [[package]]
 name = "oxc_ast_visit"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -762,7 +889,7 @@ dependencies = [
 [[package]]
 name = "oxc_codegen"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "bitflags",
  "cow-utils",
@@ -783,7 +910,7 @@ dependencies = [
 [[package]]
 name = "oxc_compat"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "cow-utils",
  "oxc-browserslist",
@@ -793,9 +920,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxc_config"
+version = "0.0.0"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
+dependencies = [
+ "fast-glob",
+ "ignore",
+ "oxc-schemars",
+ "oxc_diagnostics",
+ "rustc-hash",
+ "serde",
+]
+
+[[package]]
 name = "oxc_data_structures"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "ropey",
 ]
@@ -803,7 +943,7 @@ dependencies = [
 [[package]]
 name = "oxc_diagnostics"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "bytecount",
  "cow-utils",
@@ -820,7 +960,7 @@ dependencies = [
 [[package]]
 name = "oxc_ecmascript"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "itoa",
  "memchr",
@@ -837,12 +977,12 @@ dependencies = [
 [[package]]
 name = "oxc_estree"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 
 [[package]]
 name = "oxc_formatter"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "cow-utils",
  "fast-glob",
@@ -870,7 +1010,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter_core"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "cow-utils",
  "memchr",
@@ -884,7 +1024,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter_css"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "cow-utils",
  "oxc-css-parser",
@@ -898,13 +1038,102 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxc_formatter_graphql"
+version = "0.78.0"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
+dependencies = [
+ "cow-utils",
+ "memchr",
+ "oxc-graphql-parser",
+ "oxc_allocator",
+ "oxc_diagnostics",
+ "oxc_formatter_core",
+ "oxc_formatter_tests",
+ "oxc_span",
+]
+
+[[package]]
+name = "oxc_formatter_htmlish"
+version = "0.78.0"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
+dependencies = [
+ "cow-utils",
+ "memchr",
+ "oxc-htmlish-parser",
+ "oxc_allocator",
+ "oxc_diagnostics",
+ "oxc_formatter_core",
+ "oxc_formatter_tests",
+ "oxc_span",
+ "zmij_ecma",
+]
+
+[[package]]
+name = "oxc_formatter_json"
+version = "0.78.0"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
+dependencies = [
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_diagnostics",
+ "oxc_formatter_core",
+ "oxc_formatter_tests",
+ "oxc_parser",
+ "oxc_span",
+ "oxc_str",
+ "oxc_syntax",
+ "zmij_ecma",
+]
+
+[[package]]
+name = "oxc_formatter_markdown"
+version = "0.78.0"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
+dependencies = [
+ "cow-utils",
+ "oxc-markdown-parser",
+ "oxc_allocator",
+ "oxc_diagnostics",
+ "oxc_formatter_core",
+ "oxc_formatter_tests",
+ "oxc_span",
+]
+
+[[package]]
 name = "oxc_formatter_tests"
 version = "0.62.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "cow-utils",
  "oxc_formatter_core",
  "serde_json",
+]
+
+[[package]]
+name = "oxc_formatter_toml"
+version = "0.78.0"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
+dependencies = [
+ "oxc-toml",
+ "oxc_allocator",
+ "oxc_diagnostics",
+ "oxc_formatter_core",
+ "oxc_formatter_tests",
+ "oxc_span",
+]
+
+[[package]]
+name = "oxc_formatter_yaml"
+version = "0.78.0"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
+dependencies = [
+ "cow-utils",
+ "oxc-yaml-parser",
+ "oxc_allocator",
+ "oxc_diagnostics",
+ "oxc_formatter_core",
+ "oxc_formatter_tests",
+ "oxc_span",
 ]
 
 [[package]]
@@ -920,7 +1149,7 @@ dependencies = [
 [[package]]
 name = "oxc_jsdoc"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "oxc_ast",
  "oxc_span",
@@ -931,7 +1160,7 @@ dependencies = [
 [[package]]
 name = "oxc_parser"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "bitflags",
  "cow-utils",
@@ -954,7 +1183,7 @@ dependencies = [
 [[package]]
 name = "oxc_regular_expression"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "bitflags",
  "oxc_allocator",
@@ -968,9 +1197,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxc_schemars_derive"
+version = "0.8.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "216c28be7c043fd31cc26a45a6d7a4b7687e71d0ad11091aa4e9f3c63491353f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_derive_internals",
+ "syn 3.0.9",
+]
+
+[[package]]
 name = "oxc_semantic"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "itertools",
  "memchr",
@@ -1005,7 +1246,7 @@ dependencies = [
 [[package]]
 name = "oxc_span"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "compact_str",
  "oxc_allocator",
@@ -1017,7 +1258,7 @@ dependencies = [
 [[package]]
 name = "oxc_str"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "compact_str",
  "hashbrown",
@@ -1029,7 +1270,7 @@ dependencies = [
 [[package]]
 name = "oxc_syntax"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "bitflags",
  "cow-utils",
@@ -1048,7 +1289,7 @@ dependencies = [
 [[package]]
 name = "oxc_transformer"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "base64",
  "compact_str",
@@ -1077,7 +1318,7 @@ dependencies = [
 [[package]]
 name = "oxc_traverse"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=584f2f93390f7d42a8e940b6e97cacca409cc495#584f2f93390f7d42a8e940b6e97cacca409cc495"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
 dependencies = [
  "itoa",
  "oxc_allocator",
@@ -1090,6 +1331,43 @@ dependencies = [
  "oxc_str",
  "oxc_syntax",
  "rustc-hash",
+]
+
+[[package]]
+name = "oxfmt"
+version = "0.78.0"
+source = "git+https://github.com/baseballyama/oxc?rev=1063835f10e988b7168d9c807d6526f7dcda9b0f#1063835f10e988b7168d9c807d6526f7dcda9b0f"
+dependencies = [
+ "bpaf",
+ "cow-utils",
+ "editorconfig-parser",
+ "fast-glob",
+ "ignore",
+ "json-strip-comments",
+ "napi-build",
+ "oxc-schemars",
+ "oxc_allocator",
+ "oxc_config",
+ "oxc_diagnostics",
+ "oxc_formatter",
+ "oxc_formatter_core",
+ "oxc_formatter_css",
+ "oxc_formatter_graphql",
+ "oxc_formatter_htmlish",
+ "oxc_formatter_json",
+ "oxc_formatter_markdown",
+ "oxc_formatter_toml",
+ "oxc_formatter_yaml",
+ "oxc_span",
+ "phf",
+ "rayon",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "simdutf8",
+ "sort-package-json",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -1256,7 +1534,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_browser"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
@@ -1278,16 +1556,16 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_command_line"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
- "globset",
+ "bpaf",
  "ignore",
- "json-strip-comments",
  "libc",
  "mimalloc",
  "oxc_allocator",
  "oxc_parser",
  "oxc_span",
+ "oxfmt",
  "rayon",
  "rsvelte_configuration_loading",
  "rsvelte_corpus",
@@ -1321,7 +1599,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_configuration_loading"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "rsvelte_plugin_interface",
  "serde",
@@ -1330,7 +1608,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_corpus"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1346,7 +1624,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_document_printer"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_allocator",
  "oxc_formatter_core",
@@ -1355,7 +1633,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_example_plugin"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
@@ -1365,7 +1643,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_kernel"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "memchr",
  "rayon",
@@ -1376,7 +1654,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_lint_runner"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "rsvelte_kernel",
  "serde",
@@ -1385,18 +1663,18 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_markup_lint"
-version = "0.2.5"
+version = "0.3.0"
 
 [[package]]
 name = "rsvelte_markup_syntax"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "memchr",
 ]
 
 [[package]]
 name = "rsvelte_plugin_interface"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "rsvelte_kernel",
  "serde",
@@ -1405,7 +1683,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_stylesheet_compile"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_stylesheet_semantic",
@@ -1415,7 +1693,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_stylesheet_semantic"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_stylesheet_syntax",
@@ -1423,7 +1701,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_stylesheet_syntax"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "rsvelte_kernel",
  "rustc-hash",
@@ -1431,7 +1709,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_check"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_ast",
  "oxc_ast_visit",
@@ -1448,7 +1726,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_compile"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "libc",
  "oxc_allocator",
@@ -1476,7 +1754,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_format"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1504,7 +1782,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_lint"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_ast",
  "oxc_ast_visit",
@@ -1535,7 +1813,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_semantic"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "num-bigint",
  "num-traits",
@@ -1558,7 +1836,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_site"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1574,7 +1852,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_syntax"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "memchr",
  "oxc_allocator",
@@ -1592,7 +1870,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_to_vue_vapor"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1617,7 +1895,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_typescript_projection"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1636,7 +1914,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_test_harness"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "rsvelte_kernel",
  "rustc-hash",
@@ -1644,7 +1922,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_api"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_test_harness",
@@ -1654,7 +1932,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_check"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1671,7 +1949,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_compile"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1687,7 +1965,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_content_mapper"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "rsvelte_kernel",
  "serde",
@@ -1696,7 +1974,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_format"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_formatter",
  "oxc_formatter_core",
@@ -1709,7 +1987,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_lint"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_ast",
  "oxc_ast_visit",
@@ -1726,7 +2004,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_semantic"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_ast",
  "oxc_semantic",
@@ -1739,7 +2017,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_tree"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1754,7 +2032,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_check"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_ast",
  "oxc_semantic",
@@ -1771,7 +2049,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_compile"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1786,13 +2064,12 @@ dependencies = [
  "rsvelte_typescript_tree",
  "rsvelte_vue_semantic",
  "rsvelte_vue_syntax",
- "rustc-hash",
  "sha2",
 ]
 
 [[package]]
 name = "rsvelte_vue_format"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_allocator",
  "oxc_formatter",
@@ -1810,7 +2087,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_lint"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_ast",
  "oxc_semantic",
@@ -1829,7 +2106,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_semantic"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_ast",
  "oxc_ast_visit",
@@ -1845,7 +2122,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_syntax"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_parser",
  "oxc_span",
@@ -1857,7 +2134,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_to_svelte"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1969,6 +2246,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_derive_internals"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f852137cce035d6a4df67ccce505ff6b3e9fd3a10e3e52b24dc71e650bb1a9bd"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
 name = "serde_json"
 version = "1.0.154"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1999,6 +2287,15 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
+]
+
+[[package]]
+name = "sharded-slab"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
+dependencies = [
+ "lazy_static",
 ]
 
 [[package]]
@@ -2041,6 +2338,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8e2fb0f499abb4d162f2bedad68f5ef91a1682b5a03596ddb67efd37768d100"
 
 [[package]]
+name = "sort-package-json"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8cfd9c8970ed7caeeb9026188b0b686854f873641317a4cf4a7c64acacbf61d3"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2070,6 +2377,15 @@ name = "str_indices"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d08889ec5408683408db66ad89e0e1f93dff55c73a4ccc71c427d5b277ee47e6"
+
+[[package]]
+name = "supports-color"
+version = "3.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c64fc7232dd8d2e4ac5ce4ef302b1d81e0b80d055b9d77c7c4f51f6aa4c867d6"
+dependencies = [
+ "is_ci",
+]
 
 [[package]]
 name = "syn"
@@ -2136,6 +2452,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "thread_local"
+version = "1.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ad99c4c6d32803332c548b1af0540b357b3f5fc0be8f6c6bfe8b2e6ae784070"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "tinystr"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2184,6 +2509,63 @@ name = "toml_writer"
 version = "1.1.2+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
+
+[[package]]
+name = "tracing"
+version = "0.1.44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63e71662fa4b2a2c3a26f570f037eb95bb1f85397f3cd8076caed2f026a6d100"
+dependencies = [
+ "pin-project-lite",
+ "tracing-attributes",
+ "tracing-core",
+]
+
+[[package]]
+name = "tracing-attributes"
+version = "0.1.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7490cfa5ec963746568740651ac6781f701c9c5ea257c58e057f3ba8cf69e8da"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "tracing-core"
+version = "0.1.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a"
+dependencies = [
+ "once_cell",
+ "valuable",
+]
+
+[[package]]
+name = "tracing-log"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee855f1f400bd0e5c02d150ae5de3840039a3f54b025156404e34c23c03f47c3"
+dependencies = [
+ "log",
+ "once_cell",
+ "tracing-core",
+]
+
+[[package]]
+name = "tracing-subscriber"
+version = "0.3.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb7f578e5945fb242538965c2d0b04418d38ec25c79d160cd279bf0731c8d319"
+dependencies = [
+ "nu-ansi-term",
+ "sharded-slab",
+ "smallvec",
+ "thread_local",
+ "tracing-core",
+ "tracing-log",
+]
 
 [[package]]
 name = "typenum"
@@ -2235,6 +2617,12 @@ name = "utf_types"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a3b425286980a367278453f3b6d28cdcb134b574e5a35824a6ff5eebad50bb6"
+
+[[package]]
+name = "valuable"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
 name = "vsimd"

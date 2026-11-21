@@ -72,7 +72,11 @@ pub(super) fn event(
     {
         return Some(binding);
     }
-    match (property, tag, super::static_type(source_text, attributes)) {
+    match (
+        property,
+        tag,
+        super::properties::static_type(source_text, attributes),
+    ) {
         ("indeterminate", "input", Some("checkbox")) | ("files", "input", Some("file")) => {
             Some(("change", false))
         }

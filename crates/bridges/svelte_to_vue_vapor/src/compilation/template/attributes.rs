@@ -3,16 +3,15 @@ use oxc_ast::ast::Expression;
 use oxc_ast_visit::Visit;
 use oxc_semantic::SymbolId;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_compile::lower::PASSIVE_EVENTS;
 use rsvelte_svelte_compile::render_plan::Namespace;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue, Modifiers};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rsvelte_vue_semantic::compiler_syntax_tree as vue;
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
-use super::{
-    PASSIVE_EVENTS, Steps, Template, attribute, binding_event, directive, is_boolean, is_primitive,
-    reads_this, spelled,
-};
+use super::properties::{binding_event, is_boolean, is_primitive, reads_this};
+use super::{Steps, Template, attribute, directive, spelled};
 use crate::compilation::helpers::Helper;
 use crate::compilation::{R, string_key, unsupported};
 

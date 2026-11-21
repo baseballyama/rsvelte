@@ -1,5 +1,6 @@
 packages:
   - apps/cli
+  - apps/eslint-plugin
   - apps/site
   - tools/*
 allowBuilds:

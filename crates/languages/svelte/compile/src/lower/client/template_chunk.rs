@@ -1,6 +1,6 @@
 use oxc_ast::ast::{Expression, LogicalOperator};
 use rsvelte_svelte_semantic::compiler_syntax_tree::Part;
-use rsvelte_svelte_semantic::evaluate::{Evaluator, Value};
+use rsvelte_svelte_semantic::evaluate::Evaluator;
 use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 
 use super::{ClientCompilationContext, Memo};
@@ -76,7 +76,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             has_state |= meta.has_state && known.is_none();
             if values.len() == 1 {
                 if let Some(k) = known {
-                    value = b.string(&Self::template_string(&k.value));
+                    value = b.string(&k.value.to_template_string());
                 }
                 return (value, has_state);
             }
@@ -90,7 +90,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 logical.right = b.string("");
             }
             if let Some(k) = known {
-                let s = Self::template_string(&k.value);
+                let s = k.value.to_template_string();
                 quasis.last_mut().expect("never empty").push_str(&s);
             } else {
                 if !evaluated.is_defined {
@@ -108,13 +108,6 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             b.template(quasis.iter().map(String::as_str), expressions),
             has_state,
         )
-    }
-
-    fn template_string(value: &Value) -> String {
-        match value {
-            Value::Null | Value::Undefined => String::new(),
-            value => value.to_javascript_string(),
-        }
     }
 
     pub(super) fn chunk_items(&self, parts: &[Part]) -> Vec<Item> {

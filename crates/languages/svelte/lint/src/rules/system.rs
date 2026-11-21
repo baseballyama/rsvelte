@@ -1,3 +1,5 @@
+use rsvelte_lint_runner::catalog::Category;
+
 use crate::rule::{Files, RuleDefinition, RuleOptions, SvelteRule};
 
 /// Turns off, outside `<script>`, the rules `settings.svelte.ignoreWarnings` names; `lint`
@@ -6,6 +8,7 @@ use crate::rule::{Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(crate) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/system",
     files: Files::Components,
+    category: Category::Correctness,
     configure,
 };
 

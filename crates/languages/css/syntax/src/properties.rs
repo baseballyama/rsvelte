@@ -1,7 +1,7 @@
 //! Facts about CSS property names: the known ones, vendor prefixes and shorthands.
 
 /// Every property `known-css-properties` lists, sorted.
-static KNOWN: &[&str] = &include!("../vendor/known_properties.rs");
+static KNOWN: &[&str] = &include!("vendor/known_properties.rs");
 
 /// Whether `known-css-properties` lists `name`.
 #[must_use]

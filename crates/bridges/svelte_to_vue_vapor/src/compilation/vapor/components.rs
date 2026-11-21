@@ -51,11 +51,11 @@ impl<'a, 'o> Emitter<'a, 'o> {
             let setter = self.expression(self.source(setter));
             let call = self.call(
                 "setTemplateRefBinding",
-                [b.id(&fragment), self.arrow(setter)],
+                [b.id(fragment), self.arrow(setter)],
             );
             body.push(b.statement(call));
         }
-        b.id(&fragment)
+        b.id(fragment)
     }
 
     pub(super) fn server_boundary(&mut self, identifier: CompilerNodeIdentifier) -> Expression<'o> {
@@ -67,12 +67,12 @@ impl<'a, 'o> Emitter<'a, 'o> {
         let props =
             self.expression(self.source(self.component_value(identifier, markers::PROPS_KEY)));
         let name = self.name();
-        body.push(b.const_(&name, props));
+        body.push(b.const_(name, props));
         let children = || {
             b.logical(
-                b.member(b.id(&name), "pending"),
+                b.member(b.id(name), "pending"),
                 LogicalOperator::Or,
-                b.member(b.id(&name), "children"),
+                b.member(b.id(name), "children"),
             )
         };
         let value = b.conditional(children(), b.call(children(), []), b.string(""));

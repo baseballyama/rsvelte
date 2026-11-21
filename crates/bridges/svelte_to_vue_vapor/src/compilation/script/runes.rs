@@ -10,7 +10,7 @@ use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::FxHashSet;
 
 use super::{Plan, Root};
-use crate::compilation::{R, unsupported};
+use crate::compilation::{R, markers, unsupported};
 
 pub(super) fn collect(
     res: &Resolution,
@@ -48,7 +48,7 @@ impl Collect<'_> {
         let Some((name, argument)) = self.res.rune(init).filter(|(name, _)| value(name)) else {
             return Ok(());
         };
-        self.plan.core_values.insert(name);
+        self.plan.value_runes.insert(name);
         if name == "$derived"
             && let Some(argument) = argument
         {
@@ -77,7 +77,7 @@ impl Collect<'_> {
                 node_span(init),
             ));
         }
-        self.plan.core_patterns |=
+        self.plan.destructured_value_runes |=
             pattern.is_some_and(|p| !matches!(p, BindingPattern::BindingIdentifier(_)));
         self.consumed.insert(root(&call.callee));
         Ok(())
@@ -103,7 +103,9 @@ impl Collect<'_> {
         }
         self.consumed.insert(root(&call.callee));
         if !eager(name) {
-            self.plan.auxiliary.insert(name, document_span(call.span));
+            self.plan
+                .called_runes
+                .insert(name, document_span(call.span));
         }
         Ok(())
     }
@@ -190,7 +192,7 @@ pub(crate) fn local(name: &str) -> Option<&'static str> {
         "$effect.tracking" => "$$effect_tracking",
         "$effect.pending" => "$$effect_pending",
         "$state.snapshot" => "$$snapshot",
-        "$host" => "$$host",
+        "$host" => markers::HOST,
         _ => return None,
     })
 }
@@ -201,6 +203,9 @@ pub(super) fn inspect(name: &str) -> bool {
 
 pub(super) const SOURCE: &str = include_str!("runes.js");
 
+/// The runes whose value the translation stores in a cell.
+pub(crate) const VALUE: [&str; 4] = ["$state", "$state.raw", "$derived", "$derived.by"];
+
 pub(crate) fn value(name: &str) -> bool {
-    matches!(name, "$state" | "$state.raw" | "$derived" | "$derived.by")
+    VALUE.contains(&name)
 }

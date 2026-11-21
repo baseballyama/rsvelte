@@ -11,8 +11,8 @@ use rsvelte_vue_semantic::compiler_syntax_tree::{
 };
 use rsvelte_vue_syntax::syntax_tree::DirectiveName;
 
-use super::{T, directive, expression_of, is_boolean_attribute};
-use crate::compilation::context::{R, unsupported};
+use super::{Template, directive, expression_of, is_boolean_attribute};
+use crate::compilation::{R, unsupported};
 
 /// Whether Vue's runtime leaves the attribute as written: runtime-dom's `shouldSetAsProp` sets
 /// some names as DOM properties, and these properties either do not reflect to the attribute or
@@ -42,7 +42,7 @@ fn check_name(name: &str, span: Span) -> R<()> {
     Ok(())
 }
 
-impl T<'_, '_, '_, '_> {
+impl Template<'_, '_, '_, '_> {
     #[expect(
         clippy::too_many_lines,
         reason = "one arm per attribute shape Vue reads"

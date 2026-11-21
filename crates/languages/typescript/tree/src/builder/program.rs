@@ -53,7 +53,7 @@ impl<'a> TreeBuilder<'a> {
         let start = range.start_offset;
         self.read_program(text, start, source_type, keep)
             .map_err(|rejected| {
-                let program = (rejected.recovered).map(|program| &self.programs[program.index()]);
+                let program = (rejected.recovered).map(|program| &self.programs[program]);
                 let errors = rejected.diagnostics.into_iter().map(|e| {
                     let at = program.and_then(|program| {
                         typescript_eslint_at(&e, |locator| Part::Program(program).walk(locator))
@@ -148,7 +148,7 @@ impl<'a> TreeBuilder<'a> {
             oxc_allocator::Vec::from_iter_in(program.comments.iter().cloned(), &self.allocator);
         self.record(tokens.into_arena_slice(), recorded.into_arena_slice(), 0);
         WithHoles {
-            program: crate::push(&mut self.programs, program),
+            program: self.programs.push(program),
             holes: Holes(holes),
             errors,
         }
@@ -211,7 +211,7 @@ impl<'a> TreeBuilder<'a> {
         self.record(parsed.tokens.into_arena_slice(), comments, 0);
         // Its spans are the document's, so a task that reads text at a span reads the document.
         program.source_text = self.source_text;
-        let identifier = crate::push(&mut self.programs, program);
+        let identifier = self.programs.push(program);
         match rejection {
             None => Ok(identifier),
             Some(error) => Err(Box::new(Read {

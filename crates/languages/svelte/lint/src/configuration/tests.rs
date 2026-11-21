@@ -1,3 +1,5 @@
+use rsvelte_lint_runner::catalog::Category;
+
 use super::*;
 
 fn plugin(prefix: &'static str, rules: &'static [&'static RuleDefinition]) -> &'static LintPlugin {
@@ -8,6 +10,7 @@ fn rule(name: &'static str) -> &'static RuleDefinition {
     Box::leak(Box::new(RuleDefinition {
         name,
         files: Files::Components,
+        category: Category::Correctness,
         configure: |_| Err("unused".to_owned()),
     }))
 }

@@ -180,7 +180,7 @@ impl<'t> Template<'_, '_, 't> {
         let NodeKind::Element(element) = &node.kind else {
             unreachable!("called on an element")
         };
-        let preserve = self.i.plan.preserve_whitespace;
+        let preserve = self.i.checked.options.preserve_whitespace;
         let mut snippets = Vec::new();
         let mut children = Vec::new();
         for &child in tree.children(element.children) {
@@ -234,13 +234,7 @@ impl<'t> Template<'_, '_, 't> {
     ) -> vue::CompilerNodeIdentifier {
         let b = self.b;
         let node = self.i.compiler_syntax_tree.node(identifier);
-        let namespace = self
-            .i
-            .plan
-            .namespaces
-            .as_ref()
-            .expect("translation uses a checked plan")
-            .get(identifier);
+        let namespace = self.i.checked.namespaces.get(identifier);
         let svg = namespace == Namespace::Svg;
         if !svg {
             styles.insert(0, b.init("display", b.string("contents")));

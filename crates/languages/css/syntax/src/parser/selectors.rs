@@ -4,12 +4,12 @@
 
 use rsvelte_kernel::source::positions::Span;
 
-use super::{P, ParseError, R, push};
+use super::{Dialect, ParseError, Parser, R, push};
 use crate::syntax_tree::{
     AttributeOperator, Combinator, ComplexSelector, RelativeSelector, Simple, SimpleList,
 };
 
-impl P<'_> {
+impl Parser<'_> {
     /// Ends before the `{` of the block, or before the `)` of a pseudo-class.
     pub(super) fn selector_list(&mut self, inside_pseudo: bool) -> R<Vec<ComplexSelector>> {
         let mut selectors = Vec::new();
@@ -532,12 +532,12 @@ pub fn nth_of_selectors(source_text: &str, simple: &Simple) -> Vec<ComplexSelect
     }
     // The reader ends at the `)` after the argument.
     let start = arguments.start_offset as usize;
-    let mut p = P::new(
+    let mut p = Parser::new(
         source_text,
         start,
         arguments.end_offset as usize + 1,
         None,
-        Some(false),
+        Some(Dialect::Standard),
     );
     p.attempt(|p| p.selector_list(true)).unwrap_or_default()
 }

@@ -1,4 +1,5 @@
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use serde::Deserialize;
@@ -9,6 +10,7 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/html-closing-bracket-spacing",
     files: Files::Components,
+    category: Category::Style,
     configure,
 };
 

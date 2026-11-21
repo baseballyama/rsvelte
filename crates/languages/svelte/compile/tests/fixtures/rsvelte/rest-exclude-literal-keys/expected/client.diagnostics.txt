@@ -1,0 +1,6 @@
+warning non_reactive_update 6:6-6:9 `yes` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 6:11-6:16 `regex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 6:18-6:26 `assigned` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

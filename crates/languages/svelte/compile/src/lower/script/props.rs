@@ -10,7 +10,7 @@ use rsvelte_svelte_semantic::resolve::BindingKind;
 use super::writes::is_prop_source;
 use super::{ScriptRewrite, should_proxy_read};
 use crate::lower::builder::Runtime;
-use crate::lower::javascript::{is_simple_expression, prop_alias};
+use crate::lower::javascript::{is_simple_expression, prop_key};
 use crate::lower::names::Names;
 use crate::lower::uses_slots;
 
@@ -106,11 +106,9 @@ pub(super) fn lower_client_props<'o>(
         return;
     };
     for property in &object.properties {
-        let key_name = prop_alias(&property.key);
-        // Upstream passes the key's own value, which reads the same prop.
-        let key = match &property.key {
-            PropertyKey::NumericLiteral(literal) => b.number(literal.value),
-            _ => b.string(&key_name),
+        // `props_invalid_pattern` refuses a computed key, so every key has a name here.
+        let Some(key) = prop_key(b, &property.key) else {
+            continue;
         };
         seen.push(key.clone_in(b.allocator()));
         let local = match &property.value {
