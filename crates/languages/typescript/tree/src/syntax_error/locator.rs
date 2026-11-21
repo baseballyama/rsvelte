@@ -19,6 +19,10 @@ pub struct Locator {
     pub(super) declares: bool,
     /// For [`Find::Redeclared`], whether the first declaration is a type alias or an interface.
     pub(super) first_is_type: bool,
+    /// For [`Find::Redeclared`], the symbol the first declaration's name binds.
+    first_symbol: Option<oxc_syntax::symbol::SymbolId>,
+    /// For [`Find::Redeclared`], where the name declared again is.
+    redeclared: Redeclared,
     /// For [`Find::Home`], where acorn reads the name the label is.
     pub(super) home: Option<Home>,
     /// For [`Find::Home`], the name the label is in the tree, and how acorn reads it.
@@ -42,6 +46,16 @@ enum Cover {
     },
     /// A plain arrow's one parameter without parentheses, an expression that `=>` ends.
     Bare,
+}
+
+/// Where the name a second declaration declares again is, which oxc labels.
+#[derive(Clone, Copy, Debug)]
+enum Redeclared {
+    /// The label is the name.
+    Label,
+    /// The label is a variable declarator, and the name the binding in it of the first
+    /// declaration's symbol, once the walk meets it.
+    Declarator(Option<oxc_span::Span>),
 }
 
 /// What decides how acorn reads an optional rest element, from the nodes around it.
@@ -115,6 +129,8 @@ impl Locator {
             found: None,
             declares: false,
             first_is_type: false,
+            first_symbol: None,
+            redeclared: Redeclared::Label,
             home: None,
             word: None,
             cover: Cover::None,
@@ -166,7 +182,32 @@ impl Locator {
         around.holder = Holder::Parameters;
     }
 
+    /// For [`Find::Redeclared`], the name declared again, where acorn fails.
+    pub(super) const fn redeclared_name(&self) -> Option<oxc_span::Span> {
+        match self.redeclared {
+            Redeclared::Label => Some(self.label),
+            Redeclared::Declarator(binding) => binding,
+        }
+    }
+
     fn enter_redeclared(&mut self, first: oxc_span::Span, kind: AstKind<'_>, around: bool) {
+        match kind {
+            AstKind::VariableDeclarator(it) if it.span == self.label => {
+                self.redeclared = Redeclared::Declarator(None);
+            }
+            // The first declaration comes first in the walk, as oxc binds in source order.
+            AstKind::BindingIdentifier(it) if it.span == first => {
+                self.first_symbol = it.symbol_id.get();
+            }
+            AstKind::BindingIdentifier(it)
+                if matches!(self.redeclared, Redeclared::Declarator(None))
+                    && self.label.contains_inclusive(it.span)
+                    && it.symbol_id.get() == self.first_symbol =>
+            {
+                self.redeclared = Redeclared::Declarator(Some(it.span));
+            }
+            _ => {}
+        }
         let name = match kind {
             AstKind::FormalParameters(it) if around => {
                 return self.found = Some((it.span.start, kind.ty()));
