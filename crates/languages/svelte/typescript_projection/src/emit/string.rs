@@ -15,6 +15,18 @@ impl Printer<'_> {
         self.output.push("\"");
     }
 
+    /// A generated string whose findings fall on the empty range at `at`.
+    pub(super) fn string_literal_at(&mut self, value: &str, at: u32) {
+        let start = self.output.out.len() as u32;
+        self.node_string_literal(value);
+        self.output.atom_since(start, Span::new(at, at));
+    }
+
+    pub(super) fn computed_string_literal(&mut self, start: u32, len: u32) {
+        let tree = self.tree;
+        self.node_string_literal(tree.text(start, len));
+    }
+
     pub(super) fn string(&mut self, parts: Range, template: bool) {
         let quote = if template { "`" } else { "\"" };
         self.output.push(quote);

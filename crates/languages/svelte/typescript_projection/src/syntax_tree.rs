@@ -86,6 +86,12 @@ pub(crate) enum Node {
     /// The component `<svelte:self>` renders, whose props svelte2tsx does not check.
     AnyComponent,
     StringLiteral(&'static str),
+    /// A string the projection computes, such as a prop's name from its key's value: the range
+    /// of [`SyntaxTree::texts`] that holds it.
+    ComputedStringLiteral {
+        start: u32,
+        len: u32,
+    },
     /// A generated string whose findings fall on the empty range at `at`.
     /// A name whose text TypeScript reports at the source offset `at`.
     IdentifierAt {
@@ -273,6 +279,7 @@ pub struct SyntaxTree {
     pub(crate) nodes: Vec<Node>,
     pub(crate) children: Vec<NodeIdentifier>,
     pub(crate) root: Range,
+    pub(crate) texts: String,
     /// Neither script is TypeScript, so the projection is JavaScript without type syntax.
     pub(crate) javascript: bool,
 }
@@ -283,6 +290,7 @@ impl Default for SyntaxTree {
             nodes: buffer_pool::take_keyed::<Self, _>(),
             children: buffer_pool::take_keyed::<Self, _>(),
             root: Range::default(),
+            texts: String::new(),
             javascript: false,
         }
     }
@@ -321,12 +329,27 @@ impl SyntaxTree {
     pub const fn heap_bytes(&self) -> usize {
         self.nodes.capacity() * size_of::<Node>()
             + self.children.capacity() * size_of::<NodeIdentifier>()
+            + self.texts.capacity()
     }
 
     pub(crate) fn push(&mut self, node: Node) -> NodeIdentifier {
         let identifier = NodeIdentifier(self.nodes.len() as u32);
         self.nodes.push(node);
         identifier
+    }
+
+    pub(crate) fn computed_string_literal(&mut self, text: &str) -> NodeIdentifier {
+        let start = self.texts.len() as u32;
+        self.texts.push_str(text);
+        self.push(Node::ComputedStringLiteral {
+            start,
+            len: text.len() as u32,
+        })
+    }
+
+    #[must_use]
+    pub(crate) fn text(&self, start: u32, len: u32) -> &str {
+        &self.texts[start as usize..(start + len) as usize]
     }
 
     pub(crate) fn list(&mut self, children: &[NodeIdentifier]) -> Range {

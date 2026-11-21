@@ -167,12 +167,9 @@ impl Printer<'_> {
             Node::Identifier(name) => self.output.push(name),
             Node::IdentifierAt { name, at } => self.output.atom(name, Span::new(at, at)),
             Node::AnyComponent => self.output.push("__rsvelte_any_component"),
-            Node::StringLiteralAt { value, at } => {
-                let start = self.output.out.len() as u32;
-                self.node_string_literal(value);
-                self.output.atom_since(start, Span::new(at, at));
-            }
+            Node::StringLiteralAt { value, at } => self.string_literal_at(value, at),
             Node::StringLiteral(value) => self.node_string_literal(value),
+            Node::ComputedStringLiteral { start, len } => self.computed_string_literal(start, len),
             Node::Member { object, property } => {
                 self.node(object);
                 self.output.push(".");
