@@ -9,6 +9,7 @@ use crate::commands::{lint, typecheck};
 use crate::{Installation, configuration, configured_registry, usage};
 
 mod format;
+mod help;
 
 /// The plugins `rsvelte` installs for `lint` and `typecheck`, in installation order.
 static EXTENSIONS: &[&Extension] = &[
@@ -26,20 +27,19 @@ const TYPECHECK: &[&str] = &["ts.check/default"];
 /// project needs no configuration.
 const TYPECHECK_DEFAULTS: &[&str] = &["typescript.check", "svelte.check"];
 
-const HELP: &str = "\
-Usage: rsvelte <command> [options]
+/// Each command but `format`, which takes oxfmt's arguments: its name, its tasks and its guide.
+const COMMANDS: &[(&str, &[&str], &str)] = &[
+    ("lint", LINT, help::LINT),
+    ("typecheck", TYPECHECK, help::TYPECHECK),
+];
 
-Commands:
-  lint [<path>...]               Lint the Svelte and TypeScript files below the paths (default: .)
-  format [<oxfmt arguments>...]  Format files as oxfmt does, Svelte files included
-                                 (see `rsvelte format --help`)
-  typecheck                      Type check the project of tsconfig.json in this directory
-
-Options:
-  --config <file>                The configuration file (default: rsvelte.config.* found upward)
-  -h, --help                     Print this help
-  -V, --version                  Print the version
-";
+/// The tasks and the guide of the command `name`, or the error of a name that is none.
+fn command(name: &str) -> Result<(&'static [&'static str], &'static str), ExitCode> {
+    (COMMANDS.iter())
+        .find(|&&(command, ..)| command == name)
+        .map(|&(_, tasks, guide)| (tasks, guide))
+        .ok_or_else(|| usage(&format!("unknown command `{name}`; see `rsvelte --help`")))
+}
 
 /// `rsvelte`.
 #[must_use]
@@ -50,44 +50,51 @@ pub fn release() -> ExitCode {
     }
     let mut config = configuration::Options::default();
     let mut positional = Vec::new();
+    let (mut help, mut version) = (false, false);
+    let mut mistake = None;
     let mut it = arguments.iter();
     while let Some(argument) = it.next() {
         match argument.as_str() {
-            "-h" | "--help" => {
-                print!("{HELP}");
-                return ExitCode::SUCCESS;
-            }
-            "-V" | "--version" => {
-                println!("rsvelte {}", env!("CARGO_PKG_VERSION"));
-                return ExitCode::SUCCESS;
-            }
-            name if configuration::Options::accepts(name) => {
-                let Some(value) = it.next() else {
-                    return usage(&format!("{name} needs a value"));
-                };
-                config.argument(name, value);
-            }
+            "-h" | "--help" => help = true,
+            "-V" | "--version" => version = true,
+            name if configuration::Options::accepts(name) => match it.next() {
+                Some(value) => config.argument(name, value),
+                None => _ = mistake.get_or_insert_with(|| format!("{name} needs a value")),
+            },
             name if name.starts_with('-') => {
-                return usage(&format!("unknown option {name}; see `rsvelte --help`"));
+                mistake
+                    .get_or_insert_with(|| format!("unknown option {name}; see `rsvelte --help`"));
             }
             path => positional.push(path),
         }
     }
-    let Some((&command, paths)) = positional.split_first() else {
-        eprint!("{HELP}");
+    // Asked for help, the user gets it even past a mistake in the other arguments.
+    if help || positional.first() == Some(&"help") {
+        return print_help(&positional);
+    }
+    if let Some(mistake) = mistake {
+        return usage(&mistake);
+    }
+    if version {
+        println!("rsvelte {}", env!("CARGO_PKG_VERSION"));
+        return ExitCode::SUCCESS;
+    }
+    let Some((&name, paths)) = positional.split_first() else {
+        eprint!("{}", help::OVERVIEW);
         return ExitCode::from(2);
     };
-    let tasks = match command {
-        "lint" => LINT,
-        "typecheck" => TYPECHECK,
-        "format" => return usage("put `format` first: its options are oxfmt's"),
-        other => return usage(&format!("unknown command `{other}`; see `rsvelte --help`")),
+    if name == "format" {
+        return usage("put `format` first: its options are oxfmt's");
+    }
+    let tasks = match command(name) {
+        Ok((tasks, _)) => tasks,
+        Err(code) => return code,
     };
-    if command == "typecheck" && !paths.is_empty() {
+    if name == "typecheck" && !paths.is_empty() {
         return usage("typecheck takes no paths: it checks the files its tsconfig.json selects");
     }
     let paths = if paths.is_empty() { &["."][..] } else { paths };
-    let defaults = if command == "typecheck" {
+    let defaults = if name == "typecheck" {
         (TYPECHECK_DEFAULTS.iter())
             .map(|&plugin| (plugin, "{}".to_owned()))
             .collect()
@@ -103,11 +110,30 @@ pub fn release() -> ExitCode {
         Ok(configured) => configured,
         Err(error) => return usage(&error),
     };
-    if command == "lint" {
+    if name == "lint" {
         lint::lint(&reg, paths, tasks)
     } else {
         typecheck::typecheck(&reg, tasks)
     }
+}
+
+/// `rsvelte help [<command>]`, or `--help` with the positional arguments: the guide to the command
+/// they name, else the overview. `format`'s is oxfmt's help.
+fn print_help(positional: &[&str]) -> ExitCode {
+    let guide = match positional {
+        [] | ["help"] => help::OVERVIEW,
+        ["help", "help"] => help::HELP,
+        ["help", _, extra, ..] => {
+            return usage(&format!("help takes one command, not also `{extra}`"));
+        }
+        ["help", "format"] | ["format", ..] => return format::format(&["--help".to_owned()]),
+        ["help", name] | [name, ..] => match command(name) {
+            Ok((_, guide)) => guide,
+            Err(code) => return code,
+        },
+    };
+    print!("{guide}");
+    ExitCode::SUCCESS
 }
 
 #[cfg(test)]

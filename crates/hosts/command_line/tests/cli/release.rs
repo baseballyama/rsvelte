@@ -49,6 +49,48 @@ fn help_and_version_succeed_and_a_development_command_is_unknown() {
 }
 
 #[test]
+fn help_prints_the_guide_to_the_command_it_names() {
+    let project = Project::new(&[]);
+    let overview = text(&project.rsvelte(&["help"]).stdout);
+    assert_eq!(overview, text(&project.rsvelte(&["--help"]).stdout));
+    for command in ["lint", "typecheck"] {
+        let usage = format!("Usage: rsvelte {command} ");
+        for arguments in [
+            &["help", command][..],
+            &[command, "--help"],
+            &["-h", command],
+            &[command, "--bogus", "-V", "-h", "--config"],
+        ] {
+            let output = project.rsvelte(arguments);
+            assert_eq!(output.status.code(), Some(0), "{arguments:?}");
+            assert!(output.stderr.is_empty(), "{arguments:?}");
+            let guide = text(&output.stdout);
+            assert!(guide.starts_with(&usage), "{arguments:?}: {guide}");
+        }
+    }
+    // `format` takes oxfmt's arguments, so its guide is oxfmt's help.
+    let oxfmt = text(&project.rsvelte(&["format", "--help"]).stdout);
+    assert!(oxfmt.contains("rsvelte format"), "{oxfmt}");
+    for arguments in [&["help", "format"][..], &["-h", "format"]] {
+        let output = project.rsvelte(arguments);
+        assert_eq!(output.status.code(), Some(0), "{arguments:?}");
+        assert_eq!(text(&output.stdout), oxfmt, "{arguments:?}");
+    }
+    let guide = text(&project.rsvelte(&["help", "help"]).stdout);
+    assert!(guide.starts_with("Usage: rsvelte help "), "{guide}");
+    let unknown = project.rsvelte(&["help", "check"]);
+    assert_eq!(unknown.status.code(), Some(2));
+    assert!(text(&unknown.stderr).contains("unknown command `check`"));
+    let extra = project.rsvelte(&["help", "lint", "src"]);
+    assert_eq!(extra.status.code(), Some(2));
+    let guide = text(&project.rsvelte(&["help", "lint", "-V", "--bogus"]).stdout);
+    assert!(guide.starts_with("Usage: rsvelte lint "), "{guide}");
+    // An option's value is not a request for help.
+    let lint = project.rsvelte(&["lint", "--config-runtime-arg", "-h"]);
+    assert!(!text(&lint.stdout).contains("Usage:"));
+}
+
+#[test]
 fn lint_reads_svelte_and_typescript_and_not_vue() {
     let project = Project::new(&[
         ("a.ts", "const unused = 1\n"),
