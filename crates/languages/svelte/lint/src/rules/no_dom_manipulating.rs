@@ -3,14 +3,14 @@ use oxc_ast::ast::Expression;
 use oxc_semantic::{NodeId, ReferenceId};
 use oxc_span::GetSpan;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte_semantic::legacy::Variable;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, TemplateNode};
 use rsvelte_typescript_semantic::static_value::StaticValues;
+use rsvelte_typescript_tree::node_span;
 use rustc_hash::FxHashSet;
 
 use super::shared::element_kind::is_markup_element;
-use super::shared::legacy_reactivity::{expression_node, legacy, property_name};
-use super::shared::nodes::span;
+use super::shared::legacy_reactivity::{Variable, legacy};
+use super::shared::nodes::property_name;
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -86,7 +86,7 @@ impl SvelteRule for NoDomManipulating {
                 AstKind::ComputedMemberExpression(member) => &member.object,
                 _ => continue,
             };
-            if expression_node(object) != identifier {
+            if object.node_id() != identifier {
                 continue;
             }
             let computed;
@@ -114,7 +114,7 @@ impl SvelteRule for NoDomManipulating {
             }
             let manipulates = match nodes.kind(parent) {
                 AstKind::CallExpression(call) => {
-                    expression_node(&call.callee) == callee && METHODS.contains(&name)
+                    call.callee.node_id() == callee && METHODS.contains(&name)
                 }
                 AstKind::AssignmentExpression(assignment) => {
                     assignment.left.span() == member_kind.span() && PROPERTIES.contains(&name)
@@ -126,7 +126,7 @@ impl SvelteRule for NoDomManipulating {
                     "Don't manipulate the DOM directly. The Svelte runtime can get confused \
                          if there is a difference between the actual DOM and the DOM expected by \
                          the Svelte runtime.",
-                    span(&member_kind),
+                    node_span(&member_kind),
                 ));
             }
         }
@@ -162,7 +162,7 @@ fn bound_this(file: &File<'_>) -> FxHashSet<NodeId> {
                 && let expression = javascript.get_expression(*expression)
                 && matches!(expression, Expression::Identifier(_))
             {
-                bound.insert(expression_node(expression));
+                bound.insert(expression.node_id());
             }
         }
     }

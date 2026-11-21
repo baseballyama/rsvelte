@@ -4,12 +4,12 @@ export const ROOT = path.resolve(import.meta.dirname, '../..');
 export const CORPUS = path.join(ROOT, 'corpus');
 /** Where cargo writes the builds the tools run, so a build under `CARGO_TARGET_DIR` is the one they spawn. */
 export const CARGO_TARGET = path.resolve(ROOT, process.env.CARGO_TARGET_DIR || 'target');
-// Sources live under corpus/<family>/ (svelte, vue, html, …); everything shared lives in _registry/.
+// Sources live under corpus/<family>/ (a family of languages.ts); everything shared lives in _registry/.
 const REGISTRY = path.join(CORPUS, '_registry');
 export const SOURCES_FILE = path.join(REGISTRY, 'sources.json');
 export const ORACLES_FILE = path.join(REGISTRY, 'oracles.json');
 export const IMPORT_REPORT_FILE = path.join(REGISTRY, 'import-report.json');
-/** The hand-written part of units (types.ts `FixtureToml`), one table per unit key. */
+/** The hand-written part of units (types.ts `UnitTable`), one table per unit key. */
 export const UNITS_FILE = path.join(REGISTRY, 'units.toml');
 /** Tasks that compare one file of another task's pack, by name: `{ pack, file }`. */
 export const READERS_FILE = path.join(REGISTRY, 'readers.toml');

@@ -1,6 +1,5 @@
-// Every input language the fixture set knows. A language decides which files it claims and whether
-// a claimed file is admitted; tasks (./tasks) decide what is measured on an admitted unit.
-// Adding Vue, HTML, CSS, … means adding an entry here (and tasks that apply to it), nothing else.
+// Every input language the corpus knows. A language decides which files it claims and whether a
+// claimed file is admitted; tasks (./tasks) decide what is measured on an admitted unit.
 import { compile, compileModule } from 'svelte/compiler';
 import { parse as parseSfc } from '@vue/compiler-sfc';
 import { vueModule } from './behaviour/official.ts';

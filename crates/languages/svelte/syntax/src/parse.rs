@@ -13,7 +13,6 @@ mod fragment;
 mod identifier;
 mod javascript;
 mod options;
-pub use javascript::javascript_failure;
 mod pattern;
 mod script;
 mod sequence;
@@ -23,6 +22,7 @@ mod token;
 mod whitespace;
 
 pub use element_rules::{AUTOCLOSING_CHILDREN, Autoclosing, is_void};
+pub use javascript::javascript_failure;
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;
@@ -33,8 +33,8 @@ use rsvelte_typescript_tree::{SyntaxError, Tree, TreeBuilder};
 use rustc_hash::FxHashSet;
 
 use crate::syntax_tree::{
-    Attribute, Component, Part, Range, Script, Style, TemplateNode, TemplateNodeIdentifier,
-    TokenType,
+    Attribute, Component, ImplicitlyClosed, Part, Range, Script, Style, TemplateNode,
+    TemplateNodeIdentifier, TokenType,
 };
 
 type ParseResult<T> = Result<T, Diagnostic>;
@@ -91,6 +91,33 @@ pub fn parse_reading_scripts_as_typescript(source_text: &str) -> ParseResult<Com
     parse_with(source_text, Scripts::ReadAsTypeScript, false)
 }
 
+/// The component as svelte-check's checker reads svelte2tsx's output.
+///
+/// Each script is TypeScript when [`Component::checked_as_typescript`], else JavaScript with
+/// JSX, where TypeScript also reads TypeScript syntax and reports it.
+///
+/// The errors of a script that language rejects are [`Component::script_typescript_errors`],
+/// and its program is empty.
+///
+/// # Errors
+///
+/// As [`parse`], outside the scripts.
+pub fn parse_as_checked(source_text: &str) -> ParseResult<Component> {
+    let component = parse_with(source_text, Scripts::ReadAsChecked, false)?;
+    // The compiler's language came first; svelte2tsx's can differ only by the script tags.
+    let read_as = |component: &Component| {
+        [&component.instance, &component.module]
+            .into_iter()
+            .flatten()
+            .any(|script| script.typescript)
+    };
+    let typescript = component.checked_as_typescript(source_text);
+    if read_as(&component) == typescript {
+        return Ok(component);
+    }
+    parse_as(source_text, Scripts::ReadAsChecked, false, typescript).0
+}
+
 /// The component as svelte-eslint-parser reads it: as
 /// [`parse_reading_scripts_as_typescript`], with a self-closing `<script …/>` or `<style …/>`
 /// at the root read as a plain element, which the compiler rejects.
@@ -111,6 +138,8 @@ enum Scripts {
     Left,
     /// As the compiler does, and as TypeScript where the compiler rejects it.
     ReadAsTypeScript,
+    /// As [`parse_as_checked`] does.
+    ReadAsChecked,
 }
 
 fn parse_with(
@@ -238,16 +267,18 @@ fn acorn_position(mut e: Diagnostic) -> Diagnostic {
     e
 }
 
-/// Upstream's error `code`, whose message ends with the link to its docs; an error of this
-/// parser's own, `parse_error`, has no docs page.
+/// Upstream's error `code`; an error of this parser's own, `parse_error`, has no docs page.
 #[cold]
-fn svelte_error(code: &'static str, message: impl std::fmt::Display, span: Span) -> Diagnostic {
-    let message = if code == "parse_error" {
-        message.to_string()
+fn svelte_error(
+    code: &'static str,
+    message: impl AsRef<str> + Into<String>,
+    span: Span,
+) -> Diagnostic {
+    if code == "parse_error" {
+        Diagnostic::error(code, message.into(), span)
     } else {
-        format!("{message}\nhttps://svelte.dev/e/{code}")
-    };
-    Diagnostic::error(code, message, span)
+        crate::svelte_diagnostics::error(code, message, span)
+    }
 }
 
 /// The component without its JavaScript, while the parser fills the arena.
@@ -259,6 +290,7 @@ struct Template {
     modifiers: Vec<Span>,
     debug_identifiers: Vec<rsvelte_typescript_tree::ExpressionIdentifier>,
     tag_comments: Vec<Span>,
+    implicitly_closed: Vec<ImplicitlyClosed>,
     root: Range,
     module: Option<Script>,
     instance: Option<Script>,
@@ -278,6 +310,7 @@ impl Template {
             debug_identifiers: buffer_pool::take_keyed::<Component, _>(),
             // Rare, so it starts without an allocation instead of from the pool.
             tag_comments: Vec::new(),
+            implicitly_closed: Vec::new(),
             root: Range::default(),
             module: None,
             instance: None,
@@ -300,6 +333,7 @@ impl Template {
             modifiers: std::mem::take(&mut self.modifiers),
             debug_identifiers: std::mem::take(&mut self.debug_identifiers),
             tag_comments: std::mem::take(&mut self.tag_comments),
+            implicitly_closed: std::mem::take(&mut self.implicitly_closed),
             root: self.root,
             module: self.module.take(),
             instance: self.instance.take(),
@@ -406,7 +440,7 @@ impl<'a> Parser<'a, '_> {
         code: &'static str,
         message: impl std::fmt::Display,
     ) -> ParseResult<T> {
-        Err(svelte_error(code, message, span))
+        Err(svelte_error(code, message.to_string(), span))
     }
 
     /// Upstream's `expected_token`, which its `eat(token, true)` raises.

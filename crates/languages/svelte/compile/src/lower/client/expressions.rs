@@ -1,35 +1,25 @@
 use oxc_ast::ast::Expression;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{ClientCompilationContext, Memo, Memoized, ScriptRewrite, Target};
+use super::{ClientCompilationContext, Memo, Memoized};
+use crate::input::Target;
 use crate::lower::builder::Runtime;
+use crate::lower::script::ScriptRewrite;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// The template expression `e`, rewritten for the client.
     pub(super) fn expression(&self, e: ExpressionIdentifier) -> Expression<'o> {
-        self.expression_with_rest_reads(e, true)
-    }
-
-    pub(super) fn expression_with_rest_reads(
-        &self,
-        e: ExpressionIdentifier,
-        rest_reads: bool,
-    ) -> Expression<'o> {
-        self.rewrite(
-            self.javascript.get_expression(e).get_inner_expression(),
-            rest_reads,
-        )
+        self.rewrite(self.javascript.get_expression(e).get_inner_expression())
     }
 
     /// `e`, a node of the component's tree, rewritten for the client.
-    pub(super) fn rewrite(&self, e: &Expression<'_>, rest_reads: bool) -> Expression<'o> {
-        self.rewriter(rest_reads).expression(e)
+    pub(super) fn rewrite(&self, e: &Expression<'_>) -> Expression<'o> {
+        self.rewriter().expression(e)
     }
 
-    pub(super) fn rewriter(&self, rest_reads: bool) -> ScriptRewrite<'_, 'o> {
+    pub(super) fn rewriter(&self) -> ScriptRewrite<'_, 'o> {
         ScriptRewrite {
             accessors: self.custom_element.is_some(),
-            rest_reads: rest_reads.then_some(self.rest_reads),
             template: Some(&self.reads),
             shadows: Some(&self.shadows),
             stores: self.stores,

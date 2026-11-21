@@ -1,10 +1,12 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{ArrowFunctionBody, Directive, Expression, FunctionBody, Statement};
 use oxc_span::SPAN;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{EachKey, Modifiers};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, EachKey, Modifiers, NodeKind,
+};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{Attribute, AttributeValue, ClientCompilationContext, Lists, NodeKind};
+use super::{ClientCompilationContext, Lists};
 use crate::lower::bindings::{BindStrategy, attribute_value, property_of};
 use crate::lower::builder::Runtime;
 

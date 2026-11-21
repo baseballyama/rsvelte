@@ -4,12 +4,14 @@ use oxc_ast::ast::{ChainElement, Expression};
 use oxc_ast_visit::Visit;
 use oxc_semantic::ReferenceId;
 use rsvelte_kernel::index::IndexVector;
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{
+    DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
+};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use crate::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use crate::input::ComponentInput;
-use crate::resolve::Resolution;
+use crate::resolve::{Resolution, Roots, TemplateName, TemplateScope};
 use crate::typescript::without_typescript;
 
 mod dynamic;
@@ -17,6 +19,7 @@ mod evaluation;
 mod metadata;
 mod stylesheet;
 
+pub use dynamic::cannot_be_set_statically;
 use evaluation::BindingValues;
 use metadata::MetadataWalker;
 
@@ -91,63 +94,42 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
     };
     let tree = input.javascript;
     let mut values = BindingValues::new(res);
-    let mut walker = MetadataWalker::<false>::new(res, &mut values);
+    let mut scripts = MetadataWalker::<false>::new(res, &mut values);
     for program in input.module.into_iter().chain(input.instance) {
-        walker.visit_program(tree.get_program(program));
+        scripts.visit_program(tree.get_program(program));
     }
-    let mut needs_context = walker.needs_context();
-    // Upstream reads a component's name from its tag, not as an expression that needs context.
-    let references: FxHashSet<ExpressionIdentifier> =
-        compiler_syntax_tree.component_references().collect();
-    let mut expressions =
-        FxHashMap::with_capacity_and_hasher(tree.expressions().len(), FxBuildHasher);
-    let renders: FxHashSet<ExpressionIdentifier> = compiler_syntax_tree
-        .nodes
-        .iter()
-        .filter_map(|node| match node.kind {
-            NodeKind::Render { expression } => Some(expression),
-            _ => None,
-        })
-        .collect();
-    for (identifier, expression) in tree.expressions() {
-        let mut walker = MetadataWalker::<true>::new(res, &mut values);
-        // Upstream's render tag visits its call's callee and each argument, never the call.
-        let call = renders
-            .contains(&identifier)
-            .then(|| render_call(expression))
-            .flatten();
-        let Some(call) = call else {
-            walker.visit_expression(expression);
-            needs_context |= walker.needs_context() && !references.contains(&identifier);
-            expressions.insert(identifier, walker.metadata());
-            continue;
-        };
-        walker.visit_expression(&call.callee);
-        needs_context |= walker.needs_context();
-        expressions.insert(identifier, walker.metadata());
-        let arguments = call
-            .arguments
+    let needs_context = scripts.needs_context();
+    let mut template = Walked {
+        tree,
+        res,
+        values: &mut values,
+        // Upstream reads a component's name from its tag, not as an expression that needs
+        // context.
+        references: compiler_syntax_tree.component_references().collect(),
+        renders: compiler_syntax_tree
+            .nodes
             .iter()
-            .map(|argument| {
-                let mut walker = MetadataWalker::<true>::new(res, &mut values);
-                walker.visit_argument(argument);
-                needs_context |= walker.needs_context();
-                walker.metadata()
+            .filter_map(|node| match node.kind {
+                NodeKind::Render { expression } => Some(expression),
+                _ => None,
             })
-            .collect();
-        analysis.render_arguments.insert(identifier, arguments);
-    }
-    for (_, declaration) in tree.declarations() {
-        let mut walker = MetadataWalker::<true>::new(res, &mut values);
-        walker.visit_variable_declaration(declaration);
-        needs_context |= walker.needs_context();
-    }
-    // Upstream visits a snippet's parameters, but never the patterns of `{#each}` or `{:then}`.
-    for (_, parameters) in tree.parameters() {
-        let mut walker = MetadataWalker::<true>::new(res, &mut values).with_parentheses(tree);
-        walker.visit_formal_parameters(parameters);
-        needs_context |= walker.needs_context();
-    }
+            .collect(),
+        expressions: FxHashMap::with_capacity_and_hasher(tree.expressions().len(), FxBuildHasher),
+        render_arguments: FxHashMap::default(),
+        needs_context,
+    };
+    crate::resolve::walk(
+        compiler_syntax_tree,
+        compiler_syntax_tree.root,
+        &mut template,
+    );
+    let Walked {
+        expressions,
+        render_arguments,
+        needs_context,
+        ..
+    } = template;
+    analysis.render_arguments = render_arguments;
     analysis.expressions = expressions;
     analysis.needs_context = needs_context;
     // Which elements the style sheet scopes is an input of the dynamic marks.
@@ -160,6 +142,78 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
         &mut analysis.dynamic,
     );
     analysis
+}
+
+/// The metadata of what the template evaluates: the roots the scope analysis visits, so every
+/// reference walked has been resolved.
+struct Walked<'w, 'a> {
+    tree: &'a rsvelte_typescript_tree::Tree,
+    res: &'a Resolution,
+    values: &'w mut BindingValues<'a>,
+    references: FxHashSet<ExpressionIdentifier>,
+    renders: FxHashSet<ExpressionIdentifier>,
+    expressions: FxHashMap<ExpressionIdentifier, ExpressionMetadata>,
+    render_arguments: FxHashMap<ExpressionIdentifier, Vec<ExpressionMetadata>>,
+    needs_context: bool,
+}
+
+impl Roots for Walked<'_, '_> {
+    fn expression(&mut self, expression: ExpressionIdentifier) {
+        let identifier = expression;
+        let expression = self.tree.get_expression(identifier);
+        let mut walker = MetadataWalker::<true>::new(self.res, self.values);
+        // Upstream's render tag visits its call's callee and each argument, never the call.
+        let call = (self.renders.contains(&identifier))
+            .then(|| render_call(expression))
+            .flatten();
+        let Some(call) = call else {
+            walker.visit_expression(expression);
+            self.needs_context |= walker.needs_context() && !self.references.contains(&identifier);
+            self.expressions.insert(identifier, walker.metadata());
+            return;
+        };
+        walker.visit_expression(&call.callee);
+        self.needs_context |= walker.needs_context();
+        self.expressions.insert(identifier, walker.metadata());
+        let arguments = call
+            .arguments
+            .iter()
+            .map(|argument| {
+                let mut walker = MetadataWalker::<true>::new(self.res, self.values);
+                walker.visit_argument(argument);
+                self.needs_context |= walker.needs_context();
+                walker.metadata()
+            })
+            .collect();
+        self.render_arguments.insert(identifier, arguments);
+    }
+
+    fn bound(&mut self, expression: ExpressionIdentifier) {
+        self.expression(expression);
+    }
+
+    fn declaration(&mut self, declaration: DeclarationIdentifier) {
+        let mut walker = MetadataWalker::<true>::new(self.res, self.values);
+        walker.visit_variable_declaration(self.tree.get_declaration(declaration));
+        self.needs_context |= walker.needs_context();
+    }
+
+    // Upstream never visits the patterns of `{#each}` or `{:then}`.
+    fn pattern(&mut self, _: PatternIdentifier) {}
+
+    // Upstream visits a snippet's parameters.
+    fn parameters(&mut self, parameters: ParametersIdentifier) {
+        let mut walker =
+            MetadataWalker::<true>::new(self.res, self.values).with_parentheses(self.tree);
+        walker.visit_formal_parameters(self.tree.get_parameters(parameters));
+        self.needs_context |= walker.needs_context();
+    }
+
+    fn name(&mut self, _: TemplateName) {}
+
+    fn enter(&mut self, _: TemplateScope) {}
+
+    fn leave(&mut self) {}
 }
 
 /// Upstream `unwrap_optional` of a render tag's expression: the call it makes.

@@ -3,8 +3,8 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TokenType;
+use rsvelte_typescript_tree::node_span;
 
-use super::shared::nodes::span;
 use super::shared::reactive_statements::{between, reactive_statements};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -20,14 +20,14 @@ struct NoExtraReactiveCurlies;
 impl SvelteRule for NoExtraReactiveCurlies {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        for (_, body) in reactive_statements(file, component) {
+        for (_, body) in reactive_statements(file) {
             let Statement::BlockStatement(block) = body else {
                 continue;
             };
             if block.body.len() != 1 {
                 continue;
             }
-            let block = span(block.as_ref());
+            let block = node_span(block.as_ref());
             let mut report = Report::range(
                 "Do not wrap reactive statements in curly braces unless necessary.",
                 block,

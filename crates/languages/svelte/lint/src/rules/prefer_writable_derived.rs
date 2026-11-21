@@ -5,9 +5,10 @@ use oxc_ast::ast::{
 };
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_typescript_tree::node_span;
 
-use super::shared::nodes::{is_named, only_statement, span, text};
-use super::shared::runes::runes_or_undetermined;
+use super::shared::nodes::{is_named, only_statement, text};
+use super::shared::runes::meets_runes_condition;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -21,7 +22,7 @@ struct PreferWritableDerived;
 
 impl SvelteRule for PreferWritableDerived {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        if !runes_or_undetermined(file) {
+        if !meets_runes_condition(file) {
             return;
         }
         let source = file.source();
@@ -53,14 +54,14 @@ impl SvelteRule for PreferWritableDerived {
                 continue;
             }
             let mut fix = Fix::replace(
-                span(initializer),
+                node_span(initializer),
                 format!("$derived({})", text(value, source)),
             );
-            fix.push(span(call), "");
+            fix.push(node_span(call), "");
             reporter.report(
                 Report::range(
                     "Prefer using writable $derived instead of $state and $effect",
-                    span(declarator),
+                    node_span(declarator),
                 )
                 .suggest(Suggestion {
                     message: "Rewrite $state and $effect to $derived".to_owned(),

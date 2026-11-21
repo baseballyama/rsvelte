@@ -7,16 +7,18 @@ use oxc_span::GetSpan;
 use oxc_syntax::operator::{AssignmentOperator, UnaryOperator};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte_semantic::legacy::{Legacy, Variable};
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode};
+use rsvelte_typescript_tree::node_span;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::shared::legacy_reactivity::{bindings, expression_node, legacy};
-use super::shared::nodes::span;
+use super::shared::legacy_reactivity::{Legacy, Variable, bindings, legacy};
 use super::shared::reactive_statements::{by_statement, reactive_statements};
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
+
+#[cfg(test)]
+mod tests;
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-immutable-reactive-statements",
@@ -30,7 +32,7 @@ struct NoImmutableReactiveStatements;
 impl SvelteRule for NoImmutableReactiveStatements {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        let statements: Vec<_> = reactive_statements(file, component).collect();
+        let statements: Vec<_> = reactive_statements(file).collect();
         if statements.is_empty() {
             return;
         }
@@ -40,13 +42,12 @@ impl SvelteRule for NoImmutableReactiveStatements {
         let nodes = resolution.semantic().nodes();
         let ranges: Vec<Span> = statements
             .iter()
-            .map(|&(statement, _)| span(statement))
+            .map(|&(statement, _)| node_span(statement))
             .collect();
         let references = by_statement(
             &ranges,
             (0..scoping.references_len())
                 .map(ReferenceId::from_usize)
-                .filter(|&id| is_value(scoping.get_reference(id)))
                 .map(|id| {
                     let node = scoping.get_reference(id).node_id();
                     (nodes.kind(node).span().start, id)
@@ -66,10 +67,12 @@ impl SvelteRule for NoImmutableReactiveStatements {
                         }
                     }
                     // A name no scope declares: `$$` builtins and names unknown to `ESLint` make
-                    // the statement reactive.
+                    // the statement reactive, type references included.
                     None if reference.symbol_id().is_none() => {
                         let name = name_of(resolution, id);
-                        if name.starts_with("$$") || !file.globals().declares(name) {
+                        if name.starts_with("$$")
+                            || !file.globals().resolves(name, reference.flags())
+                        {
                             reactive = true;
                             break;
                         }
@@ -85,11 +88,11 @@ impl SvelteRule for NoImmutableReactiveStatements {
                     Expression::AssignmentExpression(assignment)
                         if assignment.operator == AssignmentOperator::Assign =>
                     {
-                        span(&assignment.right)
+                        node_span(&assignment.right)
                     }
-                    _ => span(body),
+                    _ => node_span(body),
                 },
-                _ => span(body),
+                _ => node_span(body),
             };
             reporter.report(Report::range(
                 "This statement is not reactive because all variables referenced in the \
@@ -145,7 +148,7 @@ impl<'a> Checker<'a> {
                     context: Some(context),
                     ..
                 } => Some((
-                    expression_node(javascript.get_expression(expression)),
+                    javascript.get_expression(expression).node_id(),
                     javascript.get_pattern(context),
                 )),
                 _ => None,
@@ -244,7 +247,7 @@ impl<'a> Checker<'a> {
         let nodes = self.resolution.semantic().nodes();
         let parent = nodes.parent_id(expression);
         let at = nodes.kind(expression).span();
-        let is_expression = |e: &Expression<'_>| expression_node(e) == expression;
+        let is_expression = |e: &Expression<'_>| e.node_id() == expression;
         match nodes.kind(parent) {
             // A template expression, whose parent upstream is its directive or block.
             AstKind::Program(_) if parent != expression => {

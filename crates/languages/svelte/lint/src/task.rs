@@ -9,11 +9,11 @@ use rsvelte_kernel::source::positions::LineBreaks;
 
 use crate::Configuration;
 use crate::computation::{
-    ConditionTypes, LegacyReactivity, LintConfiguration, LoweredAsSvelteEslintParser,
-    ModuleAsTypeScript, ModuleSemantic, NativeConditionTypes, ParsedAsSvelteEslintParser,
-    ResolvedAsSvelteEslintParser,
+    ConditionTypes, LintConfiguration, LoweredAsSvelteEslintParser, ModuleAsTypeScript,
+    ModuleSemantic, NativeConditionTypes, ParsedAsSvelteEslintParser, ResolvedAsSvelteEslintParser,
 };
 use crate::project::{PostcssConfigurationOnDisk, SameNamedFileOnDisk};
+use crate::rules::shared::legacy_reactivity::LegacyReactivity;
 use crate::rules::shared::style_attribute::InlineStyles;
 use crate::rules::shared::style_sheet::{LintStyleSheet, StyleSheetVerdict};
 use crate::types::TypeFacts;
@@ -125,10 +125,6 @@ impl Task for Lint {
             .map_or(&*crate::configuration::DEFAULT, |configuration| {
                 configuration.as_ref()
             });
-        // svelte-eslint-parser throws Svelte's parse error, which ESLint reports as the one
-        // finding: the markup's, or a JavaScript one in the template's expressions, which Svelte's
-        // parser reads too. It parses a script itself, with typescript-eslint whatever the
-        // script's language, and throws what that rejects; the rules read a script it parses.
         match parse_verdict(context) {
             Verdict::Throws(message, at) => {
                 rsvelte_lint_runner::output::report_parse_error(out, positions, &message, at);

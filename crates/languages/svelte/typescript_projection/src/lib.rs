@@ -4,14 +4,15 @@ mod buffers;
 pub mod content_mapper;
 mod lower;
 pub mod syntax_tree;
-pub use lower::{
-    Refusal, Resolve, UnparsedScript, checked_as_typescript, lower, lower_alone, store_reads,
-    unparsed_script,
-};
+pub use lower::{Refusal, Resolve, lower, lower_alone, store_reads};
 mod emit;
 pub use emit::emit;
 mod computation;
-pub use computation::{Printed, Projected, THROWN, register, register_artifacts};
+mod read;
+pub use computation::{
+    EmittedProjection, ProjectionTree, TASK, THROWN, register, register_artifacts,
+};
+pub use read::{Read, cut_short_at, read, read_alone};
 
 /// The helpers' declarations without the element types, for a project that reads them from
 /// svelte's own `svelte-html.d.ts`, as svelte-check does when the package has one.
@@ -40,7 +41,7 @@ pub const DECLARATIONS: (&str, &str) = (
 /// It is the part of the file name before the first `.` in `PascalCase`, without the characters
 /// a name cannot have, and with the suffix that keeps it apart from the component's own names.
 #[must_use]
-pub fn component_name(path: &str) -> String {
+pub fn default_export_name(path: &str) -> String {
     const SUFFIX: &str = "__SvelteComponent_";
     let file = path.rsplit(['/', '\\']).next().unwrap_or(path);
     let stem = file.split('.').next().unwrap_or(file);
@@ -85,16 +86,37 @@ pub const STAND_IN: &str = "declare const __rsvelte_stand_in: {\n\
     type __rsvelte_stand_in = any;\n\
     export default __rsvelte_stand_in;\n";
 
-/// [`STAND_IN`] after the component's `<script module>`, so an import of a component that is not
-/// projected still reads its module's exports with their types. `None` without a module script.
+/// Why a component has no projection.
+#[derive(Clone, Copy, Debug)]
+pub enum Unprojected<'a> {
+    /// svelte2tsx throws, on the markup or on a script.
+    Thrown,
+    /// The projection does not cover the component.
+    Unsupported(&'a rsvelte_svelte_syntax::syntax_tree::Component),
+}
+
+/// What the checker reads for a component that has no projection.
+///
+/// When svelte2tsx throws, svelte-check reads the bare instance script, else the module script,
+/// which declares globals for the whole project when it neither imports nor exports. Otherwise
+/// it is [`STAND_IN`] after the module script, so an import still reads the module's exports with
+/// their types.
 #[must_use]
-pub fn stand_in(
-    component: &rsvelte_svelte_syntax::syntax_tree::Component,
-    source: &str,
-) -> Option<String> {
-    let module = component.module.as_ref()?.content.text(source);
-    // The `;` ends a module whose last statement has none.
-    Some(format!("{module}\n;\n{STAND_IN}"))
+pub fn unprojected(source: &str, why: Unprojected<'_>) -> String {
+    match why {
+        Unprojected::Thrown => rsvelte_svelte_syntax::parse::parse_without_scripts(source)
+            .ok()
+            .and_then(|component| {
+                let script = component.instance.as_ref().or(component.module.as_ref())?;
+                Some(script.content.text(source).to_owned())
+            })
+            .unwrap_or_default(),
+        // The `;` ends a module whose last statement has none.
+        Unprojected::Unsupported(component) => component.module.as_ref().map_or_else(
+            || STAND_IN.to_owned(),
+            |module| format!("{}\n;\n{STAND_IN}", module.content.text(source)),
+        ),
+    }
 }
 
 /// Takes no options.

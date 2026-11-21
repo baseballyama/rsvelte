@@ -1,15 +1,20 @@
 use oxc_ast::ast::Expression;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier,
+};
+use rsvelte_svelte_syntax::syntax_tree::escape_markup;
 
 use super::escaped_text;
-use crate::lower::Target;
+use crate::input::Target;
+use crate::lower::attributes::{
+    can_use_literal, event_attribute, implicit_attributes, is_behaviour, is_boolean_attribute,
+    is_directive, scoped_class,
+};
 use crate::lower::builder::Runtime;
 use crate::lower::javascript::string_value;
-use crate::lower::server::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, ServerCompilationContext, Template,
-    capture_event, capture_load_events, escape_markup, event_attribute, is_behaviour,
-    is_boolean_attribute, is_directive, push_captured_events,
-};
-use crate::lower::template::{can_use_literal, implicit_attributes, scoped_class};
+use crate::lower::server::ServerCompilationContext;
+use crate::lower::server::events::{capture_event, capture_load_events, push_captured_events};
+use crate::lower::server::template::Template;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_element_attributes` (no spread).
@@ -33,7 +38,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             return;
         }
         let hash = if self.an.scoped[identifier] {
-            self.identity.stylesheet_hash.clone()
+            self.identity.stylesheet_hash.as_deref()
         } else {
             None
         };
@@ -51,7 +56,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             let raw_name = a.name.text(self.source_text);
             match a.value {
                 AttributeValue::Bind(_) => {
-                    if let Some(call) = self.binding(tag, list, a) {
+                    if let Some(call) = self.binding(identifier, tag, list, a) {
                         template.expression(call);
                     }
                     continue;
@@ -72,12 +77,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 _ if raw_name == "value" && tag == "textarea" => continue,
                 _ => {}
             }
-            let name = if self.plan.named(identifier) == crate::render_plan::Namespace::Html {
-                raw_name.to_lowercase()
-            } else {
-                raw_name.to_owned()
-            };
-            let trim = matches!(name.as_str(), "class" | "style");
+            let name = self.attribute_name(identifier, raw_name);
+            let trim = matches!(&*name, "class" | "style");
             let literal = match &a.value {
                 AttributeValue::Boolean => Some(None),
                 AttributeValue::Static(v) => Some(Some(escaped_text(v, trim))),
@@ -86,18 +87,18 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             if can_use_literal(&name, directives.0, directives.1)
                 && let Some(v) = literal
             {
-                Self::literal_attribute(template, &name, v, hash.as_deref());
+                Self::literal_attribute(template, &name, v, hash);
                 continue;
             }
             let value = self.attribute_value(a, trim, raw_name == "class");
-            self.dynamic_attribute(&name, value, directives, hash.as_deref(), template);
+            self.dynamic_attribute(&name, value, directives, hash, template);
         }
         let implicit = implicit_attributes(self.source_text, list, self.an.scoped[identifier]);
         if implicit.class && !class_directives.is_empty() {
-            let call = self.attribute_class(&class_directives, self.b.string(""), hash.as_deref());
+            let call = self.attribute_class(&class_directives, self.b.string(""), hash);
             template.expression(call);
         } else if implicit.class {
-            Self::literal_attribute(template, "class", Some(String::new()), hash.as_deref());
+            Self::literal_attribute(template, "class", Some(String::new()), hash);
         }
         if implicit.style {
             let call = self.attribute_style(&style_directives, self.b.string(""));

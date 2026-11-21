@@ -10,7 +10,6 @@ mod compiler;
 mod configuration;
 mod extension;
 mod identity;
-mod markup;
 mod module;
 mod task;
 mod warnings;

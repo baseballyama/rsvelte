@@ -6,16 +6,15 @@ use oxc_ast_visit::VisitMut;
 use oxc_semantic::{SymbolFlags, SymbolId};
 use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    AttributeValue, Each, EachKey, ElementKind, MetadataTag,
+    AttributeValue, CompilerNodeIdentifier, Each, EachKey, ElementKind, MetadataTag, NodeKind,
 };
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
+use crate::lower::attributes::has_dependency;
 use crate::lower::builder::Runtime;
-use crate::lower::client::{
-    ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R, Read,
-    has_dependency,
-};
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, R};
+use crate::lower::script::Read;
 
 const EACH_ITEM_REACTIVE: u32 = 1;
 
@@ -316,7 +315,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         let key = self.expression(key);
         let mut pattern = pattern.clone_in_with_semantic_ids(b.allocator());
-        self.rewriter(true).visit_binding_pattern(&mut pattern);
+        self.rewriter().visit_binding_pattern(&mut pattern);
         let mut parameters = vec![b.parameter(pattern)];
         if key_uses_index {
             parameters.push(b.parameter(b.binding(index_name)));

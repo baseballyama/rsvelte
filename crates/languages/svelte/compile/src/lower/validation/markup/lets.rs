@@ -1,9 +1,12 @@
 //! Upstream's checks of the attributes `<svelte:fragment>` takes and of a component's `let:`.
 
 use oxc_span::GetSpan;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, Element, ElementKind, MetadataTag, NodeKind,
+};
 
-use super::super::super::{Attribute, AttributeValue, CompileInput, Diagnostic, Element, NodeKind};
+use crate::input::CompileInput;
 use crate::lower::invalid;
 
 /// `<svelte:fragment>` takes attributes and `let:` directives, nothing else.
@@ -80,7 +83,7 @@ pub(super) fn snippet_conflict(
         );
     invalid(
         "let_directive_snippet_conflict",
-        &format!(
+        format!(
             "Cannot use `let:` directives on a component that has a `children` snippet. Use \
              snippet parameters instead (e.g. `{{#snippet children({{ {pattern} }})}}`)"
         ),

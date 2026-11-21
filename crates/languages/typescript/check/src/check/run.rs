@@ -10,7 +10,8 @@ use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_typescript_api::{DiagnosticKind, Layer, Position, Project, Session};
 
-use super::{CONTRACT, Tsc, TypeChecker, TypeScriptEnv};
+use super::{Tsc, TypeScriptEnv};
+use crate::type_checker::{CONTRACT, TypeChecker};
 
 #[derive(Debug)]
 pub(crate) struct CheckRequest<'a> {
@@ -91,11 +92,14 @@ impl Tsc {
             .map(|i| req.checked_path(&root, i))
             .collect();
         let overlay = root.join(OVERLAY);
-        let mut layer = Layer::default();
+        let mut layer = Layer {
+            files: req.env.replaced.iter().cloned().collect(),
+            links: Vec::new(),
+        };
+        // A document of a replaced file has the replaced text, as the host reads it.
         for (i, path) in paths.iter().enumerate() {
-            layer.files.push((path.clone(), req.text(i).to_owned()));
+            layer.files.insert(path.clone(), req.text(i).to_owned());
         }
-        layer.files.extend(req.env.replaced.iter().cloned());
         layer.files.extend(
             req.stand_ins(&root)
                 .map(|(path, text)| (path, text.to_owned())),
@@ -113,7 +117,7 @@ impl Tsc {
             .iter()
             .map(|(name, text)| {
                 let path = overlay.join(name);
-                layer.files.push((path.clone(), (*text).to_owned()));
+                layer.files.insert(path.clone(), (*text).to_owned());
                 path
             })
             .collect();
@@ -131,7 +135,7 @@ impl Tsc {
         if own.untyped {
             let declaration = untyped::options_declaration(&overlay);
             roots.push(declaration.0.clone());
-            layer.files.push(declaration);
+            layer.files.insert(declaration.0, declaration.1);
         }
         roots.extend(paths.iter().cloned());
         // Upstream's project holds every component, so one that is not checked still declares
@@ -143,10 +147,10 @@ impl Tsc {
         roots.extend(declarations);
         roots.extend(req.env.include.iter().cloned());
         let config = overlay.join("tsconfig.json");
-        layer.files.push((
+        layer.files.insert(
             config.clone(),
             tsconfig_json(base.as_deref(), req, &own, &roots, &store),
-        ));
+        );
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
         let [program, syntactic, semantic] =
             check_shares(&mut session, helpers, &config, &layer, &files).map_err(failed)?;
@@ -166,7 +170,7 @@ impl Tsc {
             .chain(syntactic.into_iter().map(|d| (true, d)))
             .chain(semantic.into_iter().map(|d| (false, d)))
             // The command line reports errors only; svelte-check's errors are the oracle.
-            .filter(|(_, d)| d.category == ERROR)
+            .filter(|(_, d)| d.is_error())
             .map(|(syntactic, d)| {
                 located(&d, &root, &index, &lines, syntactic)
                     .ok_or_else(|| unlocated(&self.checker, &d))
@@ -337,8 +341,6 @@ fn tsconfig_json(
     w.key("compilerOptions")
         .begin_object()
         .key("noEmit")
-        .write_boolean(true)
-        .key("skipLibCheck")
         .write_boolean(true);
     if let Some(root_dir) = own.default_root_dir.as_deref() {
         // The default would otherwise be the overlay's directory.
@@ -430,9 +432,6 @@ fn base_project(
             .flatten(),
     })
 }
-
-/// `DiagnosticCategory.Error`.
-const ERROR: u8 = 1;
 
 /// What native TypeScript adds to a finding in code a content mapper synthesized.
 const VIRTUAL_CODE: &str = "This location is in virtual code produced by the content mapper";

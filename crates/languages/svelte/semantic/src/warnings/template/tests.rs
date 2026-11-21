@@ -25,6 +25,39 @@ fn an_element_is_closed_by_the_next_tag_or_the_end_tag_around_it() {
 }
 
 #[test]
+fn an_end_tag_that_names_the_element_a_start_tag_closed_warns_about_nothing_it_closes() {
+    // Svelte 5.57.3's `element_implicitly_closed` spans, in its order.
+    for (source, spans) in [
+        ("<p>a<p>b</p><div><p><span>x</p></div>", &[(0, 3)][..]),
+        ("<p>a<p>b</p><div><p><span><b>x</p></div>", &[(0, 3)]),
+        ("<p>a<p>b</p><div><span>x</div>", &[(0, 3), (17, 23)]),
+        ("<div><p>a<p>b</p><span>c</div>", &[(5, 8), (17, 23)]),
+        // `</section>` closes the element around the closed `<p>`, which forgets it.
+        (
+            "<section><p>a<p>b</p></section><div><p><span>x</p></div>",
+            &[(9, 12), (39, 45)],
+        ),
+        // A block's end does not.
+        (
+            "{#if x}<p>a<p>b</p>{/if}<div><p><span>x</p></div>",
+            &[(7, 10)],
+        ),
+        (
+            "<select><option>a<option>b</select><div><span><i>x</div>",
+            &[(8, 16), (17, 25), (46, 49), (40, 46)],
+        ),
+    ] {
+        let found: Vec<String> = compiled(source)
+            .into_iter()
+            .filter(|(c, ..)| c == "element_implicitly_closed")
+            .map(|(_, text, _)| text)
+            .collect();
+        let expected: Vec<&str> = spans.iter().map(|&(a, b)| &source[a..b]).collect();
+        assert_eq!(found, expected, "{source}");
+    }
+}
+
+#[test]
 fn an_escape_in_a_string_can_spell_a_control_character() {
     let source = "<script>\n  let a = '\\u2067';\n</script>\n";
     assert_eq!(

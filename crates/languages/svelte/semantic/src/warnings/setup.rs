@@ -1,8 +1,9 @@
-//! The warnings before any walk: a script's attributes, and `<svelte:options>`.
+//! The warnings before any walk: the elements the parser closed implicitly, a script's
+//! attributes, and `<svelte:options>`.
 
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
-    AttributeKind, Component, TagAttributes, TemplateNode, TokenType,
+    AttributeKind, ClosingTag, Component, ImplicitlyClosed, TagAttributes, TemplateNode, TokenType,
 };
 
 use super::found::{Found, Stage};
@@ -18,6 +19,9 @@ pub(super) fn warnings(
     options: Options,
     found: &mut Found,
 ) {
+    for &closed in &component.implicitly_closed {
+        implicitly_closed(component, source, closed, found);
+    }
     for script in [&component.module, &component.instance]
         .into_iter()
         .flatten()
@@ -51,44 +55,78 @@ pub(super) fn warnings(
             ),
         );
     }
-    for &child in component.children(component.root) {
-        let TemplateNode::Element {
-            name, attributes, ..
-        } = *component.node(child)
-        else {
+    let Some((attributes, _)) = component.svelte_options(source) else {
+        return;
+    };
+    for attribute in attributes {
+        if attribute.kind != AttributeKind::Attribute {
             continue;
+        }
+        let found_one = match attribute.name.text(source) {
+            "accessors" if runes => warning(
+                "options_deprecated_accessors",
+                "The `accessors` option has been deprecated. It will have no effect in runes \
+                    mode",
+                attribute.span,
+            ),
+            "customElement" if !options.custom_element => warning(
+                "options_missing_custom_element",
+                "The `customElement` option is used when generating a custom element. Did you \
+                    forget the `customElement: true` compile option?",
+                attribute.span,
+            ),
+            "immutable" if runes => warning(
+                "options_deprecated_immutable",
+                "The `immutable` option has been deprecated. It will have no effect in runes \
+                    mode",
+                attribute.span,
+            ),
+            _ => continue,
         };
-        if name.text(source) != "svelte:options" {
-            continue;
-        }
-        for attribute in component.attributes(attributes) {
-            if attribute.kind != AttributeKind::Attribute {
-                continue;
-            }
-            let found_one = match attribute.name.text(source) {
-                "accessors" if runes => warning(
-                    "options_deprecated_accessors",
-                    "The `accessors` option has been deprecated. It will have no effect in runes \
-                        mode",
-                    attribute.span,
-                ),
-                "customElement" if !options.custom_element => warning(
-                    "options_missing_custom_element",
-                    "The `customElement` option is used when generating a custom element. Did you \
-                        forget the `customElement: true` compile option?",
-                    attribute.span,
-                ),
-                "immutable" if runes => warning(
-                    "options_deprecated_immutable",
-                    "The `immutable` option has been deprecated. It will have no effect in runes \
-                        mode",
-                    attribute.span,
-                ),
-                _ => continue,
-            };
-            found.push(Stage::Setup, 2, found_one);
-        }
+        found.push(Stage::Setup, 2, found_one);
     }
+}
+
+/// `element_implicitly_closed`, which upstream's parser emits as it closes the element.
+fn implicitly_closed(
+    component: &Component,
+    source: &str,
+    ImplicitlyClosed { element, by }: ImplicitlyClosed,
+    found: &mut Found,
+) {
+    let TemplateNode::Element {
+        name,
+        children,
+        span,
+        ..
+    } = *component.node(element)
+    else {
+        unreachable!("the parser records only elements as closed implicitly");
+    };
+    let tag = match by {
+        ClosingTag::Start(by) => format!("<{}>", by.text(source)),
+        ClosingTag::End(by) => format!("</{}>", by.text(source)),
+    };
+    let name = name.text(source);
+    // The element ends where the tag that closed it starts.
+    let closed_at = span.end_offset;
+    let end = component
+        .children(children)
+        .first()
+        .map_or(closed_at, |&c| component.node(c).span().start_offset);
+    let message = format!(
+        "This element is implicitly closed by the following `{tag}`, which can cause an \
+            unexpected DOM structure. Add an explicit `</{name}>` to avoid surprises."
+    );
+    found.push(
+        Stage::Parse,
+        closed_at,
+        warning(
+            "element_implicitly_closed",
+            &message,
+            Span::new(span.start_offset, end),
+        ),
+    );
 }
 
 /// A script tag attribute from its name to the end of its value, the closing quote included.

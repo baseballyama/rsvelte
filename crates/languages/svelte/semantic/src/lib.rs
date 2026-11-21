@@ -4,11 +4,13 @@ pub mod analyze;
 pub mod compiler_syntax_tree;
 pub mod evaluate;
 pub mod fuzzymatch;
+pub mod identifiers;
 pub mod input;
 pub mod javascript_error;
 pub mod legacy;
+pub mod markup_tree;
+pub mod namespaces;
 pub mod resolve;
-pub mod template;
 pub mod typescript;
 pub mod warnings;
 
@@ -16,6 +18,5 @@ mod visited;
 
 mod computation;
 pub use computation::{
-    Analyzed, Lowered, PLUGIN, Resolved, Warned, component_input, javascript_error, register,
-    resolve_component, svelte_input,
+    Analyzed, Lowered, PLUGIN, Resolved, Warned, component_input, register, resolve_component,
 };

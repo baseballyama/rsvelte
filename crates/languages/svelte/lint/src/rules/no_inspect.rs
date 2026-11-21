@@ -1,8 +1,8 @@
 use oxc_ast::AstKind;
 use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_typescript_tree::document_span;
 
-use super::shared::nodes::from_oxc;
-use super::shared::runes::runes;
+use super::shared::runes::meets_runes_condition;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -16,8 +16,7 @@ struct NoInspect;
 
 impl SvelteRule for NoInspect {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        // `$inspect` is a rune only in runes mode; a plain `.js` module has no mode.
-        if runes(file) != Some(true) {
+        if !meets_runes_condition(file) {
             return;
         }
         // Every identifier, as the token `$inspect`: one in a type annotation names it too.
@@ -39,7 +38,10 @@ impl SvelteRule for NoInspect {
                 continue;
             }
             last = Some(at);
-            reporter.report(Report::range("Do not use $inspect directive", from_oxc(at)));
+            reporter.report(Report::range(
+                "Do not use $inspect directive",
+                document_span(at),
+            ));
         }
     }
 }

@@ -5,19 +5,15 @@ use rsvelte_kernel::computation::database::{Artifact, DocumentContext, Facet};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
-use rsvelte_svelte_semantic::legacy::Legacy;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_semantic::{Lowered, Resolved};
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_svelte_syntax::{Parsed, ParsedAsTypeScript};
 use rsvelte_typescript_semantic::semantic::Semantic;
-use rsvelte_typescript_tree::{
-    ProgramIdentifier, Script, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, Tree,
-};
+use rsvelte_typescript_tree::{Script, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, Tree};
 
-use crate::project::SvelteKitProject;
+use crate::Configuration;
 use crate::types::TypeFacts;
-use crate::{Configuration, SvelteConfig};
 
 #[derive(Debug)]
 pub(crate) struct LintConfiguration;
@@ -121,7 +117,7 @@ impl Artifact for LoweredAsSvelteEslintParser {
     /// `None` when svelte-eslint-parser's reading does not parse either.
     type Output = Option<CompilerSyntaxTree>;
 
-    const NAME: &'static str = "svelte.lint.compiler_syntax_tree_as_typescript";
+    const NAME: &'static str = "svelte.lint.lower_as_svelte_eslint_parser";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let component = read_as_svelte_eslint_parser(context).ok()?;
@@ -140,7 +136,7 @@ impl Artifact for ResolvedAsSvelteEslintParser {
     /// `None` when svelte-eslint-parser's reading does not parse either.
     type Output = Option<Resolution>;
 
-    const NAME: &'static str = "svelte.lint.resolve_as_typescript";
+    const NAME: &'static str = "svelte.lint.resolve_as_svelte_eslint_parser";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let component = read_as_svelte_eslint_parser(context).ok()?;
@@ -175,25 +171,6 @@ impl Artifact for NativeConditionTypes {
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let linted = Linted::of(context).expect("lint requests types after parsing");
         TypeFacts::infer(linted.component, linted.resolution(), context.source_text())
-    }
-}
-
-/// The component's legacy reactivity: `$:` statements, the variables they declare, and store
-/// subscriptions.
-#[derive(Debug)]
-pub(crate) struct LegacyReactivity;
-
-impl Artifact for LegacyReactivity {
-    type Output = Legacy;
-
-    const NAME: &'static str = "svelte.lint.legacy_reactivity";
-
-    fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let linted = Linted::of(context).expect("lint requests legacy reactivity after parsing");
-        let component = linted.component;
-        let programs: Vec<ProgramIdentifier> =
-            component.scripts().map(|script| script.program).collect();
-        Legacy::new(linted.resolution(), &programs)
     }
 }
 
@@ -249,55 +226,4 @@ impl Artifact for ModuleAsTypeScript {
         .expect("the parse hands back its errors");
         read.map(|root| Script { tree, root })
     }
-}
-
-/// The document's `svelte.config.js`, as `svelte-eslint-parser` finds it, or why it cannot be
-/// read. The host loads it ([`crate::project::register_file_system`] from the files).
-#[derive(Debug)]
-pub struct SvelteConfiguration;
-
-impl Facet for SvelteConfiguration {
-    type Output = Result<SvelteConfig, String>;
-
-    const NAME: &'static str = "svelte.lint.svelte_config";
-}
-
-/// Where the document is in its `SvelteKit` project, as `eslint-plugin-svelte` finds it from the
-/// `package.json` files above it. The host answers it
-/// ([`crate::project::register_file_system`] from the files).
-#[derive(Debug)]
-pub struct SvelteKit;
-
-impl Facet for SvelteKit {
-    type Output = SvelteKitProject;
-
-    const NAME: &'static str = "svelte.lint.svelte_kit";
-}
-
-/// The on-disk name of the file a component or a runes module shares its name with.
-///
-/// `Foo.svelte` and `Foo.svelte.ts` share one. A host that has its own view of the files can
-/// provide it; without a provider, `SameNamedFileOnDisk` reads the process's file system. Only
-/// `svelte/no-conflicting-module-names` asks.
-#[derive(Debug)]
-pub struct SameNamedFile;
-
-impl Facet for SameNamedFile {
-    type Output = Option<String>;
-
-    const NAME: &'static str = "svelte.lint.same_named_file";
-}
-
-/// Whether upstream finds a `PostCSS` configuration to transform a style in `postcss` with.
-///
-/// Without one it compiles the component without that style. A host that knows its working
-/// directory can provide it; without a provider, `PostcssConfigurationOnDisk` searches as
-/// `postcss-load-config` does. Only the rules that compile the component ask.
-#[derive(Debug)]
-pub struct PostcssConfiguration;
-
-impl Facet for PostcssConfiguration {
-    type Output = bool;
-
-    const NAME: &'static str = "svelte.lint.postcss_configuration";
 }

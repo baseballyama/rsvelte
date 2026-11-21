@@ -4,13 +4,13 @@
 //! name generation are shared; only the parts where the targets really differ (DOM building on
 //! the client, string pushing on the server) live in `client` and `server`.
 
+mod attributes;
 mod binding_groups;
 mod bindings;
 mod builder;
 mod class_fields;
 mod client;
 mod component;
-mod const_cycles;
 mod custom_element;
 mod debug_tag;
 mod derived;
@@ -27,53 +27,33 @@ mod server;
 mod slot_element;
 mod snippets;
 mod stores;
-mod template;
+#[cfg(test)]
+mod tests;
 mod unsupported_syntax;
 mod validation;
 
+pub use attributes::{DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select};
 pub(crate) use builder::Builder;
 pub(crate) use module::lower_module;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Program, Statement};
 use oxc_ast_visit::VisitMut;
-use oxc_span::{GetSpan, SPAN, SourceType};
+use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::analyze::Analysis;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
-    ElementKind, NodeKind,
-};
-use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
-pub(crate) use rsvelte_svelte_semantic::template::{cannot_be_set_statically, needs_clsx};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, CompilerSyntaxTree};
+use rsvelte_svelte_semantic::resolve::Resolution;
+pub(crate) use rsvelte_svelte_syntax::svelte_diagnostics::error;
+use rustc_hash::FxHashMap;
 pub use script::is_expression_async;
-pub use template::{DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select};
-use template::{
-    event_attribute, has_dependency, is_behaviour, is_directive, is_dom_property,
-    is_load_error_element, synthetic_value,
-};
 pub use validation::CompileErrors;
 pub(crate) use validation::{
     Unit, Validation, mode_independent_errors, raised_in_parse, rune_error, validate, validate_unit,
 };
-use validation::{check_runes, uses_slots};
 
 use crate::input::{CompileInput, Target};
-pub(crate) use crate::markup::escape_markup;
-use crate::render_plan::{Item, RenderPlan};
-
-/// # Errors
-/// Returns the first diagnostic from validation or target lowering.
-pub fn lower<'o>(
-    input: &CompileInput<'o>,
-    res: &Resolution,
-    an: &Analysis,
-    target: Target,
-    allocator: &'o Allocator,
-) -> Result<Program<'o>, Diagnostic> {
-    lower_with_plan(input, res, an, target, &RenderPlan::build(input), allocator)
-}
+use crate::render_plan::RenderPlan;
 
 /// `plan` must be built from this input and its whitespace option.
 ///
@@ -127,11 +107,21 @@ pub(crate) fn lower_with_facts<'o>(
         Target::Server => server::lower_prepared(facts, prepared, &b),
     }?;
     let component = &facts.input.component;
+    // Every comment of the component, the scripts' and the template's; the printer places them
+    // by position.
+    let scripts = [component.module, component.instance]
+        .into_iter()
+        .flatten()
+        .map(|p| component.javascript.get_program(p));
+    let comments = scripts
+        .flat_map(|p| p.comments.iter())
+        .chain(component.javascript.comments())
+        .cloned();
     let mut program = Program::new(
         SPAN,
         SourceType::mjs(),
         component.source_text,
-        [],
+        b.vec(comments),
         None,
         [],
         b.vec(body),
@@ -200,10 +190,21 @@ pub(crate) struct Prepared<'c, 'o> {
     component_name: String,
 }
 
-/// The document span of an oxc node.
-pub(crate) fn span_of(node: &impl GetSpan) -> Span {
-    let span = node.span();
-    Span::new(span.start, span.end)
+/// Upstream's condition for the `$$props` parameter that both targets share; the client adds
+/// its own for `$host` and bubbled events.
+fn takes_props(an: &Analysis, res: &Resolution, exports: bool, tree: &CompilerSyntaxTree) -> bool {
+    an.needs_context
+        || res.uses_props()
+        || exports
+        || slot_element::has_slot_element(tree)
+        || uses_slots(res)
+}
+
+/// Upstream `analysis.uses_slots`: the component reads `$$slots`, which it declares from
+/// `$.sanitize_slots`.
+fn uses_slots(res: &Resolution) -> bool {
+    res.unbound(|name| name == "$$slots")
+        .any(|(_, references)| !references.is_empty())
 }
 
 /// The code of what this port refuses, which upstream compiles.
@@ -219,14 +220,10 @@ fn unsupported<T>(what: &str, span: Span) -> Result<T, Diagnostic> {
 }
 
 /// An upstream error, whose message ends with the link to its documentation.
-pub(crate) fn invalid<T>(code: &'static str, message: &str, span: Span) -> Result<T, Diagnostic> {
+pub(crate) fn invalid<T>(
+    code: &'static str,
+    message: impl AsRef<str>,
+    span: Span,
+) -> Result<T, Diagnostic> {
     Err(error(code, message, span))
-}
-
-pub(crate) fn error(code: &'static str, message: &str, span: Span) -> Diagnostic {
-    Diagnostic::error(
-        code,
-        format!("{message}\nhttps://svelte.dev/e/{code}"),
-        span,
-    )
 }

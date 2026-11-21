@@ -1,6 +1,7 @@
-use crate::lower::server::{
-    BLOCK_CLOSE, CompilerNodeIdentifier, NodeKind, R, ServerCompilationContext, Template,
-};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
+
+use crate::lower::server::template::Template;
+use crate::lower::server::{BLOCK_CLOSE, R, ServerCompilationContext};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `IfBlock` (server).

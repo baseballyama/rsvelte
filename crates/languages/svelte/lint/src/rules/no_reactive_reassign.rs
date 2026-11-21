@@ -5,12 +5,13 @@ use oxc_span::GetSpan;
 use oxc_syntax::operator::{AssignmentOperator, UnaryOperator};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte_semantic::legacy::{Variable, reactive_body};
+use rsvelte_svelte_semantic::legacy::reactive_body;
+use rsvelte_typescript_tree::node_span;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
-use super::shared::legacy_reactivity::{bindings, expression_node, legacy, property_name};
-use super::shared::nodes::span;
+use super::shared::legacy_reactivity::{Variable, bindings, legacy};
+use super::shared::nodes::property_name;
 use super::shared::runes::runes_mode;
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
@@ -124,9 +125,9 @@ fn reassignment(
         if parent == node {
             return None;
         }
-        let at = || (span(&nodes.kind(parent)), !path.is_empty());
-        let is_node = |expression: &Expression<'_>| expression_node(expression) == node;
-        let node_span = nodes.kind(node).span();
+        let at = || (node_span(&nodes.kind(parent)), !path.is_empty());
+        let is_node = |expression: &Expression<'_>| expression.node_id() == node;
+        let target = nodes.kind(node).span();
         match nodes.kind(parent) {
             // A template expression, whose parent upstream is its directive.
             AstKind::Program(_) => return bound.get(&node).map(|&at| (at, !path.is_empty())),
@@ -134,20 +135,20 @@ fn reassignment(
             AstKind::UnaryExpression(unary) if unary.operator == UnaryOperator::Delete => {
                 return Some(at());
             }
-            AstKind::AssignmentExpression(assignment) if assignment.left.span() == node_span => {
+            AstKind::AssignmentExpression(assignment) if assignment.left.span() == target => {
                 return Some(at());
             }
-            AstKind::ForInStatement(statement) if statement.left.span() == node_span => {
+            AstKind::ForInStatement(statement) if statement.left.span() == target => {
                 return Some(at());
             }
-            AstKind::ForOfStatement(statement) if statement.left.span() == node_span => {
+            AstKind::ForOfStatement(statement) if statement.left.span() == target => {
                 return Some(at());
             }
             AstKind::CallExpression(call) if is_node(&call.callee) => {
                 let &member = path.last()?;
                 if property_name(member).is_some_and(|name| MUTATORS.contains(&name)) {
                     path.pop();
-                    return Some((span(&nodes.kind(parent)), !path.is_empty()));
+                    return Some((node_span(&nodes.kind(parent)), !path.is_empty()));
                 }
                 return None;
             }
@@ -171,7 +172,7 @@ fn reassignment(
             }
             // `({ a: name } = …)`.
             AstKind::AssignmentTargetPropertyProperty(property)
-                if property.binding.span() == node_span =>
+                if property.binding.span() == target =>
             {
                 let pattern = nodes.parent_id(parent);
                 if !matches!(nodes.kind(pattern), AstKind::ObjectAssignmentTarget(_)) {

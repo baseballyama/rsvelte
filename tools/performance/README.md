@@ -1,16 +1,23 @@
 # Performance measurements
 
 Every command is `node tools/performance/performance.ts <command>`; the header of
-`performance.ts` lists them with their options.
+`performance.ts` lists them with their options. The workloads below have their own scripts.
 
-| Command                                                     | Measures                                                                 |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `mise run performance` (`ratchet`)                          | Allocation ratchet over the corpus                                       |
-| `performance.ts linux`                                      | Allocation and instruction ratchets in Linux (`linux.Dockerfile`)        |
-| `mise run performance:cache <config.json> <report.json>`    | Cachegrind cache simulation and an optional baseline gate                |
-| `mise run performance:hardware <config.json> <report.json>` | Linux `perf` CPU and cache hardware events                               |
-| `performance.ts macos-cycles <config.json> <report.json>`   | macOS hardware CPU cycles and instructions, P-core share, peak footprint |
-| `mise run performance:test`                                 | Measurement tests and defect controls                                    |
+| Command                                                     | Measures                                                                  |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `mise run performance` (`ratchet`)                          | Allocation ratchet over the corpus                                        |
+| `performance.ts ratchet-linux`                              | Allocation and instruction ratchets in Linux (`ratchet-linux.Dockerfile`) |
+| `mise run performance:cache <config.json> <report.json>`    | Cachegrind cache simulation and an optional baseline gate                 |
+| `mise run performance:hardware <config.json> <report.json>` | Linux `perf` CPU and cache hardware events                                |
+| `performance.ts macos-cycles <config.json> <report.json>`   | macOS hardware CPU cycles and instructions, P-core share, peak footprint  |
+| `mise run performance:test`                                 | Measurement tests and defect controls                                     |
+
+| Workload                                                                   | Compares                                            | Run by                                                                |
+| -------------------------------------------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------- |
+| [check-versus-svelte-check](workloads/check-versus-svelte-check/README.md) | The type check with svelte-check                    | `.github/workflows/check-versus-svelte-check.yml`                     |
+| [lint-versus-main](workloads/lint-versus-main/README.md)                   | The lint crate with the old port's, and ESLint      | `.github/workflows/lint-versus-main.yml`                              |
+| [svelte-lint](workloads/svelte-lint/README.md)                             | The lint crate with ESLint, outside the workspace   | By hand; `mise run lint` and CI's rust-lint job only `cargo check` it |
+| [tasks-versus-main](workloads/tasks-versus-main/README.md)                 | Every task with the old port and the official tools | By hand                                                               |
 
 `mise run performance` copies the built binary and writes the report into its own temporary
 directory, so a later build or run in the same tree cannot change what it measures. A build that
@@ -20,7 +27,7 @@ tree. Cargo reads `CARGO_BUILD_JOBS` from the environment.
 ## Cache profiles
 
 Run in Linux with `valgrind`, `cg_annotate`, Node and a release binary with debug line tables;
-`linux.Dockerfile` supplies these tools. Profile a frozen source tree, and use separate Cargo
+`ratchet-linux.Dockerfile` supplies these tools. Profile a frozen source tree, and use separate Cargo
 target directories for different source trees.
 
 The config has these fields:

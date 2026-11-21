@@ -1,0 +1,2 @@
+error js_parse_error 2:17-2:17 'import' and 'export' may only appear at the top level
+    https://svelte.dev/e/js_parse_error

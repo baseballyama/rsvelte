@@ -9,13 +9,12 @@ use oxc_semantic::SymbolId;
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_compile::strip::is_type_only;
+use rsvelte_typescript_tree::{document_span, node_span};
 use rsvelte_vue_semantic::resolve::{DefineProps, Resolution, unwrap_typescript};
 use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
 use rustc_hash::FxHashMap;
 
-use crate::compilation::context::{
-    Class, Declared, Info, Names, Prop, R, Top, span_of, unsupported,
-};
+use crate::compilation::context::{Class, Declared, Info, Names, Prop, R, Top, unsupported};
 
 const VUE_APIS: [&str; 4] = ["ref", "computed", "reactive", "onMounted"];
 
@@ -43,7 +42,7 @@ pub(crate) fn classify<'v>(
                 if import.source.value.as_str() != Some("vue") {
                     return Err(unsupported(
                         "an import from a module other than `vue`",
-                        span_of(import.span),
+                        document_span(import.span),
                     ));
                 }
                 for specifier in import.specifiers.iter().flatten() {
@@ -64,7 +63,7 @@ pub(crate) fn classify<'v>(
                         return Err(unsupported(
                             "an import from `vue` other than `ref`, `computed`, `reactive` and \
                              `onMounted`",
-                            span_of(specifier.span()),
+                            node_span(specifier),
                         ));
                     };
                     if let Some(symbol) = local.symbol_id.get() {
@@ -81,7 +80,7 @@ pub(crate) fn classify<'v>(
             | Statement::TSExportAssignment(_) => {
                 return Err(unsupported(
                     "an export from `<script setup>`",
-                    span_of(statement.span()),
+                    node_span(statement),
                 ));
             }
             _ => {}
@@ -107,7 +106,7 @@ pub(crate) fn classify<'v>(
                 Some(api) => {
                     return Err(unsupported(
                         format_args!("`{api}(…)` as a value"),
-                        span_of(initializer.span()),
+                        node_span(initializer),
                     ));
                 }
                 None if is_props => Class::Props,
@@ -134,7 +133,7 @@ pub(crate) fn classify<'v>(
 fn not_const_name(span: oxc_span::Span) -> rsvelte_kernel::diagnostics::Diagnostic {
     unsupported(
         "a ref, computed, reactive or props object not declared as `const name`",
-        span_of(span),
+        document_span(span),
     )
 }
 
@@ -229,7 +228,7 @@ fn props<'v>(
     if p.call.arguments.len() > 1 || p.call.type_arguments.is_some() {
         return Err(unsupported(
             "a type-based `defineProps` declaration",
-            span_of(p.call.span),
+            document_span(p.call.span),
         ));
     }
     let mut out = Vec::new();
@@ -239,7 +238,7 @@ fn props<'v>(
     let not_literal = || {
         unsupported(
             "a `defineProps` declaration other than an array or object literal",
-            span_of(argument.span()),
+            node_span(argument),
         )
     };
     let entries: Vec<(String, Option<&'v Expression<'v>>, Span)> =
@@ -252,11 +251,11 @@ fn props<'v>(
                         ArrayExpressionElement::StringLiteral(s) => s.value.as_str(),
                         _ => None,
                     };
-                    name.map(|name| (name.to_owned(), None, span_of(element.span())))
+                    name.map(|name| (name.to_owned(), None, node_span(element)))
                         .ok_or_else(|| {
                             unsupported(
                                 "a prop name other than a string literal",
-                                span_of(element.span()),
+                                node_span(element),
                             )
                         })
                 })
@@ -276,18 +275,15 @@ fn props<'v>(
                             _ => None,
                         };
                         let Some(key) = key else {
-                            return Err(unsupported("this prop key", span_of(property.key.span())));
+                            return Err(unsupported("this prop key", node_span(&property.key)));
                         };
                         Ok((
                             key.to_owned(),
                             Some(&property.value),
-                            span_of(property.span),
+                            document_span(property.span),
                         ))
                     }
-                    _ => Err(unsupported(
-                        "this prop declaration",
-                        span_of(property.span()),
-                    )),
+                    _ => Err(unsupported("this prop declaration", node_span(property))),
                 })
                 .collect::<R<_>>()?,
             _ => return Err(not_literal()),
@@ -421,7 +417,10 @@ fn declares_anywhere(resolution: &Resolution, name: &str) -> bool {
 fn prop_options<'v>(d: &'v Expression<'v>) -> R<(Vec<String>, Option<&'v Expression<'v>>)> {
     let types = |t: &Expression<'_>| -> R<Vec<String>> {
         let not_a_constructor = |span: oxc_span::Span| {
-            unsupported("a prop type other than a constructor name", span_of(span))
+            unsupported(
+                "a prop type other than a constructor name",
+                document_span(span),
+            )
         };
         match t {
             Expression::Identifier(i) => Ok(vec![i.name.as_str().to_owned()]),
@@ -454,7 +453,7 @@ fn prop_options<'v>(d: &'v Expression<'v>) -> R<(Vec<String>, Option<&'v Express
             _ => None,
         };
         let Some((k, p)) = option else {
-            return Err(unsupported("this prop option", span_of(property.span())));
+            return Err(unsupported("this prop option", node_span(property)));
         };
         match k {
             "type" => ty = types(&p.value)?,
@@ -463,14 +462,14 @@ fn prop_options<'v>(d: &'v Expression<'v>) -> R<(Vec<String>, Option<&'v Express
                 return Err(unsupported(
                     "a prop default other than a literal (Vue calls a function default once per \
                      instance)",
-                    span_of(p.value.span()),
+                    node_span(&p.value),
                 ));
             }
             "required" if matches!(p.value, Expression::BooleanLiteral(_)) => {}
             _ => {
                 return Err(unsupported(
                     format_args!("the prop option `{k}`"),
-                    span_of(p.span),
+                    document_span(p.span),
                 ));
             }
         }

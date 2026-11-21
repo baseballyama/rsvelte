@@ -29,18 +29,27 @@ impl Printer<'_> {
         self.output.push("} */ ");
     }
 
+    /// `/** @typedef {value} name */`.
+    pub(super) fn type_definition(&mut self, name: NodeIdentifier, value: NodeIdentifier) {
+        self.output.push("/** @typedef {");
+        self.in_type(|printer| printer.node(value));
+        self.output.push("} ");
+        self.node(name);
+        self.output.push(" */\n");
+    }
+
     /// The default export, which JavaScript cannot name as a type; an import of the component may
     /// read it as `any`, as the run declares.
     pub(super) fn javascript_export(&mut self, value: NodeIdentifier) {
         self.output.push("const ");
-        self.component_name();
+        self.default_export_name();
         self.output.push(" = ");
         self.node(value);
         self.output
             .push(";\nexport default /** @type {__rsvelte_javascript_export<typeof ");
-        self.component_name();
+        self.default_export_name();
         self.output.push(">} */ (");
-        self.component_name();
+        self.default_export_name();
         self.output.push(");\n");
     }
 

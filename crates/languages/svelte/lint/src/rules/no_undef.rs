@@ -1,7 +1,7 @@
 use oxc_ast::AstKind;
 use oxc_syntax::operator::UnaryOperator;
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_typescript_semantic::globals::library;
+use rsvelte_typescript_tree::document_span;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
@@ -48,20 +48,15 @@ impl SvelteRule for NoUndef {
         for (name, references) in scoping.root_unresolved_references() {
             let name = name.as_str();
             if is_svelte_global(name, runes)
-                || globals.declares(name)
                 || top_level.stores(name, runes).next().is_some()
                 || top_level.binding(name).is_some()
                 || reactive.contains(name)
             {
                 continue;
             }
-            let library = library(name);
             for &id in references {
                 let reference = scoping.get_reference(id);
-                let flags = reference.flags();
-                let reads_value = flags.is_value() || flags.is_value_as_type();
-                // A library name declares a type, and some of them a value too.
-                if library.is_some_and(|value| value || !reads_value) {
+                if globals.resolves(name, reference.flags()) {
                     continue;
                 }
                 // A function's own `arguments`, which eslint-scope declares in every function.
@@ -82,7 +77,7 @@ impl SvelteRule for NoUndef {
                 }
                 reporter.range(
                     format!("'{name}' is not defined."),
-                    super::shared::nodes::from_oxc(resolution.reference_span(id)),
+                    document_span(resolution.reference_span(id)),
                 );
             }
         }

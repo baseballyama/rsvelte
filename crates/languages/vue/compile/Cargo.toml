@@ -11,7 +11,6 @@ doctest = false
 
 [dependencies]
 rsvelte_plugin_interface.workspace = true
-rustc-hash.workspace = true
 sha2.workspace = true
 rsvelte_typescript_compile.workspace = true
 rsvelte_typescript_tree.workspace = true

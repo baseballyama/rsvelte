@@ -1,8 +1,9 @@
 # Native type information
 
-A task-independent adapter for a native TS 7.1 Project. Type checking and typed lint share
-one instance. It accepts a Project from `typescript-7/sync`; it does not start another
-checker, build a second projection, or parse generated text.
+An adapter for reading types from a native TS 7.1 Project. Today only the oracle's semantic
+comparison (`tools/oracle/semantic`) uses it. Type checking and typed lint do not use it yet. It
+accepts a Project from `typescript-7/sync`; it does not start another checker, build a second
+projection, or parse generated text.
 
 ```ts
 import { ProjectTypeInfo } from '@rsvelte-experimental/type-information';

@@ -1,11 +1,13 @@
 //! A finding: a diagnostic with the fix and the suggestions `ESLint` attaches to a report.
 
-use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_kernel::output::edits::Edits;
+use rsvelte_kernel::diagnostics::{Diagnostic, Replacement};
 use rsvelte_kernel::source::positions::Span;
 
 /// The code of `ESLint`'s own report of an unused directive comment, which names no rule.
 pub const UNUSED_DIRECTIVE: &str = "unused-disable-directive";
+
+/// The code of the one finding of a document that does not parse, which names no rule.
+pub const PARSE_ERROR: &str = "parse_error";
 
 #[derive(Clone, Debug)]
 pub struct Finding {
@@ -27,10 +29,8 @@ impl From<Diagnostic> for Finding {
 /// Edits that `ESLint` merges into one fix: they apply together or not at all.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Fix {
-    edits: Vec<Edit>,
+    edits: Vec<Replacement>,
 }
-
-pub use rsvelte_kernel::diagnostics::Replacement as Edit;
 
 impl Fix {
     #[must_use]
@@ -57,7 +57,7 @@ impl Fix {
 
     /// Adds an edit. Edits of one fix must not overlap, as `ESLint` requires.
     pub fn push(&mut self, span: Span, text: impl Into<String>) -> &mut Self {
-        self.edits.push(Edit {
+        self.edits.push(Replacement {
             span,
             text: text.into(),
         });
@@ -76,7 +76,7 @@ impl Fix {
     ///
     /// Two edits overlap, which a rule must not report.
     #[must_use]
-    pub fn merged(&self, source: &str) -> Option<Edit> {
+    pub fn merged(&self, source: &str) -> Option<Replacement> {
         rsvelte_kernel::diagnostics::merge(source, &self.edits)
     }
 }
@@ -112,11 +112,7 @@ impl Finding {
 /// The source with one fix applied, as `ESLint` applies a suggestion.
 #[must_use]
 pub fn apply_fix(source: &str, fix: &Fix) -> String {
-    let mut edits = Edits::default();
-    for edit in &fix.edits {
-        edits.replace(edit.span, edit.text.as_str());
-    }
-    edits.apply(source)
+    rsvelte_kernel::diagnostics::apply_fixes(source, [fix.edits.as_slice()])
 }
 
 #[cfg(test)]

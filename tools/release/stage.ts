@@ -95,13 +95,11 @@ export function stage(artifacts: string, out: string, version: string): string[]
 		peerDependenciesMeta: { tsrs: { optional: true } },
 	});
 	fs.mkdirSync(path.join(command, 'bin'), { recursive: true });
-	fs.copyFileSync(
-		path.join(import.meta.dirname, 'launcher.js'),
-		path.join(command, 'bin/rsvelte.js'),
-	);
+	const cli = path.join(ROOT, 'apps/cli');
+	fs.copyFileSync(path.join(cli, 'launcher.js'), path.join(command, 'bin/rsvelte.js'));
 	fs.chmodSync(path.join(command, 'bin/rsvelte.js'), 0o755);
-	fs.copyFileSync(path.join(import.meta.dirname, 'npm-readme.md'), path.join(command, 'README.md'));
-	fs.copyFileSync(path.join(ROOT, 'apps/cli/CHANGELOG.md'), path.join(command, 'CHANGELOG.md'));
+	fs.copyFileSync(path.join(cli, 'README.md'), path.join(command, 'README.md'));
+	fs.copyFileSync(path.join(cli, 'CHANGELOG.md'), path.join(command, 'CHANGELOG.md'));
 	const platforms = Object.fromEntries(PLATFORMS.map((p) => [`${p.os}-${p.cpu}`, packageName(p)]));
 	fs.writeFileSync(
 		path.join(command, 'platforms.json'),

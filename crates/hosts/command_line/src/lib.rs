@@ -237,7 +237,10 @@ fn dispatch(
             corpus(reg, &roots, tasks)
         }
         ["run", file] => run_file(reg, Path::new(file), tasks, fix),
-        ["run", files @ ..] if !files.is_empty() && !fix => run_files(reg, files, tasks),
+        ["run", files @ ..] if !files.is_empty() && !fix => {
+            let files: Vec<PathBuf> = files.iter().map(PathBuf::from).collect();
+            run_files(reg, files, tasks)
+        }
         ["lint", paths @ ..] if !fix => lint::lint(
             reg,
             if paths.is_empty() { &["."] } else { paths },

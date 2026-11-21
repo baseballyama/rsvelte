@@ -1,15 +1,11 @@
 #[test]
-fn component_names_keep_filename_rules() {
-    for (filename, expected) in [
-        ("input.svelte", "Input"),
-        ("button-group/index.svelte", "Button_group"),
-        ("src/index.svelte", "Index"),
-        (r"C:\ui\index.svelte", "Ui"),
-        ("foo.sveltebar.svelte", "Foobar_svelte"),
-        ("1-test.svelte", "__test"),
-        ("ß.svelte", "SS"),
-        ("no-extension", "No_extension"),
+fn no_svelte_meta_tag_is_a_component_name() {
+    for name in [
+        "svelte:self",
+        "svelte:component",
+        "svelte:element",
+        "svelte:options",
     ] {
-        assert_eq!(super::component_name(filename), expected);
+        assert!(!super::is_component_name(name), "{name}");
     }
 }

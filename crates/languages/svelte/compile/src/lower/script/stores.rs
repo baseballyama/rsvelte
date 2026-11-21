@@ -9,10 +9,11 @@ use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_span::SPAN;
 use oxc_syntax::symbol::SymbolFlags;
 
-use super::super::javascript::member_root;
-use super::super::{Builder, Target};
 use super::ScriptRewrite;
+use crate::input::Target;
+use crate::lower::Builder;
 use crate::lower::builder::Runtime;
+use crate::lower::javascript::member_root;
 
 impl<'o> ScriptRewrite<'_, 'o> {
     /// Whether `identifier` reads a store subscription: a `$name` that no binding declares.

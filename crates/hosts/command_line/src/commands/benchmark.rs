@@ -8,7 +8,7 @@
 //! |---|---|---|---|
 //! | `shared` | artifacts shared by a document's tasks | on | all |
 //! | `isolated` | every task recomputes its artifacts | on | all |
-//! | `nopool` | shared | offset | all |
+//! | `nopool` | shared | off | all |
 //! | `serial` | shared | on | 1 |
 //! | `streaming` | shared, each result dropped as soon as it is final | on | all |
 //!
@@ -125,7 +125,7 @@ fn run_arm(reg: &Registry, docs: &[Document], tasks: &[&str], arm: &Arm) -> Vec<
         sharing: arm.sharing,
         threads: arm.threads,
     };
-    // `main` has checked the task identifiers.
+    // `development` has checked the task identifiers.
     if arm.stream {
         pipeline::run_each(reg, docs, &options, &|_, r| drop(r)).expect("known task ids");
         return Vec::new();
@@ -147,14 +147,6 @@ fn median(v: &[u64]) -> u64 {
     s[s.len() / 2]
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "runs the arms, then writes the report in its schema's field order"
-)]
-#[expect(
-    clippy::cast_precision_loss,
-    reason = "nanosecond and byte counts become f64 only for display"
-)]
 pub(crate) fn benchmark(
     reg: &Registry,
     root: &Path,
@@ -175,13 +167,44 @@ pub(crate) fn benchmark(
     } else {
         tasks
     };
-    let bytes: usize = docs.iter().map(|d| d.text.len()).sum();
+    let m = measure(reg, &docs, skipped, tasks, options.rounds);
+    let report = report(&m, root, options);
+    summarize(&m, options.rounds);
+    if super::write_report("benchmark", options.json.as_deref(), &report) {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
+}
 
+struct Measured<'a> {
+    documents: usize,
+    /// Units below the root that were not loaded.
+    skipped: usize,
+    source_bytes: usize,
+    output_bytes: usize,
+    counts: Vec<(&'a str, TaskCount)>,
+    /// (document path, panic message) of the first `shared` run.
+    panicked: Vec<(&'a str, String)>,
+    /// One per arm, in the order of [`ARMS`].
+    arms: Vec<ArmResult>,
+    phases: Vec<measurement::PhaseMeasurements>,
+}
+
+/// Counts what the tasks do in one `shared` run, warms every arm up, then runs the timed rounds,
+/// the allocation rounds and the phase round.
+fn measure<'a>(
+    reg: &Registry,
+    docs: &'a [Document],
+    skipped: usize,
+    tasks: &[&'a str],
+    rounds: usize,
+) -> Measured<'a> {
     let mut counts: Vec<(&str, TaskCount)> =
         tasks.iter().map(|t| (*t, TaskCount::default())).collect();
     let mut panicked: Vec<(&str, String)> = Vec::new();
     let mut output_bytes = 0usize;
-    for (document, r) in docs.iter().zip(run_arm(reg, &docs, tasks, &ARMS[0])) {
+    for (document, r) in docs.iter().zip(run_arm(reg, docs, tasks, &ARMS[0])) {
         output_bytes += r
             .outputs
             .iter()
@@ -207,39 +230,52 @@ pub(crate) fn benchmark(
     }
 
     for arm in &ARMS {
-        drop(run_arm(reg, &docs, tasks, arm));
+        drop(run_arm(reg, docs, tasks, arm));
     }
-    let mut results: Vec<ArmResult> = ARMS
+    let mut arms: Vec<ArmResult> = ARMS
         .iter()
         .map(|_| ArmResult {
             wall_ns: Vec::new(),
             alloc: None,
         })
         .collect();
-    for round in 0..options.rounds {
+    for round in 0..rounds {
         let order: Vec<usize> = if round % 2 == 0 {
             (0..ARMS.len()).collect()
         } else {
             (0..ARMS.len()).rev().collect()
         };
         for i in order {
-            let ns = timed(reg, &docs, tasks, &ARMS[i]);
-            results[i].wall_ns.push(ns);
+            let ns = timed(reg, docs, tasks, &ARMS[i]);
+            arms[i].wall_ns.push(ns);
         }
     }
     if measurement::ENABLED {
-        for (arm, r) in ARMS.iter().zip(&mut results) {
+        for (arm, r) in ARMS.iter().zip(&mut arms) {
             measurement::track_global(true);
-            drop(run_arm(reg, &docs, tasks, arm));
+            drop(run_arm(reg, docs, tasks, arm));
             measurement::track_global(false);
             r.alloc = Some(measurement::global());
         }
     }
     measurement::reset();
-    drop(run_arm(reg, &docs, tasks, &ARMS[0]));
+    drop(run_arm(reg, docs, tasks, &ARMS[0]));
     let phases = measurement::snapshot();
     rsvelte_kernel::performance::buffer_pool::set_enabled(true);
+    Measured {
+        documents: docs.len(),
+        skipped,
+        source_bytes: docs.iter().map(|d| d.text.len()).sum(),
+        output_bytes,
+        counts,
+        panicked,
+        arms,
+        phases,
+    }
+}
 
+/// The JSON report, in its schema's field order.
+fn report(m: &Measured<'_>, root: &Path, options: &Options) -> String {
     let mut w = StructuredDataWriter::new(true);
     w.begin_object()
         .key("build")
@@ -263,25 +299,21 @@ pub(crate) fn benchmark(
         .key("root")
         .write_string(&root.to_string_lossy())
         .key("documents")
-        .write_number(docs.len())
+        .write_number(m.documents)
         .key("skipped")
-        .write_number(skipped)
+        .write_number(m.skipped)
         .key("bytes")
-        .write_number(bytes)
+        .write_number(m.source_bytes)
         .key("output_bytes")
-        .write_number(output_bytes)
-        .key("panicked")
-        .begin_array();
-    for (path, msg) in &panicked {
-        w.begin_object()
-            .key("path")
-            .write_string(path)
-            .key("panic")
-            .write_string(msg)
-            .end_object();
-    }
-    w.end_array().key("tasks").begin_object();
-    for (identifier, c) in &counts {
+        .write_number(m.output_bytes);
+    super::write_panicked(
+        m.panicked
+            .iter()
+            .map(|(path, panic)| (*path, panic.as_str())),
+        &mut w,
+    );
+    w.key("tasks").begin_object();
+    for (identifier, c) in &m.counts {
         w.key(identifier)
             .begin_object()
             .key("ran")
@@ -297,46 +329,72 @@ pub(crate) fn benchmark(
         .key("rounds")
         .write_number(options.rounds);
     w.key("arms").begin_array();
-    for (arm, r) in ARMS.iter().zip(&results) {
-        w.begin_object()
-            .key("name")
-            .write_string(arm.name)
-            .key("wall_ms")
-            .begin_array();
-        for ns in &r.wall_ns {
-            w.fixed(*ns as f64 / 1e6, 3);
-        }
-        w.end_array()
-            .key("median_ms")
-            .fixed(median(&r.wall_ns) as f64 / 1e6, 3);
-        match r.alloc {
-            Some(a) => {
-                w.key("allocs")
-                    .write_number(a.allocations)
-                    .key("alloc_bytes")
-                    .write_number(a.bytes)
-                    .key("allocs_per_source_byte")
-                    .fixed(a.allocations as f64 / bytes as f64, 3)
-                    .key("peak_live_growth_bytes")
-                    .write_number(a.peak_live_growth);
-            }
-            None => {
-                for k in [
-                    "allocs",
-                    "alloc_bytes",
-                    "allocs_per_source_byte",
-                    "peak_live_growth_bytes",
-                ] {
-                    w.key(k).write_string("UNMEASURED");
-                }
-            }
-        }
-        w.end_object();
+    for (arm, r) in ARMS.iter().zip(&m.arms) {
+        write_arm(arm, r, m.source_bytes, &mut w);
     }
     w.end_array().key("phases");
+    write_phases(&m.phases, &mut w);
+    w.key("max_rss_bytes");
+    match max_rss_bytes() {
+        Some(b) => w.write_number(b),
+        None => w.write_string("UNMEASURED"),
+    };
+    w.end_object();
+    w.finish()
+}
+
+/// One arm of `arms`: its timings, and its allocations when they were counted.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "nanosecond and byte counts become f64 only for display"
+)]
+fn write_arm(arm: &Arm, r: &ArmResult, source_bytes: usize, w: &mut StructuredDataWriter) {
+    w.begin_object()
+        .key("name")
+        .write_string(arm.name)
+        .key("wall_ms")
+        .begin_array();
+    for ns in &r.wall_ns {
+        w.fixed(*ns as f64 / 1e6, 3);
+    }
+    w.end_array()
+        .key("median_ms")
+        .fixed(median(&r.wall_ns) as f64 / 1e6, 3);
+    match r.alloc {
+        Some(a) => {
+            w.key("allocs")
+                .write_number(a.allocations)
+                .key("alloc_bytes")
+                .write_number(a.bytes)
+                .key("allocs_per_source_byte")
+                .fixed(a.allocations as f64 / source_bytes as f64, 3)
+                .key("peak_live_growth_bytes")
+                .write_number(a.peak_live_growth);
+        }
+        None => {
+            for k in [
+                "allocs",
+                "alloc_bytes",
+                "allocs_per_source_byte",
+                "peak_live_growth_bytes",
+            ] {
+                w.key(k).write_string("UNMEASURED");
+            }
+        }
+    }
+    w.end_object();
+}
+
+/// `phases`: each phase's calls, time and allocations, or `UNMEASURED` without the `metrics`
+/// feature.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "nanosecond counts become f64 only for display"
+)]
+fn write_phases(phases: &[measurement::PhaseMeasurements], w: &mut StructuredDataWriter) {
     if measurement::ENABLED {
         w.begin_array();
-        for p in &phases {
+        for p in phases {
             w.begin_object()
                 .key("name")
                 .write_string(p.name)
@@ -354,40 +412,41 @@ pub(crate) fn benchmark(
     } else {
         w.write_string("UNMEASURED");
     }
-    w.key("max_rss_bytes");
-    match max_rss_bytes() {
-        Some(b) => w.write_number(b),
-        None => w.write_string("UNMEASURED"),
-    };
-    w.end_object();
-    let report = w.finish();
+}
 
+/// The text summary on stderr.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "nanosecond and byte counts become f64 only for display"
+)]
+fn summarize(m: &Measured<'_>, rounds: usize) {
     eprintln!(
-        "{} documents ({} bytes in, {output_bytes} bytes out, {skipped} skipped, \
-         {} panicked), {} round(s), build {}",
-        docs.len(),
-        bytes,
-        panicked.len(),
-        options.rounds,
+        "{} documents ({} bytes in, {} bytes out, {} skipped, {} panicked), \
+         {rounds} round(s), build {}",
+        m.documents,
+        m.source_bytes,
+        m.output_bytes,
+        m.skipped,
+        m.panicked.len(),
         env!("RSV_BUILD_REV")
     );
-    for (path, msg) in &panicked {
+    for (path, msg) in &m.panicked {
         eprintln!("  panicked: {path}: {msg}");
     }
-    for (identifier, c) in &counts {
+    for (identifier, c) in &m.counts {
         eprintln!(
             "  {identifier:<24} ran {:>6}  clean {:>6}  diagnostics {:>6}",
             c.ran, c.clean, c.diagnostics
         );
     }
-    for (arm, r) in ARMS.iter().zip(&results) {
+    for (arm, r) in ARMS.iter().zip(&m.arms) {
         let alloc = r.alloc.map_or_else(
             || "allocs UNMEASURED".to_owned(),
             |a| {
                 format!(
                     "{} allocs ({:.2}/byte), peak live +{:.1} MB",
                     a.allocations,
-                    a.allocations as f64 / bytes as f64,
+                    a.allocations as f64 / m.source_bytes as f64,
                     a.peak_live_growth as f64 / 1e6
                 )
             },
@@ -398,16 +457,6 @@ pub(crate) fn benchmark(
             median(&r.wall_ns) as f64 / 1e6
         );
     }
-    match &options.json {
-        Some(path) => {
-            if let Err(e) = std::fs::write(path, &report) {
-                eprintln!("rsvelte-dev benchmark: {}: {e}", path.display());
-                return ExitCode::FAILURE;
-            }
-        }
-        None => print!("{report}"),
-    }
-    ExitCode::SUCCESS
 }
 
 /// The process high-water mark, which includes every arm run so far (it cannot be reset).

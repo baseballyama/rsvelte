@@ -12,12 +12,13 @@ use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_span::SPAN;
 use oxc_syntax::scope::ScopeFlags;
 
-use super::super::class_fields::{ClassFields, StateField, class_fields, key_name, member_name};
-use super::super::javascript::without_typescript;
+use super::ScriptRewrite;
 use super::declarators::{RuneStorage, rune_value};
 use super::writes::assignment_value;
-use super::{ScriptRewrite, Target};
+use crate::input::Target;
 use crate::lower::builder::Runtime;
+use crate::lower::class_fields::{ClassFields, StateField, class_fields, key_name, member_name};
+use crate::lower::javascript::into_without_typescript;
 
 /// The state fields of the classes the rewrite is inside, innermost last.
 #[derive(Default)]
@@ -131,11 +132,11 @@ impl<'o> ScriptRewrite<'_, 'o> {
         // Upstream decides on the argument as written.
         let proxy = rune == "$state"
             && argument.is_some_and(|a| self.res.should_proxy(a.get_inner_expression()));
-        let Expression::CallExpression(mut call) = without_typescript(value) else {
+        let Expression::CallExpression(mut call) = into_without_typescript(value) else {
             unreachable!("a rune is a call")
         };
         let mut argument = (call.arguments.first_mut())
-            .map(|a| without_typescript(a.take_in(b).into_expression()));
+            .map(|a| into_without_typescript(a.take_in(b).into_expression()));
         if definition && argument.is_none() && self.target == Target::Server {
             return None;
         }
@@ -309,7 +310,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
 }
 
 /// `this.#key`.
-fn this_private<'o>(b: &super::super::Builder<'o>, key: &str) -> Expression<'o> {
+fn this_private<'o>(b: &crate::lower::Builder<'o>, key: &str) -> Expression<'o> {
     Expression::new_private_field_expression(
         SPAN,
         b.this(),
@@ -319,13 +320,13 @@ fn this_private<'o>(b: &super::super::Builder<'o>, key: &str) -> Expression<'o> 
     )
 }
 
-fn private_target<'o>(b: &super::super::Builder<'o>, key: &str) -> AssignmentTarget<'o> {
+fn private_target<'o>(b: &crate::lower::Builder<'o>, key: &str) -> AssignmentTarget<'o> {
     SimpleAssignmentTarget::from(this_private(b, key).into_member_expression()).into()
 }
 
 /// `#key = value;`
 fn private_field<'o>(
-    b: &super::super::Builder<'o>,
+    b: &crate::lower::Builder<'o>,
     key: &str,
     value: Option<Expression<'o>>,
 ) -> ClassElement<'o> {
@@ -349,7 +350,7 @@ fn private_field<'o>(
 }
 
 fn method<'o>(
-    b: &super::super::Builder<'o>,
+    b: &crate::lower::Builder<'o>,
     kind: MethodDefinitionKind,
     key: PropertyKey<'o>,
     parameters: oxc_allocator::Box<'o, oxc_ast::ast::FormalParameters<'o>>,

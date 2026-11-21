@@ -4,14 +4,15 @@
 without a type checker or Node. The output uses `.ts`, so angle-bracket type assertions stay
 valid. Template checks need no JSX: elements become typed calls to `svelteHTML.createElement`.
 
-| API                                               | Result                                                                         |
-| ------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `lower(&Component, source)`                       | An immutable projection AST                                                    |
-| `emit(&SyntaxTree, source)`                       | TypeScript text and byte-range source mappings                                 |
-| `DECLARATIONS`                                    | Filename and text of the projection helpers' type declarations                 |
-| `SHIMS`                                           | The same without the element types, beside svelte's `svelte-html.d.ts`         |
-| `register(&mut Registry)`                         | `svelte.typescript_projection/default`, plus cached AST and emission artifacts |
-| `content_mapper::write_transform(source, output)` | A native TypeScript content mapper transform result                            |
+| API                                                     | Result                                                                         |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `lower(&Component, source, path, resolution)`           | An immutable projection AST                                                    |
+| `lower_alone(&Component, source, path)`                 | The same, resolving the component's names itself                               |
+| `emit(&SyntaxTree, source, path)`                       | TypeScript text and byte-range source mappings                                 |
+| `DECLARATIONS`                                          | Filename and text of the projection helpers' type declarations                 |
+| `SHIMS`                                                 | The same without the element types, beside svelte's `svelte-html.d.ts`         |
+| `register(&mut Registry)`                               | `svelte.typescript_projection/default`, plus cached AST and emission artifacts |
+| `content_mapper::write_transform(path, source, output)` | A native TypeScript content mapper transform result                            |
 
 ## How it builds the projection
 
@@ -29,10 +30,9 @@ and share the parser artifacts when you compose tasks.
 
 The design follows the separate AST construction and printing steps of the
 [TypeScript compiler API](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API).
-Each file has flat node and child vectors with `u32` IDs. A per-node side table records the
-TypeScript expression suffixes once, so the lowering does not search all suffixes for every
-expression. The projection shares the parser artifact with the compiler and needs no
-semantic-analysis crate. Node, child and scratch buffers come from the kernel's bounded
+Each file has flat node and child vectors with `u32` IDs. The projection shares the parser
+artifact with the compiler and reads name resolution from `rsvelte_svelte_semantic`, only for
+the constructs that need it. Node, child and scratch buffers come from the kernel's bounded
 per-thread pool.
 
 ## Use it with native TypeScript
@@ -90,8 +90,9 @@ This is not a complete Svelte type projection.
 
 Type checking and typed lint read this same projection; no task has its own output. Original
 expressions keep exact content mappings, and generated helpers do not become source lint nodes.
-The [shared type information API](../../../../tools/type-information/README.md) uses one native
-Program for both consumers. The Rust CLI checker does not use that API yet.
+Today only the oracle's semantic comparison (`tools/oracle/semantic`) uses the
+[type information adapter](../../../../tools/type-information/README.md). Neither the Rust checker
+nor typed lint uses it yet.
 
 ## Tests and measurements
 
@@ -100,14 +101,12 @@ cargo test -p rsvelte_svelte_typescript_projection
 cargo test -p rsvelte_svelte_typescript_projection --test fixtures
 cargo run --release -p rsvelte_svelte_typescript_projection --example verify -- corpus/svelte
 cargo run --release -p rsvelte_svelte_typescript_projection --example benchmark -- corpus/svelte 20
-cargo run -p rsvelte_svelte_typescript_projection --example layout
 ```
 
 The verifier counts all Svelte inputs, parse failures, unsupported projections and invalid
 TypeScript outputs. It checks the generated syntax with an independent parser. The benchmark
 measures lowering and printing for parsed components with an instance TypeScript script. Its
-process CPU counters also include file reads and source parsing. Layout sizes measure payloads;
-they do not prove cache residency. See [performance tools](../../../../tools/performance/README.md).
+process CPU counters also include file reads and source parsing. See [performance tools](../../../../tools/performance/README.md).
 
 The fixture test runs the compiler's hand-written inputs (`../compile/tests/fixtures`); only the
 projection's expected and actual outputs live here. The corpus runs in the `corpus` test of

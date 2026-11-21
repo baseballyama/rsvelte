@@ -2,7 +2,7 @@ use oxc_span::SourceType;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_markup_syntax::script_language::is_typescript;
-use rsvelte_typescript_tree::{ProgramIdentifier, SyntaxError};
+use rsvelte_typescript_tree::{Holes, ProgramIdentifier, SyntaxError};
 
 use super::javascript::javascript_failure;
 use super::{ParseResult, Parser, Scripts};
@@ -223,6 +223,21 @@ impl Parser<'_, '_> {
         Ok((program, source_type.is_typescript()))
     }
 
+    /// The script's program as svelte-check's checker reads it, as TypeScript's tolerant parser
+    /// reads it, keeping its errors; whether it is TypeScript; and the text no statement reads.
+    fn program_read_as_checked(&mut self, content: Span) -> (ProgramIdentifier, bool, Holes) {
+        // TypeScript reads a JavaScript file with JSX, and its TypeScript syntax as an error.
+        let source_type = if self.typescript {
+            SourceType::ts()
+        } else {
+            SourceType::tsx()
+        }
+        .with_module(true);
+        let read = (self.builder).program_with_holes(content, source_type);
+        self.component.script_typescript_errors.extend(read.errors);
+        (read.program, self.typescript, read.holes)
+    }
+
     fn script(&mut self, start_offset: usize, attributes: Vec<TagAttributes>) -> ParseResult<()> {
         let module = is_module(self.source_text, &attributes);
         if self.lang_read.is_none() {
@@ -236,18 +251,22 @@ impl Parser<'_, '_> {
             self.component.instance.is_some()
         };
         let source_type = self.source_type();
-        let (program, typescript) = match self.scripts {
+        let whole = |(program, typescript)| (program, typescript, Holes::default());
+        let (program, typescript, holes) = match self.scripts {
             Scripts::Read => self
                 .builder
                 .program(content, source_type)
-                .map(|p| (p, typescript)),
+                .map(|p| whole((p, typescript))),
             Scripts::Left => (self.builder)
                 .program(
                     Span::new(content.end_offset, content.end_offset),
                     source_type,
                 )
-                .map(|p| (p, typescript)),
-            Scripts::ReadAsTypeScript => self.program_read_as_typescript(content, source_type),
+                .map(|p| whole((p, typescript))),
+            Scripts::ReadAsTypeScript => self
+                .program_read_as_typescript(content, source_type)
+                .map(whole),
+            Scripts::ReadAsChecked => Ok(self.program_read_as_checked(content)),
         }
         .map_err(javascript_failure)?;
         // Upstream parses the script before it checks for another.
@@ -279,6 +298,7 @@ impl Parser<'_, '_> {
             program,
             typescript,
             generics,
+            holes,
         };
         if module {
             self.component.module = Some(script);

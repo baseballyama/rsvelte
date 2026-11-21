@@ -1,10 +1,11 @@
+use rsvelte_typescript_tree::node_span;
+
 use super::{
     BindingType, Codegen, CodegenIdentifier, DirectiveName, Exp, Expression, ExpressionIdentifier,
     Helper, Lit, NOT_CONSTANT, Node, Property, PropertyIdentifier, PropertyKind, R, Transform,
     TransformNodeIdentifier, Unsupported, camelize, collect_identifiers, is_keyboard_event,
     resolve_modifiers, to_handler_key,
 };
-use crate::compile::document_span;
 
 impl Transform<'_> {
     /// The directive transforms `buildProps` runs: the property, and the runtime directive.
@@ -134,7 +135,7 @@ impl Transform<'_> {
         runtime: Helper,
     ) -> R<(CodegenIdentifier, CodegenIdentifier)> {
         let expression = self.javascript.get_expression(raw);
-        let source_location = document_span(oxc_span::GetSpan::span(expression));
+        let source_location = node_span(expression);
         let is_ref = match expression {
             Expression::Identifier(identifier) => {
                 let name = identifier.name.as_str();

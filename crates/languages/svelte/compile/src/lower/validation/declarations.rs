@@ -2,12 +2,15 @@
 //! imports, which its scopes see where oxc's do not.
 
 use oxc_ast::ast::{Declaration, ImportDeclarationSpecifier, Statement};
-use oxc_span::GetSpan;
-use rsvelte_svelte_semantic::resolve::TemplateScope;
-use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
+use rsvelte_svelte_semantic::resolve::{Resolution, TemplateScope};
+use rsvelte_svelte_semantic::warnings::{Raised, Section};
+use rsvelte_typescript_tree::{document_span, node_span};
 
-use super::{CompileInput, Diagnostic, Resolution, Span};
-use crate::lower::{NodeKind, error};
+use super::{raised_in_scopes_of, raised_in_walk_of};
+use crate::input::CompileInput;
+use crate::lower::error;
 
 /// Each duplicate with when upstream raises it, as it builds the scopes.
 pub(super) fn duplicates(input: &CompileInput<'_>, res: &Resolution) -> Vec<(Raised, Diagnostic)> {
@@ -50,12 +53,8 @@ fn module_import_conflict(input: &CompileInput<'_>) -> Option<(Raised, Diagnosti
         });
         conflict
     })?;
-    let span = Span::new(declarator.id.span().start, declarator.id.span().end);
-    let raised = Raised {
-        phase: Phase::Walk,
-        section: Section::Instance,
-        at: span.start_offset,
-    };
+    let span = node_span(&declarator.id);
+    let raised = raised_in_walk_of(Section::Instance, span.start_offset);
     let message =
         "Cannot declare a variable with the same name as an import from `<script module>`";
     Some((
@@ -65,12 +64,8 @@ fn module_import_conflict(input: &CompileInput<'_>) -> Option<(Raised, Diagnosti
 }
 
 fn raised(section: Section, name: &str, span: oxc_span::Span) -> (Raised, Diagnostic) {
-    let span = Span::new(span.start, span.end);
-    let raised = Raised {
-        phase: Phase::Scopes,
-        section,
-        at: span.start_offset,
-    };
+    let span = document_span(span);
+    let raised = raised_in_scopes_of(section, span.start_offset);
     let message = format!("`{name}` has already been declared");
     (raised, error("declaration_duplicate", &message, span))
 }

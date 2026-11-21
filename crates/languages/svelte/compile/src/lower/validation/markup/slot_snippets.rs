@@ -1,11 +1,12 @@
 //! Upstream's check that a component does not mix `<slot>` syntax with `{@render}` tags.
 
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_semantic::compiler_syntax_tree::ElementKind;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{AttributeValue, ElementKind, NodeKind};
+use rsvelte_svelte_semantic::resolve::Resolution;
 
-use super::super::{Resolution, uses_slots};
-use super::{AttributeValue, CompileInput, Diagnostic, NodeKind};
-use crate::lower::error;
+use crate::input::CompileInput;
+use crate::lower::{error, uses_slots};
 
 /// Upstream's `slot_snippet_conflict`, which it raises once its walk is done, when the component
 /// has a `{@render}` tag and reads `$$slots` or, unless it is a custom element, has a `<slot>`.

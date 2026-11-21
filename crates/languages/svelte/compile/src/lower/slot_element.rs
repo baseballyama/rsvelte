@@ -2,13 +2,16 @@
 //! only in how they build each value and spell the anchor and the fallback.
 
 use oxc_ast::ast::{Expression, ObjectPropertyKind};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerSyntaxTree, ElementKind, NodeKind,
+};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rustc_hash::FxHashSet;
 
-use super::{
-    Attribute, AttributeValue, Builder, CompilerSyntaxTree, ElementKind, NodeKind, Target,
-};
-use crate::lower::builder::Runtime;
+use super::Builder;
+use super::builder::Runtime;
+use crate::input::Target;
+use crate::lower::attributes::is_directive;
 
 pub(super) enum SlotAttribute<'t> {
     Name(&'t Attribute),
@@ -25,7 +28,7 @@ pub(super) fn slot_attributes<'t>(
     attributes.iter().filter_map(move |a| match &a.value {
         &AttributeValue::Spread(e) => Some(SlotAttribute::Spread(e)),
         // A `let:` is the client's to declare, and upstream allows no other directive here.
-        value if super::template::is_directive(value) => None,
+        value if is_directive(value) => None,
         _ => match a.name.text(source_text) {
             "name" => Some(SlotAttribute::Name(a)),
             "slot" => None,

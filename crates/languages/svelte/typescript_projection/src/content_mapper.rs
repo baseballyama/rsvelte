@@ -1,22 +1,28 @@
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_content_mapper::write_mappings;
+
+use crate::Unprojected;
 
 /// The projection of the component at `path`, as the check prints it.
 pub fn write_transform(path: &str, source: &str, output: &mut StructuredDataWriter) {
-    let result = rsvelte_svelte_syntax::parse::parse(source)
-        .map_err(|error| (1, error.message, error.span))
-        .and_then(|component| {
-            crate::lower_alone(&component, source, path)
-                .map(|tree| (tree.extension(), crate::emit(&tree, source, path)))
-                .map_err(|error| match error {
-                    crate::Refusal::Unsupported(unsupported) => (
-                        2,
-                        format!("unsupported projection: {}", unsupported.what),
-                        unsupported.span(),
-                    ),
-                    crate::Refusal::Thrown { message, span } => (2, message.to_owned(), span),
-                })
-        });
+    let component = crate::read_alone(source);
+    let result = match &component {
+        Err(error) => Err((1, error.message.clone(), error.span, Unprojected::Thrown)),
+        Ok(component) => crate::lower_alone(component, source, path)
+            .map(|tree| (tree.extension(), crate::emit(&tree, source, path)))
+            .map_err(|error| match error {
+                crate::Refusal::Unsupported(unsupported) => (
+                    2,
+                    format!("unsupported projection: {}", unsupported.what),
+                    unsupported.span(),
+                    Unprojected::Unsupported(component),
+                ),
+                crate::Refusal::Thrown { message, span } => {
+                    (2, message.to_owned(), span, Unprojected::Thrown)
+                }
+            }),
+    };
     output.begin_object().key("extension");
     match result {
         Ok((extension, projection)) => {
@@ -24,11 +30,11 @@ pub fn write_transform(path: &str, source: &str, output: &mut StructuredDataWrit
             output.key("text").write_string(&projection.out);
             write_mappings(&projection.mappings, &projection.atoms, output);
         }
-        Err((code, message, span)) => {
+        Err((code, message, span, why)) => {
             output
                 .write_string(".ts")
                 .key("text")
-                .write_string("")
+                .write_string(&crate::unprojected(source, why))
                 .key("diagnostics")
                 .begin_array();
             write_diagnostic(code, &message, span, output);
@@ -37,8 +43,6 @@ pub fn write_transform(path: &str, source: &str, output: &mut StructuredDataWrit
     }
     output.end_object();
 }
-
-pub use rsvelte_typescript_content_mapper::write_mappings;
 
 fn write_diagnostic(code: u32, message: &str, span: Span, output: &mut StructuredDataWriter) {
     output

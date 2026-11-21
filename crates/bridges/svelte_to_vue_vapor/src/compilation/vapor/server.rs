@@ -1,6 +1,7 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{Expression, ObjectPropertyKind, Statement};
 use rsvelte_svelte_compile::lower::is_expression_async;
+use rsvelte_svelte_syntax::syntax_tree::escape_markup;
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, Element, NodeKind, PropertyKind, TagType,
 };
@@ -131,7 +132,7 @@ impl<'o> Emitter<'_, 'o> {
         }
         match &self.tree.node(identifier).kind {
             NodeKind::Element(_) => self.server_element(identifier),
-            NodeKind::Text(text) => b.string(&escape(text.text(self.source_text))),
+            NodeKind::Text(text) => b.string(&escape_markup(text.text(self.source_text), true)),
             &NodeKind::Interpolation { expression } => {
                 let source = self.source(expression);
                 let value = self.expression(source);
@@ -319,7 +320,7 @@ impl<'o> Emitter<'_, 'o> {
                     }
                     let text = value.map_or_else(
                         || format!(" {name}"),
-                        |value| format!(" {name}=\"{}\"", escape(value)),
+                        |value| format!(" {name}=\"{}\"", escape_markup(value, true)),
                     );
                     output.push(b.string(&text));
                 }
@@ -391,19 +392,6 @@ impl<'o> Emitter<'_, 'o> {
     fn join(&self, parts: Vec<Expression<'o>>) -> Expression<'o> {
         self.b.call(self.b.id("$$join"), [self.b.array(parts)])
     }
-}
-
-fn escape(text: &str) -> String {
-    let mut output = String::with_capacity(text.len());
-    for character in text.chars() {
-        match character {
-            '&' => output.push_str("&amp;"),
-            '<' => output.push_str("&lt;"),
-            '"' => output.push_str("&quot;"),
-            character => output.push(character),
-        }
-    }
-    output
 }
 
 /// What an element's attributes leave for its content.

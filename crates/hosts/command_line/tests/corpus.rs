@@ -20,7 +20,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::legacy::legacy_syntax;
 use rsvelte_svelte_semantic::{Resolved, Warned};
 use rsvelte_svelte_syntax::Parsed;
-use rsvelte_svelte_typescript_projection::Printed;
+use rsvelte_svelte_typescript_projection::EmittedProjection;
 use rsvelte_test_harness::NodePackages;
 use rsvelte_typescript_check::{Tsc, TypeChecker, TypeScriptDocument, TypeScriptView};
 
@@ -102,7 +102,7 @@ impl Task for CountCoverage {
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .push(format!("{}: {wrong}", context.document.path));
         }
-        match context.get::<Printed>() {
+        match context.get::<EmittedProjection>() {
             Ok(projection) => {
                 let allocator = Allocator::default();
                 // The projection exports its component, so it is a module.
@@ -220,7 +220,7 @@ fn javascript_rejects(
     projection: &rsvelte_kernel::output::emitter::Emitter,
     as_typescript: &oxc_parser::ParserReturn<'_>,
 ) -> bool {
-    if rsvelte_svelte_typescript_projection::checked_as_typescript(component, source) {
+    if component.checked_as_typescript(source) {
         return false;
     }
     let allocator = Allocator::default();
@@ -338,7 +338,7 @@ fn main() -> ExitCode {
     rsvelte_svelte_lint::register_with_configuration(&mut registry, oracle_lint_configuration());
     // The oracle lints each unit outside any SvelteKit project, with a `svelte.config.js` of
     // `compilerOptions: { runes: true }`.
-    registry.provide::<rsvelte_svelte_lint::computation::SvelteConfiguration>(
+    registry.provide::<rsvelte_svelte_lint::project::SvelteConfiguration>(
         "svelte",
         |_| true,
         |_| {
@@ -348,7 +348,7 @@ fn main() -> ExitCode {
             })
         },
     );
-    registry.provide::<rsvelte_svelte_lint::computation::SvelteKit>(
+    registry.provide::<rsvelte_svelte_lint::project::SvelteKit>(
         "svelte",
         |_| true,
         |_| rsvelte_svelte_lint::project::SvelteKitProject {
@@ -356,13 +356,9 @@ fn main() -> ExitCode {
             location: rsvelte_svelte_lint::project::Location::NoProject,
         },
     );
-    registry.provide::<rsvelte_svelte_lint::computation::SameNamedFile>(
-        "svelte",
-        |_| true,
-        |_| None,
-    );
+    registry.provide::<rsvelte_svelte_lint::project::SameNamedFile>("svelte", |_| true, |_| None);
     // The oracle runs where no PostCSS configuration is found, so it strips a `postcss` style.
-    registry.provide::<rsvelte_svelte_lint::computation::PostcssConfiguration>(
+    registry.provide::<rsvelte_svelte_lint::project::PostcssConfiguration>(
         "svelte",
         |_| true,
         |_| false,
@@ -371,18 +367,7 @@ fn main() -> ExitCode {
     rsvelte_svelte_check::register(&mut registry, &typecheck);
     registry.task(CountCoverage(Arc::clone(&coverage)));
     registry.task(LegacyComponent);
-    let result = rsvelte_corpus::Conformance::new("svelte", registry)
-        .compare("svelte.compile/client")
-        .compare("svelte.compile/server")
-        .compare_file("svelte.compile.warnings")
-        .compare("svelte.compileModule/client")
-        .compare("svelte.compileModule/server")
-        .compare("svelte.format/default")
-        .compare("svelte.lint/default")
-        .compare("svelte.check/default")
-        .also_run("test.svelte.coverage")
-        .out_of_scope("test.svelte.legacy")
-        .run();
+    let result = compared(rsvelte_corpus::Conformance::new("svelte", registry)).run();
     let c = &coverage;
     let n = |counter: &AtomicUsize| counter.load(Ordering::Relaxed);
     let invalid = c
@@ -444,4 +429,29 @@ fn oracle_lint_configuration() -> rsvelte_svelte_lint::Configuration {
         }
     }
     configuration
+}
+
+/// Every task the corpus compares, and what else it runs on each unit.
+fn compared(conformance: rsvelte_corpus::Conformance) -> rsvelte_corpus::Conformance {
+    conformance
+        .compare("svelte.compile/client")
+        .compare("svelte.compile/server")
+        .compare_file("svelte.compile.warnings")
+        .compare("svelte.compileModule/client")
+        .compare("svelte.compileModule/server")
+        .compare("svelte.format/default")
+        .compare("svelte.lint/default")
+        .compare("svelte.check/default")
+        .compare_comments("svelte.compile.comments/client", "svelte.compile/client")
+        .compare_comments("svelte.compile.comments/server", "svelte.compile/server")
+        .compare_comments(
+            "svelte.compileModule.comments/client",
+            "svelte.compileModule/client",
+        )
+        .compare_comments(
+            "svelte.compileModule.comments/server",
+            "svelte.compileModule/server",
+        )
+        .also_run("test.svelte.coverage")
+        .out_of_scope("test.svelte.legacy")
 }

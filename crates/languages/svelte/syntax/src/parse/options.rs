@@ -7,10 +7,11 @@ use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKey};
 use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_tree::document_span;
 
 use super::svelte_error;
 use crate::syntax_tree::{
-    Attribute, AttributeKind, AttributeValue, Component, Part, TemplateNode, decode_attribute,
+    Attribute, AttributeKind, AttributeValue, Component, Part, decode_attribute,
 };
 
 const NAMESPACE_SVG: &str = "http://www.w3.org/2000/svg";
@@ -28,28 +29,13 @@ enum Static<'a> {
 
 /// The first error of the root's `<svelte:options>`, in upstream's order.
 pub(super) fn read_options(component: &Component, source: &str) -> Result<(), Diagnostic> {
-    let options =
-        component
-            .children(component.root)
-            .iter()
-            .find_map(|&node| match *component.node(node) {
-                TemplateNode::Element {
-                    name,
-                    attributes,
-                    children,
-                    component: None,
-                    ..
-                } if name.text(source) == "svelte:options" => Some((attributes, children)),
-                _ => None,
-            });
-    let Some((attributes, children)) = options else {
+    let Some((attributes, children)) = component.svelte_options(source) else {
         return Ok(());
     };
     let reader = Reader { component, source };
-    for attribute in component.attributes(attributes) {
+    for attribute in attributes {
         reader.attribute(attribute)?;
     }
-    let children = component.children(children);
     if let (Some(&first), Some(&last)) = (children.first(), children.last()) {
         let span = Span::new(
             component.node(first).span().start_offset,
@@ -206,7 +192,7 @@ impl<'c> Reader<'c> {
             };
             // Upstream passes the property as a tuple without a position; it means the property.
             let span = property.span();
-            validate_tag(tag, Span::new(span.start, span.end))?;
+            validate_tag(tag, document_span(span))?;
         }
         if let Some(props) = find("props") {
             validate_props(props, attribute)?;

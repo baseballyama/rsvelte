@@ -173,7 +173,10 @@ fn what_a_module_rejects_is_a_syntax_error_and_template_names_are_not() {
         "<Comp let:item let:other={x}>{item}{x}</Comp>{a}{b}{shared}",
     );
     assert_eq!(
-        analyze(clean).syntax_error().map(|e| e.message.clone()),
+        analyze(clean)
+            .semantic()
+            .syntax_error()
+            .map(|e| e.message.clone()),
         None
     );
     for source in [
@@ -182,7 +185,8 @@ fn what_a_module_rejects_is_a_syntax_error_and_template_names_are_not() {
         "{(() => { let y; let y; })()}",
         "<script>/(?<n>x)(?<n>y)/;</script>",
     ] {
-        let rejected = parse(source).is_err() || analyze(source).syntax_error().is_some();
+        let rejected =
+            parse(source).is_err() || analyze(source).semantic().syntax_error().is_some();
         assert!(rejected, "{source}");
     }
 }
@@ -196,7 +200,10 @@ fn the_module_leaves_an_undeclared_export_to_the_compiler() {
         "<script module>export { row };</script>{#if a}{#snippet row()}x{/snippet}{/if}",
         "<script module>export { row };</script>",
     ] {
-        assert!(analyze(source).syntax_error().is_none(), "{source}");
+        assert!(
+            analyze(source).semantic().syntax_error().is_none(),
+            "{source}"
+        );
     }
 }
 
@@ -250,7 +257,7 @@ fn a_cast_global_needs_no_context() {
             None,
             &lowered,
         );
-        let input = crate::svelte_input(&component, &lowered, &source, "App.svelte");
+        let input = crate::input::ComponentInput::new(&component, &lowered, &source, "App.svelte");
         let analysis = crate::analyze::analyze(&input, &res);
         assert_eq!(analysis.needs_context, needs, "{script}");
     }

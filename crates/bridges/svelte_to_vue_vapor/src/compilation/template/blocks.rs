@@ -3,6 +3,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_svelte_compile::render_plan::{Item, Parent, clean_nodes, template_end};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
+use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_typescript_compile::build::sanitize_template_string;
 use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
 use rsvelte_vue_semantic::compiler_syntax_tree as vue;
@@ -254,7 +255,7 @@ impl<'t> Template<'_, '_, 't> {
                         self.i.server,
                         items,
                     );
-                    text.push_str(&rsvelte_svelte_syntax::syntax_tree::decode_attribute(&raw));
+                    text.push_str(&decode_attribute(&raw));
                 }
                 Item::Text { data, .. } => {
                     text.push_str(data.get(self.i.source_text, self.i.compiler_syntax_tree));

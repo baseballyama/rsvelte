@@ -1,6 +1,7 @@
 //! `transformExpression` and `processExpression`.
 
 use oxc_ast::ast::IdentifierReference;
+use rsvelte_typescript_tree::document_span;
 use rsvelte_vue_semantic::expressions::is_global;
 
 use super::{
@@ -8,7 +9,6 @@ use super::{
     ExpressionIdentifier, Helper, NOT_CONSTANT, Node, Parent, Property, R, RefInfo, ReferenceId,
     Transform, TransformNodeIdentifier, Unsupported, can_prefix, collect_identifiers, ref_info,
 };
-use crate::compile::document_span;
 
 impl Transform<'_> {
     /// `transformExpression` on an element: every directive's expression but `v-on`'s, which

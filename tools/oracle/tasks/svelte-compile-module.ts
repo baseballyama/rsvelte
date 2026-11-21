@@ -1,7 +1,7 @@
 import ts from 'typescript';
 import { TraceMap, traceSegment } from '@jridgewell/trace-mapping';
 import { compileModule } from 'svelte/compiler';
-import { compileArtifacts, type Position } from './svelte-shared.ts';
+import { compileArtifacts, type Position } from './compile-artifacts.ts';
 import type { Task } from '../types.ts';
 
 /**

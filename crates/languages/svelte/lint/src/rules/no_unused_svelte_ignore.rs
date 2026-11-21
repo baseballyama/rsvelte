@@ -26,9 +26,8 @@ struct NoUnusedSvelteIgnore {
 
 impl SvelteRule for NoUnusedSvelteIgnore {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let component = file.component().expect("a component rule");
         let source = file.source();
-        let ignores = ignores(component, source);
+        let ignores = ignores(file);
         for &comment in &ignores.missing_code {
             reporter.report(Report::range(
                 "svelte-ignore comment must include the code",

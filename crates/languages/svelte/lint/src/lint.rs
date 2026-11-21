@@ -1,6 +1,6 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_kernel::source::positions::{LineBreaks, Span};
+use rsvelte_kernel::source::positions::LineBreaks;
 use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::findings::Findings;
 
@@ -28,10 +28,10 @@ pub(crate) fn check(
     configuration: &Configuration,
 ) -> Result<(Vec<Finding>, FileRules), Diagnostic> {
     let source = file.source();
-    let comments = comments(file);
+    let comments = file.comments();
     let rules = FileRules::new(
         configuration,
-        configuration_comments::settings(&comments, source),
+        configuration_comments::settings(comments, source),
     );
     let mut findings = Findings::new();
     findings.run(rules.running(configuration, file), file);
@@ -39,7 +39,7 @@ pub(crate) fn check(
     // Directive lines are `ESLint`'s, which any ECMAScript line terminator ends.
     let lines = || file.context.lines(LineBreaks::Ecmascript);
     let on = |name: &str| rules.running(configuration, file).any(|r| r.name == name);
-    let unused = javascript::apply(&mut findings, &comments, source, &lines, on);
+    let unused = javascript::apply(&mut findings, comments, source, &lines, on);
     // The processor keeps a report without a rule, so the unused reports join after it.
     let add_unused = |mut findings: Vec<Finding>| {
         if !unused.is_empty() {
@@ -72,22 +72,9 @@ pub(crate) fn check(
     Ok((add_unused(findings), rules))
 }
 
-/// Every JavaScript comment of the document, the scripts' and the template's, in document order.
-fn comments(file: &File<'_>) -> Vec<Span> {
-    let tree = file.javascript();
-    let mut out: Vec<Span> = file
-        .programs()
-        .into_iter()
-        .flat_map(|program| &tree.get_program(program).comments)
-        .chain(tree.comments())
-        .map(|comment| Span::new(comment.span.start, comment.span.end))
-        .collect();
-    out.sort_unstable_by_key(|comment| comment.start_offset);
-    out
-}
-
 mod configuration_comments;
 pub(crate) mod directive_comments;
+pub(crate) mod global_comments;
 pub(crate) use configuration_comments::FileRules;
 use directive_comments::{javascript, processor};
 

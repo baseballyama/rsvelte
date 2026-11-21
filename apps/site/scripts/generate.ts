@@ -1,11 +1,15 @@
 // Builds everything the site reads but does not commit into generated/ (ignored by Git):
 // the kernel's WebAssembly bindings, the emitter samples and the layer figure's data.
-// Run from apps/site: `node scripts/generate.ts`. dev, test, check and build run it first.
+// Run from apps/site: `node scripts/generate.ts [--no-wasm-opt]`. dev, test, check and build run
+// it first. `--no-wasm-opt` skips wasm-opt, for a build that is not deployed.
 
 import { execFileSync, spawn } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { parseArgs } from 'node:util';
+
+const { values } = parseArgs({ options: { 'no-wasm-opt': { type: 'boolean', default: false } } });
 
 const site = path.resolve(import.meta.dirname, '..');
 const root = path.resolve(site, '../..');
@@ -21,11 +25,18 @@ const run = (command: string, args: string[]) =>
 
 const build = (command: string, args: string[]) =>
 	new Promise<void>((resolve, reject) => {
+		const started = performance.now();
 		const child = spawn(command, args, { cwd: root, stdio: ['ignore', 'ignore', 'inherit'] });
 		child.on('error', reject);
-		child.on('close', (code) =>
-			code === 0 ? resolve() : reject(new Error(`${command} ${args[0]} exited ${code}`)),
-		);
+		child.on('close', (code) => {
+			if (code !== 0) {
+				reject(new Error(`${command} ${args[0]} exited ${code}`));
+				return;
+			}
+			// The two builds run at once, so a slow generate step names its slow build.
+			console.log(`${command} took ${((performance.now() - started) / 1000).toFixed(1)} s`);
+			resolve();
+		});
 	});
 
 // The two builds run at once. Cargo locks a target directory for the whole build, so the
@@ -38,10 +49,11 @@ await Promise.all([
 		'--out-dir',
 		path.join(out, 'wasm/kernel'),
 		'--out-name',
-		'rsvelte_kernel_browser',
+		'rsvelte_browser',
 		'--target',
 		'web',
 		'--release',
+		...(values['no-wasm-opt'] ? ['--no-opt'] : []),
 	]),
 	build('cargo', [
 		'build',

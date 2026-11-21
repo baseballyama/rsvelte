@@ -47,6 +47,25 @@ pub fn decode_attribute(text: &str) -> Cow<'_, str> {
     decode(text, Place::Attribute, Rules::Svelte)
 }
 
+/// Svelte's `escape_html`: `&` and `<`, and `"` too when the text is an attribute value.
+#[must_use]
+pub fn escape_markup(text: &str, is_attribute: bool) -> Cow<'_, str> {
+    let needs = |c: char| c == '&' || c == '<' || (is_attribute && c == '"');
+    if !text.contains(needs) {
+        return Cow::Borrowed(text);
+    }
+    let mut out = String::with_capacity(text.len() + 8);
+    for c in text.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '"' if is_attribute => out.push_str("&quot;"),
+            _ => out.push(c),
+        }
+    }
+    Cow::Owned(out)
+}
+
 #[must_use]
 pub fn decode(text: &str, place: Place, rules: Rules) -> Cow<'_, str> {
     let mut output = None;

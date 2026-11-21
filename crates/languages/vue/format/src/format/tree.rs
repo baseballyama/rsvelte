@@ -19,19 +19,19 @@ const REFUSED_TAGS: &[&str] = &[
 
 impl<'a> Tree<'a> {
     pub(super) fn build(
-        c: &'a SingleFileComponent,
+        component: &'a SingleFileComponent,
         source_text: &'a str,
         lines: &'a LineIndex,
     ) -> R<Self> {
         // The parser has read the document, so its offsets fit in `u32`.
         let len = source_text.len() as u32;
         let mut t = Tree {
-            n: IndexVector::from(vec![Node::new(NodeKind::Root, None, Span::new(0, len))]),
+            nodes: IndexVector::from(vec![Node::new(NodeKind::Root, None, Span::new(0, len))]),
             lines,
             source_text,
         };
         let mut blocks: Vec<(Span, NodeIdentifier)> = Vec::new();
-        if let Some(tpl) = &c.template {
+        if let Some(tpl) = &component.template {
             let identifier = t.push(
                 NodeKind::Element {
                     name: "template",
@@ -41,13 +41,13 @@ impl<'a> Tree<'a> {
                 NodeIdentifier::ROOT,
                 tpl.span,
             );
-            t.n[identifier].open_end = tpl.content.start_offset;
-            t.n[identifier].close_start = Some(tpl.content.end_offset);
-            let children = t.template_nodes(c, identifier, c.children(tpl.root))?;
-            t.n[identifier].children = children;
+            t.nodes[identifier].open_end = tpl.content.start_offset;
+            t.nodes[identifier].close_start = Some(tpl.content.end_offset);
+            let children = t.template_nodes(component, identifier, component.children(tpl.root))?;
+            t.nodes[identifier].children = children;
             blocks.push((tpl.span, identifier));
         }
-        if let Some(s) = &c.script {
+        if let Some(s) = &component.script {
             let identifier = t.block(
                 "script",
                 &s.attributes,
@@ -57,7 +57,7 @@ impl<'a> Tree<'a> {
             );
             blocks.push((s.span, identifier));
         }
-        for (i, s) in c.styles.iter().enumerate() {
+        for (i, s) in component.styles.iter().enumerate() {
             if s.attributes.iter().any(|(n, v)| {
                 n.text(source_text) == "lang" && v.is_some_and(|v| v.text(source_text) != "css")
             }) {
@@ -77,9 +77,9 @@ impl<'a> Tree<'a> {
                 ));
             }
             if !gap.is_empty() {
-                t.n[identifier].has.leading = true;
+                t.nodes[identifier].has.leading = true;
                 if i > 0 {
-                    t.n[blocks[i - 1].1].has.trailing = true;
+                    t.nodes[blocks[i - 1].1].has.trailing = true;
                 }
             }
             at = span.end_offset;
@@ -93,9 +93,9 @@ impl<'a> Tree<'a> {
         if at < len
             && let Some(&(_, last)) = blocks.last()
         {
-            t.n[last].has.trailing = true;
+            t.nodes[last].has.trailing = true;
         }
-        t.n[NodeIdentifier::ROOT].children = blocks.iter().map(|b| b.1).collect();
+        t.nodes[NodeIdentifier::ROOT].children = blocks.iter().map(|b| b.1).collect();
         t.extract_whitespace();
         t.link();
         t.display_and_closing();
@@ -111,20 +111,20 @@ impl<'a> Tree<'a> {
         parent: NodeIdentifier,
         span: Span,
     ) -> NodeIdentifier {
-        self.n.push(Node::new(kind, Some(parent), span))
+        self.nodes.push(Node::new(kind, Some(parent), span))
     }
 
     pub(super) fn parent(&self, i: NodeIdentifier) -> NodeIdentifier {
-        self.n[i].parent.expect("only the root has no parent")
+        self.nodes[i].parent.expect("only the root has no parent")
     }
 
     pub(super) fn is_top_level(&self, i: NodeIdentifier) -> bool {
-        self.n[i].parent == Some(NodeIdentifier::ROOT)
+        self.nodes[i].parent == Some(NodeIdentifier::ROOT)
     }
 
     /// Every node, the root first; it does not borrow the tree, so a loop can change nodes.
     pub(super) fn identifiers(&self) -> impl Iterator<Item = NodeIdentifier> + use<> {
-        IndexRange::new(NodeIdentifier::ROOT, self.n.next_identifier()).iter()
+        IndexRange::new(NodeIdentifier::ROOT, self.nodes.next_identifier()).iter()
     }
 
     /// A `<script>` or `<style>` block: one raw text child, or none when only whitespace.
@@ -145,27 +145,27 @@ impl<'a> Tree<'a> {
             NodeIdentifier::ROOT,
             span,
         );
-        self.n[identifier].open_end = content.start_offset;
-        self.n[identifier].close_start = Some(content.end_offset);
+        self.nodes[identifier].open_end = content.start_offset;
+        self.nodes[identifier].close_start = Some(content.end_offset);
         let text = content.text(self.source_text);
         if only_ws(text) {
-            self.n[identifier].has.dangling = !text.is_empty();
+            self.nodes[identifier].has.dangling = !text.is_empty();
         } else {
             let t = self.push(NodeKind::Text(Cow::Borrowed(text)), identifier, content);
-            self.n[identifier].children = vec![t];
+            self.nodes[identifier].children = vec![t];
         }
         identifier
     }
 
     pub(super) fn template_nodes(
         &mut self,
-        c: &'a SingleFileComponent,
+        component: &'a SingleFileComponent,
         parent: NodeIdentifier,
         children: &[TemplateNodeIdentifier],
     ) -> R<Vec<NodeIdentifier>> {
         let mut out = Vec::with_capacity(children.len());
         for &k in children {
-            let identifier = match *c.node(k) {
+            let identifier = match *component.node(k) {
                 TemplateNode::Text { span } => self.push(
                     NodeKind::Text(Cow::Borrowed(span.text(self.source_text))),
                     parent,
@@ -192,7 +192,7 @@ impl<'a> Tree<'a> {
                     if refused || tag.contains('-') || tag.contains(':') {
                         return Err(Unsupported::at("this element", name));
                     }
-                    let attributes = c.attributes(attributes);
+                    let attributes = component.attributes(attributes);
                     let identifier = self.push(
                         NodeKind::Element {
                             name: tag,
@@ -202,20 +202,21 @@ impl<'a> Tree<'a> {
                         parent,
                         span,
                     );
-                    self.n[identifier].open_end = start_tag.end_offset;
+                    self.nodes[identifier].open_end = start_tag.end_offset;
                     let void = rsvelte_markup_syntax::is_void(tag);
-                    self.n[identifier].self_closing = void || self_closing;
+                    self.nodes[identifier].self_closing = void || self_closing;
                     if !void && !self_closing {
                         let close = self.source_text[..span.end_offset as usize]
                             .rfind("</")
                             .ok_or_else(|| {
                                 Unsupported::at("an element without an end tag", span)
                             })?;
-                        self.n[identifier].close_start =
+                        self.nodes[identifier].close_start =
                             Some(span.start_offset + (close - span.start_offset as usize) as u32);
                     }
-                    let children = self.template_nodes(c, identifier, c.children(children))?;
-                    self.n[identifier].children = children;
+                    let children =
+                        self.template_nodes(component, identifier, component.children(children))?;
+                    self.nodes[identifier].children = children;
                     identifier
                 }
             };
@@ -226,21 +227,21 @@ impl<'a> Tree<'a> {
 
     pub(super) fn link(&mut self) {
         for i in self.identifiers() {
-            let children = self.n[i].children.clone();
+            let children = self.nodes[i].children.clone();
             for (j, &k) in children.iter().enumerate() {
-                self.n[k].parent = Some(i);
-                self.n[k].prev = j.checked_sub(1).map(|p| children[p]);
-                self.n[k].next = children.get(j + 1).copied();
+                self.nodes[k].parent = Some(i);
+                self.nodes[k].prev = j.checked_sub(1).map(|p| children[p]);
+                self.nodes[k].next = children.get(j + 1).copied();
             }
         }
     }
 
     pub(super) fn is_element(&self, i: NodeIdentifier) -> bool {
-        matches!(self.n[i].kind, NodeKind::Element { .. })
+        matches!(self.nodes[i].kind, NodeKind::Element { .. })
     }
 
     pub(super) fn name(&self, i: NodeIdentifier) -> Option<&'a str> {
-        match self.n[i].kind {
+        match self.nodes[i].kind {
             NodeKind::Element { name, .. } => Some(name),
             _ => None,
         }
@@ -252,6 +253,6 @@ impl<'a> Tree<'a> {
     }
 
     pub(super) fn is_text(&self, i: NodeIdentifier) -> bool {
-        matches!(self.n[i].kind, NodeKind::Text(_))
+        matches!(self.nodes[i].kind, NodeKind::Text(_))
     }
 }

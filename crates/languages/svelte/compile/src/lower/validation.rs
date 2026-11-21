@@ -1,23 +1,31 @@
-use oxc_semantic::{ReferenceId, SymbolId};
-use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
+use oxc_semantic::SymbolId;
+use rsvelte_svelte_semantic::warnings::{
+    Phase, Raised, Section, dollar_name_errors, rest_prop_member_errors,
+};
 use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature_where};
+use rsvelte_typescript_tree::document_span;
 use rustc_hash::FxHashSet;
 
 mod awaits;
+mod const_cycles;
 mod declarations;
+mod default_exports;
 pub(super) mod markup;
 mod runes;
+mod snippet_errors;
 mod special_elements;
 
 pub(super) use awaits::check as check_awaits;
 pub(in crate::lower) use markup::each_key;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_semantic::resolve::Resolution;
 use runes::script_and_template_errors;
 pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, script_error};
 
-use super::{
-    CompileInput, Diagnostic, Resolution, Span, Target, const_cycles, custom_element, rest_reads,
-    script, snippets, stores, unsupported_syntax,
-};
+use super::snippets::hoistable;
+use super::{custom_element, stores, unsupported_syntax};
+use crate::input::{CompileInput, Target};
 
 /// An error upstream raises as it parses, before any other.
 pub(crate) const fn raised_in_parse() -> Raised {
@@ -29,7 +37,7 @@ pub(crate) const fn raised_in_parse() -> Raised {
 }
 
 /// An error upstream's walk over the template raises at `at`.
-pub(super) const fn raised_in_walk(at: u32) -> Raised {
+const fn raised_in_walk(at: u32) -> Raised {
     raised_in_walk_of(Section::Template, at)
 }
 
@@ -42,11 +50,11 @@ const fn raised_in_walk_of(section: Section, at: u32) -> Raised {
     }
 }
 
-/// An error upstream raises as it builds the template's scopes, at `at`.
-pub(super) const fn raised_in_scopes(at: u32) -> Raised {
+/// An error upstream raises as it builds `section`'s scopes, at `at`.
+const fn raised_in_scopes_of(section: Section, at: u32) -> Raised {
     Raised {
         phase: Phase::Scopes,
-        section: Section::Template,
+        section,
         at,
     }
 }
@@ -55,8 +63,6 @@ pub(super) const fn raised_in_scopes(at: u32) -> Raised {
 pub(crate) struct Validation {
     pub(in crate::lower) custom_element: Option<custom_element::CustomElement>,
     pub(in crate::lower) stylesheet_injected: bool,
-    /// The references to a rest prop that read `$$props` instead (upstream's `rest_prop` read).
-    pub(in crate::lower) rest_reads: FxHashSet<ReferenceId>,
     /// The top-level snippets declared beside the component.
     pub(in crate::lower) hoistable: FxHashSet<SymbolId>,
     /// The store subscriptions (`$name`), in the order upstream declares them.
@@ -118,13 +124,13 @@ pub(crate) fn validate_unit(
         check_typescript(input)?;
     }
     let names = stores::StoreSubscriptions::new(input, res);
-    let mut errors = snippets::errors(input, res);
+    let mut errors = snippet_errors::errors(input, res);
     if unit == Unit::Component {
-        errors.extend(script::default_exports(input));
+        errors.extend(default_exports::errors(input));
     }
     check_analysis(input, res, &names, unit, errors, custom_element.is_some())?;
-    let hoistable = snippets::hoistable(input, res, &names);
-    snippets::check_exports(input, res, &hoistable)?;
+    let hoistable = hoistable(input, res, &names);
+    snippet_errors::check_exports(input, res, &hoistable)?;
     const_cycles::check(input, res)?;
     // A refusal waits for the scripts' errors, which the rune checks raise only later.
     let refused = (if typescript {
@@ -137,11 +143,9 @@ pub(crate) fn validate_unit(
         let script = script_error(input, res, custom_element.is_some());
         return Err(script.map_or(refusal, |(_, error)| error));
     }
-    let rest_reads = rest_reads::build(res, custom_element.is_some());
     Ok(Validation {
         custom_element,
         stylesheet_injected,
-        rest_reads,
         hoistable,
         stores: names.subscriptions(res),
     })
@@ -226,6 +230,13 @@ pub(super) fn check_analysis(
     let component = input.component;
     errors.extend(declarations::duplicates(input, res));
     errors.extend(dollar_name_errors(
+        component.javascript,
+        component.instance,
+        component.module,
+        res,
+        true,
+    ));
+    errors.extend(rest_prop_member_errors(
         component.javascript,
         component.instance,
         component.module,
@@ -321,36 +332,17 @@ fn check_legacy_props(input: &CompileInput<'_>, res: &Resolution) -> Result<(), 
             .flat_map(|(_, references)| references.into_iter().map(|r| res.reference_span(r)))
             .min_by_key(|span| (!scripted(span.start), span.start));
         if let Some(span) = first {
-            return crate::lower::invalid(code, message, Span::new(span.start, span.end));
+            return crate::lower::invalid(code, message, document_span(span));
         }
     }
     Ok(())
-}
-
-/// The first value reference, in document order, to a name no binding declares that `wanted`
-/// takes.
-fn first_unresolved(res: &Resolution, wanted: impl Fn(&str) -> bool) -> Option<(&str, Span)> {
-    res.unbound(wanted)
-        .flat_map(|(name, references)| {
-            references
-                .into_iter()
-                .map(move |r| (name, res.reference_span(r)))
-        })
-        .min_by_key(|(_, span)| span.start)
-        .map(|(name, span)| (name, Span::new(span.start, span.end)))
-}
-
-/// Upstream `analysis.uses_slots`: the component reads `$$slots`, which it declares from
-/// `$.sanitize_slots`.
-pub(super) fn uses_slots(res: &Resolution) -> bool {
-    first_unresolved(res, |name| name == "$$slots").is_some()
 }
 
 /// Upstream `state_invalid_placement`, which the rune walk and the markup walk both raise.
 fn state_invalid_placement<T>(rune: &str, span: Span) -> Result<T, Diagnostic> {
     crate::lower::invalid(
         "state_invalid_placement",
-        &format!(
+        format!(
             "`{rune}(...)` can only be used as a variable declaration initializer, a class field \
              declaration, or the first assignment to a class field at the top level of the \
              constructor."
@@ -394,10 +386,7 @@ fn first_typescript_feature(
     match (programs.into_iter().flatten())
         .find_map(|program| first_svelte_runtime_feature_where(program, wanted))
     {
-        Some((feature, span)) => Err(typescript_invalid_feature(
-            feature,
-            Span::new(span.start, span.end),
-        )),
+        Some((feature, span)) => Err(typescript_invalid_feature(feature, document_span(span))),
         None => Ok(()),
     }
 }
@@ -426,7 +415,7 @@ fn typescript_invalid_feature(feature: Feature, span: Span) -> Diagnostic {
             );
         }
     };
-    Diagnostic::error(
+    crate::lower::error(
         "typescript_invalid_feature",
         format!(
             "TypeScript language features like {feature} are not natively supported, and their \
@@ -434,8 +423,7 @@ fn typescript_invalid_feature(feature: Feature, span: Span) -> Diagnostic {
              supported. For use within `<script>` tags, you will need to use a preprocessor to \
              convert it to JavaScript before it gets passed to the Svelte compiler. If you are \
              using `vitePreprocess`, make sure to specifically enable preprocessing script tags \
-             (`vitePreprocess({{ script: true }})`)\n\
-             https://svelte.dev/e/typescript_invalid_feature"
+             (`vitePreprocess({{ script: true }})`)"
         ),
         span,
     )

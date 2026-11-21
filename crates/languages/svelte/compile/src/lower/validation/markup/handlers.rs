@@ -1,8 +1,12 @@
 //! Upstream's check that a component uses one syntax for its elements' event handlers.
 
-use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, ElementKind, MetadataTag,
+};
 
-use super::{AttributeValue, CompileInput, Diagnostic, is_directive};
+use crate::input::CompileInput;
+use crate::lower::attributes::is_directive;
 use crate::lower::error;
 
 /// Upstream's `mixed_event_handler_syntaxes`, which it raises once its walk is done: the first
@@ -23,9 +27,9 @@ pub(in crate::lower) fn mixed_syntaxes(input: &CompileInput<'_>) -> Option<Diagn
     for a in attributes {
         match a.value {
             AttributeValue::On { .. } => {
-                if directive.is_none_or(|first: &super::Attribute| {
-                    a.span.start_offset < first.span.start_offset
-                }) {
+                if directive
+                    .is_none_or(|first: &Attribute| a.span.start_offset < first.span.start_offset)
+                {
                     directive = Some(a);
                 }
             }
@@ -41,7 +45,7 @@ pub(in crate::lower) fn mixed_syntaxes(input: &CompileInput<'_>) -> Option<Diagn
     let name = directive.name.text(source);
     Some(error(
         "mixed_event_handler_syntaxes",
-        &format!(
+        format!(
             "Mixing old (on:{name}) and new syntaxes for event handling is not allowed. Use only \
                 the on{name} syntax"
         ),

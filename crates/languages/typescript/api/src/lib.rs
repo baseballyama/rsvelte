@@ -34,6 +34,8 @@ pub struct Project {
     pub default_root_dir: bool,
     /// What is wrong with the tsconfig, such as an unknown option or no input files.
     pub errors: Vec<Diagnostic>,
+    /// `compilerOptions.skipLibCheck`: TypeScript does not check declaration files.
+    pub skip_lib_check: bool,
 }
 
 /// How requests name a project: TypeScript 7.1 beta and tsrs by its `id`, later 7.1 builds by a
@@ -48,7 +50,8 @@ pub enum ProjectId {
 /// the disk.
 #[derive(Debug, Default)]
 pub struct Layer {
-    pub files: Vec<(PathBuf, String)>,
+    /// One text per path: a file added again replaces the text it had.
+    pub files: std::collections::BTreeMap<PathBuf, String>,
     /// A link path, then the disk directory it reaches.
     pub links: Vec<(PathBuf, PathBuf)>,
 }
@@ -76,6 +79,12 @@ pub struct Position {
 }
 
 impl Diagnostic {
+    /// Whether the category is TypeScript's `DiagnosticCategory.Error`.
+    #[must_use]
+    pub const fn is_error(&self) -> bool {
+        self.category == 1
+    }
+
     /// The message chain, one line per link, indented two spaces per level, as
     /// `ts.flattenDiagnosticMessageText(…, "\n")` renders it.
     #[must_use]
@@ -145,6 +154,8 @@ struct CompilerOptions {
     declaration_dir: Option<String>,
     declaration: Option<bool>,
     composite: Option<bool>,
+    #[serde(rename = "skipLibCheck")]
+    skip_lib_check: Option<bool>,
 }
 
 impl CompilerOptions {
@@ -299,20 +310,27 @@ impl Session {
                                 ));
                             }
                         };
-                        let (root_files, paths, node_resolution, default_root_dir, errors) =
-                            p.parsed.as_ref().map_or_else(
-                                || (Vec::new(), Vec::new(), false, false, Vec::new()),
-                                |c| {
-                                    let options = &c.options;
-                                    (
-                                        c.file_names.clone(),
-                                        options.absolute_paths(),
-                                        options.node_resolution(),
-                                        options.default_root_dir(),
-                                        c.errors.clone(),
-                                    )
-                                },
-                            );
+                        let (
+                            root_files,
+                            paths,
+                            node_resolution,
+                            default_root_dir,
+                            errors,
+                            skip_lib_check,
+                        ) = p.parsed.as_ref().map_or_else(
+                            || (Vec::new(), Vec::new(), false, false, Vec::new(), false),
+                            |c| {
+                                let options = &c.options;
+                                (
+                                    c.file_names.clone(),
+                                    options.absolute_paths(),
+                                    options.node_resolution(),
+                                    options.default_root_dir(),
+                                    c.errors.clone(),
+                                    options.skip_lib_check == Some(true),
+                                )
+                            },
+                        );
                         Ok(Project {
                             snapshot: snapshot.snapshot,
                             id,
@@ -321,6 +339,7 @@ impl Session {
                             node_resolution,
                             default_root_dir,
                             errors,
+                            skip_lib_check,
                         })
                     })
             })
@@ -361,6 +380,26 @@ impl Session {
         }
         let found: Option<Vec<Diagnostic>> = self.decode(method, &response)?;
         Ok(found.unwrap_or_default())
+    }
+
+    /// Every file of the project's program, as the checker names it: the root files and every
+    /// file they reach, such as an imported module or a library's declarations.
+    ///
+    /// # Errors
+    /// The checker fails or answers in an unknown shape.
+    pub fn source_file_names(&mut self, project: &Project) -> Result<Vec<PathBuf>, String> {
+        let mut w = StructuredDataWriter::new(false);
+        w.begin_object()
+            .key("snapshot")
+            .write_number(project.snapshot)
+            .key("project");
+        match &project.id {
+            ProjectId::Handle(handle) => w.write_number(*handle),
+            ProjectId::Id(id) => w.write_string(id),
+        };
+        w.end_object();
+        let response = self.request("getSourceFileNames", w.finish().as_bytes())?;
+        self.decode("getSourceFileNames", &response)
     }
 
     /// Frees a snapshot's programs in the checker.

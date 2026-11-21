@@ -1,19 +1,20 @@
 use oxc_ast::ast::{
     Expression, LogicalOperator, ObjectPropertyKind, PropertyKey, PropertyKind, Statement,
 };
-use rsvelte_svelte_semantic::compiler_syntax_tree::{Element, Modifiers};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier, Element, ElementKind, Modifiers, NodeKind,
+    Part,
+};
 use rsvelte_svelte_semantic::evaluate::Evaluator;
 
-use super::super::component::{
+use super::{ClientCompilationContext, Frag, Lists, Memo, R};
+use crate::input::Target;
+use crate::lower::builder::Runtime;
+use crate::lower::component::{
     Callee, DefaultSlot, Entry, Prop, bind_this, callee, child_snippets, props, props_expression,
     push_accessors, push_binding, push_children,
 };
-use super::super::derived::{Created, callback};
-use super::{
-    AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, ElementKind, Frag, Lists,
-    Memo, NodeKind, Part, R, Target,
-};
-use crate::lower::builder::Runtime;
+use crate::lower::derived::{Created, callback};
 use crate::render_plan::slot_name;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -186,7 +187,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     /// appear, an array where a name has several.
     fn push_events(
         &mut self,
-        attributes: &[super::Attribute],
+        attributes: &[Attribute],
         parts: &mut Vec<Entry<'o>>,
         declarations: &mut Vec<Statement<'o>>,
     ) {
@@ -249,7 +250,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 custom_properties.push(b.init(a.name.text(self.source_text), value));
             }
             Prop::Accessors(a, get, set) => {
-                let functions = (self.rewrite(get, true), self.rewrite(set, true));
+                let functions = (self.rewrite(get), self.rewrite(set));
                 let name = a.name.text(self.source_text);
                 push_accessors(b, parts, accessors, name, functions, &self.names);
             }
@@ -296,7 +297,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 // A store read through a binding tells the store it is bound.
                 let store = matches!(
                     self.javascript.get_expression(target).get_inner_expression(),
-                    Expression::Identifier(identifier) if self.rewriter(true).is_store(identifier)
+                    Expression::Identifier(identifier) if self.rewriter().is_store(identifier)
                 );
                 if store {
                     let mark = b.statement(b.runtime("mark_store_binding", []));

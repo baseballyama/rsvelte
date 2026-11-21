@@ -7,9 +7,9 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{
-    Attribute, AttributeKind, AttributeValue, Part, TemplateNode,
+    Attribute, AttributeKind, AttributeValue, Part, TemplateNode, decode_attribute,
 };
-use rsvelte_typescript_tree::Tree;
+use rsvelte_typescript_tree::{Tree, node_span};
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
@@ -157,9 +157,7 @@ impl<'a> Values<'a> {
     fn strings(&self, part: &Part) -> Option<Vec<Cow<'a, str>>> {
         let mut out = Vec::new();
         match *part {
-            Part::Text(span) => out.push(rsvelte_markup_syntax::decode_attribute(
-                span.text(self.source),
-            )),
+            Part::Text(span) => out.push(decode_attribute(span.text(self.source))),
             Part::Expression { expression, .. } => {
                 Self::branches(self.javascript.get_expression(expression), &mut out)?;
             }
@@ -209,8 +207,8 @@ impl<'a> Values<'a> {
                         | BinaryOperator::Inequality
                 ) =>
             {
-                let between = &self.source[nodes::span(&binary.left).end_offset as usize
-                    ..nodes::span(&binary.right).start_offset as usize];
+                let between = &self.source[node_span(&binary.left).end_offset as usize
+                    ..node_span(&binary.right).start_offset as usize];
                 let between = if matches!(
                     binary.operator,
                     BinaryOperator::StrictEquality | BinaryOperator::Equality

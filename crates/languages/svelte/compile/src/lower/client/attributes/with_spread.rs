@@ -1,11 +1,11 @@
 use oxc_ast::ast::{Expression, PropertyKey};
-
-use crate::lower::builder::Runtime;
-use crate::lower::client::{
-    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Lists, Memo,
-    event_attribute, is_behaviour, normalize_attribute,
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier,
 };
-use crate::lower::template::implicit_attributes;
+
+use crate::lower::attributes::{event_attribute, implicit_attributes, is_behaviour};
+use crate::lower::builder::Runtime;
+use crate::lower::client::{ClientCompilationContext, Lists, Memo, normalize_attribute};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_attribute_effect`: every attribute and spread, in order, as one object the

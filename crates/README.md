@@ -9,7 +9,8 @@ crates/
 │   ├── plugin_interface/      what a host gives a plugin: options, the tasks that run, functions
 │   ├── lint_runner/           rule running and ESLint-style reports, for any linter
 │   ├── document_printer/      layout instructions and a printer, for any formatter
-│   └── test_harness/          runs each crate's tasks over its tests/fixtures/ and the corpus
+│   ├── test_harness/          runs each crate's tasks over its tests/fixtures/
+│   └── corpus/                runs every task over the shared corpus/ and compares with the official tools
 ├── languages/<language>/      css, html, svelte, typescript, vue; each has only the crates it needs
 │   ├── syntax/                trees and their parser; depends only on other syntax crates
 │   ├── semantic/              analysis of those trees; depends only on syntax and semantic crates
@@ -19,6 +20,8 @@ crates/
 │   └── check/                 type check tasks (svelte, typescript, vue)
 ├── languages/svelte/typescript_projection/  Svelte to TypeScript, for type checks
 ├── languages/svelte/site/     prints the Svelte trees and source maps the site draws
+├── languages/typescript/tree/  TypeScript's syntax crate: JavaScript and TypeScript as oxc trees
+├── languages/typescript/api/   a client for the API of native TypeScript 7.1
 ├── languages/typescript/content_mapper/  the protocol to the native TypeScript checker
 ├── bridges/                   compile one framework's components for another's runtime
 │   ├── svelte_to_vue_vapor/   Svelte compiled for the Vue Vapor runtime

@@ -4,14 +4,13 @@ use oxc_ast::ast::{
 };
 use oxc_semantic::{AstNodes, NodeId, Reference, ReferenceId, ScopeId, Scoping, SymbolId};
 use oxc_span::GetSpan;
-use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{AttributeValue, ElementKind, NodeKind};
-use rsvelte_svelte_semantic::legacy::{TopLevel, Variable};
 use rsvelte_svelte_semantic::resolve::TemplateScope;
+use rsvelte_typescript_tree::document_span;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::shared::legacy_reactivity::legacy;
+use super::shared::legacy_reactivity::{TopLevel, Variable, legacy};
 use super::shared::nodes;
 use super::shared::runes::runes;
 use super::shared::svelte_names::{TopLevelNames, has_reactive_statement};
@@ -132,7 +131,7 @@ fn reactive_declarations(file: &File<'_>, reporter: &mut Reporter<'_>) {
         });
         reporter.range(
             format!("'{}' is {action} but never used.", implicit.name),
-            Span::new(at.start, at.end),
+            document_span(at),
         );
     }
 }

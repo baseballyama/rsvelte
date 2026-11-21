@@ -16,9 +16,9 @@ use rsvelte_typescript_semantic::reference_tracker::{
 };
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_semantic::static_value::{StaticValues, Value};
+use rsvelte_typescript_tree::node_span;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::shared::nodes::span;
 use super::shared::runes::is_svelte_file;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -57,8 +57,8 @@ impl SvelteRule for NoTopLevelBrowserGlobals {
         let mut functions = Vec::new();
         for node in file.nodes().iter() {
             match node.kind() {
-                AstKind::Function(function) => functions.push(span(function)),
-                AstKind::ArrowFunctionExpression(arrow) => functions.push(span(arrow)),
+                AstKind::Function(function) => functions.push(node_span(function)),
+                AstKind::ArrowFunctionExpression(arrow) => functions.push(node_span(arrow)),
                 AstKind::ImportMeta(_) => {
                     // `import.meta.env.SSR`, which Vite sets on the server.
                     found.extend(property_references(semantic, node.id(), &["env"], &["SSR"]));
@@ -70,9 +70,8 @@ impl SvelteRule for NoTopLevelBrowserGlobals {
         for reference in std::mem::take(&mut found) {
             available.extend(guards.checker(reference.node, true).map(Available::browser));
         }
-        let programs = file.programs();
         for (module, export) in ENVIRONMENT_MODULES {
-            for reference in import_references(semantic, &programs, module, &[export]) {
+            for reference in import_references(semantic, file.programs(), module, &[export]) {
                 if matches!(
                     guards.nodes.kind(reference.node),
                     AstKind::IdentifierReference(_)
@@ -131,7 +130,7 @@ fn report_unguarded(
         coverage.index();
     }
     for (node, name) in candidates {
-        let at = span(&nodes.kind(node));
+        let at = node_span(&nodes.kind(node));
         let guarded =
             browser.contains(node, at) || by_name.get(name).is_some_and(|c| c.contains(node, at));
         if !guarded {
@@ -270,7 +269,7 @@ impl<'a> Guards<'a> {
     }
 
     fn span(&self, node: NodeId) -> Span {
-        span(&self.nodes.kind(node))
+        node_span(&self.nodes.kind(node))
     }
 
     /// Adds the functions to the snippets, and keeps the outermost of them in order.
@@ -389,20 +388,22 @@ impl<'a> Guards<'a> {
             return if not { alternate } else { consequent }.map(Checker::range);
         };
         match self.nodes.kind(parent) {
-            AstKind::ConditionalExpression(conditional) => Some(Checker::range(span(if not {
-                &conditional.alternate
-            } else {
-                &conditional.consequent
-            }))),
+            AstKind::ConditionalExpression(conditional) => {
+                Some(Checker::range(node_span(if not {
+                    &conditional.alternate
+                } else {
+                    &conditional.consequent
+                })))
+            }
             AstKind::UnaryExpression(unary) if unary.operator == UnaryOperator::LogicalNot => {
                 self.checker(parent, !not)
             }
             AstKind::IfStatement(statement) if statement.test.node_id() == node => {
                 if !not {
-                    return Some(Checker::range(span(&statement.consequent)));
+                    return Some(Checker::range(node_span(&statement.consequent)));
                 }
                 if let Some(alternate) = &statement.alternate {
-                    return Some(Checker::range(span(alternate)));
+                    return Some(Checker::range(node_span(alternate)));
                 }
                 if !jumps_on_every_path(&statement.consequent) {
                     return None;
@@ -427,7 +428,7 @@ impl<'a> Guards<'a> {
                         checker
                             .get_or_insert_default()
                             .ranges
-                            .push(span(&logical.right));
+                            .push(node_span(&logical.right));
                     }
                     return checker;
                 }

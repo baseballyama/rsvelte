@@ -11,10 +11,11 @@ use oxc_transformer::{TransformOptions, Transformer};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_typescript_tree::document_span;
 
-use super::{
-    Builder, CompileInput, Target, Unit, builder, check_runes, prepare, script, validate_unit,
-};
+use super::validation::check_runes;
+use super::{Builder, Unit, builder, prepare, script, validate_unit};
+use crate::input::{CompileInput, Target};
 
 /// The module of one target, in `allocator`; its spans index the module's text.
 ///
@@ -36,7 +37,6 @@ pub(crate) fn lower_module<'o>(
     let b = Builder::new(allocator);
     let names = prepare::names(res);
     let mut rewrite = script::ScriptRewrite {
-        rest_reads: Some(&validated.rest_reads),
         stores: &validated.stores,
         names: Some(&names),
         ..script::ScriptRewrite::new(&b, target, res)
@@ -54,7 +54,7 @@ pub(crate) fn lower_module<'o>(
         SPAN,
         SourceType::mjs(),
         b.str(component.source_text),
-        [],
+        b.vec(program.comments.iter().cloned()),
         None,
         [],
         b.vec(hoisted.into_iter().chain(statements)),
@@ -87,7 +87,7 @@ fn typescript_emit<'o>(
     if let Some(error) = transformed.diagnostics.first() {
         // oxc's transform labels the node it cannot emit, in the module's own text.
         let span = error.labels.first().map_or_else(
-            || Span::new(source.span.start, source.span.end),
+            || document_span(source.span),
             |label| Span::new(label.offset(), label.offset() + label.len()),
         );
         return Err(Diagnostic::error(

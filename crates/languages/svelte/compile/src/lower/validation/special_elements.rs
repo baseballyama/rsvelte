@@ -1,11 +1,14 @@
-use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
-
-use crate::lower::global_binding_table::GlobalBinding;
-use crate::lower::template::single_expression;
-use crate::lower::{
-    AttributeValue, CompileInput, CompilerNodeIdentifier, CompilerSyntaxTree, Diagnostic, Element,
-    NodeKind, Span, invalid, unsupported,
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
+    MetadataTag, NodeKind,
 };
+
+use crate::input::CompileInput;
+use crate::lower::attributes::{event_attribute, is_directive, single_expression};
+use crate::lower::global_binding_table::GlobalBinding;
+use crate::lower::{invalid, unsupported};
 
 mod options;
 
@@ -120,7 +123,7 @@ pub(super) fn special_element_error(input: &CompileInput<'_>) -> Result<(), Diag
                     if !matches!(
                         attribute.name.text(source),
                         "onerror" | "failed" | "pending"
-                    ) || crate::lower::template::is_directive(&attribute.value)
+                    ) || is_directive(&attribute.value)
                     {
                         return invalid(
                             "svelte_boundary_invalid_attribute",
@@ -191,7 +194,7 @@ fn validate_dynamic_component(
 fn validate_globals(
     source: &str,
     tag: MetadataTag,
-    attributes: &[crate::lower::Attribute],
+    attributes: &[Attribute],
 ) -> Result<(), Diagnostic> {
     let host = match tag {
         MetadataTag::Window => "svelte:window",
@@ -208,7 +211,7 @@ fn validate_globals(
                 | AttributeValue::Interpolated(_)
         );
         if matches!(attribute.value, AttributeValue::Spread(_))
-            || (plain && crate::lower::event_attribute(source, attribute).is_none())
+            || (plain && event_attribute(source, attribute).is_none())
         {
             if tag == MetadataTag::Body {
                 return invalid(
@@ -219,7 +222,7 @@ fn validate_globals(
             }
             return invalid(
                 "illegal_element_attribute",
-                &format!("`<{host}>` does not support non-event attributes or spread attributes"),
+                format!("`<{host}>` does not support non-event attributes or spread attributes"),
                 attribute.span,
             );
         }
@@ -230,7 +233,6 @@ fn validate_globals(
             && GlobalBinding::of(tag, attribute.name.text(source)).is_none()
         {
             crate::lower::bindings::check_binding(source, host, attributes, attribute)?;
-            return unsupported("this global binding", attribute.span);
         }
     }
     Ok(())
@@ -247,7 +249,7 @@ fn no_children(
         let name = element.name.text(source);
         return invalid(
             "svelte_meta_invalid_content",
-            &format!("<{name}> cannot have children"),
+            format!("<{name}> cannot have children"),
             Span::new(
                 tree.node(first).span.start_offset,
                 tree.node(last).span.end_offset,

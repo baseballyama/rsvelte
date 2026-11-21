@@ -42,7 +42,7 @@ impl Printer<'_, '_, '_> {
     ) -> Option<LayoutInstructionIdentifier> {
         let text = normalize_newlines(span.text(self.source_text), ['\r']);
         // Prettier reads a script without `lang="ts"` with `babel`, which reads JSX.
-        let source_type = if self.c.typescript {
+        let source_type = if self.component.typescript {
             SourceType::ts()
         } else {
             SourceType::mjs().with_jsx(true)
@@ -63,7 +63,7 @@ impl Printer<'_, '_, '_> {
     pub(super) fn style(&mut self, content: Span) -> R<LayoutInstructionIdentifier> {
         let text = content.text(self.source_text);
         if text.trim_ascii().is_empty() {
-            return Ok(self.d().nil());
+            return Ok(self.docs.nil());
         }
         let text = normalize_newlines(text, ['\r']);
         let core = super::core_options();
@@ -163,7 +163,7 @@ impl Printer<'_, '_, '_> {
             inlines_code: true,
             keeps_recovered: None,
         };
-        let parameters = self.c.javascript.get_parameters(parameters);
+        let parameters = self.component.javascript.get_parameters(parameters);
         let first = parameters.items.first().map(|p| p.span.start);
         let last = parameters
             .rest

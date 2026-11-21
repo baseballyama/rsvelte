@@ -6,6 +6,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Part, Range, TemplateNode, TokenType,
 };
+use rsvelte_typescript_tree::document_span;
 
 use super::Template;
 use crate::rules::indent::layout::Item;
@@ -117,9 +118,7 @@ impl Template<'_, '_> {
                         && let Expression::SequenceExpression(pair) =
                             self.tree().get_expression(expression)
                     {
-                        self.script
-                            .layout
-                            .ignore(crate::rules::shared::nodes::from_oxc(pair.span));
+                        self.script.layout.ignore(document_span(pair.span));
                         continue;
                     }
                     if matches!(

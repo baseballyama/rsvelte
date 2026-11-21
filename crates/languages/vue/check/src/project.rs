@@ -16,7 +16,7 @@ use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, document_span, node_span};
 use rsvelte_vue_semantic::expressions::{
     Identifier, Parent, camelize, can_prefix, collect_identifiers, collect_pattern_identifiers,
     is_simple_identifier, to_handler_key,
@@ -30,7 +30,7 @@ use rsvelte_vue_syntax::syntax_tree::{
 #[derive(Debug)]
 pub(crate) enum Projection {
     /// Not type-checked: a `<script setup>` without `lang="ts"` makes the virtual file JavaScript,
-    /// and vue-tsc reports no semantic diagnostics for it (`checkJavaScript` is offset).
+    /// and vue-tsc reports no semantic diagnostics for it (`checkJs` is off).
     JavaScript,
     TypeScript(Emitter),
 }
@@ -46,54 +46,57 @@ const INSTANCE: &str = "import('vue').ComponentPublicInstance";
 ///
 /// [`Unsupported`] if the component holds a construct the projection does not handle yet.
 pub(crate) fn project(
-    c: &SingleFileComponent,
+    component: &SingleFileComponent,
     source_text: &str,
-    res: &Resolution,
+    resolution: &Resolution,
 ) -> R<Projection> {
-    if c.script.is_some() && !c.typescript {
+    if component.script.is_some() && !component.typescript {
         return Ok(Projection::JavaScript);
     }
-    if let Some(p) = res.define_props() {
+    if let Some(p) = resolution.define_props() {
         return Err(Unsupported::at(
             "defineProps in a type-checked component",
             document_span(p.call.span),
         ));
     }
     let mut p = Projector {
-        c,
+        component,
         source_text,
-        res,
-        e: Emitter::default(),
+        resolution,
+        emitter: Emitter::default(),
         chain_open: false,
     };
-    if let Some(script) = &c.script {
-        p.e.copy(source_text, script.content);
-        p.e.push("\n");
+    if let Some(script) = &component.script {
+        p.emitter.copy(source_text, script.content);
+        p.emitter.push("\n");
     }
-    p.e.push(PRELUDE);
+    p.emitter.push(PRELUDE);
     let exposed = p.exposed();
     if exposed.is_empty() {
-        p.e.push(&format!("const __VLS_ctx = {{}} as {INSTANCE};\n"));
+        p.emitter
+            .push(&format!("const __VLS_ctx = {{}} as {INSTANCE};\n"));
     } else {
-        p.e.push("type __VLS_SetupExposed = import('vue').ShallowUnwrapRef<{\n");
+        p.emitter
+            .push("type __VLS_SetupExposed = import('vue').ShallowUnwrapRef<{\n");
         for name in exposed {
-            p.e.push(&format!("{name}: typeof {name};\n"));
+            p.emitter.push(&format!("{name}: typeof {name};\n"));
         }
-        p.e.push("}>;\nconst __VLS_ctx = {\n");
-        p.e.push(&format!(
+        p.emitter.push("}>;\nconst __VLS_ctx = {\n");
+        p.emitter.push(&format!(
             "...{{}} as {INSTANCE},\n...{{}} as __VLS_SetupExposed,\n}};\n"
         ));
     }
-    p.e.push("let __VLS_intrinsics!: import('vue/jsx-runtime').JSX.IntrinsicElements;\n");
-    p.children(c.root())?;
-    Ok(Projection::TypeScript(p.e))
+    p.emitter
+        .push("let __VLS_intrinsics!: import('vue/jsx-runtime').JSX.IntrinsicElements;\n");
+    p.children(component.root())?;
+    Ok(Projection::TypeScript(p.emitter))
 }
 
 struct Projector<'a> {
-    c: &'a SingleFileComponent,
+    component: &'a SingleFileComponent,
     source_text: &'a str,
-    res: &'a Resolution,
-    e: Emitter,
+    resolution: &'a Resolution,
+    emitter: Emitter,
     /// The last statement closed a `v-if` / `v-else-if` block, so a `v-else` may follow.
     chain_open: bool,
 }
@@ -102,37 +105,28 @@ impl<'a> Projector<'a> {
     /// The script's top-level names the template reads, in the order it first reads them:
     /// upstream's `__VLS_SetupExposed`.
     fn exposed(&self) -> Vec<&'a str> {
-        let res = self.res;
-        let c: &'a SingleFileComponent = self.c;
-        let Some(template) = &c.template else {
+        let resolution = self.resolution;
+        let Some(template) = &self.component.template else {
             return Vec::new();
         };
-        let (scoping, nodes) = (res.scoping(), res.semantic().nodes());
-        let mut found: Vec<(u32, &str)> = scoping
-            .get_bindings(res.root_scope())
+        let content = template.content;
+        let (scoping, nodes) = (resolution.scoping(), resolution.semantic().nodes());
+        let mut first_reads: Vec<(u32, &'a str)> = scoping
+            .get_bindings(resolution.root_scope())
             .iter()
-            .flat_map(|(name, &symbol)| {
-                scoping
+            .filter_map(|(name, &symbol)| {
+                let first = scoping
                     .get_resolved_reference_ids(symbol)
                     .iter()
-                    .map(move |&r| {
-                        let at = nodes.kind(scoping.get_reference(r).node_id()).span();
-                        (at, name.as_str())
-                    })
+                    .map(|&r| nodes.kind(scoping.get_reference(r).node_id()).span())
+                    .filter(|at| content.start_offset <= at.start && at.end <= content.end_offset)
+                    .map(|at| at.start)
+                    .min()?;
+                Some((first, name.as_str()))
             })
-            .filter(|(at, _)| {
-                template.content.start_offset <= at.start && at.end <= template.content.end_offset
-            })
-            .map(|(at, name)| (at.start, name))
             .collect();
-        found.sort_unstable_by_key(|&(at, _)| at);
-        let mut names: Vec<&'a str> = Vec::new();
-        for (_, name) in found {
-            if !names.contains(&name) {
-                names.push(name);
-            }
-        }
-        names
+        first_reads.sort_unstable_by_key(|&(at, _)| at);
+        first_reads.into_iter().map(|(_, name)| name).collect()
     }
 
     fn children(&mut self, identifiers: &[TemplateNodeIdentifier]) -> R<()> {
@@ -143,17 +137,17 @@ impl<'a> Projector<'a> {
     }
 
     fn node(&mut self, identifier: TemplateNodeIdentifier) -> R<()> {
-        match *self.c.node(identifier) {
+        match *self.component.node(identifier) {
             TemplateNode::Text { .. } | TemplateNode::Comment { .. } => {}
             TemplateNode::Interpolation { expression, span } => {
                 self.chain_open = false;
-                self.e.push("(");
+                self.emitter.push("(");
                 self.expression(
                     expression,
                     Span::new(span.start_offset + 2, span.end_offset - 2),
                     false,
                 );
-                self.e.push(");\n");
+                self.emitter.push(");\n");
             }
             TemplateNode::Element {
                 name,
@@ -163,8 +157,9 @@ impl<'a> Projector<'a> {
                 span,
                 ..
             } => {
-                let condition = rsvelte_vue_semantic::resolve::if_directive(self.c, identifier);
-                let for_exp = self.c.directive(attributes, DirectiveName::For);
+                let condition =
+                    rsvelte_vue_semantic::resolve::if_directive(self.component, identifier);
+                let for_exp = self.component.directive(attributes, DirectiveName::For);
                 match (condition, for_exp) {
                     (Some(_), Some((a, _))) => {
                         return Err(Unsupported::at("v-if and v-for on one element", a.span));
@@ -175,7 +170,7 @@ impl<'a> Projector<'a> {
                         let DirectiveExpression::For(f) = &d.exp else {
                             unreachable!("the parser gives v-for a for expression")
                         };
-                        let javascript = &self.c.javascript;
+                        let javascript = &self.component.javascript;
                         let parameters = javascript.get_parameters(f.parameters);
                         if let Some(rest) = &parameters.rest {
                             return Err(Unsupported::at(
@@ -183,26 +178,26 @@ impl<'a> Projector<'a> {
                                 document_span(rest.span),
                             ));
                         }
-                        self.e.push("for (const [");
+                        self.emitter.push("for (const [");
                         for (i, param) in parameters.items.iter().enumerate() {
                             if i > 0 {
-                                self.e.push(", ");
+                                self.emitter.push(", ");
                             }
                             let mut identifiers = Vec::new();
                             collect_pattern_identifiers(&param.pattern, &mut identifiers);
-                            self.prefixed(identifiers, document_span(param.pattern.span()), false);
+                            self.prefixed(identifiers, node_span(&param.pattern), false);
                         }
-                        self.e.push("] of __VLS_vFor((");
+                        self.emitter.push("] of __VLS_vFor((");
                         let source = javascript.get_expression(f.source);
-                        self.expression(f.source, document_span(source.span()), false);
-                        self.e.push(")!)) {\n");
+                        self.expression(f.source, node_span(source), false);
+                        self.emitter.push(")!)) {\n");
                     }
                     (None, None) => self.chain_open = false,
                 }
                 self.element(name, attributes, span != start_tag)?;
-                self.children(self.c.children(children))?;
+                self.children(self.component.children(children))?;
                 if condition.is_some() || for_exp.is_some() {
-                    self.e.push("}\n");
+                    self.emitter.push("}\n");
                 }
                 self.chain_open =
                     matches!(condition, Some(DirectiveName::If | DirectiveName::ElseIf));
@@ -217,7 +212,7 @@ impl<'a> Projector<'a> {
         dir: DirectiveName,
     ) -> R<()> {
         let (a, d) = self
-            .c
+            .component
             .directive(attributes, dir)
             .expect("if_directive found it");
         if dir != DirectiveName::If && !self.chain_open {
@@ -231,15 +226,15 @@ impl<'a> Projector<'a> {
             _ => return Err(Unsupported::at("this v-if expression", a.span)),
         };
         if dir != DirectiveName::If {
-            self.e.push("else ");
+            self.emitter.push("else ");
         }
         if let Some(test) = test {
-            self.e.push("if (");
+            self.emitter.push("if (");
             let value = a.value.expect("an expression has a value");
             self.expression(test, value, false);
-            self.e.push(") ");
+            self.emitter.push(") ");
         }
-        self.e.push("{\n");
+        self.emitter.push("{\n");
         Ok(())
     }
 
@@ -258,14 +253,15 @@ impl<'a> Projector<'a> {
         {
             return Err(Unsupported::at("components and custom elements", name));
         }
-        self.e.push("__VLS_asFunctionalElement1(__VLS_intrinsics.");
-        self.e.copy(self.source_text, name);
+        self.emitter
+            .push("__VLS_asFunctionalElement1(__VLS_intrinsics.");
+        self.emitter.copy(self.source_text, name);
         if end_tag {
-            self.e.push(", __VLS_intrinsics.");
-            self.e.push(tag);
+            self.emitter.push(", __VLS_intrinsics.");
+            self.emitter.push(tag);
         }
-        self.e.push(")({\n");
-        for a in self.c.attributes(attributes) {
+        self.emitter.push(")({\n");
+        for a in self.component.attributes(attributes) {
             match &a.kind {
                 AttributeKind::Static => self.static_attribute(a.name, a.value, a.quoted)?,
                 AttributeKind::Directive(d) => match (d.name, d.arg, &d.exp) {
@@ -279,11 +275,11 @@ impl<'a> Projector<'a> {
                     (DirectiveName::Bind, Some(arg), DirectiveExpression::Expression(e)) => {
                         let value = a.value.expect("an expression has a value");
                         let spread = matches!(arg.text(self.source_text), "class" | "style");
-                        self.e.push(if spread { "...{ " } else { "" });
+                        self.emitter.push(if spread { "...{ " } else { "" });
                         self.key(arg);
-                        self.e.push(": (");
+                        self.emitter.push(": (");
                         self.expression(*e, value, false);
-                        self.e.push(if spread { ") },\n" } else { "),\n" });
+                        self.emitter.push(if spread { ") },\n" } else { "),\n" });
                     }
                     (DirectiveName::On, Some(arg), DirectiveExpression::Expression(e)) => {
                         let value = a.value.expect("an expression has a value");
@@ -293,7 +289,7 @@ impl<'a> Projector<'a> {
                 },
             }
         }
-        self.e.push("});\n");
+        self.emitter.push("});\n");
         Ok(())
     }
 
@@ -303,11 +299,11 @@ impl<'a> Projector<'a> {
             return Err(Unsupported::at("a static style attribute", name));
         }
         let class = text == "class";
-        self.e.push(if class { "...{ " } else { "" });
+        self.emitter.push(if class { "...{ " } else { "" });
         self.key(name);
-        self.e.push(": ");
+        self.emitter.push(": ");
         match value {
-            None => self.e.push("true"),
+            None => self.emitter.push("true"),
             Some(v) => {
                 // The value is written in its own quotes, whose content JavaScript would read
                 // differently only through these characters.
@@ -321,23 +317,23 @@ impl<'a> Projector<'a> {
                 } else {
                     "\""
                 };
-                self.e.push(quote);
-                self.e.copy(self.source_text, v);
-                self.e.push(quote);
+                self.emitter.push(quote);
+                self.emitter.copy(self.source_text, v);
+                self.emitter.push(quote);
             }
         }
-        self.e.push(if class { " },\n" } else { ",\n" });
+        self.emitter.push(if class { " },\n" } else { ",\n" });
         Ok(())
     }
 
     /// An attribute name as an object key: bare when it is an identifier, else single-quoted.
     fn key(&mut self, name: Span) {
         if is_simple_identifier(name.text(self.source_text)) {
-            self.e.copy(self.source_text, name);
+            self.emitter.copy(self.source_text, name);
         } else {
-            self.e.push("'");
-            self.e.copy(self.source_text, name);
-            self.e.push("'");
+            self.emitter.push("'");
+            self.emitter.copy(self.source_text, name);
+            self.emitter.push("'");
         }
     }
 
@@ -345,14 +341,14 @@ impl<'a> Projector<'a> {
     /// that receives `$event`.
     fn handler(&mut self, arg: Span, exp: ExpressionIdentifier, value: Span) {
         let key = to_handler_key(&camelize(arg.text(self.source_text)));
-        self.e.push("...{ ");
+        self.emitter.push("...{ ");
         if is_simple_identifier(&key) {
-            self.e.push(&key);
+            self.emitter.push(&key);
         } else {
-            self.e.push(&format!("'{key}'"));
+            self.emitter.push(&format!("'{key}'"));
         }
-        self.e.push(": ");
-        let as_written = match self.c.javascript.get_expression(exp) {
+        self.emitter.push(": ");
+        let as_written = match self.component.javascript.get_expression(exp) {
             Expression::StaticMemberExpression(_)
             | Expression::ComputedMemberExpression(_)
             | Expression::PrivateFieldExpression(_)
@@ -362,31 +358,35 @@ impl<'a> Projector<'a> {
             _ => false,
         };
         if as_written {
-            self.e.push("(");
+            self.emitter.push("(");
             self.expression(exp, value, false);
-            self.e.push(")");
+            self.emitter.push(")");
         } else {
-            self.e.push("(...[$event]) => {\nreturn (");
+            self.emitter.push("(...[$event]) => {\nreturn (");
             self.expression(exp, value, true);
-            self.e.push(");\n}");
+            self.emitter.push(");\n}");
         }
-        self.e.push("},\n");
+        self.emitter.push("},\n");
     }
 
     /// The source text `text` of expression `root`, with every name read from the component
     /// prefixed by `__VLS_context.` (a shorthand property keeps its key).
     fn expression(&mut self, root: ExpressionIdentifier, text: Span, event_local: bool) {
         let mut identifiers = Vec::new();
-        collect_identifiers(self.c.javascript.get_expression(root), &mut identifiers);
+        collect_identifiers(
+            self.component.javascript.get_expression(root),
+            &mut identifiers,
+        );
         self.prefixed(identifiers, text, event_local);
     }
 
     /// Whether `reference` names something the template declares (a `v-for` alias, a parameter
     /// of a function written in an expression).
     fn is_local(&self, reference: ReferenceId) -> bool {
-        let res = self.res;
-        res.symbol_of(reference)
-            .is_some_and(|symbol| res.scoping().symbol_scope_id(symbol) != res.root_scope())
+        let resolution = self.resolution;
+        resolution.symbol_of(reference).is_some_and(|symbol| {
+            resolution.scoping().symbol_scope_id(symbol) != resolution.root_scope()
+        })
     }
 
     fn prefixed(&mut self, identifiers: Vec<Identifier<'_>>, text: Span, event_local: bool) {
@@ -406,11 +406,11 @@ impl<'a> Projector<'a> {
         for (span, shorthand) in prefixed {
             self.copy(Span::new(at, span.start_offset));
             if shorthand {
-                self.e.copy(self.source_text, span);
-                self.e.push(": ");
+                self.emitter.copy(self.source_text, span);
+                self.emitter.push(": ");
             }
-            self.e.push("__VLS_ctx.");
-            self.e.copy(self.source_text, span);
+            self.emitter.push("__VLS_ctx.");
+            self.emitter.copy(self.source_text, span);
             at = span.end_offset;
         }
         self.copy(Span::new(at, text.end_offset));
@@ -418,11 +418,10 @@ impl<'a> Projector<'a> {
 
     fn copy(&mut self, span: Span) {
         if !span.is_empty() {
-            self.e.copy(self.source_text, span);
+            self.emitter.copy(self.source_text, span);
         }
     }
 }
 
-const fn document_span(span: oxc_span::Span) -> Span {
-    Span::new(span.start, span.end)
-}
+#[cfg(test)]
+mod tests;

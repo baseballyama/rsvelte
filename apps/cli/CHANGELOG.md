@@ -1,5 +1,44 @@
 # @rsvelte/cli
 
+## 0.2.5
+
+### Patch Changes
+
+- 6fb6b25: `rsvelte typecheck` now checks a component whose script only TypeScript reads, such as a plain `<script>` declaring `let { n }: { n: number } = $props()`, with its props and default export, as svelte-check does.
+- b468347: `compile` and `svelte/valid-compile` raise `props_illegal_name` for a `$$` key of `$props()` and a `$$` member of a rest prop, such as `rest.$$slots`, as Svelte does.
+- 8410329: A content binding such as `bind:innerHTML` without a static `contenteditable` now raises `attribute_contenteditable_missing` or `attribute_contenteditable_dynamic` as Svelte does. The compiler used to refuse it as unsupported.
+- 52a741c: `rsvelte format` names the `.editorconfig` property it refuses, such as `indent_size` or `max_line_length`, instead of the formatter option it maps to.
+- 9150665: The suggestion of `svelte/no-add-event-listener` now finds the arguments after a `//` comment that a carriage return or a line separator ends, and after a byte order mark, as ESLint does.
+- accd4b0: `svelte/no-useless-mustaches` now fixes a string literal that starts or ends with U+0085, as ESLint does.
+  Numeric `svelte.config.js` keys such as `1e21` or `1e-7` now get the names JavaScript gives them.
+- 9150665: `svelte/infinite-reactive-loop` and `svelte/no-immutable-reactive-statements` now read the `$:` statements of a component in source order, as ESLint does. When a `<script module>` with a `$:` statement came after the instance `<script>`, the first rule missed reports and the second reported statements that are reactive.
+- 8b23a89: A number key in a `$props()` pattern with a rest element is now excluded from the rest as a number, as Svelte does, so the rest keeps that prop.
+- 0eb266c: Name a reserved word written with escapes by its value, `The keyword 'let' is reserved`, as Svelte does.
+- 017107d: Reject a `$` or `$`-prefixed name that a declaration tag or a declaration inside a template expression declares in runes mode, as Svelte does.
+
+## 0.2.4
+
+### Patch Changes
+
+- 6b20383: `rsvelte format` now loads each option value as its formatter loads it, from a configuration or from `.editorconfig`. It leaves the files of a value the formatter refuses, such as `endOfLine: "auto"` under oxfmt. It refuses a `printWidth` or `tabWidth` out of range before writing any file.
+- 209b3ca: Do not warn `element_implicitly_closed` about an element closed by an end tag that names the element a start tag closed before, as Svelte does.
+- d217e69: The server output now renders a binding named after an inherited property, such as `bind:toString` on a `<div>`, as the attribute Svelte renders.
+- 26a5293: A rest prop member that an assignment writes directly, such as the setter of `bind:checked={rest.c}`, now stays `rest.c` as Svelte compiles it instead of becoming `$$props.c`.
+- 22f9760: `rsvelte typecheck` reports every file of the TypeScript program that svelte-check reports. This includes a file outside `include` that the project imports, such as a component of a workspace package linked into `node_modules`. It honors `skipLibCheck` as svelte-check does and prints a file outside the current directory with `../` as `tsc` does.
+
+## 0.2.3
+
+### Patch Changes
+
+- fb3b328: Read `{let$: 1}`, `{constñ: 1}` and `{typeñ: 1}` as declaration tags of the wrong type, as Svelte does: a declaration keyword ends where an ASCII word ends.
+- 4ed91f3: `rsvelte format` now formats the other files when it cannot read or honor one configuration. It leaves the files of that configuration, names it, and exits with 2.
+- 8a3c481: A binding named after an inherited object property, such as `bind:toString` on a `<select>` with a dynamic `multiple`, now gets the same checks as any binding.
+- 318cb91: A binding on an `<input>` whose `type` is not static text now raises `attribute_invalid_type` as Svelte does. The compiler used to refuse it as unsupported.
+- 3c5a684: Lint reads `/* global */` and `/* globals */` comments, so `no-undef` and the rules that track globals see the names they declare or turn off.
+- 89b4ef4: `svelte/no-immutable-reactive-statements` reads the type references of a reactive statement, so an undeclared type or a `typeof` of a reassigned variable makes the statement reactive as in eslint-plugin-svelte.
+- a411f92: `rsvelte lint` prints the line and column `ESLint` prints for a file that starts with a byte order mark or uses `\r`, U+2028 or U+2029 line breaks. It prints a Svelte syntax error as `ESLint` does: the 0-based column and a `Parsing error: ` message with no rule.
+- 0b5746f: Svelte constant folding converts strings such as `"0x+1"`, long hex strings and large `ToInt32` inputs as JavaScript does.
+
 ## 0.2.2
 
 ### Patch Changes

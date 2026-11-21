@@ -1,4 +1,5 @@
 use oxc_span::GetSpan;
+use rsvelte_typescript_tree::document_span;
 
 use super::{
     Attribute, AttributeKind, Attributes, DirectiveExpression, LayoutInstructionIdentifier,
@@ -8,7 +9,7 @@ use super::{
 impl Printer<'_, '_, '_> {
     /// `printAttributes`.
     pub(super) fn attributes(&mut self, i: NodeIdentifier) -> R<LayoutInstructionIdentifier> {
-        let NodeKind::Element { attributes, .. } = self.n(i).kind else {
+        let NodeKind::Element { attributes, .. } = self.node(i).kind else {
             unreachable!("an element")
         };
         let printed = match attributes {
@@ -21,31 +22,31 @@ impl Printer<'_, '_, '_> {
                 .map(|&(name, value)| self.plain_attribute(name.text(self.source_text), value))
                 .collect::<R<Vec<_>>>()?,
         };
-        let self_closing = self.n(i).self_closing;
+        let self_closing = self.node(i).self_closing;
         if printed.is_empty() {
             return Ok(if self_closing {
                 self.lit(" ")
             } else {
-                self.d().nil()
+                self.docs.nil()
             });
         }
-        let sep = self.d().line();
-        let joined = self.d().join(sep, &printed);
-        let l = self.d().line();
+        let sep = self.docs.line();
+        let joined = self.docs.join(sep, &printed);
+        let l = self.docs.line();
         let mut inner = vec![l];
         inner.extend(joined);
         let inner = self.cat(&inner);
-        let indented = self.d().indent(inner);
-        let parent = self.t.parent(i);
+        let indented = self.docs.indent(inner);
+        let parent = self.tree.parent(i);
         let hug_end = self
             .first(i)
             .is_some_and(|f| self.borrows_parent_open_end(f))
             || (self_closing && self.borrows_last_child_close_end(parent));
         let end = match (hug_end, self_closing) {
             (true, true) => self.lit(" "),
-            (true, false) => self.d().nil(),
-            (false, true) => self.d().line(),
-            (false, false) => self.d().softline(),
+            (true, false) => self.docs.nil(),
+            (false, true) => self.docs.line(),
+            (false, false) => self.docs.softline(),
         };
         Ok(self.cat(&[indented, end]))
     }
@@ -57,7 +58,7 @@ impl Printer<'_, '_, '_> {
         value: Option<Span>,
     ) -> R<LayoutInstructionIdentifier> {
         let Some(v) = value else {
-            return Ok(self.d().text(name));
+            return Ok(self.docs.text(name));
         };
         let raw = v.text(self.source_text);
         if raw.contains(['\n', '\r']) {
@@ -74,14 +75,14 @@ impl Printer<'_, '_, '_> {
         } else {
             value.replace('\'', "&apos;")
         };
-        Ok(self.d().text(&format!("{name}={quote}{escaped}{quote}")))
+        Ok(self.docs.text(&format!("{name}={quote}{escaped}{quote}")))
     }
 
     /// A template attribute: prettier's embedded attribute printers, then the generic one.
     pub(super) fn attribute(&mut self, a: &Attribute) -> R<LayoutInstructionIdentifier> {
         let name = a.name.text(self.source_text);
         let Some(v) = a.value else {
-            return Ok(self.d().text(name));
+            return Ok(self.docs.text(name));
         };
         let raw = v.text(self.source_text);
         match &a.kind {
@@ -99,7 +100,7 @@ impl Printer<'_, '_, '_> {
                     let value = raw.replace("&apos;", "'").replace("&quot;", "\"");
                     let collapsed: Vec<&str> = value.split_ascii_whitespace().collect();
                     let value = collapsed.join(" ").replace('"', "&quot;");
-                    return Ok(self.d().text(&format!("{name}=\"{value}\"")));
+                    return Ok(self.docs.text(&format!("{name}=\"{value}\"")));
                 }
                 self.plain_attribute(name, a.value)
             }
@@ -109,14 +110,14 @@ impl Printer<'_, '_, '_> {
                 }
                 let value = match &d.exp {
                     DirectiveExpression::For(f) => {
-                        let source = self.c.javascript.get_expression(f.source).span();
-                        self.v_for(v, f.parameters, Span::new(source.start, source.end))?
+                        let source = self.component.javascript.get_expression(f.source).span();
+                        self.v_for(v, f.parameters, document_span(source))?
                     }
                     DirectiveExpression::Expression(_) => self.directive_value(d.name, v)?,
-                    DirectiveExpression::None => return Ok(self.d().text(name)),
+                    DirectiveExpression::None => return Ok(self.docs.text(name)),
                 };
-                let open = self.d().text(&format!("{name}=\""));
-                let g = self.d().group(&[value]);
+                let open = self.docs.text(&format!("{name}=\""));
+                let g = self.docs.group(&[value]);
                 let close = self.lit("\"");
                 Ok(self.cat(&[open, g, close]))
             }

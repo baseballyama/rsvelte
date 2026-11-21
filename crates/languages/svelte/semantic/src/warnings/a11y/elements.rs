@@ -253,7 +253,7 @@ fn has_input_child(component: &Component, source: &str, children: Range) -> bool
                 let name = name.text(source);
                 let control = name == "svelte:element"
                     || name == "slot"
-                    || (is_component_name(name) && !name.starts_with("svelte:"))
+                    || is_component_name(name)
                     || tables::LABELABLE.contains(&name);
                 control || has_input_child(component, source, children)
             }

@@ -9,8 +9,7 @@ The two arms share everything but the library they call:
 
 - `arms.ts` writes one package for each arm outside every workspace. Each has the same release
   profile, the same versions of `libc` and `mimalloc`, and the harness in `harness.rs`. Each
-  takes the `Cargo.lock` of its tree, and the `main` arm takes the `[patch.crates-io]` of the old
-  port.
+  takes the `Cargo.lock` and the `[patch.crates-io]` of its own tree.
 - `harness.rs` reads every file before it starts timing, and counts each thread's allocations.
   `LINT_ALLOCATOR=mimalloc` picks `mimalloc`; otherwise the arm uses the system's `malloc`.
 - Both arms run the rules both crates have, each with its default options. `universe.json` lists
@@ -24,8 +23,8 @@ Mode `rules` runs those rules alone. Mode `product` adds what each tool runs on 
 ```sh
 W=tools/performance/workloads/lint-versus-main
 node $W/arms.ts <main checkout> <arms>
-cargo build --release --manifest-path <arms>/main/Cargo.toml
-cargo build --release --manifest-path <arms>/experimental/Cargo.toml
+cargo build --release --manifest-path <arms>/lint-main/Cargo.toml
+cargo build --release --manifest-path <arms>/lint-experimental/Cargo.toml
 node $W/stage.ts <stage>
 node $W/measure.ts universe --main <main-arm> --experimental <experimental-arm> --out <results>
 node $W/measure.ts check --main … --inputs <stage>/inputs.txt --sample 20
