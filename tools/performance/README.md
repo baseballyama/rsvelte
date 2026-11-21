@@ -25,7 +25,9 @@ finishes between another run's build and its copy can still get copied, so run o
 tree. Cargo reads `CARGO_BUILD_JOBS` from the environment.
 
 The allocation build uses the `metrics` profile, a release build without link-time optimization,
-and the instruction build uses `dist`, the profile npm ships.
+and the instruction build uses `dist`, the profile npm ships. CI runs them as two jobs, `ratchet`
+and `ratchet --instructions --no-allocations`, so the two builds do not share a runner. `--update`
+needs a run that measures allocations.
 
 ## Cache profiles
 

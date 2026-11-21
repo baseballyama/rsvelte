@@ -209,14 +209,25 @@ jobs:
           fi
 
   performance:
-    # The instruction baseline is recorded on arm64 Linux (`performance.ts ratchet-linux` runs the same
-    # environment locally); allocation counts are the same on every platform.
+    # The two ratchets build different programs, and on one runner the two builds share its four
+    # CPUs. The instruction baseline is recorded on arm64 Linux (`performance.ts ratchet-linux` runs
+    # the same environment locally); allocation counts are the same on every platform.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - part: allocations
+            options: ''
+          - part: instructions
+            options: --instructions --no-allocations
+    name: performance (${{ matrix.part }})
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     steps:
       # valgrind installs while the setup steps run. The image's package lists usually still name
       # it; updating them took 15 seconds.
-      - run: |
+      - if: matrix.part == 'instructions'
+        run: |
           (
             install() { sudo apt-get install -y --no-install-recommends valgrind; }
             if install || { sudo apt-get update && install; }; then status=0; else status=1; fi
@@ -236,18 +247,24 @@ jobs:
           node-version: 26.13.0
           package-manager-cache: false
       - uses: ./.github/actions/rust
+        with:
+          key: ${{ matrix.part }}
       - run: cargo fetch --locked
-      - run: |
+      - if: matrix.part == 'instructions'
+        run: |
           until [ -s "$RUNNER_TEMP/valgrind.status" ]; do sleep 1; done
           cat "$RUNNER_TEMP/valgrind.log"
           exit "$(cat "$RUNNER_TEMP/valgrind.status")"
       # The cache simulation's test runs valgrind.
-      - run: node --run test
+      - if: matrix.part == 'instructions'
+        run: node --run test
         working-directory: tools/performance
-      - run: node tools/performance/performance.ts ratchet --instructions --json performance-report.json
+      - env:
+          OPTIONS: ${{ matrix.options }}
+        run: node tools/performance/performance.ts ratchet $OPTIONS --json performance-report.json
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: performance-report
+          name: performance-report-${{ matrix.part }}
           path: performance-report.json
           if-no-files-found: ignore

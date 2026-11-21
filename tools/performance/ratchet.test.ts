@@ -113,3 +113,75 @@ test(
 		}
 	},
 );
+
+test('--no-allocations is refused without --instructions and with --update', () => {
+	const ratchet = path.join(source, 'performance.ts');
+	for (const argv of [['--no-allocations'], ['--no-allocations', '--instructions', '--update']]) {
+		const run = spawnSync(process.execPath, [ratchet, 'ratchet', ...argv], { encoding: 'utf8' });
+		assert.notEqual(run.status, 0, argv.join(' '));
+		assert.match(run.stderr, /--no-allocations needs --instructions/);
+	}
+});
+
+// A stand-in for valgrind whose instruction count grows with the rounds it is asked for.
+const VALGRIND = `#!/bin/sh
+for argument in "$@"; do case "$argument" in rounds=*) rounds="\${argument#rounds=}";; esac; done
+echo "==1== I   refs:      $((1000 + rounds * 100))" >&2
+`;
+
+test(
+	'--no-allocations compares the instruction counters alone',
+	{ skip: process.platform === 'win32', timeout: 3 * WAIT_MS },
+	() => {
+		const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-ratchet-'));
+		try {
+			fs.writeFileSync(path.join(directory, 'cargo'), CARGO, { mode: 0o755 });
+			fs.writeFileSync(path.join(directory, 'valgrind'), VALGRIND, { mode: 0o755 });
+			const root = path.join(directory, 'root');
+			fs.mkdirSync(path.join(root, 'tools/performance'), { recursive: true });
+			for (const file of ['performance.ts', 'ratchet.ts'])
+				fs.copyFileSync(path.join(source, file), path.join(root, 'tools/performance', file));
+			const platform = `${process.arch}-${process.platform}`;
+			// Every allocation counter is off by one; the instruction counters match the stand-ins.
+			const baseline = {
+				population: { documents: 1111, source_bytes: 1, tasks: [] },
+				allocs: 2,
+				alloc_bytes: 1,
+				peak_live_growth_bytes: 1,
+				phases: {},
+				instructions: { [platform]: 100 },
+				load_instructions: { [platform]: 1000 },
+				instruction_sample: { every: 20, documents: 1111, source_bytes: 1 },
+			};
+			fs.writeFileSync(
+				path.join(root, 'tools/performance/baseline.json'),
+				JSON.stringify(baseline),
+			);
+			const run = (...argv: string[]) =>
+				spawnSync(
+					process.execPath,
+					[path.join(root, 'tools/performance/performance.ts'), 'ratchet', ...argv],
+					{
+						cwd: root,
+						env: {
+							...process.env,
+							PATH: `${directory}${path.delimiter}${process.env.PATH}`,
+							FAKE_DIR: directory,
+							FAKE_ROLE: 'second',
+							FAKE_DOCUMENTS: '1111',
+						},
+						encoding: 'utf8',
+						timeout: WAIT_MS,
+					},
+				);
+			const instructions = run('--instructions', '--no-allocations');
+			assert.equal(instructions.status, 0, instructions.stderr);
+			assert.match(instructions.stdout, /^2 counters compared, 0 moved$/m);
+			const full = run('--instructions');
+			assert.notEqual(full.status, 0, full.stdout);
+			assert.match(full.stderr, /FAIL allocs: 2 -> 1/);
+		} finally {
+			fs.rmSync(directory, { recursive: true, force: true });
+		}
+	},
+);

@@ -4,7 +4,7 @@
 //   every document task over the committed corpus serially and counts the last, warm round's
 //   allocations and bytes, in total and per phase (every artifact and task), plus the peak
 //   live-heap growth. On one thread these are a function of the input and the binary, so they are
-//   compared exactly.
+//   compared exactly. `--no-allocations` skips them.
 // - instructions (`--instructions`, Linux with valgrind): cachegrind's instruction counts of the
 //   shipped build (the `dist` profile, no `metrics`), recorded per `<arch>-<os>` and compared within
 //   INSTRUCTION_TOLERANCE: one warm round, taken as the difference between `rounds=2` and
@@ -15,7 +15,8 @@
 //
 // The ratchet is two-sided: a counter that rose fails, and so does one that fell without the
 // baseline recording it, so an improvement is locked in by the change that made it. `--update`
-// writes what was measured into the baseline (instruction counts of other platforms are kept).
+// writes what was measured into the baseline (instruction counts of other platforms are kept), and
+// only a run that measures allocations may write it.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -61,6 +62,13 @@ interface Sample {
 	source_bytes: number;
 }
 
+interface Instructions {
+	rev: string;
+	warm: number;
+	load: number;
+	sample: Sample;
+}
+
 interface Row {
 	metric: string;
 	was: number | undefined;
@@ -90,12 +98,16 @@ export async function main(args: string[]): Promise<void> {
 
 	const { values } = parseArgs({
 		args,
+		allowNegative: true,
 		options: {
 			update: { type: 'boolean', default: false },
 			instructions: { type: 'boolean', default: false },
+			allocations: { type: 'boolean', default: true },
 			json: { type: 'string' },
 		},
 	});
+	if (!values.allocations && (!values.instructions || values.update))
+		throw new Error('--no-allocations needs --instructions, and only a full run may --update');
 
 	/** Runs a command; resolves with its stderr. */
 	function start(
@@ -187,15 +199,15 @@ export async function main(args: string[]): Promise<void> {
 		return Number(m[1]!.replaceAll(',', ''));
 	}
 
-	async function instructions(
-		rsvelte: string,
-	): Promise<{ warm: number; load: number; sample: Sample }> {
+	async function instructions(rsvelte: string): Promise<Instructions> {
 		const sample = [...POPULATION, `every=${INSTRUCTION_SAMPLE}`];
 		const counted = path.join(path.dirname(rsvelte), 'sample.json');
 		await start(rsvelte, ['performance', ...sample, 'rounds=0', `json=${counted}`]);
-		const { documents, source_bytes: sourceBytes } = JSON.parse(
-			fs.readFileSync(counted, 'utf8'),
-		) as Report;
+		const {
+			rev,
+			documents,
+			source_bytes: sourceBytes,
+		} = JSON.parse(fs.readFileSync(counted, 'utf8')) as Report;
 		const [load, one, two] = await Promise.all(
 			[0, 1, 2].map((rounds) => irefs(rsvelte, sample, rounds)),
 		);
@@ -205,6 +217,7 @@ export async function main(args: string[]): Promise<void> {
 				`counts that do not grow with the rounds: rounds=0 ${load}, rounds=1 ${one}, rounds=2 ${two}`,
 			);
 		return {
+			rev,
 			warm,
 			load: load!,
 			sample: { every: INSTRUCTION_SAMPLE, documents, source_bytes: sourceBytes },
@@ -212,14 +225,16 @@ export async function main(args: string[]): Promise<void> {
 	}
 
 	const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-performance-'));
-	let report: Report;
-	let instr: { warm: number; load: number; sample: Sample } | undefined;
+	let report: Report | undefined;
+	let instr: Instructions | undefined;
 	try {
 		// rustup installs a missing toolchain on first use; two builds at once would both download it.
 		await start('cargo', ['--version']);
 		// Each measurement starts as soon as its own build is done.
 		[report, instr] = await Promise.all([
-			build('metrics', directory).then((metrics) => allocations(metrics, directory)),
+			values.allocations
+				? build('metrics', directory).then((metrics) => allocations(metrics, directory))
+				: undefined,
 			values.instructions ? build('plain', directory).then(instructions) : undefined,
 		]);
 	} finally {
@@ -227,8 +242,9 @@ export async function main(args: string[]): Promise<void> {
 	}
 
 	const platform = `${process.arch}-${process.platform}`;
+	const rev = report?.rev ?? instr?.rev;
 
-	const measured: Baseline = {
+	const measuredAllocations = report && {
 		population: {
 			documents: report.documents,
 			source_bytes: report.source_bytes,
@@ -238,49 +254,47 @@ export async function main(args: string[]): Promise<void> {
 		alloc_bytes: report.alloc_bytes,
 		peak_live_growth_bytes: report.peak_live_growth_bytes,
 		phases: report.phases,
-		instructions: instr === undefined ? {} : { [platform]: instr.warm },
-		load_instructions: instr === undefined ? {} : { [platform]: instr.load },
-		...(instr === undefined ? {} : { instruction_sample: instr.sample }),
+	};
+	const measuredInstructions = instr && {
+		instructions: { [platform]: instr.warm },
+		load_instructions: { [platform]: instr.load },
+		instruction_sample: instr.sample,
 	};
 	if (values.json)
 		fs.writeFileSync(
 			values.json,
-			JSON.stringify({ platform, rev: report.rev, ...measured }, null, '\t') + '\n',
+			JSON.stringify(
+				{ platform, rev, ...measuredAllocations, ...measuredInstructions },
+				null,
+				'\t',
+			) + '\n',
 		);
 
 	const old: Baseline | undefined = fs.existsSync(BASELINE)
 		? (JSON.parse(fs.readFileSync(BASELINE, 'utf8')) as Baseline)
 		: undefined;
 
-	function compare(a: Baseline, b: Baseline): { rows: Row[]; population: string[] } {
-		const population: string[] = [];
-		if (
-			b.instruction_sample !== undefined &&
-			JSON.stringify(a.instruction_sample) !== JSON.stringify(b.instruction_sample)
-		) {
-			population.push(
-				`instruction sample changed: ${JSON.stringify(a.instruction_sample ?? 'every unit')} -> ${JSON.stringify(b.instruction_sample)}`,
-			);
-		}
+	const rows: Row[] = [];
+	const population: string[] = [];
+	const exact = (metric: string, was: number | undefined, now: number | undefined) => {
+		const verdict: Row['verdict'] =
+			was === undefined
+				? 'NEW'
+				: now === undefined
+					? 'GONE'
+					: now > was
+						? 'REGRESSED'
+						: now < was
+							? 'IMPROVED (baseline not updated)'
+							: 'ok';
+		rows.push({ metric, was, now, verdict });
+	};
+	function compareAllocations(a: Baseline, b: NonNullable<typeof measuredAllocations>) {
 		if (JSON.stringify(a.population) !== JSON.stringify(b.population)) {
 			population.push(
 				`population changed: ${JSON.stringify(a.population)} -> ${JSON.stringify(b.population)}`,
 			);
 		}
-		const rows: Row[] = [];
-		const exact = (metric: string, was: number | undefined, now: number | undefined) => {
-			const verdict: Row['verdict'] =
-				was === undefined
-					? 'NEW'
-					: now === undefined
-						? 'GONE'
-						: now > was
-							? 'REGRESSED'
-							: now < was
-								? 'IMPROVED (baseline not updated)'
-								: 'ok';
-			rows.push({ metric, was, now, verdict });
-		};
 		exact('allocs', a.allocs, b.allocs);
 		exact('alloc_bytes', a.alloc_bytes, b.alloc_bytes);
 		exact('peak_live_growth_bytes', a.peak_live_growth_bytes, b.peak_live_growth_bytes);
@@ -290,13 +304,17 @@ export async function main(args: string[]): Promise<void> {
 			for (const k of ['calls', 'allocs', 'alloc_bytes'] as const)
 				exact(`phase ${name} ${k}`, a.phases[name]?.[k], b.phases[name]?.[k]);
 		}
-		for (const [key, label] of [
-			['instructions', 'instructions'],
-			['load_instructions', 'load instructions'],
+	}
+	function compareInstructions(a: Baseline, b: Instructions) {
+		if (JSON.stringify(a.instruction_sample) !== JSON.stringify(b.sample)) {
+			population.push(
+				`instruction sample changed: ${JSON.stringify(a.instruction_sample ?? 'every unit')} -> ${JSON.stringify(b.sample)}`,
+			);
+		}
+		for (const [label, was, now] of [
+			['instructions', a.instructions[platform], b.warm],
+			['load instructions', a.load_instructions?.[platform], b.load],
 		] as const) {
-			const now = b[key][platform];
-			if (now === undefined) continue;
-			const was = a[key]?.[platform];
 			const verdict: Row['verdict'] =
 				was === undefined
 					? 'NEW'
@@ -307,43 +325,45 @@ export async function main(args: string[]): Promise<void> {
 							: 'ok';
 			rows.push({ metric: `${label} ${platform}`, was, now, verdict });
 		}
-		return { rows, population };
 	}
 
-	console.log(
-		`rsvelte-dev performance at ${report.rev}: ${fmt(report.documents)} documents, ${fmt(report.source_bytes)} bytes, ${report.tasks.length} tasks`,
-	);
-	console.log(
-		`  allocs ${fmt(report.allocs)} (${((report.allocs / report.source_bytes) * 1000).toFixed(2)} per KB), bytes ${fmt(report.alloc_bytes)}, peak live +${fmt(report.peak_live_growth_bytes)}`,
-	);
+	if (report !== undefined) {
+		console.log(
+			`rsvelte-dev performance at ${report.rev}: ${fmt(report.documents)} documents, ${fmt(report.source_bytes)} bytes, ${report.tasks.length} tasks`,
+		);
+		console.log(
+			`  allocs ${fmt(report.allocs)} (${((report.allocs / report.source_bytes) * 1000).toFixed(2)} per KB), bytes ${fmt(report.alloc_bytes)}, peak live +${fmt(report.peak_live_growth_bytes)}`,
+		);
+	}
 	if (instr !== undefined) {
 		const { every, documents, source_bytes } = instr.sample;
 		console.log(
-			`  instructions over every ${every}th unit (${fmt(documents)} documents, ${fmt(source_bytes)} bytes):`,
+			`rsvelte-dev instructions at ${instr.rev} over every ${every}th unit (${fmt(documents)} documents, ${fmt(source_bytes)} bytes):`,
 		);
 		console.log(
-			`    one warm round (${platform}) ${fmt(instr.warm)} (${(instr.warm / source_bytes).toFixed(1)} per source byte)`,
+			`  one warm round (${platform}) ${fmt(instr.warm)} (${(instr.warm / source_bytes).toFixed(1)} per source byte)`,
 		);
 		console.log(
-			`    loading (${platform}) ${fmt(instr.load)} (${(instr.load / source_bytes).toFixed(1)} per source byte)`,
+			`  loading (${platform}) ${fmt(instr.load)} (${(instr.load / source_bytes).toFixed(1)} per source byte)`,
 		);
 	}
 
-	if (values.update) {
+	if (values.update && measuredAllocations !== undefined) {
 		const next: Baseline = {
-			...measured,
-			instructions: { ...old?.instructions, ...measured.instructions },
-			load_instructions: { ...old?.load_instructions, ...measured.load_instructions },
-			...(old?.instruction_sample === undefined
+			...measuredAllocations,
+			instructions: { ...old?.instructions, ...measuredInstructions?.instructions },
+			load_instructions: { ...old?.load_instructions, ...measuredInstructions?.load_instructions },
+			...((measuredInstructions?.instruction_sample ?? old?.instruction_sample) === undefined
 				? {}
-				: { instruction_sample: old.instruction_sample }),
-			...(measured.instruction_sample === undefined
-				? {}
-				: { instruction_sample: measured.instruction_sample }),
+				: {
+						instruction_sample: measuredInstructions?.instruction_sample ?? old?.instruction_sample,
+					}),
 		};
 		fs.writeFileSync(BASELINE, JSON.stringify(next, null, '\t') + '\n');
 		if (old) {
-			for (const row of compare(old, next).rows.filter((r) => r.verdict !== 'ok')) {
+			compareAllocations(old, measuredAllocations);
+			if (instr !== undefined) compareInstructions(old, instr);
+			for (const row of rows.filter((r) => r.verdict !== 'ok')) {
 				console.log(
 					`  ${row.metric}: ${row.was === undefined ? '-' : fmt(row.was)} -> ${row.now === undefined ? '-' : fmt(row.now)}`,
 				);
@@ -357,13 +377,13 @@ export async function main(args: string[]): Promise<void> {
 		console.error(`no baseline at ${path.relative(ROOT, BASELINE)}; run with --update`);
 		process.exit(1);
 	}
-	if (
-		instr === undefined &&
-		(old.instructions[platform] !== undefined || old.load_instructions?.[platform] !== undefined)
-	) {
+	if (measuredAllocations !== undefined) compareAllocations(old, measuredAllocations);
+	if (instr !== undefined) compareInstructions(old, instr);
+	else if (
+		old.instructions[platform] !== undefined ||
+		old.load_instructions?.[platform] !== undefined
+	)
 		console.log(`  instructions ${platform}: UNMEASURED (pass --instructions)`);
-	}
-	const { rows, population } = compare(old, measured);
 	const bad = rows.filter((r) => r.verdict !== 'ok');
 	for (const p of population) console.error(`FAIL ${p}`);
 	for (const r of bad) {
