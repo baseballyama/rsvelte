@@ -86,13 +86,13 @@
 
 	.panes {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
 		gap: 1rem;
 	}
 
 	textarea {
 		width: 100%;
-		min-height: 28rem;
+		height: max(28rem, calc(100vh - 20rem));
 		padding: 0.9rem 1rem;
 		border: 1px solid var(--line);
 		border-radius: 8px;
@@ -101,15 +101,27 @@
 		font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 		font-size: 0.9em;
 		line-height: 1.55;
-		resize: vertical;
+		resize: none;
 	}
 
 	.output {
 		min-width: 0;
+		height: max(28rem, calc(100vh - 20rem));
+		overflow: auto;
 	}
 
 	.output pre {
 		margin-top: 0;
+	}
+
+	@media (max-width: 50rem) {
+		textarea {
+			height: 24rem;
+		}
+
+		.output {
+			height: auto;
+		}
 	}
 
 	.problem {
