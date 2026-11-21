@@ -129,5 +129,7 @@ impl Drop for Semantic {
 }
 
 mod acorn_scope;
+mod parts;
+pub use parts::empty_program;
 #[cfg(test)]
 mod tests;

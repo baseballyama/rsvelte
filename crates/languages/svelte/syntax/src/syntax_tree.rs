@@ -354,6 +354,15 @@ pub struct Style {
     pub sheet: Result<StyleSheet, Diagnostic>,
 }
 
+impl Style {
+    /// Where upstream raises the sheet's error: as it reads the `<style>` element, before it goes
+    /// on to the rest of the document.
+    #[must_use]
+    pub const fn raised_at(&self) -> u32 {
+        self.span.start_offset
+    }
+}
+
 impl Component {
     /// The style sheet's parse error, which the compiler reports as the component's.
     #[must_use]

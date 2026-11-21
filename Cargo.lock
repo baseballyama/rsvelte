@@ -1992,6 +1992,7 @@ dependencies = [
 name = "rsvelte_typescript_semantic"
 version = "0.3.0"
 dependencies = [
+ "oxc_allocator",
  "oxc_ast",
  "oxc_semantic",
  "oxc_span",

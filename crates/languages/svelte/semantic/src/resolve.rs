@@ -145,7 +145,10 @@ fn resolve_scripts(
         let (root, nested_instance) = match (module.map(|p| tree.get_program(p)), instance) {
             (Some(module), instance) => (module, instance),
             (None, Some(instance)) => (instance, None),
-            (None, None) => (empty_program(tree), None),
+            (None, None) => (
+                rsvelte_typescript_semantic::semantic::empty_program(tree),
+                None,
+            ),
         };
         let host = host::ComponentHost {
             tree,
@@ -213,22 +216,6 @@ fn resolve_scripts(
             instance_scope,
         }
     }))
-}
-
-/// The program a component without scripts resolves its template in.
-fn empty_program(tree: &Tree) -> &Program<'_> {
-    let nodes = oxc_ast::builder::AstBuilder::new(tree.allocator());
-    let program = Program::new(
-        Span::empty(0),
-        oxc_span::SourceType::mjs(),
-        tree.source_text(),
-        oxc_allocator::ArenaVec::new_in(&nodes),
-        None,
-        oxc_allocator::ArenaVec::new_in(&nodes),
-        oxc_allocator::ArenaVec::new_in(&nodes),
-        &nodes,
-    );
-    tree.allocator().alloc(program)
 }
 
 impl Resolution {
