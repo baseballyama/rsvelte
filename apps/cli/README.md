@@ -16,6 +16,7 @@ npx @rsvelte/cli lint [<path>...]
 npx @rsvelte/cli format [<path>...] [--check]
 npx @rsvelte/cli typecheck
 npx @rsvelte/cli help [<command>]
+npx @rsvelte/cli version
 ```
 
 `npx` runs the project's copy, or downloads one when the project has none. In `package.json`

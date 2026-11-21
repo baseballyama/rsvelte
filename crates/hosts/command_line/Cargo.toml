@@ -52,6 +52,11 @@ oxfmt.workspace = true
 oxc_formatter.workspace = true
 bpaf.workspace = true
 
+[build-dependencies]
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+
 [dev-dependencies]
 rsvelte_svelte_syntax.workspace = true
 rsvelte_svelte_semantic.workspace = true

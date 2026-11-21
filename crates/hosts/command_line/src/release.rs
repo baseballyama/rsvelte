@@ -10,6 +10,7 @@ use crate::{Installation, configuration, configured_registry, usage};
 
 mod format;
 mod help;
+mod version;
 
 /// The plugins `rsvelte` installs for `lint` and `typecheck`, in installation order.
 static EXTENSIONS: &[&Extension] = &[
@@ -31,6 +32,7 @@ const TYPECHECK_DEFAULTS: &[&str] = &["typescript.check", "svelte.check"];
 const COMMANDS: &[(&str, &[&str], &str)] = &[
     ("lint", LINT, help::LINT),
     ("typecheck", TYPECHECK, help::TYPECHECK),
+    ("version", &[], help::VERSION),
 ];
 
 /// The tasks and the guide of the command `name`, or the error of a name that is none.
@@ -93,20 +95,14 @@ pub fn release() -> ExitCode {
     if name == "typecheck" && !paths.is_empty() {
         return usage("typecheck takes no paths: it checks the files its tsconfig.json selects");
     }
+    if name == "version" {
+        if let Some(extra) = paths.first() {
+            return usage(&format!("version takes no arguments, not `{extra}`"));
+        }
+        return version::version(&config);
+    }
     let paths = if paths.is_empty() { &["."][..] } else { paths };
-    let defaults = if name == "typecheck" {
-        (TYPECHECK_DEFAULTS.iter())
-            .map(|&plugin| (plugin, "{}".to_owned()))
-            .collect()
-    } else {
-        Vec::new()
-    };
-    let installation = Installation {
-        extensions: EXTENSIONS,
-        selection: Selection::Named(tasks.iter().map(|&task| task.to_owned()).collect()),
-        defaults,
-    };
-    let (reg, _) = match configured_registry(&config, &[], installation) {
+    let (reg, _) = match configured_registry(&config, &[], installation(tasks)) {
         Ok(configured) => configured,
         Err(error) => return usage(&error),
     };
@@ -114,6 +110,22 @@ pub fn release() -> ExitCode {
         lint::lint(&reg, paths, tasks)
     } else {
         typecheck::typecheck(&reg, tasks)
+    }
+}
+
+/// What `lint` or `typecheck` installs to run `tasks`.
+fn installation(tasks: &[&str]) -> Installation {
+    let defaults = if tasks == TYPECHECK {
+        (TYPECHECK_DEFAULTS.iter())
+            .map(|&plugin| (plugin, "{}".to_owned()))
+            .collect()
+    } else {
+        Vec::new()
+    };
+    Installation {
+        extensions: EXTENSIONS,
+        selection: Selection::Named(tasks.iter().map(|&task| task.to_owned()).collect()),
+        defaults,
     }
 }
 

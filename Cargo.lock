@@ -1596,6 +1596,7 @@ dependencies = [
  "rsvelte_vue_to_svelte",
  "serde",
  "serde_json",
+ "toml",
 ]
 
 [[package]]
