@@ -7,7 +7,7 @@
 	--code-bg: #f4f4f6;
 	--link: #b33a26;
 	color-scheme: light dark;
-	font-family: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+	font-family: system-ui, -apple-system, sans-serif;
 	line-height: 1.75;
 	color: var(--fg);
 	background: var(--bg);
