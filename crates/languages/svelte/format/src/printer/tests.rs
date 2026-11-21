@@ -223,6 +223,25 @@ fn typescript_in_blocks_matches_the_plugin() {
             "{#if x}\n  {@const {a}: {a:number} = b}\n{/if}\n",
             "{#if x}\n  {@const {a}: {a:number} = b}\n{/if}\n",
         ),
+        // Its later lines too, without a new indentation.
+        (
+            "{#each items as item (item)}\n{@const length: number | undefined =\n        \
+                lengths[item]}\n<p>{length}</p>\n{/each}\n",
+            "{#each items as item (item)}\n  {@const length: number | undefined =\n        \
+                lengths[item]}\n  <p>{length}</p>\n{/each}\n",
+        ),
+        (
+            "<div>{@const a: number =\n  1}</div>\n",
+            "<div>{@const a: number =\n  1}</div>\n",
+        ),
+        (
+            "{#if x}<span>aaa</span>{@const a: number =\n  1}<span>bbb</span>{/if}\n",
+            "{#if x}<span>aaa</span>{@const a: number =\n  1}<span>bbb</span>{/if}\n",
+        ),
+        (
+            "{#if x}{@const a: {\n  b: number } = c}{/if}\n",
+            "{#if x}{@const a: {\n  b: number } = c}{/if}\n",
+        ),
         // TypeScript in the value parses, so it is formatted.
         (
             "{#if x}\n  {@const a=1  as   number}\n{/if}\n",
@@ -256,6 +275,22 @@ fn typescript_in_blocks_matches_the_plugin() {
     assert_eq!(
         refusal("{#each xs as {...{a}}}x{/each}\n").0,
         "a syntax error"
+    );
+}
+
+#[test]
+fn a_typed_const_on_more_than_one_line_is_measured_up_to_its_first_line_break() {
+    // crates/oxc_formatter_core/DIVERGENCES.md#multiline-text-measure: Prettier counts the whole
+    // string toward the line, so prettier-plugin-svelte 4.1.1 breaks the paragraph here.
+    assert_eq!(
+        formatted(
+            "<script lang=\"ts\"></script>\n<p>aaaa bbbb {@const a: number =\n  \
+                1111111111111111111111111111111111111111111111111111111111111111111111111} \
+                iiii</p>\n"
+        ),
+        "<script lang=\"ts\"></script>\n\n<p>aaaa bbbb {@const a: number =\n  \
+            1111111111111111111111111111111111111111111111111111111111111111111111111} \
+            iiii</p>\n"
     );
 }
 
