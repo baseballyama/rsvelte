@@ -2,7 +2,8 @@
 
 use oxc_parser::{Kind, Token};
 
-use super::{Acorn, fails};
+use super::fails;
+use crate::syntax_error::Acorn;
 
 /// Where acorn, which reads a `/` after a token of `tokens` that an expression may follow as a
 /// regular expression, fails to read one at `start` in `text`; `None` when it reads one.
