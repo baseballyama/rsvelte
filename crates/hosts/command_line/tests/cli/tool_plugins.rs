@@ -20,7 +20,7 @@ impl Task for ReplacementLint {
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
         match context.get::<Parsed>() {
             Ok(component) => out.file("lint.txt", component.nodes.len().to_string()),
-            Err(diagnostic) => out.diagnostics.push(diagnostic.clone()),
+            Err(diagnostic) => out.diagnostics.push((**diagnostic).clone()),
         }
     }
 }

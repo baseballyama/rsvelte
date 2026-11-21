@@ -10,7 +10,7 @@ fn read(source: &str) -> Result<bool, (String, u32, u32)> {
             Some(TemplateNode::Declaration { .. })
         )),
         Err(error) => Err((
-            error.code.into_owned(),
+            error.code.to_string(),
             error.span.start_offset,
             error.span.end_offset,
         )),

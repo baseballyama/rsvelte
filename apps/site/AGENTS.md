@@ -23,6 +23,10 @@ text of the templates, and the `title`, `label` and `message` strings in scripts
 run expressions, so review dynamic text yourself. The check reads each page as one Markdown
 document. It does not look inside inline code.
 
+Write a code block as `<pre><code class="language-x">`, with x `sh`, `json` or `js`.
+`scripts/highlight.ts` highlights it when the page compiles, and fails the build without a
+language.
+
 The code-name guard reads every first-party Rust file and path, and the declarations in the
 site's TypeScript and Svelte. It skips comments and string literals, which may quote another
 language. Add a newly found shortened name and its full word to `scripts/code-names.ts`.
