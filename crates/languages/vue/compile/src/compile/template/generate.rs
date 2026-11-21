@@ -1,11 +1,12 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{BinaryOperator, LogicalOperator, Statement, UnaryOperator};
 use oxc_ast_visit::VisitMut;
+use oxc_span::SPAN;
 use rsvelte_typescript_compile::build::Builder;
 
 use super::{
     Codegen, CodegenIdentifier, Compiled, DirectiveName, Exp, ExpRewrite, Expression, Helper, Lit,
-    Node, PropertyView, Resolution, TransformNodeIdentifier, Tree, VChildren, is_simple_identifier,
+    Node, PropertyView, Resolution, TransformNodeIdentifier, Tree, VChildren,
 };
 use crate::compile::out;
 
@@ -178,7 +179,7 @@ impl<'o> Gen<'_, '_, 'o> {
                     .iter()
                     .map(|(k, v)| {
                         let key = if is_simple_identifier(k) {
-                            b.key(k)
+                            oxc_ast::ast::PropertyKey::new_static_identifier(SPAN, b.str(k), b)
                         } else {
                             oxc_ast::ast::PropertyKey::from(b.string(k))
                         };
@@ -279,4 +280,14 @@ impl<'o> Gen<'_, '_, 'o> {
 /// `v-bind="obj"`: a `v-bind` without an argument.
 pub(super) const fn is_object_bind(p: &PropertyView) -> bool {
     matches!(p, PropertyView::Dir(DirectiveName::Bind, a, ..) if a.is_empty())
+}
+
+/// compiler-core's `isSimpleIdentifier`, `!/^$|^\d|[^\$\w\xA0-\uFFFF]/.test(name)`: every
+/// character from U+00A0 up passes, an astral one through its surrogates.
+fn is_simple_identifier(name: &str) -> bool {
+    !name.is_empty()
+        && !name.starts_with(|c: char| c.is_ascii_digit())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$' || c >= '\u{A0}')
 }

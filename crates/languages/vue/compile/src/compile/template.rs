@@ -442,5 +442,5 @@ mod traverse;
 mod generate;
 use generate::is_object_bind;
 use rsvelte_vue_semantic::expressions::{
-    Parent, camelize, can_prefix, collect_identifiers, is_simple_identifier, to_handler_key,
+    Parent, camelize, can_prefix, collect_identifiers, to_handler_key,
 };
