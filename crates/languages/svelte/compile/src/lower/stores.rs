@@ -13,7 +13,7 @@ use rsvelte_svelte_semantic::warnings::Section;
 use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::FxHashSet;
 
-use super::{Unit, section_at};
+use super::Unit;
 use crate::input::CompileInput;
 
 /// The `$name`s no binding declares, each with its references, in upstream's order: the module
@@ -38,7 +38,7 @@ impl<'r> StoreSubscriptions<'r> {
         let walk = TemplateWalk::new(input);
         let order = |r: ReferenceId| {
             let start = res.reference_span(r).start;
-            match section_at(input, start) {
+            match input.component.section(start) {
                 Section::Module => (0, 0, start, start),
                 Section::Instance => (1, 0, start, start),
                 Section::Template => walk.order(start),

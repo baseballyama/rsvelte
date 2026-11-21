@@ -5,12 +5,9 @@ use super::{Value, bigint};
 
 pub(super) fn binary(op: BinaryOperator, a: &Value, b: &Value) -> Option<Value> {
     use BinaryOperator::{
-        Addition as Add, BitwiseAnd as BitAnd, BitwiseOR as BitOr, BitwiseXOR as BitXor,
-        Division as Div, Equality as Eq, Exponential as Exp, GreaterEqualThan as GtEq,
-        GreaterThan as Gt, In, Inequality as NotEq, Instanceof as InstanceOf,
-        LessEqualThan as LtEq, LessThan as Lt, Multiplication as Mul, Remainder, ShiftLeft as Shl,
-        ShiftRight as Shr, ShiftRightZeroFill as UShr, StrictEquality as StrictEq,
-        StrictInequality as StrictNotEq, Subtraction as Sub,
+        Addition as Add, Equality as Eq, GreaterEqualThan as GtEq, GreaterThan as Gt, In,
+        Inequality as NotEq, Instanceof as InstanceOf, LessEqualThan as LtEq, LessThan as Lt,
+        StrictEquality as StrictEq, StrictInequality as StrictNotEq,
     };
     if matches!(a, Value::RegExp { .. }) || matches!(b, Value::RegExp { .. }) {
         let both = matches!(a, Value::RegExp { .. }) && matches!(b, Value::RegExp { .. });
@@ -39,9 +36,6 @@ pub(super) fn binary(op: BinaryOperator, a: &Value, b: &Value) -> Option<Value> 
                 Some(Value::Number(a.to_number() + b.to_number()))
             }
         }
-        Sub | Mul | Div | Remainder | Exp | BitAnd | BitOr | BitXor | Shl | Shr | UShr => {
-            numeric_binary(op, a.to_number(), b.to_number()).map(Value::Number)
-        }
         StrictEq => Some(Value::Boolean(strict_eq(a, b))),
         StrictNotEq => Some(Value::Boolean(!strict_eq(a, b))),
         Eq => Some(Value::Boolean(loose_eq(a, b))),
@@ -64,6 +58,7 @@ pub(super) fn binary(op: BinaryOperator, a: &Value, b: &Value) -> Option<Value> 
         }
         // `in` / `instanceof` on primitives throw at runtime; nothing to fold.
         In | InstanceOf => None,
+        _ => numeric_binary(op, a.to_number(), b.to_number()).map(Value::Number),
     }
 }
 

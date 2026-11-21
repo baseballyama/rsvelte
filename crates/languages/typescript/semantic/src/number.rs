@@ -196,26 +196,54 @@ pub fn math_sign(x: f64) -> f64 {
     }
 }
 
-/// A binary operator whose operands are both numbers once converted: `None` for `+`, which also
-/// joins strings, and for any operator that is not arithmetic.
+/// `a operator b` for an operator that converts both operands to numbers; `None` for `+`, which
+/// also joins strings, and for every operator that does not convert both.
 #[must_use]
 pub fn numeric_binary(operator: BinaryOperator, a: f64, b: f64) -> Option<f64> {
     use BinaryOperator as B;
-    let (x, y) = (to_int32(a), to_int32(b));
-    let count = y.cast_unsigned() & 31;
+    let int32 = || (to_int32(a), to_int32(b));
+    let shift = || (to_int32(a), to_int32(b).cast_unsigned() & 31);
     Some(match operator {
         B::Subtraction => a - b,
         B::Multiplication => a * b,
         B::Division => a / b,
         B::Remainder => a % b,
         B::Exponential => exponentiate(a, b),
-        B::BitwiseAnd => f64::from(x & y),
-        B::BitwiseOR => f64::from(x | y),
-        B::BitwiseXOR => f64::from(x ^ y),
-        B::ShiftLeft => f64::from(x.wrapping_shl(count)),
-        B::ShiftRight => f64::from(x >> count),
-        B::ShiftRightZeroFill => f64::from(x.cast_unsigned() >> count),
-        _ => return None,
+        B::BitwiseAnd => {
+            let (x, y) = int32();
+            f64::from(x & y)
+        }
+        B::BitwiseOR => {
+            let (x, y) = int32();
+            f64::from(x | y)
+        }
+        B::BitwiseXOR => {
+            let (x, y) = int32();
+            f64::from(x ^ y)
+        }
+        B::ShiftLeft => {
+            let (x, count) = shift();
+            f64::from(x.wrapping_shl(count))
+        }
+        B::ShiftRight => {
+            let (x, count) = shift();
+            f64::from(x >> count)
+        }
+        B::ShiftRightZeroFill => {
+            let (x, count) = shift();
+            f64::from(x.cast_unsigned() >> count)
+        }
+        B::Addition
+        | B::Equality
+        | B::Inequality
+        | B::StrictEquality
+        | B::StrictInequality
+        | B::LessThan
+        | B::LessEqualThan
+        | B::GreaterThan
+        | B::GreaterEqualThan
+        | B::In
+        | B::Instanceof => return None,
     })
 }
 

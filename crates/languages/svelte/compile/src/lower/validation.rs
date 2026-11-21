@@ -24,7 +24,7 @@ use runes::script_and_template_errors;
 pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, script_error};
 
 use super::snippets::hoistable;
-use super::{custom_element, section_at, stores, unsupported_syntax};
+use super::{custom_element, stores, unsupported_syntax};
 use crate::input::{CompileInput, Target};
 
 /// An error upstream raises as it parses, before any other.
@@ -164,7 +164,7 @@ pub(crate) fn rune_error(
     let error =
         check_runes_with(input, res, Target::Client, custom_element, Awaits::Analysis).err()?;
     let at = error.span.start_offset;
-    Some((raised_in_walk_of(section_at(input, at), at), error))
+    Some((raised_in_walk_of(input.component.section(at), at), error))
 }
 
 /// The errors of [`validate`] that upstream raises in legacy mode too, with when it raises each:
@@ -287,7 +287,7 @@ pub(super) fn template_error(input: &CompileInput<'_>) -> Option<(u32, Diagnosti
 /// Upstream `legacy_props_invalid` and `legacy_rest_props_invalid` at a name no script declares.
 fn check_legacy_props(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
     // Upstream reads `$$props` first, and meets the scripts' references before the template's.
-    let scripted = |offset| section_at(input, offset) != Section::Template;
+    let scripted = |offset| input.component.section(offset) != Section::Template;
     for (name, code, message) in [
         (
             "$$props",
