@@ -82,7 +82,8 @@ fn options() -> CodegenOptions {
     }
 }
 
-/// [`print_mapped`] when `lines` is given, else [`print()`] without mappings.
+/// [`print()`]; with `lines`, which indexes `program.source_text` by `\n`, also a point mapping
+/// wherever the printer maps a node back into the source.
 #[must_use]
 pub fn emit(program: &Program<'_>, lines: Option<&LineIndex>) -> Emitter {
     emit_with(program, lines, Comments::Attached)
@@ -97,13 +98,6 @@ pub fn emit_with(program: &Program<'_>, lines: Option<&LineIndex>, comments: Com
         },
         |lines| print_mapped_with(program, lines, comments),
     )
-}
-
-/// [`print()`], with a point mapping wherever the printer maps a node back into
-/// `program.source_text`, which `lines` indexes by `\n`.
-#[must_use]
-pub fn print_mapped(program: &Program<'_>, lines: &LineIndex) -> Emitter {
-    print_mapped_with(program, lines, Comments::Attached)
 }
 
 fn print_mapped_with(program: &Program<'_>, lines: &LineIndex, comments: Comments) -> Emitter {

@@ -13,7 +13,6 @@ export default defineConfig({
 		'corpus/**',
 		'crates/**/tests/**',
 		'tools/oracle/behaviour/tests/**',
-		'apps/site/src/lib/data/**',
 		// Written by the eslint_plugin test of rsvelte_command_line.
 		'apps/eslint-plugin/rules.json',
 		// Text that a compiler embeds in its output byte for byte (include_str!).
