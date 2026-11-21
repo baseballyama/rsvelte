@@ -52,9 +52,9 @@ npx @rsvelte/cli typecheck</code
 </p>
 
 <p>
-	<a href={resolve('/guide')}>使い方</a>を読むか、<a href={resolve('/playground')}
-		>プレイグラウンド</a
-	>でブラウザから試せます。
+	詳しくは<a href={resolve('/guide')}>使い方</a>を読んでください。インストールせずに試すには、<a
+		href={resolve('/playground')}>プレイグラウンド</a
+	>を開いてください。
 </p>
 
 <style>

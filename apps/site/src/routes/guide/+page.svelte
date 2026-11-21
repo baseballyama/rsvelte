@@ -67,7 +67,8 @@
 <pre><code>rsvelte format [パス...] [--check]</code></pre>
 
 <p>
-	<code>format</code> は <a href="https://oxc.rs/docs/guide/usage/formatter">oxfmt</a>
+	<code>format</code> は、oxc の整形ツール
+	<a href="https://oxc.rs/docs/guide/usage/formatter">oxfmt</a>
 	に Svelte の整形を組み込んだコマンドです。オプションは oxfmt と同じです（<code
 		>rsvelte format --help</code
 	>）。設定は <code>.oxfmtrc.json</code> と <code>.editorconfig</code> から、除外するファイルは
@@ -76,8 +77,8 @@
 </p>
 
 <p>
-	TypeScript、JSON、CSS、Markdown など、oxfmt が Rust で整形するファイルを整形します。oxfmt が
-	Prettier に任せるファイルは飛ばします。
+	TypeScript、JSON、CSS、Markdown など、oxfmt が Rust で整形するファイルを整形します。oxfmt
+	自身が整形せず Prettier に任せる種類のファイルは飛ばします。
 </p>
 
 <p>Svelte ファイルの整形には、次の制限があります。</p>
@@ -123,13 +124,19 @@
 	1 行に 1 つずつ表示します。
 </p>
 
-<p>
-	<a href="#config">設定ファイル</a>に <code>typescript.check</code>
-	がなければ、現在のディレクトリの
-	<code>tsconfig.json</code> を読みます。あれば、その中の <code>tsconfig</code>
-	に書いたファイルを読みます。指定がなければ、設定ファイルと同じディレクトリの
-	<code>tsconfig.json</code> です。
-</p>
+<p>読む <code>tsconfig.json</code> は、<a href="#config">設定ファイル</a>によって決まります。</p>
+
+<ul>
+	<li><code>typescript.check</code> がない：現在のディレクトリの <code>tsconfig.json</code></li>
+	<li>
+		<code>typescript.check</code> に <code>"tsconfig"</code> がある：そこに書いたパスのファイル
+	</li>
+	<li>
+		<code>typescript.check</code> に <code>"tsconfig"</code>
+		がない：設定ファイルと同じディレクトリの
+		<code>tsconfig.json</code>
+	</li>
+</ul>
 
 <p>
 	型検査には、プロジェクトの <code>node_modules</code> にある TypeScript 7
@@ -214,8 +221,11 @@ npm install --save-dev @typescript/native-preview   # 7.1 以降`}</code
 		</tr>
 		<tr>
 			<td><code>format</code></td>
-			<td><code>--check</code> で未整形のファイルを見つけた、または設定が不正</td>
-			<td>整形できないファイルがあった、またはパスに合うファイルがない</td>
+			<td><code>--check</code> で未整形のファイルを見つけた、または oxfmt の設定が不正</td>
+			<td>
+				整形できないファイルがあった（Svelte
+				の整形が対応していない設定を含む）、またはパスに合うファイルがない
+			</td>
 		</tr>
 	</tbody>
 </table>
@@ -224,7 +234,7 @@ npm install --save-dev @typescript/native-preview   # 7.1 以降`}</code
 
 <p>
 	<a href="https://www.npmjs.com/package/@rsvelte/eslint-plugin">@rsvelte/eslint-plugin</a>
-	は、rsvelte が実装したルールを ESLint で無効にします。同じ問題が二重に報告されなくなります。<code
+	は、rsvelte が実装したルールを ESLint で無効にする設定を提供します。同じ問題が二重に報告されなくなります。<code
 		>@rsvelte/cli</code
 	> と同じバージョンを使ってください。
 </p>
@@ -244,8 +254,9 @@ export default [
 
 <p>
 	<code>flat/recommended</code> は
-	<a href={resolve('/rules') + '#correctness'}><code>correctness</code></a>
-	に分類されたルールを ESLint で無効にします。<code>flat/all</code> は、開発中（<code>nursery</code
+	<a href={resolve('/rules') + '#correctness'}><code>correctness</code></a
+	>（誤りや無意味なコード）に分類されたルールを ESLint で無効にします。<code>flat/all</code>
+	は、開発中（<code>nursery</code
 	>）以外の全ルールを無効にします。無効にしたルールのうち使いたいものは、<code
 		>rsvelte.config.json</code
 	>
@@ -271,8 +282,10 @@ export default [
 
 <ul>
 	<li>
-		<code>typecheck</code> はレガシーモードのコンポーネントで正しい結果を出しません。JavaScript のコンポーネントでは、エラーを
-		1 つも報告しないこともあります。
+		<code>typecheck</code> はレガシーモードのコンポーネントで正しい結果を出しません。<code
+			>&lt;script lang="ts"&gt;</code
+		>
+		を使わないコンポーネントでは、エラーを 1 つも報告しないこともあります。
 	</li>
 	<li>
 		<code>lint</code> と <code>format</code> は読めますが、結果が公式ツールと異なる場合があります。
