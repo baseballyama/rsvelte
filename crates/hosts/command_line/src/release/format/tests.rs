@@ -28,21 +28,17 @@ fn a_value_the_svelte_formatter_does_not_print_is_an_error() {
 
 #[test]
 fn an_option_oxfmt_would_apply_to_a_svelte_file_and_the_formatter_does_not_is_an_error() {
-    let plugin =
-        |config: Value| json!({ "config": config, "filepath": "/a/App.svelte" }).to_string();
+    let configured = |config: Value| {
+        let plugin = json!({ "config": config, "filepath": "/a/App.svelte" }).to_string();
+        json!({ "printWidth": 80, "_oxfmtPluginOptionsJson": plugin })
+    };
     for (options, name) in [
         (
             json!({ "printWidth": 80, "_useTailwindPlugin": 1, "tailwindFunctions": ["cn"] }),
             "`sortTailwindcss`",
         ),
-        (
-            json!({ "printWidth": 80, "_oxfmtPluginOptionsJson": plugin(json!({ "sortImports": {} })) }),
-            "`sortImports`",
-        ),
-        (
-            json!({ "printWidth": 80, "_oxfmtPluginOptionsJson": plugin(json!({ "jsdoc": true })) }),
-            "`jsdoc`",
-        ),
+        (configured(json!({ "sortImports": {} })), "`sortImports`"),
+        (configured(json!({ "jsdoc": true })), "`jsdoc`"),
         (
             json!({ "printWidth": 80, "astroAllowShorthand": true }),
             "`astroAllowShorthand`",
@@ -51,10 +47,7 @@ fn an_option_oxfmt_would_apply_to_a_svelte_file_and_the_formatter_does_not_is_an
         let error = Svelte.format("<p>a</p>\n", &options).unwrap_err();
         assert!(error.contains(name), "{error}");
     }
-    let off = json!({
-        "printWidth": 80,
-        "_oxfmtPluginOptionsJson": plugin(json!({ "sortImports": false, "jsdoc": null, "semi": true })),
-    });
+    let off = configured(json!({ "sortImports": false, "jsdoc": null, "semi": true }));
     assert_eq!(Svelte.format("<p>a</p>\n", &off).unwrap(), "<p>a</p>\n");
 }
 
