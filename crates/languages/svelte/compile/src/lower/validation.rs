@@ -1,5 +1,7 @@
 use oxc_semantic::SymbolId;
-use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
+use rsvelte_svelte_semantic::warnings::{
+    Phase, Raised, Section, dollar_name_errors, rest_prop_member_errors,
+};
 use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature_where};
 use rsvelte_typescript_tree::document_span;
 use rustc_hash::FxHashSet;
@@ -223,6 +225,13 @@ pub(super) fn check_analysis(
     let component = input.component;
     errors.extend(declarations::duplicates(input, res));
     errors.extend(dollar_name_errors(
+        component.javascript,
+        component.instance,
+        component.module,
+        res,
+        true,
+    ));
+    errors.extend(rest_prop_member_errors(
         component.javascript,
         component.instance,
         component.module,

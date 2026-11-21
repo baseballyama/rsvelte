@@ -1,8 +1,8 @@
 //! Upstream's runes-mode checks of an import and of the declarator a `$props()` call binds.
 
 use oxc_ast::ast::{
-    BindingPattern, ImportDeclaration, ImportDeclarationSpecifier, ModuleExportName,
-    VariableDeclarator,
+    BindingPattern, BindingProperty, ImportDeclaration, ImportDeclarationSpecifier,
+    ModuleExportName, PropertyKey, VariableDeclarator,
 };
 use rsvelte_typescript_tree::node_span;
 
@@ -69,17 +69,33 @@ pub(super) fn check_props_pattern(declarator: &VariableDeclarator<'_>) -> Result
             );
         }
     };
+    let invalid_pattern = |property: &BindingProperty<'_>| {
+        crate::lower::invalid(
+            "props_invalid_pattern",
+            "`$props()` assignment must not contain nested properties or computed keys",
+            node_span(property),
+        )
+    };
     for property in properties {
+        if property.computed {
+            return invalid_pattern(property);
+        }
+        if let PropertyKey::StaticIdentifier(key) = &property.key
+            && key.name.starts_with("$$")
+        {
+            return crate::lower::invalid(
+                "props_illegal_name",
+                "Declaring or accessing a prop starting with `$$` is illegal (they are reserved \
+                    for Svelte internals)",
+                node_span(property),
+            );
+        }
         let value = match &property.value {
             BindingPattern::AssignmentPattern(p) => &p.left,
             value => value,
         };
-        if property.computed || !matches!(value, BindingPattern::BindingIdentifier(_)) {
-            return crate::lower::invalid(
-                "props_invalid_pattern",
-                "`$props()` assignment must not contain nested properties or computed keys",
-                node_span(property),
-            );
+        if !matches!(value, BindingPattern::BindingIdentifier(_)) {
+            return invalid_pattern(property);
         }
     }
     Ok(())

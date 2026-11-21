@@ -501,3 +501,35 @@ fn an_export_let_error_waits_for_the_errors_inside_it() {
         [("bindable_invalid_location".to_owned(), 2, 17)]
     );
 }
+
+#[test]
+fn a_dollar_dollar_member_of_legacy_props_is_an_illegal_name() {
+    // ESLint 10.14.0 with eslint-plugin-svelte 3.23.1 and svelte 5.57.3.
+    let cases: &[(&str, (u32, u32))] = &[
+        (
+            "<script>\nexport let a;\nconsole.log($$restProps.$$slots);\n</script>\n",
+            (3, 25),
+        ),
+        (
+            "<script>\nexport let a;\n</script>\n{$$restProps.$$slots}\n",
+            (4, 14),
+        ),
+        (
+            "<script>\nexport let a;\nconsole.log($$props.$$slots);\n</script>\n",
+            (3, 21),
+        ),
+        (
+            "<script>\nexport let a;\n</script>\n{$$props.$$x}\n",
+            (4, 10),
+        ),
+    ];
+    for &(source, at) in cases {
+        let found = lint(source);
+        assert_eq!(found.len(), 1, "{source} {found:?}");
+        assert_eq!((found[0].0, found[0].1), at, "{source}");
+        assert!(
+            found[0].2.ends_with("(props_illegal_name)"),
+            "{source} {found:?}"
+        );
+    }
+}
