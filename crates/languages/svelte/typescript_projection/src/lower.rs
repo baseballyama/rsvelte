@@ -13,13 +13,12 @@ pub use contract::store_reads;
 mod hoistable;
 mod render;
 mod root_snippets;
-mod standalone;
-pub use standalone::lower_alone;
 mod tag;
 mod type_assertion;
 use std::cell::OnceCell;
 
-use oxc_ast::ast::{AssignmentTarget, ChainElement, Expression};
+use oxc_ast::ast::{AssignmentTarget, ChainElement, Expression, IdentifierReference};
+use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
@@ -139,6 +138,19 @@ pub fn lower<'a>(
     Ok(builder.tree)
 }
 
+/// [`lower`] outside the artifact database: it analyzes the component itself, when it must.
+///
+/// # Errors
+///
+/// As [`lower`].
+pub fn lower_alone(component: &Component, source: &str, path: &str) -> Result<SyntaxTree> {
+    let resolution = OnceCell::new();
+    let resolve = || {
+        Some(resolution.get_or_init(|| rsvelte_svelte_semantic::resolve_alone(component, source)))
+    };
+    lower(component, source, path, &resolve)
+}
+
 struct Builder<'a> {
     component: &'a Component,
     resolution: &'a Resolve<'a>,
@@ -176,6 +188,25 @@ fn source_expression(span: Span, end: Option<u32>) -> SourceExpression {
         span,
         end: end.unwrap_or(span.end_offset),
     }
+}
+
+/// Whether `expression` reads one of `names`.
+fn reads_any(expression: &Expression<'_>, names: &[&str]) -> bool {
+    struct Reads<'n, 's> {
+        names: &'n [&'s str],
+        found: bool,
+    }
+    impl<'a> Visit<'a> for Reads<'_, '_> {
+        fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
+            self.found |= self.names.contains(&it.name.as_str());
+        }
+    }
+    let mut reads = Reads {
+        names,
+        found: false,
+    };
+    reads.visit_expression(expression);
+    reads.found
 }
 
 /// Whether `e`'s first token is the `{` of an object literal.

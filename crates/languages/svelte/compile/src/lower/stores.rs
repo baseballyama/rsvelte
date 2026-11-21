@@ -9,6 +9,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, ElementKind, MetadataTag, NodeKind,
 };
 use rsvelte_svelte_semantic::resolve::{Resolution, is_rune};
+use rsvelte_svelte_semantic::warnings::Section;
 use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::FxHashSet;
 
@@ -34,21 +35,13 @@ impl<'r> StoreSubscriptions<'r> {
         if names.is_empty() {
             return Self { names };
         }
-        let javascript = input.component.javascript;
-        let program = |p| javascript.get_program(p).span;
-        let module = input.component.module.map(program);
-        let instance = input.component.instance.map(program);
         let walk = TemplateWalk::new(input);
         let order = |r: ReferenceId| {
             let start = res.reference_span(r).start;
-            let inside =
-                |s: Option<oxc_span::Span>| s.is_some_and(|s| s.start <= start && start < s.end);
-            if inside(module) {
-                (0, 0, start, start)
-            } else if inside(instance) {
-                (1, 0, start, start)
-            } else {
-                walk.order(start)
+            match input.component.section(start) {
+                Section::Module => (0, 0, start, start),
+                Section::Instance => (1, 0, start, start),
+                Section::Template => walk.order(start),
             }
         };
         for (_, references) in &mut names {

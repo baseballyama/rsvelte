@@ -2,31 +2,33 @@
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_svelte_semantic::warnings::Section;
 
 use super::{Awaits, walk_scripts, walk_template};
 use crate::input::{CompileInput, Target};
 
 /// The first upstream error the scripts raise, which upstream's analysis meets before the
-/// template, and whether the module raises it.
+/// template, with the script that raises it: [`Section::Module`] or [`Section::Instance`].
 pub(in crate::lower) fn script_error(
     input: &CompileInput<'_>,
     res: &Resolution,
     custom_element: bool,
-) -> Option<(bool, Diagnostic)> {
+) -> Option<(Section, Diagnostic)> {
     let walk = walk_scripts(input, res, Target::Client, custom_element, Awaits::Here);
     let error = walk
         .error
         .filter(|error| error.code != crate::lower::UNSUPPORTED)?;
-    Some(in_module(input, error))
+    Some(in_script(input, error))
 }
 
-/// Whether the module raises `error`, with it.
-fn in_module(input: &CompileInput<'_>, error: Diagnostic) -> (bool, Diagnostic) {
-    let module = input.component.module.is_some_and(|module| {
-        let span = input.component.javascript.get_program(module).span;
-        (span.start..span.end).contains(&error.span.start_offset)
-    });
-    (module, error)
+/// `error` with the script whose walk raised it: the module if its program holds the error, else
+/// the instance.
+fn in_script(input: &CompileInput<'_>, error: Diagnostic) -> (Section, Diagnostic) {
+    let section = match input.component.section(error.span.start_offset) {
+        Section::Module => Section::Module,
+        Section::Instance | Section::Template => Section::Instance,
+    };
+    (section, error)
 }
 
 /// The scripts' first error as [`script_error`] gives it, and the template's as
@@ -35,11 +37,11 @@ pub(in crate::lower) fn script_and_template_errors(
     input: &CompileInput<'_>,
     res: &Resolution,
     custom_element: bool,
-) -> (Option<(bool, Diagnostic)>, Option<Diagnostic>) {
+) -> (Option<(Section, Diagnostic)>, Option<Diagnostic>) {
     let mut walk = walk_scripts(input, res, Target::Client, custom_element, Awaits::Here);
     match walk.error.take() {
         Some(error) if error.code == crate::lower::UNSUPPORTED => (None, None),
-        Some(error) => (Some(in_module(input, error.clone())), Some(error)),
+        Some(error) => (Some(in_script(input, error.clone())), Some(error)),
         None => (None, walk_template(input, walk).err()),
     }
 }

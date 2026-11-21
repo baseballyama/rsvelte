@@ -10,7 +10,7 @@ fn task_output(source_text: &str) -> TaskOutput {
         &registry,
         &[document],
         &RunOptions {
-            tasks: &[Format::IDENTIFIER],
+            tasks: &[TASK],
             sharing: Sharing::Shared,
             threads: Some(1),
         },

@@ -371,8 +371,7 @@ mod tests;
 
 /// The first error a module rejects in `c`, outside the artifact database.
 pub(crate) fn first_module_syntax_error(c: &Component, source_text: &str) -> Option<SyntaxError> {
-    let lowered = rsvelte_svelte_semantic::compiler_syntax_tree::lower(c, source_text);
-    rsvelte_svelte_semantic::resolve_component(c, &lowered)
+    rsvelte_svelte_semantic::resolve_alone(c, source_text)
         .javascript_syntax_error()
         .cloned()
 }

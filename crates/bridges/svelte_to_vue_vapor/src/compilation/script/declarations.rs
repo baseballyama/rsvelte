@@ -7,17 +7,13 @@ use oxc_ast_visit::VisitMut;
 
 use super::emit::{ScriptRewrite, rune_value};
 
-/// The value rune a declarator's initialiser makes, besides `$props()`.
-fn value_rune<'e>(
+/// The rune a declarator's initialiser makes when it is `$props` or a value rune.
+fn lowered_rune<'e>(
     rw: &ScriptRewrite<'_, '_>,
     init: Option<&'e Expression<'e>>,
 ) -> Option<&'static str> {
     let (rune, _) = rw.res.rune(init?)?;
-    matches!(
-        rune,
-        "$props" | "$state" | "$state.raw" | "$derived" | "$derived.by"
-    )
-    .then_some(rune)
+    (rune == "$props" || super::runes::value(rune)).then_some(rune)
 }
 
 /// One top-level declarator as its own statement: a rune as Vue's reactivity, `$props()` as
@@ -30,7 +26,7 @@ pub(super) fn declarator<'t>(
     let b = rw.b;
     let mut d = rw.copy(d);
     rsvelte_typescript_compile::strip::Strip::new(b.allocator()).visit_variable_declarator(&mut d);
-    let Some(rune) = value_rune(rw, d.init.as_ref()) else {
+    let Some(rune) = lowered_rune(rw, d.init.as_ref()) else {
         rw.visit_variable_declarator(&mut d);
         return Some(b.declaration(kind, [d]));
     };
@@ -44,7 +40,7 @@ pub(super) fn nested<'t>(rw: &mut ScriptRewrite<'_, 't>, d: &mut VariableDeclara
     let declarators = std::mem::replace(&mut d.declarations, b.vec([]));
     let mut out = Vec::with_capacity(declarators.len());
     for mut declarator in declarators {
-        match value_rune(rw, declarator.init.as_ref()) {
+        match lowered_rune(rw, declarator.init.as_ref()) {
             None => {
                 rw.visit_variable_declarator(&mut declarator);
                 out.push(declarator);
