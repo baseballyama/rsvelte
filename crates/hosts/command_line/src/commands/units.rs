@@ -1,4 +1,5 @@
-//! Finding the documents a command runs on.
+//! The units `corpus`, `benchmark` and `performance` run on: directories holding `input.<ext>`,
+//! or the packs of a corpus family.
 
 use std::path::{Path, PathBuf};
 

@@ -31,8 +31,6 @@
 
 mod commands;
 mod configuration;
-mod input;
-mod output;
 mod release;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
