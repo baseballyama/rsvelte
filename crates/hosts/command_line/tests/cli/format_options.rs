@@ -146,20 +146,51 @@ fn format_reads_an_editorconfig_for_svelte_files_as_oxfmt_does() {
 }
 
 #[test]
-fn format_reports_each_svelte_file_an_oxfmt_only_option_would_change() {
-    let svelte = "<script>\nimport b from \"b\";\nimport a from \"a\";\n</script>\n";
-    for config in [r#"{ "sortImports": {} }"#, r#"{ "sortTailwindcss": {} }"#] {
-        let project = Project::new(&[
-            (".oxfmtrc.json", config),
-            ("a.ts", "y(\"z\")\n"),
-            ("App.svelte", svelte),
-        ]);
-        let output = project.rsvelte(&["format"]);
-        let report = format!("{}{}", text(&output.stdout), text(&output.stderr));
-        assert_eq!(output.status.code(), Some(2), "{config}: {report}");
-        assert!(report.contains("App.svelte"), "{config}: {report}");
-        let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
-        assert_eq!(read("a.ts"), "y(\"z\");\n", "{config}");
-        assert_eq!(read("App.svelte"), svelte, "{config}");
-    }
+fn format_reports_each_svelte_file_whose_classes_tailwind_css_would_sort() {
+    let svelte = "<p class=\"p-4 flex\">a</p>\n";
+    let project = Project::new(&[
+        (".oxfmtrc.json", r#"{ "sortTailwindcss": {} }"#),
+        ("a.ts", "y(\"z\")\n"),
+        ("App.svelte", svelte),
+    ]);
+    let output = project.rsvelte(&["format"]);
+    let report = format!("{}{}", text(&output.stdout), text(&output.stderr));
+    assert_eq!(output.status.code(), Some(2), "{report}");
+    assert!(
+        report.contains("App.svelte") && report.contains("`sortTailwindcss`"),
+        "{report}"
+    );
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(read("a.ts"), "y(\"z\");\n");
+    assert_eq!(read("App.svelte"), svelte);
+}
+
+/// The expected texts are oxfmt 0.76's, with `"svelte": true` added to the configuration.
+#[test]
+fn format_sorts_each_scripts_imports_and_formats_jsdoc_as_oxfmt_does() {
+    let project = Project::new(&[
+        (
+            ".oxfmtrc.json",
+            r#"{ "sortImports": {}, "jsdoc": {}, "printWidth": 40 }"#,
+        ),
+        (
+            "App.svelte",
+            "<script module>\nimport z from \"z\";\nimport a from \"a\";\n</script>\n\n<script>\nimport y from \"y\";\nimport b from \"b\";\n/**\n * @param {string} x   the x\n */\nfunction f(x) {}\n</script>\n\n<p>{f(\"a\")}</p>\n",
+        ),
+        (
+            "a.md",
+            "# T\n\n- item\n\n  ```svelte\n  <p   class=\"x\">{a}</p>\n  ```\n\n```svelte\n<script>\nimport z from \"z\";\nimport a from \"a\";\n/**\n * @param {string} x   the x\n */\nfunction f(x) {}\nconst o = { aaaaaaaa: 1, bbbbbbbbb: 2, ccccccccc: 3 };\n</script>\n```\n",
+        ),
+    ]);
+    let output = project.rsvelte(&["format"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(
+        read("App.svelte"),
+        "<script module>\n  import a from \"a\";\n  import z from \"z\";\n</script>\n\n<script>\n  import b from \"b\";\n  import y from \"y\";\n  /** @param {string} x The x */\n  function f(x) {}\n</script>\n\n<p>{f(\"a\")}</p>\n"
+    );
+    assert_eq!(
+        read("a.md"),
+        "# T\n\n- item\n\n  ```svelte\n  <p class=\"x\">{a}</p>\n  ```\n\n```svelte\n<script>\n  import z from \"z\";\n  import a from \"a\";\n  /**\n   * @param {string} x   the x\n   */\n  function f(x) {}\n  const o = {\n    aaaaaaaa: 1,\n    bbbbbbbbb: 2,\n    ccccccccc: 3,\n  };\n</script>\n```\n"
+    );
 }

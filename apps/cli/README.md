@@ -37,9 +37,11 @@ and what `.gitignore` skips.
 formatter. It takes oxfmt's options (`rsvelte format --help`) and reads oxfmt's configuration:
 `.oxfmtrc.json`, `.editorconfig` and `.prettierignore`. It formats each file that oxfmt formats
 in Rust, such as TypeScript, JSON, CSS and Markdown files. It formats a `.svelte` file with the
-options that oxfmt would give prettier-plugin-svelte. `format` never runs Prettier, so it skips
-the files that oxfmt hands to Prettier. `"svelte": false` in the configuration turns Svelte
-formatting off. `rsvelte.config` does not configure `format`.
+options that oxfmt would give prettier-plugin-svelte, and it sorts imports and formats `/** */`
+comments in its scripts as oxfmt does. It also formats the `svelte` code blocks of a Markdown
+file. `format` never runs Prettier, so it skips the files that oxfmt hands to Prettier.
+`"svelte": false` in the configuration turns Svelte formatting off. `rsvelte.config` does not
+configure `format`.
 
 The Svelte formatter prints only the default value of these options:
 
@@ -47,8 +49,8 @@ The Svelte formatter prints only the default value of these options:
 - `arrowParens`, `bracketSpacing` and `quoteProps`
 - `objectWrap`
 
-It does not apply `sortImports`, `sortTailwindcss` or `jsdoc` yet. With another value of these
-options, or with one of these three, `format` reports an error for each Svelte file and formats
+It does not sort Tailwind CSS classes (`sortTailwindcss`) yet. With another value of these
+options, or with `sortTailwindcss`, `format` reports an error for each Svelte file and formats
 the other files.
 
 `typecheck` checks the project of `tsconfig.json` in the current directory and reports the
