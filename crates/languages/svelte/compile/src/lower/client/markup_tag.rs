@@ -1,6 +1,6 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 
-use super::{ClientCompilationContext, Frag, Lists};
+use super::{ClientCompilationContext, Frag, Lists, NodeVar};
 use crate::lower::builder::Runtime;
 use crate::render_plan::Namespace;
 
@@ -10,7 +10,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn markup_tag(
         &self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         controlled: bool,
         frag: &mut Frag<'o>,
         l: &mut Lists<'o>,
@@ -27,7 +27,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let namespace = (!controlled).then(|| self.plan.namespace(identifier));
         let set = |on: bool| on.then(|| b.boolean(true));
         let arguments = vec![
-            Some(b.id(node)),
+            Some(node.id(b)),
             Some(markup),
             set(controlled),
             set(namespace == Some(Namespace::Svg)),

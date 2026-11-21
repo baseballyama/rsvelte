@@ -5,7 +5,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 
 use crate::lower::attributes::{event_attribute, implicit_attributes, is_behaviour};
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Lists, Memo, normalize_attribute};
+use crate::lower::client::{ClientCompilationContext, Lists, Memo, NodeVar, normalize_attribute};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_attribute_effect`: every attribute and spread, in order, as one object the
@@ -15,7 +15,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         identifier: CompilerNodeIdentifier,
         tag: &str,
         attributes: &[Attribute],
-        node: &str,
+        node: &NodeVar,
         remove_defaults: bool,
         l: &mut Lists<'o>,
     ) {
@@ -101,7 +101,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let call = b.runtime_some(
             "attribute_effect",
             vec![
-                Some(b.id(node)),
+                Some(node.id(b)),
                 Some(arrow),
                 sync,
                 None,

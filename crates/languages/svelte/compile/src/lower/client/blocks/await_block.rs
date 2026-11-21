@@ -6,7 +6,7 @@ use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rsvelte_typescript_tree::PatternIdentifier;
 
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Frag, Lists, R};
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, NodeVar, R};
 use crate::lower::paths::bound_names;
 use crate::lower::script::Read;
 
@@ -15,7 +15,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(in crate::lower::client) fn await_block(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         frag: &mut Frag<'o>,
         l: &mut Lists<'o>,
     ) -> R<()> {
@@ -47,7 +47,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         let call = b.runtime_some(
             "await",
-            vec![Some(b.id(node)), Some(promise), Some(pending), then, catch],
+            vec![Some(node.id(b)), Some(promise), Some(pending), then, catch],
         );
         l.initializer.push(b.statement(call));
         Ok(())
