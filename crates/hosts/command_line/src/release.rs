@@ -8,6 +8,7 @@ use rsvelte_plugin_interface::{Extension, Selection};
 use crate::commands::{lint, typecheck};
 use crate::{Installation, configuration, configured_registry, usage};
 
+mod combined;
 mod format;
 mod help;
 mod version;
@@ -21,8 +22,10 @@ static EXTENSIONS: &[&Extension] = &[
     &rsvelte_svelte_check::EXTENSION,
 ];
 
-const LINT: &[&str] = &["svelte.lint/default", "ts.lint/default"];
-const TYPECHECK: &[&str] = &["ts.check/default"];
+/// The tasks of `lint` and then of `typecheck`, which a run of both runs together.
+const LINT_AND_TYPECHECK: &[&str] = &["svelte.lint/default", "ts.lint/default", "ts.check/default"];
+const LINT: &[&str] = LINT_AND_TYPECHECK.split_at(2).0;
+const TYPECHECK: &[&str] = LINT_AND_TYPECHECK.split_at(2).1;
 
 /// The plugins `typecheck` runs with their defaults when nothing configures them, so that a
 /// project needs no configuration.
@@ -47,18 +50,24 @@ fn command(name: &str) -> Result<(&'static [&'static str], &'static str), ExitCo
 #[must_use]
 pub fn release() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
-    if let Some(("format", rest)) = arguments.split_first().map(|(c, r)| (c.as_str(), r)) {
+    // `format` alone takes oxfmt's arguments; followed by a command, rsvelte's.
+    if let Some(("format", rest)) = arguments.split_first().map(|(c, r)| (c.as_str(), r))
+        && !rest
+            .first()
+            .is_some_and(|next| combined::COMBINABLE.contains(&next.as_str()))
+    {
         return format::format(rest);
     }
     let mut config = configuration::Options::default();
     let mut positional = Vec::new();
-    let (mut help, mut version) = (false, false);
+    let (mut help, mut version, mut check) = (false, false, false);
     let mut mistake = None;
     let mut it = arguments.iter();
     while let Some(argument) = it.next() {
         match argument.as_str() {
             "-h" | "--help" => help = true,
             "-V" | "--version" => version = true,
+            "--check" => check = true,
             name if configuration::Options::accepts(name) => match it.next() {
                 Some(value) => config.argument(name, value),
                 None => _ = mistake.get_or_insert_with(|| format!("{name} needs a value")),
@@ -81,6 +90,16 @@ pub fn release() -> ExitCode {
         println!("rsvelte {}", env!("CARGO_PKG_VERSION"));
         return ExitCode::SUCCESS;
     }
+    let commands = (positional.iter())
+        .take_while(|word| combined::COMBINABLE.contains(word))
+        .count();
+    if check && !positional[..commands].contains(&"format") {
+        return usage("--check applies to `format`");
+    }
+    if commands >= 2 {
+        let (commands, paths) = positional.split_at(commands);
+        return combined::run(&config, commands, paths, check);
+    }
     let Some((&name, paths)) = positional.split_first() else {
         eprint!("{}", help::OVERVIEW);
         return ExitCode::from(2);
@@ -101,21 +120,26 @@ pub fn release() -> ExitCode {
         }
         return version::version(&config);
     }
-    let paths = if paths.is_empty() { &["."][..] } else { paths };
-    let (reg, _) = match configured_registry(&config, &[], installation(tasks)) {
+    alone(&config, tasks, paths)
+}
+
+/// `lint` over `paths` when `tasks` is [`LINT`], else `typecheck`.
+fn alone(config: &configuration::Options, tasks: &[&str], paths: &[&str]) -> ExitCode {
+    let (reg, _) = match configured_registry(config, &[], installation(tasks)) {
         Ok(configured) => configured,
         Err(error) => return usage(&error),
     };
-    if name == "lint" {
+    if tasks == LINT {
         lint::lint(&reg, paths, tasks)
     } else {
         typecheck::typecheck(&reg, tasks)
     }
 }
 
-/// What `lint` or `typecheck` installs to run `tasks`.
+/// What `lint` and `typecheck` install to run `tasks`: the typecheck plugins' defaults when
+/// `tasks` type check.
 fn installation(tasks: &[&str]) -> Installation {
-    let defaults = if tasks == TYPECHECK {
+    let defaults = if tasks.iter().any(|task| TYPECHECK.contains(task)) {
         (TYPECHECK_DEFAULTS.iter())
             .map(|&plugin| (plugin, "{}".to_owned()))
             .collect()

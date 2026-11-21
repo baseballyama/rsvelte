@@ -4,7 +4,7 @@ use rsvelte_svelte_syntax::parse::{MAX_NESTING, parse};
 fn error_on_a_small_stack(source_text: String) -> Option<String> {
     std::thread::Builder::new()
         .stack_size(2 << 20)
-        .spawn(move || parse(&source_text).err().map(|e| e.message))
+        .spawn(move || parse(&source_text).err().map(|e| e.message.clone()))
         .expect("spawns")
         .join()
         .expect("does not overflow")

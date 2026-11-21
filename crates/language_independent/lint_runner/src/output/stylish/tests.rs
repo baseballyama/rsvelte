@@ -49,7 +49,7 @@ fn report(colors: bool) -> (String, usize) {
         threads: Some(1),
     };
     let results = run(&reg, &documents, &options).expect("known tasks");
-    render_stylish(&documents, &results, colors)
+    render_stylish(documents.iter().zip(&results), colors)
 }
 
 #[test]

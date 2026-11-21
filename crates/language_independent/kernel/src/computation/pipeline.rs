@@ -67,11 +67,27 @@ fn panic_message(e: Box<dyn Any + Send>) -> String {
     }
 }
 
+impl DocumentResult {
+    /// The outputs of `tasks`, taken out of this result, with its panic.
+    #[must_use]
+    pub fn take(&mut self, tasks: &[&str]) -> Self {
+        let (taken, kept) = std::mem::take(&mut self.outputs)
+            .into_iter()
+            .partition(|(task, _)| tasks.contains(task));
+        self.outputs = kept;
+        Self {
+            outputs: taken,
+            panic: self.panic.clone(),
+            parts: Vec::new(),
+        }
+    }
+}
+
 fn run_document(
     reg: &Registry,
     document: &Document,
-    tasks: &[&dyn Task],
-    finish_tasks: &[&dyn FinishTask],
+    (tasks, finish_tasks): (&[&dyn Task], &[&dyn FinishTask]),
+    wanted: &dyn Fn(&str) -> bool,
     sharing: Sharing,
 ) -> DocumentResult {
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -81,7 +97,7 @@ fn run_document(
             let isolated = || DocumentContext::new(document, reg.artifacts());
             let mut outputs = Vec::new();
             let mut parts = Vec::new();
-            for task in tasks.iter().filter(|t| t.applies(document)) {
+            for task in (tasks.iter()).filter(|t| wanted(t.identifier()) && t.applies(document)) {
                 let own;
                 let context = match sharing {
                     Sharing::Shared => shared(),
@@ -98,7 +114,7 @@ fn run_document(
                 outputs.push((task.identifier(), out));
             }
             for (k, task) in finish_tasks.iter().enumerate() {
-                if !task.applies(document, reg.artifacts()) {
+                if !wanted(task.identifier()) || !task.applies(document, reg.artifacts()) {
                     continue;
                 }
                 let own;
@@ -234,7 +250,7 @@ pub fn run_each(
     in_pool(options.threads, || {
         let waiting = std::sync::Mutex::new(Vec::new());
         map_documents(docs, options.threads, |i, d| {
-            let r = run_document(reg, d, &tasks, &finish_tasks, options.sharing);
+            let r = run_document(reg, d, (&tasks, &finish_tasks), &|_| true, options.sharing);
             if r.parts.is_empty() {
                 sink(i, r);
             } else {
@@ -269,12 +285,36 @@ pub fn run(
     docs: &[Document],
     options: &RunOptions<'_>,
 ) -> Result<Vec<DocumentResult>, RunError> {
+    run_per_document(reg, docs, options, &|_| options.tasks)
+}
+
+/// [`run`], where document `i` runs only the tasks among `options.tasks` that `tasks_of(i)` names.
+///
+/// One run then serves commands that read different files, and shares what their tasks derive
+/// from a document they both read. A finish task's project is the documents that run it.
+///
+/// # Errors
+///
+/// [`RunError`] if plugins are invalid or a selected task is unknown; nothing runs then.
+///
+/// # Panics
+///
+/// If a worker thread pool of `options.threads` threads cannot be built.
+pub fn run_per_document<'t>(
+    reg: &Registry,
+    docs: &[Document],
+    options: &RunOptions<'_>,
+    tasks_of: &(dyn Fn(usize) -> &'t [&'t str] + Sync),
+) -> Result<Vec<DocumentResult>, RunError> {
     let (tasks, finish_tasks) = selected(reg, options)?;
     // Ordered collection avoids the per-output locks a sink would need.
     let mut results = Vec::new();
     in_pool(options.threads, || {
-        results = map_documents(docs, options.threads, |_, d| {
-            run_document(reg, d, &tasks, &finish_tasks, options.sharing)
+        results = map_documents(docs, options.threads, |i, d| {
+            let own = tasks_of(i);
+            // Empty names every task, as `options.tasks` does.
+            let wanted = |task: &str| own.is_empty() || own.contains(&task);
+            run_document(reg, d, (&tasks, &finish_tasks), &wanted, options.sharing)
         });
         run_finish_tasks(&finish_tasks, &mut results);
     });

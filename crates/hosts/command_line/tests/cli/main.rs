@@ -6,6 +6,7 @@ use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 mod arguments;
+mod combined;
 mod configuration;
 mod documents;
 mod eslint_plugin;

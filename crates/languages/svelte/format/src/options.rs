@@ -87,6 +87,9 @@ pub struct Options {
     /// oxfmt's `jsdoc`, which it applies to the `/** */` comments in the component.
     #[serde(skip)]
     pub jsdoc: Option<JsdocOptions>,
+    /// oxfmt's `sortTailwindcss`, with the sorter of the component's project.
+    #[serde(skip)]
+    pub tailwind: Option<crate::tailwind::Tailwind>,
 }
 
 impl Default for Options {
@@ -119,6 +122,7 @@ impl Default for Options {
             svelte_indent_script_and_style: true,
             sort_imports: None,
             jsdoc: None,
+            tailwind: None,
         }
     }
 }
@@ -277,6 +281,7 @@ pub fn unported(o: &Options) -> Option<&'static str> {
         svelte_indent_script_and_style: _,
         sort_imports: _,
         jsdoc: _,
+        tailwind: _,
     } = o;
     let d = Options::default();
     [

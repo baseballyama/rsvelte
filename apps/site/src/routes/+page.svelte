@@ -21,7 +21,7 @@
 
 <p>This release is experimental. Its results can differ from those of the official tools.</p>
 
-<pre><code
+<pre><code class="language-sh"
 		>npm install --save-dev @rsvelte/cli
 npx @rsvelte/cli lint
 npx @rsvelte/cli format

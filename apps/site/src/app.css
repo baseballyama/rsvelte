@@ -77,6 +77,21 @@ pre {
 	tab-size: 2;
 }
 
+/* Shiki's colors (scripts/highlight.ts) are the playground's. */
+:root {
+	--shiki-foreground: var(--fg);
+	--shiki-background: var(--code-bg);
+	--shiki-token-keyword: var(--code-keyword);
+	--shiki-token-string: var(--code-string);
+	--shiki-token-string-expression: var(--code-string);
+	--shiki-token-constant: var(--code-number);
+	--shiki-token-comment: var(--code-comment);
+	--shiki-token-function: var(--code-function);
+	--shiki-token-parameter: var(--code-attribute);
+	--shiki-token-punctuation: var(--fg);
+	--shiki-token-link: var(--code-string);
+}
+
 h1,
 h2,
 h3 {
