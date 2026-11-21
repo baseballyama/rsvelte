@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { items = [], count = 2 } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { items = [], count = 2 } = $props();
 	let item = $state('outer');
 
 ;

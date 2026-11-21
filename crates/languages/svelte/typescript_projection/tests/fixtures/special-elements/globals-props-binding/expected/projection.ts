@@ -1,6 +1,6 @@
 ;
 function $$render() {
-  /** @type {typeof __rsvelte_public_props0} */ let { width = $bindable(), x = $bindable() } = $props();
+  let /** @type {typeof __rsvelte_public_props0} */ { width = $bindable(), x = $bindable() } = $props();
   width;
   x;
 

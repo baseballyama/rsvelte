@@ -9,7 +9,7 @@ function $$render() {
 
 	
 	
-	/** @type {typeof __rsvelte_public_props0} */ let { store } = $props();;let $store = __rsvelte_store_get(store);
+	let /** @type {typeof __rsvelte_public_props0} */ { store } = $props();;let $store = __rsvelte_store_get(store);
 
 	const count = writable(0);;let $count = __rsvelte_store_get(count);
 

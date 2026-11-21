@@ -2,7 +2,7 @@
 function $$render() {
   
 	let unused = 1;
-	/** @type {typeof __rsvelte_public_props0} */ let { label } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { label } = $props();
 
 ;
 

@@ -7,7 +7,7 @@ function $$render() {
   
 	
 
-	/** @type {typeof __rsvelte_public_props0} */ let { own = 'a', ...rest } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { own = 'a', ...rest } = $props();
 	let text = $state('');
 	let attrs = $derived.by(() => ({ ...rest, title: text }));
 

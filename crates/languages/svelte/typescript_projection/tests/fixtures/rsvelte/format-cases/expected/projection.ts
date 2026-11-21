@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-/** @type {typeof __rsvelte_public_props0} */ let {items,title='List'}=$props()
+let /** @type {typeof __rsvelte_public_props0} */ {items,title='List'}=$props()
 let total=$derived(items.length*2+1)
 
 ;

@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { p, ...rest } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { p, ...rest } = $props();
 	let obj = $state({});
 	let k = 'x';
 	let arr = [];

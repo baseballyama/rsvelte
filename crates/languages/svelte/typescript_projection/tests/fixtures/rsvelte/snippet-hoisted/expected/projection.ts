@@ -33,7 +33,7 @@ function $$render() {
     };
     return __rsvelte_snippet_return;
   };
- /** @type {typeof __rsvelte_public_props0} */ let { name } = $props();
+ let /** @type {typeof __rsvelte_public_props0} */ { name } = $props();
 ;
 
   const __rsvelte_public_props0 = __rsvelte_props({

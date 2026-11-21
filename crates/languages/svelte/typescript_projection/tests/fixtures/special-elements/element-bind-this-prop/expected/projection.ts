@@ -1,6 +1,6 @@
 ;
 function $$render() {
-  /** @type {typeof __rsvelte_public_props0} */ let { ref = $bindable(null) } = $props();
+  let /** @type {typeof __rsvelte_public_props0} */ { ref = $bindable(null) } = $props();
   ref;
 
 ;

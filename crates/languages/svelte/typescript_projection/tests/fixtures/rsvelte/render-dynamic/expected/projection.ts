@@ -1,6 +1,6 @@
 ;
 function $$render() {
-  /** @type {typeof __rsvelte_public_props0} */ let { header, footer, items } = $props();
+  let /** @type {typeof __rsvelte_public_props0} */ { header, footer, items } = $props();
 ;
 
   const __rsvelte_public_props0 = __rsvelte_props({

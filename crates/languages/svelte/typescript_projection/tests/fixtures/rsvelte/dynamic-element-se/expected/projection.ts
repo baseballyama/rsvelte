@@ -1,6 +1,6 @@
 ;
 function $$render() {
-  let tag = $state('div'); let c = $state('red'); /** @type {typeof __rsvelte_public_props0} */ let { p } = $props();
+  let tag = $state('div'); let c = $state('red'); let /** @type {typeof __rsvelte_public_props0} */ { p } = $props();
 ;
 
   const __rsvelte_public_props0 = __rsvelte_props({

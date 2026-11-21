@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { load, other } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { load, other } = $props();
 	let count = $state(0);
 
 ;

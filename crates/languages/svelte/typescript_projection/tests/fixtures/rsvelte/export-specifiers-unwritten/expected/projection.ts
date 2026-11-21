@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { p = 1 } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { p = 1 } = $props();
 	let a = 1;
 	let s = $state(0);
 	let f = () => 1;

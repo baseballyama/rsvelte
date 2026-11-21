@@ -6,7 +6,7 @@ import List from './List.svelte';;
 function $$render() {
   
 	
-	/** @type {typeof __rsvelte_public_props0} */ let { item, label } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { item, label } = $props();
 	let count = $state(0);
 	let items = $state([1]);
 

@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { items } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { items } = $props();
 	let fallback = $state('n/a');
 
 ;

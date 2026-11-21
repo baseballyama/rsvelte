@@ -6,7 +6,7 @@ import C from './C.svelte';;
 function $$render() {
   
 	
-	/** @type {typeof __rsvelte_public_props0} */ let { show = true, w = 1 } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { show = true, w = 1 } = $props();
 	let items = $state([1]);
 
 ;

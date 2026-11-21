@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { ...attrs } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { ...attrs } = $props();
 	let text = $state('');
 	let checked = $state(false);
 

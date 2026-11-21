@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { options = [], ...rest } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { options = [], ...rest } = $props();
 	let current = $state('x');
 
 ;

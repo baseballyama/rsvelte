@@ -2,7 +2,7 @@
 function $$render() {
   
 	"use strict";
-	/** @type {typeof __rsvelte_public_props0} */ let { a } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { a } = $props();
 	let b = $state(0);
 	$effect(() => { b = a; });
 
