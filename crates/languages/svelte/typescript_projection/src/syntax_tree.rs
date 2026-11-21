@@ -5,6 +5,9 @@ use rsvelte_svelte_syntax::syntax_tree::Range;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct NodeIdentifier(pub(crate) u32);
 
+/// The bytes one [`Node::TextChunk`] holds, which keep [`Node`] at its size.
+const TEXT_CHUNK: usize = 32;
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Node {
     Source(SourceExpression),
@@ -86,6 +89,15 @@ pub(crate) enum Node {
     /// The component `<svelte:self>` renders, whose props svelte2tsx does not check.
     AnyComponent,
     StringLiteral(&'static str),
+    /// A string the projection computes, such as a prop's name from its key's value: `len` bytes
+    /// held by the [`Node::TextChunk`]s from `first` on.
+    ComputedStringLiteral {
+        first: NodeIdentifier,
+        len: u32,
+    },
+    /// Bytes of a [`Node::ComputedStringLiteral`], which only that node reads; the tree keeps no
+    /// string buffer, as few projections compute a string.
+    TextChunk([u8; TEXT_CHUNK]),
     /// A generated string whose findings fall on the empty range at `at`.
     /// A name whose text TypeScript reports at the source offset `at`.
     IdentifierAt {
@@ -332,6 +344,34 @@ impl SyntaxTree {
         identifier
     }
 
+    pub(crate) fn computed_string_literal(&mut self, text: &str) -> NodeIdentifier {
+        let first = NodeIdentifier(self.nodes.len() as u32);
+        for part in text.as_bytes().chunks(TEXT_CHUNK) {
+            let mut chunk = [0; TEXT_CHUNK];
+            chunk[..part.len()].copy_from_slice(part);
+            self.push(Node::TextChunk(chunk));
+        }
+        self.push(Node::ComputedStringLiteral {
+            first,
+            len: text.len() as u32,
+        })
+    }
+
+    /// The text of a [`Node::ComputedStringLiteral`].
+    #[must_use]
+    pub(crate) fn computed_text(&self, first: NodeIdentifier, len: u32) -> String {
+        let mut bytes = Vec::with_capacity(len as usize);
+        for node in &self.nodes[first.0 as usize..] {
+            let (Node::TextChunk(chunk), Some(left)) =
+                (node, (len as usize).checked_sub(bytes.len()))
+            else {
+                break;
+            };
+            bytes.extend_from_slice(&chunk[..left.min(TEXT_CHUNK)]);
+        }
+        String::from_utf8(bytes).expect("the chunks hold a string's bytes")
+    }
+
     pub(crate) fn list(&mut self, children: &[NodeIdentifier]) -> Range {
         let range = Range {
             start: self.children.len() as u32,
@@ -350,3 +390,6 @@ pub(crate) enum Spelling {
     /// `on:` before the event's name, where svelte-check reports a finding on the name.
     Event,
 }
+
+#[cfg(test)]
+mod tests;
