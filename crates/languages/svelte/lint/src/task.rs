@@ -10,7 +10,8 @@ use rsvelte_kernel::source::positions::LineBreaks;
 use crate::Configuration;
 use crate::computation::{
     ConditionTypes, LintConfiguration, LoweredAsSvelteEslintParser, ModuleAsTypeScript,
-    ModuleSemantic, NativeConditionTypes, ParsedAsSvelteEslintParser, ResolvedAsSvelteEslintParser,
+    ModuleAsTypeScriptSemantic, NativeConditionTypes, ParsedAsSvelteEslintParser,
+    ResolvedAsSvelteEslintParser,
 };
 use crate::project::{PostcssConfigurationOnDisk, SameNamedFileOnDisk};
 use crate::rules::shared::legacy_reactivity::LegacyReactivity;
@@ -45,8 +46,8 @@ pub fn register_artifacts(registry: &mut Registry) {
     rsvelte_svelte_compile::register_validation(registry);
     rsvelte_typescript_semantic::register(registry);
     registry
-        .artifact::<ModuleSemantic>()
         .artifact::<ModuleAsTypeScript>()
+        .artifact::<ModuleAsTypeScriptSemantic>()
         .artifact::<InlineStyles>()
         .artifact::<StyleSheetVerdict>()
         .artifact::<LintStyleSheet>()

@@ -18,7 +18,7 @@ use rsvelte_typescript_semantic::globals::Declared;
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::{ProgramIdentifier, Script, Tree};
 
-use crate::computation::{ConditionTypes, Linted, ModuleSemantic, NativeConditionTypes};
+use crate::computation::{ConditionTypes, Linted, NativeConditionTypes, module_semantic};
 use crate::project::{SvelteConfiguration, SvelteKit, SvelteKitProject};
 use crate::types::TypeFacts;
 use crate::{LintSettings, SvelteConfig};
@@ -278,7 +278,7 @@ impl<'a> File<'a> {
     pub fn semantic(&self) -> &'a Semantic {
         let semantic = match self.parsed {
             Source::Component(_) => self.resolution().map(Resolution::semantic),
-            Source::Module(_) => Some(self.context.get::<ModuleSemantic>()),
+            Source::Module(_) => module_semantic(self.context),
         };
         semantic.expect("a parsed document resolves")
     }

@@ -174,18 +174,29 @@ impl Artifact for NativeConditionTypes {
     }
 }
 
-/// The scopes of a JavaScript or TypeScript module, which only lint reads.
+/// The scopes of [`ModuleAsTypeScript`], which only lint reads; `None` when it does not parse.
 #[derive(Debug)]
-pub(crate) struct ModuleSemantic;
+pub(crate) struct ModuleAsTypeScriptSemantic;
 
-impl Artifact for ModuleSemantic {
-    type Output = Semantic;
+impl Artifact for ModuleAsTypeScriptSemantic {
+    type Output = Option<Semantic>;
 
-    const NAME: &'static str = "svelte.lint.module_semantic";
+    const NAME: &'static str = "svelte.lint.module_as_typescript_semantic";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let script = module(context).expect("lint analyzes a module it reads");
-        Semantic::program(script.tree.clone(), script.root)
+        let script = context.get::<ModuleAsTypeScript>().as_ref().ok()?;
+        Some(Semantic::program(script.tree.clone(), script.root))
+    }
+}
+
+/// The scopes of [`module`]: the shared ones when the shared parse succeeds, since a tree is
+/// analyzed once; `None` when the module does not parse.
+pub(crate) fn module_semantic<'a>(context: &'a DocumentContext<'_>) -> Option<&'a Semantic> {
+    match context.get::<rsvelte_typescript_tree::Parsed>() {
+        Ok(_) => context
+            .get::<rsvelte_typescript_semantic::Resolved>()
+            .as_ref(),
+        Err(_) => context.get::<ModuleAsTypeScriptSemantic>().as_ref(),
     }
 }
 
