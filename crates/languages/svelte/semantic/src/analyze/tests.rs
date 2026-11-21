@@ -252,3 +252,25 @@ fn a_select_s_rich_content_makes_it_and_its_parent_dynamic() {
     assert_eq!(dynamic(plain, "select"), (false, false));
     assert_eq!(dynamic(plain, "option"), (false, false));
 }
+
+#[test]
+fn a_snippet_named_like_a_store_subscription_is_a_declaration_not_a_reference() {
+    // svelte 5.57.3 compiles each of these.
+    for source in [
+        "{#snippet $s()}{/snippet}",
+        "<script>let s</script>{#snippet $s()}{/snippet}",
+        "{#snippet $s()}{/snippet}{@render $s()}",
+    ] {
+        analyzed(source, |component, _, analysis| {
+            let snippet_names = component.nodes.iter().filter_map(|node| match node {
+                rsvelte_svelte_syntax::syntax_tree::TemplateNode::Snippet { name, .. } => {
+                    Some(*name)
+                }
+                _ => None,
+            });
+            for name in snippet_names {
+                assert!(!analysis.expressions.contains_key(&name), "{source}");
+            }
+        });
+    }
+}
