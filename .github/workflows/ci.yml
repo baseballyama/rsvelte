@@ -78,9 +78,11 @@ jobs:
     name: rust-test (${{ matrix.part }})
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    # rust-cache hashes CARGO_* variables into its key, so each level has its own cache entry.
+    # rust-cache hashes CARGO_* variables into its key, so each level has its own cache entry. No
+    # test reads debug info beyond the line numbers of a backtrace; the rest only grows the cache.
     env:
       CARGO_PROFILE_DEV_OPT_LEVEL: ${{ matrix.opt-level }}
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
