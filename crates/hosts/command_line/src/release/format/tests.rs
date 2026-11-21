@@ -48,7 +48,18 @@ fn an_option_oxfmt_would_apply_to_a_svelte_file_and_the_formatter_does_not_is_an
 
 #[test]
 fn the_scripts_take_oxfmts_import_sorting_and_jsdoc() {
-    let source = "<script>\nimport z from \"z\";\nimport a from \"a\";\n/**\n * @param {string} x   the x\n */\nfunction f(x) {}\n</script>\n\n<p>{f(\"a\")}</p>\n";
+    let source = "\
+<script>
+import z from \"z\";
+import a from \"a\";
+/**
+ * @param {string} x   the x
+ */
+function f(x) {}
+</script>
+
+<p>{f(\"a\")}</p>
+";
     let javascript = JsFormatOptions {
         sort_imports: Some(SortImportsOptions::default()),
         jsdoc: Some(JsdocOptions::default()),
@@ -59,7 +70,16 @@ fn the_scripts_take_oxfmts_import_sorting_and_jsdoc() {
         .unwrap();
     assert_eq!(
         formatted,
-        "<script>\n  import a from \"a\";\n  import z from \"z\";\n  /** @param {string} x The x */\n  function f(x) {}\n</script>\n\n<p>{f(\"a\")}</p>\n"
+        "\
+<script>
+  import a from \"a\";
+  import z from \"z\";
+  /** @param {string} x The x */
+  function f(x) {}
+</script>
+
+<p>{f(\"a\")}</p>
+"
     );
     let unsorted = format(source, &json!({ "printWidth": 80 })).unwrap();
     assert!(

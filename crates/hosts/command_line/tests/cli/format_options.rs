@@ -146,7 +146,7 @@ fn format_reads_an_editorconfig_for_svelte_files_as_oxfmt_does() {
 }
 
 #[test]
-fn format_reports_each_svelte_file_whose_classes_tailwind_css_would_sort() {
+fn format_reports_each_svelte_file_whose_classes_tailwind_would_sort() {
     let svelte = "<p class=\"p-4 flex\">a</p>\n";
     let project = Project::new(&[
         (".oxfmtrc.json", r#"{ "sortTailwindcss": {} }"#),
@@ -165,7 +165,123 @@ fn format_reports_each_svelte_file_whose_classes_tailwind_css_would_sort() {
     assert_eq!(read("App.svelte"), svelte);
 }
 
-/// The expected texts are oxfmt 0.76's, with `"svelte": true` added to the configuration.
+const APP: &str = "\
+<script module>
+import z from \"z\";
+import a from \"a\";
+</script>
+
+<script>
+import y from \"y\";
+import b from \"b\";
+/**
+ * @param {string} x   the x
+ */
+function f(x) {}
+</script>
+
+<p>{f(\"a\")}</p>
+";
+
+const TEMPLATE: &str = "\
+<button
+  onclick={() => {
+    /**
+     * @param {string} x   the x
+     */
+    function g(x) {}
+  }}>a</button
+>
+
+{#if a}
+  {@const b = /** @type {any}   cast */ (y)}
+  <p>{b}</p>
+{/if}
+";
+
+const MARKDOWN: &str = "\
+# T
+
+- item
+
+  ```svelte
+  <p   class=\"x\">{a}</p>
+  ```
+
+```svelte
+<script>
+import z from \"z\";
+import a from \"a\";
+/**
+ * @param {string} x   the x
+ */
+function f(x) {}
+const o = { aaaaaaaa: 1, bbbbbbbbb: 2, ccccccccc: 3 };
+</script>
+```
+";
+
+const APP_FORMATTED: &str = "\
+<script module>
+  import a from \"a\";
+  import z from \"z\";
+</script>
+
+<script>
+  import b from \"b\";
+  import y from \"y\";
+  /** @param {string} x The x */
+  function f(x) {}
+</script>
+
+<p>{f(\"a\")}</p>
+";
+
+const TEMPLATE_FORMATTED: &str = "\
+<button
+  onclick={() => {
+    /**
+     * @param {string} x   the x
+     */
+    function g(x) {}
+  }}>a</button
+>
+
+{#if a}
+  {@const b =
+    /** @type {any}   cast */ (y)}
+  <p>{b}</p>
+{/if}
+";
+
+const MARKDOWN_FORMATTED: &str = "\
+# T
+
+- item
+
+  ```svelte
+  <p class=\"x\">{a}</p>
+  ```
+
+```svelte
+<script>
+  import z from \"z\";
+  import a from \"a\";
+  /**
+   * @param {string} x   the x
+   */
+  function f(x) {}
+  const o = {
+    aaaaaaaa: 1,
+    bbbbbbbbb: 2,
+    ccccccccc: 3,
+  };
+</script>
+```
+";
+
+/// The expected texts are oxfmt 0.76's, with `"svelte": true` added to the configuration. The
+/// template's code is Prettier's, so its comments stay as written.
 #[test]
 fn format_sorts_each_scripts_imports_and_formats_jsdoc_as_oxfmt_does() {
     let project = Project::new(&[
@@ -173,24 +289,14 @@ fn format_sorts_each_scripts_imports_and_formats_jsdoc_as_oxfmt_does() {
             ".oxfmtrc.json",
             r#"{ "sortImports": {}, "jsdoc": {}, "printWidth": 40 }"#,
         ),
-        (
-            "App.svelte",
-            "<script module>\nimport z from \"z\";\nimport a from \"a\";\n</script>\n\n<script>\nimport y from \"y\";\nimport b from \"b\";\n/**\n * @param {string} x   the x\n */\nfunction f(x) {}\n</script>\n\n<p>{f(\"a\")}</p>\n",
-        ),
-        (
-            "a.md",
-            "# T\n\n- item\n\n  ```svelte\n  <p   class=\"x\">{a}</p>\n  ```\n\n```svelte\n<script>\nimport z from \"z\";\nimport a from \"a\";\n/**\n * @param {string} x   the x\n */\nfunction f(x) {}\nconst o = { aaaaaaaa: 1, bbbbbbbbb: 2, ccccccccc: 3 };\n</script>\n```\n",
-        ),
+        ("App.svelte", APP),
+        ("B.svelte", TEMPLATE),
+        ("a.md", MARKDOWN),
     ]);
     let output = project.rsvelte(&["format"]);
     assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
     let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
-    assert_eq!(
-        read("App.svelte"),
-        "<script module>\n  import a from \"a\";\n  import z from \"z\";\n</script>\n\n<script>\n  import b from \"b\";\n  import y from \"y\";\n  /** @param {string} x The x */\n  function f(x) {}\n</script>\n\n<p>{f(\"a\")}</p>\n"
-    );
-    assert_eq!(
-        read("a.md"),
-        "# T\n\n- item\n\n  ```svelte\n  <p class=\"x\">{a}</p>\n  ```\n\n```svelte\n<script>\n  import z from \"z\";\n  import a from \"a\";\n  /**\n   * @param {string} x   the x\n   */\n  function f(x) {}\n  const o = {\n    aaaaaaaa: 1,\n    bbbbbbbbb: 2,\n    ccccccccc: 3,\n  };\n</script>\n```\n"
-    );
+    assert_eq!(read("App.svelte"), APP_FORMATTED);
+    assert_eq!(read("B.svelte"), TEMPLATE_FORMATTED);
+    assert_eq!(read("a.md"), MARKDOWN_FORMATTED);
 }
