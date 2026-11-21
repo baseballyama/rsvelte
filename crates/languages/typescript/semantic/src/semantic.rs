@@ -18,15 +18,24 @@ static SCOPINGS: Pool = Pool::new(&SCOPING_ARENAS);
 
 mod cell;
 
+// Only what the tasks read: the whole `oxc_semantic::Semantic` is not covariant once a crate in
+// the build turns on oxc's `jsdoc` feature, as `oxc_linter` does.
 struct Analyzed<'a> {
     /// `None` only while [`Semantic`] drops, which takes it to give its scoping arena back.
-    semantic: Option<oxc_semantic::Semantic<'a>>,
+    scoping: Option<Scoping>,
+    nodes: AstNodes<'a>,
     /// The first error a module rejects that the parser does not: `delete x`, a name declared
     /// twice, an octal escape, ….
     syntax_error: Option<Box<SyntaxError>>,
 }
 
 /// The scope analysis of one document.
+impl Analyzed<'_> {
+    const fn scoping(&self) -> &Scoping {
+        self.scoping.as_ref().expect("taken only while dropping")
+    }
+}
+
 pub struct Semantic(cell::Cell);
 
 impl std::fmt::Debug for Semantic {
@@ -66,8 +75,10 @@ impl Semantic {
             let syntax_error = (analysis.diagnostics.errors())
                 .find(|error| tree.reports(error, visit))
                 .map(|error| Box::new(rsvelte_typescript_tree::analysis_error(error, text, visit)));
+            let (scoping, nodes) = analysis.semantic.into_scoping_and_nodes();
             Analyzed {
-                semantic: Some(analysis.semantic),
+                scoping: Some(scoping),
+                nodes,
                 syntax_error,
             }
         }))
@@ -81,11 +92,6 @@ impl Semantic {
         })
     }
 
-    fn analyzed(&self) -> &oxc_semantic::Semantic<'_> {
-        let semantic = self.0.borrow_dependent().semantic.as_ref();
-        semantic.expect("taken only while dropping")
-    }
-
     #[must_use]
     pub fn tree(&self) -> &Tree {
         self.0.borrow_owner()
@@ -93,7 +99,7 @@ impl Semantic {
 
     #[must_use]
     pub fn scoping(&self) -> &Scoping {
-        self.analyzed().scoping()
+        self.0.borrow_dependent().scoping()
     }
 
     /// The first error a module rejects that the parser does not report.
@@ -112,18 +118,18 @@ impl Semantic {
     /// Every node with its parent and scope.
     #[must_use]
     pub fn nodes(&self) -> &AstNodes<'_> {
-        self.analyzed().nodes()
+        &self.0.borrow_dependent().nodes
     }
 }
 
 // The scoping arena goes back to this thread's pool, as the tree's arena does.
 impl Drop for Semantic {
     fn drop(&mut self) {
-        let semantic = self
+        let scoping = self
             .0
-            .with_dependent_mut(|_, analyzed| analyzed.semantic.take());
-        if let Some(semantic) = semantic {
-            SCOPINGS.give_back(semantic.into_scoping().into_allocator());
+            .with_dependent_mut(|_, analyzed| analyzed.scoping.take());
+        if let Some(scoping) = scoping {
+            SCOPINGS.give_back(scoping.into_allocator());
         }
     }
 }

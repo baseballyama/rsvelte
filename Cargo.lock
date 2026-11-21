@@ -88,6 +88,9 @@ name = "bitflags"
 version = "2.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06"
+dependencies = [
+ "serde_core",
+]
 
 [[package]]
 name = "block-buffer"
@@ -185,8 +188,24 @@ dependencies = [
  "castaway",
  "cfg-if",
  "itoa",
+ "serde",
  "static_assertions",
  "zmij",
+]
+
+[[package]]
+name = "constcat"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "136d3e02915a2cea4d74caa8681e2d44b1c3254bdbf17d11d41d587ff858832c"
+
+[[package]]
+name = "convert_case"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1af709f1f33454bf52eadfc8c78b3b9ef9cb26fb54d16dc9cd9a7299f899fd1b"
+dependencies = [
+ "unicode-segmentation",
 ]
 
 [[package]]
@@ -242,6 +261,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce6e4c961d6cd6c9a86db418387425e8bdeaf05b3c8bc1411e6dca4c252f1453"
 dependencies = [
  "hybrid-array",
+]
+
+[[package]]
+name = "dashmap"
+version = "6.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6361d5c062261c78a176addb82d4c821ae42bed6089de0e12603cd25de2059c"
+dependencies = [
+ "cfg-if",
+ "crossbeam-utils",
+ "hashbrown 0.14.5",
+ "lock_api",
+ "once_cell",
+ "parking_lot_core",
 ]
 
 [[package]]
@@ -328,6 +361,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
+name = "errno"
+version = "0.3.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e35d6e78f4cebb90e51d543db8fe41528851d6deeef6ef21ebd4bfdc1e784776"
+dependencies = [
+ "libc",
+ "windows-sys",
+]
+
+[[package]]
 name = "escape-simd"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -355,6 +398,42 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c66915cc5391097de7a2b0b972e8505aa33c0df401fd3a6811dbdb32881ba48"
 
 [[package]]
+name = "fixedbitset"
+version = "0.5.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5905ec755cc8386d7928353e4d356d2be3e89e81e5ca01fe630a1ca4d08dc175"
+
+[[package]]
+name = "float-cmp"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b09cf3155332e944990140d967ff5eceb70df778b34f77d8075db46e4704e6d8"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "foldhash"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
+
+[[package]]
+name = "foldhash"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
+
+[[package]]
+name = "form_urlencoded"
+version = "1.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "afa489199eaffb1211795df1c6236ce1ad0d41a6fa45250add73e3b02420f06e"
+dependencies = [
+ "percent-encoding",
+]
+
+[[package]]
 name = "futures-core"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -379,6 +458,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "getrandom"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "r-efi",
+]
+
+[[package]]
 name = "globset"
 version = "0.4.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -399,6 +489,41 @@ checksum = "05f05586d4d4df3d47123207826c40b252728b438a1a07bad3c01ee6bea401df"
 dependencies = [
  "arraydeque",
  "smallvec",
+]
+
+[[package]]
+name = "halfbrown"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c7ed2f2edad8a14c8186b847909a41fbb9c3eafa44f88bd891114ed5019da09"
+dependencies = [
+ "hashbrown 0.16.1",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.14.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
+
+[[package]]
+name = "hashbrown"
+version = "0.15.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
+dependencies = [
+ "foldhash 0.1.5",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash 0.2.0",
 ]
 
 [[package]]
@@ -474,6 +599,47 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3632ebbd0c5c3637ba1a40bdf8288f2cb9d2268e73441a69d5fc73d7cfbaa87c"
 
 [[package]]
+name = "icu_normalizer"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "404a3b8c486f205c87fe7f23ab6894d84a4ad76d6e4671ae1981ba7def87c599"
+dependencies = [
+ "icu_collections",
+ "icu_normalizer_data",
+ "icu_properties",
+ "icu_provider",
+ "smallvec",
+ "zerovec",
+]
+
+[[package]]
+name = "icu_normalizer_data"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20f0088bfb7441f7a37fa0c9e20cb1e9cba1cac6b9ce8cd2a6dc44294f8e8cbc"
+
+[[package]]
+name = "icu_properties"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ea83d991c56158f7cf898bf86436c1dfe7c07ee82fe88951f2695c9f37a379f"
+dependencies = [
+ "displaydoc",
+ "icu_collections",
+ "icu_locale_core",
+ "icu_properties_data",
+ "icu_provider",
+ "zerotrie",
+ "zerovec",
+]
+
+[[package]]
+name = "icu_properties_data"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b98f29af82d02b163fe50161388350e743bb3107cc8e8c2f7314cb505faddfcf"
+
+[[package]]
 name = "icu_provider"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -514,6 +680,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "913a7d294ad056474749152107309fdee3ec17d2482d1ab70fdc61a81c64b9a3"
 
 [[package]]
+name = "idna"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b0875f23caa03898994f6ddc501886a45c7d3d62d04d2d90788d47be1b1e4de"
+dependencies = [
+ "idna_adapter",
+ "smallvec",
+ "utf8_iter",
+]
+
+[[package]]
+name = "idna_adapter"
+version = "1.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb68373c0d6620ef8105e855e7745e18b0d00d3bdb07fb532e434244cdb9a714"
+dependencies = [
+ "icu_normalizer",
+ "icu_properties",
+]
+
+[[package]]
 name = "ignore"
 version = "0.4.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -536,7 +723,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc4e190f5d26ca7051642629da2c52fc03bde85a03197c99408dcd291734c855"
 dependencies = [
  "equivalent",
- "hashbrown",
+ "hashbrown 0.17.1",
+ "rayon",
+ "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -559,6 +749,15 @@ name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
+
+[[package]]
+name = "javascript-globals"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e56db50903c4e757fddbfa21c1db72c7b83c5fd4ecaef079c0c9ca240e3a2347"
+dependencies = [
+ "phf_shared",
+]
 
 [[package]]
 name = "js-sys"
@@ -590,6 +789,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "language-tags"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4345964bb142484797b161f473a503a434de77149dd8c7427788c6e13379388"
+
+[[package]]
+name = "lazy-regex"
+version = "3.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0a2cce8a22920a29fdcc8c9170aa5d29edd9fbcf8bea856e24c2cb1c2419f67"
+dependencies = [
+ "lazy-regex-proc_macros",
+ "once_cell",
+ "regex",
+]
+
+[[package]]
+name = "lazy-regex-proc_macros"
+version = "3.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f1e4b1f1d8c71edb4ff2b2150ec4606445fd2ddf67ddc097655daf59286baa6"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn 3.0.9",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -611,10 +839,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "linux-raw-sys"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
+
+[[package]]
 name = "litemap"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae"
+
+[[package]]
+name = "lock_api"
+version = "0.4.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "224399e74b87b5f3557511d98dff8b14089b3dadafcab6bb93eab67d3aace965"
+dependencies = [
+ "scopeguard",
+]
 
 [[package]]
 name = "log"
@@ -816,7 +1059,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "389002e8171c184b310cc63563097a0f13ad5eccc9ae32adcae7f7a8a0dda57b"
 dependencies = [
  "dyn-clone",
+ "indexmap",
  "oxc_schemars_derive",
+ "regex",
  "serde",
  "serde_json",
 ]
@@ -839,18 +1084,22 @@ dependencies = [
 [[package]]
 name = "oxc_allocator"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "allocator-api2",
- "hashbrown",
+ "hashbrown 0.17.1",
+ "oxc_ast_macros",
  "oxc_data_structures",
+ "oxc_estree",
  "rustc-hash",
+ "serde",
+ "windows-sys",
 ]
 
 [[package]]
 name = "oxc_ast"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "bitflags",
  "oxc_allocator",
@@ -867,7 +1116,7 @@ dependencies = [
 [[package]]
 name = "oxc_ast_macros"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "phf",
  "proc-macro2",
@@ -878,7 +1127,7 @@ dependencies = [
 [[package]]
 name = "oxc_ast_visit"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -887,9 +1136,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxc_cfg"
+version = "0.158.0"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
+dependencies = [
+ "bitflags",
+ "itertools",
+ "oxc_index",
+ "oxc_syntax",
+ "petgraph",
+ "rustc-hash",
+]
+
+[[package]]
 name = "oxc_codegen"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "bitflags",
  "cow-utils",
@@ -910,7 +1172,7 @@ dependencies = [
 [[package]]
 name = "oxc_compat"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "cow-utils",
  "oxc-browserslist",
@@ -922,7 +1184,7 @@ dependencies = [
 [[package]]
 name = "oxc_config"
 version = "0.0.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "fast-glob",
  "ignore",
@@ -935,7 +1197,7 @@ dependencies = [
 [[package]]
 name = "oxc_data_structures"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "ropey",
 ]
@@ -943,7 +1205,7 @@ dependencies = [
 [[package]]
 name = "oxc_diagnostics"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "bytecount",
  "cow-utils",
@@ -960,14 +1222,17 @@ dependencies = [
 [[package]]
 name = "oxc_ecmascript"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "itoa",
  "memchr",
  "num-bigint",
  "num-traits",
+ "oxc_allocator",
  "oxc_ast",
+ "oxc_compat",
  "oxc_data_structures",
+ "oxc_regular_expression",
  "oxc_span",
  "oxc_str",
  "oxc_syntax",
@@ -977,12 +1242,31 @@ dependencies = [
 [[package]]
 name = "oxc_estree"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
+dependencies = [
+ "itoa",
+ "oxc_data_structures",
+ "zmij_ecma",
+]
+
+[[package]]
+name = "oxc_estree_tokens"
+version = "0.158.0"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
+dependencies = [
+ "itoa",
+ "oxc_ast",
+ "oxc_ast_visit",
+ "oxc_data_structures",
+ "oxc_estree",
+ "oxc_parser",
+ "oxc_span",
+]
 
 [[package]]
 name = "oxc_formatter"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "cow-utils",
  "fast-glob",
@@ -1010,7 +1294,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter_core"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "cow-utils",
  "memchr",
@@ -1024,7 +1308,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter_css"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "cow-utils",
  "oxc-css-parser",
@@ -1040,7 +1324,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter_graphql"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "cow-utils",
  "memchr",
@@ -1055,7 +1339,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter_htmlish"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "cow-utils",
  "memchr",
@@ -1071,7 +1355,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter_json"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1088,7 +1372,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter_markdown"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "cow-utils",
  "oxc-markdown-parser",
@@ -1102,7 +1386,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter_tests"
 version = "0.62.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "cow-utils",
  "oxc_formatter_core",
@@ -1112,7 +1396,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter_toml"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "oxc-toml",
  "oxc_allocator",
@@ -1125,7 +1409,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter_yaml"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "cow-utils",
  "oxc-yaml-parser",
@@ -1149,7 +1433,7 @@ dependencies = [
 [[package]]
 name = "oxc_jsdoc"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "oxc_ast",
  "oxc_span",
@@ -1158,9 +1442,76 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxc_linter"
+version = "1.93.0"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
+dependencies = [
+ "bitflags",
+ "constcat",
+ "convert_case",
+ "cow-utils",
+ "fast-glob",
+ "ignore",
+ "indexmap",
+ "itertools",
+ "javascript-globals",
+ "json-strip-comments",
+ "language-tags",
+ "lazy-regex",
+ "memchr",
+ "nodejs-built-in-modules",
+ "oxc-schemars",
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_ast_macros",
+ "oxc_ast_visit",
+ "oxc_cfg",
+ "oxc_codegen",
+ "oxc_config",
+ "oxc_data_structures",
+ "oxc_diagnostics",
+ "oxc_ecmascript",
+ "oxc_estree_tokens",
+ "oxc_index",
+ "oxc_macros",
+ "oxc_parser",
+ "oxc_react_compiler",
+ "oxc_regular_expression",
+ "oxc_resolver",
+ "oxc_semantic",
+ "oxc_span",
+ "oxc_str",
+ "oxc_syntax",
+ "papaya",
+ "phf",
+ "rayon",
+ "rust-lapper",
+ "rustc-hash",
+ "self_cell",
+ "serde",
+ "serde_json",
+ "simdutf8",
+ "smallvec",
+ "unicode-segmentation",
+ "url",
+]
+
+[[package]]
+name = "oxc_macros"
+version = "0.0.0"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
+dependencies = [
+ "convert_case",
+ "itertools",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
 name = "oxc_parser"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "bitflags",
  "cow-utils",
@@ -1181,9 +1532,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxc_react_compiler"
+version = "0.143.0"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
+dependencies = [
+ "cow-utils",
+ "indexmap",
+ "lazy-regex",
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_ast_visit",
+ "oxc_diagnostics",
+ "oxc_ecmascript",
+ "oxc_index",
+ "oxc_semantic",
+ "oxc_span",
+ "oxc_str",
+ "oxc_syntax",
+ "rustc-hash",
+ "smallvec",
+]
+
+[[package]]
 name = "oxc_regular_expression"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "bitflags",
  "oxc_allocator",
@@ -1194,6 +1567,33 @@ dependencies = [
  "phf",
  "rustc-hash",
  "unicode-id-start",
+]
+
+[[package]]
+name = "oxc_resolver"
+version = "11.24.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c7fd0839a5ecee17c0d2c88c8006e8ab4dff25d4a79e3a0bf7a9f0cce17f4e3"
+dependencies = [
+ "compact_str",
+ "dashmap",
+ "fast-glob",
+ "indexmap",
+ "json-strip-comments",
+ "memchr",
+ "nodejs-built-in-modules",
+ "once_cell",
+ "percent-encoding",
+ "rustc-hash",
+ "rustix",
+ "self_cell",
+ "serde",
+ "serde_json",
+ "simd-json",
+ "simdutf8",
+ "thiserror",
+ "tracing",
+ "windows",
 ]
 
 [[package]]
@@ -1211,17 +1611,19 @@ dependencies = [
 [[package]]
 name = "oxc_semantic"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "itertools",
  "memchr",
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",
+ "oxc_cfg",
  "oxc_data_structures",
  "oxc_diagnostics",
  "oxc_ecmascript",
  "oxc_index",
+ "oxc_jsdoc",
  "oxc_span",
  "oxc_str",
  "oxc_syntax",
@@ -1246,31 +1648,35 @@ dependencies = [
 [[package]]
 name = "oxc_span"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "compact_str",
+ "oxc-schemars",
  "oxc_allocator",
  "oxc_ast_macros",
  "oxc_estree",
  "oxc_str",
+ "serde",
 ]
 
 [[package]]
 name = "oxc_str"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "compact_str",
- "hashbrown",
+ "hashbrown 0.17.1",
  "memchr",
+ "oxc-schemars",
  "oxc_allocator",
  "oxc_estree",
+ "serde",
 ]
 
 [[package]]
 name = "oxc_syntax"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "bitflags",
  "cow-utils",
@@ -1282,6 +1688,7 @@ dependencies = [
  "oxc_span",
  "oxc_str",
  "phf",
+ "serde",
  "unicode-id-start",
  "zmij_ecma",
 ]
@@ -1289,7 +1696,7 @@ dependencies = [
 [[package]]
 name = "oxc_transformer"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "base64",
  "compact_str",
@@ -1318,7 +1725,7 @@ dependencies = [
 [[package]]
 name = "oxc_traverse"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "itoa",
  "oxc_allocator",
@@ -1336,7 +1743,7 @@ dependencies = [
 [[package]]
 name = "oxfmt"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=d8f30a916550957809387a614ad3850c17d9a702#d8f30a916550957809387a614ad3850c17d9a702"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
 dependencies = [
  "bpaf",
  "cow-utils",
@@ -1371,10 +1778,75 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxlint"
+version = "1.93.0"
+source = "git+https://github.com/baseballyama/oxc?rev=15408dce1fe9e6bdd6ad4b286095df878ea9ec5f#15408dce1fe9e6bdd6ad4b286095df878ea9ec5f"
+dependencies = [
+ "bpaf",
+ "cow-utils",
+ "ignore",
+ "napi-build",
+ "oxc-schemars",
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_ast_visit",
+ "oxc_config",
+ "oxc_diagnostics",
+ "oxc_estree_tokens",
+ "oxc_linter",
+ "oxc_parser",
+ "oxc_semantic",
+ "oxc_span",
+ "oxc_str",
+ "rayon",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "papaya"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da2442474a9404698c42509b8967f437249dbc7b50493e83020333d3943ec0ae"
+dependencies = [
+ "equivalent",
+ "seize",
+]
+
+[[package]]
+name = "parking_lot_core"
+version = "0.9.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2621685985a2ebf1c516881c026032ac7deafcda1a2c9b7850dc81e3dfcb64c1"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "redox_syscall",
+ "smallvec",
+ "windows-link",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
+
+[[package]]
+name = "petgraph"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8701b58ea97060d5e5b155d383a69952a60943f0e6dfe30b04c287beb0b27455"
+dependencies = [
+ "fixedbitset",
+ "hashbrown 0.15.5",
+ "indexmap",
+ "serde",
+]
 
 [[package]]
 name = "phf"
@@ -1477,6 +1949,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "r-efi"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
+
+[[package]]
 name = "rayon"
 version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1494,6 +1972,47 @@ checksum = "22e18b0f0062d30d4230b2e85ff77fdfe4326feb054b9783a3460d8435c8ab91"
 dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
+]
+
+[[package]]
+name = "redox_syscall"
+version = "0.5.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed2bf2547551a7053d6fdfafda3f938979645c44812fbfcda098faae3f1a362d"
+dependencies = [
+ "bitflags",
+]
+
+[[package]]
+name = "ref-cast"
+version = "1.0.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e440fb4e4b4147295338efb76001ab9e4efc0e5839df2c47fc5ac2381d365c3"
+dependencies = [
+ "ref-cast-impl",
+]
+
+[[package]]
+name = "ref-cast-impl"
+version = "1.0.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92ecd8964f8453721699a1ed72037b0db49ce2f5a5138486ee89bed6f67cdf3a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "regex"
+version = "1.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9807af0e638c12e753aa1b4e601791bf2a8f71274023c8bbeec12fc149950857"
+dependencies = [
+ "aho-corasick",
+ "memchr",
+ "regex-automata",
+ "regex-syntax",
 ]
 
 [[package]]
@@ -1560,13 +2079,17 @@ version = "0.3.0"
 dependencies = [
  "bpaf",
  "ignore",
+ "javascript-globals",
  "libc",
  "mimalloc",
  "oxc_allocator",
+ "oxc_diagnostics",
  "oxc_formatter",
+ "oxc_linter",
  "oxc_parser",
  "oxc_span",
  "oxfmt",
+ "oxlint",
  "rayon",
  "rsvelte_configuration_loading",
  "rsvelte_corpus",
@@ -2140,16 +2663,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "rust-lapper"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30af0ce494f4e7a61d28aa63d1240e53d2cd542881ec20db84fdeca11ead748e"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "rustc-hash"
 version = "2.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b1e7f9a428571be2dc5bc0505c13fb6bf936822b894ec87abf8a08a4e51742d"
 
 [[package]]
+name = "rustix"
+version = "1.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5e76742e5294153d4dde1207dbec5bdd81eef6fabdc0d2118babadabfd858aa"
+dependencies = [
+ "bitflags",
+ "errno",
+ "libc",
+ "linux-raw-sys",
+ "windows-sys",
+]
+
+[[package]]
 name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
+
+[[package]]
+name = "ryu"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "same-file"
@@ -2165,6 +2716,12 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+
+[[package]]
+name = "seize"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b55fb86dfd3a2f5f76ea78310a88f96c4ea21a3031f8d212443d56123fd0521"
 
 [[package]]
 name = "self_cell"
@@ -2248,6 +2805,8 @@ version = "1.0.154"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7e9cc8b1b85264074fbcc02a88680c4096b1e47df8f739dceb03bf482f04bd6"
 dependencies = [
+ "foldhash 0.2.0",
+ "indexmap",
  "itoa",
  "memchr",
  "serde",
@@ -2289,6 +2848,18 @@ name = "shlex"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+
+[[package]]
+name = "simd-json"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ebe141eb4a23ecc4d5de93fa5b139ac65dc07c38037a2fe9a8fb7c9d36bd832"
+dependencies = [
+ "halfbrown",
+ "ref-cast",
+ "simdutf8",
+ "value-trait",
+]
 
 [[package]]
 name = "simdutf8"
@@ -2404,6 +2975,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
+]
+
+[[package]]
+name = "tempfile"
+version = "3.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
+dependencies = [
+ "fastrand",
+ "getrandom",
+ "once_cell",
+ "rustix",
+ "windows-sys",
 ]
 
 [[package]]
@@ -2590,6 +3174,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca718471876992059f251e33aafc334346ada08042b7661dd1fe313a9bced557"
 
 [[package]]
+name = "url"
+version = "2.5.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f00cd2407bb42c0ef17be88d4cf020f5cceffd121665bac9b8b9493a369b3b1a"
+dependencies = [
+ "form_urlencoded",
+ "idna",
+ "percent-encoding",
+ "serde",
+]
+
+[[package]]
 name = "utf8_iter"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2609,6 +3205,18 @@ name = "valuable"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
+
+[[package]]
+name = "value-trait"
+version = "0.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "545a3d7089f11f1741d12963c057adf9443fc24325110a6a6daf582e825fd51b"
+dependencies = [
+ "float-cmp",
+ "halfbrown",
+ "itoa",
+ "ryu",
+]
 
 [[package]]
 name = "vsimd"
@@ -2681,16 +3289,120 @@ dependencies = [
 ]
 
 [[package]]
+name = "windows"
+version = "0.62.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "527fadee13e0c05939a6a05d5bd6eec6cd2e3dbd648b9f8e447c6518133d8580"
+dependencies = [
+ "windows-collections",
+ "windows-core",
+ "windows-future",
+ "windows-numerics",
+]
+
+[[package]]
+name = "windows-collections"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23b2d95af1a8a14a3c7367e1ed4fc9c20e0a26e79551b1454d72583c97cc6610"
+dependencies = [
+ "windows-core",
+]
+
+[[package]]
+name = "windows-core"
+version = "0.62.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8e83a14d34d0623b51dce9581199302a221863196a1dde71a7663a4c2be9deb"
+dependencies = [
+ "windows-implement",
+ "windows-interface",
+ "windows-link",
+ "windows-result",
+ "windows-strings",
+]
+
+[[package]]
+name = "windows-future"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1d6f90251fe18a279739e78025bd6ddc52a7e22f921070ccdc67dde84c605cb"
+dependencies = [
+ "windows-core",
+ "windows-link",
+ "windows-threading",
+]
+
+[[package]]
+name = "windows-implement"
+version = "0.60.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "053e2e040ab57b9dc951b72c264860db7eb3b0200ba345b4e4c3b14f67855ddf"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "windows-interface"
+version = "0.59.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f316c4a2570ba26bbec722032c4099d8c8bc095efccdc15688708623367e358"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "windows-link"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
 
 [[package]]
+name = "windows-numerics"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e2e40844ac143cdb44aead537bbf727de9b044e107a0f1220392177d15b0f26"
+dependencies = [
+ "windows-core",
+ "windows-link",
+]
+
+[[package]]
+name = "windows-result"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7781fa89eaf60850ac3d2da7af8e5242a5ea78d1a11c49bf2910bb5a73853eb5"
+dependencies = [
+ "windows-link",
+]
+
+[[package]]
+name = "windows-strings"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7837d08f69c77cf6b07689544538e017c1bfcf57e34b4c0ff58e6c2cd3b37091"
+dependencies = [
+ "windows-link",
+]
+
+[[package]]
 name = "windows-sys"
 version = "0.61.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc"
+dependencies = [
+ "windows-link",
+]
+
+[[package]]
+name = "windows-threading"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3949bd5b99cafdf1c7ca86b43ca564028dfe27d66958f2470940f73d86d75b37"
 dependencies = [
  "windows-link",
 ]

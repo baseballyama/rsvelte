@@ -11,6 +11,7 @@ use crate::{Installation, configuration, configured_registry, usage};
 mod combined;
 mod format;
 mod help;
+mod host_lint;
 mod version;
 
 /// The plugins `rsvelte` installs for `lint` and `typecheck`, in installation order.
@@ -50,12 +51,17 @@ fn command(name: &str) -> Result<(&'static [&'static str], &'static str), ExitCo
 #[must_use]
 pub fn release() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
-    // `format` alone takes oxfmt's arguments; followed by a command, rsvelte's.
-    if let Some(("format", rest)) = arguments.split_first().map(|(c, r)| (c.as_str(), r))
+    // `format` or `lint` alone takes oxfmt's or oxlint's arguments; followed by a command,
+    // rsvelte's.
+    if let Some((command @ ("format" | "lint"), rest)) =
+        arguments.split_first().map(|(c, r)| (c.as_str(), r))
         && !rest
             .first()
             .is_some_and(|next| combined::COMBINABLE.contains(&next.as_str()))
     {
+        if command == "lint" {
+            return host_lint::lint(rest);
+        }
         return format::format(rest);
     }
     let mut config = configuration::Options::default();
