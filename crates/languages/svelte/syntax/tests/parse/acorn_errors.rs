@@ -126,3 +126,47 @@ fn acorn_lexes_regular_expressions_and_escaped_names() {
         assert_eq!(error.span.start_offset, at, "{source:?}");
     }
 }
+
+#[test]
+fn an_optional_chain_target_is_its_own_error() {
+    // What svelte 5.57.3 reports, in bytes of each source: `=` and compound assignment, `++` and
+    // `--`, `for...in`, `for...of`, a pattern's element and rest, and casts around the chain.
+    let optional = "Optional chaining cannot appear in left-hand side";
+    for (source, at) in [
+        ("{a?.b = 1}", 1),
+        ("{(a?.b) = 1}", 2),
+        ("{((a?.b)) = 1}", 3),
+        ("{a?.b.c = 1}", 1),
+        ("{a?.[0] = 1}", 1),
+        ("{a?.() = 1}", 1),
+        ("{a.b?.c = 1}", 1),
+        ("{a?.b += 1}", 1),
+        ("{a?.b++}", 1),
+        ("{++a?.b}", 3),
+        ("{[a?.b] = x}", 2),
+        ("{({x: a?.b} = y)}", 6),
+        ("{[...a?.b] = x}", 5),
+        ("{({...a?.b} = y)}", 6),
+        ("<script>a?.b = 1</script>", 8),
+        ("<script>a?.b--</script>", 8),
+        ("<script>for (a?.b in x);</script>", 13),
+        ("<script>for (a?.b of x);</script>", 13),
+        ("<script lang=\"ts\">a?.b = 1</script>", 18),
+        ("<script lang=\"ts\">(a?.b)! = 1</script>", 19),
+        ("<script lang=\"ts\">(a?.b as any) = 1</script>", 19),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert_eq!(
+            (
+                error.message.lines().next().unwrap_or_default(),
+                error.span.start_offset
+            ),
+            (optional, at),
+            "{source}"
+        );
+    }
+    // A member of a parenthesized chain is a target, and a call stays an rvalue.
+    parse("{(a?.b).c = 1}").expect("a member of a parenthesized chain");
+    let error = parse("{f() = 1}").expect_err("a call");
+    assert_eq!(error.message.lines().next(), Some("Assigning to rvalue"));
+}
