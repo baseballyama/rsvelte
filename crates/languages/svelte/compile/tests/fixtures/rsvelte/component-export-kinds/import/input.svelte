@@ -4,6 +4,7 @@
 	import TemplateAwait from './template-await.svelte';
 	import Events from './events.svelte';
 	import Slots from './slots.svelte';
+	import OwnRecord from './own-record.svelte';
 	let legacy: Legacy | undefined = $state();
 	const types: number[] = [Legacy, LegacyExport, TemplateAwait, Events, Slots];
 </script>
@@ -13,3 +14,4 @@
 <TemplateAwait foo="s" />
 <Events foo="s" />
 <Slots foo="s" />
+<OwnRecord foo="s" />

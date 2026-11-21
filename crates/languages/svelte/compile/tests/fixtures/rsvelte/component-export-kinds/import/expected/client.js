@@ -5,7 +5,8 @@ import LegacyExport from "./legacy-export.svelte";
 import TemplateAwait from "./template-await.svelte";
 import Events from "./events.svelte";
 import Slots from "./slots.svelte";
-var root = $.from_html(`<!> <!> <!> <!> <!>`, 1);
+import OwnRecord from "./own-record.svelte";
+var root = $.from_html(`<!> <!> <!> <!> <!> <!>`, 1);
 export default function Import($$anchor) {
 	let legacy = $.state(void 0);
 	const types = [
@@ -26,5 +27,7 @@ export default function Import($$anchor) {
 	Events(node_3, { foo: "s" });
 	var node_4 = $.sibling(node_3, 2);
 	Slots(node_4, { foo: "s" });
+	var node_5 = $.sibling(node_4, 2);
+	OwnRecord(node_5, { foo: "s" });
 	$.append($$anchor, fragment);
 }

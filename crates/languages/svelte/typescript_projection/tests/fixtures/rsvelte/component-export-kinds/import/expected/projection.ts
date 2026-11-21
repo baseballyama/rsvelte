@@ -4,11 +4,13 @@ import LegacyExport from './legacy-export.svelte';;
 import TemplateAwait from './template-await.svelte';;
 import Events from './events.svelte';;
 import Slots from './slots.svelte';;
+import OwnRecord from './own-record.svelte';;
 
 ;
 
 function $$render() {
   
+	
 	
 	
 	
@@ -42,6 +44,11 @@ function $$render() {
     }
     {
       __rsvelte_component(Slots)(__rsvelte_internals(), {
+        "foo": "s",
+      });
+    }
+    {
+      __rsvelte_component(OwnRecord)(__rsvelte_internals(), {
         "foo": "s",
       });
     }

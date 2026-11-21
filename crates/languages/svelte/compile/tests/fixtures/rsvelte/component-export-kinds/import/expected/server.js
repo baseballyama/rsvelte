@@ -4,6 +4,7 @@ import LegacyExport from "./legacy-export.svelte";
 import TemplateAwait from "./template-await.svelte";
 import Events from "./events.svelte";
 import Slots from "./slots.svelte";
+import OwnRecord from "./own-record.svelte";
 export default function Import($$renderer) {
 	let legacy = void 0;
 	const types = [
@@ -22,5 +23,7 @@ export default function Import($$renderer) {
 	Events($$renderer, { foo: "s" });
 	$$renderer.push(`<!----> `);
 	Slots($$renderer, { foo: "s" });
+	$$renderer.push(`<!----> `);
+	OwnRecord($$renderer, { foo: "s" });
 	$$renderer.push(`<!---->`);
 }

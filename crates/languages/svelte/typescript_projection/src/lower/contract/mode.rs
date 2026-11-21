@@ -17,8 +17,9 @@ pub(super) enum ComponentMode {
     Legacy,
 }
 
-/// No props, in a name no `Record` of the component's own shadows, which TypeScript prints as
-/// svelte2tsx's `Record<string, never>`.
+/// No props, which TypeScript prints as svelte2tsx's `Record<string, never>`. svelte2tsx writes the
+/// bare name, so a component's own `type Record` turns its props into `any`; qualifying it is a
+/// deliberate divergence (rsvelte#4939, item 171).
 const NO_PROPS: &str = "globalThis.Record<string, never>";
 
 impl Builder<'_> {

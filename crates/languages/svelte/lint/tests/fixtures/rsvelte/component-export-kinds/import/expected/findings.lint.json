@@ -8,11 +8,11 @@
 			"rule": "no-unused-vars",
 			"message": "'types' is assigned a value but never used.",
 			"start": {
-				"line": 8,
+				"line": 9,
 				"column": 8
 			},
 			"end": {
-				"line": 8,
+				"line": 9,
 				"column": 23
 			}
 		}
