@@ -10,7 +10,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use super::ClientCompilationContext;
 use crate::lower::builder::Runtime;
 use crate::lower::custom_element::{CustomElement, Shadow, Tag, option_property};
-use crate::lower::javascript::prop_alias;
+use crate::lower::javascript::literal_key_name;
 use crate::lower::slot_element::slot_names;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -37,7 +37,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             if name.starts_with("$$") {
                 continue;
             }
-            let key = prop_alias(binding.prop_key.expect("a property key"));
+            let Some(key) = binding.prop_key.and_then(literal_key_name) else {
+                continue;
+            };
             let read = b.return_(Some(b.call(b.id(name), [])));
             properties.push(b.accessor(PropertyKind::Get, &key, b.parameters([]), [read]));
             let parameter = binding.initial.map_or_else(
@@ -141,7 +143,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 .map(|symbol| self.res.binding(symbol));
             let key = info
                 .and_then(|info| info.prop_key)
-                .map_or(Cow::Borrowed(name), prop_alias);
+                .and_then(literal_key_name)
+                .unwrap_or(Cow::Borrowed(name));
             let mut fields = Vec::with_capacity(3);
             if let Some(attribute) = attribute
                 .filter(|e| !matches!(e, Expression::StringLiteral(s) if s.value.is_empty()))
@@ -164,7 +167,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             result.push(b.init(&key, b.object(fields)));
         }
         for symbol in self.props() {
-            let key = prop_alias(self.res.binding(symbol).prop_key.expect("a property key"));
+            let Some(key) = self.res.binding(symbol).prop_key.and_then(literal_key_name) else {
+                continue;
+            };
             if configured_names.contains(&*key) {
                 continue;
             }

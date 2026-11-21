@@ -130,7 +130,6 @@ pub(super) fn lower_destructured_state<'o>(
         };
         let mut walker = Paths {
             b,
-            res: hooks.rw.res,
             hooks,
             reserved: Vec::new(),
         };
@@ -254,7 +253,6 @@ pub(super) fn lower_destructured_derived<'o>(
     let mut paths = Vec::new();
     let mut walker = Paths {
         b,
-        res: rw.res,
         hooks: Hooks {
             rw,
             names,
