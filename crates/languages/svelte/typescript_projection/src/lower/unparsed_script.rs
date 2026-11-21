@@ -1,8 +1,6 @@
 //! The imports, exports and refusals svelte2tsx finds in a script that Svelte does not parse.
 
-use oxc_ast::ast::{Program, Statement};
-use oxc_ast_visit::{Visit, walk};
-use rsvelte_typescript_tree::document_span;
+use oxc_ast::ast::Program;
 
 use super::generic::instance_only;
 use super::{Refusal, Span};
@@ -41,29 +39,10 @@ fn read_unparsed(program: &Program<'_>, offset: u32, module: bool) -> UnparsedSc
             ..UnparsedScript::default()
         };
     }
-    let mut moved = Moved::default();
-    moved.visit_program(program);
+    let moved = super::nested::Nested::of(program);
     UnparsedScript {
         imports: moved.imports.into_iter().map(shift).collect(),
         removed: moved.removed.into_iter().map(shift).collect(),
         ..UnparsedScript::default()
-    }
-}
-
-/// The imports svelte2tsx moves and the exports it removes in a script Svelte does not parse,
-/// where they may stand at any depth.
-#[derive(Default)]
-struct Moved {
-    imports: Vec<Span>,
-    removed: Vec<Span>,
-}
-
-impl<'a> Visit<'a> for Moved {
-    fn visit_statement(&mut self, it: &Statement<'a>) {
-        if let Statement::ImportDeclaration(import) = it {
-            self.imports.push(document_span(import.span));
-        }
-        self.removed.extend(super::namespace::removed_export(it));
-        walk::walk_statement(self, it);
     }
 }

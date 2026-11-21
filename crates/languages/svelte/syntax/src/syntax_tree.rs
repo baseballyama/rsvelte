@@ -386,7 +386,8 @@ pub struct Component {
     pub instance: Option<Script>,
     pub style: Option<Style>,
     /// Read by [`crate::parse::parse_reading_scripts_as_typescript`], the errors of each script
-    /// the compiler rejects that TypeScript rejects too, in order; empty otherwise.
+    /// the compiler rejects that TypeScript rejects too, in order; read by
+    /// [`crate::parse::parse_as_checked`], those its language rejects. Empty otherwise.
     pub script_typescript_errors: Vec<SyntaxError>,
     /// The whole document as tokens: markup, the JavaScript parser's tokens and comments, and the
     /// whitespace between them. The style sheet is one [`TokenType::Stylesheet`] token.
@@ -455,6 +456,32 @@ impl Drop for Component {
 }
 
 impl Component {
+    /// Whether svelte2tsx reads the component as TypeScript, and svelte-check's checker its
+    /// output: either script's `lang`, or its `type` without one, names TypeScript. The
+    /// compiler's rule, which reads the whole text, differs.
+    #[must_use]
+    pub fn checked_as_typescript(&self, source: &str) -> bool {
+        [&self.instance, &self.module]
+            .into_iter()
+            .flatten()
+            .any(|script| {
+                let value = |name: &str| {
+                    script
+                        .attributes
+                        .iter()
+                        .find(|(at, _)| at.text(source) == name)
+                        .map(|(_, value)| value.map_or("", |value| value.text(source)))
+                };
+                let kind = value("lang")
+                    .filter(|lang| !lang.is_empty())
+                    .or_else(|| value("type"));
+                matches!(
+                    kind,
+                    Some("ts" | "typescript" | "text/ts" | "text/typescript")
+                )
+            })
+    }
+
     #[must_use]
     pub fn node(&self, identifier: TemplateNodeIdentifier) -> &TemplateNode {
         &self.nodes[identifier as usize]

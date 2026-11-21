@@ -220,7 +220,7 @@ fn javascript_rejects(
     projection: &rsvelte_kernel::output::emitter::Emitter,
     as_typescript: &oxc_parser::ParserReturn<'_>,
 ) -> bool {
-    if rsvelte_svelte_typescript_projection::checked_as_typescript(component, source) {
+    if component.checked_as_typescript(source) {
         return false;
     }
     let allocator = Allocator::default();

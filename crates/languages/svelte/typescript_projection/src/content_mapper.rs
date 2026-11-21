@@ -4,7 +4,7 @@ use rsvelte_typescript_content_mapper::write_mappings;
 
 /// The projection of the component at `path`, as the check prints it.
 pub fn write_transform(path: &str, source: &str, output: &mut StructuredDataWriter) {
-    let result = rsvelte_svelte_syntax::parse::parse(source)
+    let result = crate::read_alone(source)
         .map_err(|error| (1, error.message, error.span))
         .and_then(|component| {
             crate::lower_alone(&component, source, path)
