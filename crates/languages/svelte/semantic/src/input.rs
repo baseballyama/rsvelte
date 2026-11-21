@@ -36,4 +36,9 @@ impl<'a> ComponentInput<'a> {
             filename,
         }
     }
+
+    /// `<script module>`, then `<script>`, whichever exist.
+    pub fn programs(&self) -> impl Iterator<Item = ProgramIdentifier> {
+        self.module.into_iter().chain(self.instance)
+    }
 }

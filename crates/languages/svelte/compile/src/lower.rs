@@ -110,9 +110,8 @@ pub(crate) fn lower_with_facts<'o>(
     let component = &facts.input.component;
     // Every comment of the component, the scripts' and the template's; the printer places them
     // by position.
-    let scripts = [component.module, component.instance]
-        .into_iter()
-        .flatten()
+    let scripts = component
+        .programs()
         .map(|p| component.javascript.get_program(p));
     let comments = scripts
         .flat_map(|p| p.comments.iter())

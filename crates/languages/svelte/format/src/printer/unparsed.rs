@@ -39,7 +39,7 @@ pub(super) fn unparsed_scripts(
 /// The bodies of the scripts whose TypeScript errors the plugin's parser for them throws on.
 fn thrown_scripts(c: &Component, source_text: &str) -> R<Vec<Span>> {
     let mut thrown = Vec::new();
-    for script in c.module.iter().chain(&c.instance) {
+    for script in c.scripts() {
         let body = script.content;
         let errors: Vec<&SyntaxError> = script_errors(c, body).collect();
         let Some(first) = errors.first() else {
@@ -113,7 +113,8 @@ fn read_in_template(c: &Component, rejected: &SyntaxError) -> bool {
     }
     // oxc labels the first declaration, and acorn reports the second.
     let (first, second) = (rejected.diagnostic.span.start_offset, rejected.acorn_at());
-    let in_script = (c.module.iter().chain(&c.instance))
+    let in_script = c
+        .scripts()
         .any(|script| script.content.start_offset <= second && second <= script.content.end_offset);
     if in_script {
         return false;
@@ -156,7 +157,7 @@ fn assertion_script(c: &Component, source_text: &str) -> Option<Span> {
             self.0 |= it.keyword == WithClauseKeyword::Assert;
         }
     }
-    let script = (c.module.iter().chain(&c.instance)).find(|script| {
+    let script = c.scripts().find(|script| {
         let mut find = Find(false);
         find.visit_program(c.javascript.get_program(script.program));
         find.0 && !in_typescript(script, source_text)
@@ -173,7 +174,8 @@ fn unparsed_script(c: &Component, source_text: &str, rejected: &SyntaxError) -> 
     const SUPER: [u32; 2] = [2337, 2660];
     let span = rejected.diagnostic.span;
     let unknown = || Unsupported::at("code a module rejects", span);
-    let script = (c.module.iter().chain(&c.instance))
+    let script = c
+        .scripts()
         .find(|script| {
             script.content.start_offset <= span.start_offset
                 && span.end_offset <= script.content.end_offset
@@ -220,7 +222,7 @@ fn overriding_script(c: &Component, source_text: &str) -> Option<Span> {
             walk::walk_class(self, it);
         }
     }
-    let script = (c.module.iter().chain(&c.instance)).find(|script| {
+    let script = c.scripts().find(|script| {
         script.typescript && !in_typescript(script, source_text) && {
             let mut find = Find(false);
             find.visit_program(c.javascript.get_program(script.program));

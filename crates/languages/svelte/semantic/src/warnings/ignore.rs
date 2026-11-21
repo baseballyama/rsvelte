@@ -144,10 +144,7 @@ pub(super) fn regions(
 ) -> Vec<Region> {
     let mut out = Vec::new();
     // The parser gives a script the comment before its tag as the program's leading comment.
-    for script in [&component.module, &component.instance]
-        .into_iter()
-        .flatten()
-    {
+    for script in component.scripts() {
         if let Some(data) = preceding_comment(component, source, script.span.start_offset) {
             let codes = extract(data.start_offset, data.text(source), runes, |_| {});
             let program = component.javascript.get_program(script.program);

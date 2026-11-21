@@ -307,13 +307,10 @@ fn check_legacy_props(input: &CompileInput<'_>, res: &Resolution) -> Result<(), 
     // Upstream reads `$$props` first, and meets the scripts' references before the template's.
     let javascript = input.component.javascript;
     let scripted = |offset: u32| {
-        [input.component.module, input.component.instance]
-            .into_iter()
-            .flatten()
-            .any(|p| {
-                let span = javascript.get_program(p).span;
-                span.start <= offset && offset < span.end
-            })
+        input.component.programs().any(|p| {
+            let span = javascript.get_program(p).span;
+            span.start <= offset && offset < span.end
+        })
     };
     for (name, code, message) in [
         (
