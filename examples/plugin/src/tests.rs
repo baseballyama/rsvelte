@@ -8,18 +8,10 @@ fn counts_elements_reports_parse_errors_and_skips_other_languages() {
     rsvelte_svelte_format::register(&mut registry);
     register(&mut registry);
     let documents = [
-        registry
-            .document("App.svelte", "<main><p>Hello</p></main>")
-            .expect("valid size"),
-        registry
-            .document("Broken.svelte", "<p>")
-            .expect("valid size"),
-        registry
-            .document("Style.svelte", "<p></p><style>a {</style>")
-            .expect("valid size"),
-        registry
-            .document("Other.vue", "<p>Hello</p>")
-            .expect("valid size"),
+        Document::new("App.svelte", "<main><p>Hello</p></main>").expect("valid size"),
+        Document::new("Broken.svelte", "<p>").expect("valid size"),
+        Document::new("Style.svelte", "<p></p><style>a {</style>").expect("valid size"),
+        Document::new("Other.vue", "<p>Hello</p>").expect("valid size"),
     ];
     let results = run(
         &registry,

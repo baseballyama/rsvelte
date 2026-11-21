@@ -1,4 +1,5 @@
 use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing};
+use rsvelte_kernel::source::document::Document;
 
 use super::*;
 
@@ -90,7 +91,7 @@ fn plugin_tasks_and_type_views_select_their_own_documents() {
         ),
         ("README", vec![], false),
     ] {
-        let document = reg.document(path, "").expect("valid text");
+        let document = Document::new(path, "").expect("valid text");
         assert_eq!(
             reg.artifacts()
                 .provides::<rsvelte_typescript_check::TypeScriptView>(&document),

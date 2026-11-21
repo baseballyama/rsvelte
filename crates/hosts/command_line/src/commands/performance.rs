@@ -85,7 +85,7 @@ pub(crate) fn performance(
     options: &Options,
 ) -> ExitCode {
     let roots: Vec<&Path> = roots.iter().map(PathBuf::as_path).collect();
-    let (docs, _, skipped) = match super::units::load(reg, &roots, options.every) {
+    let (docs, _, skipped) = match super::units::load(&roots, options.every) {
         Ok(loaded) => loaded,
         Err(error) => return crate::usage(&error),
     };

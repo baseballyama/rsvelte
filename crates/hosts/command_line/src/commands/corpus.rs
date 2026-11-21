@@ -12,7 +12,7 @@ use crate::usage;
 pub(crate) fn corpus(reg: &Registry, roots: &[&Path], tasks: &[&str]) -> ExitCode {
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering::Relaxed;
-    let (docs, dirs, skipped) = match load(reg, roots, 1) {
+    let (docs, dirs, skipped) = match load(roots, 1) {
         Ok(loaded) => loaded,
         Err(error) => return usage(&error),
     };

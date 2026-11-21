@@ -8,7 +8,7 @@ const BUTTON: &str = "<button>Hi</button><style>button { color: red; }</style>";
 fn task_files(source: &str, target: Target) -> Vec<(String, String)> {
     let mut registry = Registry::new();
     crate::register(&mut registry);
-    let document = registry.document("Button.svelte", source).expect("small");
+    let document = Document::new("Button.svelte", source).expect("small");
     let identifier = match target {
         Target::Client => "svelte.compile/client",
         Target::Server => "svelte.compile/server",
@@ -57,7 +57,7 @@ fn compile_returns_the_warnings_the_task_reports() {
     let source = "<img src=\"a.png\">";
     let mut registry = Registry::new();
     crate::register(&mut registry);
-    let document = registry.document("Image.svelte", source).expect("small");
+    let document = Document::new("Image.svelte", source).expect("small");
     let reported = run(
         &registry,
         &[document],

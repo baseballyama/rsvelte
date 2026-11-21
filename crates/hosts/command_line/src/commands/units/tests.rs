@@ -24,7 +24,7 @@ fn units_named(test: &str, names: &[String]) -> PathBuf {
 }
 
 fn picked(root: &Path, every: u64) -> Vec<String> {
-    let (docs, _, skipped) = load(&Registry::new(), &[root], every).expect("a directory");
+    let (docs, _, skipped) = load(&[root], every).expect("a directory");
     assert_eq!(skipped, 0);
     docs.into_iter().map(|doc| doc.path).collect()
 }

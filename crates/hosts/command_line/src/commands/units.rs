@@ -3,7 +3,6 @@
 
 use std::path::{Path, PathBuf};
 
-use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::Document;
 
 #[cfg(test)]
@@ -74,7 +73,6 @@ pub(crate) fn relative(root: &Path, dir: &Path) -> String {
 ///
 /// A root that is not a directory: its walk would find no units and look like an empty corpus.
 pub(crate) fn load(
-    reg: &Registry,
     roots: &[&Path],
     every: u64,
 ) -> Result<(Vec<Document>, Vec<PathBuf>, usize), String> {
@@ -85,7 +83,7 @@ pub(crate) fn load(
     let mut dirs = Vec::new();
     let mut skipped = 0usize;
     let mut unreadable = 0usize;
-    let mut add = |path: &str, text: &str, dir: PathBuf| match reg.document(path, text) {
+    let mut add = |path: &str, text: &str, dir: PathBuf| match Document::new(path, text) {
         Ok(d) => {
             docs.push(d);
             dirs.push(dir);

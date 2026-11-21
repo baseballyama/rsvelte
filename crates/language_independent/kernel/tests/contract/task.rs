@@ -102,9 +102,7 @@ fn tasks_share_input_and_derived_data_and_report_independent_codes() {
         .artifact::<DerivedData>()
         .task(Produce)
         .task(Observe);
-    let documents = [registry
-        .document("source", "input")
-        .expect("valid document")];
+    let documents = [Document::new("source", "input").expect("valid document")];
     let results = run(
         &registry,
         &documents,

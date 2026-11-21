@@ -258,9 +258,7 @@ impl Conformance {
         let inputs = source.inputs()?;
         let mut documents = Vec::with_capacity(inputs.len());
         for e in inputs.entries().filter(|e| selected(&source.key(e.path))) {
-            let d = self
-                .registry
-                .document(e.path, e.body)
+            let d = Document::new(e.path, e.body)
                 .map_err(|err| format!("{}: {err:?}", source.key(e.path)))?;
             documents.push(d);
         }

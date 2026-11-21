@@ -2,6 +2,7 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::TaskOutput;
+use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_check::{TypeScriptDocument, TypeScriptView};
 use rsvelte_typescript_semantic::Resolved;
@@ -23,7 +24,7 @@ fn task(source: &str, identifier: &str) -> TaskOutput {
 
 fn task_at(path: &str, source: &str, identifier: &str) -> TaskOutput {
     let registry = registry();
-    let document = registry.document(path, source).expect("valid text");
+    let document = Document::new(path, source).expect("valid text");
     let mut results = run(
         &registry,
         &[document],
@@ -55,7 +56,7 @@ fn javascript_and_typescript_extensions_select_shared_tasks() {
         ("input.svelte", false),
         ("README", false),
     ] {
-        let document = registry.document(path, "").expect("valid text");
+        let document = Document::new(path, "").expect("valid text");
         assert_eq!(
             rsvelte_typescript_tree::matches(&document),
             selected,
@@ -179,9 +180,8 @@ fn invalid_source_is_reported_by_each_tree_task() {
 #[test]
 fn parse_and_scope_facts_are_cached_in_one_document() {
     let registry = registry();
-    let document = registry
-        .document("input.ts", "export const value: number = 1;")
-        .expect("valid text");
+    let document =
+        Document::new("input.ts", "export const value: number = 1;").expect("valid text");
     let context = DocumentContext::new(&document, registry.artifacts());
     assert!(
         std::ptr::eq(context.get::<Parsed>(), context.get::<Parsed>()),
@@ -206,7 +206,7 @@ fn parse_and_scope_facts_are_cached_in_one_document() {
 fn type_check_view_keeps_all_source_and_maps_utf8_offsets() {
     let registry = registry();
     let source = "export const message: string = '日本語';\n";
-    let document = registry.document("input.ts", source).expect("valid text");
+    let document = Document::new("input.ts", source).expect("valid text");
     let context = DocumentContext::new(&document, registry.artifacts());
     let view = context
         .facet::<TypeScriptView>()
@@ -232,7 +232,7 @@ fn type_check_view_keeps_all_source_and_maps_utf8_offsets() {
 fn type_check_view_does_not_depend_on_the_parser() {
     let registry = registry();
     let source = "export const value: number = ;\n";
-    let document = registry.document("input.ts", source).expect("valid text");
+    let document = Document::new("input.ts", source).expect("valid text");
     let context = DocumentContext::new(&document, registry.artifacts());
     let view = context
         .facet::<TypeScriptView>()
@@ -259,9 +259,7 @@ fn the_shared_checker_selects_standalone_typescript() {
         stand_in: None,
         imported: None,
     });
-    let document = registry
-        .document("input.ts", "const value: number = 1;")
-        .expect("valid text");
+    let document = Document::new("input.ts", "const value: number = 1;").expect("valid text");
     let results = run(
         &registry,
         &[document],
@@ -348,9 +346,7 @@ fn javascript_type_checking_is_explicitly_unchecked() {
         imported: None,
     });
     for path in ["input.js", "input.mjs", "input.cjs"] {
-        let document = registry
-            .document(path, "export const value = 1;")
-            .expect("valid text");
+        let document = Document::new(path, "export const value = 1;").expect("valid text");
         let context = DocumentContext::new(&document, registry.artifacts());
         assert!(
             matches!(

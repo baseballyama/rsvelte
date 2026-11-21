@@ -29,14 +29,14 @@ pub(crate) fn load(
 
 /// Whether a task of `tasks` reads the file at `path`.
 pub(crate) fn applies(reg: &Registry, tasks: &[&str], path: &Path) -> bool {
-    let probe = reg.document(path.to_string_lossy().into_owned(), String::new());
+    let probe = Document::new(path.to_string_lossy().into_owned(), String::new());
     probe.is_ok_and(|document| reg.applies(tasks, &document))
 }
 
 /// The document of the file at `path`, with the text `tasks` read it with.
 pub(crate) fn read(reg: &Registry, path: PathBuf, tasks: &[&str]) -> Result<Document, String> {
     let text = (reg.read(&path, tasks)).map_err(|e| format!("{}: {e}", path.display()))?;
-    document(reg, path, text)
+    document(path, text)
 }
 
 /// The documents of the files at `paths`, in their order, with the text `tasks` read them with.
@@ -72,9 +72,8 @@ pub(crate) fn find(
 }
 
 /// The document of `text`, read from `file`.
-pub(crate) fn document(reg: &Registry, file: PathBuf, text: String) -> Result<Document, String> {
-    let document = reg
-        .document(file.to_string_lossy().into_owned(), text)
+pub(crate) fn document(file: PathBuf, text: String) -> Result<Document, String> {
+    let document = Document::new(file.to_string_lossy().into_owned(), text)
         .map_err(|e| format!("{}: {e:?}", file.display()))?;
     Ok(document.read_from(file))
 }

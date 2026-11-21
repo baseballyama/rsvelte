@@ -15,7 +15,7 @@
 
 	const life = [
 		{
-			functionName: 'Registry::document',
+			functionName: 'Document::new',
 			label: '文書を作る',
 			what: 'パスとソース文字列を Document に入れ、大きさの上限を確かめる。構文木も解析結果もまだない。',
 			href: '/learn/kernel/pipeline#document',

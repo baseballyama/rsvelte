@@ -12,7 +12,6 @@ export const load = () => ({
 		part: 'kernel/computation/task/Part',
 		finishTask: 'kernel/computation/task/FinishTask',
 		taskOutput: 'kernel/computation/task/TaskOutput',
-		regDocument: 'kernel/computation/registry/Registry::document',
 		selected: 'kernel/computation/registry/Registry::selected',
 		checkTaskIds: 'kernel/computation/registry/Registry::check_task_identifiers',
 		runOptions: 'kernel/computation/pipeline/RunOptions',

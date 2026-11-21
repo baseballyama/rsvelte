@@ -24,8 +24,7 @@
 	<H2 id="document" />
 	<p>
 		<dfn>Document</dfn> はパスとテキストだけを持ちます。<code>#[non_exhaustive]</code>
-		なので、外からは
-		<code>Document::new</code> か <code>Registry::document</code>
+		なので、外からは <code>Document::new</code>
 		でしか作れません。そのため、長さの上限は必ず確かめられます（<a href="/learn/kernel/source#loc"
 			>02 章</a
 		>）。
@@ -38,11 +37,6 @@
 	<p>
 		カーネルは文書の言語を決めません。未知の拡張子や、拡張子のないパスも受け入れます。処理対象かどうかは、各プラグインがパスや内容から判断します。一つの文書を複数のタスクが処理でき、対象のタスクがなければ結果は空です。
 	</p>
-</div>
-
-<Code item={data.code.regDocument} />
-
-<div class="prose-learn">
 	<H2 id="tasks" />
 	<p>
 		<dfn>Task</dfn> は、文書一つで完結する処理です。コンパイル、整形、コード検査がそうです。<code

@@ -54,7 +54,7 @@ fn verify_finds_what_the_task_reports() {
     );
     let mut registry = Registry::new();
     crate::register(&mut registry);
-    let document = registry.document("A.svelte", SOURCE).expect("small");
+    let document = Document::new("A.svelte", SOURCE).expect("small");
     let result = run(
         &registry,
         &[document],
