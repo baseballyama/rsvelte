@@ -4,7 +4,6 @@
 
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::{Token, Tokens};
-use rsvelte_svelte_syntax::names::is_component_name;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TagAttributes, TemplateNode,
     TokenType,
@@ -19,11 +18,6 @@ pub(crate) fn lang_attribute<'a>(
     attributes
         .iter()
         .find(|(name, _)| name.text(source) == "lang")
-}
-
-/// `kind: "html"`: neither a component nor a `svelte:` element.
-pub(crate) fn is_markup(name: &str) -> bool {
-    !name.starts_with("svelte:") && !is_component_name(name)
 }
 
 /// A `SvelteAttribute`: `a`, `a="…"` or `a={…}`. Not `{a}`, and not a
