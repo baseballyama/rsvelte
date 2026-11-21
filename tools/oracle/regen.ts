@@ -5,7 +5,7 @@
 import os from 'node:os';
 import { Worker } from 'node:worker_threads';
 import fs from 'node:fs';
-import { createRequire } from 'node:module';
+import { findPackageJSON } from 'node:module';
 import { parseArgs } from 'node:util';
 import { TASKS, taskById } from './tasks.ts';
 import { allUnits, unitKey, writes } from './manifest.ts';
@@ -15,8 +15,12 @@ import { readPack, writePack, type Entry } from './pack.ts';
 import { writeIfChanged, stableStringify } from './files.ts';
 import type { Job, JobResult } from './regen-worker.ts';
 
-const require = createRequire(import.meta.url);
-const packageVersion = (name: string): string => require(`${name}/package.json`).version;
+// Some packages do not export their `package.json`, so it is found, not imported.
+const packageVersion = (name: string): string => {
+	const file = findPackageJSON(name, import.meta.url);
+	if (file === undefined) throw new Error(`${name} is not installed`);
+	return JSON.parse(fs.readFileSync(file, 'utf8')).version;
+};
 
 export interface RegenOptions {
 	taskIds?: string[];

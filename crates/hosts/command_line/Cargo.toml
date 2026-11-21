@@ -52,6 +52,7 @@ globset.workspace = true
 json-strip-comments.workspace = true
 
 [dev-dependencies]
+rsvelte_stylesheet_format.workspace = true
 rsvelte_svelte_syntax.workspace = true
 rsvelte_svelte_semantic.workspace = true
 rsvelte_typescript_tree.workspace = true

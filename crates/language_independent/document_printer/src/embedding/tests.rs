@@ -10,7 +10,7 @@ use crate::LayoutInstructions;
 #[test]
 fn a_part_that_ends_with_a_hard_line_takes_the_document_line_after_it() {
     let allocator = Allocator::default();
-    let mut embedding = Embedding::new(&allocator, CoreFormatOptions::default());
+    let mut embedding = Embedding::new(&allocator, CoreFormatOptions::default(), None);
     let context = Context {
         options: embedding.options(),
     };

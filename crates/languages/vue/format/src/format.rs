@@ -53,7 +53,7 @@ pub(crate) fn format(
         source_text,
         tree: &tree,
         docs: &mut docs,
-        embedding: Embedding::new(&allocator, core),
+        embedding: Embedding::new(&allocator, core, None),
         options: JsFormatOptions {
             line_width: core.line_width,
             ..JsFormatOptions::default()

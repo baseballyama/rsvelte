@@ -34,12 +34,9 @@ fn a_value_the_formatter_cannot_print_is_named() {
 
 #[test]
 fn names_lists_every_option() {
-    for name in NAMES {
-        let json = format!("{{\"{name}\": null}}");
-        let error = serde_json::from_str::<Options>(&json).expect_err("null is no value");
-        assert!(
-            !error.to_string().contains("unknown field"),
-            "{name}: {error}"
-        );
-    }
+    let error = serde_json::from_str::<Options>(r#"{"x": 1}"#).expect_err("unknown");
+    let error = error.to_string();
+    let (_, expected) = error.split_once("expected one of ").expect("the fields");
+    let fields: Vec<&str> = expected.split('`').skip(1).step_by(2).collect();
+    assert_eq!(fields, NAMES);
 }

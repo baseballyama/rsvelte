@@ -68,7 +68,7 @@
 	</p>
 </div>
 
-<Code item={data.code.format} mark={['.map_err(|u| u.diagnostic(']} />
+<Code item={data.code.format} mark={['Failure::Unsupported(u) => u.diagnostic(']} />
 
 <div class="prose-learn">
 	<p>

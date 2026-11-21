@@ -75,6 +75,42 @@ impl Task for LegacyComponent {
     }
 }
 
+/// `svelte.format/default` with the oracle's Tailwind CSS (`tools/oracle/tasks/svelte-format.ts`).
+#[derive(Debug)]
+struct TailwindFormat(rsvelte_svelte_format::Format);
+
+impl TailwindFormat {
+    fn new(packages: &NodePackages) -> Self {
+        let tailwind = rsvelte_stylesheet_format::tailwind::Options {
+            stylesheet: Some("tasks/tailwind.css".into()),
+            functions: ["clsx", "cn", "cva", "tv"].map(str::to_owned).to_vec(),
+            ..rsvelte_stylesheet_format::tailwind::Options::default()
+        };
+        let sorter =
+            rsvelte_stylesheet_format::tailwind::Sorter::start(&tailwind, packages.directory())
+                .unwrap_or_else(|error| panic!("{error}"));
+        let options = rsvelte_svelte_format::Options {
+            sort_tailwindcss: Some(tailwind),
+            ..rsvelte_svelte_format::Options::default()
+        };
+        Self(rsvelte_svelte_format::Format::new(options, Some(sorter)))
+    }
+}
+
+impl Task for TailwindFormat {
+    fn identifier(&self) -> &'static str {
+        "svelte.format/tailwind"
+    }
+
+    fn applies(&self, document: &Document) -> bool {
+        self.0.applies(document)
+    }
+
+    fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
+        self.0.run(context, out);
+    }
+}
+
 /// Counts what the projection and the type check cover, and keeps every projection that is not
 /// valid TypeScript, which fails the test.
 #[derive(Debug)]
@@ -365,6 +401,7 @@ fn main() -> ExitCode {
     );
     rsvelte_svelte_typescript_projection::register(&mut registry);
     rsvelte_svelte_check::register(&mut registry, &typecheck);
+    registry.task(TailwindFormat::new(&packages));
     registry.task(CountCoverage(Arc::clone(&coverage)));
     registry.task(LegacyComponent);
     let result = compared(rsvelte_corpus::Conformance::new("svelte", registry)).run();
@@ -440,6 +477,7 @@ fn compared(conformance: rsvelte_corpus::Conformance) -> rsvelte_corpus::Conform
         .compare("svelte.compileModule/client")
         .compare("svelte.compileModule/server")
         .compare("svelte.format/default")
+        .compare("svelte.format/tailwind")
         .compare("svelte.lint/default")
         .compare("svelte.check/default")
         .compare_comments("svelte.compile.comments/client", "svelte.compile/client")

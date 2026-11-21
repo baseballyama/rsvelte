@@ -32,6 +32,7 @@ rsvelte_typescript_semantic = { path = "crates/languages/typescript/semantic" }
 rsvelte_stylesheet_syntax = { path = "crates/languages/css/syntax" }
 rsvelte_stylesheet_semantic = { path = "crates/languages/css/semantic" }
 rsvelte_stylesheet_compile = { path = "crates/languages/css/compile" }
+rsvelte_stylesheet_format = { path = "crates/languages/css/format" }
 rsvelte_svelte_syntax = { path = "crates/languages/svelte/syntax" }
 rsvelte_svelte_semantic = { path = "crates/languages/svelte/semantic" }
 rsvelte_markup_syntax = { path = "crates/languages/html/syntax" }

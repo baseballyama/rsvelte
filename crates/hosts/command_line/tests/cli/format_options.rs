@@ -3,6 +3,8 @@
 
 use std::process::{Command, Output};
 
+use rsvelte_test_harness::NodePackages;
+
 use crate::Scratch;
 
 struct Project(Scratch);
@@ -37,6 +39,50 @@ fn format_follows_the_projects_formatter_configuration() {
     let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
     assert_eq!(read("a.ts"), "if (x) {\n    y(\"z\");\n}\n");
     assert_eq!(read("App.svelte"), "<script>\n    let a = 1;\n</script>\n");
+}
+
+#[cfg(unix)]
+#[test]
+fn format_sorts_tailwind_classes_with_the_projects_plugin() {
+    let project = Project::new(&[
+        (
+            ".prettierrc.json",
+            r#"{"plugins":["prettier-plugin-svelte","prettier-plugin-tailwindcss"],
+                "tailwindFunctions":["cn"]}"#,
+        ),
+        ("a.ts", "cn(\"p-4 m-2\");\n"),
+        ("App.svelte", "<div class=\"p-4 m-2\"></div>\n"),
+    ]);
+    let packages = NodePackages::locate();
+    for package in ["prettier-plugin-tailwindcss", "tailwindcss"] {
+        let link = project.0.join("node_modules").join(package);
+        std::fs::create_dir_all(link.parent().expect("node_modules")).expect("directory");
+        std::os::unix::fs::symlink(packages.package(package), link).expect("link");
+    }
+    let output = project.rsvelte(&["format"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(read("a.ts"), "cn(\"m-2 p-4\");\n");
+    assert_eq!(read("App.svelte"), "<div class=\"m-2 p-4\"></div>\n");
+}
+
+#[test]
+fn format_without_the_tailwind_plugin_says_what_to_install() {
+    let project = Project::new(&[
+        (".oxfmtrc.json", r#"{"sortTailwindcss":true}"#),
+        ("App.svelte", "<div class=\"p-4 m-2\"></div>\n"),
+    ]);
+    let output = project.rsvelte(&["format"]);
+    let stderr = text(&output.stderr);
+    assert_eq!(output.status.code(), Some(2), "{stderr}");
+    assert!(
+        stderr.contains("npm install -D prettier-plugin-tailwindcss"),
+        "{stderr}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(project.0.join("App.svelte")).expect("file"),
+        "<div class=\"p-4 m-2\"></div>\n"
+    );
 }
 
 #[test]

@@ -1,12 +1,16 @@
+use std::sync::Arc;
+
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_stylesheet_format::tailwind::Sorter;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 
 use crate::Options;
+use crate::printer::{Failure, Tailwind};
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.format",
@@ -24,22 +28,34 @@ pub static PLUGIN: Plugin = Plugin {
 };
 
 pub fn register(registry: &mut Registry) {
-    register_with_options(registry, Options::default());
+    register_with_options(registry, Options::default(), None);
 }
 
-pub fn register_with_options(registry: &mut Registry, options: Options) {
+/// `tailwind` sorts the Tailwind CSS classes; `options.sort_tailwindcss` says where they are.
+pub fn register_with_options(
+    registry: &mut Registry,
+    options: Options,
+    tailwind: Option<Arc<Sorter>>,
+) {
     registry.plugin(&PLUGIN);
     rsvelte_svelte_semantic::register(registry);
-    registry.task(Format { options });
+    registry.task(Format::new(options, tailwind));
 }
 
 #[derive(Debug)]
 pub struct Format {
     options: Options,
+    tailwind: Option<Arc<Sorter>>,
 }
 
 impl Format {
     pub const IDENTIFIER: &'static str = "svelte.format/default";
+
+    /// The task [`register_with_options`] registers.
+    #[must_use]
+    pub const fn new(options: Options, tailwind: Option<Arc<Sorter>>) -> Self {
+        Self { options, tailwind }
+    }
 }
 
 impl Task for Format {
@@ -71,7 +87,11 @@ impl Task for Format {
             own = crate::printer::first_module_syntax_error(c, context.source_text());
             own.as_ref()
         };
-        match formatted(c, context.source_text(), &self.options, rejected) {
+        let file = (self.tailwind.as_ref()).map(|sorter| sorter.file_of(context.document));
+        let tailwind = (self.tailwind.as_ref())
+            .zip(file.as_deref())
+            .map(|(sorter, file)| Tailwind { sorter, file });
+        match formatted(c, context.source_text(), &self.options, rejected, tailwind) {
             Ok(text) => out.file("svelte", text),
             Err(diagnostic) => out.diagnostics.push(diagnostic),
         }
@@ -86,7 +106,7 @@ impl Task for Format {
 pub fn format(source_text: &str, options: &Options) -> Result<String, Diagnostic> {
     let component = crate::printer::parsed(source_text)?;
     let rejected = crate::printer::first_module_syntax_error(&component, source_text);
-    formatted(&component, source_text, options, rejected.as_ref())
+    formatted(&component, source_text, options, rejected.as_ref(), None)
 }
 
 fn formatted(
@@ -94,9 +114,18 @@ fn formatted(
     source_text: &str,
     options: &Options,
     rejected: Option<&rsvelte_typescript_tree::SyntaxError>,
+    tailwind: Option<Tailwind<'_>>,
 ) -> Result<String, Diagnostic> {
-    crate::printer::print_component(component, source_text, options, rejected)
-        .map_err(|u| u.diagnostic("format_unsupported", Some("the formatter")))
+    crate::printer::print_component(component, source_text, options, rejected, tailwind).map_err(
+        |failure| match failure {
+            Failure::Unsupported(u) => u.diagnostic("format_unsupported", Some("the formatter")),
+            Failure::Tailwind(error) => Diagnostic::error(
+                "format_tailwind",
+                error,
+                rsvelte_kernel::source::positions::Span::new(0, 0),
+            ),
+        },
+    )
 }
 
 #[cfg(test)]

@@ -1294,6 +1294,7 @@ dependencies = [
  "rsvelte_kernel",
  "rsvelte_lint_runner",
  "rsvelte_plugin_interface",
+ "rsvelte_stylesheet_format",
  "rsvelte_svelte_check",
  "rsvelte_svelte_compile",
  "rsvelte_svelte_format",
@@ -1414,6 +1415,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_stylesheet_format"
+version = "0.2.5"
+dependencies = [
+ "oxc_formatter",
+ "oxc_formatter_core",
+ "rsvelte_kernel",
+ "rsvelte_test_harness",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rsvelte_stylesheet_semantic"
 version = "0.2.5"
 dependencies = [
@@ -1492,6 +1505,7 @@ dependencies = [
  "rsvelte_kernel",
  "rsvelte_markup_syntax",
  "rsvelte_plugin_interface",
+ "rsvelte_stylesheet_format",
  "rsvelte_stylesheet_syntax",
  "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
@@ -1702,6 +1716,8 @@ dependencies = [
  "oxc_formatter_core",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
+ "rsvelte_stylesheet_format",
+ "rsvelte_test_harness",
  "rsvelte_typescript_tree",
  "serde",
  "serde_json",
