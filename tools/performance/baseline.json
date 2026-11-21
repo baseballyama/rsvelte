@@ -24,7 +24,7 @@
 		]
 	},
 	"allocs": 25320895,
-	"alloc_bytes": 4034926803,
+	"alloc_bytes": 4034238571,
 	"peak_live_growth_bytes": 3262213,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -50,7 +50,7 @@
 		"svelte.compile.warnings": {
 			"calls": 73792,
 			"allocs": 627152,
-			"alloc_bytes": 58624395
+			"alloc_bytes": 57936739
 		},
 		"svelte.compile/client": {
 			"calls": 36896,
@@ -195,7 +195,7 @@
 		"svelte/block-lang": {
 			"calls": 8,
 			"allocs": 91,
-			"alloc_bytes": 8177
+			"alloc_bytes": 7601
 		},
 		"svelte/button-has-type": {
 			"calls": 34926,
