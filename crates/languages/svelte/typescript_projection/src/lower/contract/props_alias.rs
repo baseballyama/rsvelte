@@ -2,8 +2,7 @@
 //! what TypeScript finds in it is reported once.
 
 use oxc_ast::ast::{TSType, TSTypeAnnotation};
-use oxc_span::GetSpan;
-use rsvelte_typescript_tree::document_span;
+use rsvelte_typescript_tree::{document_span, node_span};
 
 use super::super::{Buffer, Builder, Node, NodeIdentifier, Span};
 use super::Edit;
@@ -23,7 +22,7 @@ impl PropsAnnotation {
     pub(in super::super) fn of(annotation: &TSTypeAnnotation<'_>) -> Self {
         Self {
             whole: document_span(annotation.span),
-            value: document_span(annotation.type_annotation.span()),
+            value: node_span(&annotation.type_annotation),
             reference: matches!(annotation.type_annotation, TSType::TSTypeReference(_)),
         }
     }

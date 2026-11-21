@@ -3,9 +3,8 @@
 
 use oxc_ast::ast::{Program, TSTypeAssertion};
 use oxc_ast_visit::{Visit, walk};
-use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_tree::document_span;
+use rsvelte_typescript_tree::{document_span, node_span};
 
 use super::Builder;
 use super::contract::Edit;
@@ -25,8 +24,8 @@ impl Builder<'_> {
                 walk::walk_ts_type_assertion(self, it);
                 self.0.push((
                     document_span(it.span),
-                    document_span(it.type_annotation.span()),
-                    document_span(it.expression.span()),
+                    node_span(&it.type_annotation),
+                    node_span(&it.expression),
                 ));
             }
         }
