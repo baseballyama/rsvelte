@@ -25,6 +25,11 @@ npx @rsvelte/cli format
 npx @rsvelte/cli typecheck</code
 	></pre>
 
+<p>
+	<code>typecheck</code> には、型検査器（<a href={resolve('/guide') + '#typecheck'}>tsrs など</a
+	>）のインストールも必要です。
+</p>
+
 <div class="cards">
 	<div>
 		<h3><code>lint</code></h3>

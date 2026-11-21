@@ -123,10 +123,11 @@
 </p>
 
 <p>
-	読むのは現在のディレクトリの <code>tsconfig.json</code> です。<a href="#config">設定ファイル</a>で
-	<code>typescript.check</code> を設定したときは、その <code>tsconfig</code>
-	を読みます。省くと、設定ファイルと同じディレクトリの
-	<code>tsconfig.json</code> を読みます。
+	<a href="#config">設定ファイル</a>に <code>typescript.check</code>
+	がなければ、現在のディレクトリの
+	<code>tsconfig.json</code> を読みます。あれば、その <code>tsconfig</code>
+	で指定したファイルを読みます。指定がなければ、設定ファイルと同じディレクトリの
+	<code>tsconfig.json</code> です。
 </p>
 
 <p>
@@ -191,8 +192,8 @@ npm install --save-dev @typescript/native-preview   # 7.1 以降`}</code
 </table>
 
 <p>
-	<code>rules</code>
-	を書くと、既定のルールは使われず、書いたルールだけが動きます。設定の中のパスは、設定ファイルのディレクトリを基準にします。知らないキーはエラーになります。全項目は<a
+	キーの下に <code>rules</code>
+	を書くと、そのキーの既定のルールは使われず、書いたルールだけが動きます。設定の中のパスは、設定ファイルのディレクトリを基準にします。知らないキーはエラーになります。全項目は<a
 		href="https://github.com/baseballyama/rsvelte/blob/main/crates/hosts/configuration_loading/README.md"
 		>設定の説明</a
 	>（英語）にあります。
@@ -244,9 +245,9 @@ export default [
 	<code>flat/all</code> は開発中（<code>nursery</code>）以外の全ルールを、<code
 		>flat/recommended</code
 	>
-	は <code>correctness</code> のルールだけを無効にします。rsvelte
-	で動かしていないルールも無効にするため、無効にしたルールは
-	<code>rsvelte.config.json</code> で有効にしてください。
+	は <code>correctness</code>（<a href={resolve('/rules') + '#correctness'}>分類</a
+	>）のルールだけを無効にします。rsvelte で動かしていないルールも ESLint
+	側では無効になります。ESLint で無効にしたルールは、すべて <code>rsvelte.config.json</code> で有効にしてください。
 </p>
 
 <p>スクリプトでは rsvelte を先に動かします：<code>"lint": "rsvelte lint && eslint"</code></p>
