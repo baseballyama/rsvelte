@@ -3,6 +3,7 @@
 pub(crate) mod printer;
 
 pub mod options;
+pub mod tailwind;
 pub use options::{Options, unported};
 
 mod task;

@@ -4,7 +4,7 @@ use serde_json::json;
 use super::*;
 
 fn format(source_text: &str, options: &Value) -> Result<String, String> {
-    Svelte.format(source_text, options, &JsFormatOptions::default())
+    Svelte(tailwind::Tailwind::default()).format(source_text, options, &JsFormatOptions::default())
 }
 
 #[test]
@@ -35,19 +35,12 @@ fn a_value_the_svelte_formatter_does_not_print_is_an_error() {
 
 #[test]
 fn an_option_oxfmt_would_apply_to_a_svelte_file_and_the_formatter_does_not_is_an_error() {
-    for (options, name) in [
-        (
-            json!({ "printWidth": 80, "_useTailwindPlugin": 1, "tailwindFunctions": ["cn"] }),
-            "`sortTailwindcss`",
-        ),
-        (
-            json!({ "printWidth": 80, "astroAllowShorthand": true }),
-            "`astroAllowShorthand`",
-        ),
-    ] {
-        let error = format("<p>a</p>\n", &options).unwrap_err();
-        assert!(error.contains(name), "{error}");
-    }
+    let error = format(
+        "<p>a</p>\n",
+        &json!({ "printWidth": 80, "astroAllowShorthand": true }),
+    )
+    .unwrap_err();
+    assert!(error.contains("`astroAllowShorthand`"), "{error}");
 }
 
 #[test]
@@ -69,7 +62,7 @@ function f(x) {}
         jsdoc: Some(JsdocOptions::default()),
         ..JsFormatOptions::default()
     };
-    let formatted = Svelte
+    let formatted = Svelte(tailwind::Tailwind::default())
         .format(source, &json!({ "printWidth": 80 }), &javascript)
         .unwrap();
     assert_eq!(

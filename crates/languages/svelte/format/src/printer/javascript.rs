@@ -104,6 +104,7 @@ impl<'x> Printer<'_, '_, 'x> {
         if part != Part::Script {
             options.sort_imports = None;
             options.jsdoc = None;
+            options.sort_tailwindcss = None;
         }
         if single_quote {
             options.quote_style = QuoteStyle::Single;

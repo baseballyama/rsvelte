@@ -4,9 +4,11 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 
 use crate::Options;
+use crate::tailwind::Tailwind;
 
 static PLUGIN: Plugin = Plugin {
     identifier: "svelte.format",
@@ -83,9 +85,25 @@ impl Task for Format {
 ///
 /// The parse error, or the first construct the formatter does not handle yet.
 pub fn format(source_text: &str, options: &Options) -> Result<String, Diagnostic> {
-    let component = crate::printer::parsed(source_text)?;
+    let mut component = crate::printer::parsed(source_text)?;
+    // The plugin sorts the classes of the tree it parsed, and prints the sorted tree.
+    let sorted = match &options.tailwind {
+        Some(tailwind) => crate::tailwind::sorted(&component, source_text, tailwind)
+            .map_err(|error| Diagnostic::error("format_tailwind", error, Span::new(0, 0)))?,
+        None => None,
+    };
+    let source_text = match &sorted {
+        Some(sorted) => {
+            component = crate::printer::parsed(sorted)?;
+            sorted
+        }
+        None => source_text,
+    };
     let rejected = crate::printer::first_module_syntax_error(&component, source_text);
-    formatted(&component, source_text, options, rejected.as_ref())
+    let formatted = formatted(&component, source_text, options, rejected.as_ref())?;
+    (options.tailwind.as_ref().and_then(Tailwind::take_failure)).map_or(Ok(formatted), |error| {
+        Err(Diagnostic::error("format_tailwind", error, Span::new(0, 0)))
+    })
 }
 
 fn formatted(

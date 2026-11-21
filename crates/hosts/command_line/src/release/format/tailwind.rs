@@ -3,13 +3,16 @@
 
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
-use std::sync::{Mutex, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use oxfmt::HostTailwindSorter;
+use rsvelte_svelte_format::tailwind::ClassSorter;
 use serde_json::{Value, json};
 
-/// Reads one request per line, `{ options, classes }`, and answers each with one line,
-/// `{ sorted }` or `{ error }`. It sorts as oxfmt's `sortTailwindClasses` does.
+/// Reads one request per line, `{ options, classes }` or `{ options, lists }`, and answers each
+/// with one line, `{ sorted }` or `{ error }`. It sorts `classes` as oxfmt's `sortTailwindClasses`
+/// does, and gives each of `lists` in Tailwind CSS's order with whether Tailwind CSS knows each
+/// class, as `[class, known]`.
 const SORTER: &str = r#"
 import { createInterface } from "node:readline";
 import { createRequire } from "node:module";
@@ -35,7 +38,7 @@ function load(filepath) {
 }
 
 for await (const line of createInterface({ input: process.stdin })) {
-	const { options, classes } = JSON.parse(line);
+	const { options, classes, lists } = JSON.parse(line);
 	let answer;
 	try {
 		const { createSorter } = await load(options.filepath);
@@ -47,9 +50,23 @@ for await (const line of createInterface({ input: process.stdin })) {
 			preserveDuplicates: options.tailwindPreserveDuplicates,
 		};
 		// One sorter per project and settings: creating one loads the project's Tailwind CSS.
-		const key = JSON.stringify(settings);
-		if (!sorters.has(key)) sorters.set(key, createSorter(settings));
-		answer = { sorted: (await sorters.get(key)).sortClassAttributes(classes) };
+		const sorter = (settings) => {
+			const key = JSON.stringify(settings);
+			if (!sorters.has(key)) sorters.set(key, createSorter(settings));
+			return sorters.get(key);
+		};
+		if (classes) {
+			answer = { sorted: (await sorter(settings)).sortClassAttributes(classes) };
+		} else {
+			const ordered = (await sorter({ ...settings, preserveDuplicates: true })).sortClassLists(lists);
+			// A class Tailwind CSS knows is one the sorter removes the second of.
+			const distinct = [...new Set(lists.flat())];
+			const pairs = (await sorter({ ...settings, preserveDuplicates: false })).sortClassLists(
+				distinct.map((name) => [name, name]),
+			);
+			const known = new Map(distinct.map((name, i) => [name, pairs[i].length === 1]));
+			answer = { sorted: ordered.map((list) => list.map((name) => [name, known.get(name)])) };
+		}
 	} catch (error) {
 		answer = { error: String(error?.message ?? error) };
 	}
@@ -58,23 +75,53 @@ for await (const line of createInterface({ input: process.stdin })) {
 "#;
 
 /// The Node.js process, started at the first sort and shared by every file.
-#[derive(Default)]
-pub(super) struct Tailwind(Mutex<Option<Result<Process, String>>>);
+#[derive(Clone, Default)]
+pub(super) struct Tailwind(Arc<Mutex<Option<Result<Process, String>>>>);
 
-impl HostTailwindSorter for Tailwind {
-    fn sort(&self, options: &Value, classes: Vec<String>) -> Result<Vec<String>, String> {
+impl Tailwind {
+    /// The `sorted` answer to `request`, a request without its `options`.
+    fn ask(&self, options: &Value, mut request: Value) -> Result<Value, String> {
+        request["options"] = options.clone();
         let mut state = self.0.lock().unwrap_or_else(PoisonError::into_inner);
         let process = match state.get_or_insert_with(Process::start) {
             Ok(process) => process,
             Err(error) => return Err(error.clone()),
         };
-        let answer = process.ask(options, &classes).unwrap_or_else(|broken| {
+        let answer = process.ask(&request).unwrap_or_else(|broken| {
             let error = format!("the Node.js process sorting Tailwind CSS classes {broken}");
             *state = Some(Err(error.clone()));
             Err(error)
         });
         drop(state);
         answer
+    }
+}
+
+impl HostTailwindSorter for Tailwind {
+    fn sort(&self, options: &Value, classes: Vec<String>) -> Result<Vec<String>, String> {
+        let sorted = self.ask(options, json!({ "classes": classes }))?;
+        serde_json::from_value(sorted.clone())
+            .map_err(|error| format!("the Tailwind CSS sorter answered {sorted}: {error}"))
+    }
+}
+
+/// The sorter of one Svelte file, whose options name its project.
+pub(super) struct ForFile {
+    pub(super) tailwind: Tailwind,
+    pub(super) options: Value,
+}
+
+impl ClassSorter for ForFile {
+    fn sort(&self, lists: Vec<String>) -> Result<Vec<String>, String> {
+        self.tailwind.sort(&self.options, lists)
+    }
+
+    fn order(&self, lists: Vec<Vec<String>>) -> Result<Vec<Vec<(String, bool)>>, String> {
+        let sorted = self
+            .tailwind
+            .ask(&self.options, json!({ "lists": lists }))?;
+        serde_json::from_value(sorted.clone())
+            .map_err(|error| format!("the Tailwind CSS sorter answered {sorted}: {error}"))
     }
 }
 
@@ -105,12 +152,8 @@ impl Process {
     }
 
     /// The process's answer, or how the process broke.
-    fn ask(
-        &mut self,
-        options: &Value,
-        classes: &[String],
-    ) -> Result<Result<Vec<String>, String>, String> {
-        let mut request = json!({ "options": options, "classes": classes }).to_string();
+    fn ask(&mut self, request: &Value) -> Result<Result<Value, String>, String> {
+        let mut request = request.to_string();
         request.push('\n');
         let input = self.input.as_mut().ok_or("has no input")?;
         input
@@ -126,11 +169,7 @@ impl Process {
         let answer: Value =
             serde_json::from_str(&line).map_err(|error| format!("answered {line:?}: {error}"))?;
         Ok(match (&answer["sorted"], &answer["error"]) {
-            (Value::Array(sorted), _) => sorted
-                .iter()
-                .map(|list| list.as_str().map(str::to_owned))
-                .collect::<Option<_>>()
-                .ok_or_else(|| format!("the Tailwind CSS sorter answered {line:?}")),
+            (Value::Array(_), _) => Ok(answer["sorted"].clone()),
             (_, Value::String(error)) => Err(error.clone()),
             _ => Err(format!("the Tailwind CSS sorter answered {line:?}")),
         })
