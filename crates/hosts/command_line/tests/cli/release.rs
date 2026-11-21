@@ -40,7 +40,7 @@ fn help_and_version_succeed_and_a_development_command_is_unknown() {
     for arguments in [
         &["corpus", "."][..],
         &["check"],
-        &["lint", "--task", "x"],
+        &["--config", "x", "lint"],
         &[],
     ] {
         let output = project.rsvelte(arguments);
@@ -53,7 +53,7 @@ fn help_prints_the_guide_to_the_command_it_names() {
     let project = Project::new(&[]);
     let overview = text(&project.rsvelte(&["help"]).stdout);
     assert_eq!(overview, text(&project.rsvelte(&["--help"]).stdout));
-    for command in ["lint", "typecheck", "version"] {
+    for command in ["typecheck", "version"] {
         let usage = format!("Usage: rsvelte {command} ");
         for arguments in [
             &["help", command][..],
@@ -68,13 +68,15 @@ fn help_prints_the_guide_to_the_command_it_names() {
             assert!(guide.starts_with(&usage), "{arguments:?}: {guide}");
         }
     }
-    // `format` takes oxfmt's arguments, so its guide is oxfmt's help.
-    let oxfmt = text(&project.rsvelte(&["format", "--help"]).stdout);
-    assert!(oxfmt.contains("rsvelte format"), "{oxfmt}");
-    for arguments in [&["help", "format"][..], &["-h", "format"]] {
-        let output = project.rsvelte(arguments);
-        assert_eq!(output.status.code(), Some(0), "{arguments:?}");
-        assert_eq!(text(&output.stdout), oxfmt, "{arguments:?}");
+    // `format` and `lint` take oxfmt's and oxlint's arguments, so their guides are their help.
+    for command in ["format", "lint"] {
+        let own = text(&project.rsvelte(&[command, "--help"]).stdout);
+        assert!(own.contains(&format!("rsvelte {command}")), "{own}");
+        for arguments in [&["help", command][..], &["-h", command]] {
+            let output = project.rsvelte(arguments);
+            assert_eq!(output.status.code(), Some(0), "{arguments:?}");
+            assert_eq!(text(&output.stdout), own, "{arguments:?}");
+        }
     }
     for arguments in [&["help", "help"][..], &["help", "--help"]] {
         let guide = text(&project.rsvelte(arguments).stdout);
@@ -86,30 +88,55 @@ fn help_prints_the_guide_to_the_command_it_names() {
     let unknown = project.rsvelte(&["help", "check"]);
     assert_eq!(unknown.status.code(), Some(2));
     assert!(text(&unknown.stderr).contains("unknown command `check`"));
-    let extra = project.rsvelte(&["help", "lint", "src"]);
+    let extra = project.rsvelte(&["help", "typecheck", "src"]);
     assert_eq!(extra.status.code(), Some(2));
-    let guide = text(&project.rsvelte(&["help", "lint", "-V", "--bogus"]).stdout);
-    assert!(guide.starts_with("Usage: rsvelte lint "), "{guide}");
+    let guide = text(
+        &project
+            .rsvelte(&["help", "typecheck", "-V", "--bogus"])
+            .stdout,
+    );
+    assert!(guide.starts_with("Usage: rsvelte typecheck "), "{guide}");
     // An option's value is not a request for help.
-    let lint = project.rsvelte(&["lint", "--config-runtime-arg", "-h"]);
-    assert!(!text(&lint.stdout).contains("Usage:"));
+    let typecheck = project.rsvelte(&["typecheck", "--config-runtime-arg", "-h"]);
+    assert!(!text(&typecheck.stdout).contains("Usage:"));
 }
 
 #[test]
-fn lint_reads_svelte_and_typescript_and_not_vue() {
+fn lint_is_oxlint_with_svelte_files_linted_natively() {
     let project = Project::new(&[
         ("a.ts", "const unused = 1\n"),
-        ("B.svelte", "<script>\n\tlet unused = 1;\n</script>\n"),
-        ("C.vue", "<script setup>\nconst unused = 1\n</script>\n"),
+        (
+            "B.svelte",
+            "<script>\n\tlet unused = 1;\n</script>\n<button>x</button>\n",
+        ),
     ]);
-    let lint = project.rsvelte(&["lint"]);
+    // As oxlint, a run with warnings only succeeds unless warnings are denied.
+    let lint = project.rsvelte(&["lint", "-f", "unix"]);
     let report = text(&lint.stdout);
-    assert_eq!(lint.status.code(), Some(1), "{report}");
+    assert_eq!(lint.status.code(), Some(0), "{report}");
+    assert!(report.contains("a.ts:1:7:"), "{report}");
+    // The Svelte linter's no-unused-vars, which reads the template, and not oxlint's.
     assert!(
-        report.contains("a.ts") && report.contains("B.svelte"),
+        report.contains("B.svelte:2:6: 'unused' is assigned a value but never used."),
         "{report}"
     );
-    assert!(!report.contains("C.vue"), "{report}");
+    assert_eq!(report.matches("B.svelte").count(), 1, "{report}");
+    let denied = project.rsvelte(&["lint", "--deny-warnings"]);
+    assert_eq!(denied.status.code(), Some(1));
+    // A Svelte rule is configured as oxlint configures its own.
+    std::fs::write(
+        project.0.join(".oxlintrc.json"),
+        r#"{ "rules": { "svelte/button-has-type": "error", "no-unused-vars": "off" } }"#,
+    )
+    .unwrap();
+    let configured = project.rsvelte(&["lint", "-f", "unix"]);
+    let report = text(&configured.stdout);
+    assert_eq!(configured.status.code(), Some(1), "{report}");
+    assert!(
+        report.contains("B.svelte:4:1:") && report.contains("svelte(button-has-type)"),
+        "{report}"
+    );
+    assert!(!report.contains("unused"), "{report}");
 }
 
 #[test]

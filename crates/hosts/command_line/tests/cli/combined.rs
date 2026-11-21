@@ -18,6 +18,16 @@ fn text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }
 
+/// The lines of `report` in order, less oxlint's timing, which differs from run to run. oxlint
+/// prints the files in the order its threads finish them.
+fn lines(report: &str) -> Vec<&str> {
+    let mut lines: Vec<&str> = (report.lines())
+        .filter(|line| !line.starts_with("Finished in "))
+        .collect();
+    lines.sort_unstable();
+    lines
+}
+
 /// The exit code and the output of a run.
 fn run(directory: &Path, arguments: &[&str]) -> (Option<i32>, String) {
     let output = rsvelte(directory, arguments);
@@ -35,16 +45,24 @@ fn one_by_one(directory: &Path, runs: &[&[&str]]) -> (Option<i32>, String) {
     worst
 }
 
+/// Whether two runs exit and print alike, as [`lines`] compares their reports.
+#[track_caller]
+fn assert_same(actual: &(Option<i32>, String), expected: &(Option<i32>, String), what: &str) {
+    assert_eq!(actual.0, expected.0, "{what}: {}", actual.1);
+    assert_eq!(lines(&actual.1), lines(&expected.1), "{what}");
+}
+
 /// A project with a lint error and a type error in a component and in a script, and a component
 /// in `other` that only lint reads. The components' styles do not parse, and lint names the file
 /// in that message.
 fn project() -> Scratch {
     let config = crate::typecheck::typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
-    let mut config: serde_json::Value = serde_json::from_str(&config).expect("config");
-    config["plugins"]["svelte.lint"] =
-        serde_json::json!({ "rules": { "svelte/valid-style-parse": "error" } });
     Scratch::new(&[
-        ("rsvelte.config.json", &config.to_string()),
+        ("rsvelte.config.json", &config),
+        (
+            ".oxlintrc.json",
+            r#"{ "rules": { "svelte/valid-style-parse": "error" } }"#,
+        ),
         (
             "tsconfig.json",
             r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler",
@@ -74,10 +92,15 @@ fn lint_and_typecheck_print_and_exit_as_they_do_one_by_one() {
     let project = project();
     let expected = one_by_one(&project, &[&["lint"], &["typecheck"]]);
     assert_eq!(expected.0, Some(1));
-    for needle in ["./src/App.svelte:2:20", "Only.svelte", "src/wrong.ts(2,14)"] {
+    for needle in [
+        "[src/App.svelte:",
+        "[other/Only.svelte:",
+        "src/wrong.ts(2,14)",
+    ] {
         assert!(expected.1.contains(needle), "{needle}: {}", expected.1);
     }
-    // A configuration that discovery does not find, so only `--config` names it.
+    // A configuration that discovery does not find, so only `--config` names it. `lint` followed by
+    // an option takes oxlint's arguments, so the option goes after the commands or before them.
     std::fs::rename(
         project.join("rsvelte.config.json"),
         project.join("custom.json"),
@@ -87,9 +110,12 @@ fn lint_and_typecheck_print_and_exit_as_they_do_one_by_one() {
         &["lint", "typecheck", "--config", "custom.json"][..],
         &["typecheck", "lint", "--config", "custom.json"],
         &["--config", "custom.json", "lint", "typecheck"],
-        &["lint", "--config", "custom.json", "typecheck"],
     ] {
-        assert_eq!(run(&project, combined), expected, "{combined:?}");
+        assert_same(
+            &run(&project, combined),
+            &expected,
+            &format!("{combined:?}"),
+        );
     }
     std::fs::rename(
         project.join("custom.json"),
@@ -98,7 +124,12 @@ fn lint_and_typecheck_print_and_exit_as_they_do_one_by_one() {
     .expect("rename");
     // Lint reads only `other`, so typecheck reads the project's files alone.
     let expected = one_by_one(&project, &[&["lint", "other"], &["typecheck"]]);
-    assert_eq!(run(&project, &["lint", "typecheck", "other"]), expected);
+    assert!(!expected.1.contains("[src/App.svelte:"), "{}", expected.1);
+    assert_same(
+        &run(&project, &["lint", "typecheck", "other"]),
+        &expected,
+        "other",
+    );
     let clean = "<script lang=\"ts\">\n\tconst n: number = 1;\n</script>\n\n{n}\n";
     std::fs::write(project.join("src/App.svelte"), clean).expect("component");
     std::fs::write(
@@ -107,9 +138,11 @@ fn lint_and_typecheck_print_and_exit_as_they_do_one_by_one() {
     )
     .expect("script");
     std::fs::remove_dir_all(project.join("other")).expect("other");
-    assert_eq!(
-        run(&project, &["lint", "typecheck"]),
-        (Some(0), String::new())
+    let (code, report) = run(&project, &["lint", "typecheck"]);
+    assert_eq!(code, Some(0), "{report}");
+    assert!(
+        report.contains("Found 0 warnings and 0 errors."),
+        "{report}"
     );
 }
 
@@ -121,7 +154,11 @@ fn typecheck_prints_the_problems_of_its_tsconfig_after_the_lint_report() {
     std::fs::write(project.join("tsconfig.json"), tsconfig).expect("tsconfig");
     let expected = one_by_one(&project, &[&["lint"], &["typecheck"]]);
     assert!(expected.1.contains("TS5023"), "{}", expected.1);
-    assert_eq!(run(&project, &["lint", "typecheck"]), expected);
+    assert_same(
+        &run(&project, &["lint", "typecheck"]),
+        &expected,
+        "tsconfig",
+    );
 }
 
 #[test]
@@ -140,11 +177,13 @@ fn format_runs_first_and_the_others_read_what_it_wrote() {
         let others = one_by_one(&project, alone);
         let (code, report) = run(&project, combined);
         assert_eq!(code, Some(1), "{combined:?}");
-        let formats = (report.strip_suffix(&others.1)).unwrap_or_else(|| panic!("{report}"));
-        assert!(
-            formats.contains("Format issues found"),
-            "{combined:?}: {report}"
-        );
+        let formatted = report.find("Format issues found").expect("format's report");
+        for line in lines(&others.1) {
+            assert!(
+                report[formatted..].contains(line),
+                "{combined:?} {line}: {report}"
+            );
+        }
     }
     // The paths go to `format` too: `other` is formatted.
     let (code, report) = run(&project, &["format", "lint", "other", "--check"]);
@@ -159,7 +198,9 @@ fn format_runs_first_and_the_others_read_what_it_wrote() {
     // Formatting moved the type error from line 5 to line 3, and the reports name line 3.
     let after = one_by_one(&project, &[&["lint"], &["typecheck"]]);
     assert!(after.1.contains("src/wrong.ts(3,14)"), "{}", after.1);
-    assert!(written.ends_with(&after.1), "{written}\n---\n{}", after.1);
+    for line in lines(&after.1) {
+        assert!(written.contains(line), "{line}: {written}");
+    }
 }
 
 #[test]
@@ -171,7 +212,6 @@ fn a_combined_run_refuses_what_it_cannot_run() {
             &["lint", "typecheck", "--check"],
             "--check applies to `format`",
         ),
-        (&["lint", "--check"], "--check applies to `format`"),
         (&["lint", "typecheck", "--bogus"], "unknown option --bogus"),
     ] {
         let output = rsvelte(&project, arguments);
@@ -183,13 +223,17 @@ fn a_combined_run_refuses_what_it_cannot_run() {
 
 #[test]
 fn a_command_that_cannot_install_does_not_stop_the_other() {
-    let project = Scratch::new(&[("A.svelte", "<script>\n\tlet unused = 1;\n</script>\n")]);
+    let project = Scratch::new(&[(
+        "A.svelte",
+        "<script>\n\tlet unused = 1;\n\tdebugger;\n</script>\n",
+    )]);
     let both = rsvelte(&project, &["lint", "typecheck"]);
     let lint = rsvelte(&project, &["lint"]);
     let typecheck = rsvelte(&project, &["typecheck"]);
-    assert_eq!(lint.status.code(), Some(1));
+    assert_eq!(lint.status.code(), Some(0));
+    assert!(text(&lint.stdout).contains("no-debugger"));
     assert_eq!(typecheck.status.code(), Some(2));
     assert_eq!(both.status.code(), Some(2));
-    assert_eq!(text(&both.stdout), text(&lint.stdout));
+    assert_eq!(lines(&text(&both.stdout)), lines(&text(&lint.stdout)));
     assert_eq!(text(&both.stderr), text(&typecheck.stderr));
 }

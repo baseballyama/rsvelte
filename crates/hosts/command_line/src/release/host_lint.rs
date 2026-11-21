@@ -41,8 +41,10 @@ pub(crate) fn lint(arguments: &[String]) -> ExitCode {
             return ExitCode::from(u8::try_from(failure.exit_code()).unwrap_or(2));
         }
     };
-    oxlint::cli::init_tracing();
-    command.handle_threads();
+    // oxfmt's, which set up tracing and the thread pool as oxlint's do: each tool guards only its
+    // own, and `rsvelte format lint` runs both in one process.
+    oxfmt::cli::init_tracing();
+    oxfmt::cli::init_rayon(command.misc_options.threads);
     let mut stdout = BufWriter::new(std::io::stdout());
     oxlint::cli::CliRunner::new(command, None)
         .with_hosts(vec![svelte()])
