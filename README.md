@@ -25,14 +25,15 @@ legacy components. For Svelte 4, use the official tools.
 
 ## Layout
 
-| Directory                           | What it holds                                                                 |
-| ----------------------------------- | ----------------------------------------------------------------------------- |
-| [`crates/`](crates/README.md)       | The Rust toolchain                                                            |
-| [`examples/`](examples/)            | An example plugin; it builds and is tested with the workspace                 |
-| [`corpus/`](corpus/README.md)       | Real files from open-source projects, and the official tools' output for them |
-| [`tools/`](tools/README.md)         | TypeScript tools: the fixture runner, the performance gate, …                 |
-| [`apps/cli/`](apps/cli/README.md)   | The `@rsvelte/cli` npm package: its user guide, command and changelog         |
-| [`apps/site/`](apps/site/README.md) | The project site, built with SvelteKit                                        |
+| Directory                                             | What it holds                                                                            |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| [`crates/`](crates/README.md)                         | The Rust toolchain                                                                       |
+| [`examples/`](examples/)                              | An example plugin; it builds and is tested with the workspace                            |
+| [`corpus/`](corpus/README.md)                         | Real files from open-source projects, and the official tools' output for them            |
+| [`tools/`](tools/README.md)                           | TypeScript tools: the fixture runner, the performance gate, …                            |
+| [`apps/cli/`](apps/cli/README.md)                     | The `@rsvelte/cli` npm package: its user guide, command and changelog                    |
+| [`apps/eslint-plugin/`](apps/eslint-plugin/README.md) | The `@rsvelte/eslint-plugin` npm package: turns off the ESLint rules `rsvelte lint` runs |
+| [`apps/site/`](apps/site/README.md)                   | The project site, built with SvelteKit                                                   |
 
 ## How it works
 
@@ -62,7 +63,7 @@ mise run lint                                     # clippy and rustdoc, every li
 mise run fmt                                      # rustfmt on the pinned nightly
 pnpm install && pnpm run check                    # TypeScript side: oxfmt, oxlint, knip, tsc, the English prose lint
 cargo test -p rsvelte_command_line --test corpus  # compare every corpus unit with the official tools' output
-node tools/oracle/oracle.ts run-all               # write rsvelte's output for every corpus unit to actual/
+node tools/oracle/oracle.ts run-all               # write rsvelte's output for every corpus unit to actual/, one file per output
 node tools/performance/performance.ts ratchet     # the performance gate
 cargo run -p rsvelte_command_line --bin rsvelte-dev -- run App.svelte --task svelte.compile/client
 ```

@@ -1,8 +1,9 @@
 //! The files one task leaves for one document.
 //!
-//! `rsvelte-dev corpus` and the test harness write them to a corpus unit's `actual/`:
-//! `<task>/<variant>.<file>`, and `<task>/<variant>.diagnostics.json` when the task reported
-//! diagnostics.
+//! `<variant>.<file>`, and `<variant>.diagnostics.json` when the task reported diagnostics.
+//! `rsvelte-dev corpus` writes them as loose files to `actual/<unit path>/<task>/`; the corpus
+//! test with `CORPUS_ACTUAL=1` writes them into `actual/<task>/<variant>.pack`, which lines up
+//! with `expected/`.
 
 use std::borrow::Cow;
 
