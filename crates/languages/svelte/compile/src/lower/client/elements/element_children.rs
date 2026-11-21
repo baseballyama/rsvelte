@@ -3,7 +3,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, Node
 
 use crate::lower::attributes::{is_customizable_select, lowercase};
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Frag, Lists, Prev, R};
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, NodeVar, Prev, R};
 use crate::render_plan::Item;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -11,7 +11,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn element_children(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         frag: &mut Frag<'o>,
         consts: Vec<Statement<'o>>,
     ) -> R<Lists<'o>> {
@@ -36,7 +36,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             let (value, _) = self.template_chunk(items, &mut frag.memo, false);
             let empty = matches!(&value, Expression::StringLiteral(s) if s.value.is_empty());
             if !empty {
-                let target = b.member(b.id(node), "textContent");
+                let target = b.member(node.id(b), "textContent");
                 child
                     .initializer
                     .push(b.statement(b.assign_member(target, value)));
@@ -52,7 +52,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             if content {
                 child
                     .initializer
-                    .push(b.statement(b.runtime("hydrate_template", [b.id(node)])));
+                    .push(b.statement(b.runtime("hydrate_template", [node.id(b)])));
             }
             let needs_reset = content
                 || items.iter().any(|i| match i {
@@ -74,7 +74,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             if needs_reset && !self.fold_reset_into_child(&mut child.initializer, node) {
                 child
                     .initializer
-                    .push(b.statement(b.runtime("reset", [b.id(node)])));
+                    .push(b.statement(b.runtime("reset", [node.id(b)])));
             }
         }
         Ok(child)
@@ -82,7 +82,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
 
     /// Upstream `fold_reset_into_child`: `var x = $.child(el)` + `$.reset(el)` →
     /// `$.only_child(el)`.
-    fn fold_reset_into_child(&self, initializer: &mut [Statement<'o>], node: &str) -> bool {
+    fn fold_reset_into_child(&self, initializer: &mut [Statement<'o>], node: &NodeVar) -> bool {
         let Some(Statement::VariableDeclaration(declaration)) = initializer.last_mut() else {
             return false;
         };
@@ -94,7 +94,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         let first_is_node = matches!(
             call.arguments.first(),
-            Some(Argument::Identifier(a)) if a.name == node
+            Some(Argument::Identifier(a)) if a.name == node.name()
         );
         let Expression::StaticMemberExpression(callee) = &mut call.callee else {
             return false;

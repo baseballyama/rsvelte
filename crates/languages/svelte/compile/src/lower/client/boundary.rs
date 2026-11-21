@@ -1,7 +1,7 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 
-use super::{ClientCompilationContext, Frag, Lists, R};
+use super::{ClientCompilationContext, Frag, Lists, NodeVar, R};
 use crate::lower::attributes::single_expression;
 use crate::lower::builder::Runtime;
 
@@ -9,7 +9,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn boundary(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         frag: &mut Frag<'o>,
         lists: &mut Lists<'o>,
     ) -> R<()> {
@@ -59,7 +59,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             matches!(kind, NodeKind::Snippet(_) | NodeKind::Const { .. })
         })?);
         let callback = b.arrow_block(b.parameters(["$$anchor"]), body, false);
-        let statement = b.statement(b.runtime("boundary", [b.id(node), props, callback]));
+        let statement = b.statement(b.runtime("boundary", [node.id(b), props, callback]));
         let statement = if declarations.is_empty() {
             statement
         } else {

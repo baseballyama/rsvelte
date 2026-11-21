@@ -249,3 +249,96 @@ fn the_template_rejects_a_dollar_name_where_the_walk_visits_its_declaration() {
         }
     }
 }
+
+#[test]
+fn a_var_declared_again_replaces_the_binding_upstream_checks() {
+    // What svelte 5.57.3 raises with `runes: true` and with `runes: false`, in bytes.
+    let cases = [
+        (
+            "<script>function f($q){ var $q = 1 }</script>",
+            Some(28),
+            None,
+        ),
+        (
+            "<script module>function f($q){ var $q = 1 }</script>",
+            Some(35),
+            Some(35),
+        ),
+        (
+            "<script>var $v = 1; var $v = 2</script>",
+            Some(12),
+            Some(12),
+        ),
+        (
+            "<script>function f(){ var $a = 1; var $a = 2 }</script>",
+            Some(38),
+            None,
+        ),
+        ("<script>function f($q){ var $q }</script>", Some(28), None),
+        (
+            "<script>function f(...$r){ var $r }</script>",
+            Some(31),
+            None,
+        ),
+        (
+            "<script>function f({ $d }){ var $d = 1 }</script>",
+            Some(32),
+            None,
+        ),
+        (
+            "<script>function f($q = 1){ var $q = 2 }</script>",
+            Some(32),
+            None,
+        ),
+        (
+            "<script>function g(){ function f($q){ var $q = 1 } }</script>",
+            Some(42),
+            None,
+        ),
+        (
+            "<script module>function g(){ function f($q){ var $q = 1 } }</script>",
+            Some(49),
+            None,
+        ),
+        (
+            "<script>function f($q){ function $q() {} }</script>",
+            Some(33),
+            None,
+        ),
+        ("<script>function f($q){ let x = $q }</script>", None, None),
+        ("{(($p) => { var $p = 1 })}", Some(16), None),
+        (
+            "{#snippet s($p)}{(() => { var $p = 1 })()}{/snippet}",
+            Some(30),
+            None,
+        ),
+    ];
+    let mut registry = Registry::new();
+    crate::register(&mut registry);
+    for (source, with_runes, without) in cases {
+        let document = Document::new("Test.svelte".to_owned(), source.to_owned()).expect("small");
+        let context = DocumentContext::new(&document, registry.artifacts());
+        let component = context.get::<Parsed>().as_ref().expect("parses");
+        let resolution = context.get::<Resolved>().as_ref().expect("resolves");
+        let instance = component.instance.as_ref().map(|script| script.program);
+        let module = component.module.as_ref().map(|script| script.program);
+        for (runes, expected) in [(true, with_runes), (false, without)] {
+            let errors = super::dollar_name_errors(
+                &component.javascript,
+                instance,
+                module,
+                resolution,
+                runes,
+            );
+            let raised: Vec<_> = errors
+                .iter()
+                .map(|(_, e)| (e.code.to_string(), e.span.start_offset))
+                .collect();
+            let expected: Vec<_> = expected
+                .map(|at| ("dollar_prefix_invalid".to_owned(), at))
+                .into_iter()
+                .collect();
+            assert_eq!(raised, expected, "{source} runes={runes}");
+        }
+    }
+}

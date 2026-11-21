@@ -7,7 +7,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_svelte_semantic::evaluate::Evaluator;
 
-use super::{ClientCompilationContext, Frag, Lists, Memo, R};
+use super::{ClientCompilationContext, Frag, Lists, Memo, NodeVar, R};
 use crate::input::Target;
 use crate::lower::builder::Runtime;
 use crate::lower::component::{
@@ -23,7 +23,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn component(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         standalone: bool,
         frag: &mut Frag<'o>,
         lists: &mut Lists<'o>,
@@ -92,9 +92,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         statements.extend(self.memo_deriveds(memo));
         // Upstream mounts a component with CSS custom properties in an element that holds them.
         let anchor = if custom_properties.is_empty() {
-            b.id(node)
+            node.id(b)
         } else {
-            b.member(b.id(node), "lastChild")
+            b.member(node.id(b), "lastChild")
         };
         let call = b.statement(self.instantiate(element, callee, intermediate, anchor, props));
         match self.mount(identifier, node, custom_properties, standalone, frag) {
@@ -120,7 +120,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     fn mount(
         &self,
         identifier: CompilerNodeIdentifier,
-        node: &str,
+        node: &NodeVar,
         custom_properties: Vec<ObjectPropertyKind<'o>>,
         standalone: bool,
         frag: &mut Frag<'o>,
@@ -143,8 +143,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             frag.tpl.pop_element();
             let properties = b.thunk(b.object(custom_properties));
             Some((
-                b.statement(b.runtime("css_props", [b.id(node), properties])),
-                b.statement(b.runtime("reset", [b.id(node)])),
+                b.statement(b.runtime("css_props", [node.id(b), properties])),
+                b.statement(b.runtime("reset", [node.id(b)])),
             ))
         }
     }

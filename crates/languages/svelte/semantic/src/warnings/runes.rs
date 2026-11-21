@@ -89,25 +89,24 @@ pub fn dollar_name_errors(
         if flags.intersects(erased) || !scoping.symbol_name(symbol).starts_with('$') {
             continue;
         }
-        let declaration = resolution.declaration(symbol);
-        let declaration_node = scoping.symbol_declaration(symbol);
-        let ancestors = || nodes.ancestor_kinds(declaration_node);
-        // A parameter's symbol is declared at the parameter node itself.
-        let is_parameter = std::iter::once(nodes.kind(declaration_node))
-            .chain(ancestors())
-            .any(|kind| {
-                matches!(
-                    kind,
-                    AstKind::FormalParameter(_) | AstKind::FormalParameterRest(_)
-                )
-            });
-        if is_parameter {
+        // Upstream declares a binding at each declaration and checks no parameter's name.
+        let declared = (
+            scoping.symbol_declaration(symbol),
+            scoping.symbol_span(symbol),
+        );
+        let redeclarations = scoping.symbol_redeclarations(symbol);
+        let checked = || {
+            (redeclarations.iter().map(|r| (r.declaration, r.span)))
+                .chain(redeclarations.is_empty().then_some(declared))
+                .filter(|&(node, _)| !is_parameter(nodes, node))
+        };
+        let Some(first) = checked().next() else {
             continue;
-        }
-        let at = document_span(scoping.symbol_span(symbol));
-        let section = if holds(module, at.start_offset) {
+        };
+        let first_at = document_span(first.1).start_offset;
+        let section = if holds(module, first_at) {
             Section::Module
-        } else if holds(instance, at.start_offset) {
+        } else if holds(instance, first_at) {
             Section::Instance
         } else {
             Section::Template
@@ -124,34 +123,38 @@ pub fn dollar_name_errors(
         // The walk checks function and class declarations and variable declarators, and visits
         // a `{@const}`'s declarator only through its id and value.
         let walked = runes
-            && match declaration {
+            && checked().any(|(node, _)| match nodes.kind(node) {
                 AstKind::Function(function) => function.is_declaration(),
                 AstKind::Class(class) => class.is_declaration(),
                 AstKind::VariableDeclarator(_) => {
                     resolution.binding(symbol).kind != BindingKind::Template
                 }
                 _ => false,
-            };
-        let phase = match section {
+            });
+        // Creating the scopes checks the first binding, the walk the one a `var` declared again
+        // left in its place.
+        let last = checked().next_back().unwrap_or(first);
+        let (phase, (_, span)) = match section {
             // Upstream's template scopes sit more than one function below the module's, out of
             // reach of the check creating the scopes makes.
-            Section::Template if walked => Phase::Walk,
+            Section::Template if walked => (Phase::Walk, last),
             Section::Template => continue,
             Section::Module | Section::Instance if flags.intersects(SymbolFlags::Enum) => {
-                Phase::Scopes
+                (Phase::Scopes, first)
             }
             Section::Module | Section::Instance => {
                 let depth = function_depth(resolution, scope, section == Section::Instance)
                     - u32::from(names_function_expression);
                 if depth <= 1 {
-                    Phase::Scopes
+                    (Phase::Scopes, first)
                 } else if walked {
-                    Phase::Walk
+                    (Phase::Walk, last)
                 } else {
                     continue;
                 }
             }
         };
+        let at = document_span(span);
         let raised = Raised {
             phase,
             section,
@@ -163,6 +166,19 @@ pub fn dollar_name_errors(
         out.push((raised, reserved(span, source)));
     }
     out
+}
+
+/// Whether the declaration at `node` is a parameter, whose symbol is declared at the parameter
+/// node itself.
+fn is_parameter(nodes: &oxc_semantic::AstNodes<'_>, node: oxc_semantic::NodeId) -> bool {
+    std::iter::once(nodes.kind(node))
+        .chain(nodes.ancestor_kinds(node))
+        .any(|kind| {
+            matches!(
+                kind,
+                AstKind::FormalParameter(_) | AstKind::FormalParameterRest(_)
+            )
+        })
 }
 
 /// Upstream's `function_depth` of a script's `scope`: the functions around it, and one more in
