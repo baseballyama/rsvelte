@@ -98,7 +98,7 @@ pub(super) fn script_setup<'o>(
         fields.push(b.property(b.key("props"), runtime.clone_in(b.allocator()), false));
     }
     let setup = b.function_expression(None, b.parameters(["__props"]), setup_body, false);
-    fields.push(out::method(b, "setup", setup));
+    fields.push(b.method("setup", setup));
     let defined = options.map(|o| o.clone_in(b.allocator()));
     let main = component_object(b, fields, defined, input.typescript);
     out.push(b.declare(VariableDeclarationKind::Const, "_sfc_main", Some(main)));

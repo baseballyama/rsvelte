@@ -136,7 +136,7 @@ pub(crate) fn compile(input: &CompileInput<'_>, res: &Resolution, path: &str) ->
         let pairs = attached.into_iter().map(|(k, v)| b.array([b.string(k), v]));
         out::pure_call(&b, b.id("_export_sfc"), [main, b.array(pairs)])
     };
-    body.push(out::export_default(&b, default));
+    body.push(b.export_default(default));
     let mut program = Program::new(
         SPAN,
         SourceType::mjs(),

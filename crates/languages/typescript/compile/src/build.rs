@@ -258,6 +258,21 @@ impl<'o> Builder<'o> {
         )
     }
 
+    /// `name(…) { … }`, from a function expression.
+    #[must_use]
+    pub fn method(&self, name: &str, function: Expression<'o>) -> ObjectPropertyKind<'o> {
+        ObjectPropertyKind::new_object_property(
+            SPAN,
+            PropertyKind::Init,
+            self.key(name),
+            function,
+            true,
+            false,
+            false,
+            self,
+        )
+    }
+
     #[must_use]
     pub fn unary(&self, operator: UnaryOperator, argument: Expression<'o>) -> Expression<'o> {
         Expression::new_unary_expression(SPAN, operator, argument, self)
@@ -366,6 +381,12 @@ impl<'o> Builder<'o> {
     #[must_use]
     pub fn return_(&self, argument: Option<Expression<'o>>) -> Statement<'o> {
         Statement::new_return_statement(SPAN, argument, self)
+    }
+
+    /// `export default value`.
+    #[must_use]
+    pub fn export_default(&self, value: Expression<'o>) -> Statement<'o> {
+        Statement::new_export_default_declaration(SPAN, value.into(), self)
     }
 
     /// `import { imported as local, … } from "source"`.
