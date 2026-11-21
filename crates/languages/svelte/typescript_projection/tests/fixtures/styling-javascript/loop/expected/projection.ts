@@ -10,7 +10,8 @@ function $$render() {
       });
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, string>} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_isomorphic<{ [x: string]: never }, { [evt: string]: CustomEvent<any> }, {}, string>} */ (__rsvelte_export_isomorphic))()({});
 }
-const Loop__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof Loop__SvelteComponent_>} */ (Loop__SvelteComponent_);
+export const Loop__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {InstanceType<typeof Loop__SvelteComponent_>} Loop__SvelteComponent_ */
+export default Loop__SvelteComponent_;

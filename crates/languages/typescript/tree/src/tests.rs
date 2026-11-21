@@ -339,13 +339,14 @@ fn skips_with_no_statement_between_are_one_hole() {
 fn a_token_the_lexer_cannot_finish_resumes_where_typescript_s_scanner_does() {
     let after = "let n = 1;\nexport function f() {}\n";
     let cases = [
-        // A string or a regular expression ends at the line terminator.
+        // A string ends at the line terminator.
         ("const s = 'abc;\n", SourceType::tsx(), "const s = 'abc;\n"),
-        ("const r = /abc;\n", SourceType::tsx(), "const r = /abc;\n"),
+        // A regular expression ends before the whitespace and `;` that end its line.
+        ("const r = /abc;\n", SourceType::tsx(), "const r = /abc"),
         (
             "const el = <b>x</b>;\n",
             SourceType::ts(),
-            "const el = <b>x</b>;\n",
+            "const el = <b>x</b>",
         ),
         // An invalid character is skipped alone.
         ("#;\n", SourceType::tsx(), "#"),
@@ -353,10 +354,10 @@ fn a_token_the_lexer_cannot_finish_resumes_where_typescript_s_scanner_does() {
     for (broken, source_type, hole) in cases {
         let source = format!("{broken}{after}");
         let (statements, holes, _) = read_with_holes_as(&source, source_type);
-        let rest: &[&str] = if broken == "#;\n" {
-            &[";", "let n = 1;", "export function f() {}"]
-        } else {
+        let rest: &[&str] = if broken.starts_with("const s") {
             &["let n = 1;", "export function f() {}"]
+        } else {
+            &[";", "let n = 1;", "export function f() {}"]
         };
         assert_eq!(statements, rest, "{broken:?}");
         assert_eq!(holes, [hole], "{broken:?}");
@@ -367,6 +368,37 @@ fn a_token_the_lexer_cannot_finish_resumes_where_typescript_s_scanner_does() {
         let (statements, ..) = read_with_holes(&source);
         assert_eq!(statements, Vec::<&str>::new(), "{broken:?}");
     }
+}
+
+#[test]
+fn an_unterminated_regular_expression_ends_where_typescript_s_rescan_ends_it() {
+    // The regular expression's end from TypeScript 6.0.3's `reScanSlashToken`, then the hole the
+    // statement leaves and the statement after it.
+    for (line, regular_expression, hole) in [
+        ("foo(/abc); let n = 1;", "/abc", &["foo(/abc)"][..]),
+        ("foo([/abc]); let n = 1;", "/abc", &["foo([/abc])"]),
+        ("foo(/a(b)c); let n = 1;", "/a(b)c", &["foo(/a(b)c)"]),
+        ("foo(/abc) ;  let n = 1;", "/abc", &["foo(/abc)"]),
+        ("foo(/a[)]c); let n = 1;", "/a[)]c", &["foo(/a[)]c)"]),
+        ("foo(/a{2)}b); let n = 1;", "/a{2)}b", &["foo(/a{2)}b)"]),
+        ("foo(/a\\)b); let n = 1;", "/a\\)b", &["foo(/a\\)b)"]),
+        // The `;` it leaves out is an empty statement.
+        ("foo(/a\u{3000};); let n = 1;", "/a", &["foo(/a", ")"]),
+    ] {
+        assert!(hole.concat().contains(regular_expression), "{line:?}");
+        let source = format!("{line}\nlet m = 2;\n");
+        let (statements, holes, _) = read_with_holes(&source);
+        assert_eq!(holes, hole, "{line:?}");
+        assert_eq!(statements.last(), Some(&"let m = 2;"), "{line:?}");
+        assert!(
+            statements.contains(&"let n = 1;"),
+            "{line:?}: {statements:?}"
+        );
+    }
+    // With no unbalanced bracket, it ends at the line terminator, without its last `;`.
+    let (statements, holes, _) = read_with_holes("/abc let n = 1;\nlet m = 2;\n");
+    assert_eq!(holes, ["/abc let n = 1"]);
+    assert_eq!(statements, [";", "let m = 2;"]);
 }
 
 #[test]

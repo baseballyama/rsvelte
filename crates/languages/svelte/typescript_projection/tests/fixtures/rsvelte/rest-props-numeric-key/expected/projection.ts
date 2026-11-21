@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { 7: seven, '8': eight, 1.5: half, a, ...rest } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { 7: seven, '8': eight, 1.5: half, a, ...rest } = $props();
 
 ;
 
@@ -20,5 +20,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }
-const RestPropsNumericKey__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof RestPropsNumericKey__SvelteComponent_>} */ (RestPropsNumericKey__SvelteComponent_);
+export const RestPropsNumericKey__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof RestPropsNumericKey__SvelteComponent_>} RestPropsNumericKey__SvelteComponent_ */
+export default RestPropsNumericKey__SvelteComponent_;

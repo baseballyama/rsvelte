@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { items = [], count = 2 } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { items = [], count = 2 } = $props();
 	let item = $state('outer');
 
 ;
@@ -47,5 +47,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }
-const EachWithoutAs__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof EachWithoutAs__SvelteComponent_>} */ (EachWithoutAs__SvelteComponent_);
+export const EachWithoutAs__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof EachWithoutAs__SvelteComponent_>} EachWithoutAs__SvelteComponent_ */
+export default EachWithoutAs__SvelteComponent_;

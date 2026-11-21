@@ -15,8 +15,8 @@ function $$render() {
       }
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
 }
 const EachAssertion__SvelteComponent_ = $$render();
-type EachAssertion__SvelteComponent_ = ReturnType<typeof EachAssertion__SvelteComponent_>;
+type EachAssertion__SvelteComponent_ = InstanceType<typeof EachAssertion__SvelteComponent_>;
 export default EachAssertion__SvelteComponent_;

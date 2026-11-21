@@ -6,7 +6,7 @@ import C from './C.svelte';;
 function $$render() {
   
 	
-	/** @type {typeof __rsvelte_public_props0} */ let { show = true, w = 1 } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { show = true, w = 1 } = $props();
 	let items = $state([1]);
 
 ;
@@ -60,5 +60,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }
-const CssPropsStandalone__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof CssPropsStandalone__SvelteComponent_>} */ (CssPropsStandalone__SvelteComponent_);
+export const CssPropsStandalone__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof CssPropsStandalone__SvelteComponent_>} CssPropsStandalone__SvelteComponent_ */
+export default CssPropsStandalone__SvelteComponent_;

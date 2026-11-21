@@ -32,7 +32,8 @@ function $$render() {
       1 ** Infinity;
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_component))();
 }
-const GlobalFunctionsFold__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof GlobalFunctionsFold__SvelteComponent_>} */ (GlobalFunctionsFold__SvelteComponent_);
+export const GlobalFunctionsFold__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof GlobalFunctionsFold__SvelteComponent_>} GlobalFunctionsFold__SvelteComponent_ */
+export default GlobalFunctionsFold__SvelteComponent_;

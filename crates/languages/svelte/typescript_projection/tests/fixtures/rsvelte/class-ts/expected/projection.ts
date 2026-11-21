@@ -25,7 +25,7 @@ function $$render() {
       level;
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<globalThis.Record<string, never>, {}, "">();
 }
 const ClassTs__SvelteComponent_ = $$render();
 type ClassTs__SvelteComponent_ = ReturnType<typeof ClassTs__SvelteComponent_>;

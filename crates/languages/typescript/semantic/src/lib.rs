@@ -2,6 +2,7 @@
 
 pub mod globals;
 pub mod number;
+pub mod property_key;
 pub mod reference_tracker;
 pub mod semantic;
 pub mod static_value;

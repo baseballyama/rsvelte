@@ -9,8 +9,8 @@ function $$render() {
       x;
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
 }
 const ByteOrderMark__SvelteComponent_ = $$render();
-type ByteOrderMark__SvelteComponent_ = ReturnType<typeof ByteOrderMark__SvelteComponent_>;
+type ByteOrderMark__SvelteComponent_ = InstanceType<typeof ByteOrderMark__SvelteComponent_>;
 export default ByteOrderMark__SvelteComponent_;

@@ -19,8 +19,8 @@ function $$render() {
       (fn!)();
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
 }
 const MemberThroughATypescriptCast__SvelteComponent_ = $$render();
-type MemberThroughATypescriptCast__SvelteComponent_ = ReturnType<typeof MemberThroughATypescriptCast__SvelteComponent_>;
+type MemberThroughATypescriptCast__SvelteComponent_ = InstanceType<typeof MemberThroughATypescriptCast__SvelteComponent_>;
 export default MemberThroughATypescriptCast__SvelteComponent_;

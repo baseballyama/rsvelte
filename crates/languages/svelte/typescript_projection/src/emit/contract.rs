@@ -8,7 +8,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Range;
 
 use super::Printer;
-use crate::syntax_tree::{Node, NodeIdentifier, TypeParameters};
+use crate::syntax_tree::{Instance, Node, NodeIdentifier, TypeParameters};
 
 impl Printer<'_> {
     pub(super) fn contract_node(&mut self, node: Node) {
@@ -60,6 +60,7 @@ impl Printer<'_> {
                 self.instantiated(callee, arguments);
             }
             Node::DeclaredType(value) => self.declared_type(value),
+            Node::CommentCast(comment) => self.comment_cast(comment),
             Node::TypeArguments { callee, arguments } => {
                 self.node(callee);
                 self.output.push("<");
@@ -71,12 +72,11 @@ impl Printer<'_> {
                 self.node(value);
             }
             Node::TypeLiteral(properties) => self.type_literal(properties),
-            Node::TypeProperty { name, value } => {
-                self.node(name);
-                self.output.push(": ");
-                self.node(value);
-                self.output.push(";\n");
-            }
+            Node::TypeProperty {
+                name,
+                value,
+                optional,
+            } => self.type_property(name, value, optional),
             Node::TypeUnion(parts) => self.separated(parts, " | "),
             Node::NamedProperty { name, value } => {
                 self.node(name);
@@ -103,7 +103,10 @@ impl Printer<'_> {
                 names,
                 declared,
             } => self.generic_export(type_parameters, names, declared),
-            Node::ExportDefault(value) => self.export_default(value),
+            Node::ExportDefault {
+                component,
+                instance,
+            } => self.export_default(component, instance),
             _ => unreachable!("ordinary nodes are printed by node"),
         }
     }
@@ -126,18 +129,25 @@ impl Printer<'_> {
         self.output.push(");\n");
     }
 
-    /// svelte2tsx's runes component: a type of the same name lets an import name its type.
-    fn export_default(&mut self, value: NodeIdentifier) {
+    /// svelte2tsx's `const X = component; type X = …; export default X;`: the type of the same
+    /// name lets an import name the component's instance.
+    fn export_default(&mut self, component: NodeIdentifier, instance: Instance) {
+        let instance = match instance {
+            Instance::Returned => "ReturnType",
+            Instance::Constructed => "InstanceType",
+        };
         if self.tree.javascript {
-            return self.javascript_export(value);
+            return self.javascript_export(component, instance);
         }
         self.output.push("const ");
         self.push_default_export();
         self.output.push(" = ");
-        self.node(value);
+        self.node(component);
         self.output.push(";\ntype ");
         self.push_default_export();
-        self.output.push(" = ReturnType<typeof ");
+        for part in [" = ", instance, "<typeof "] {
+            self.output.push(part);
+        }
         self.push_default_export();
         self.output.push(">;\nexport default ");
         self.push_default_export();
@@ -202,6 +212,14 @@ impl Printer<'_> {
         self.output.push(keyword);
         self.node(name);
         self.output.push(" = ");
+        self.node(value);
+        self.output.push(";\n");
+    }
+
+    /// `name: value;` or, when `optional`, `name?: value;`, on a line of its own.
+    fn type_property(&mut self, name: NodeIdentifier, value: NodeIdentifier, optional: bool) {
+        self.node(name);
+        self.output.push(if optional { "?: " } else { ": " });
         self.node(value);
         self.output.push(";\n");
     }
