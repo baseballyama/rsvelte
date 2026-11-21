@@ -70,7 +70,8 @@ fn clashes(error: &SyntaxError) -> bool {
 fn outside_scripts(input: &ComponentInput<'_>, error: &Diagnostic) -> bool {
     let javascript = input.javascript;
     let start = error.span.start_offset;
-    !(input.module.into_iter().chain(input.instance))
+    !input
+        .programs()
         .map(|program| javascript.get_program(program).span)
         .any(|span| span.start <= start && start < span.end)
 }

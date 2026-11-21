@@ -25,7 +25,7 @@ use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode, TokenType};
-use rsvelte_typescript_tree::{ExpressionIdentifier, document_span};
+use rsvelte_typescript_tree::{ExpressionIdentifier, document_span, node_span};
 
 use crate::buffers::Buffer;
 use crate::syntax_tree::{Node, NodeIdentifier, SourceExpression, SyntaxTree};
@@ -350,7 +350,7 @@ impl Builder<'_> {
                 expression,
                 span: tag,
             } => {
-                let at = document_span(self.expression(expression).span());
+                let at = node_span(self.expression(expression));
                 self.mustache(expression, at, tag.end_offset - 1)
             }
             TemplateNode::Element {

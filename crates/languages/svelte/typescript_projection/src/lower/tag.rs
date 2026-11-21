@@ -2,7 +2,7 @@
 
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::{Range, TemplateNode};
-use rsvelte_typescript_tree::{ExpressionIdentifier, PatternIdentifier, document_span};
+use rsvelte_typescript_tree::{ExpressionIdentifier, PatternIdentifier, node_span};
 
 use super::{Builder, Node, Result, SourceExpression, source_expression};
 
@@ -14,8 +14,7 @@ impl Builder<'_> {
                 expression, body, ..
             } => {
                 let start = self.scratch.len();
-                let value =
-                    source_expression(document_span(self.expression(expression).span()), None);
+                let value = source_expression(node_span(self.expression(expression)), None);
                 self.scratch.push(self.tree.push(Node::Expression(value)));
                 self.append_children(body)?;
                 let body = self.finish_list(start);
@@ -31,8 +30,7 @@ impl Builder<'_> {
             TemplateNode::Debug { identifiers, .. } => {
                 let start = self.scratch.len();
                 for &identifier in self.component.debug_identifiers(identifiers) {
-                    let value =
-                        source_expression(document_span(self.expression(identifier).span()), None);
+                    let value = source_expression(node_span(self.expression(identifier)), None);
                     self.scratch.push(self.tree.push(Node::Expression(value)));
                 }
                 let body = self.finish_list(start);

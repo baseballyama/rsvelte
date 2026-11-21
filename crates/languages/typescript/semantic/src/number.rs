@@ -152,6 +152,7 @@ pub fn math_round(x: f64) -> f64 {
 }
 
 /// `Math.max`: NaN when any value is, and +0 above -0.
+#[must_use]
 pub fn math_max(values: impl IntoIterator<Item = f64>) -> f64 {
     values
         .into_iter()
@@ -168,6 +169,7 @@ pub fn math_max(values: impl IntoIterator<Item = f64>) -> f64 {
 }
 
 /// `Math.min`: NaN when any value is, and -0 below +0.
+#[must_use]
 pub fn math_min(values: impl IntoIterator<Item = f64>) -> f64 {
     values
         .into_iter()

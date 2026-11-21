@@ -3,7 +3,6 @@
 use oxc_ast::ast::Expression;
 use oxc_ast_visit::Visit;
 use oxc_parser::Kind;
-use oxc_span::GetSpan;
 use rsvelte_kernel::source::tokens::{Token, TokenKind};
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, document_span, node_span,
@@ -208,7 +207,7 @@ impl Printer<'_, '_, '_> {
 
     /// The source of `e`.
     pub(super) fn javascript_span(&self, e: ExpressionIdentifier) -> Span {
-        document_span(self.c.javascript.get_expression(e).span())
+        node_span(self.c.javascript.get_expression(e))
     }
 
     /// `{@const a = b}`'s declarator, which the plugin formats as the expression `a = b`.

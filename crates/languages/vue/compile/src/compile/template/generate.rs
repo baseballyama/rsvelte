@@ -1,7 +1,6 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{BinaryOperator, Expression, LogicalOperator, Statement, UnaryOperator};
 use oxc_ast_visit::VisitMut;
-use oxc_span::SPAN;
 use rsvelte_typescript_compile::build::Builder;
 use rsvelte_typescript_tree::Tree;
 use rsvelte_vue_semantic::resolve::Resolution;
@@ -182,13 +181,8 @@ impl<'o> Gen<'_, '_, 'o> {
                 let properties: Vec<_> = list
                     .iter()
                     .map(|(k, v)| {
-                        let key = if is_simple_identifier(k) {
-                            oxc_ast::ast::PropertyKey::new_static_identifier(SPAN, b.str(k), b)
-                        } else {
-                            oxc_ast::ast::PropertyKey::from(b.string(k))
-                        };
                         let value = self.codegen(*v);
-                        b.property(key, value, false)
+                        b.property(b.key_by(k, is_simple_identifier), value, false)
                     })
                     .collect();
                 b.object(properties)

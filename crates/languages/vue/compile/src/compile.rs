@@ -123,7 +123,7 @@ pub(crate) fn compile(input: &CompileInput<'_>, res: &Resolution, path: &str) ->
             &mut program,
         );
     }
-    let javascript = rsvelte_typescript_compile::print::print(&program);
+    let code = rsvelte_typescript_compile::print::print(&program);
     let stylesheet = if component.styles.is_empty() {
         None
     } else {
@@ -135,7 +135,7 @@ pub(crate) fn compile(input: &CompileInput<'_>, res: &Resolution, path: &str) ->
         Some(parts.join("\n"))
     };
     Ok(Output {
-        javascript,
+        javascript: code,
         stylesheet,
     })
 }

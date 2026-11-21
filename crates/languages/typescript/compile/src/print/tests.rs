@@ -4,7 +4,7 @@ use oxc_parser::Parser;
 use oxc_span::SourceType;
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex};
 
-use super::{emit, print};
+use super::{Comments, emit_with, print};
 
 /// The generated offset of every token the printer maps, by an index of the printed text.
 fn indexed(source: &str) -> (Vec<u32>, Vec<u32>) {
@@ -12,7 +12,7 @@ fn indexed(source: &str) -> (Vec<u32>, Vec<u32>) {
     let program = Parser::new(&allocator, source, SourceType::mjs())
         .parse()
         .program;
-    let emitter = emit(&program, Some(&LineIndex::new(source)));
+    let emitter = emit_with(&program, Some(&LineIndex::new(source)), Comments::Attached);
     let printed = Codegen::new()
         .with_options(CodegenOptions {
             source_map_path: Some("source".into()),

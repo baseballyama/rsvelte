@@ -178,7 +178,13 @@ impl<'o> Builder<'o> {
     /// `b.key`: an identifier key when `name` is one, a string key otherwise.
     #[must_use]
     pub fn key(&self, name: &str) -> PropertyKey<'o> {
-        if is_valid_identifier(name) {
+        self.key_by(name, is_valid_identifier)
+    }
+
+    /// `name` as a property key, bare where `is_bare` accepts it and quoted otherwise.
+    #[must_use]
+    pub fn key_by(&self, name: &str, is_bare: fn(&str) -> bool) -> PropertyKey<'o> {
+        if is_bare(name) {
             PropertyKey::new_static_identifier(SPAN, self.str(name), self)
         } else {
             PropertyKey::from(self.string(name))

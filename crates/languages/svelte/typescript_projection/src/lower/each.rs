@@ -4,7 +4,7 @@ use oxc_ast::ast::{BindingIdentifier, IdentifierReference};
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
-use rsvelte_typescript_tree::{ExpressionIdentifier, PatternIdentifier, document_span};
+use rsvelte_typescript_tree::{ExpressionIdentifier, PatternIdentifier, node_span};
 
 use super::{Builder, Node, NodeIdentifier, Result, source_expression};
 
@@ -38,7 +38,7 @@ impl Builder<'_> {
         let value = value.map(|at| self.source(at, None));
         let binding = self.tree.push(Node::ArrayPattern { index, value });
         if let Some(key) = key {
-            let value = source_expression(document_span(self.expression(key).span()), None);
+            let value = source_expression(node_span(self.expression(key)), None);
             self.scratch.push(self.tree.push(Node::Expression(value)));
         }
         self.append_children(body)?;
