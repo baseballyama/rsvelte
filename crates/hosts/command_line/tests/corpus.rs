@@ -108,15 +108,10 @@ impl Task for CountCoverage {
                 // The projection exports its component, so it is a module.
                 let source_type = SourceType::ts().with_module(true);
                 let result = Parser::new(&allocator, &projection.out, source_type).parse();
-                let type_syntax =
-                    javascript_rejects(component, context.source_text(), projection, &result);
                 let source = context.source_text();
-                let generics = component
-                    .instance
-                    .iter()
-                    .flat_map(|script| &script.attributes)
-                    .find(|(name, _)| name.text(source) == "generics")
-                    .and_then(|&(_, value)| value);
+                let generics = generics_list(component, source, projection);
+                let type_syntax =
+                    javascript_rejects(component, source, projection, &result, generics.as_ref());
                 let own = script_errors(component, source);
                 // The projection keeps the script's own grammar, which may break these rules.
                 let added = result.diagnostics.iter().any(|d| {
@@ -126,27 +121,19 @@ impl Task for CountCoverage {
                                 .contains(&n)
                         });
                     // A `generics` list that does not parse is copied as it is, so an error whose
-                    // primary span lies within our `<`, the copy and our `>` is the source's own.
-                    // An error in generated text after such a list stays unseen, since the parser
-                    // stops at the list's own fatal error.
-                    let in_generics =
-                        generics.is_some_and(|value| {
-                            let Some(copy) = projection.mappings.iter().find(|m| {
-                                m.source_text == value.start_offset && m.len == value.len()
-                            }) else {
-                                return false;
-                            };
-                            // From our `<` to just past our `>`.
-                            let list = copy.generated - 1..copy.generated + copy.len + 1;
-                            d.labels
-                                .iter()
-                                .find(|label| label.primary())
-                                .or_else(|| d.labels.first())
-                                .is_some_and(|label| {
-                                    list.contains(&label.offset())
-                                        && label.offset() + label.len() <= list.end
-                                })
-                        });
+                    // primary span lies within it is the source's own. An error in generated text
+                    // after such a list stays unseen, since the parser stops at the list's own
+                    // fatal error.
+                    let in_generics = generics.as_ref().is_some_and(|list| {
+                        d.labels
+                            .iter()
+                            .find(|label| label.primary())
+                            .or_else(|| d.labels.first())
+                            .is_some_and(|label| {
+                                list.contains(&label.offset())
+                                    && label.offset() + label.len() <= list.end
+                            })
+                    });
                     !unchecked
                         && !in_generics
                         && !in_tag(component, projection, &d.labels)
@@ -211,14 +198,32 @@ fn in_tag(
     })
 }
 
+/// The projection's copy of the instance script's `generics` value, from our `<` to just past our
+/// `>`.
+fn generics_list(
+    component: &rsvelte_svelte_syntax::syntax_tree::Component,
+    source: &str,
+    projection: &rsvelte_kernel::output::emitter::Emitter,
+) -> Option<std::ops::Range<u32>> {
+    let value = (component.instance.iter())
+        .flat_map(|script| &script.attributes)
+        .find(|(name, _)| name.text(source) == "generics")
+        .and_then(|&(_, value)| value)?;
+    let copy = (projection.mappings.iter())
+        .find(|m| m.source_text == value.start_offset && m.len == value.len())?;
+    Some(copy.generated - 1..copy.generated + copy.len + 1)
+}
+
 /// Whether JavaScript's grammar rejects a projection svelte-check reads as JavaScript beyond
 /// TypeScript's: only text copied from the component, such as a script's second default export
-/// or a template expression the compiler read as TypeScript, may.
+/// or a template expression the compiler read as TypeScript, may, and the type parameters
+/// svelte2tsx writes from a `generics` list in a JavaScript component too.
 fn javascript_rejects(
     component: &rsvelte_svelte_syntax::syntax_tree::Component,
     source: &str,
     projection: &rsvelte_kernel::output::emitter::Emitter,
     as_typescript: &oxc_parser::ParserReturn<'_>,
+    generics: Option<&std::ops::Range<u32>>,
 ) -> bool {
     if component.checked_as_typescript(source) {
         return false;
@@ -226,10 +231,9 @@ fn javascript_rejects(
     let allocator = Allocator::default();
     let as_javascript = Parser::new(&allocator, &projection.out, SourceType::mjs()).parse();
     let copied = |offset: u32| {
-        projection
-            .mappings
-            .iter()
-            .any(|m| (m.generated..m.generated + m.len).contains(&offset))
+        generics.is_some_and(|list| list.contains(&offset))
+            || (projection.mappings.iter())
+                .any(|m| (m.generated..m.generated + m.len).contains(&offset))
     };
     as_javascript.diagnostics.iter().any(|d| {
         !as_typescript
