@@ -7,5 +7,5 @@ pub mod elements;
 pub mod script_language;
 
 pub use attributes::property_name;
-pub use character_references::{decode_attribute, decode_text};
+pub use character_references::{decode_attribute, decode_text, escape_markup};
 pub use elements::is_void;

@@ -266,3 +266,126 @@ fn an_expression_records_the_parentheses_around_its_root_sequence_only() {
         assert_eq!(tree.parentheses(span), pairs, "{source}");
     }
 }
+
+/// The statements and the holes of `source` read with holes, and the tokens recorded.
+fn read_with_holes(source: &str) -> (Vec<&str>, Vec<&str>, Vec<&str>) {
+    read_with_holes_as(source, SourceType::tsx())
+}
+
+fn read_with_holes_as(source: &str, source_type: SourceType) -> (Vec<&str>, Vec<&str>, Vec<&str>) {
+    let whole = Span::new(0, source.len() as u32);
+    let (tree, (program, holes, recorded)) = Tree::build(source, |builder| {
+        let read = builder.program_with_holes(whole, source_type);
+        let recorded = builder
+            .recorded()
+            .iter()
+            .map(|r| r.span)
+            .collect::<Vec<_>>();
+        Ok((read.program, read.holes, recorded))
+    })
+    .expect("reads");
+    let at = |span: oxc_span::Span| &source[span.start as usize..span.end as usize];
+    let statements = tree
+        .get_program(program)
+        .body
+        .iter()
+        .map(|s| at(s.span()))
+        .collect();
+    let holes = holes.iter().map(|hole| hole.text(source)).collect();
+    let recorded = recorded.into_iter().map(|span| span.text(source)).collect();
+    (statements, holes, recorded)
+}
+
+#[test]
+fn a_program_that_parses_has_no_holes() {
+    let (statements, holes, _) = read_with_holes("let a = 1;\nlet b = 2;\n");
+    assert_eq!(statements, ["let a = 1;", "let b = 2;"]);
+    assert_eq!(holes, Vec::<&str>::new());
+}
+
+#[test]
+fn a_statement_that_stops_is_a_hole_up_to_the_token_it_stopped_at() {
+    let (statements, holes, recorded) = read_with_holes("const x = (;\nlet y = 1;\n");
+    assert_eq!(statements, [";", "let y = 1;"]);
+    assert_eq!(holes, ["const x = ("]);
+    assert_eq!(
+        recorded,
+        ["const", "x", "=", "(", ";", "let", "y", "=", "1", ";"]
+    );
+}
+
+#[test]
+fn a_token_no_statement_starts_with_is_skipped() {
+    let (statements, holes, _) = read_with_holes("let n = 1;\n}\nlet z = 1;\n");
+    assert_eq!(statements, ["let n = 1;", "let z = 1;"]);
+    assert_eq!(holes, ["}"]);
+}
+
+#[test]
+fn a_statement_cut_short_by_the_end_is_a_hole_to_its_last_token() {
+    let (statements, holes, _) = read_with_holes("let n = 1;\nfunction f() {\n");
+    assert_eq!(statements, ["let n = 1;"]);
+    assert_eq!(holes, ["function f() {"]);
+}
+
+#[test]
+fn skips_with_no_statement_between_are_one_hole() {
+    let (statements, holes, _) = read_with_holes("const a = [;\nconst b = 2;\nf(a b, c);\n");
+    assert_eq!(holes, ["const a = [", "f(a b, c)"]);
+    assert_eq!(statements, [";", "const b = 2;", ";"]);
+}
+
+#[test]
+fn a_token_the_lexer_cannot_finish_resumes_where_typescript_s_scanner_does() {
+    let after = "let n = 1;\nexport function f() {}\n";
+    let cases = [
+        // A string or a regular expression ends at the line terminator.
+        ("const s = 'abc;\n", SourceType::tsx(), "const s = 'abc;\n"),
+        ("const r = /abc;\n", SourceType::tsx(), "const r = /abc;\n"),
+        (
+            "const el = <b>x</b>;\n",
+            SourceType::ts(),
+            "const el = <b>x</b>;\n",
+        ),
+        // An invalid character is skipped alone.
+        ("#;\n", SourceType::tsx(), "#"),
+    ];
+    for (broken, source_type, hole) in cases {
+        let source = format!("{broken}{after}");
+        let (statements, holes, _) = read_with_holes_as(&source, source_type);
+        let rest: &[&str] = if broken == "#;\n" {
+            &[";", "let n = 1;", "export function f() {}"]
+        } else {
+            &["let n = 1;", "export function f() {}"]
+        };
+        assert_eq!(statements, rest, "{broken:?}");
+        assert_eq!(holes, [hole], "{broken:?}");
+    }
+    // A template or a block comment runs to the end.
+    for broken in ["const t = `abc;\n", "/* abc\n"] {
+        let source = format!("{broken}{after}");
+        let (statements, ..) = read_with_holes(&source);
+        assert_eq!(statements, Vec::<&str>::new(), "{broken:?}");
+    }
+}
+
+#[test]
+fn a_hole_contains_the_spans_inside_it_only() {
+    let source = "let n = 1;\n}\nlet m = 2;\nlet z = (;\n";
+    let whole = Span::new(0, source.len() as u32);
+    let (_, holes) = Tree::build(source, |builder| {
+        Ok(builder.program_with_holes(whole, SourceType::tsx()).holes)
+    })
+    .expect("reads");
+    assert_eq!(
+        holes
+            .iter()
+            .map(|hole| hole.text(source))
+            .collect::<Vec<_>>(),
+        ["}", "let z = ("]
+    );
+    assert!(holes.contains(Span::new(11, 12)));
+    assert!(holes.contains(Span::new(28, 31)));
+    assert!(!holes.contains(Span::new(4, 5)));
+    assert!(!holes.contains(Span::new(11, 24)));
+}

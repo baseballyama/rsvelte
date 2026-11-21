@@ -8,7 +8,7 @@ const ROOT = path.resolve(import.meta.dirname, '../..');
 
 /** Whether `file` goes into the programs or the npm package of a release. */
 export function ships(file: string): boolean {
-	if (file === 'tools/release/launcher.js' || file === 'tools/release/npm-readme.md') return true;
+	if (file === 'apps/cli/launcher.js' || file === 'apps/cli/README.md') return true;
 	if (/^apps\/eslint-plugin\/[^/]+$/.test(file))
 		return !/\.test\.ts$|\/(package|tsconfig)\.json$/.test(file);
 	if (!file.startsWith('crates/') || file.endsWith('.md')) return false;

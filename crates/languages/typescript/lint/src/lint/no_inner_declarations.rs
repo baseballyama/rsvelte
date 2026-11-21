@@ -2,12 +2,11 @@ use oxc_ast::AstKind;
 use oxc_ast::ast::{ArrowFunctionBody, Directive, FunctionType, VariableDeclarationKind};
 use oxc_ast_visit::Visit;
 use oxc_semantic::NodeId;
-use oxc_span::GetSpan;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_semantic::semantic::Semantic;
-use rsvelte_typescript_tree::ProgramIdentifier;
+use rsvelte_typescript_tree::{ProgramIdentifier, node_span};
 
-use super::{Facts, Root, roots, span};
+use super::{Facts, Root, roots};
 
 /// `ESLint`'s `no-inner-declarations` options.
 #[derive(Clone, Copy, Debug, Default)]
@@ -91,7 +90,7 @@ impl<'a> Visit<'a> for Visitor<'_, '_, '_> {
         {
             self.reporter.report(Report::range(
                 format!("Move {what} declaration to {body} root."),
-                span(kind.span()),
+                node_span(&kind),
             ));
         }
         let inner = match kind {

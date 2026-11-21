@@ -3,19 +3,21 @@
 
 use oxc_allocator::ArenaBox;
 use oxc_ast::ast::{Expression, FormalParameters, ObjectPropertyKind, PropertyKind, Statement};
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    Children, Element, ElementKind, MetadataTag, Snippet,
+    Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
+    ElementKind, MetadataTag, NodeKind, Snippet,
 };
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
+use super::Builder;
+use super::attributes::{is_directive, single_expression};
+use super::builder::Runtime;
 use super::javascript::member_root;
 use super::snippets::{is_dynamic_render, render_call};
-use super::template::{is_directive, single_expression};
-use super::{
-    Attribute, AttributeValue, BindingKind, Builder, CompilerNodeIdentifier, CompilerSyntaxTree,
-    Diagnostic, Item, NodeKind, Resolution, Target,
-};
-use crate::lower::builder::Runtime;
+use crate::input::Target;
+use crate::render_plan::Item;
 
 #[derive(Clone, Copy)]
 pub(super) enum Prop<'t> {

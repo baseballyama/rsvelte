@@ -1,0 +1,2 @@
+error attribute_contenteditable_dynamic 6:6-6:25 'contenteditable' attribute cannot be dynamic if element uses two-way binding
+    https://svelte.dev/e/attribute_contenteditable_dynamic

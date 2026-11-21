@@ -5,7 +5,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
 
 use super::Builder;
-use crate::lower::builder::Runtime;
+use super::builder::Runtime;
 
 #[derive(Clone, Copy)]
 pub(super) enum Created {

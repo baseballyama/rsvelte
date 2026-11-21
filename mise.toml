@@ -18,7 +18,7 @@ description = "Fail when the Rust workspace is not formatted"
 run = "cargo +{{vars.rustfmt}} fmt --all --check"
 
 [tasks.structure]
-description = "Check source file lengths, the crate graph, the kernel layers, and the checker controls"
+description = "Check source file lengths, the crate graph, the kernel layers, module files, the tools' layout and the checker controls"
 dir = "{{config_root}}/tools/structure"
 run = ["node --run test", "node --run structure"]
 
@@ -54,7 +54,7 @@ run = "node tools/performance/performance.ts cache-profile"
 
 [tasks."performance:hardware"]
 description = "Measure Linux hardware CPU and cache counters: <config.json> <report.json>"
-run = "node tools/performance/performance.ts linux-counters"
+run = "node tools/performance/performance.ts hardware-counters"
 
 [tasks."performance:test"]
 description = "Test the measurement tools and their defect controls"

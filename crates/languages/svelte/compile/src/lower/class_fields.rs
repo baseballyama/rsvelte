@@ -7,10 +7,11 @@ use oxc_ast::ast::{
     ClassBody, ClassElement, Expression, MemberExpression, MethodDefinitionKind, PropertyKey,
     Statement,
 };
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::FxHashMap;
-
-use super::{Diagnostic, span_of};
 
 /// A `$state`, `$state.raw`, `$derived` or `$derived.by` field.
 #[derive(Clone)]
@@ -98,7 +99,7 @@ pub(super) fn class_fields(
                     continue;
                 };
                 if analysis.members.contains_key(name.as_ref()) {
-                    return duplicate_class_field(&name, span_of(&**p));
+                    return duplicate_class_field(&name, node_span(&**p));
                 }
                 let member = if p.value.is_some() {
                     Member::AssignedProp
@@ -119,7 +120,7 @@ pub(super) fn class_fields(
                 } else {
                     name.into_owned()
                 };
-                analysis.method(name, m.kind, span_of(&**m))?;
+                analysis.method(name, m.kind, node_span(&**m))?;
             }
             _ => {}
         }
@@ -148,7 +149,7 @@ pub(super) fn class_fields(
         if field.is_private() {
             continue;
         }
-        let mut key = identifier_safe(&field.name);
+        let mut key = crate::identity::sanitize_identifier(&field.name).into_owned();
         while private_ids.iter().any(|id| *id == key) {
             key.insert(0, '_');
         }
@@ -181,11 +182,11 @@ impl Analysis<'_> {
         let Some((rune @ ("$state" | "$state.raw" | "$derived" | "$derived.by"), _)) = rune else {
             return Ok(());
         };
-        let span = super::Span::new(at.start, at.end);
+        let span = document_span(at);
         if self.fields.by_name.contains_key(name.as_ref()) {
             return crate::lower::invalid(
                 "state_field_duplicate",
-                &format!("`{name}` has already been declared on this class"),
+                format!("`{name}` has already been declared on this class"),
                 span,
             );
         }
@@ -214,7 +215,7 @@ impl Analysis<'_> {
         &mut self,
         name: String,
         kind: MethodDefinitionKind,
-        span: super::Span,
+        span: Span,
     ) -> Result<(), Diagnostic> {
         let Some(members) = self.members.get_mut(&name) else {
             self.members.insert(name, vec![Member::Method(kind)]);
@@ -243,10 +244,10 @@ impl Analysis<'_> {
     }
 }
 
-fn duplicate_class_field<T>(name: &str, span: super::Span) -> Result<T, Diagnostic> {
+fn duplicate_class_field<T>(name: &str, span: Span) -> Result<T, Diagnostic> {
     crate::lower::invalid(
         "duplicate_class_field",
-        &format!("`{name}` has already been declared"),
+        format!("`{name}` has already been declared"),
         span,
     )
 }
@@ -284,19 +285,4 @@ fn expression_name<'k>(e: &'k Expression<'_>) -> Option<Cow<'k, str>> {
         Expression::NullLiteral(_) => Some("null".into()),
         _ => None,
     }
-}
-
-/// Upstream `regex_invalid_identifier_chars`: each UTF-16 unit that cannot stand there is `_`.
-fn identifier_safe(name: &str) -> String {
-    let mut out = String::with_capacity(name.len());
-    for (i, c) in name.chars().enumerate() {
-        let valid =
-            c == '_' || c == '$' || c.is_ascii_alphabetic() || (i > 0 && c.is_ascii_digit());
-        if valid {
-            out.push(c);
-        } else {
-            out.extend(std::iter::repeat_n('_', c.len_utf16()));
-        }
-    }
-    out
 }

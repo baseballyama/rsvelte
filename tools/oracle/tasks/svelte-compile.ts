@@ -1,5 +1,5 @@
 import { compile } from 'svelte/compiler';
-import { compileArtifacts } from './svelte-shared.ts';
+import { compileArtifacts } from './compile-artifacts.ts';
 import type { Task } from '../types.ts';
 
 // `filename` is the unit's path: it feeds the component name and the CSS scoping hash, so every

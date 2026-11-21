@@ -5,7 +5,6 @@ mod builder;
 mod lower;
 
 pub use attributes::{Attribute, AttributeValue, Modifiers, Name, StyleValue};
-use builder::Either;
 pub use builder::{spelled_text, text};
 pub use lower::lower;
 use rsvelte_kernel::index::{IndexRange, IndexVector};
@@ -47,7 +46,7 @@ pub struct CompilerSyntaxTree {
 
 /// A slice of [`CompilerSyntaxTree`]'s list of `{@debug}` identifiers.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct NodeList {
+pub struct DebugIdentifiers {
     start: u32,
     len: u32,
 }
@@ -112,7 +111,7 @@ pub enum NodeKind {
     },
     /// `{@debug a, b}`
     Debug {
-        identifiers: NodeList,
+        identifiers: DebugIdentifiers,
     },
     /// `{let …}` or `{const …}`: a declaration in the enclosing fragment's scope.
     Declaration {
@@ -366,7 +365,7 @@ impl CompilerSyntaxTree {
     }
 
     #[must_use]
-    pub fn debug_identifiers(&self, l: NodeList) -> &[ExpressionIdentifier] {
+    pub fn debug_identifiers(&self, l: DebugIdentifiers) -> &[ExpressionIdentifier] {
         &self.debug_identifiers[l.start as usize..(l.start + l.len) as usize]
     }
 
@@ -518,4 +517,20 @@ impl NodeKind {
 pub struct CompilerSyntaxTreeBuilder<'s> {
     source_text: &'s str,
     compiler_syntax_tree: CompilerSyntaxTree,
+}
+
+enum Either<L, R> {
+    Left(L),
+    Right(R),
+}
+
+impl<T, L: Iterator<Item = T>, R: Iterator<Item = T>> Iterator for Either<L, R> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<T> {
+        match self {
+            Self::Left(l) => l.next(),
+            Self::Right(r) => r.next(),
+        }
+    }
 }

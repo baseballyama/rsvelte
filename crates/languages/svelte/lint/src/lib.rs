@@ -3,7 +3,7 @@
 pub mod lint;
 pub use lint::lint;
 
-pub mod computation;
+mod computation;
 mod configuration;
 pub use configuration::{Configuration, ConfiguredRule, definition};
 mod extension;

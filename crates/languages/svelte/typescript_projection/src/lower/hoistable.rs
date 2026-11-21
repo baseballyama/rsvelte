@@ -3,20 +3,22 @@
 
 use oxc_ast::ast::{
     BindingPattern, Declaration, ImportDeclarationSpecifier, Program, Statement,
-    TSInterfaceDeclaration, TSSignature, TSType, TSTypeName, TSTypeQuery, TSTypeQueryExprName,
-    TSTypeReference,
+    TSInterfaceDeclaration, TSSignature, TSType, TSTypeAnnotation, TSTypeName, TSTypeQuery,
+    TSTypeQueryExprName, TSTypeReference,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::GetSpan;
+use rsvelte_typescript_tree::document_span;
 
-use super::{Span, span};
+use super::Span;
+use super::contract::PropsAnnotation;
 
 /// What moves before the render function, in svelte2tsx's order.
 pub(super) enum Hoisted {
     /// A whole statement, with its `export`.
     Statement(Span),
     /// The annotation of `$props()`, which svelte2tsx names `$$ComponentProps`.
-    ComponentProps(Span),
+    ComponentProps(PropsAnnotation),
 }
 
 #[derive(Default)]
@@ -39,12 +41,12 @@ struct Analysis<'a> {
     declared: Vec<Declared<'a>>,
 }
 
-/// The types to hoist, or none when svelte2tsx hoists nothing. `props` is the annotation of the
-/// instance's `$props()` and `stores` the stores the component subscribes to.
+/// The types to hoist, or none when svelte2tsx hoists nothing. `annotation` is the annotation of
+/// the instance's `$props()` and `stores` the stores the component subscribes to.
 pub(super) fn hoisted<'a>(
     module: Option<&'a Program<'a>>,
     instance: &'a Program<'a>,
-    props: &'a TSType<'a>,
+    annotation: &'a TSTypeAnnotation<'a>,
     stores: &[&'a str],
 ) -> Vec<Hoisted> {
     let mut analysis = Analysis::default();
@@ -55,7 +57,7 @@ pub(super) fn hoisted<'a>(
         analysis.instance_statement(statement);
     }
     analysis.disallowed_values.extend_from_slice(stores);
-    let (props_hoistable, hoistable, component_props) = match props {
+    let (props_hoistable, hoistable, component_props) = match &annotation.type_annotation {
         TSType::TSTypeReference(reference) => {
             let Some(name) = root(&reference.type_name) else {
                 return Vec::new();
@@ -66,16 +68,16 @@ pub(super) fn hoisted<'a>(
             let hoistable = analysis.hoistable();
             (hoistable.contains(&position), hoistable, None)
         }
-        annotation => {
+        props => {
             let mut dependencies = Dependencies::default();
-            collect(annotation, &[], None, &mut dependencies);
+            collect(props, &[], None, &mut dependencies);
             let hoistable = analysis.hoistable();
             let all = dependencies
                 .types
                 .iter()
                 .chain(&dependencies.values)
                 .all(|d| !analysis.disallowed_types.contains(d) && analysis.allowed(d));
-            (all, hoistable, Some(span(annotation.span())))
+            (all, hoistable, Some(PropsAnnotation::of(annotation)))
         }
     };
     if !props_hoistable {
@@ -172,7 +174,7 @@ impl<'a> Analysis<'a> {
             self.disallowed_types.push(name);
             return;
         }
-        let statement = span(statement.span());
+        let statement = document_span(statement.span());
         // A second declaration replaces the first in its place, as a `Map`'s `set` does.
         match self.declared.iter_mut().find(|d| d.name == name) {
             Some(declared) => {

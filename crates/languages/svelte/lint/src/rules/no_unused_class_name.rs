@@ -3,7 +3,9 @@ use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_stylesheet_syntax::nth_of_selectors;
 use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
-use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, TemplateNode};
+use rsvelte_svelte_syntax::syntax_tree::{
+    AttributeKind, AttributeValue, Part, TemplateNode, decode_attribute,
+};
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
@@ -93,9 +95,9 @@ impl SvelteRule for NoUnusedClassName {
                         };
                         for part in component.parts(parts) {
                             if let Part::Text(span) = part {
-                                for name in split_ecmascript_whitespace(
-                                    &rsvelte_markup_syntax::decode_attribute(span.text(source)),
-                                ) {
+                                for name in split_ecmascript_whitespace(&decode_attribute(
+                                    span.text(source),
+                                )) {
                                     report(name);
                                 }
                             }

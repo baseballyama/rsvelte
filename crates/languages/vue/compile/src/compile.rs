@@ -11,9 +11,8 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::{Expression, Program};
 use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Unsupported;
-use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_compile::build::Builder;
-use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree, document_span};
 use rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTree;
 use rsvelte_vue_semantic::resolve::{BindingType, Resolution, call_name, is_static};
 use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
@@ -180,11 +179,6 @@ pub(crate) fn compile(input: &CompileInput<'_>, res: &Resolution, path: &str) ->
         javascript,
         stylesheet,
     })
-}
-
-/// A span of an oxc tree read from the document, as the kernel holds it.
-pub(crate) const fn document_span(span: oxc_span::Span) -> Span {
-    Span::new(span.start, span.end)
 }
 
 mod script;

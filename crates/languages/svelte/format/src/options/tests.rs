@@ -94,3 +94,33 @@ fn names_lists_every_option() {
     let fields: Vec<&str> = expected.split('`').skip(1).step_by(2).collect();
     assert_eq!(fields, NAMES);
 }
+
+#[test]
+fn every_option_value_not_printed_yet_is_refused() {
+    let cases = [
+        (r#"{"semi": false}"#, "semi"),
+        (r#"{"singleQuote": true}"#, "singleQuote"),
+        (r#"{"quoteProps": "consistent"}"#, "quoteProps"),
+        (r#"{"trailingComma": "es5"}"#, "trailingComma"),
+        (r#"{"bracketSpacing": false}"#, "bracketSpacing"),
+        (r#"{"objectWrap": "collapse"}"#, "objectWrap"),
+        (r#"{"arrowParens": "avoid"}"#, "arrowParens"),
+        (r#"{"printWidth": 0}"#, "printWidth"),
+        (r#"{"printWidth": 321}"#, "printWidth"),
+        (r#"{"tabWidth": 25}"#, "tabWidth"),
+        (r#"{"rangeStart": 1}"#, "rangeStart"),
+        (r#"{"rangeEnd": 10}"#, "rangeEnd"),
+        (
+            r#"{"experimentalTernaries": true}"#,
+            "experimentalTernaries",
+        ),
+        (
+            r#"{"experimentalOperatorPosition": "start"}"#,
+            "experimentalOperatorPosition",
+        ),
+    ];
+    assert_eq!(unported(&Options::default()), None);
+    for (json, name) in cases {
+        assert_eq!(unported(&parse(json).expect("valid")), Some(name), "{json}");
+    }
+}

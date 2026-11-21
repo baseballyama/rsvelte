@@ -87,11 +87,7 @@ fn typescript_view(
         .as_ref()
         .expect("a parsed component is resolved");
     match crate::project::project(c, context.source_text(), res) {
-        Err(u) => Err(Diagnostic::error(
-            "check_unsupported",
-            format!("not supported by the type-check projection yet: {}", u.what),
-            u.span(),
-        )),
+        Err(u) => Err(u.diagnostic("check_unsupported", Some("the type-check projection"))),
         Ok(Projection::JavaScript) => Ok(TypeScriptDocument::Unchecked),
         Ok(Projection::TypeScript(projection)) => {
             let env = env.ok_or_else(|| {

@@ -6,26 +6,26 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, Each, EachKey, ElementKind, MetadataTag, Modifiers,
 };
-use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
+use rsvelte_typescript_tree::{ExpressionIdentifier, Tree, document_span};
 use rustc_hash::FxHashSet;
 
 mod handlers;
 mod lets;
-mod placement;
 mod slot_snippets;
 mod slots;
-mod transitions;
 
 pub(in crate::lower) use handlers::mixed_syntaxes;
-use placement::Ancestors;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    AttributeValue, Children, CompilerNodeIdentifier, Element, NodeKind,
+};
+use rsvelte_svelte_semantic::markup_tree::{Ancestors, invalid_with_parent};
 use rsvelte_svelte_semantic::typescript::without_typescript;
-use rsvelte_svelte_semantic::warnings::slot_name_error;
+use rsvelte_svelte_semantic::warnings::{TransitionDirections, slot_name_error};
 pub(in crate::lower) use slot_snippets::slot_snippet_conflict;
 
-use super::super::{
-    AttributeValue, Children, CompileInput, CompilerNodeIdentifier, Diagnostic, Element, NodeKind,
-    is_directive,
-};
+use crate::input::CompileInput;
+use crate::lower::attributes::is_directive;
 use crate::lower::invalid;
 use crate::render_plan::is_template_whitespace;
 
@@ -83,7 +83,7 @@ fn walk<'a>(
         };
         if text
             && let Some(parent) = placement.parent
-            && let Some(message) = placement::invalid_with_parent("#text", parent)
+            && let Some(message) = invalid_with_parent("#text", parent)
         {
             return node_invalid_placement(&message, node.span).map_err(here);
         }
@@ -155,7 +155,7 @@ pub(in crate::lower) fn unparenthesized_sequence(
                 "attribute_invalid_sequence_expression",
                 "Comma-separated expressions are not allowed as attribute/directive values in \
                     runes mode, unless wrapped in parentheses",
-                Span::new(sequence.start, sequence.end),
+                document_span(sequence),
             );
             Some((tree.node(identifier).span.start_offset, error))
         })
@@ -174,7 +174,7 @@ pub(in crate::lower) fn each_key(javascript: &Tree, each: &Each) -> Result<EachK
         crate::lower::error(
             "each_key_without_as",
             "An `{#each ...}` block without an `as` clause cannot have a key",
-            Span::new(key.start, key.end),
+            document_span(key),
         )
     })
 }
@@ -207,7 +207,7 @@ fn element_placement<'a>(
     let name = el.name.text(input.component.source_text);
     if let Some(parent) = placement.parent {
         // Past a block upstream only warns, and every later message is a warning too.
-        let message = placement::invalid_with_parent(name, parent).map_or_else(
+        let message = invalid_with_parent(name, parent).map_or_else(
             || placement.ancestors.invalid(name),
             |message| (!placement.crossed_block).then_some(message),
         );
@@ -229,7 +229,7 @@ fn element_placement<'a>(
 fn node_invalid_placement<T>(message: &str, span: Span) -> Result<T, Diagnostic> {
     invalid(
         "node_invalid_placement",
-        &format!(
+        format!(
             "{message}. The browser will 'repair' the HTML (by moving, removing, or inserting \
              elements) which breaks Svelte's assumptions about the structure of your components."
         ),
@@ -302,7 +302,15 @@ fn element<'a>(
         ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element))
     ) {
         animation(input, parent, attributes)?;
-        transitions::check(attributes)?;
+        let mut directions = TransitionDirections::default();
+        if let Some(error) = attributes.iter().find_map(|a| match a.value {
+            AttributeValue::Transition { intro, outro, .. } => {
+                directions.visit(intro, outro, a.span)
+            }
+            _ => None,
+        }) {
+            return Err(error);
+        }
         event_modifiers(attributes)?;
     }
     if el.kind.renders_component() {
@@ -358,7 +366,7 @@ fn animation(
         if each.key.is_none() {
             return invalid(
                 "animation_missing_key",
-                &format!("{PLACEMENT}. Did you forget to add a key to your each block?"),
+                format!("{PLACEMENT}. Did you forget to add a key to your each block?"),
                 a.span,
             );
         }
@@ -409,7 +417,7 @@ fn event_modifiers(attributes: &[Attribute]) -> Result<(), Diagnostic> {
             if modifiers.contains(conflict) {
                 return invalid(
                     "event_handler_invalid_modifier_combination",
-                    &format!("The 'passive' and '{name}' modifiers cannot be used together"),
+                    format!("The 'passive' and '{name}' modifiers cannot be used together"),
                     a.span,
                 );
             }
@@ -517,7 +525,7 @@ fn directives(
     };
     for a in attributes {
         if let (AttributeValue::Bind(_), Some(host)) = (&a.value, host) {
-            super::super::bindings::check_binding(source, host, attributes, a)?;
+            crate::lower::bindings::check_binding(source, host, attributes, a)?;
         }
         if let AttributeValue::Style { modifiers, .. } = &a.value
             && ![Modifiers::default(), Modifiers::IMPORTANT].contains(modifiers)
@@ -552,7 +560,7 @@ fn directives(
         {
             return invalid(
                 "bind_invalid_parens",
-                &format!(
+                format!(
                     "`bind:{}={{get, set}}` must not have surrounding parentheses",
                     a.name.text(source)
                 ),

@@ -3,7 +3,7 @@
 	"exceptions": {
 		"apps/site/src/lib/widgets/PipelinePlayground.svelte": {
 			"maxLines": 915,
-			"reason": "Grew past the limit when oxfmt first wrapped its long lines; keep its size until it is split."
+			"reason": "Its markup and style share one component's state; keep its size until it is split."
 		}
 	}
 }

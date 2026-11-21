@@ -1,10 +1,12 @@
 use oxc_ast::ast::{BinaryOperator, Expression};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, AttributeValue, CompilerNodeIdentifier, Part,
+};
+use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{
-    Attribute, AttributeValue, Part, ServerCompilationContext, decode_attribute,
-    is_boolean_attribute, is_directive,
-};
+use super::ServerCompilationContext;
+use crate::lower::attributes::{is_boolean_attribute, is_directive};
 use crate::lower::bindings::{BindStrategy, attribute_value, property_of};
 use crate::lower::builder::Runtime;
 
@@ -13,6 +15,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     /// and value, or `None` when it renders nothing.
     pub(super) fn bound_value(
         &self,
+        element: CompilerNodeIdentifier,
         tag: &str,
         attributes: &[Attribute],
         a: &Attribute,
@@ -29,8 +32,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         };
         let skipped = match name {
             "value" => matches!(tag, "select" | "textarea") || file(),
+            // Upstream renders any name its table lacks, such as an inherited `toString`.
             _ => property_of(name)
-                .is_none_or(|p| p.client_only || p.strategy == BindStrategy::ContentEditable),
+                .is_some_and(|p| p.client_only || p.strategy == BindStrategy::ContentEditable),
         };
         if skipped {
             return None;
@@ -40,7 +44,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 .group_checked(attributes, e)
                 .map(|c| ("checked".to_owned(), c));
         }
-        Some((name.to_lowercase(), self.bound(e)))
+        Some((
+            self.attribute_name(element, name).into_owned(),
+            self.bound(e),
+        ))
     }
 
     /// A group checks the input whose `value` it holds: one of a checkbox group's values, or a
@@ -128,12 +135,13 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `BindDirective` (server): the bound value as an attribute.
     pub(super) fn binding(
         &self,
+        element: CompilerNodeIdentifier,
         tag: &str,
         attributes: &[Attribute],
         a: &Attribute,
     ) -> Option<Expression<'o>> {
         let b = self.b;
-        let (name, value) = self.bound_value(tag, attributes, a)?;
+        let (name, value) = self.bound_value(element, tag, attributes, a)?;
         let mut arguments = vec![b.string(&name), value];
         if is_boolean_attribute(&name) {
             arguments.push(b.boolean(true));

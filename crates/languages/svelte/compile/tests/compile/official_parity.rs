@@ -10,7 +10,9 @@ mod errors;
 mod exports;
 mod lets;
 mod patterns;
+mod props;
 mod runes;
+mod transitions;
 
 /// The output, or the code of the diagnostic that refuses the source.
 fn compile(source: &str, target: Target) -> Result<String, String> {
@@ -396,23 +398,6 @@ fn an_await_in_a_for_await_is_reported_before_the_loop() {
 }
 
 #[test]
-fn a_second_intro_or_outro_is_a_duplicate_or_a_conflict_whatever_its_modifiers() {
-    for (markup, code) in [
-        ("<div in:a|global in:b>x</div>", "transition_duplicate"),
-        (
-            "<div transition:a out:b|local>x</div>",
-            "transition_conflict",
-        ),
-        ("<div in:a out:b>x</div>", ""),
-    ] {
-        let found = compile_at(markup, Target::Client)
-            .err()
-            .map(|(code, _)| code);
-        assert_eq!(found.as_deref().unwrap_or(""), code, "{markup}");
-    }
-}
-
-#[test]
 fn a_byte_order_mark_is_no_text() {
     assert!(squashed("\u{feff}<p>a</p>", Target::Server).contains("`<p>a</p>`"));
 }
@@ -564,7 +549,7 @@ fn a_number_props_key_reads_the_prop_its_string_names() {
         $props();</script>{a}{b}{c}{d}{e}{rest}";
     let client = squashed(source, Target::Client);
     for expected in [
-        r#"newSet(["$$slots","$$events","$$legacy","0","16","1.5","x-y","e"])"#,
+        r#"newSet(["$$slots","$$events","$$legacy",0,16,1.5,"x-y","e"])"#,
         "letc=$.prop($$props,1.5,3,1)",
         r#"${$$props["0"]??""}${$$props["16"]??""}${c()??""}${$$props["x-y"]??""}${$$props.e??""}"#,
     ] {

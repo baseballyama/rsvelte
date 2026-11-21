@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use oxc_ast::ast::Expression;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::Fix;
@@ -120,7 +121,10 @@ fn fix(
 ) -> Option<Fix> {
     let text = strip_quotes(text)?;
     // Another rule (indentation, trailing spaces) may change spaces at either end.
-    if text.contains('\n') || text.starts_with(is_space) || text.ends_with(is_space) {
+    if text.contains('\n')
+        || text.starts_with(is_ecmascript_whitespace)
+        || text.ends_with(is_ecmascript_whitespace)
+    {
         return None;
     }
     let unescaped = unescape(text);
@@ -240,9 +244,4 @@ fn literal_value(literal: &Expression<'_>) -> Option<String> {
             .map(str::to_owned),
         _ => None,
     }
-}
-
-/// JavaScript's `\s`.
-const fn is_space(c: char) -> bool {
-    c.is_whitespace() || c == '\u{feff}'
 }

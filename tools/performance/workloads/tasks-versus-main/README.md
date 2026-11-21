@@ -12,9 +12,10 @@ check. `run.ts` runs every task on one machine and writes one report.
 | Lint           | `../lint-versus-main`   | `../lint-versus-main`                     | ESLint with eslint-plugin-svelte            |
 | Type check     | `svelte_check --tsgo`   | `rsvelte-dev check` on `tsrs` and on tsgo | svelte-check, TypeScript 6, tsgo and `tsrs` |
 
-- The first four use the harness of `lint-versus-main`. It reads every file first, each arm calls
-  its library, and more threads take files from one shared counter. The official tools and
-  ESLint run plainly, on one thread only. A task leaves out each component that an arm fails on.
+- The first four use this directory's `harness.rs`, built like the one of `lint-versus-main`. It
+  reads every file first, each arm calls its library, and more threads take files from one
+  shared counter. The official tools and ESLint run plainly, on one thread only. A task leaves
+  out each component that an arm fails on.
 - Compile takes `runes: true` and the file's path, as the corpus's oracle does. Format takes the
   oracle's Prettier options. `main` parses with the options of its public `parse()` and formats
   `<style>` bodies, as Prettier does.

@@ -11,11 +11,10 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TemplateNode,
 };
-use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
+use rsvelte_typescript_tree::{ExpressionIdentifier, Tree, node_span};
 use rustc_hash::FxHashMap;
 
 use super::shared::element_kind::is_markup_element;
-use super::shared::nodes::span;
 use super::shared::svelte_store::store_calls;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -104,7 +103,7 @@ impl Check<'_, '_, '_> {
         if consistent && !constant {
             return;
         }
-        let at = span(identifier);
+        let at = node_span(identifier);
         let mut report = Report::range(
             "Use the $ prefix or the get function to access reactive values instead of accessing \
              the raw store.",

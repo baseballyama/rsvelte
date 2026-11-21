@@ -2,9 +2,9 @@
 
 use rsvelte_kernel::source::positions::Span;
 
-use super::{P, ParseError, R, selectors};
+use super::{ParseError, Parser, R, selectors};
 
-impl P<'_> {
+impl Parser<'_> {
     /// The length of the identifier character at `at`, or 0: Svelte reads ASCII letters, digits,
     /// `_`, `-` and any code point from U+00A0.
     pub(super) fn ident_char(&self, at: usize) -> usize {

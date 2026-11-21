@@ -4,7 +4,7 @@ use std::path::Path;
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 
-/// [`crate::computation::SameNamedFile`] from the process's file system.
+/// [`crate::project::SameNamedFile`] from the process's file system.
 #[derive(Debug)]
 pub(crate) struct SameNamedFileOnDisk;
 
@@ -37,7 +37,7 @@ fn same_named_file(context: &DocumentContext<'_>) -> Option<String> {
     (component.ends_with(".svelte") && is_file(component)).then(|| real_name(component))
 }
 
-/// [`crate::computation::PostcssConfiguration`] from the process's file system, searched once.
+/// [`crate::project::PostcssConfiguration`] from the process's file system, searched once.
 #[derive(Debug)]
 pub(crate) struct PostcssConfigurationOnDisk;
 

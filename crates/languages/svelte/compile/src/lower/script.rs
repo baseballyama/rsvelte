@@ -14,12 +14,13 @@ mod stores;
 mod writes;
 
 pub(super) use classes::Classes;
-pub(super) use exports::{Export, default_exports};
+pub(super) use exports::Export;
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::ast::{
     Argument, ArrowFunctionExpression, BindingIdentifier, ClassBody, Expression, Function,
-    IdentifierReference, ImportDeclaration, MethodDefinition, ObjectProperty, Statement,
-    SwitchCase, VariableDeclaration, VariableDeclarator, WithClause, WithClauseKeyword,
+    IdentifierReference, ImportDeclaration, MemberExpression, MethodDefinition, ObjectProperty,
+    SimpleAssignmentTarget, Statement, SwitchCase, VariableDeclaration, VariableDeclarator,
+    WithClause, WithClauseKeyword,
 };
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_semantic::{ReferenceId, SymbolId};
@@ -28,22 +29,22 @@ use oxc_syntax::scope::ScopeFlags;
 pub use patterns::is_expression_async;
 pub(super) use program::{ScriptContext, lower_declaration_tag, lower_script, props_id};
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
-use rustc_hash::{FxHashMap, FxHashSet};
-
-/// What upstream's transforms call a `$$props` the source declares.
-const SANITIZED_PROPS: &str = "$$sanitized_props";
+use rustc_hash::FxHashMap;
 use statements::{Inspect, inspect, inspects_with, is_effect};
 pub(super) use writes::mutates_signal;
 
+use super::Builder;
+use super::builder::Runtime;
 use super::names::Names;
-use super::{Builder, Target};
-use crate::lower::builder::Runtime;
+use crate::input::Target;
+
+/// What upstream's transforms call a `$$props` the source declares.
+const SANITIZED_PROPS: &str = "$$sanitized_props";
 
 pub(super) struct ScriptRewrite<'r, 'o> {
     pub b: &'r Builder<'o>,
     pub target: Target,
     pub accessors: bool,
-    pub rest_reads: Option<&'r FxHashSet<ReferenceId>>,
     pub res: &'r Resolution,
     /// How the client reads the names the template declares, for those in scope (upstream's
     /// per-block `transform`, keyed by symbol instead of by name).
@@ -63,6 +64,9 @@ pub(super) struct ScriptRewrite<'r, 'o> {
     /// The names a script takes for what it declares, such as a nested destructured derived's;
     /// a template's rewrite declares none.
     pub names: Option<&'r Names<'r>>,
+    /// The rest props that the writes being rewritten hold directly, `rest.key = value` or
+    /// `target = rest.key`: upstream reads `$$props` for every other `rest.key`.
+    pub held: Vec<ReferenceId>,
 }
 
 impl<'r, 'o> ScriptRewrite<'r, 'o> {
@@ -72,7 +76,6 @@ impl<'r, 'o> ScriptRewrite<'r, 'o> {
             b,
             target,
             accessors: false,
-            rest_reads: None,
             res,
             template: None,
             shadows: None,
@@ -82,6 +85,7 @@ impl<'r, 'o> ScriptRewrite<'r, 'o> {
             primitive: false,
             classes: Classes::default(),
             names: None,
+            held: Vec::new(),
         }
     }
 }
@@ -142,15 +146,6 @@ impl<'o> ScriptRewrite<'_, 'o> {
     /// Upstream `build_getter` / the `read` transforms, by binding kind and target.
     fn read(&self, identifier: &IdentifierReference<'_>) -> Option<Expression<'o>> {
         let b = self.b;
-        if self.target == Target::Client
-            && let Some(reads) = self.rest_reads
-            && identifier
-                .reference_id
-                .get()
-                .is_some_and(|r| reads.contains(&r))
-        {
-            return Some(b.id("$$props"));
-        }
         if identifier.name == "$$props" && self.renames_props(self.res.symbol(identifier)) {
             return Some(b.id_at(SANITIZED_PROPS, identifier.span));
         }
@@ -289,7 +284,52 @@ fn arguments_to_expressions<'o>(
 }
 
 impl<'o> ScriptRewrite<'_, 'o> {
+    /// Upstream's client `Identifier` visitor of a rest prop: `rest.key` that no write holds
+    /// reads `$$props.key`.
+    pub(super) fn reads_rest_prop(&self, object: &Expression<'_>, key: &str) -> bool {
+        self.rest_prop(object).is_some_and(|(rest, symbol)| {
+            !self.held.contains(&rest) && !super::rest_reads::excludes(self.res, symbol, key)
+        })
+    }
+
+    /// The reference and the symbol of `object` when it names a rest prop the client reads.
+    fn rest_prop(&self, object: &Expression<'_>) -> Option<(ReferenceId, SymbolId)> {
+        if self.target != Target::Client {
+            return None;
+        }
+        let Expression::Identifier(rest) = object.get_inner_expression() else {
+            return None;
+        };
+        let symbol = self.res.symbol(rest)?;
+        if self.res.binding(symbol).kind != BindingKind::RestProperty {
+            return None;
+        }
+        Some((rest.reference_id.get()?, symbol))
+    }
+
+    /// `f` on `it`, with the members `it` holds directly as an assignment or an update held:
+    /// upstream visits those with `it` as their parent, wherever the transform builds them.
+    pub(super) fn holding<R>(
+        &mut self,
+        it: &mut Expression<'o>,
+        f: impl FnOnce(&mut Self, &mut Expression<'o>) -> R,
+    ) -> R {
+        let depth = self.held.len();
+        for member in held_members(it).into_iter().flatten() {
+            if let Some((rest, _)) = self.rest_prop(member.object()) {
+                self.held.push(rest);
+            }
+        }
+        let result = f(self, it);
+        self.held.truncate(depth);
+        result
+    }
+
     fn rewrite_expression(&mut self, it: &mut Expression<'o>) {
+        self.holding(it, Self::rewrite_node);
+    }
+
+    fn rewrite_node(&mut self, it: &mut Expression<'o>) {
         let rewritten = match it {
             Expression::Identifier(identifier) => match self.read(identifier) {
                 Some(e) => e,
@@ -328,6 +368,31 @@ impl<'o> ScriptRewrite<'_, 'o> {
     }
 }
 
+/// The members a write holds directly as its target or its value, which upstream sees as a
+/// member whose parent is the assignment or the update.
+fn held_members<'e, 'o>(it: &'e Expression<'o>) -> [Option<&'e MemberExpression<'o>>; 2] {
+    let target = |target: &'e SimpleAssignmentTarget<'o>| {
+        (target.as_member_expression()).or_else(|| {
+            let e = target.get_expression()?;
+            e.get_inner_expression().as_member_expression()
+        })
+    };
+    match it {
+        Expression::AssignmentExpression(assignment) => [
+            assignment
+                .left
+                .as_simple_assignment_target()
+                .and_then(target),
+            assignment
+                .right
+                .get_inner_expression()
+                .as_member_expression(),
+        ],
+        Expression::UpdateExpression(update) => [target(&update.argument), None],
+        _ => [None, None],
+    }
+}
+
 impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
     // Upstream renames a declared `$$props` with its reads.
     fn visit_binding_identifier(&mut self, it: &mut BindingIdentifier<'o>) {
@@ -344,6 +409,16 @@ impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
             return;
         }
         self.rewrite_expression(it);
+    }
+
+    fn visit_member_expression(&mut self, it: &mut MemberExpression<'o>) {
+        if let MemberExpression::StaticMemberExpression(member) = it
+            && self.reads_rest_prop(&member.object, &member.property.name)
+        {
+            member.object = self.b.id("$$props");
+            return;
+        }
+        walk_mut::walk_member_expression(self, it);
     }
 
     fn visit_object_property(&mut self, it: &mut ObjectProperty<'o>) {
@@ -454,6 +529,15 @@ pub(super) fn with_prologue<'o>(b: &Builder<'o>, mut function: Statement<'o>) ->
         hoist_body(b, body);
     }
     function
+}
+
+/// Where the instance script stands in the source, or [`SPAN`](oxc_span::SPAN) without one.
+/// Upstream gives the block that holds the script's statements this position, so that its printer
+/// writes the script's comments there.
+pub(super) fn instance_span(component: rsvelte_svelte_semantic::input::ComponentInput<'_>) -> Span {
+    component.instance.map_or(oxc_span::SPAN, |instance| {
+        component.javascript.get_program(instance).span
+    })
 }
 
 fn hoist_body<'o>(b: &Builder<'o>, body: &mut oxc_ast::ast::FunctionBody<'o>) {

@@ -3,8 +3,10 @@
 //! Each official file is paired with the rsvelte file of the same name, except that the compiler's
 //! `warnings.json` is paired with rsvelte's diagnostics and `lint.txt` with `lint.json`. JavaScript
 //! is compared as a syntax tree, lint findings by the rules rsvelte ran, JSON as values and the
-//! rest as bytes. An official `error.*` means the official tool rejected the unit.
+//! rest as bytes. An official `error.*` means the official tool rejected the unit. Where
+//! JavaScript's comments are is a verdict of its own.
 
+mod comments;
 mod javascript;
 
 use javascript::Unparsed;
@@ -27,17 +29,24 @@ pub(crate) enum Verdict {
     Missing,
     /// rsvelte wrote a file that the official tool did not, or accepted what it rejected.
     Unexpected,
+    /// Not compared: the official tool rejected the unit. Only a comment verdict says so; the
+    /// task's own verdict judges the rejection.
+    OfficialRejected,
+    /// Not compared: `units.toml` skips the unit for the task. Only a comment verdict says so.
+    Skipped,
     Match,
 }
 
 impl Verdict {
-    pub(crate) const ALL: [Self; 7] = [
+    pub(crate) const ALL: [Self; 9] = [
         Self::Panicked,
         Self::Refused,
         Self::Unparseable,
         Self::Mismatch,
         Self::Missing,
         Self::Unexpected,
+        Self::OfficialRejected,
+        Self::Skipped,
         Self::Match,
     ];
 
@@ -49,6 +58,8 @@ impl Verdict {
             Self::Mismatch => "mismatch",
             Self::Missing => "missing",
             Self::Unexpected => "unexpected",
+            Self::OfficialRejected => "official-rejected",
+            Self::Skipped => "skipped",
             Self::Match => "match",
         }
     }
@@ -151,6 +162,42 @@ pub(crate) fn file_verdict(
     Ok(same(parse(actual).is_ok_and(|actual| actual == expected)))
 }
 
+/// Where the comments of a unit's JavaScript are, against the official output: `Missing` when
+/// only the official output has places the other lacks, `Unexpected` when only rsvelte's does,
+/// `Mismatch` when both. A unit that is not compared says why; `None` when the official tool
+/// wrote nothing for it.
+///
+/// # Errors
+///
+/// The official JavaScript does not parse.
+pub(crate) fn comments_verdict(
+    official: &[Entry<'_>],
+    ours: Option<&TaskOutput>,
+) -> Result<Option<Verdict>, String> {
+    if official.iter().any(|e| e.attributes.starts_with("error.")) {
+        return Ok(Some(Verdict::OfficialRejected));
+    }
+    let Some(official) = official.iter().find(|e| e.attributes == "js") else {
+        return Ok(None);
+    };
+    let Some(actual) = ours.and_then(|o| file(o, "js")) else {
+        return Ok(Some(Verdict::Refused));
+    };
+    match comments::difference(official.body, actual) {
+        Ok(d) => Ok(Some(match (d.missing > 0, d.extra > 0) {
+            (false, false) => Verdict::Match,
+            (true, false) => Verdict::Missing,
+            (false, true) => Verdict::Unexpected,
+            (true, true) => Verdict::Mismatch,
+        })),
+        Err(Unparsed::Actual(_)) => Ok(Some(Verdict::Unparseable)),
+        Err(Unparsed::Expected(e)) => Err(format!(
+            "official js of {}: does not parse: {e}",
+            official.path
+        )),
+    }
+}
+
 fn file<'a>(output: &'a TaskOutput, name: &str) -> Option<&'a str> {
     output
         .files
@@ -231,7 +278,7 @@ struct Finding {
 }
 
 impl Finding {
-    /// The finding as a `lint.txt` line (tools/oracle/tasks/lint-shared.ts).
+    /// The finding as a `lint.txt` line (tools/oracle/tasks/eslint.ts).
     fn line(&self) -> String {
         let end = self
             .end

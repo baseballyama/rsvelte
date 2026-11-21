@@ -1,6 +1,7 @@
-//! The files of a project, as the checker selects them from its tsconfig: opening the project
-//! expands `files`, `include` and `exclude`, and counts a mapped language's extension once its
-//! content mapper's package resolves, so rsvelte never matches the patterns itself.
+//! The files of a project, as the checker reaches them from its tsconfig: opening the project
+//! expands `files`, `include` and `exclude`, counts a mapped language's extension once its
+//! content mapper's package resolves, and follows every import, so rsvelte never matches the
+//! patterns or resolves a module itself.
 
 use std::path::{Path, PathBuf};
 
@@ -15,7 +16,7 @@ use super::mapped::{normalized, package_json};
 use crate::check::{MappedLanguage, Tsc};
 
 impl Tsc {
-    /// Every file of the tsconfig's project outside `node_modules`, with the files of each of
+    /// Every file of the tsconfig's program that svelte-check reports, with the files of each of
     /// `languages`, and the errors of the tsconfig, as svelte-check reports them.
     ///
     /// # Errors
@@ -80,23 +81,82 @@ fn root_files(
     let (Some(project), Some(own)) = (projects.next(), projects.next()) else {
         return Err("the checker opened no project".to_owned());
     };
-    session.release(project.snapshot)?;
-    let files = (project.root_files.iter())
-        .map(|file| normalized(&dir.join(file)))
-        .filter(|file| !file.components().any(|c| c.as_os_str() == "node_modules"))
-        .collect();
     let overlay_has_no_inputs =
-        (project.errors.iter()).any(|error| error.category == ERROR && error.code == NO_INPUTS);
-    let problems = (own.errors.iter())
-        .filter(|error| error.category == ERROR)
+        (project.errors.iter()).any(|error| error.is_error() && error.code == NO_INPUTS);
+    let problems: Vec<_> = (own.errors.iter())
+        .filter(|error| error.is_error())
         .filter(|error| error.code != NO_INPUTS || overlay_has_no_inputs)
         .map(|error| problem(error, config))
         .collect::<Result<_, _>>()?;
+    // As svelte-check, a tsconfig with errors is reported instead of its program.
+    let files = if problems.is_empty() {
+        let program = session.source_file_names(&project)?;
+        (program.iter())
+            .map(|file| normalized(&dir.join(file)))
+            .filter(|file| reported(file, languages, own.skip_lib_check))
+            .collect()
+    } else {
+        Vec::new()
+    };
+    session.release(project.snapshot)?;
     Ok(Project { files, problems })
 }
 
-/// `DiagnosticCategory.Error`.
-const ERROR: u8 = 1;
+/// How svelte-check (`language-server/src/svelte-check.ts`) tells which files of the program to
+/// report, by what a file is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Kind {
+    /// A file of a mapped language, such as a component: svelte-check holds a document for it.
+    Mapped,
+    /// `x.d.ts`, or a declaration of a file with an arbitrary extension, such as `x.d.svelte.ts`:
+    /// TypeScript's `isDeclarationFileName`.
+    Declaration,
+    /// `.js`, `.cjs` or `.mjs`.
+    JavaScript,
+    /// Any other file, such as `.ts` or `.json`.
+    Other,
+}
+
+impl Kind {
+    fn of(file: &Path, languages: &[MappedLanguage]) -> Self {
+        let name = file.file_name().unwrap_or_default().to_string_lossy();
+        if languages.iter().any(|l| name.ends_with(l.extension)) {
+            Self::Mapped
+        } else if [".d.ts", ".d.mts", ".d.cts"]
+            .iter()
+            .any(|e| name.ends_with(e))
+            || name.ends_with(".ts") && name.contains(".d.")
+        {
+            Self::Declaration
+        } else if [".js", ".cjs", ".mjs"].iter().any(|e| name.ends_with(e)) {
+            Self::JavaScript
+        } else {
+            Self::Other
+        }
+    }
+}
+
+/// Whether svelte-check reports `file`. TypeScript skips a default library under
+/// `skipDefaultLibCheck` itself, so that part of the rule needs no port.
+fn reported(file: &Path, languages: &[MappedLanguage], skip_lib_check: bool) -> bool {
+    let directories: Vec<&std::ffi::OsStr> = (file.parent().into_iter())
+        .flat_map(Path::components)
+        .map(std::path::Component::as_os_str)
+        .collect();
+    let in_node_modules = directories.iter().any(|d| *d == "node_modules");
+    match Kind::of(file, languages) {
+        // The language server skips a document in a package, unless in Sapper's `src/node_modules`.
+        Kind::Mapped => {
+            !in_node_modules
+                || (directories.windows(2))
+                    .any(|pair| pair[0] == "src" && pair[1] == "node_modules")
+        }
+        Kind::Declaration => !skip_lib_check,
+        Kind::JavaScript => !in_node_modules,
+        Kind::Other => true,
+    }
+}
+
 /// "No inputs were found in config file".
 const NO_INPUTS: u32 = 18003;
 
@@ -131,3 +191,6 @@ fn problem(
     let span = Span::new(offset(start)?, offset(end)?);
     Ok((file.to_owned(), diagnostic(span)))
 }
+
+#[cfg(test)]
+mod tests;

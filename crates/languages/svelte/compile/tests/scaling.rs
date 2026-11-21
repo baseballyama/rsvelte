@@ -97,8 +97,12 @@ fn a_call_chain_in_markup_is_judged_pure_once_per_link() {
                 let component = rsvelte_svelte_syntax::parse::parse(&source).expect("parses");
                 let tree =
                     rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, &source);
-                let input =
-                    rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "App.svelte");
+                let input = rsvelte_svelte_semantic::input::ComponentInput::new(
+                    &component,
+                    &tree,
+                    &source,
+                    "App.svelte",
+                );
                 let resolution = rsvelte_svelte_semantic::resolve::resolve(
                     &component.javascript,
                     component.instance.as_ref().map(|s| s.program),

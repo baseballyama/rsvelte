@@ -1,14 +1,15 @@
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn};
 use oxc_ast::ast::{BindingPattern, Expression, VariableDeclaration, VariableDeclarator};
 use oxc_ast_visit::{VisitMut, walk_mut};
-use oxc_semantic::SymbolId;
+use rsvelte_typescript_tree::node_span;
 
-use super::super::derived::{Created, callback, keeps_callee};
-use super::super::javascript::without_typescript;
-use super::super::names::Names;
-use super::super::paths::{Destructure, Paths};
-use super::{ScriptRewrite, Target, should_proxy_read};
+use super::{ScriptRewrite, should_proxy_read};
+use crate::input::Target;
 use crate::lower::builder::Runtime;
+use crate::lower::derived::{Created, callback, keeps_callee};
+use crate::lower::javascript::into_without_typescript;
+use crate::lower::names::Names;
+use crate::lower::paths::{Destructure, Paths};
 
 /// Lowers a `$state`, `$state.raw`, `$derived` or `$derived.by` declarator at any depth in
 /// place; `false` when `d` is none of them.
@@ -42,8 +43,7 @@ pub(super) fn lower_value_declarator<'o>(
     // What the value is decided on is the argument as written, before the rewrite reads it.
     let argument = argument.map(Expression::get_inner_expression);
     let proxy = rune == "$state" && argument.is_some_and(|a| should_proxy_read(rw.res, a));
-    let keeps = rune == "$derived"
-        && keeps_callee(rw.res, argument, Created::Script(super::super::span_of(d)));
+    let keeps = rune == "$derived" && keeps_callee(rw.res, argument, Created::Script(node_span(d)));
     let mut value = rune_argument(rw, d);
     rw.visit_expression(&mut value);
     walk_mut::walk_binding_pattern(rw, &mut d.id);
@@ -126,7 +126,6 @@ pub(super) fn lower_destructured_state<'o>(
             names,
             array: "$$array",
             out: &mut *out,
-            rest: None,
             derived: client,
         };
         let mut walker = Paths {
@@ -161,12 +160,13 @@ pub(super) fn lower_destructured_state<'o>(
 /// `$derived(x as T)` may keep `x`.
 fn rune_argument<'o>(rw: &ScriptRewrite<'_, 'o>, d: &mut VariableDeclarator<'o>) -> Expression<'o> {
     let b = rw.b;
-    let Some(Expression::CallExpression(mut call)) = d.init.take().map(without_typescript) else {
+    let Some(Expression::CallExpression(mut call)) = d.init.take().map(into_without_typescript)
+    else {
         unreachable!("a rune is a call")
     };
     call.arguments.first_mut().map_or_else(
         || b.void0(),
-        |argument| without_typescript(argument.take_in(b).into_expression()),
+        |argument| into_without_typescript(argument.take_in(b).into_expression()),
     )
 }
 
@@ -207,7 +207,7 @@ pub(super) fn rune_value<'o>(
             let value = value.expect("validation keeps a derived's argument");
             let callback = b.arrow(b.parameters([]), value);
             let callback = if storage.keeps {
-                super::super::builder::unthunk(callback)
+                crate::lower::builder::unthunk(callback)
             } else {
                 callback
             };
@@ -233,17 +233,13 @@ pub(super) fn lower_destructured_derived<'o>(
     let argument = argument
         .expect("validation keeps a destructured derived's argument")
         .get_inner_expression();
-    let mut rest = None;
-    let value = if rune == "$derived"
-        && let Expression::Identifier(identifier) = argument
-    {
-        rest = rw.res.symbol(identifier);
+    let value = if rune == "$derived" && matches!(argument, Expression::Identifier(_)) {
         rw.expression(argument)
     } else {
         let name = names.generate("$$d");
         let value = rw.expression(argument);
         let value = if rune == "$derived" {
-            let created = Created::Script(super::super::span_of(d));
+            let created = Created::Script(node_span(d));
             callback(b, rw.res, Some(argument), value, created)
         } else {
             value
@@ -264,7 +260,6 @@ pub(super) fn lower_destructured_derived<'o>(
             names,
             array,
             out,
-            rest,
             derived: true,
         },
         reserved: Vec::new(),
@@ -283,8 +278,6 @@ struct Hooks<'w, 'r, 'o> {
     names: &'w Names<'w>,
     array: &'static str,
     out: &'w mut Vec<VariableDeclarator<'o>>,
-    /// The name `$derived` reads when it is the value destructured.
-    rest: Option<SymbolId>,
     /// Each array is a derived; the server's destructured state keeps plain values.
     derived: bool,
 }
@@ -295,13 +288,7 @@ impl<'a, 'o> Destructure<'a, 'o> for Hooks<'_, '_, 'o> {
     }
 
     fn reads_props(&self, object: &Expression<'o>, key: &str) -> bool {
-        let rw = &self.rw;
-        rw.target == Target::Client
-            && rw.rest_reads.is_some()
-            && matches!(object, Expression::Identifier(_))
-            && self
-                .rest
-                .is_some_and(|symbol| super::super::rest_reads::reads_props(rw.res, symbol, key))
+        self.rw.reads_rest_prop(object, key)
     }
 
     fn array_name(&mut self) -> String {

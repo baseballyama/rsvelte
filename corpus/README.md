@@ -9,7 +9,8 @@ corpus/
 ├── _own/                     the files of the `rsvelte` sources, written for this project
 ├── _registry/
 │   ├── sources.json          source repositories: URL, commit, license (written by hand)
-│   ├── units.toml            the hand-written part of units: skips, behaviour (cross units)
+│   ├── units.toml            the hand-written part of units: skips, and the behaviour tasks' props
+│   │                         and steps (no corpus unit uses them today)
 │   ├── readers.toml          tasks that compare one file of another task's output
 │   ├── tsconfig.json         the project configuration of both type checkers
 │   ├── oracles.json          versions of the official tools, and the rules the linter ran
@@ -21,6 +22,10 @@ corpus/
     ├── expected/<task>/<variant>.pack   the official tools' output
     └── actual/               rsvelte's output, on request (ignored by git)
 ```
+
+The corpus holds only the `svelte` family today. The `vue` and `cross` languages in
+[languages.ts](../tools/oracle/languages.ts) admit files from no registered source, so the
+`vue.*`, `svue.*` and `vuelte.*` tasks measure no corpus unit.
 
 A pack is one text file that holds many: each entry is a line
 `=== <length in bytes> <path>\t<attributes>` and then the file's bytes. A source is then a few

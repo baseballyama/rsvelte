@@ -12,13 +12,13 @@ use rsvelte_kernel::source::tokens::TokenIdentifier;
 use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte_semantic::legacy::{Variable, is_top_level};
 use rsvelte_svelte_semantic::resolve::{RUNE_ROOTS, Resolution};
 use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
+use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::shared::legacy_reactivity::{expression_node, legacy, property_name};
-use super::shared::nodes::span;
+use super::shared::legacy_reactivity::{Variable, is_top_level, legacy};
+use super::shared::nodes::property_name;
 use super::shared::runes::runes_mode;
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
@@ -220,7 +220,7 @@ fn report(
         return;
     };
     let store = object.name.as_str();
-    let at = span(&member.span());
+    let at = document_span(member.span());
     let mut suggestions = Vec::new();
     if let Member::Static(static_member) = member {
         let name = static_member.property.name.as_str();
@@ -255,7 +255,7 @@ fn report(
         }
     }
     let shown = match member {
-        Member::Computed(member) => span(&member.expression)
+        Member::Computed(member) => node_span(&member.expression)
             .text(source)
             .split_whitespace()
             .collect::<Vec<_>>()
@@ -315,13 +315,13 @@ impl<'f> ReactiveVariables<'f> {
                         AstKind::ComputedMemberExpression(member) => &member.object,
                         _ => continue,
                     };
-                    if expression_node(object) != node {
+                    if object.node_id() != node {
                         continue;
                     }
                     let assignment = nodes.parent_id(up);
                     if let Some(property) = property_name(member)
                         && let AstKind::AssignmentExpression(expression) = nodes.kind(assignment)
-                        && expression_node(&expression.right) == up
+                        && expression.right.node_id() == up
                         && let AssignmentTarget::AssignmentTargetIdentifier(left) = &expression.left
                         && reactive(nodes, assignment)
                     {
@@ -333,7 +333,7 @@ impl<'f> ReactiveVariables<'f> {
                     }
                 }
                 AstKind::AssignmentExpression(assignment)
-                    if expression_node(&assignment.right) == node && reactive(nodes, up) =>
+                    if assignment.right.node_id() == node && reactive(nodes, up) =>
                 {
                     let AssignmentTarget::ObjectAssignmentTarget(pattern) = &assignment.left else {
                         continue;

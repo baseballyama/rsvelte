@@ -11,6 +11,7 @@ use std::time::Instant;
 
 use rsvelte_kernel::computation::pipeline::{DocumentResult, RunOptions, Sharing, run_each};
 use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::performance::parallel;
 use rsvelte_kernel::source::document::Document;
 
 use crate::compare::{self, Ours, Verdict};
@@ -46,9 +47,17 @@ pub struct Conformance {
 #[derive(Debug)]
 struct Compared {
     task: &'static str,
-    implemented: bool,
+    kind: Kind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Kind {
+    /// The task's output against its own pack.
+    Output,
     /// A task in `readers.toml`: it compares one file of another task's official output.
-    reader: bool,
+    Reader,
+    /// Where the comments of another task's JavaScript are, against that task's pack.
+    Comments { of: &'static str },
 }
 
 /// One source's verdicts: (unit key, index into `compared`, verdict).
@@ -73,8 +82,19 @@ impl Conformance {
     pub fn compare(mut self, task: &'static str) -> Self {
         self.compared.push(Compared {
             task,
-            implemented: true,
-            reader: false,
+            kind: Kind::Output,
+        });
+        self
+    }
+
+    /// Compares where the comments of the JavaScript that the compared task `of` writes are with
+    /// the official output, under the ledger of `task`. The syntax-tree comparison does not see
+    /// them.
+    #[must_use]
+    pub fn compare_comments(mut self, task: &'static str, of: &'static str) -> Self {
+        self.compared.push(Compared {
+            task,
+            kind: Kind::Comments { of },
         });
         self
     }
@@ -87,19 +107,7 @@ impl Conformance {
     pub fn compare_file(mut self, task: &'static str) -> Self {
         self.compared.push(Compared {
             task,
-            implemented: true,
-            reader: true,
-        });
-        self
-    }
-
-    /// An official task rsvelte does not have yet: its units are `missing`.
-    #[must_use]
-    pub fn not_implemented(mut self, task: &'static str) -> Self {
-        self.compared.push(Compared {
-            task,
-            implemented: false,
-            reader: false,
+            kind: Kind::Reader,
         });
         self
     }
@@ -153,7 +161,7 @@ impl Conformance {
         if let Some(c) = self
             .compared
             .iter()
-            .find(|c| c.reader && !registry.readers.contains_key(c.task))
+            .find(|c| c.kind == Kind::Reader && !registry.readers.contains_key(c.task))
         {
             return Err(format!("{} is not in readers.toml", c.task));
         }
@@ -162,7 +170,7 @@ impl Conformance {
         let size = |s: &Source| std::fs::metadata(s.dir.join("inputs.pack")).map_or(0, |m| m.len());
         sources.sort_by_cached_key(|s| std::cmp::Reverse(size(s)));
         let selected = |key: &str| filter.as_deref().is_none_or(|f| key.contains(f));
-        let ran = parallel_map(&sources, |source| {
+        let ran = parallel::map(&sources, |source| {
             self.source(source, &registry, &selected, flag(ACTUAL))
         });
         let mut verdicts: Vec<BTreeMap<String, Verdict>> =
@@ -259,12 +267,12 @@ impl Conformance {
         let expected: Vec<Pack> = self
             .compared
             .iter()
-            .map(|c| source.expected(reader_of(c, registry).map_or(c.task, |r| &r.pack)))
+            .map(|c| source.expected(pack_of(c, registry)))
             .collect::<Result<_, _>>()?;
         let tasks: Vec<&str> = self
             .compared
             .iter()
-            .filter(|c| c.implemented)
+            .filter(|c| !matches!(c.kind, Kind::Comments { .. }))
             .map(|c| c.task)
             .chain(self.also_run.iter().copied())
             .chain(self.out_of_scope)
@@ -313,6 +321,9 @@ impl Conformance {
                 .into_inner()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             for (c, files) in self.compared.iter().zip(&actual) {
+                if matches!(c.kind, Kind::Comments { .. }) {
+                    continue;
+                }
                 let text = pack::format(files.iter().map(|(path, name, body)| Entry {
                     path,
                     attributes: name,
@@ -340,7 +351,7 @@ impl Conformance {
         let table = registry.units.get(&key);
         for (i, c) in self.compared.iter().enumerate() {
             // Regen writes nothing for a unit no reader of the pack takes.
-            if !c.reader
+            if c.kind == Kind::Output
                 && table.is_some_and(|t| registry.skips_every_reader(t, c.task))
                 && expected[i].find(&document.path).next().is_some()
             {
@@ -362,10 +373,30 @@ impl Conformance {
         }
         let mut out = Vec::new();
         for (i, c) in self.compared.iter().enumerate() {
-            if table.is_some_and(|t| t.skips(c.task)) {
+            let official: Vec<Entry<'_>> = expected[i].find(&document.path).collect();
+            if !matches!(c.kind, Kind::Comments { .. }) && table.is_some_and(|t| t.skips(c.task)) {
                 continue;
             }
-            let official: Vec<Entry<'_>> = expected[i].find(&document.path).collect();
+            if let Kind::Comments { of } = c.kind {
+                // Every unit of the task's population has a verdict, so one that stops being
+                // compared moves.
+                let applies = result.outputs.iter().any(|(t, _)| *t == of);
+                let verdict = if !applies && result.panic.is_none() {
+                    None
+                } else if table.is_some_and(|t| t.skips(c.task) || t.skips(of)) {
+                    Some(Verdict::Skipped)
+                } else if result.panic.is_some() {
+                    (!official.is_empty()).then_some(Verdict::Panicked)
+                } else {
+                    let ours = result.outputs.iter().find(|(t, _)| *t == of);
+                    compare::comments_verdict(&official, ours.map(|(_, out)| out))
+                        .map_err(|e| format!("{key}: {e}"))?
+                };
+                if let Some(v) = verdict {
+                    out.push((key.clone(), i, v));
+                }
+                continue;
+            }
             let ours = result.outputs.iter().find(|(t, _)| *t == c.task);
             if let Some(file) = reader_of(c, registry).map(|r| r.file.as_str()) {
                 if official.is_empty()
@@ -385,7 +416,7 @@ impl Conformance {
             }
             let verdict = if result.panic.is_some() {
                 // A unit the task has no official output for is not the task's to judge.
-                (!official.is_empty() && c.implemented).then_some(Verdict::Panicked)
+                (!official.is_empty()).then_some(Verdict::Panicked)
             } else {
                 let ours = ours.map(|(_, out)| Ours {
                     output: out,
@@ -403,9 +434,17 @@ impl Conformance {
     }
 }
 
+/// The official pack a compared task reads.
+fn pack_of<'r>(c: &'r Compared, registry: &'r sources::Registry) -> &'r str {
+    match c.kind {
+        Kind::Comments { of } => of,
+        _ => reader_of(c, registry).map_or(c.task, |r| &r.pack),
+    }
+}
+
 /// The pack and file a reader task compares; `None` for a task with a pack of its own.
 fn reader_of<'r>(c: &Compared, registry: &'r sources::Registry) -> Option<&'r sources::Reader> {
-    if c.reader {
+    if c.kind == Kind::Reader {
         registry.readers.get(c.task)
     } else {
         None
@@ -463,34 +502,6 @@ fn summarize(task: &str, now: &BTreeMap<String, Verdict>) {
         now.len(),
         parts.join(", ")
     );
-}
-
-/// `f` over each item on every core; each thread takes the next item when it is free.
-fn parallel_map<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Vec<R> {
-    let threads = std::thread::available_parallelism()
-        .map_or(1, std::num::NonZero::get)
-        .min(items.len());
-    let next = AtomicUsize::new(0);
-    let done = Mutex::new(Vec::with_capacity(items.len()));
-    std::thread::scope(|scope| {
-        for _ in 0..threads {
-            scope.spawn(|| {
-                loop {
-                    let i = next.fetch_add(1, Ordering::Relaxed);
-                    let Some(item) = items.get(i) else { break };
-                    let r = f(item);
-                    done.lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .push((i, r));
-                }
-            });
-        }
-    });
-    let mut done = done
-        .into_inner()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    done.sort_unstable_by_key(|(i, _)| *i);
-    done.into_iter().map(|(_, r)| r).collect()
 }
 
 #[cfg(test)]

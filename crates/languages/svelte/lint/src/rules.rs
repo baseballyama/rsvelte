@@ -9,7 +9,7 @@ pub(crate) mod shared {
     pub(super) mod expressions;
     pub(super) mod kit_navigation;
     pub(super) mod kit_route;
-    pub(super) mod legacy_reactivity;
+    pub(crate) mod legacy_reactivity;
     pub(super) mod markup;
     pub(super) mod nodes;
     pub(super) mod reactive_statements;

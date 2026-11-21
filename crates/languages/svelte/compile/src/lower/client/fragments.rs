@@ -1,15 +1,14 @@
 use oxc_ast::ast::{Expression, Statement};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    Children, CompilerNodeIdentifier, MetadataTag,
+    Children, CompilerNodeIdentifier, ElementKind, MetadataTag, NodeKind,
 };
 
-use super::super::component::Standalone;
-use super::{
-    ClientCompilationContext, ElementKind, Frag, Item, Lists, NodeKind, Prev, R, Template,
-    unsupported,
-};
+use super::template::Template;
+use super::{ClientCompilationContext, Frag, Lists, Prev, R};
 use crate::lower::builder::Runtime;
-use crate::render_plan::Region;
+use crate::lower::component::Standalone;
+use crate::lower::unsupported;
+use crate::render_plan::{Item, Region};
 
 pub(super) const TEMPLATE_FRAGMENT: u32 = 1;
 
@@ -113,7 +112,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 let initial = Prev::Identifier(text.clone());
                 self.process_children(items, initial, false, &mut frag, &mut l)?;
                 Some((text, b.runtime("text", [])))
-            } else if let Some(standalone) = super::super::component::standalone(
+            } else if let Some(standalone) = crate::lower::component::standalone(
                 self.compiler_syntax_tree,
                 self.javascript,
                 self.res,

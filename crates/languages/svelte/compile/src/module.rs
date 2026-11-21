@@ -1,7 +1,6 @@
 //! Upstream `compileModule`: a `.svelte.js` or `.svelte.ts` module, compiled by the component
 //! pipeline as a component's module script with nothing else around it.
 
-use oxc_allocator::Allocator;
 use oxc_span::SourceType;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
@@ -92,20 +91,21 @@ pub(crate) fn compiled(
         source_text: &document.text,
     });
     let res = resolve_module(&javascript, program);
-    let allocator = Allocator::default();
-    let module = {
-        let _p = measurement::phase(target.lower_phase());
-        lower::lower_module(&input, &res, target, &allocator)?
-    };
+    let emitted = rsvelte_typescript_tree::with_scratch_arena(|allocator| {
+        let module = {
+            let _p = measurement::phase(target.lower_phase());
+            lower::lower_module(&input, &res, target, allocator)?
+        };
+        let _p = measurement::phase("js.print");
+        Ok::<_, Diagnostic>(print::emit_with(&module, lines, print::Comments::Placed))
+    })?;
     let warnings = {
         let _p = measurement::phase("svelte.analyze");
         let found = module_warnings(&javascript, program, &res, &document.text, OPTIONS);
         found.compiled().cloned().collect()
     };
-    let _p = measurement::phase("js.print");
-    let javascript = print::emit(&module, lines);
     Ok(Module {
-        javascript,
+        javascript: emitted,
         warnings,
     })
 }

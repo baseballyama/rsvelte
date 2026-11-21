@@ -3,9 +3,10 @@ use oxc_ast::ast::{Argument, CallExpression, Expression, FormalParameters, State
 use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_typescript_tree::node_span;
 
-use super::shared::nodes::{is_named, only_statement, span, text};
-use super::shared::runes::runes_or_undetermined;
+use super::shared::nodes::{is_named, only_statement, text};
+use super::shared::runes::meets_runes_condition;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -20,7 +21,7 @@ struct PreferDerivedOverDerivedBy;
 
 impl SvelteRule for PreferDerivedOverDerivedBy {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        if !runes_or_undetermined(file) {
+        if !meets_runes_condition(file) {
             return;
         }
         let source = file.source();
@@ -36,9 +37,9 @@ impl SvelteRule for PreferDerivedOverDerivedBy {
                 Report::range(
                     "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple \
                         expressions.",
-                    span(call),
+                    node_span(call),
                 )
-                .fix(Fix::replace(span(call), replacement)),
+                .fix(Fix::replace(node_span(call), replacement)),
             );
         }
     }

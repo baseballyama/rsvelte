@@ -5,11 +5,10 @@ use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_stylesheet_syntax::postcss::InlineNode;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, TemplateNode};
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, node_span};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::shared::element_kind::is_markup_like;
-use super::shared::nodes;
 use super::shared::style_attribute::{expression_of_hole, inline_style, is_style, literal_style};
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -142,9 +141,9 @@ fn conditional<'s>(
         return None;
     }
     let (test, consequent, alternate) = (
-        nodes::span(&conditional.test),
-        nodes::span(&conditional.consequent),
-        nodes::span(&conditional.alternate),
+        node_span(&conditional.test),
+        node_span(&conditional.consequent),
+        node_span(&conditional.alternate),
     );
     let quoted = |literal: Span| {
         let quotes = literal.text(source);
@@ -178,7 +177,7 @@ fn conditional<'s>(
         ""
     };
     Some((
-        nodes::span(expression),
+        node_span(expression),
         property,
         format!("style:{property}{important}={{{value}}}"),
     ))

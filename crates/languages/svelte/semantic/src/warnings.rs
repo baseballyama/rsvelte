@@ -6,7 +6,8 @@
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Component, Script, TemplateNode};
+use rsvelte_svelte_syntax::svelte_diagnostics::{error, warning};
+use rsvelte_svelte_syntax::syntax_tree::{Component, Script};
 use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 
 use crate::analyze::Analysis;
@@ -15,9 +16,12 @@ use crate::resolve::Resolution;
 
 mod a11y;
 mod awaits;
+mod component;
 mod exports;
 mod found;
 mod ignore;
+mod raised;
+mod rest_props;
 mod runes;
 mod script;
 mod selectors;
@@ -26,16 +30,20 @@ mod stylesheet_analysis;
 mod template;
 #[cfg(test)]
 mod tests;
+mod transitions;
 mod updates;
 
+use component::{component_errors, deprecated_tag};
 use exports::{state_exports, unused_exports};
 use found::{Found, VisitOrder};
-pub use ignore::{LEGACY_REPLACEMENTS, code_for_v5};
+pub use ignore::code_for_v5;
+pub use raised::{Phase, Raised, Section};
+pub use rest_props::rest_prop_member_errors;
 pub use runes::dollar_name_errors;
-pub(crate) use runes::svelte_option;
 use runes::{custom_element, declaration_errors, runes};
 use selectors::unused_selectors;
 use template::Template;
+pub use transitions::TransitionDirections;
 
 #[derive(Debug, Default)]
 pub struct CompileWarnings {
@@ -49,105 +57,6 @@ pub struct CompileWarnings {
     pub awaits: Vec<Span>,
     /// Whether the compiler is in runes mode, given or inferred.
     pub runes: bool,
-}
-
-/// When the compiler raises an error: it creates every scope before it walks any tree, and it
-/// handles the module script, then the instance script, then the template.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Raised {
-    pub phase: Phase,
-    pub section: Section,
-    /// Where the compiler's walk is when it raises the error.
-    pub at: u32,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Phase {
-    Parse,
-    Scopes,
-    Walk,
-    /// The checks of the whole component after the walks.
-    Component,
-    /// The compiler analyzes the style sheet after it walks every tree.
-    Stylesheet,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Section {
-    Module,
-    Instance,
-    Template,
-}
-
-impl Section {
-    /// The part of `component` that holds `offset`.
-    #[must_use]
-    pub fn of(component: &Component, offset: u32) -> Self {
-        let holds = |script: &Option<Script>| {
-            script
-                .as_ref()
-                .is_some_and(|s| s.span.start_offset <= offset && offset < s.span.end_offset)
-        };
-        if holds(&component.module) {
-            Self::Module
-        } else if holds(&component.instance) {
-            Self::Instance
-        } else {
-            Self::Template
-        }
-    }
-}
-
-impl CompileWarnings {
-    /// The error the compiler stops at; an `await` is one only without `experimental.async`.
-    #[must_use]
-    pub fn first_error(
-        &self,
-        component: &Component,
-        experimental_async: bool,
-    ) -> Option<Diagnostic> {
-        self.first_error_with(component, experimental_async, &[])
-    }
-
-    /// [`Self::first_error`] among these and the `others` that the compiler raises besides.
-    #[must_use]
-    pub fn first_error_with(
-        &self,
-        component: &Component,
-        experimental_async: bool,
-        others: &[(Raised, Diagnostic)],
-    ) -> Option<Diagnostic> {
-        let awaits = self
-            .awaits
-            .iter()
-            .filter(|_| !experimental_async)
-            .map(|&span| {
-                let raised = Raised {
-                    phase: Phase::Walk,
-                    section: Section::of(component, span.start_offset),
-                    at: span.start_offset,
-                };
-                (raised, Err(span))
-            });
-        let (_, first) = self
-            .errors
-            .iter()
-            .chain(others)
-            .map(|(raised, error)| (*raised, Ok(error)))
-            .chain(awaits)
-            .min_by_key(|(raised, _)| *raised)?;
-        Some(first.map_or_else(
-            |span| {
-                error(
-                    "experimental_async",
-                    "Cannot use `await` in deriveds and template expressions, or at the top level \
-                        of a component, unless the `experimental.async` compiler option is `true`",
-                    span,
-                )
-            },
-            Clone::clone,
-        ))
-    }
 }
 
 impl CompileWarnings {
@@ -260,24 +169,6 @@ pub fn slot_name_error(name: Option<&str>) -> Option<(&'static str, &'static str
     }
 }
 
-/// The document position of an oxc node.
-const fn span(span: oxc_span::Span) -> Span {
-    Span::new(span.start, span.end)
-}
-
-fn warning(code: &'static str, message: &str, span: Span) -> Diagnostic {
-    let message = format!("{message}\nhttps://svelte.dev/e/{code}");
-    Diagnostic::warning(code, message, span)
-}
-
-fn error(code: &'static str, message: &str, span: Span) -> Diagnostic {
-    Diagnostic::error(
-        code,
-        format!("{message}\nhttps://svelte.dev/e/{code}"),
-        span,
-    )
-}
-
 /// The compile options that change what the compiler warns about.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Options {
@@ -293,7 +184,7 @@ impl Options {
     /// `<svelte:options>` names `tag` or `customElement`.
     #[must_use]
     pub fn linting(component: &Component, source: &str) -> Self {
-        let names = |name| svelte_option(component, source, name).is_some();
+        let names = |name| component.svelte_option(source, name).is_some();
         Self {
             runes: None,
             custom_element: names("tag") || names("customElement"),
@@ -320,16 +211,18 @@ pub fn warnings(
     deprecated_tag(component, source, &mut out.errors);
     let runes = runes(component, resolution, source, &out.awaits, options.runes);
     out.runes = runes;
+    let javascript = &component.javascript;
+    let instance = component.instance.as_ref().map(|s| s.program);
+    let module = component.module.as_ref().map(|s| s.program);
     out.errors.extend(dollar_name_errors(
-        &component.javascript,
-        component.instance.as_ref().map(|s| s.program),
-        component.module.as_ref().map(|s| s.program),
-        resolution,
-        runes,
+        javascript, instance, module, resolution, runes,
+    ));
+    out.errors.extend(rest_prop_member_errors(
+        javascript, instance, module, resolution, runes,
     ));
     declaration_errors(component, resolution, runes, &mut out.errors);
     let mut found = Found::default();
-    let custom_options = svelte_option(component, source, "customElement").is_some();
+    let custom_options = component.svelte_option(source, "customElement").is_some();
     let none = rustc_hash::FxHashMap::default();
     let exported = if runes {
         resolution.exported_by_specifier()
@@ -352,10 +245,7 @@ pub fn warnings(
         || ("Self".to_owned(), "Self.svelte"),
         |filename| {
             let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
-            (
-                rsvelte_svelte_syntax::names::component_name(filename),
-                basename,
-            )
+            (crate::identifiers::component_name(filename), basename)
         },
     );
     let mut template = Template::new(
@@ -430,54 +320,6 @@ fn stylesheet_warnings(
         }
         unused_selectors(&sheet.rules, analysis, source, found);
     }
-}
-
-/// The checks upstream makes once the walks end: `mixed_event_handler_syntaxes`, an element's
-/// `on:` directive beside an element's event attribute, then `slot_snippet_conflict`, a
-/// `{@render}` beside a `<slot>` or beside `$$slots`.
-fn component_errors(
-    component: &Component,
-    resolution: &Resolution,
-    source: &str,
-    event_directive: Option<(Span, Span)>,
-    first_slot: Option<Span>,
-    custom_element: bool,
-    out: &mut Vec<(Raised, Diagnostic)>,
-) {
-    let raised = |at| Raised {
-        phase: Phase::Component,
-        section: Section::Template,
-        at,
-    };
-    if let Some((at, name)) = event_directive {
-        let name = name.text(source);
-        let message = format!(
-            "Mixing old (on:{name}) and new syntaxes for event handling is not allowed. Use only \
-                the on{name} syntax"
-        );
-        let found = error("mixed_event_handler_syntaxes", &message, at);
-        // Upstream checks it first, so it sorts before the slot conflict wherever that is.
-        out.push((raised(0), found));
-    }
-    let renders = component
-        .nodes
-        .iter()
-        .any(|node| matches!(node, TemplateNode::Render { .. }));
-    let uses_slots = resolution.unresolved_names().any(|name| name == "$$slots");
-    if !renders || !(uses_slots || (!custom_element && first_slot.is_some())) {
-        return;
-    }
-    let at = first_slot.unwrap_or_else(|| {
-        // Upstream points at the text `$$slot`, which a `$$slots` read holds.
-        let at = source.find("$$slot").map_or(0, |at| at as u32);
-        Span::new(at, at)
-    });
-    let message = "Cannot use `<slot>` syntax and `{@render ...}` tags in the same component. \
-        Migrate towards `{@render ...}` tags completely";
-    out.push((
-        raised(at.start_offset),
-        error("slot_snippet_conflict", message, at),
-    ));
 }
 
 /// Upstream `analyze_module`'s warnings for a `.svelte.js` or `.svelte.ts` module: its script
@@ -559,35 +401,5 @@ impl<'a> Scripts<'a> {
         ]
         .into_iter()
         .filter_map(|(section, script)| Some((section, script?)))
-    }
-}
-
-/// `<svelte:options tag>`, which Svelte 5's parser rejects.
-fn deprecated_tag(component: &Component, source: &str, out: &mut Vec<(Raised, Diagnostic)>) {
-    for &child in component.children(component.root) {
-        let TemplateNode::Element {
-            name, attributes, ..
-        } = *component.node(child)
-        else {
-            continue;
-        };
-        if name.text(source) != "svelte:options" {
-            continue;
-        }
-        for attribute in component.attributes(attributes) {
-            if attribute.kind == AttributeKind::Attribute && attribute.name.text(source) == "tag" {
-                let raised = Raised {
-                    phase: Phase::Parse,
-                    section: Section::Template,
-                    at: attribute.span.start_offset,
-                };
-                let found = error(
-                    "svelte_options_deprecated_tag",
-                    "\"tag\" option is deprecated — use \"customElement\" instead",
-                    attribute.span,
-                );
-                out.push((raised, found));
-            }
-        }
     }
 }

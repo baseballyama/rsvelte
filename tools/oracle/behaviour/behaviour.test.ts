@@ -52,7 +52,7 @@ const units: Unit[] = CASES.flatMap(({ dir, lang, ext }) =>
 				ext,
 				src: fs.readFileSync(sourceFile, 'utf8'),
 				mode: '',
-				fixture: { behaviour },
+				table: { behaviour },
 				sourceFile,
 			};
 		}),
@@ -111,7 +111,7 @@ async function verdict(
 		runtime,
 		target,
 		moduleFile(code, target),
-		unit.fixture.behaviour ?? {},
+		unit.table.behaviour ?? {},
 	);
 	return traceDiff(JSON.parse(await expected(unit, target)), observed);
 }
@@ -131,7 +131,7 @@ test('every Svelte to Vapor snapshot matches the official Svelte trace', async (
 	let measured = 0;
 	for (const unit of cases) {
 		for (const target of TARGETS) {
-			if (target === 'client' && unit.fixture.behaviour?.browser && !unit.fixture.behaviour.node)
+			if (target === 'client' && unit.table.behaviour?.browser && !unit.table.behaviour.node)
 				continue;
 			measured++;
 			try {

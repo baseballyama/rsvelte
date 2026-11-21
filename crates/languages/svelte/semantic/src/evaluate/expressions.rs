@@ -1,10 +1,9 @@
-use oxc_ast::ast::{Expression, LogicalExpression, UnaryExpression};
+use oxc_ast::ast::{Expression, LogicalExpression, TemplateElement, UnaryExpression};
 use oxc_syntax::operator::{BinaryOperator, LogicalOperator, UnaryOperator};
 
 use super::globals::{Global, global};
 use super::operators::{binary, unary};
-use super::template::cooked;
-use super::{Evaluator, Value, Values, add, bigint};
+use super::{Evaluator, Value, Values, bigint};
 
 impl Evaluator<'_> {
     pub(super) fn eval_into(&mut self, e: &Expression<'_>, values: &mut Values) {
@@ -13,22 +12,19 @@ impl Evaluator<'_> {
         match e {
             // A value with a lone surrogate is no Rust string.
             Expression::StringLiteral(s) => match s.value.as_str() {
-                Some(value) => add(values, Value::String(value.to_owned())),
-                None => add(values, Value::Unknown),
+                Some(value) => values.add(Value::String(value.to_owned())),
+                None => values.add(Value::Unknown),
             },
-            Expression::NumericLiteral(n) => add(values, Value::Number(n.value)),
+            Expression::NumericLiteral(n) => values.add(Value::Number(n.value)),
             Expression::BigIntLiteral(b) => {
-                add(values, bigint::literal(&format!("{}n", b.value)));
+                values.add(bigint::literal(&format!("{}n", b.value)));
             }
-            Expression::BooleanLiteral(b) => add(values, Value::Boolean(b.value)),
-            Expression::NullLiteral(_) => add(values, Value::Null),
-            Expression::RegExpLiteral(r) => add(
-                values,
-                Value::RegExp {
-                    literal: r.span,
-                    text: format!("/{}/{}", r.regex.pattern.text, r.regex.flags).into(),
-                },
-            ),
+            Expression::BooleanLiteral(b) => values.add(Value::Boolean(b.value)),
+            Expression::NullLiteral(_) => values.add(Value::Null),
+            Expression::RegExpLiteral(r) => values.add(Value::RegExp {
+                literal: r.span,
+                text: format!("/{}/{}", r.regex.pattern.text, r.regex.flags).into(),
+            }),
             Expression::Identifier(identifier) => self.identifier(identifier, values),
             Expression::BinaryExpression(b) => {
                 self.binary_expression(b.operator, &b.left, &b.right, values);
@@ -52,7 +48,7 @@ impl Evaluator<'_> {
             Expression::CallExpression(call) => self.call(e, call, values),
             Expression::TemplateLiteral(t) => {
                 let Some(mut result) = cooked(&t.quasis[0]) else {
-                    return add(values, Value::Unknown);
+                    return values.add(Value::Unknown);
                 };
                 for (i, x) in t.expressions.iter().enumerate() {
                     let ev = self.evaluate_inner(x);
@@ -64,23 +60,23 @@ impl Evaluator<'_> {
                         result.push_str(&next);
                     } else {
                         // Upstream adds the partial string as well after giving up, and so do we.
-                        add(values, Value::AnyString);
+                        values.add(Value::AnyString);
                         break;
                     }
                 }
-                add(values, Value::String(result));
+                values.add(Value::String(result));
             }
             Expression::StaticMemberExpression(_) => {
                 match self.global_keypath(e).and_then(global) {
-                    Some(Global::Constant(v)) => add(values, Value::Number(v)),
-                    _ => add(values, Value::Unknown),
+                    Some(Global::Constant(v)) => values.add(Value::Number(v)),
+                    _ => values.add(Value::Unknown),
                 }
             }
             Expression::ArrowFunctionExpression(_) | Expression::FunctionExpression(_) => {
-                add(values, Value::AnyFunction);
+                values.add(Value::AnyFunction);
             }
             Expression::ParenthesizedExpression(p) => self.eval_into(&p.expression, values),
-            _ => add(values, Value::Unknown),
+            _ => values.add(Value::Unknown),
         }
     }
 
@@ -101,29 +97,29 @@ impl Evaluator<'_> {
         let right = self.evaluate_inner(r);
         if left.is_known() && right.is_known() {
             match binary(op, left.value(), right.value()) {
-                Some(v) => add(values, v),
-                None => add(values, Value::Unknown),
+                Some(v) => values.add(v),
+                None => values.add(Value::Unknown),
             }
             return;
         }
         match op {
             Inequality | StrictInequality | LessThan | LessEqualThan | GreaterThan
             | GreaterEqualThan | Equality | StrictEquality | In | Instanceof => {
-                add(values, Value::Boolean(true));
-                add(values, Value::Boolean(false));
+                values.add(Value::Boolean(true));
+                values.add(Value::Boolean(false));
             }
             Remainder | BitwiseAnd | Multiplication | Exponential | Subtraction | Division
             | ShiftLeft | ShiftRight | ShiftRightZeroFill | BitwiseXOR | BitwiseOR => {
-                add(values, Value::AnyNumber);
+                values.add(Value::AnyNumber);
             }
             Addition => {
                 if left.is_string() || right.is_string() {
-                    add(values, Value::AnyString);
+                    values.add(Value::AnyString);
                 } else if left.is_number() && right.is_number() {
-                    add(values, Value::AnyNumber);
+                    values.add(Value::AnyNumber);
                 } else {
-                    add(values, Value::AnyString);
-                    add(values, Value::AnyNumber);
+                    values.add(Value::AnyString);
+                    values.add(Value::AnyNumber);
                 }
             }
         }
@@ -140,12 +136,12 @@ impl Evaluator<'_> {
                 }
             };
             if short {
-                add(values, left.into_value());
+                values.add(left.into_value());
                 return;
             }
         } else {
             for value in left.into_values() {
-                add(values, value);
+                values.add(value);
             }
         }
         self.eval_into(&l.right, values);
@@ -154,19 +150,26 @@ impl Evaluator<'_> {
     fn unary_expression(&mut self, u: &UnaryExpression<'_>, values: &mut Values) {
         let a = self.evaluate_inner(&u.argument);
         if a.is_known() {
-            add(values, unary(u.operator, a.value()));
+            values.add(unary(u.operator, a.value()));
             return;
         }
         match u.operator {
             UnaryOperator::LogicalNot | UnaryOperator::Delete => {
-                add(values, Value::Boolean(false));
-                add(values, Value::Boolean(true));
+                values.add(Value::Boolean(false));
+                values.add(Value::Boolean(true));
             }
             UnaryOperator::UnaryPlus | UnaryOperator::UnaryNegation | UnaryOperator::BitwiseNot => {
-                add(values, Value::AnyNumber);
+                values.add(Value::AnyNumber);
             }
-            UnaryOperator::Typeof => add(values, Value::AnyString),
-            UnaryOperator::Void => add(values, Value::Undefined),
+            UnaryOperator::Typeof => values.add(Value::AnyString),
+            UnaryOperator::Void => values.add(Value::Undefined),
         }
     }
+}
+
+/// The cooked text of a template literal's quasi; `None` when it holds a lone surrogate, which is
+/// no Rust string.
+fn cooked(quasi: &TemplateElement<'_>) -> Option<String> {
+    let cooked = quasi.value.cooked?;
+    cooked.as_str().map(str::to_owned)
 }

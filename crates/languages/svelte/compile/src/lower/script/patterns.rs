@@ -12,12 +12,13 @@ use oxc_syntax::scope::ScopeFlags;
 use rsvelte_svelte_semantic::evaluate::Evaluator;
 use rsvelte_svelte_semantic::resolve::Resolution;
 
-use super::super::javascript::is_simple_expression;
-use super::super::names::Names;
-use super::super::{Builder, Target};
 use super::ScriptRewrite;
 use super::writes::mutates_signal;
+use crate::input::Target;
+use crate::lower::Builder;
 use crate::lower::builder::Runtime;
+use crate::lower::javascript::is_simple_expression;
+use crate::lower::names::Names;
 
 impl<'o> ScriptRewrite<'_, 'o> {
     /// The rewritten destructuring assignment `it`, or `None` when no path it writes is
@@ -71,7 +72,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
                     .or_else(|| self.assign(&mut e));
                 changed |= mutates || rewritten.is_some();
                 rewritten.unwrap_or_else(|| {
-                    walk_mut::walk_expression(self, &mut e);
+                    self.holding(&mut e, walk_mut::walk_expression);
                     e
                 })
             })
@@ -125,10 +126,15 @@ impl<'o> ScriptRewrite<'_, 'o> {
             if !is_pattern_assignment(slot.get_inner_expression()) {
                 return;
             }
-            let inner = without_parentheses(slot);
-            match self.pattern_assign(inner, true) {
-                Some(e) => *slot = e,
-                None => walk_mut::walk_expression(self, without_parentheses(slot)),
+            let pattern = self.holding(slot.without_parentheses_mut(), |rw, e| {
+                let pattern = rw.pattern_assign(e, true);
+                if pattern.is_none() {
+                    walk_mut::walk_expression(rw, e);
+                }
+                pattern
+            });
+            if let Some(e) = pattern {
+                *slot = e;
             }
             kept.push((index, slot.take_in(b)));
         });
@@ -152,13 +158,6 @@ fn is_pattern_assignment(e: &Expression<'_>) -> bool {
         a.left,
         AssignmentTarget::ArrayAssignmentTarget(_) | AssignmentTarget::ObjectAssignmentTarget(_)
     ))
-}
-
-fn without_parentheses<'s, 'o>(mut e: &'s mut Expression<'o>) -> &'s mut Expression<'o> {
-    while let Expression::ParenthesizedExpression(p) = e {
-        e = &mut p.expression;
-    }
-    e
 }
 
 /// The expressions `statement` holds as its own children, in order.

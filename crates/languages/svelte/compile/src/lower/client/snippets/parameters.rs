@@ -6,8 +6,9 @@ use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
 
 use crate::lower::builder::Runtime;
-use crate::lower::client::{ClientCompilationContext, Read};
+use crate::lower::client::ClientCompilationContext;
 use crate::lower::paths::{Destructure, Paths};
+use crate::lower::script::Read;
 
 pub(super) struct Parameters<'o> {
     pub(super) arguments: Vec<FormalParameter<'o>>,
@@ -95,7 +96,7 @@ pub(in crate::lower::client) struct Hooks<'c, 'x, 'o> {
 
 impl<'o> Destructure<'o, 'o> for Hooks<'_, '_, 'o> {
     fn rewrite(&mut self, e: &'o Expression<'o>) -> Expression<'o> {
-        self.context.rewrite(e, true)
+        self.context.rewrite(e)
     }
 
     fn parentheses(&self, e: &Expression<'_>) -> u8 {

@@ -59,7 +59,7 @@ impl SvelteRule for NoInnerDeclarations {
         let module = Path::new(file.path()).extension() != Some(OsStr::new("cjs"));
         rsvelte_typescript_lint::no_inner_declarations(
             file.semantic(),
-            &file.programs(),
+            file.programs(),
             module,
             self.0,
             reporter,

@@ -125,8 +125,8 @@ impl Element<'_, '_> {
         let Some(&(_, props, _)) = tables::ROLES.iter().find(|(r, ..)| *r == role) else {
             return;
         };
-        let attributes = self.attributes.list.clone();
-        for attribute in attributes {
+        for index in 0..self.attributes.list.len() {
+            let attribute = self.attributes.list[index];
             let name = attribute.name.text(self.source);
             let unsupported =
                 tables::PROPERTIES.iter().any(|(p, ..)| *p == name) && !props.contains(&name);

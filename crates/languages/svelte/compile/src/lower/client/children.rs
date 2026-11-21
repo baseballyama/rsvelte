@@ -1,9 +1,11 @@
 use oxc_ast::ast::Expression;
-
-use super::{
-    ClientCompilationContext, CompilerNodeIdentifier, Frag, Item, Lists, NodeKind, Prev, R, Walk,
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    CompilerNodeIdentifier, ElementKind, NodeKind,
 };
+
+use super::{ClientCompilationContext, Frag, Lists, Prev, R, Walk};
 use crate::lower::builder::Runtime;
+use crate::render_plan::Item;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `process_children`.
@@ -53,7 +55,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 }
             } else {
                 let name = match &self.compiler_syntax_tree.node(identifier).kind {
-                    NodeKind::Element(el) if el.kind == super::ElementKind::Regular => {
+                    NodeKind::Element(el) if el.kind == ElementKind::Regular => {
                         el.name.text(self.source_text).to_owned()
                     }
                     _ => "node".to_owned(),

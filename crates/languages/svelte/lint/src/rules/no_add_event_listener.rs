@@ -1,11 +1,12 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::Expression;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_typescript_tree::node_span;
 
-use super::shared::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -42,14 +43,14 @@ impl SvelteRule for NoAddEventListener {
                 Expression::Identifier(callee) if callee.name == "addEventListener" => None,
                 _ => continue,
             };
-            let target = object.map_or("window", |object| span(object).text(source));
-            let callee = span(&call.callee);
+            let target = object.map_or("window", |object| node_span(object).text(source));
+            let callee = node_span(&call.callee);
             let mut report = Report::range(
                 "Do not use `addEventListener`. Use the `on` function from `svelte/events` \
                  instead.",
-                span(call),
+                node_span(call),
             );
-            if let Some(open) = next_token(source, callee.end_offset) {
+            if let Some(open) = next_token(file, callee.end_offset) {
                 let mut fix = Fix::replace(callee, "on");
                 fix.push(
                     Span::new(open.end_offset, open.end_offset),
@@ -67,25 +68,27 @@ impl SvelteRule for NoAddEventListener {
 
 /// The token after a callee, past whitespace and comments: `(`, `?.` or the `<` of type
 /// arguments.
-fn next_token(source: &str, offset: u32) -> Option<Span> {
-    let rest = source.get(offset as usize..)?;
-    let mut at = 0;
+fn next_token(file: &File<'_>, mut at: u32) -> Option<Span> {
+    let source = file.source();
+    let comments = file.comments();
+    let mut comment = comments.partition_point(|c| c.span.start < at);
     loop {
-        let text = &rest[at..];
-        let trimmed = text.trim_start();
-        at += text.len() - trimmed.len();
-        if trimmed.starts_with("//") {
-            at += trimmed.find('\n')?;
-        } else if let Some(comment) = trimmed.strip_prefix("/*") {
-            at += 2 + comment.find("*/")? + 2;
-        } else {
-            let length = if trimmed.starts_with("?.") {
-                2
-            } else {
-                trimmed.chars().next()?.len_utf8()
-            };
-            let start = offset + u32::try_from(at).ok()?;
-            return Some(Span::new(start, start + u32::try_from(length).ok()?));
+        let rest = source.get(at as usize..)?;
+        let trimmed = rest.trim_start_matches(is_ecmascript_whitespace);
+        at += u32::try_from(rest.len() - trimmed.len()).ok()?;
+        match comments.get(comment) {
+            Some(c) if c.span.start == at => {
+                at = c.span.end;
+                comment += 1;
+            }
+            _ => {
+                let length = if trimmed.starts_with("?.") {
+                    2
+                } else {
+                    trimmed.chars().next()?.len_utf8()
+                };
+                return Some(Span::new(at, at + u32::try_from(length).ok()?));
+            }
         }
     }
 }

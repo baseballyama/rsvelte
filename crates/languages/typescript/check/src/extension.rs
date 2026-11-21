@@ -3,11 +3,11 @@ use std::path::{Path, PathBuf};
 
 use rsvelte_kernel::computation::registry::{ProjectFiles, Registry};
 use rsvelte_plugin_interface::{
-    CallError, Extension, Settings, TaskKind, installed_bin, installed_package, program_path,
+    CallError, Extension, Settings, TaskKind, installed_bin, installed_version, program_path,
 };
 use serde::Deserialize;
 
-use crate::check::version_before_7_1;
+use crate::type_checker::version_before_7_1;
 use crate::{Check, Documents, MappedLanguages, Tsc, TypeChecker};
 
 pub static EXTENSION: Extension = Extension {
@@ -16,7 +16,7 @@ pub static EXTENSION: Extension = Extension {
 };
 
 /// The task that checks every document some plugin gives a TypeScript view, in one project.
-const TASK: &str = "ts.check/default";
+pub const TASK: &str = "ts.check/default";
 
 /// What a check task needs when no type checker is configured.
 pub const NEEDS_TYPE_CHECKER: &str =
@@ -160,7 +160,7 @@ fn installed(base: &Path) -> Result<Result<Command, Vec<String>>, CallError> {
             continue;
         };
         if package != "tsrs"
-            && let Some(version) = package_version(package, base).map_err(failed)?
+            && let Some(version) = installed_version(package, base).map_err(failed)?
             && version_before_7_1(&version)
         {
             older.push(format!("{package} {version}"));
@@ -172,17 +172,6 @@ fn installed(base: &Path) -> Result<Result<Command, Vec<String>>, CallError> {
         )));
     }
     Ok(Err(older))
-}
-
-/// The `version` in the `package.json` of package `name` as `base` resolves it.
-fn package_version(name: &str, base: &Path) -> std::io::Result<Option<String>> {
-    let Some(package) = installed_package(name, base)? else {
-        return Ok(None);
-    };
-    let manifest = std::fs::read(package.join("package.json"))?;
-    let manifest: serde_json::Value =
-        serde_json::from_slice(&manifest).map_err(std::io::Error::other)?;
-    Ok(manifest["version"].as_str().map(str::to_owned))
 }
 
 #[cfg(test)]

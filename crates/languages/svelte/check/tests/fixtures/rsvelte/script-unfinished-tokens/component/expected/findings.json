@@ -1,0 +1,74 @@
+[
+	{
+		"code": 1161,
+		"message": "Unterminated regular expression literal.",
+		"start": {
+			"line": 1,
+			"character": 17
+		},
+		"end": {
+			"line": 1,
+			"character": 20
+		}
+	},
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 2,
+			"character": 16
+		},
+		"end": {
+			"line": 2,
+			"character": 16
+		}
+	},
+	{
+		"code": 1161,
+		"message": "Unterminated regular expression literal.",
+		"start": {
+			"line": 3,
+			"character": 11
+		},
+		"end": {
+			"line": 3,
+			"character": 15
+		}
+	},
+	{
+		"code": 1127,
+		"message": "Invalid character.",
+		"start": {
+			"line": 4,
+			"character": 1
+		},
+		"end": {
+			"line": 4,
+			"character": 2
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 1,
+			"character": 13
+		},
+		"end": {
+			"line": 1,
+			"character": 14
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'x'.",
+		"start": {
+			"line": 1,
+			"character": 15
+		},
+		"end": {
+			"line": 1,
+			"character": 16
+		}
+	}
+]

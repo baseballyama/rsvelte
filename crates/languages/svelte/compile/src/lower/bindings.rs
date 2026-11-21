@@ -2,9 +2,10 @@
 //! runtime call that keeps it in sync.
 
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue};
 
-use super::{Attribute, AttributeValue};
-use crate::lower::invalid;
+use super::attributes::is_directive;
+use super::invalid;
 
 #[cfg(test)]
 mod tests;
@@ -152,8 +153,11 @@ fn hosts_of(name: &str) -> Option<Hosts> {
 /// # Errors
 ///
 /// `bind_invalid_name` for a name no binding has or one `host` does not take,
-/// `bind_invalid_target` for an element the binding does not fit, and
-/// `attribute_invalid_multiple` for a `<select>` whose `multiple` is not static.
+/// `bind_invalid_target` for an element the binding does not fit, `attribute_invalid_type` for
+/// an `<input>` whose `type` is not text, `attribute_invalid_multiple` for a `<select>` whose
+/// `multiple` is not static, and `attribute_contenteditable_missing` or
+/// `attribute_contenteditable_dynamic` for a content binding without a static
+/// `contenteditable`.
 pub(super) fn check_binding(
     source_text: &str,
     host: &str,
@@ -201,7 +205,7 @@ pub(super) fn check_binding(
         && name != "this"
         && let Some(multiple) = attributes
             .iter()
-            .find(|o| !super::is_directive(&o.value) && o.name.text(source_text) == "multiple")
+            .find(|o| !is_directive(&o.value) && o.name.text(source_text) == "multiple")
         && !matches!(
             multiple.value,
             AttributeValue::Boolean | AttributeValue::Static(_)
@@ -213,18 +217,46 @@ pub(super) fn check_binding(
             multiple.span,
         );
     }
-    if name == "offsetWidth" && rsvelte_svelte_syntax::names::is_svg(host) {
+    if name == "offsetWidth" && rsvelte_svelte_semantic::namespaces::is_svg(host) {
         return invalid_target(
             name,
             "non-`<svg>` elements. Use `bind:clientWidth` for `<svg>` instead",
             a,
         );
     }
+    if property_of(name).is_some_and(|p| p.strategy == BindStrategy::ContentEditable) {
+        let editable = (attributes.iter())
+            .find(|o| !is_directive(&o.value) && o.name.text(source_text) == "contenteditable");
+        match editable {
+            None => {
+                return invalid(
+                    "attribute_contenteditable_missing",
+                    "'contenteditable' attribute is required for textContent, innerHTML and \
+                     innerText two-way bindings",
+                    a.span,
+                );
+            }
+            Some(editable)
+                if !matches!(
+                    editable.value,
+                    AttributeValue::Boolean | AttributeValue::Static(_)
+                ) =>
+            {
+                return invalid(
+                    "attribute_contenteditable_dynamic",
+                    "'contenteditable' attribute cannot be dynamic if element uses two-way binding",
+                    editable.span,
+                );
+            }
+            Some(_) => {}
+        }
+    }
     Ok(())
 }
 
-/// Upstream's `bind_invalid_target` for `bind:checked` and `bind:files` on an `<input>` whose
-/// `type` is text; a `type` not written as text is `attribute_invalid_type` instead.
+/// Upstream's checks of a binding on an `<input>` against its `type`: one not written as text
+/// is `attribute_invalid_type`, unless an expression beside `bind:value`; one written as text
+/// decides whether `bind:checked` and `bind:files` fit.
 fn check_input(
     source_text: &str,
     host: &str,
@@ -232,13 +264,27 @@ fn check_input(
     a: &Attribute,
     name: &str,
 ) -> Result<(), Diagnostic> {
-    if host != "input" || !matches!(name, "checked" | "files") {
+    if host != "input" || name == "this" {
         return Ok(());
     }
-    let ty = match attribute_value(source_text, attributes, "type") {
+    let ty =
+        (attributes.iter()).find(|o| !is_directive(&o.value) && o.name.text(source_text) == "type");
+    let ty = match ty {
         None => None,
-        Some(AttributeValue::Static(ty)) => Some(&**ty),
-        Some(_) => return Ok(()),
+        Some(Attribute {
+            value: AttributeValue::Static(ty),
+            ..
+        }) => Some(&**ty),
+        Some(ty) if name == "value" && !matches!(ty.value, AttributeValue::Boolean) => {
+            return Ok(());
+        }
+        Some(ty) => {
+            return invalid(
+                "attribute_invalid_type",
+                "'type' attribute must be a static text value if input uses two-way binding",
+                ty.span,
+            );
+        }
     };
     if name == "checked" && ty != Some("checkbox") {
         let radio = if ty == Some("radio") {
@@ -257,7 +303,7 @@ fn check_input(
 fn invalid_target(name: &str, elements: &str, a: &Attribute) -> Result<(), Diagnostic> {
     invalid(
         "bind_invalid_target",
-        &format!("`bind:{name}` can only be used with {elements}"),
+        format!("`bind:{name}` can only be used with {elements}"),
         a.span,
     )
 }
@@ -307,7 +353,7 @@ pub(super) fn attribute_value<'a>(
 ) -> Option<&'a AttributeValue> {
     attributes
         .iter()
-        .find(|a| !super::is_directive(&a.value) && a.name.text(source_text) == name)
+        .find(|a| !is_directive(&a.value) && a.name.text(source_text) == name)
         .map(|a| &a.value)
 }
 

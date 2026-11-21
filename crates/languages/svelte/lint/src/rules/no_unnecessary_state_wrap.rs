@@ -6,10 +6,11 @@ use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_semantic::reference_tracker::import_references;
+use rsvelte_typescript_tree::document_span;
 use serde::Deserialize;
 
-use super::shared::nodes::{from_oxc, is_named};
-use super::shared::runes::runes_or_undetermined;
+use super::shared::nodes::is_named;
+use super::shared::runes::meets_runes_condition;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -48,7 +49,7 @@ struct NoUnnecessaryStateWrap(Options);
 
 impl SvelteRule for NoUnnecessaryStateWrap {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        if !runes_or_undetermined(file) {
+        if !meets_runes_condition(file) {
             return;
         }
         let source = file.source();
@@ -70,11 +71,11 @@ impl SvelteRule for NoUnnecessaryStateWrap {
             reporter.report(
                 Report::range(
                     format!("{class} is already reactive, $state wrapping is unnecessary."),
-                    from_oxc(argument),
+                    document_span(argument),
                 )
                 .suggest(Suggestion {
                     message: "Remove unnecessary $state wrapping".to_owned(),
-                    fix: Fix::replace(from_oxc(call), from_oxc(argument).text(source)),
+                    fix: Fix::replace(document_span(call), document_span(argument).text(source)),
                 }),
             );
         };
@@ -108,7 +109,7 @@ impl SvelteRule for NoUnnecessaryStateWrap {
         }
         let found = import_references(
             semantic,
-            &file.programs(),
+            file.programs(),
             "svelte/reactivity",
             REACTIVE_CLASSES,
         );

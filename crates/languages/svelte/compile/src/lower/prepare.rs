@@ -1,12 +1,16 @@
 use oxc_ast::AstKind;
 use oxc_semantic::SymbolId;
 use oxc_syntax::symbol::SymbolFlags;
-use rsvelte_svelte_semantic::resolve::Resolution;
-
-use super::{
-    Builder, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Diagnostic, FxHashMap, NodeKind,
-    Prepared, Target, check_runes, names, script,
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Children, CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind,
 };
+use rsvelte_svelte_semantic::resolve::Resolution;
+use rustc_hash::FxHashMap;
+
+use super::validation::check_runes;
+use super::{Builder, Prepared, names, script};
+use crate::input::Target;
 
 pub(super) fn prepare<'c, 'o>(
     facts: super::LoweringFacts<'c, 'o>,
@@ -33,7 +37,6 @@ pub(super) fn prepare<'c, 'o>(
     let mut hoisted = Vec::new();
     let mut rewrite = script::ScriptRewrite {
         accessors: custom_element.is_some(),
-        rest_reads: Some(&facts.validated.rest_reads),
         stores: &facts.validated.stores,
         names: Some(&names),
         ..script::ScriptRewrite::new(b, target, res)

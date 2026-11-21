@@ -5,6 +5,7 @@ use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_stylesheet_syntax::StyleSheet;
 use rsvelte_stylesheet_syntax::postcss::{self, Dialect, SyntaxError};
 
+use super::markup::lang_attribute;
 use crate::rule::File;
 
 #[derive(Debug)]
@@ -33,10 +34,8 @@ impl Artifact for StyleSheetVerdict {
         };
         let source = context.source_text();
         // An empty `lang` leaves the default, as `svelte-eslint-parser` reads it.
-        let language = style
-            .attributes
-            .iter()
-            .find_map(|(name, value)| (name.text(source) == "lang").then_some(*value)?)
+        let language = lang_attribute(&style.attributes, source)
+            .and_then(|&(_, value)| value)
             .map(|value| value.text(source))
             .filter(|language| !language.is_empty())
             .unwrap_or("css");
@@ -81,10 +80,15 @@ impl Artifact for LintStyleSheet {
             return None;
         }
         let source = context.source_text();
-        let scss = style.attributes.iter().any(|(name, value)| {
-            name.text(source) == "lang" && value.is_some_and(|v| v.text(source) == "scss")
-        });
-        rsvelte_stylesheet_syntax::parse_for_lint(source, style.content, scss).ok()
+        let scss = lang_attribute(&style.attributes, source)
+            .and_then(|&(_, value)| value)
+            .is_some_and(|value| value.text(source) == "scss");
+        let dialect = if scss {
+            Dialect::Scss
+        } else {
+            Dialect::Standard
+        };
+        rsvelte_stylesheet_syntax::parse_for_lint(source, style.content, dialect).ok()
     }
 }
 

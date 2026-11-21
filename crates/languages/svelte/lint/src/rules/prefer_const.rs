@@ -77,7 +77,7 @@ impl SvelteRule for PreferConst {
         let props = props(file);
         rsvelte_typescript_lint::prefer_const(
             file.semantic(),
-            &file.programs(),
+            file.programs(),
             self.core,
             statements,
             |declaration| self.initialised_by_excluded_rune(declaration),

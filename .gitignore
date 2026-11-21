@@ -1,4 +1,4 @@
-# The shared .git/info/exclude ignores `fixtures` for main's generated tree; the crates' tests/fixtures/ are committed here.
+# A global or info/exclude ignore of `fixtures` must not hide the crates' committed tests/fixtures/.
 !fixtures
 # Anchored: unanchored names would also hide fixture inputs whose original path contains them.
 /target/

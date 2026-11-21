@@ -26,6 +26,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_svelte_semantic::evaluate::{Evaluation, Evaluator, Value};
 use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_typescript_compile::build::{Builder, sanitize_template_string};
 use rsvelte_typescript_compile::strip::Strip;
 use rsvelte_typescript_tree::{ExpressionIdentifier, ParametersIdentifier};
@@ -310,9 +311,7 @@ impl<'i, 't> Template<'i, '_, 't> {
         for p in parts {
             match *p {
                 Part::Text(span) => {
-                    text.push_str(&rsvelte_svelte_syntax::syntax_tree::decode_attribute(
-                        span.text(source_text),
-                    ));
+                    text.push_str(&decode_attribute(span.text(source_text)));
                 }
                 Part::Expression { expression, .. } => {
                     let evaluated = self.evaluate(expression);

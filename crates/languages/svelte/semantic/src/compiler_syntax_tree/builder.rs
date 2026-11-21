@@ -2,9 +2,9 @@ use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{
     Attribute, AttributeIdentifier, AttributeValue, Branch, Branches, Children,
-    CompilerNodeIdentifier, CompilerSyntaxTree, CompilerSyntaxTreeBuilder, ElementKind, IndexRange,
-    IndexVector, MetadataTag, Node, NodeKind, NodeList, Span, TemplateNodeIdentifier, decode_text,
-    is_component_name,
+    CompilerNodeIdentifier, CompilerSyntaxTree, CompilerSyntaxTreeBuilder, DebugIdentifiers,
+    ElementKind, IndexRange, IndexVector, MetadataTag, Node, NodeKind, Span,
+    TemplateNodeIdentifier, decode_text, is_component_name,
 };
 
 impl<'s> CompilerSyntaxTreeBuilder<'s> {
@@ -84,10 +84,10 @@ impl<'s> CompilerSyntaxTreeBuilder<'s> {
         }
     }
 
-    pub(crate) fn debug_identifiers(&mut self, nodes: &[ExpressionIdentifier]) -> NodeList {
+    pub(crate) fn debug_identifiers(&mut self, nodes: &[ExpressionIdentifier]) -> DebugIdentifiers {
         let start = self.compiler_syntax_tree.debug_identifiers.len() as u32;
         self.compiler_syntax_tree.debug_identifiers.extend(nodes);
-        NodeList {
+        DebugIdentifiers {
             start,
             len: nodes.len() as u32,
         }
@@ -224,19 +224,3 @@ const _: () = assert!(
     size_of::<Option<CompilerNodeIdentifier>>() == 4,
     "`Option<CompilerNodeIdentifier>` is 4 bytes"
 );
-
-pub(super) enum Either<L, R> {
-    Left(L),
-    Right(R),
-}
-
-impl<T, L: Iterator<Item = T>, R: Iterator<Item = T>> Iterator for Either<L, R> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<T> {
-        match self {
-            Self::Left(l) => l.next(),
-            Self::Right(r) => r.next(),
-        }
-    }
-}

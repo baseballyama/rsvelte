@@ -156,3 +156,16 @@ fn unchanged_text_stays_borrowed() {
     );
     assert_eq!(decode_text("&&amp;&"), "&&&");
 }
+
+#[test]
+fn escape_markup_escapes_quotes_only_in_attributes() {
+    assert!(matches!(
+        escape_markup("a > b", true),
+        Cow::Borrowed("a > b")
+    ));
+    assert_eq!(escape_markup("<a & \"b\">", false), "&lt;a &amp; \"b\">");
+    assert_eq!(
+        escape_markup("<a & \"b\">", true),
+        "&lt;a &amp; &quot;b&quot;>"
+    );
+}

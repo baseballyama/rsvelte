@@ -1,10 +1,11 @@
-use rsvelte_svelte_semantic::compiler_syntax_tree::MetadataTag;
-
-use super::{
-    AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, ElementKind, Frag, Lists,
-    NodeKind, R, event_attribute, unsupported,
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    AttributeValue, CompilerNodeIdentifier, ElementKind, MetadataTag, NodeKind,
 };
+
+use super::{ClientCompilationContext, Frag, Lists, R};
+use crate::lower::attributes::event_attribute;
 use crate::lower::builder::Runtime;
+use crate::lower::unsupported;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn hoisted_elements(

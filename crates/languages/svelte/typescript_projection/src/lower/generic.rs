@@ -8,10 +8,11 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::Script;
+use rsvelte_typescript_tree::document_span;
 
 use super::contract::Edit;
 use super::hoistable::{Hoisted, hoisted};
-use super::{Buffer, Builder, Node, NodeIdentifier, Range, Refusal, Result, Span, refuse, span};
+use super::{Buffer, Builder, Node, NodeIdentifier, Range, Refusal, Result, Span, refuse};
 use crate::syntax_tree::TypeParameters;
 
 /// A generic component's type parameters and where its render function starts in the scratch.
@@ -118,7 +119,7 @@ impl Builder<'_> {
         };
         let start = self.scratch.len();
         for parameter in &declaration.params {
-            let name = span(parameter.name.span);
+            let name = document_span(parameter.name.span);
             self.scratch
                 .push(self.tree.push(Node::UnmappedSource(name)));
         }
@@ -180,7 +181,7 @@ impl Builder<'_> {
     ) -> Result<()> {
         let start = self.scratch.len();
         let mut moved = |builder: &mut Self, at: Span| {
-            let copy = builder.tree.push(Node::SourceCopy { span: at });
+            let copy = builder.source_at(at, None);
             builder
                 .scratch
                 .push(builder.tree.push(Node::Statement(copy)));
@@ -198,9 +199,12 @@ impl Builder<'_> {
             // `@import` in a function, as TypeScript 7 does only at the top level.
             while let Some(comment) = comments.next_if(|comment| comment.span.start < start) {
                 if comment.span.end <= start
-                    && (import || span(comment.span).text(self.source).contains("@import"))
+                    && (import
+                        || document_span(comment.span)
+                            .text(self.source)
+                            .contains("@import"))
                 {
-                    moved(self, span(comment.span));
+                    moved(self, document_span(comment.span));
                 }
             }
             // A comment inside the statement belongs to it.
@@ -208,14 +212,11 @@ impl Builder<'_> {
                 .next_if(|comment| comment.span.start < statement.span().end)
                 .is_some()
             {}
-            // svelte2tsx moves an import inside a namespace too.
-            let mut imports = Vec::new();
-            super::namespace::nested_imports(statement, &mut imports);
-            for import in imports {
+            for import in super::nested::Nested::inside(statement).imports {
                 moved(self, import);
             }
             match statement {
-                Statement::ImportDeclaration(import) => moved(self, span(import.span)),
+                Statement::ImportDeclaration(import) => moved(self, document_span(import.span)),
                 // A type export would leave the render function; svelte2tsx moves it out.
                 Statement::ExportDeclaration(export)
                     if generic
@@ -227,9 +228,12 @@ impl Builder<'_> {
                         && !aliases
                             .found
                             .iter()
-                            .any(|alias| alias.span == span(export.span)) =>
+                            .any(|alias| alias.span == document_span(export.span)) =>
                 {
-                    return Err(refuse("generic component contracts", span(export.span)));
+                    return Err(refuse(
+                        "generic component contracts",
+                        document_span(export.span),
+                    ));
                 }
                 _ => {}
             }
@@ -259,9 +263,7 @@ impl Builder<'_> {
                 match hoisted {
                     Hoisted::Statement(at) => moved(self, at),
                     Hoisted::ComponentProps(annotation) => {
-                        let name = self.tree.push(Node::Identifier("$$ComponentProps"));
-                        let value = self.tree.push(Node::SourceCopy { span: annotation });
-                        let alias = self.tree.push(Node::TypeAlias { name, value });
+                        let alias = self.component_props_alias(annotation);
                         self.scratch.push(alias);
                         self.props_hoisted = true;
                     }
@@ -273,8 +275,10 @@ impl Builder<'_> {
         }
         if self.scratch.len() > start {
             let parts = self.finish_list(start);
-            self.scratch
-                .push(self.tree.push(Node::ProgramParts { parts }));
+            self.scratch.push(self.tree.push(Node::ProgramParts {
+                parts,
+                end_tag: None,
+            }));
         }
         Ok(())
     }
@@ -293,8 +297,7 @@ impl Builder<'_> {
             declaration.declarations.iter().find_map(|declarator| {
                 let initializer = declarator.init.as_ref()?;
                 self.is_rune(initializer, "$props")
-                    .then_some(declarator.type_annotation.as_ref())?
-                    .map(|annotation| &annotation.type_annotation)
+                    .then_some(declarator.type_annotation.as_deref())?
             })
         });
         // svelte2tsx hoists nothing without an annotated `$props()`.
@@ -320,7 +323,7 @@ impl Builder<'_> {
             return Ok(());
         };
         let program = self.component.javascript.get_program(script.program);
-        instance_only(program, 0).map_or(Ok(()), Err)
+        instance_only(program).map_or(Ok(()), Err)
     }
 
     /// Wraps the instance and the template, from `generics.start`, in the render function that
@@ -360,76 +363,11 @@ impl Builder<'_> {
     }
 }
 
-/// What svelte2tsx does to a script that Svelte does not parse, which it still reads as
-/// TypeScript.
-#[derive(Debug, Default)]
-pub struct UnparsedScript {
-    /// The error it throws for a module script that declares `$$Generic`, `$$Events`, `$$Slots` or
-    /// `$$Props`.
-    pub refusal: Option<Refusal>,
-    /// The instance script's imports, which move before the render function.
-    pub imports: Vec<Span>,
-    /// The export lists and `export` keywords it removes from the instance script.
-    pub removed: Vec<Span>,
-}
-
-/// [`UnparsedScript`] for the script at `content` in `source_text`.
-#[must_use]
-pub fn unparsed_script(source_text: &str, content: Span, module: bool) -> UnparsedScript {
-    let text = &source_text[content.start_offset as usize..content.end_offset as usize];
-    rsvelte_typescript_tree::with_scratch_arena(|allocator| {
-        let program = oxc_parser::Parser::new(allocator, text, oxc_span::SourceType::ts())
-            .parse()
-            .program;
-        read_unparsed(&program, content.start_offset, module)
-    })
-}
-
-/// [`unparsed_script`] of the parsed `program`, whose spans are `offset` bytes into the component.
-fn read_unparsed(program: &Program<'_>, offset: u32, module: bool) -> UnparsedScript {
-    let shift = |at: Span| Span::new(at.start_offset + offset, at.end_offset + offset);
-    if module {
-        return UnparsedScript {
-            refusal: instance_only(program, offset),
-            ..UnparsedScript::default()
-        };
-    }
-    let mut moved = Moved::default();
-    moved.visit_program(program);
-    UnparsedScript {
-        imports: moved.imports.into_iter().map(shift).collect(),
-        removed: moved.removed.into_iter().map(shift).collect(),
-        ..UnparsedScript::default()
-    }
-}
-
-/// The imports svelte2tsx moves and the exports it removes in a script Svelte does not parse,
-/// where they may stand at any depth.
-#[derive(Default)]
-struct Moved {
-    imports: Vec<Span>,
-    removed: Vec<Span>,
-}
-
-impl<'a> Visit<'a> for Moved {
-    fn visit_statement(&mut self, it: &Statement<'a>) {
-        if let Statement::ImportDeclaration(import) = it {
-            self.imports.push(span(import.span));
-        }
-        self.removed.extend(super::namespace::removed_export(it));
-        walk::walk_statement(self, it);
-    }
-}
-
-/// The error for the first declaration in `program` that only the instance script may make, with
-/// `program`'s spans `offset` bytes into the component.
-fn instance_only(program: &Program<'_>, offset: u32) -> Option<Refusal> {
+/// The error for the first declaration in `program` that only the instance script may make.
+fn instance_only(program: &Program<'_>) -> Option<Refusal> {
     DollarGenerics::of(program)
         .instance_only
-        .map(|(span, message)| Refusal::Thrown {
-            message,
-            span: Span::new(span.start_offset + offset, span.end_offset + offset),
-        })
+        .map(|(span, message)| Refusal::Thrown { message, span })
 }
 
 /// An error svelte2tsx throws without a position, which svelte-check reports at the start.
@@ -479,7 +417,7 @@ impl DollarGenerics {
 
     fn name(&mut self, declared: Span, name: oxc_span::Span) {
         if self.collect_named {
-            self.named.push((declared, span(name)));
+            self.named.push((declared, document_span(name)));
         }
     }
 
@@ -496,7 +434,7 @@ impl DollarGenerics {
 
     /// The declaration's span with its `export`, which svelte2tsx's node starts at.
     fn declared(&self, declaration: oxc_span::Span) -> Span {
-        self.export.unwrap_or_else(|| span(declaration))
+        self.export.unwrap_or_else(|| document_span(declaration))
     }
 }
 
@@ -507,7 +445,7 @@ impl<'a> Visit<'a> for DollarGenerics {
             it.declaration,
             Declaration::TSTypeAliasDeclaration(_) | Declaration::TSInterfaceDeclaration(_)
         ) {
-            self.export = Some(span(it.span));
+            self.export = Some(document_span(it.span));
         }
         walk::walk_export_declaration(self, it);
         self.export = outer;
@@ -527,12 +465,12 @@ impl<'a> Visit<'a> for DollarGenerics {
             ));
             self.found.push(DollarGeneric {
                 span: declared,
-                name: span(it.id.span),
+                name: document_span(it.id.span),
                 arguments: reference
                     .type_arguments
                     .iter()
                     .flat_map(|arguments| &arguments.params)
-                    .map(|argument| span(argument.span()))
+                    .map(|argument| document_span(argument.span()))
                     .collect(),
             });
         } else {

@@ -3,6 +3,7 @@ use oxc_ast::ast::{BindingPattern, Expression, StaticMemberExpression};
 use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::ReferenceId;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_tree::document_span;
 
 /// `@vue/shared` `GLOBALS_ALLOWED`.
 const GLOBALS_ALLOWED: &[&str] = &[
@@ -139,7 +140,7 @@ impl<'a> Visit<'a> for Walk<'_, 'a> {
                 let parent = self.parent();
                 self.out.push(Identifier {
                     name: i.name.as_str(),
-                    span: span(i.span),
+                    span: document_span(i.span),
                     reference: i.reference_id.get(),
                     parent,
                 });
@@ -149,7 +150,7 @@ impl<'a> Visit<'a> for Walk<'_, 'a> {
                 let parent = self.parent();
                 self.out.push(Identifier {
                     name: i.name.as_str(),
-                    span: span(i.span),
+                    span: document_span(i.span),
                     reference: None,
                     parent,
                 });
@@ -169,15 +170,11 @@ impl<'a> Visit<'a> for Walk<'_, 'a> {
         // Babel's member property is an `Identifier` too.
         self.out.push(Identifier {
             name: it.property.name.as_str(),
-            span: span(it.property.span),
+            span: document_span(it.property.span),
             reference: None,
             parent: Parent::Accessed,
         });
     }
-}
-
-const fn span(span: oxc_span::Span) -> Span {
-    Span::new(span.start, span.end)
 }
 
 #[must_use]

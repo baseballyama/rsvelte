@@ -36,7 +36,7 @@ test(
 			);
 			fs.writeFileSync(report, JSON.stringify({ status: 'complete', samples: [] }));
 			const runner = path.resolve(import.meta.dirname, 'performance.ts');
-			const run = spawnSync(process.execPath, [runner, 'linux-counters', config, report], {
+			const run = spawnSync(process.execPath, [runner, 'hardware-counters', config, report], {
 				encoding: 'utf8',
 			});
 			const measured = JSON.parse(fs.readFileSync(report, 'utf8'));

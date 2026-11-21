@@ -2,10 +2,11 @@
 
 use oxc_ast::ast::Expression;
 use oxc_span::GetSpan;
+use oxc_syntax::identifier::is_identifier_name;
+use oxc_syntax::keyword::is_reserved_keyword;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::names::reads_as_identifier;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeValue, Part};
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, document_span};
 
 use super::{Builder, Node, NodeIdentifier, Result, refuse};
 use crate::syntax_tree::Spelling;
@@ -241,7 +242,7 @@ impl Builder<'_> {
         Ok(match get_set {
             Some(_) => Binding::Passed,
             None => Binding::Widened {
-                at: super::span(at),
+                at: document_span(at),
                 typed,
             },
         })
@@ -337,4 +338,10 @@ impl Builder<'_> {
                 .push(self.tree.push(Node::Statement(assignment)));
         }
     }
+}
+
+/// Whether JavaScript reads `name` as an identifier. Svelte makes the whole name of a shorthand
+/// `bind:` or `class:` one, whatever JavaScript would read there.
+fn reads_as_identifier(name: &str) -> bool {
+    is_identifier_name(name) && !is_reserved_keyword(name)
 }

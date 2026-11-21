@@ -230,7 +230,7 @@ fn template_nodes(tree: &SyntaxTree) -> &[NodeIdentifier] {
         };
         for &identifier in tree.children(body) {
             if let Node::Statement(value) = tree.node(identifier)
-                && let Node::Template(body) = tree.node(value)
+                && let Node::Template { body, .. } = tree.node(value)
             {
                 return tree.children(body);
             }
@@ -441,28 +441,31 @@ fn a_component_s_slots_type_check_against_its_slots_interface() {
 
 #[test]
 fn a_component_is_named_from_its_file_as_svelte2tsx_names_it() {
-    use rsvelte_svelte_typescript_projection::component_name;
+    use rsvelte_svelte_typescript_projection::default_export_name;
     assert_eq!(
-        component_name("src/lib/CitationTooltip.svelte"),
+        default_export_name("src/lib/CitationTooltip.svelte"),
         "CitationTooltip__SvelteComponent_"
     );
     assert_eq!(
-        component_name("src/routes/+page.svelte"),
+        default_export_name("src/routes/+page.svelte"),
         "Page__SvelteComponent_"
     );
     assert_eq!(
-        component_name("src/lib/my-button_group.svelte"),
+        default_export_name("src/lib/my-button_group.svelte"),
         "MyButtonGroup__SvelteComponent_"
     );
     assert_eq!(
-        component_name("src/routes/[id].svelte"),
+        default_export_name("src/routes/[id].svelte"),
         "Id__SvelteComponent_"
     );
     assert_eq!(
-        component_name("src/lib/Button.stories.svelte"),
+        default_export_name("src/lib/Button.stories.svelte"),
         "Button__SvelteComponent_"
     );
-    assert_eq!(component_name("src/lib/404.svelte"), "A4__SvelteComponent_");
+    assert_eq!(
+        default_export_name("src/lib/404.svelte"),
+        "A4__SvelteComponent_"
+    );
 }
 
 #[test]

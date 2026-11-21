@@ -2,10 +2,11 @@ use oxc_ast::ast::{BindingPattern, Declaration, Program, Statement};
 use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_typescript_tree::document_span;
 use rustc_hash::FxHashMap;
 
 use super::runes;
-use crate::compilation::{R, span_of, unsupported};
+use crate::compilation::{R, unsupported};
 
 pub(super) fn check(
     program: &Program<'_>,
@@ -22,7 +23,7 @@ pub(super) fn check(
             {
                 return Err(unsupported(
                     "a Svelte runtime import in a module script",
-                    span_of(i.span),
+                    document_span(i.span),
                 ));
             }
             Statement::ExportDeclaration(e) => {
@@ -42,11 +43,14 @@ pub(super) fn check(
                         return Err(Diagnostic::error(
                             "derived_invalid_export",
                             "Derived state cannot be exported.",
-                            span_of(d.span),
+                            document_span(d.span),
                         ));
                     }
                     let BindingPattern::BindingIdentifier(id) = &d.id else {
-                        return Err(unsupported("this exported state pattern", span_of(d.span)));
+                        return Err(unsupported(
+                            "this exported state pattern",
+                            document_span(d.span),
+                        ));
                     };
                     let symbol = id.symbol_id.get().expect("a declaration has a symbol");
                     if res.writes(symbol) > 0 {
@@ -54,7 +58,7 @@ pub(super) fn check(
                             "state_invalid_export",
                             "Exported state cannot be reassigned. Export a function to read it \
                              instead.",
-                            span_of(d.span),
+                            document_span(d.span),
                         ));
                     }
                     exports.insert(symbol, format!("$$module_export_{}", exports.len()));

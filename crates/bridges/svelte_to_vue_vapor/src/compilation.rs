@@ -11,10 +11,11 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
+use rsvelte_svelte_semantic::input::ComponentInput;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_compile::build::Builder;
-use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree, document_span};
 
 /// The translated component: one JavaScript tree holding the `<script setup>` program, the module
 /// program and every template expression, and the template's Vue HIR.
@@ -40,11 +41,6 @@ pub(crate) fn unsupported(what: impl std::fmt::Display, span: Span) -> Diagnosti
         format!("not supported by vuelte: {what}"),
         span,
     )
-}
-
-/// An oxc span, which is the document's, as the kernel holds it.
-pub(crate) const fn span_of(span: oxc_span::Span) -> Span {
-    Span::new(span.start, span.end)
 }
 
 /// The key `"name"`.
@@ -89,11 +85,11 @@ pub(crate) fn check(
         {
             return Err(unsupported(
                 "TypeScript with runtime semantics",
-                span_of(span),
+                document_span(span),
             ));
         }
     }
-    let input = rsvelte_svelte_semantic::svelte_input(c, compiler_syntax_tree, source_text, "");
+    let input = ComponentInput::new(c, compiler_syntax_tree, source_text, "");
     let namespaces = rsvelte_svelte_compile::render_plan::Namespaces::build(&input.into());
     let options = template::check(c, compiler_syntax_tree, res, source_text, &namespaces)?;
     let mut plan = script::plan(c, res)?;
@@ -132,7 +128,7 @@ pub(crate) struct Input<'a> {
 /// A `vuelte_unsupported` [`Diagnostic`] for a construct outside the mapping.
 pub(crate) fn translate(input: Input<'_>) -> R<Translation> {
     let c = input.component;
-    let component_input = rsvelte_svelte_semantic::svelte_input(
+    let component_input = ComponentInput::new(
         c,
         input.compiler_syntax_tree,
         input.source_text,

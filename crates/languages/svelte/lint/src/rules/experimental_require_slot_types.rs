@@ -3,6 +3,7 @@ use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode};
 
+use super::shared::markup::lang_attribute;
 use super::shared::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -52,11 +53,8 @@ fn is_typescript(component: &Component, source: &str) -> bool {
         .scripts()
         .max_by_key(|script| script.span.start_offset);
     last.is_some_and(|script| {
-        let lang = script
-            .attributes
-            .iter()
-            .find(|(name, _)| name.text(source) == "lang")
-            .and_then(|(_, value)| *value)
+        let lang = lang_attribute(&script.attributes, source)
+            .and_then(|&(_, value)| value)
             .map(|value| value.text(source).to_ascii_lowercase());
         matches!(lang.as_deref(), Some("ts" | "typescript"))
     })

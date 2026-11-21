@@ -1,13 +1,14 @@
 use oxc_ast::ast::{
-    BindingPattern, Declaration, Expression, PropertyKey, Statement, TSType, VariableDeclaration,
+    BindingPattern, Declaration, Expression, PropertyKey, Statement, VariableDeclaration,
     VariableDeclarationKind,
 };
 use oxc_span::GetSpan;
-use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
+use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, Script, TemplateNode};
+use rsvelte_typescript_tree::document_span;
 
 use super::generic::Generics;
-use super::namespace::namespace_exports;
-use super::{Buffer, Builder, Node, NodeIdentifier, Range, Result, Span, refuse, span};
+use super::nested::Nested;
+use super::{Buffer, Builder, Node, NodeIdentifier, Range, Result, Span, refuse};
 
 pub(super) struct Edit {
     pub(super) span: Span,
@@ -57,7 +58,9 @@ impl Builder<'_> {
                 edits.push(flags);
             }
             for statement in &program.body {
-                namespace_exports(statement, &mut |at| edits.push(Edit::removal(at)));
+                for at in Nested::inside(statement).removed {
+                    edits.push(Edit::removal(at));
+                }
                 let Some(declaration) =
                     self.instance_export(statement, &mut exports, &mut edits)?
                 else {
@@ -71,17 +74,17 @@ impl Builder<'_> {
                         if props.is_some() {
                             return Err(refuse(
                                 "multiple props declarations",
-                                span(declarator.id.span()),
+                                document_span(declarator.id.span()),
                             ));
                         }
-                        let annotation = declarator.type_annotation.as_ref().map(|a| {
-                            let reference = matches!(a.type_annotation, TSType::TSTypeReference(_));
-                            (span(a.type_annotation.span()), reference)
-                        });
+                        let annotation = declarator
+                            .type_annotation
+                            .as_deref()
+                            .map(PropsAnnotation::of);
                         props = Some(self.props(
                             &declarator.id,
                             annotation,
-                            span(declaration.span),
+                            document_span(declaration.span),
                             &mut bindings,
                             &mut edits,
                         )?);
@@ -89,7 +92,7 @@ impl Builder<'_> {
                 }
             }
             edits.sort_by_key(|edit| edit.span.start_offset);
-            self.script_parts(script.content, &edits);
+            self.script_parts(script, &edits);
             self.scratch[generated_start..].rotate_right(1);
         }
         let runes = props.is_some() || self.runes_mode(generics.asynchronous);
@@ -127,7 +130,7 @@ impl Builder<'_> {
         events: bool,
         parts: [NodeIdentifier; 3],
     ) -> NodeIdentifier {
-        let slots = self.declares("$$Slots");
+        let slots = self.declares_slots();
         let typed = !generic && (events || slots);
         let helper = self.tree.push(Node::Identifier(match (generic, typed) {
             (true, _) => "__rsvelte_export_generic",
@@ -193,7 +196,10 @@ impl Builder<'_> {
             Statement::VariableDeclaration(declaration) => return Ok(Some(&**declaration)),
             Statement::ExportDeclaration(export) => export,
             Statement::ExportDefaultDeclaration(export) => {
-                return Err(refuse("instance default exports", span(export.span)));
+                return Err(refuse(
+                    "instance default exports",
+                    document_span(export.span),
+                ));
             }
             // svelte2tsx's `handleExportDeclaration`: `export { a, b as c }` exports `a` and `c`.
             Statement::ExportNamedDeclaration(named) if named.export_kind.is_value() => {
@@ -207,7 +213,7 @@ impl Builder<'_> {
                     exports.push(self.tree.push(Node::TypeProperty { name, value }));
                 }
                 edits.push(Edit {
-                    span: span(named.span),
+                    span: document_span(named.span),
                     replacement: None,
                 });
                 return Ok(None);
@@ -215,14 +221,14 @@ impl Builder<'_> {
             // svelte2tsx removes every other export list, a type-only or a re-exporting one too.
             Statement::ExportNamedDeclaration(named) => {
                 edits.push(Edit {
-                    span: span(named.span),
+                    span: document_span(named.span),
                     replacement: None,
                 });
                 return Ok(None);
             }
             Statement::ExportFromDeclaration(from) => {
                 edits.push(Edit {
-                    span: span(from.span),
+                    span: document_span(from.span),
                     replacement: None,
                 });
                 return Ok(None);
@@ -256,7 +262,10 @@ impl Builder<'_> {
             | Declaration::TSExternalModuleDeclaration(_)
             | Declaration::TSNamespaceDeclaration(_) => return Ok(None),
             _ => {
-                return Err(refuse("instance export contracts", span(export.span)));
+                return Err(refuse(
+                    "instance export contracts",
+                    document_span(export.span),
+                ));
             }
         };
         edits.push(Edit {
@@ -307,15 +316,15 @@ impl Builder<'_> {
     fn props(
         &mut self,
         pattern: &BindingPattern<'_>,
-        annotation: Option<(Span, bool)>,
+        annotation: Option<PropsAnnotation>,
         declaration: Span,
         bindings: &mut Buffer<NodeIdentifier>,
         edits: &mut Buffer<Edit>,
     ) -> Result<NodeIdentifier> {
         let statement = declaration.start_offset;
         let BindingPattern::ObjectPattern(object) = pattern else {
-            if let Some((span, reference)) = annotation {
-                return Ok(self.props_alias(span, reference, statement, edits));
+            if let Some(annotation) = annotation {
+                return Ok(self.props_alias(annotation, statement, edits));
             }
             // svelte2tsx names an undeclared `$$ComponentProps` here, which TypeScript reads as
             // `any`.
@@ -332,7 +341,10 @@ impl Builder<'_> {
         let mut reads = Buffer::new(0);
         for property in &object.properties {
             if property.computed {
-                return Err(refuse("computed props contracts", span(property.span)));
+                return Err(refuse(
+                    "computed props contracts",
+                    document_span(property.span),
+                ));
             }
             let default = match &property.value {
                 BindingPattern::AssignmentPattern(assignment) => Some(&assignment.right),
@@ -345,7 +357,9 @@ impl Builder<'_> {
                 if let BindingPattern::AssignmentPattern(assignment) = &property.value
                     && let BindingPattern::BindingIdentifier(local) = &assignment.left
                 {
-                    let local = self.tree.push(Node::UnmappedSource(span(local.span)));
+                    let local = self
+                        .tree
+                        .push(Node::UnmappedSource(document_span(local.span)));
                     reads.push(self.tree.push(Node::Statement(local)));
                 }
             }
@@ -369,8 +383,8 @@ impl Builder<'_> {
                 replacement: Some(self.tree.push(Node::Statements(reads))),
             });
         }
-        if let Some((span, reference)) = annotation {
-            return Ok(self.props_alias(span, reference, statement, edits));
+        if let Some(annotation) = annotation {
+            return Ok(self.props_alias(annotation, statement, edits));
         }
         if let Some(route) = route {
             return Ok(self.route_props(route, object, (statement, pattern.span().end), edits));
@@ -462,7 +476,7 @@ impl Builder<'_> {
         if let PropertyKey::StringLiteral(string) = key {
             self.source(string.span, None)
         } else {
-            let text = self.tree.push(Node::Text(span(key.span())));
+            let text = self.tree.push(Node::Text(document_span(key.span())));
             let parts = self.tree.list(&[text]);
             self.tree.push(Node::String {
                 parts,
@@ -490,38 +504,25 @@ impl Builder<'_> {
                 .is_some()
     }
 
-    fn script_parts(&mut self, span: Span, edits: &[Edit]) {
+    fn script_parts(&mut self, script: &Script, edits: &[Edit]) {
+        let span = script.content;
+        let end_tag = crate::cut_short_at(script);
         if edits.is_empty() {
-            self.scratch.push(self.tree.push(Node::Program { span }));
+            self.scratch
+                .push(self.tree.push(Node::Program { span, end_tag }));
             return;
         }
-        let start = self.scratch.len();
-        let mut cursor = span.start_offset;
-        for edit in edits {
-            if cursor < edit.span.start_offset {
-                self.scratch.push(self.tree.push(Node::SourceCopy {
-                    span: Span::new(cursor, edit.span.start_offset),
-                }));
-            }
-            if let Some(replacement) = edit.replacement {
-                self.scratch.push(replacement);
-            }
-            cursor = edit.span.end_offset;
-        }
-        if cursor < span.end_offset {
-            self.scratch.push(self.tree.push(Node::SourceCopy {
-                span: Span::new(cursor, span.end_offset),
-            }));
-        }
-        let parts = self.finish_list(start);
+        let holes = edits.iter().map(|edit| (edit.span, edit.replacement));
+        let parts = self.spliced(span, holes);
         self.scratch
-            .push(self.tree.push(Node::ProgramParts { parts }));
+            .push(self.tree.push(Node::ProgramParts { parts, end_tag }));
     }
 }
 
 mod events;
 mod legacy;
 mod props_alias;
+pub(super) use props_alias::PropsAnnotation;
 mod route;
 pub(super) use route::Route;
 mod siblings;

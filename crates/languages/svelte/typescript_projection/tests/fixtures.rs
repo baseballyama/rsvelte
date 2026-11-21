@@ -10,6 +10,6 @@ fn main() -> ExitCode {
     rsvelte_svelte_typescript_projection::register(&mut registry);
     rsvelte_test_harness::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
         .inputs_from(concat!(env!("CARGO_MANIFEST_DIR"), "/../compile"))
-        .snapshot("svelte.typescript_projection/default", "projection")
+        .snapshot(rsvelte_svelte_typescript_projection::TASK, "projection")
         .run()
 }

@@ -4,8 +4,9 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::{Acorn, ExpressionIdentifier, SyntaxError};
 
-use super::identifier::{identifier_len, is_reserved};
+use super::identifier::identifier_len;
 use super::{ParseResult, Parser, javascript_error, svelte_error};
+use crate::names::is_reserved;
 use crate::syntax_tree::TokenType;
 
 impl<'a> Parser<'a, '_> {

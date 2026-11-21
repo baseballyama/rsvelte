@@ -1,0 +1,14 @@
+{
+	"rules": [],
+	"findings": [
+		{
+			"rule": null,
+			"message": "Parsing error: '>' expected.",
+			"start": {
+				"line": 3,
+				"column": 17
+			},
+			"end": null
+		}
+	]
+}

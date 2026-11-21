@@ -8,14 +8,14 @@ pub struct NodeIdentifier(pub u32);
 #[derive(Clone, Copy, Debug)]
 pub enum Node {
     Source(SourceExpression),
+    /// A script copied as it is, ended by a `;` at [`crate::cut_short_at`] when there is one.
     Program {
         span: Span,
+        end_tag: Option<Span>,
     },
     ProgramParts {
         parts: Range,
-    },
-    SourceCopy {
-        span: Span,
+        end_tag: Option<Span>,
     },
     GeneratedIdentifier {
         prefix: NodeIdentifier,
@@ -82,6 +82,16 @@ pub enum Node {
     AnyComponent,
     StringLiteral(&'static str),
     /// A generated string whose findings fall on the empty range at `at`.
+    /// A name whose text TypeScript reports at the source offset `at`.
+    IdentifierAt {
+        name: &'static str,
+        at: u32,
+    },
+    /// `/** @typedef {value} name */`, a type alias in JavaScript.
+    TypeDefinition {
+        name: NodeIdentifier,
+        value: NodeIdentifier,
+    },
     StringLiteralAt {
         value: &'static str,
         at: u32,
@@ -206,8 +216,12 @@ pub enum Node {
         body: Range,
         catch: Range,
     },
-    /// The template's function, which is `async` as svelte2tsx's render function is.
-    Template(Range),
+    /// The template's function, which is `async` as svelte2tsx's render function is, its head
+    /// at the instance script's [`crate::cut_short_at`] when there is one.
+    Template {
+        body: Range,
+        head: Option<Span>,
+    },
     /// Statements on lines of their own inside a script.
     Statements(Range),
     /// A `{#snippet}` outside a component's children, as svelte2tsx's `const` of an arrow.
@@ -218,6 +232,11 @@ pub enum Node {
         body: Range,
     },
 }
+
+// Pinned so a change to a node's layout is a decision: the tree holds one `Node` per generated
+// or copied part of every component.
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(size_of::<Node>() == 40, "`Node` is 40 bytes");
 
 /// A generic component's type parameters, without their angle brackets.
 #[derive(Clone, Copy, Debug)]

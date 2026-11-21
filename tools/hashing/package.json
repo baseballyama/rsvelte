@@ -1,7 +1,7 @@
 {
 	"name": "@rsvelte-experimental/hashing",
 	"private": true,
-	"description": "Benchmarks the kernel's SHA-256 source hashing",
+	"description": "Benchmarks the SHA-256 hashing of Vue compilation",
 	"type": "module",
 	"scripts": {
 		"hashing": "node hashing.ts",

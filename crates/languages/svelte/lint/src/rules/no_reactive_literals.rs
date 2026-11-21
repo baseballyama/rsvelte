@@ -3,8 +3,8 @@ use oxc_syntax::operator::AssignmentOperator;
 use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_typescript_tree::node_span;
 
-use super::shared::nodes::span;
 use super::shared::reactive_statements::reactive_statements;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -20,8 +20,7 @@ struct NoReactiveLiterals;
 
 impl SvelteRule for NoReactiveLiterals {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let component = file.component().expect("a component rule");
-        for (statement, body) in reactive_statements(file, component) {
+        for (statement, body) in reactive_statements(file) {
             let Statement::ExpressionStatement(expression) = body else {
                 continue;
             };
@@ -43,7 +42,7 @@ impl SvelteRule for NoReactiveLiterals {
             if !literal {
                 continue;
             }
-            let statement = span(statement);
+            let statement = node_span(statement);
             let mut report = Report::range(
                 "Do not assign literal values inside reactive statements unless absolutely \
                  necessary.",
@@ -61,7 +60,7 @@ impl SvelteRule for NoReactiveLiterals {
                         .to_owned(),
                     fix: Fix::replace(
                         statement,
-                        format!("let {}", span(&**assignment).text(file.source())),
+                        format!("let {}", node_span(&**assignment).text(file.source())),
                     ),
                 });
             }

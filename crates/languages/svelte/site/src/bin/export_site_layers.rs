@@ -1,6 +1,7 @@
-//! Prints one component's layers as JSON: the surface template, the HIR with each node's surface
-//! origin, the bindings of name resolution and the template's references to them. The site's layer
-//! figure is generated from this, so it shows what the pipeline built rather than a drawing of it.
+//! Prints one component's layers as JSON: the surface template, the compiler syntax tree with each
+//! node's surface origin, the bindings of name resolution and the template's references to them.
+//! The site's layer figure is generated from this, so it shows what the pipeline built rather than
+//! a drawing of it.
 //! Text nodes that are only whitespace are left out of both trees. Spans are UTF-16 offsets, as the
 //! site indexes the source string.
 //!

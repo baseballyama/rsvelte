@@ -9,10 +9,11 @@ use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_semantic::SymbolId;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 
-use super::super::javascript::member_root;
-use super::super::{Builder, Target};
 use super::ScriptRewrite;
+use crate::input::Target;
+use crate::lower::Builder;
 use crate::lower::builder::Runtime;
+use crate::lower::javascript::member_root;
 
 impl<'o> ScriptRewrite<'_, 'o> {
     /// `target = $$value`, rewritten: the setter of a binding to `target`.

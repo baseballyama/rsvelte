@@ -1,15 +1,14 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{BindingPattern, Statement, VariableDeclarationKind};
 use oxc_ast_visit::VisitMut;
-use rsvelte_svelte_semantic::compiler_syntax_tree::Children;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerNodeIdentifier, NodeKind};
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rsvelte_typescript_tree::PatternIdentifier;
 
 use crate::lower::builder::Runtime;
-use crate::lower::client::{
-    ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R, Read,
-};
+use crate::lower::client::{ClientCompilationContext, Frag, Lists, R};
 use crate::lower::paths::bound_names;
+use crate::lower::script::Read;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `AwaitBlock` (client): `$.await(node, () => promise, pending, then, catch)`.
@@ -107,7 +106,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             self.reads.insert(binding.symbol_id(), Read::Plain);
         }
         let mut cloned = pattern.clone_in_with_semantic_ids(b.allocator());
-        self.rewriter(true).visit_binding_pattern(&mut cloned);
+        self.rewriter().visit_binding_pattern(&mut cloned);
         let object = b.object(names.iter().map(|n| b.init(&n.name, b.id(&n.name))));
         let source = b.runtime("get", [b.id("$$source")]);
         let body = vec![

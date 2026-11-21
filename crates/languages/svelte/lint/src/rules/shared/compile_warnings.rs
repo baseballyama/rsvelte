@@ -8,10 +8,10 @@ use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::warnings::{CompileWarnings, code_for_v5};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
-use rsvelte_typescript_tree::ProgramIdentifier;
+use rsvelte_typescript_tree::{ProgramIdentifier, document_span};
 
-use crate::computation::PostcssConfiguration;
-use crate::project::PostcssConfigurationOnDisk;
+use super::markup::lang_attribute;
+use crate::project::{PostcssConfiguration, PostcssConfigurationOnDisk};
 use crate::rule::File;
 use crate::settings::ExperimentalAsync;
 use crate::words::words;
@@ -43,20 +43,14 @@ const STYLESHEET_CODES: &[&str] = &[
 ];
 
 /// `getSvelteIgnoreItems`: JavaScript comments, then template comments.
-pub(crate) fn ignores(component: &Component, source: &str) -> Ignores {
+pub(crate) fn ignores(file: &File<'_>) -> Ignores {
     let mut out = Ignores::default();
-    let tree = &component.javascript;
-    let comments = component
-        .scripts()
-        .flat_map(|script| &tree.get_program(script.program).comments)
-        .chain(tree.comments());
-    for comment in comments {
-        let comment = Span::new(comment.span.start, comment.span.end);
-        // `//` and `/*` are two bytes, and so is a block comment's `*/`.
-        let value = Span::new(comment.start_offset + 2, block_end(comment, source));
-        read(value, comment, source, &mut out);
+    let source = file.source();
+    for comment in file.comments() {
+        let value = document_span(comment.content_span());
+        read(value, document_span(comment.span), source, &mut out);
     }
-    for node in &component.nodes {
+    for node in file.component().into_iter().flat_map(|c| &c.nodes) {
         if let TemplateNode::Comment { span, data } = *node {
             read(data, span, source, &mut out);
         }
@@ -64,14 +58,6 @@ pub(crate) fn ignores(component: &Component, source: &str) -> Ignores {
     // Stable, so a comment's codes keep their order.
     out.items.sort_by_key(|item| item.comment.start_offset);
     out
-}
-
-fn block_end(comment: Span, source: &str) -> u32 {
-    if comment.text(source).starts_with("/*") {
-        comment.end_offset - 2
-    } else {
-        comment.end_offset
-    }
 }
 
 /// `/^\s*svelte-ignore\s+/` and the codes after it, separated by spaces or commas; a
@@ -215,13 +201,9 @@ pub(crate) fn compile<'a>(
 
 /// Svelte's `options_invalid_value` for a boolean option, which it reports at the start.
 fn invalid_option(name: &str) -> Diagnostic {
-    let code = "options_invalid_value";
-    Diagnostic::error(
-        code,
-        format!(
-            "Invalid compiler option: {name} should be true or false, if \
-             specified\nhttps://svelte.dev/e/{code}"
-        ),
+    rsvelte_svelte_syntax::svelte_diagnostics::error(
+        "options_invalid_value",
+        format!("Invalid compiler option: {name} should be true or false, if specified"),
         Span::new(0, 0),
     )
 }
@@ -334,10 +316,8 @@ fn is_stylesheet(
     source: &str,
     postcss: impl FnOnce() -> bool,
 ) -> bool {
-    attributes
-        .iter()
-        .find(|(name, _)| name.text(source) == "lang")
-        .and_then(|(_, value)| *value)
+    lang_attribute(attributes, source)
+        .and_then(|&(_, value)| value)
         .is_none_or(|value| {
             let lang = value.text(source).to_ascii_lowercase();
             lang == "css" || (matches!(lang.as_str(), "postcss" | "pcss") && postcss())
@@ -501,7 +481,7 @@ impl Targets<'_> {
         let statements = &program.body;
         let span = |statement: &oxc_ast::ast::Statement<'_>| {
             let span = statement.span();
-            Span::new(span.start, span.end)
+            document_span(span)
         };
         let i = statements.partition_point(|statement| span(statement).end_offset <= at);
         let Some(here) = statements.get(i).map(span).filter(|s| contains(*s, at)) else {
@@ -516,7 +496,7 @@ impl Targets<'_> {
         vec![
             comments[first..last.max(first)]
                 .iter()
-                .map(|c| Span::new(c.span.start, c.span.end))
+                .map(|c| document_span(c.span))
                 .collect(),
         ]
     }

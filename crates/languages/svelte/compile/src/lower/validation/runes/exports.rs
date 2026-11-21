@@ -4,11 +4,13 @@ use oxc_ast::ast::{
     ExportDeclaration, ExportNamedDeclaration, ModuleExportName, VariableDeclarationKind,
 };
 use oxc_semantic::SymbolId;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::BindingKind;
+use rsvelte_typescript_tree::node_span;
 
 use super::RuneWalk;
+use crate::lower::invalid;
 use crate::lower::paths::bound_names;
-use crate::lower::{Diagnostic, invalid, span_of};
 
 impl RuneWalk<'_> {
     /// Upstream raises these after it visits the declaration: an exported derived, an exported
@@ -30,13 +32,13 @@ impl RuneWalk<'_> {
             });
         }
         if let Some((code, message)) = error {
-            return invalid(code, message, span_of(export));
+            return invalid(code, message, node_span(export));
         }
         if !self.root.module && declaration.kind == VariableDeclarationKind::Let {
             return invalid(
                 "legacy_export_invalid",
                 "Cannot use `export let` in runes mode — use `$props()` instead",
-                span_of(export),
+                node_span(export),
             );
         }
         Ok(())
@@ -59,7 +61,7 @@ impl RuneWalk<'_> {
             let symbol = (local.reference_id.get())
                 .and_then(|reference| scoping.get_reference(reference).symbol_id());
             if let Some((code, message)) = symbol.and_then(|symbol| self.invalid_export(symbol)) {
-                return invalid(code, message, span_of(specifier));
+                return invalid(code, message, node_span(specifier));
             }
         }
         Ok(())

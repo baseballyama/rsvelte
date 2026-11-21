@@ -1,9 +1,12 @@
 //! What `<svelte:options>` asks of the output; the parser has rejected options upstream rejects.
 
 use oxc_ast::ast::Expression;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue};
 
 use super::SvelteOptions;
-use crate::lower::{Attribute, AttributeValue, CompileInput, Diagnostic, unsupported};
+use crate::input::CompileInput;
+use crate::lower::unsupported;
 
 pub(super) fn read(
     input: &CompileInput<'_>,

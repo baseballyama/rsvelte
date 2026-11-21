@@ -1,70 +1,16 @@
 //! The names the instance script exports, which become the component's exports.
 
 use oxc_ast::ast::{
-    Declaration, ExportDefaultDeclarationKind, ExportFromDeclaration, ExportNamedDeclaration,
-    ModuleExportName, Statement, VariableDeclarationKind,
+    Declaration, ExportFromDeclaration, ExportNamedDeclaration, ModuleExportName, Statement,
+    VariableDeclarationKind,
 };
 use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
-use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
+use rsvelte_typescript_tree::node_span;
 
-use super::super::paths::bound_names;
-use super::super::{CompileInput, span_of, unsupported};
-use crate::lower::error;
-
-/// Upstream `module_illegal_default_export`, which its walk of either script raises at an
-/// `export default` or an `export { … as default }`.
-pub(in crate::lower) fn default_exports(
-    input: &CompileInput<'_>,
-) -> impl Iterator<Item = (Raised, Diagnostic)> {
-    let component = input.component;
-    [
-        (Section::Module, component.module),
-        (Section::Instance, component.instance),
-    ]
-    .into_iter()
-    .filter_map(|(section, program)| Some((section, program?)))
-    .flat_map(move |(section, program)| {
-        let body = &component.javascript.get_program(program).body;
-        body.iter()
-            .enumerate()
-            .filter(|(_, statement)| match statement {
-                Statement::ExportDefaultDeclaration(_) => true,
-                Statement::ExportNamedDeclaration(export) => export
-                    .specifiers
-                    .iter()
-                    .any(|specifier| specifier.exported.name() == "default"),
-                _ => false,
-            })
-            .map(move |(index, statement)| {
-                let mut span = span_of(statement);
-                // acorn-typescript reads a decorated class after `default` as an expression,
-                // whose statement takes the `;` that follows.
-                if let Statement::ExportDefaultDeclaration(export) = statement
-                    && let ExportDefaultDeclarationKind::ClassDeclaration(class) =
-                        &export.declaration
-                    && class
-                        .decorators
-                        .first()
-                        .is_some_and(|d| d.span.start > export.span.start)
-                    && let Some(Statement::EmptyStatement(semicolon)) = body.get(index + 1)
-                {
-                    span.end_offset = semicolon.span.end;
-                }
-                let raised = Raised {
-                    phase: Phase::Walk,
-                    section,
-                    at: span.start_offset,
-                };
-                let message = "A component cannot have a default export";
-                (
-                    raised,
-                    error("module_illegal_default_export", message, span),
-                )
-            })
-    })
-}
+use crate::lower::paths::bound_names;
+use crate::lower::unsupported;
 
 /// One of upstream's `analysis.exports`: the local `name`, exported as `alias`.
 pub(in crate::lower) struct Export<'t> {
@@ -123,7 +69,7 @@ pub(super) fn check_declaration<'t>(
     if plain {
         return Ok(());
     }
-    unsupported("this export from the instance script", span_of(statement))
+    unsupported("this export from the instance script", node_span(statement))
 }
 
 /// Pushes the names of `export { name as alias }`, which renders nothing in the component.
@@ -168,7 +114,7 @@ pub(super) fn check_reexports<'t>(
         let alias = specifier.exported.name().as_str();
         // Upstream raises `module_illegal_default_export`.
         if alias == "default" {
-            return unsupported("this export from the instance script", span_of(specifier));
+            return unsupported("this export from the instance script", node_span(specifier));
         }
         exports.push(Export {
             name: specifier.local.name().as_str(),

@@ -9,10 +9,10 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_semantic::reference_tracker::{global_references, import_references};
+use rsvelte_typescript_tree::node_span;
 use rustc_hash::FxHashSet;
 
-use super::shared::legacy_reactivity::{expression_node, legacy};
-use super::shared::nodes::span;
+use super::shared::legacy_reactivity::legacy;
 use super::shared::reactive_statements::{by_statement, reactive_statements};
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
@@ -29,8 +29,7 @@ struct InfiniteReactiveLoop;
 
 impl SvelteRule for InfiniteReactiveLoop {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let component = file.component().expect("a component rule");
-        let statements: Vec<_> = reactive_statements(file, component).collect();
+        let statements: Vec<_> = reactive_statements(file).collect();
         if statements.is_empty() {
             return;
         }
@@ -39,17 +38,17 @@ impl SvelteRule for InfiniteReactiveLoop {
         let nodes = semantic.nodes();
         let legacy = legacy(file);
         // The calls that run their callbacks in another microtask.
-        let programs = file.programs();
-        let later: FxHashSet<NodeId> = import_references(semantic, &programs, "svelte", &["tick"])
-            .into_iter()
-            .chain(global_references(
-                semantic,
-                file.globals(),
-                &["setTimeout", "setInterval", "queueMicrotask"],
-            ))
-            .filter_map(|reference| reference.call)
-            .filter(|&call| matches!(nodes.kind(call), AstKind::CallExpression(_)))
-            .collect();
+        let later: FxHashSet<NodeId> =
+            import_references(semantic, file.programs(), "svelte", &["tick"])
+                .into_iter()
+                .chain(global_references(
+                    semantic,
+                    file.globals(),
+                    &["setTimeout", "setInterval", "queueMicrotask"],
+                ))
+                .filter_map(|reference| reference.call)
+                .filter(|&call| matches!(nodes.kind(call), AstKind::CallExpression(_)))
+                .collect();
         let reactive: FxHashSet<NodeId> = (0..scoping.references_len())
             .map(ReferenceId::from_usize)
             .filter(|&id| {
@@ -60,7 +59,7 @@ impl SvelteRule for InfiniteReactiveLoop {
             .collect();
         let ranges: Vec<Span> = statements
             .iter()
-            .map(|&(statement, _)| span(statement))
+            .map(|&(statement, _)| node_span(statement))
             .collect();
         let names = by_statement(
             &ranges,
@@ -142,7 +141,7 @@ impl Body<'_> {
     fn node(self) -> NodeId {
         match self {
             Self::Block(body) => body.node_id(),
-            Self::Expression(expression) => expression_node(expression),
+            Self::Expression(expression) => expression.node_id(),
         }
     }
 }
@@ -209,7 +208,7 @@ impl<'a> Lint<'a, '_, '_> {
         }
         self.reporter.report(Report::range(
             "Possibly it may occur an infinite reactive loop.",
-            span(identifier),
+            node_span(identifier),
         ));
         for &call in &self.calls {
             self.reporter.report(Report::range(
@@ -217,7 +216,7 @@ impl<'a> Lint<'a, '_, '_> {
                     "Possibly it may occur an infinite reactive loop because this function \
                          may update `{name}`."
                 ),
-                span(&self.nodes.kind(call)),
+                node_span(&self.nodes.kind(call)),
             ));
         }
     }

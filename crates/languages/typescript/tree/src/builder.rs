@@ -9,13 +9,14 @@ use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, Parser, Token};
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::index::IndexVector;
 use rsvelte_kernel::source::positions::Span;
 
 mod check;
 mod parentheses;
 mod program;
 mod recorded;
-pub use program::Rejected;
+pub use program::{Holes, Rejected, WithHoles};
 pub use recorded::{Part as RecordedPart, Recorded};
 
 /// No rule unchecked: the list a host starts with.
@@ -32,12 +33,12 @@ use crate::{
 pub struct TreeBuilder<'a> {
     allocator: &'a Allocator,
     source_text: &'a str,
-    programs: Vec<Program<'a>>,
-    expressions: Vec<Expression<'a>>,
-    patterns: Vec<FormalParameter<'a>>,
-    parameters: Vec<FormalParameters<'a>>,
-    declarations: Vec<VariableDeclaration<'a>>,
-    type_parameters: Vec<TSTypeParameterDeclaration<'a>>,
+    programs: IndexVector<ProgramIdentifier, Program<'a>>,
+    expressions: IndexVector<ExpressionIdentifier, Expression<'a>>,
+    patterns: IndexVector<PatternIdentifier, FormalParameter<'a>>,
+    parameters: IndexVector<ParametersIdentifier, FormalParameters<'a>>,
+    declarations: IndexVector<DeclarationIdentifier, VariableDeclaration<'a>>,
+    type_parameters: IndexVector<TypeParametersIdentifier, TSTypeParameterDeclaration<'a>>,
     comments: Vec<Comment>,
     recorded: RecordedPart<'a>,
     unchecked: &'static &'static [&'static str],
@@ -79,12 +80,12 @@ impl<'a> TreeBuilder<'a> {
         Self {
             allocator,
             source_text,
-            programs: Vec::new(),
-            expressions: Vec::new(),
-            patterns: Vec::new(),
-            parameters: Vec::new(),
-            declarations: Vec::new(),
-            type_parameters: Vec::new(),
+            programs: IndexVector::new(),
+            expressions: IndexVector::new(),
+            patterns: IndexVector::new(),
+            parameters: IndexVector::new(),
+            declarations: IndexVector::new(),
+            type_parameters: IndexVector::new(),
             comments: Vec::new(),
             recorded: RecordedPart {
                 tokens: &[],
@@ -300,7 +301,7 @@ impl<'a> TreeBuilder<'a> {
         source_type: SourceType,
     ) -> Result<ParametersIdentifier, SyntaxError> {
         let parameters = self.read_parameters(range, source_type)?;
-        let identifier = crate::push(&mut self.parameters, parameters);
+        let identifier = self.parameters.push(parameters);
         Ok(identifier)
     }
 
@@ -335,7 +336,7 @@ impl<'a> TreeBuilder<'a> {
             return Err(refused("expected type parameters", range));
         };
         Shift(shift).visit_ts_type_parameter_declaration(&mut parameters);
-        let identifier = crate::push(&mut self.type_parameters, parameters);
+        let identifier = self.type_parameters.push(parameters);
         Ok(identifier)
     }
 
@@ -429,39 +430,39 @@ impl<'a> TreeBuilder<'a> {
     /// A parameter list read so far, for a host that checks its shape before the tree is done.
     #[must_use]
     pub fn get_parameters(&self, identifier: ParametersIdentifier) -> &FormalParameters<'a> {
-        &self.parameters[identifier.index()]
+        &self.parameters[identifier]
     }
 
     /// An expression kept so far, for a host that checks its shape before the tree is done.
     #[must_use]
     pub fn get_expression(&self, identifier: ExpressionIdentifier) -> &Expression<'a> {
-        &self.expressions[identifier.index()]
+        &self.expressions[identifier]
     }
 
     pub fn keep_expression(&mut self, expression: Expression<'a>) -> ExpressionIdentifier {
-        crate::push(&mut self.expressions, expression)
+        self.expressions.push(expression)
     }
 
     /// Keeps a program built in [`TreeBuilder::nodes`]'s arena, such as one a compiler writes.
     pub fn keep_program(&mut self, program: Program<'a>) -> ProgramIdentifier {
-        crate::push(&mut self.programs, program)
+        self.programs.push(program)
     }
 
     /// Keeps a parameter list built in [`TreeBuilder::nodes`]'s arena, such as aliases a compiler
     /// writes.
     pub fn keep_parameters(&mut self, parameters: FormalParameters<'a>) -> ParametersIdentifier {
-        crate::push(&mut self.parameters, parameters)
+        self.parameters.push(parameters)
     }
 
     pub fn keep_pattern(&mut self, pattern: FormalParameter<'a>) -> PatternIdentifier {
-        crate::push(&mut self.patterns, pattern)
+        self.patterns.push(pattern)
     }
 
     pub fn keep_declaration(
         &mut self,
         declaration: VariableDeclaration<'a>,
     ) -> DeclarationIdentifier {
-        crate::push(&mut self.declarations, declaration)
+        self.declarations.push(declaration)
     }
 
     /// Keeps `tokens` and `comments`, `shift` bytes later, as the part read last.

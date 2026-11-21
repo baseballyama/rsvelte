@@ -71,7 +71,7 @@ fn global_block(
                     {
                         return Err(error(
                             "css_global_block_invalid_combinator",
-                            &format!(
+                            format!(
                                 "A `:global` selector cannot follow a `{}` combinator",
                                 name(combinator)
                             ),

@@ -135,12 +135,12 @@ pub(crate) fn runes(file: &File<'_>) -> Option<bool> {
 
 /// A rule's `svelteFileTypes: ['.svelte', '.svelte.[js|ts]']` condition.
 pub(crate) fn is_svelte_file(file: &File<'_>) -> bool {
-    let path = file.path();
-    file.is_component() || path.ends_with(".svelte.js") || path.ends_with(".svelte.ts")
+    file.is_component() || file.is_svelte_module()
 }
 
-/// A rule's `runes: [true, 'undetermined']` condition.
-pub(crate) fn runes_or_undetermined(file: &File<'_>) -> bool {
+/// A rule's `runes: [true, 'undetermined']` condition. Upstream's `'undetermined'` is a Svelte
+/// file that svelte-eslint-parser did not parse, which never happens here.
+pub(crate) fn meets_runes_condition(file: &File<'_>) -> bool {
     runes(file) == Some(true)
 }
 

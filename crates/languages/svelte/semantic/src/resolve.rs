@@ -79,24 +79,7 @@ pub(crate) fn bound(scoping: &Scoping, symbol: Option<SymbolId>) -> Option<Symbo
     })
 }
 
-mod cell {
-    #![allow(
-        clippy::mem_forget,
-        reason = "self_cell's expansion forgets its guard on purpose"
-    )]
-
-    use rsvelte_typescript_semantic::semantic::Semantic;
-
-    use super::Facts;
-
-    self_cell::self_cell!(
-        pub(super) struct Cell {
-            owner: Semantic,
-            #[covariant]
-            dependent: Facts,
-        }
-    );
-}
+mod cell;
 
 struct Facts<'a> {
     bindings: Vec<BindingInformation<'a>>,
@@ -264,13 +247,8 @@ impl Resolution {
         self.semantic().scoping()
     }
 
-    /// The first error a module rejects that no parser reported, in the scripts or the template.
-    #[must_use]
-    pub fn syntax_error(&self) -> Option<&rsvelte_kernel::diagnostics::Diagnostic> {
-        self.semantic().syntax_error()
-    }
-
-    /// [`Self::syntax_error`], with what acorn reports for it.
+    /// [`Semantic::syntax_error`](rsvelte_typescript_semantic::semantic::Semantic::syntax_error),
+    /// with what acorn reports for it.
     #[must_use]
     pub fn javascript_syntax_error(&self) -> Option<&rsvelte_typescript_tree::SyntaxError> {
         self.semantic().javascript_syntax_error()

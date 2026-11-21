@@ -4,13 +4,13 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::NodeId;
-use oxc_span::GetSpan;
 use rsvelte_svelte_compile::lower::is_expression_async;
 use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::FxHashSet;
 
 use super::{Plan, Root};
-use crate::compilation::{R, span_of, unsupported};
+use crate::compilation::{R, unsupported};
 
 pub(super) fn collect(
     res: &Resolution,
@@ -74,7 +74,7 @@ impl Collect<'_> {
         if !pattern_supported || !arity {
             return Err(unsupported(
                 format_args!("this use of `{name}`"),
-                span_of(init.span()),
+                node_span(init),
             ));
         }
         self.plan.core_patterns |=
@@ -98,12 +98,12 @@ impl Collect<'_> {
         if arity.is_some_and(|arity| call.arguments.len() != arity) {
             return Err(unsupported(
                 format_args!("this use of `{name}`"),
-                span_of(call.span),
+                document_span(call.span),
             ));
         }
         self.consumed.insert(root(&call.callee));
         if !eager(name) {
-            self.plan.auxiliary.insert(name, span_of(call.span));
+            self.plan.auxiliary.insert(name, document_span(call.span));
         }
         Ok(())
     }

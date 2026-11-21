@@ -12,14 +12,14 @@ use rsvelte_svelte_semantic::typescript::without_typescript;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, Component, Part, TemplateNode, decode_attribute,
 };
-use rsvelte_typescript_tree::Tree;
+use rsvelte_typescript_tree::{Tree, node_span};
 use rustc_hash::FxHashMap;
 
 use super::shared::kit_navigation::{
-    Navigation, Options, Script, first_argument, first_part, has_scheme, links, string, template,
+    Navigation, Options, Script, first_argument, first_part, has_scheme, is_empty_url, links,
+    string, template,
 };
 use super::shared::kit_route::runs_for;
-use super::shared::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 #[cfg(test)]
@@ -103,7 +103,7 @@ impl SvelteRule for NoNavigationWithoutResolve {
                 .as_expression()
                 .is_some_and(|url| check.allowed(Url::Expression(url), allow, &mut Vec::new()));
             if !allowed {
-                reporter.range(message, span(argument));
+                reporter.range(message, node_span(argument));
             }
         }
         let Some(component) = file.component().filter(|_| !self.0.ignore_links) else {
@@ -440,7 +440,7 @@ impl<'a> Check<'_, 'a> {
             _ => {}
         }
         (allow.absolute && is_absolute(node))
-            || (allow.empty && is_empty(node))
+            || (allow.empty && is_empty_url(node))
             || (allow.fragment && self.starts_with(node, "#", visited))
             || (allow.nullish && is_nullish(node))
             || self.is_resolve_call(node, visited)
@@ -542,6 +542,7 @@ impl<'a> Check<'_, 'a> {
     }
 }
 
+// Unlike `no-navigation-without-base`, upstream's rule reads only a `+` as a concatenation.
 fn is_absolute(node: &Expression<'_>) -> bool {
     match node {
         Expression::BinaryExpression(binary) if binary.operator == BinaryOperator::Addition => {
@@ -554,12 +555,6 @@ fn is_absolute(node: &Expression<'_>) -> bool {
         }),
         _ => false,
     }
-}
-
-fn is_empty(node: &Expression<'_>) -> bool {
-    string(node) == Some("")
-        || template(node)
-            .is_some_and(|(quasis, expressions)| expressions.is_empty() && quasis == [""])
 }
 
 /// `undefined` or `null`, as written.

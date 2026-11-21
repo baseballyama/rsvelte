@@ -100,12 +100,12 @@ function categoryOf(path: string): Category {
 const dirOf = (path: string) => path.slice(0, Math.max(0, path.lastIndexOf('/')));
 
 function commonPrefix(paths: string[]): string {
-	if (paths.length === 1) return paths[0];
-	const split = paths.map((p) => p.split('/'));
+	const [first = [], ...rest] = paths.map((p) => p.split('/'));
+	if (rest.length === 0) return paths[0] ?? '';
 	const out: string[] = [];
-	for (let i = 0; i < split[0].length - 1; i++) {
-		if (!split.every((s) => s[i] === split[0][i])) break;
-		out.push(split[0][i]);
+	for (const [i, part] of first.slice(0, -1).entries()) {
+		if (!rest.every((s) => s[i] === part)) break;
+		out.push(part);
 	}
 	return out.length > 0 ? `${out.join('/')}/` : '(repository root)';
 }
@@ -132,7 +132,7 @@ function chunk(category: Category, list: FileChange[]) {
 	}
 	// A small leftover joins the previous chunk rather than taking a reviewer alone.
 	for (let i = groups.length - 1; i > 0; i--) {
-		const [prev, g] = [groups[i - 1], groups[i]];
+		const [prev, g] = [groups[i - 1]!, groups[i]!];
 		const small = g.lines < SOFT_LINES / 2 && g.files.length <= 2;
 		if (
 			small &&

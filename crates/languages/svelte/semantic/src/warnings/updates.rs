@@ -6,10 +6,11 @@ use oxc_ast::ast::BindingPattern;
 use oxc_semantic::{ScopeId, SymbolId};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Component;
+use rsvelte_typescript_tree::document_span;
 use rustc_hash::FxHashMap;
 
 use super::found::{Found, Stage};
-use super::{span, warning};
+use super::warning;
 use crate::resolve::{BindingKind, Resolution};
 
 /// Upstream's loop over the module's then the instance's declarations, after the walks.
@@ -57,7 +58,7 @@ pub(super) fn non_reactive_updates(
                     .is_none_or(|(_, in_block)| *in_block)
             });
             if read {
-                let mut at = span(scoping.symbol_span(symbol));
+                let mut at = document_span(scoping.symbol_span(symbol));
                 // Upstream's identifier ends after its type annotation.
                 if let AstKind::VariableDeclarator(d) = resolution.declaration(symbol)
                     && matches!(d.id, BindingPattern::BindingIdentifier(_))

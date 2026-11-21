@@ -2,8 +2,8 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
+use rsvelte_typescript_tree::node_span;
 
-use super::shared::nodes;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -35,7 +35,7 @@ impl SvelteRule for RequireEachKey {
                 continue;
             };
             let last = index.unwrap_or(context);
-            let after = nodes::span(component.javascript.get_pattern(last)).end_offset;
+            let after = node_span(component.javascript.get_pattern(last)).end_offset;
             let closing = component.tokens.get(
                 component
                     .tokens

@@ -1,7 +1,8 @@
 # Svelte lint
 
-This crate has every rule of the Svelte lint. TypeScript core supplies JS/TS parsing and scopes; the
-crate does not depend on `rsvelte_typescript_check` and does not start tsgo.
+This crate has every rule of the Svelte lint. `rsvelte_typescript_tree` and
+`rsvelte_typescript_semantic` supply JS/TS parsing and scopes; the crate does not depend on
+`rsvelte_typescript_check` and does not start tsgo.
 
 Rules live in `src/rules/<rule>.rs`; helpers that more than one rule uses live in
 `src/rules/shared/`. `lint.rs` is the library entry point. `configuration.rs`
@@ -9,9 +10,9 @@ selects rules, severity and options, and `task.rs` adapts the library to the reg
 output. The crate caches facts once per document, and a rule computes only the facts it asks
 for; `tests/architecture.rs` checks which facts each kind of rule computes.
 
-`Configuration::new` rejects duplicate rules, and a rule it does not list is off. The default
-turns on `no-unused-vars` and `svelte/button-has-type`. Findings keep source order, and
-configuration order breaks ties.
+`Configuration::rule` rejects a rule configured twice, and a rule the configuration does not
+list is off. The default turns on `no-unused-vars` and `svelte/button-has-type`. Findings keep
+source order, and configuration order breaks ties.
 
 A component that Svelte's parser rejects gets ESLint's one `Parsing error` finding, and no rule
 runs. An error inside `<script>` stays refused: svelte-eslint-parser parses scripts itself.
@@ -30,9 +31,6 @@ component without that `<style>`. The upstream plugin does the same when the pac
 missing. The two rules miss compiler warnings inside such a sheet. Upstream loads the
 package from the user's project, and rsvelte never starts Node. The upstream cases that need it
 wait in `tests/upstream_preprocessor.json` with their reasons.
-
-A later version could take a configured function, as `cssHash` does. It would read the language,
-filename and content and return the code with its source map. `svelte.compile` would use it too.
 
 ## Types
 

@@ -17,6 +17,10 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
 
+# corpus/svelte is most of the tree, and the jobs that do not read it check out without it
+# (`no-corpus` below). git still lists the excluded files, so such a job must not read a tracked
+# file under corpus/svelte: tools/structure reads every tracked file and runs on the whole tree;
+# tools/writing reads every tracked *.md, and corpus/svelte holds none.
 jobs:
   rust-format:
     runs-on: ubuntu-24.04
@@ -25,6 +29,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          sparse-checkout: &no-corpus |
+            /*
+            !/corpus/svelte/
+          sparse-checkout-cone-mode: false
       - run: |
           toolchain=$(sed -n 's/^rustfmt = "\(.*\)"$/\1/p' mise.toml)
           if [ -z "$toolchain" ]; then
@@ -41,6 +49,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          sparse-checkout: *no-corpus
+          sparse-checkout-cone-mode: false
       - uses: ./.github/actions/rust
       - run: cargo fetch --locked
       # The same commands as `mise run lint`.
@@ -55,17 +65,28 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # The corpus test is the only reader of corpus/svelte, and optimizing it saves more time
+          # than the optimized build costs. An empty sparse-checkout checks out the whole tree.
           - part: command-line
             packages: -p rsvelte_command_line
+            sparse-checkout: ''
+            opt-level: 1
           - part: workspace
             packages: --workspace --exclude rsvelte_command_line
+            sparse-checkout: *no-corpus
+            opt-level: 0
     name: rust-test (${{ matrix.part }})
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    # rust-cache hashes CARGO_* variables into its key, so each level has its own cache entry.
+    env:
+      CARGO_PROFILE_DEV_OPT_LEVEL: ${{ matrix.opt-level }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          sparse-checkout: ${{ matrix.sparse-checkout }}
+          sparse-checkout-cone-mode: false
       - uses: ./.github/actions/rust
         with:
           key: ${{ matrix.part }}
@@ -76,8 +97,9 @@ jobs:
           package-manager-cache: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/oracle...
-      # The tests that type check run this program, and cargo builds it only for its own package's.
-      - run: cargo build --offline -p rsvelte_typescript_content_mapper --bins
+      # The tests that type check run these programs, and cargo builds a program only for its own
+      # package's tests: the store-only mapper, and the mapper `rsvelte` ships.
+      - run: cargo build --offline -p rsvelte_typescript_content_mapper -p rsvelte_svelte_typescript_projection --bins
       - env:
           PACKAGES: ${{ matrix.packages }}
         run: cargo test --offline $PACKAGES
@@ -116,6 +138,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          sparse-checkout: *no-corpus
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26.13.0
@@ -158,17 +182,18 @@ jobs:
           CARGO_PROFILE_RELEASE_LTO: false
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16
           CARGO_PROFILE_RELEASE_DEBUG: false
-        run: pnpm run generate
-      # test, check and build each start by generating; it is done, so they skip that and run at
-      # once. SvelteKit's sync writes a file only when its content changes, so they share it.
+        run: pnpm run generate --no-wasm-opt
+      # test and check start by generating; it is done, so they skip that and run at once beside
+      # build:bundle, which is build without the lints that test runs. SvelteKit's sync writes a
+      # file only when its content changes, so they share it.
       - run: |
           declare -A pids
-          for script in test check build; do
+          for script in test check build:bundle; do
             pnpm --config.enable-pre-post-scripts=false run "$script" > "$RUNNER_TEMP/$script.log" 2>&1 &
             pids[$script]=$!
           done
           failed=()
-          for script in test check build; do
+          for script in test check build:bundle; do
             if ! wait "${pids[$script]}"; then failed+=("$script"); fi
             echo "::group::$script"
             cat "$RUNNER_TEMP/$script.log"
@@ -180,7 +205,7 @@ jobs:
           fi
 
   performance:
-    # The instruction baseline is recorded on arm64 Linux (`performance.ts linux` runs the same
+    # The instruction baseline is recorded on arm64 Linux (`performance.ts ratchet-linux` runs the same
     # environment locally); allocation counts are the same on every platform.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
@@ -196,6 +221,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Only the inputs are measured.
+          sparse-checkout: |
+            /*
+            !/corpus/svelte/*/expected/
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26.13.0
