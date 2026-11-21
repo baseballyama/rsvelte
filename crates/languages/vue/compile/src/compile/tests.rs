@@ -11,8 +11,11 @@ fn refusal(script: &str, template: &str) -> Option<&'static str> {
         None,
         compiler_syntax_tree.as_ref(),
     );
-    let input =
-        CompileInput::from_single_file_component(&c, compiler_syntax_tree.as_ref(), &source_text);
+    let input = CompileInput {
+        component: &c,
+        compiler_syntax_tree: compiler_syntax_tree.as_ref(),
+        source_text: &source_text,
+    };
     compile(&input, &res, "a.vue").err().map(|u| u.what)
 }
 
@@ -36,8 +39,11 @@ fn output(script: &str, template: &str) -> String {
         None,
         compiler_syntax_tree.as_ref(),
     );
-    let input =
-        CompileInput::from_single_file_component(&c, compiler_syntax_tree.as_ref(), &source_text);
+    let input = CompileInput {
+        component: &c,
+        compiler_syntax_tree: compiler_syntax_tree.as_ref(),
+        source_text: &source_text,
+    };
     flat(&compile(&input, &res, "a.vue").expect("compiles").javascript)
 }
 

@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { revision } from '../revision.ts';
 
 const root = path.resolve(import.meta.dirname, '../../../..');
 const here = 'tools/performance/workloads';
@@ -54,8 +55,6 @@ function run(program: string, argv: string[], cwd = root, env: Record<string, st
 const node = (script: string, argv: string[], env: Record<string, string> = {}) =>
 	run(process.execPath, [path.join(root, here, script), ...argv], root, env);
 const lintMeasure = (argv: string[]) => node('lint-versus-main/measure.ts', argv);
-const text = (program: string, argv: string[], cwd = root) =>
-	spawnSync(program, argv, { cwd, encoding: 'utf8' }).stdout.trim();
 
 // The pins of the type check's tools, from the workflow that runs it in CI.
 function checkPins(): Record<string, string> {
@@ -161,10 +160,7 @@ timed('stage', () => {
 	);
 });
 
-const revisions = () => ({
-	main: text('git', ['rev-parse', 'HEAD'], main),
-	experimental: text('git', ['rev-parse', 'HEAD']),
-});
+const revisions = () => ({ main: revision(main), experimental: revision(root) });
 
 timed('tasks', () => {
 	const arms = [

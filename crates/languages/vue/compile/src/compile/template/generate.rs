@@ -1,11 +1,15 @@
 use oxc_allocator::{CloneIn, GetAllocator};
-use oxc_ast::ast::{BinaryOperator, LogicalOperator, Statement, UnaryOperator};
+use oxc_ast::ast::{BinaryOperator, Expression, LogicalOperator, Statement, UnaryOperator};
 use oxc_ast_visit::VisitMut;
 use rsvelte_typescript_compile::build::Builder;
+use rsvelte_typescript_tree::Tree;
+use rsvelte_vue_semantic::resolve::Resolution;
+use rsvelte_vue_syntax::syntax_tree::DirectiveName;
 
+use super::rewrite::ExpRewrite;
 use super::{
-    Codegen, CodegenIdentifier, Compiled, DirectiveName, Exp, ExpRewrite, Expression, Helper, Lit,
-    Node, PropertyView, Resolution, TransformNodeIdentifier, Tree, VChildren, is_simple_identifier,
+    Codegen, CodegenIdentifier, Compiled, Exp, Helper, Lit, Node, PropertyView,
+    TransformNodeIdentifier, VChildren,
 };
 use crate::compile::out;
 
@@ -177,13 +181,8 @@ impl<'o> Gen<'_, '_, 'o> {
                 let properties: Vec<_> = list
                     .iter()
                     .map(|(k, v)| {
-                        let key = if is_simple_identifier(k) {
-                            b.key(k)
-                        } else {
-                            oxc_ast::ast::PropertyKey::from(b.string(k))
-                        };
                         let value = self.codegen(*v);
-                        b.property(key, value, false)
+                        b.property(b.key_by(k, is_simple_identifier), value, false)
                     })
                     .collect();
                 b.object(properties)
@@ -279,4 +278,14 @@ impl<'o> Gen<'_, '_, 'o> {
 /// `v-bind="obj"`: a `v-bind` without an argument.
 pub(super) const fn is_object_bind(p: &PropertyView) -> bool {
     matches!(p, PropertyView::Dir(DirectiveName::Bind, a, ..) if a.is_empty())
+}
+
+/// compiler-core's `isSimpleIdentifier`, `!/^$|^\d|[^\$\w\xA0-\uFFFF]/.test(name)`: every
+/// character from U+00A0 up passes, an astral one through its surrogates.
+fn is_simple_identifier(name: &str) -> bool {
+    !name.is_empty()
+        && !name.starts_with(|c: char| c.is_ascii_digit())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$' || c >= '\u{A0}')
 }

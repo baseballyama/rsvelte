@@ -51,6 +51,7 @@ export const lowercaseNames = [
 /** Technical words and names the English dictionary does not know. */
 export const words = [
 	'formatter',
+	'linters?',
 	...acronyms,
 	...lowercaseNames,
 	'APIs',

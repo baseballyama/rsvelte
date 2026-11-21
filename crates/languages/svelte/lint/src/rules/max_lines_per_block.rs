@@ -143,10 +143,7 @@ fn check(component: &Component, lines: &Lines<'_>, options: &Options, reporter: 
         }
     };
     if let Some(max) = options.script {
-        for script in [&component.module, &component.instance]
-            .into_iter()
-            .flatten()
-        {
+        for script in component.scripts() {
             let (first, last) = (
                 lines.line(script.span.start_offset) + 1,
                 lines.line(script.span.end_offset) - 1,
@@ -214,9 +211,8 @@ fn check_template(
     let is_options = |node: &TemplateNode| matches!(node, TemplateNode::Element { name, .. } if name.text(source) == "svelte:options");
     let root = component.children(component.root);
     // By first and last line.
-    let excluded: Vec<(u32, u32)> = [&component.module, &component.instance]
-        .into_iter()
-        .flatten()
+    let excluded: Vec<(u32, u32)> = component
+        .scripts()
         .map(|script| script.span)
         .chain(component.style.as_ref().map(|style| style.span))
         .chain(

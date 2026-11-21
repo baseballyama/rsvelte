@@ -1,4 +1,8 @@
-use super::{Attributes, Cow, NodeIdentifier, NodeKind, Span, Tree, only_ws};
+use std::borrow::Cow;
+
+use rsvelte_kernel::source::positions::Span;
+
+use super::{Attributes, NodeIdentifier, NodeKind, Tree, only_ws};
 
 /// prettier's `CSS_DISPLAY_TAGS` (from `html-ua-styles`, with its special cases), for the tags
 /// whose display is not `inline`.

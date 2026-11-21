@@ -16,6 +16,7 @@ npx @rsvelte/cli lint [<path>...]
 npx @rsvelte/cli format [<path>...] [--check]
 npx @rsvelte/cli typecheck
 npx @rsvelte/cli help [<command>]
+npx @rsvelte/cli version
 ```
 
 `npx` runs the project's copy, or downloads one when the project has none. In `package.json`
@@ -54,13 +55,18 @@ configure `format`.
 
 The Svelte formatter prints only the default value of these options:
 
-- `semi`, `singleQuote` and `trailingComma`
-- `arrowParens`, `bracketSpacing` and `quoteProps`
-- `objectWrap`
+- `trailingComma`, `arrowParens` and `bracketSpacing`
+- `quoteProps` and `objectWrap`
 
-It does not sort Tailwind CSS classes (`sortTailwindcss`) yet. With another value of these
+It does not sort the Tailwind CSS classes of a Svelte file yet. With another value of these
 options, or with `sortTailwindcss`, `format` reports an error for each Svelte file and formats
 the other files.
+
+With `sortTailwindcss`, `format` sorts the classes of the other files as oxfmt does, with the
+[`prettier-plugin-tailwindcss`](https://github.com/tailwindlabs/prettier-plugin-tailwindcss) of
+the file's project, run by `node`. Install the plugin, version 0.8 or later, in the project:
+`format` does not ship one, so the project chooses its version. Without `node` or the plugin,
+`format` reports an error for each file whose classes it would sort and formats the others.
 
 `typecheck` checks the project of `tsconfig.json` in the current directory, or next to
 `rsvelte.config` when it gives `typescript.check` options, and reports the

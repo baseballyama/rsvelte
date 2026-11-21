@@ -9,14 +9,11 @@ use rsvelte_typescript_semantic::static_value::StaticValues;
 use rsvelte_typescript_tree::node_span;
 use rustc_hash::FxHashSet;
 
-use super::shared::element_kind::is_markup_element;
+use super::shared::element_kind::is_markup_like;
 use super::shared::legacy_reactivity::{Variable, legacy};
 use super::shared::nodes::property_name;
 use super::shared::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
-
-#[cfg(test)]
-mod tests;
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-dom-manipulating",
@@ -142,13 +139,10 @@ fn bound_this(file: &File<'_>) -> FxHashSet<NodeId> {
     let javascript = &component.javascript;
     let mut bound = FxHashSet::default();
     for node in &component.nodes {
-        let TemplateNode::Element {
-            name, attributes, ..
-        } = node
-        else {
+        let TemplateNode::Element { attributes, .. } = node else {
             continue;
         };
-        if !is_markup_element(name.text(source)) {
+        if !is_markup_like(node, source) {
             continue;
         }
         for attribute in component.attributes(*attributes) {

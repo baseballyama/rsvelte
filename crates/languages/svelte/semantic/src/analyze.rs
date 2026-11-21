@@ -95,7 +95,7 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
     let tree = input.javascript;
     let mut values = BindingValues::new(res);
     let mut scripts = MetadataWalker::<false>::new(res, &mut values);
-    for program in input.module.into_iter().chain(input.instance) {
+    for program in input.programs() {
         scripts.visit_program(tree.get_program(program));
     }
     let needs_context = scripts.needs_context();

@@ -1,6 +1,6 @@
 # rsvelte site
 
-The rsvelte site, a static SvelteKit app in Japanese. GitHub Pages serves it at
+The rsvelte site, a static SvelteKit app. GitHub Pages serves it at
 [the project's page](https://baseballyama.github.io/rsvelte/).
 
 | Route           | Purpose                                                                   |
@@ -11,8 +11,8 @@ The rsvelte site, a static SvelteKit app in Japanese. GitHub Pages serves it at
 | `/playground`   | Compile, format and lint a component with the WebAssembly build in a page |
 | `/architecture` | How the toolchain works, for contributors                                 |
 
-The guide repeats [the user guide of `@rsvelte/cli`](../cli/README.md) in Japanese; change both
-together. The playground runs the [browser host](../../crates/hosts/README.md#browser--webassembly).
+The guide repeats [the user guide of `@rsvelte/cli`](../cli/README.md); change both together.
+The playground runs the [browser host](../../crates/hosts/README.md#browser--webassembly).
 
 ## Local development
 

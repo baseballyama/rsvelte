@@ -1,0 +1,17 @@
+- message: Store callbacks must use `set` param.
+  line: 3
+  column: 14
+  suggestions: null
+- message: Store callbacks must use `set` param.
+  line: 4
+  column: 14
+  suggestions:
+    - desc: Rename parameter from this to `set`.
+      messageId: updateParam
+      output: |
+        <script lang="ts">
+        	import { writable } from 'svelte/store';
+        	writable(0, function (this: Window, set: () => void) { set(); });
+        	writable(0, function (set) {});
+        	writable(0, function (set: () => void) { set(); });
+        </script>

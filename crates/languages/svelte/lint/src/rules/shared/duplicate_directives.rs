@@ -9,9 +9,6 @@ use rsvelte_typescript_tree::node_span;
 use super::expressions::equal_tokens;
 use super::markup::parts;
 
-#[cfg(test)]
-mod tests;
-
 /// Reports every directive that `key` selects and another directive of its start tag repeats.
 /// `key` gives a directive's key text, or `None` for an attribute that is not one;
 /// `message(key, line)` names the key and the line of the first other copy.

@@ -6,7 +6,6 @@ use rsvelte_typescript_tree::document_span;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
-use super::shared::runes::runes;
 use super::shared::svelte_names::{TopLevelNames, is_svelte_global, reactive_names};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -44,7 +43,7 @@ impl SvelteRule for NoUndef {
         };
         let scoping = resolution.scoping();
         let nodes = resolution.semantic().nodes();
-        let runes = runes(file) != Some(false);
+        let runes = file.runes() != Some(false);
         let globals = file.globals();
         let reactive: FxHashSet<&str> = reactive_names(file).collect();
         for (name, references) in scoping.root_unresolved_references() {

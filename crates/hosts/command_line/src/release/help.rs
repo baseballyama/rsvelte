@@ -11,6 +11,7 @@ Commands:
   lint [<path>...]               Lint the files below the paths (default: .)
   format [<oxfmt arguments>...]  Format files as oxfmt does, Svelte files included
   typecheck                      Type check the project of a tsconfig.json
+  version                        Print the versions of the tools rsvelte matches and is built on
   help [<command>]               Print this help, or the guide to one command
 
 Options:
@@ -75,5 +76,14 @@ Exits with 1 when it finds an error, and with 2 when it cannot run.
 pub(super) const HELP: &str = "\
 Usage: rsvelte help [<command>]
 
-Prints the overview of rsvelte, or the guide to one command: lint, format or typecheck.
+Prints the overview of rsvelte, or the guide to one command: lint, format, typecheck or
+version.
+";
+
+pub(super) const VERSION: &str = "\
+Usage: rsvelte version [options]
+
+Prints the version of rsvelte; for each command, the versions of the official tools whose
+output its tests compare with; the oxfmt and oxc it is built on; and the type checker that
+typecheck would run in this directory. -V prints only the version of rsvelte.
 ";

@@ -174,7 +174,7 @@ impl Parser<'_, '_> {
         while self
             .peek()
             .is_some_and(|c| !c.is_ascii_whitespace() && !matches!(c, b'=' | b'>' | b'"' | b'\''))
-            && !self.rest().starts_with("/>")
+            && !self.b[self.position..].starts_with(b"/>")
         {
             self.position += 1;
         }

@@ -10,7 +10,7 @@ use rsvelte_typescript_tree::{Parsed, is_typescript, matches};
 
 use crate::{CheckedDocument, TypeScriptDocument, TypeScriptEnv, TypeScriptView, kit};
 
-pub static PLUGIN: Plugin = Plugin {
+pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "typescript.check",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[],

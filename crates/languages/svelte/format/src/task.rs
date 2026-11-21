@@ -33,18 +33,17 @@ pub(crate) fn register_with_options(registry: &mut Registry, options: Options) {
     registry.task(Format { options });
 }
 
+/// The identifier of the task that formats each component.
+pub const TASK: &str = "svelte.format/default";
+
 #[derive(Debug)]
 pub(crate) struct Format {
     options: Options,
 }
 
-impl Format {
-    pub(crate) const IDENTIFIER: &'static str = "svelte.format/default";
-}
-
 impl Task for Format {
     fn identifier(&self) -> &'static str {
-        Self::IDENTIFIER
+        TASK
     }
 
     fn applies(&self, document: &Document) -> bool {

@@ -20,7 +20,7 @@ impl Printer<'_, '_, '_> {
         }
         let mut root = c.children(c.root).to_vec();
         let mut hoisted = Vec::new();
-        for script in c.module.iter().chain(&c.instance) {
+        for script in c.scripts() {
             let comments = self.leading_comments(&mut root, script.span.start_offset);
             let body = if self.ignores(&comments)
                 || self.unsupported(&script.attributes)
@@ -486,6 +486,6 @@ mod nested;
 
 /// The `<script>` and `<style>` tags the plugin prints apart from the markup.
 fn hoisted(c: &Component) -> impl Iterator<Item = Span> + '_ {
-    let scripts = c.module.iter().chain(&c.instance).map(|s| s.span);
+    let scripts = c.scripts().map(|s| s.span);
     scripts.chain(c.style.iter().map(|s| s.span))
 }

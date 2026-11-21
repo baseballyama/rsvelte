@@ -37,6 +37,13 @@ pub fn resolve_component(
     )
 }
 
+/// [`resolve_component`] of a component that is not the database's [`Parsed`] one: it lowers the
+/// template itself.
+#[must_use]
+pub fn resolve_alone(c: &syntax_tree::Component, source_text: &str) -> resolve::Resolution {
+    resolve_component(c, &compiler_syntax_tree::lower(c, source_text))
+}
+
 #[derive(Debug)]
 pub struct Lowered;
 

@@ -27,7 +27,9 @@ pub(crate) fn format(arguments: &[String]) -> ExitCode {
     };
     oxfmt::cli::init_tracing();
     oxfmt::cli::init_rayon(command.runtime_options.threads);
-    let hosts = HostFormatters::default().with(Language::Svelte, Svelte);
+    let hosts = HostFormatters::default()
+        .with(Language::Svelte, Svelte)
+        .with_tailwind_sorter(tailwind::Tailwind::default());
     let result = oxfmt::cli::WalkRunner::new(command).with_hosts(hosts).run();
     ExitCode::from(result.exit_code())
 }
@@ -98,6 +100,8 @@ fn panic_message(panic: &(dyn Any + Send)) -> &str {
         .or_else(|| panic.downcast_ref::<&str>().copied())
         .unwrap_or("a payload that is not a string")
 }
+
+mod tailwind;
 
 #[cfg(test)]
 mod tests;

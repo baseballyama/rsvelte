@@ -11,7 +11,7 @@ use rsvelte_kernel::source::tokens::{TokenKind, Tokens};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode, TokenType};
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier, Tree,
-    document_span,
+    document_span, node_span,
 };
 
 use super::found::{Found, Stage};
@@ -144,10 +144,7 @@ pub(super) fn regions(
 ) -> Vec<Region> {
     let mut out = Vec::new();
     // The parser gives a script the comment before its tag as the program's leading comment.
-    for script in [&component.module, &component.instance]
-        .into_iter()
-        .flatten()
-    {
+    for script in component.scripts() {
         if let Some(data) = preceding_comment(component, source, script.span.start_offset) {
             let codes = extract(data.start_offset, data.text(source), runes, |_| {});
             let program = component.javascript.get_program(script.program);
@@ -408,7 +405,7 @@ fn last_item(kind: &AstKind<'_>) -> Option<Span> {
 
 impl<'a> Visit<'a> for Attach<'_, '_> {
     fn enter_node(&mut self, kind: AstKind<'a>) {
-        let span = document_span(kind.span());
+        let span = node_span(&kind);
         let mut codes = Vec::new();
         while let Some(&comment) = self.comments.get(self.next) {
             if comment.start_offset >= span.start_offset {

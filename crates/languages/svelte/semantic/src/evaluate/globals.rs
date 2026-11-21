@@ -1,4 +1,6 @@
-use rsvelte_typescript_semantic::number::{exponentiate, to_int32};
+use rsvelte_typescript_semantic::number::{
+    exponentiate, math_max, math_min, math_round, math_sign, to_int32,
+};
 
 use super::Value;
 
@@ -22,16 +24,6 @@ fn math1(a: &[Value], f: fn(f64) -> f64) -> Value {
 fn string_arg(a: &[Value], i: usize) -> String {
     a.get(i)
         .map_or_else(|| "undefined".to_owned(), Value::to_javascript_string)
-}
-
-/// `Math.round`: halves round up, and a negative number that rounds to zero keeps its sign.
-fn round(x: f64) -> f64 {
-    if !x.is_finite() || x.fract() == 0.0 {
-        return x;
-    }
-    let floor = x.floor();
-    let r = if x - floor >= 0.5 { floor + 1.0 } else { floor };
-    if r == 0.0 && x < 0.0 { -0.0 } else { r }
 }
 
 /// `Math.f16round`: the nearest half-precision value, ties to even.
@@ -63,37 +55,16 @@ pub(super) fn global(path: (&str, Option<&str>)) -> Option<Global> {
     constant(path).map_or_else(|| function(path), |value| Some(Global::Constant(value)))
 }
 
-#[expect(clippy::too_many_lines, reason = "one arm per global upstream folds")]
 fn function(path: (&str, Option<&str>)) -> Option<Global> {
     let fold: Fold = match path {
         ("BigInt", None) | ("Math", Some("random")) => {
             return Some(Global::Function(Value::AnyNumber, None));
         }
         ("Math", Some("f16round")) => |a| math1(a, f16round),
-        ("Math", Some("min")) => |a| {
-            Value::Number(a.iter().map(Value::to_number).fold(f64::INFINITY, |m, x| {
-                if m.is_nan() || x.is_nan() {
-                    f64::NAN
-                } else {
-                    m.min(x)
-                }
-            }))
-        },
-        ("Math", Some("max")) => |a| {
-            Value::Number(
-                a.iter()
-                    .map(Value::to_number)
-                    .fold(f64::NEG_INFINITY, |m, x| {
-                        if m.is_nan() || x.is_nan() {
-                            f64::NAN
-                        } else {
-                            m.max(x)
-                        }
-                    }),
-            )
-        },
+        ("Math", Some("min")) => |a| Value::Number(math_min(a.iter().map(Value::to_number))),
+        ("Math", Some("max")) => |a| Value::Number(math_max(a.iter().map(Value::to_number))),
         ("Math", Some("floor")) => |a| math1(a, f64::floor),
-        ("Math", Some("round")) => |a| math1(a, round),
+        ("Math", Some("round")) => |a| math1(a, math_round),
         ("Math", Some("abs")) => |a| math1(a, f64::abs),
         ("Math", Some("acos")) => |a| math1(a, f64::acos),
         ("Math", Some("asin")) => |a| math1(a, f64::asin),
@@ -117,15 +88,7 @@ fn function(path: (&str, Option<&str>)) -> Option<Global> {
                 to_int32(num_arg(a, 0)).wrapping_mul(to_int32(num_arg(a, 1))),
             ))
         },
-        ("Math", Some("sign")) => |a| {
-            math1(a, |x| {
-                if x.is_nan() || x == 0.0 {
-                    x
-                } else {
-                    x.signum()
-                }
-            })
-        },
+        ("Math", Some("sign")) => |a| math1(a, math_sign),
         ("Math", Some("log10")) => |a| math1(a, f64::log10),
         ("Math", Some("log2")) => |a| math1(a, f64::log2),
         ("Math", Some("log1p")) => |a| math1(a, f64::ln_1p),

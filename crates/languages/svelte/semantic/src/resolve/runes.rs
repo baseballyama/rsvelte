@@ -113,12 +113,6 @@ pub fn rune_call<'a>(e: &'a Expression<'a>) -> Option<(&'static str, Option<&'a 
     Some((named(call)?.0, first_argument(call)))
 }
 
-/// Whether the rune call `e` lowers as one.
-#[must_use]
-pub fn lowers<'a>(e: &'a Expression<'a>) -> bool {
-    lowered(e).is_some()
-}
-
 /// Upstream analysis's synthetic store subscriptions among the rune names, which it declares in
 /// the instance's scope: a module script's rune call stays the rune.
 #[derive(Default)]
