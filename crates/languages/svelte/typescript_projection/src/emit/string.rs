@@ -4,7 +4,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Range;
 
 use super::Printer;
-use crate::syntax_tree::Node;
+use crate::syntax_tree::{Node, NodeIdentifier};
 
 impl Printer<'_> {
     pub(super) fn node_string_literal(&mut self, value: &str) {
@@ -22,9 +22,9 @@ impl Printer<'_> {
         self.output.atom_since(start, Span::new(at, at));
     }
 
-    pub(super) fn computed_string_literal(&mut self, start: u32, len: u32) {
-        let tree = self.tree;
-        self.node_string_literal(tree.text(start, len));
+    pub(super) fn computed_string_literal(&mut self, first: NodeIdentifier, len: u32) {
+        let text = self.tree.computed_text(first, len);
+        self.node_string_literal(&text);
     }
 
     pub(super) fn string(&mut self, parts: Range, template: bool) {

@@ -2,4 +2,4 @@
 '@rsvelte/cli': patch
 ---
 
-In `typecheck`, name a bindable prop whose key is a number or a `BigInt` as the compiled component does, `16` for `0x10` and `10` for `10n`, instead of by the key's source text.
+In `typecheck`, a bindable prop with a numeric or `BigInt` key now has the name the compiled component gives it. For example, `0x10` is `16` and `10n` is `10`.

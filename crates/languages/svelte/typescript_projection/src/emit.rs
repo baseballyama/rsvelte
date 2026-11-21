@@ -169,7 +169,8 @@ impl Printer<'_> {
             Node::AnyComponent => self.output.push("__rsvelte_any_component"),
             Node::StringLiteralAt { value, at } => self.string_literal_at(value, at),
             Node::StringLiteral(value) => self.node_string_literal(value),
-            Node::ComputedStringLiteral { start, len } => self.computed_string_literal(start, len),
+            Node::ComputedStringLiteral { first, len } => self.computed_string_literal(first, len),
+            Node::TextChunk(_) => unreachable!("a text chunk is read only by its string literal"),
             Node::Member { object, property } => {
                 self.node(object);
                 self.output.push(".");
