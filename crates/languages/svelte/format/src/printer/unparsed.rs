@@ -81,12 +81,12 @@ fn thrown_scripts(c: &Component, source_text: &str) -> R<Vec<Span>> {
     Ok(thrown)
 }
 
-/// Whether `rejected` declares a name again in the template where Svelte's parser reads it. That
-/// parser reads each part of the template apart, and checks the names of a function and of a
-/// snippet's parameters, but not those of a pattern.
 /// tsc's code for a name declared twice.
 const DUPLICATE_IDENTIFIER: u32 = 2300;
 
+/// Whether `rejected` declares a name again in the template where Svelte's parser reads it. That
+/// parser reads each part of the template apart, and checks the names of a function and of a
+/// snippet's parameters, but not those of a pattern.
 fn read_in_template(c: &Component, rejected: &SyntaxError) -> bool {
     struct Find {
         names: oxc_span::Span,
