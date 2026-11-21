@@ -39,7 +39,7 @@ formatter. It takes oxfmt's options (`rsvelte format --help`) and reads oxfmt's 
 in Rust, such as TypeScript, JSON, CSS and Markdown files. It formats a `.svelte` file with the
 options that oxfmt would give prettier-plugin-svelte. `format` never runs Prettier, so it skips
 the files that oxfmt hands to Prettier. `"svelte": false` in the configuration turns Svelte
-formatting off.
+formatting off. `rsvelte.config` does not configure `format`.
 
 The Svelte formatter prints only the default value of these options:
 
@@ -47,7 +47,9 @@ The Svelte formatter prints only the default value of these options:
 - `arrowParens`, `bracketSpacing` and `quoteProps`
 - `objectWrap`
 
-With another value, `format` reports an error for each Svelte file and formats the other files.
+It does not apply `sortImports`, `sortTailwindcss` or `jsdoc` yet. With another value of these
+options, or with one of these three, `format` reports an error for each Svelte file and formats
+the other files.
 
 `typecheck` checks the project of `tsconfig.json` in the current directory and reports the
 type errors that svelte-check reports. It runs a TypeScript 7 type checker from the project's

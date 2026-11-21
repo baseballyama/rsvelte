@@ -144,3 +144,22 @@ fn format_reads_an_editorconfig_for_svelte_files_as_oxfmt_does() {
     assert_eq!(read("a.ts"), "if (x) {\n\ty(\"z\");\n}\n");
     assert_eq!(read("App.svelte"), "<script>\n\tlet a = 1;\n</script>\n");
 }
+
+#[test]
+fn format_reports_each_svelte_file_an_oxfmt_only_option_would_change() {
+    let svelte = "<script>\nimport b from \"b\";\nimport a from \"a\";\n</script>\n";
+    for config in [r#"{ "sortImports": {} }"#, r#"{ "sortTailwindcss": {} }"#] {
+        let project = Project::new(&[
+            (".oxfmtrc.json", config),
+            ("a.ts", "y(\"z\")\n"),
+            ("App.svelte", svelte),
+        ]);
+        let output = project.rsvelte(&["format"]);
+        let report = format!("{}{}", text(&output.stdout), text(&output.stderr));
+        assert_eq!(output.status.code(), Some(2), "{config}: {report}");
+        assert!(report.contains("App.svelte"), "{config}: {report}");
+        let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+        assert_eq!(read("a.ts"), "y(\"z\");\n", "{config}");
+        assert_eq!(read("App.svelte"), svelte, "{config}");
+    }
+}

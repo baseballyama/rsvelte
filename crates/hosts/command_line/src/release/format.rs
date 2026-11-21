@@ -1,9 +1,13 @@
 //! `rsvelte format`: oxfmt's native formatters, with Svelte files formatted natively where
 //! oxfmt would call Prettier.
 
+use std::any::Any;
+use std::panic::AssertUnwindSafe;
 use std::process::ExitCode;
 
 use oxfmt::{HostFormatter, HostFormatters, Language};
+use rsvelte_kernel::performance::stack;
+use rsvelte_kernel::source::positions::LineIndex;
 use rsvelte_svelte_format::Options;
 use rsvelte_svelte_format::options::NAMES;
 use serde_json::Value;
@@ -33,30 +37,70 @@ impl HostFormatter for Svelte {
     fn format(&self, source_text: &str, options: &Value) -> Result<String, String> {
         let options = svelte_options(options)?;
         if let Some(name) = rsvelte_svelte_format::unported(&options) {
-            return Err(format!(
-                "the Svelte formatter does not print this `{name}` value yet"
-            ));
+            return Err(unprinted(&format!("this `{name}` value")));
         }
-        rsvelte_svelte_format::format(source_text, &options).map_err(|diagnostic| {
-            let before = &source_text[..diagnostic.span.start_offset as usize];
-            let line = before.matches('\n').count() + 1;
-            let column = before.len() - before.rfind('\n').map_or(0, |i| i + 1) + 1;
-            format!("{} ({line}:{column})", diagnostic.message)
+        // oxfmt runs a host on its own rayon workers, which neither catch a panic nor have the
+        // stack oxc's passes need for deeply nested text.
+        let formatted = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            stack::for_text(source_text.len(), || {
+                rsvelte_svelte_format::format(source_text, &options)
+            })
+        }))
+        .map_err(|panic| format!("the Svelte formatter panicked: {}", panic_message(&*panic)))?;
+        formatted.map_err(|diagnostic| {
+            let at = LineIndex::new(source_text).line_column(diagnostic.span.start_offset);
+            format!("{} ({}:{})", diagnostic.message, at.line, at.column + 1)
         })
     }
 }
 
-/// The options Prettier would give prettier-plugin-svelte, without Prettier's plumbing
-/// (`parser`, `filepath`) and the other plugins' payloads.
+/// What oxfmt gives a host that changes nothing in a Svelte file's output.
+const PLUMBING: &[&str] = &[
+    "parser",
+    "filepath",
+    "_useSveltePlugin",
+    "vueIndentScriptAndStyle",
+    "_oxfmtPluginOptionsJson",
+];
+
+/// The oxfmt-only options oxfmt applies to the scripts prettier-plugin-svelte hands back to it.
+const OXFMT_SCRIPT_OPTIONS: &[&str] = &["sortImports", "jsdoc"];
+
+/// The options Prettier would give prettier-plugin-svelte, or the first option oxfmt would apply
+/// to a Svelte file that the Svelte formatter does not.
 fn svelte_options(prettier: &Value) -> Result<Options, String> {
     let Value::Object(options) = prettier else {
         return Err(format!("the options are not an object: {prettier}"));
     };
-    let known = (options.iter())
-        .filter(|(name, _)| NAMES.contains(&name.as_str()))
-        .map(|(name, value)| (name.clone(), value.clone()))
-        .collect();
+    let mut known = serde_json::Map::new();
+    for (name, value) in options {
+        if NAMES.contains(&name.as_str()) {
+            known.insert(name.clone(), value.clone());
+        } else if name == "_useTailwindPlugin" || name.starts_with("tailwind") {
+            return Err(unprinted("`sortTailwindcss`"));
+        } else if !PLUMBING.contains(&name.as_str()) {
+            return Err(unprinted(&format!("`{name}`")));
+        }
+    }
+    if let Some(Value::String(payload)) = options.get("_oxfmtPluginOptionsJson") {
+        let payload: Value = serde_json::from_str(payload).map_err(|error| error.to_string())?;
+        let set =
+            |name: &&&str| !matches!(payload["config"][**name], Value::Null | Value::Bool(false));
+        if let Some(name) = OXFMT_SCRIPT_OPTIONS.iter().find(set) {
+            return Err(unprinted(&format!("`{name}`")));
+        }
+    }
     serde_json::from_value(Value::Object(known)).map_err(|error| error.to_string())
+}
+
+fn unprinted(what: &str) -> String {
+    format!("the Svelte formatter does not print {what} yet")
+}
+
+fn panic_message(panic: &(dyn Any + Send)) -> &str {
+    (panic.downcast_ref::<String>().map(String::as_str))
+        .or_else(|| panic.downcast_ref::<&str>().copied())
+        .unwrap_or("a payload that is not a string")
 }
 
 #[cfg(test)]
