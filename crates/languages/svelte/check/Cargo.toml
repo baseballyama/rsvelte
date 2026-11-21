@@ -18,6 +18,7 @@ rsvelte_svelte_syntax.workspace = true
 rsvelte_svelte_semantic.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript_check.workspace = true
+rsvelte_typescript_tree.workspace = true
 rsvelte_svelte_typescript_projection.workspace = true
 
 [dev-dependencies]

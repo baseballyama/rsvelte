@@ -36,7 +36,7 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         documents: Documents::Matching(rsvelte_svelte_syntax::matches),
         tsc: config.check.as_ref().map(|c| c.tsc.clone()),
         stand_in: Some(rsvelte_svelte_typescript_projection::STAND_IN),
-        imported: Some(is_script),
+        imported: Some(rsvelte_typescript_tree::matches),
     });
     if let Some(check) = &config.check {
         reg.contribute::<MappedLanguages>(MappedLanguage {
@@ -69,13 +69,6 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         };
         Some(unprojected(&context.document.text, why))
     });
-}
-
-/// A script a component may import, such as a `.svelte.ts` module.
-fn is_script(document: &rsvelte_kernel::source::document::Document) -> bool {
-    [".ts", ".mts", ".cts", ".js", ".mjs", ".cjs"]
-        .iter()
-        .any(|extension| document.path.ends_with(extension))
 }
 
 mod environment;
