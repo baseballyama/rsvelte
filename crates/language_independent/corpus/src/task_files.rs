@@ -20,25 +20,15 @@ pub fn location(task: &str) -> (&str, &str) {
     task.split_once('/').unwrap_or((task, "default"))
 }
 
-/// Each file of `out` as `(<variant>.<name>, text)`, relative to the task's directory, then the
-/// diagnostics file when there are diagnostics. `source` is the document's text.
+/// Each file of `out` as `(name, text)`, then the diagnostics file when there are diagnostics.
+/// `source` is the document's text. A unit's `actual/` stores a file as `<variant>.<name>`.
 #[must_use]
-pub fn files<'a>(variant: &str, source: &str, out: &'a TaskOutput) -> Vec<(String, Cow<'a, str>)> {
-    let mut files: Vec<(String, Cow<'a, str>)> = out
-        .files
-        .iter()
-        .map(|f| {
-            (
-                format!("{variant}.{}", f.name),
-                Cow::Borrowed(f.text.as_str()),
-            )
-        })
+pub fn files<'a>(source: &str, out: &'a TaskOutput) -> Vec<(&'a str, Cow<'a, str>)> {
+    let mut files: Vec<(&'a str, Cow<'a, str>)> = (out.files.iter())
+        .map(|f| (f.name.as_str(), Cow::Borrowed(f.text.as_str())))
         .collect();
     if !out.diagnostics.is_empty() {
-        files.push((
-            format!("{variant}.{DIAGNOSTICS}"),
-            Cow::Owned(diagnostics_json(source, out)),
-        ));
+        files.push((DIAGNOSTICS, Cow::Owned(diagnostics_json(source, out))));
     }
     files
 }

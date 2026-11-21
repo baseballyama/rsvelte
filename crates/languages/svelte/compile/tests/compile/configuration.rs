@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
 use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::source::document::Document;
 use rsvelte_plugin_interface::{CallError, Function};
 use rsvelte_svelte_compile::{Configuration, CssHash};
 
@@ -12,9 +13,7 @@ fn run_with(
 ) -> rsvelte_kernel::computation::pipeline::DocumentResult {
     let mut registry = Registry::new();
     rsvelte_svelte_compile::register_with_configuration(&mut registry, configuration);
-    let document = registry
-        .document("Button.svelte", source)
-        .expect("valid source");
+    let document = Document::new("Button.svelte", source).expect("valid source");
     run(
         &registry,
         &[document],

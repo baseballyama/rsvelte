@@ -9,9 +9,8 @@ fn matches_t(document: &Document) -> bool {
 
 #[test]
 fn documents_do_not_need_a_plugin_or_an_extension() {
-    let reg = Registry::new();
     for path in ["README", "file.unknown", ""] {
-        let document = reg.document(path, "hello").expect("valid text");
+        let document = Document::new(path, "hello").expect("valid text");
         assert_eq!(document.path, path);
         assert_eq!(document.text, "hello");
     }
@@ -54,7 +53,7 @@ fn tasks_choose_documents_independently_by_path_or_content() {
         ("other", "no"),
     ]
     .into_iter()
-    .map(|(p, t)| reg.document(p, t).expect("valid text"))
+    .map(|(p, t)| Document::new(p, t).expect("valid text"))
     .collect::<Vec<_>>();
     for (sharing, threads) in [Sharing::Shared, Sharing::Isolated]
         .into_iter()
@@ -151,7 +150,7 @@ fn a_finish_task_sees_every_prepared_document_once() {
     reg.artifact::<Len>().finish_task(Total);
     let docs: Vec<Document> = [("a.t", "ab"), ("b.t", ""), ("c.t", "cde")]
         .into_iter()
-        .map(|(p, t)| reg.document(p, t).unwrap())
+        .map(|(p, t)| Document::new(p, t).unwrap())
         .collect();
     let options = RunOptions {
         tasks: &[],
@@ -231,7 +230,7 @@ fn setup() -> (Registry, Vec<Document>) {
         .task(Panics);
     let docs = [("a.t", "ab"), ("b.t", "x"), ("c.t", "cde")]
         .into_iter()
-        .map(|(p, t)| reg.document(p, t).unwrap())
+        .map(|(p, t)| Document::new(p, t).unwrap())
         .collect();
     (reg, docs)
 }
@@ -273,7 +272,7 @@ fn a_panicking_finish_task_does_not_break_the_next_finish_task() {
     reg.finish_task(FinishPanics).finish_task(Count);
     let docs = ["a.t", "c.t"]
         .into_iter()
-        .map(|p| reg.document(p, "x").unwrap())
+        .map(|p| Document::new(p, "x").unwrap())
         .collect::<Vec<_>>();
     let got = run(&reg, &docs, &options(&[])).expect("known tasks");
     assert!(
@@ -342,8 +341,8 @@ fn a_facet_is_answered_by_a_matching_provider_once() {
             format!("{} bytes", context.get::<Len>())
         });
     let docs = [
-        reg.document("a.t", "abc").unwrap(),
-        reg.document("b.o", "abcd").unwrap(),
+        Document::new("a.t", "abc").unwrap(),
+        Document::new("b.o", "abcd").unwrap(),
     ];
     assert!(reg.artifacts().provides::<Describe>(&docs[0]));
     assert!(!reg.artifacts().provides::<Describe>(&docs[1]));
@@ -373,7 +372,7 @@ fn facet_providers_choose_documents_by_path_or_content() {
         );
     let docs = [("a.t", ""), ("README", "special"), ("b.unknown", "")]
         .into_iter()
-        .map(|(p, t)| reg.document(p, t).expect("valid text"))
+        .map(|(p, t)| Document::new(p, t).expect("valid text"))
         .collect::<Vec<_>>();
     let result = run(&reg, &docs, &options(&[])).expect("known tasks");
     let texts: Vec<_> = result
@@ -389,7 +388,7 @@ fn overlapping_facet_providers_do_not_silently_pick_the_first() {
     let mut reg = Registry::new();
     reg.provide::<Describe>("one", matches_t, |_| String::new())
         .provide::<Describe>("two", matches_t, |_| String::new());
-    let document = reg.document("a.t", "").expect("valid text");
+    let document = Document::new("a.t", "").expect("valid text");
     let context = DocumentContext::new(&document, reg.artifacts());
     let _answer = context.facet::<Describe>();
 }
@@ -480,7 +479,7 @@ mod plugins {
             })
             .task(Probe)
             .finish_task(FinishProbe);
-        let documents = [registry.document("a", "text").expect("valid document")];
+        let documents = [Document::new("a", "text").expect("valid document")];
         let options = RunOptions {
             tasks: &[],
             sharing: Sharing::Shared,

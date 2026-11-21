@@ -156,10 +156,8 @@ pub(crate) fn file_verdict(
     if !name.ends_with("json") {
         return Ok(same(official.body == actual));
     }
-    let parse = serde_json::from_str::<serde_json::Value>;
-    let expected = parse(official.body)
-        .map_err(|e| format!("official {name} of {}: not JSON: {e}", official.path))?;
-    Ok(same(parse(actual).is_ok_and(|actual| actual == expected)))
+    same_json(official.body, actual)
+        .map_err(|e| format!("official {name} of {}: not JSON: {e}", official.path))
 }
 
 /// Where the comments of a unit's JavaScript are, against the official output: `Missing` when
@@ -206,6 +204,13 @@ fn file<'a>(output: &'a TaskOutput, name: &str) -> Option<&'a str> {
         .map(|f| f.text.as_str())
 }
 
+/// Two JSON texts compared as values; an actual text that is not JSON does not match.
+fn same_json(official: &str, actual: &str) -> Result<Verdict, serde_json::Error> {
+    let parse = serde_json::from_str::<serde_json::Value>;
+    let official = parse(official)?;
+    Ok(same(parse(actual).is_ok_and(|actual| actual == official)))
+}
+
 const fn same(equal: bool) -> Verdict {
     if equal {
         Verdict::Match
@@ -225,9 +230,7 @@ fn compare(name: &str, official: &str, actual: &str) -> Result<Verdict, String> 
         "lint.txt" => lint(official, actual).map(same),
         "warnings.json" => same_diagnostics(official, actual).map(same),
         _ if name.ends_with("json") => {
-            let parse = serde_json::from_str::<serde_json::Value>;
-            let official = parse(official).map_err(|e| format!("not JSON: {e}"))?;
-            Ok(same(parse(actual).is_ok_and(|actual| actual == official)))
+            same_json(official, actual).map_err(|e| format!("not JSON: {e}"))
         }
         _ => Ok(same(official == actual)),
     }

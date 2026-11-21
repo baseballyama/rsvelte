@@ -5,7 +5,7 @@ use super::*;
 fn access_trace_distinguishes_computation_from_cache_hits() {
     let mut registry = ArtifactRegistry::default();
     registry.register::<First>();
-    let document = Document::new("file".into(), String::new()).expect("valid document");
+    let document = Document::new("file", String::new()).expect("valid document");
     let context = DocumentContext::new(&document, &registry);
     context.get::<First>();
     context.get::<First>();
