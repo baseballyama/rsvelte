@@ -3,10 +3,11 @@
 mod buffers;
 pub mod content_mapper;
 mod lower;
-pub mod syntax_tree;
+mod syntax_tree;
 pub use lower::{Refusal, Resolve, lower, lower_alone, store_reads};
+pub use syntax_tree::SyntaxTree;
 mod emit;
-pub use emit::{default_export_name, emit};
+pub use emit::emit;
 mod computation;
 mod read;
 pub use computation::{
@@ -90,3 +91,6 @@ pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_inter
         Ok(())
     },
 };
+
+#[cfg(test)]
+mod tests;
