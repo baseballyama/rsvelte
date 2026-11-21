@@ -6,6 +6,7 @@ use rsvelte_kernel::source::interning::{Atom, Interner};
 use rsvelte_kernel::source::positions::Span;
 use rustc_hash::FxHashMap;
 
+use crate::postcss::Dialect;
 use crate::syntax_tree::{ComplexSelector, Rule, RuleIdentifier, RuleKind, StyleSheet};
 
 #[derive(Debug, Clone)]
@@ -43,18 +44,18 @@ pub fn parse(source_text: &str, content: Span) -> R<StyleSheet> {
 /// Parses a sheet that Svelte rejects as far as `PostCSS` reads its rules, for linters.
 ///
 /// It skips each declaration to its `;` or `}` outside brackets and strings, and a block without
-/// a selector. With `scss`, it also skips `// …` comments and `#{…}`.
+/// a selector. In [`Dialect::Scss`], it also skips `// …` comments and `#{…}`.
 ///
 /// # Errors
 ///
 /// [`ParseError`] at the first error in a selector or a brace.
-pub fn parse_for_lint(source_text: &str, content: Span, scss: bool) -> R<StyleSheet> {
+pub fn parse_for_lint(source_text: &str, content: Span, dialect: Dialect) -> R<StyleSheet> {
     read(
         source_text,
         content.start_offset as usize,
         content.end_offset as usize,
         None,
-        Some(scss),
+        Some(dialect),
     )
 }
 
@@ -82,7 +83,7 @@ fn read(
     start: usize,
     end: usize,
     close: Option<&[u8]>,
-    lint: Option<bool>,
+    lint: Option<Dialect>,
 ) -> R<StyleSheet> {
     let mut p = P::new(source_text, start, end, close, lint);
     let rules = p.rules(false)?;
@@ -107,11 +108,11 @@ impl<'a> P<'a> {
         start: usize,
         end: usize,
         close: Option<&'a [u8]>,
-        lint: Option<bool>,
+        lint: Option<Dialect>,
     ) -> Self {
         P {
             tolerant: lint.is_some(),
-            scss: lint == Some(true),
+            scss: lint == Some(Dialect::Scss),
             b: source_text.as_bytes(),
             source_text,
             position: start,

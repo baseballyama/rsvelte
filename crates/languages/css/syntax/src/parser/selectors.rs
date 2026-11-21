@@ -4,7 +4,7 @@
 
 use rsvelte_kernel::source::positions::Span;
 
-use super::{P, ParseError, R, push};
+use super::{Dialect, P, ParseError, R, push};
 use crate::syntax_tree::{
     AttributeOperator, Combinator, ComplexSelector, RelativeSelector, Simple, SimpleList,
 };
@@ -537,7 +537,7 @@ pub fn nth_of_selectors(source_text: &str, simple: &Simple) -> Vec<ComplexSelect
         start,
         arguments.end_offset as usize + 1,
         None,
-        Some(false),
+        Some(Dialect::Standard),
     );
     p.attempt(|p| p.selector_list(true)).unwrap_or_default()
 }
