@@ -1,13 +1,23 @@
 :root {
-	--rust: #ce422b;
+	/* The Rust logo is black; gray keeps it readable in both themes. */
+	--logo: #3a3a3a;
 	--bg: #ffffff;
 	--fg: #1c1c1f;
 	--muted: #5f6066;
 	--line: #e3e3e8;
 	--code-bg: #f4f4f6;
+	--selection: #b6d7ff;
+	--code-keyword: #cf222e;
+	--code-string: #0a3069;
+	--code-number: #0550ae;
+	--code-comment: #6e7781;
+	--code-tag: #116329;
+	--code-attribute: #0550ae;
+	--code-function: #8250df;
+	--code-type: #953800;
 	--link: #b33a26;
 	color-scheme: light dark;
-	font-family: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+	font-family: system-ui, -apple-system, sans-serif;
 	line-height: 1.75;
 	color: var(--fg);
 	background: var(--bg);
@@ -15,11 +25,21 @@
 
 @media (prefers-color-scheme: dark) {
 	:root {
+		--logo: #c4c4c8;
 		--bg: #17171a;
 		--fg: #e8e8ec;
 		--muted: #a2a3aa;
 		--line: #2e2e34;
 		--code-bg: #222227;
+		--selection: #264f78;
+		--code-keyword: #ff7b72;
+		--code-string: #a5d6ff;
+		--code-number: #79c0ff;
+		--code-comment: #8b949e;
+		--code-tag: #7ee787;
+		--code-attribute: #79c0ff;
+		--code-function: #d2a8ff;
+		--code-type: #ffa657;
 		--link: #f0866f;
 	}
 }

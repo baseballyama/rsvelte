@@ -1,8 +1,7 @@
 //! prettier's `print/children.js`.
+use rsvelte_document_printer::{GroupIdentifier, LayoutInstructionIdentifier};
 
-use super::{
-    Attributes, GroupIdentifier, LayoutInstructionIdentifier, NodeIdentifier, NodeKind, Printer, R,
-};
+use super::{Attributes, NodeIdentifier, NodeKind, Printer, R};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Between {

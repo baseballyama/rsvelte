@@ -1,11 +1,17 @@
-use rsvelte_typescript_tree::node_span;
+use oxc_ast::ast::Expression;
+use rsvelte_kernel::diagnostics::Unsupported;
+use rsvelte_typescript_tree::{ExpressionIdentifier, node_span};
+use rsvelte_vue_semantic::compiler_syntax_tree::{PropertyIdentifier, PropertyKind};
+use rsvelte_vue_semantic::expressions::{camelize, collect_identifiers, to_handler_key};
+use rsvelte_vue_semantic::resolve::BindingType;
+use rsvelte_vue_syntax::syntax_tree::DirectiveName;
 
+use super::events::{is_keyboard_event, resolve_modifiers};
 use super::{
-    BindingType, Codegen, CodegenIdentifier, DirectiveName, Exp, Expression, ExpressionIdentifier,
-    Helper, Lit, NOT_CONSTANT, Node, Property, PropertyIdentifier, PropertyKind, R, Transform,
-    TransformNodeIdentifier, Unsupported, camelize, collect_identifiers, is_keyboard_event,
-    resolve_modifiers, to_handler_key,
+    Codegen, CodegenIdentifier, Exp, Helper, Lit, NOT_CONSTANT, Node, Property, Transform,
+    TransformNodeIdentifier,
 };
+use crate::compile::R;
 
 impl Transform<'_> {
     /// The directive transforms `buildProps` runs: the property, and the runtime directive.

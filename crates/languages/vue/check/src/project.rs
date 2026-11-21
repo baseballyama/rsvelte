@@ -5,7 +5,7 @@
 //! `__VLS_asFunctionalElement1` call on its intrinsic type with its attributes as an object
 //! literal, a `v-if` chain is an `if` chain, a `v-for` is a `for … of`, an interpolation is a
 //! parenthesized expression. A name the template reads from the component becomes
-//! `__VLS_context.name`, and `__VLS_context` is typed as upstream types it, so the checker's
+//! `__VLS_ctx.name`, and `__VLS_ctx` is typed as upstream types it, so the checker's
 //! messages (which print that name and that type) match. Everything copied from the component is
 //! mapped; the inserted text is not, so a diagnostic maps back to what was written
 //! ([`Emitter::lookup_overlap`]).
@@ -16,10 +16,12 @@ use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_tree::{ExpressionIdentifier, document_span, node_span};
+use rsvelte_typescript_tree::{
+    ExpressionIdentifier, document_span, is_valid_identifier, node_span,
+};
 use rsvelte_vue_semantic::expressions::{
     Identifier, Parent, camelize, can_prefix, collect_identifiers, collect_pattern_identifiers,
-    is_simple_identifier, to_handler_key,
+    to_handler_key,
 };
 use rsvelte_vue_semantic::resolve::Resolution;
 use rsvelte_vue_syntax::syntax_tree::{
@@ -326,15 +328,12 @@ impl<'a> Projector<'a> {
         Ok(())
     }
 
-    /// An attribute name as an object key: bare when it is an identifier, else single-quoted.
+    /// An attribute name as an object key, mapped.
     fn key(&mut self, name: Span) {
-        if is_simple_identifier(name.text(self.source_text)) {
-            self.emitter.copy(self.source_text, name);
-        } else {
-            self.emitter.push("'");
-            self.emitter.copy(self.source_text, name);
-            self.emitter.push("'");
-        }
+        let quote = key_quote(name.text(self.source_text));
+        self.emitter.push(quote);
+        self.emitter.copy(self.source_text, name);
+        self.emitter.push(quote);
     }
 
     /// `...{ onClick: … },`: a name or a function as written, an inline statement as a function
@@ -342,11 +341,10 @@ impl<'a> Projector<'a> {
     fn handler(&mut self, arg: Span, exp: ExpressionIdentifier, value: Span) {
         let key = to_handler_key(&camelize(arg.text(self.source_text)));
         self.emitter.push("...{ ");
-        if is_simple_identifier(&key) {
-            self.emitter.push(&key);
-        } else {
-            self.emitter.push(&format!("'{key}'"));
-        }
+        let quote = key_quote(&key);
+        self.emitter.push(quote);
+        self.emitter.push(&key);
+        self.emitter.push(quote);
         self.emitter.push(": ");
         let as_written = match self.component.javascript.get_expression(exp) {
             Expression::StaticMemberExpression(_)
@@ -370,7 +368,7 @@ impl<'a> Projector<'a> {
     }
 
     /// The source text `text` of expression `root`, with every name read from the component
-    /// prefixed by `__VLS_context.` (a shorthand property keeps its key).
+    /// prefixed by `__VLS_ctx.` (a shorthand property keeps its key).
     fn expression(&mut self, root: ExpressionIdentifier, text: Span, event_local: bool) {
         let mut identifiers = Vec::new();
         collect_identifiers(
@@ -421,6 +419,12 @@ impl<'a> Projector<'a> {
             self.emitter.copy(self.source_text, span);
         }
     }
+}
+
+/// The quote around an object key: none when `key` is an identifier by `@vue/language-core`'s
+/// ASCII-only `identifierRE`, else `'`.
+fn key_quote(key: &str) -> &'static str {
+    if is_valid_identifier(key) { "" } else { "'" }
 }
 
 #[cfg(test)]

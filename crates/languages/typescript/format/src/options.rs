@@ -195,6 +195,15 @@ impl Options {
                 EndOfLine::Cr => LineEnding::Cr,
                 EndOfLine::Lf | EndOfLine::Auto => LineEnding::Lf,
             },
+            ..self.style()
+        })
+    }
+
+    /// The oxc formatter options these become apart from the indentation, the width and the line
+    /// ending, which a host that embeds JavaScript sets itself.
+    #[must_use]
+    pub fn style(&self) -> JsFormatOptions {
+        JsFormatOptions {
             quote_style: quote(self.single_quote),
             jsx_quote_style: quote(self.jsx_single_quote),
             quote_properties: match self.quote_props {
@@ -233,7 +242,7 @@ impl Options {
             },
             experimental_ternaries: self.experimental_ternaries,
             ..JsFormatOptions::default()
-        })
+        }
     }
 }
 

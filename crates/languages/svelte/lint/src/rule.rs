@@ -18,10 +18,12 @@ use rsvelte_typescript_semantic::globals::Declared;
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::{ProgramIdentifier, Script, Tree};
 
-use crate::computation::{ConditionTypes, Linted, ModuleSemantic, NativeConditionTypes};
+use crate::computation::{ConditionTypes, Linted, NativeConditionTypes, module_semantic};
 use crate::project::{SvelteConfiguration, SvelteKit, SvelteKitProject};
 use crate::types::TypeFacts;
 use crate::{LintSettings, SvelteConfig};
+
+mod runes;
 
 /// The `configure` of a rule that takes no options.
 pub(crate) fn without_options<R: SvelteRule + Default + 'static>(
@@ -85,6 +87,8 @@ pub struct File<'a> {
     comments: Vec<&'a Comment>,
     /// The configuration's globals as the comments set them, or `None` when no comment sets one.
     globals: OnceLock<Option<Declared>>,
+    /// The runes mode, or `None` for a module that is not `.svelte.js` or `.svelte.ts`.
+    runes: OnceLock<Option<bool>>,
 }
 
 #[derive(Debug)]
@@ -144,6 +148,7 @@ impl<'a> File<'a> {
             programs,
             comments,
             globals: OnceLock::new(),
+            runes: OnceLock::new(),
         })
     }
 
@@ -159,6 +164,27 @@ impl<'a> File<'a> {
             })
             .as_ref()
             .unwrap_or(self.configured_globals)
+    }
+
+    /// Whether the document is in runes mode as `svelte-eslint-parser` decides it: a component by
+    /// [`runes::runes_mode`], a `.svelte.js` or `.svelte.ts` module always, and any other module
+    /// has no mode (`None`). A rule's `runes: [true, 'undetermined']` condition is
+    /// `runes() == Some(true)`: upstream's `'undetermined'` is a Svelte file that
+    /// svelte-eslint-parser did not parse, which never happens here.
+    #[must_use]
+    pub(crate) fn runes(&self) -> Option<bool> {
+        *self.runes.get_or_init(|| {
+            self.component().map_or_else(
+                || self.is_svelte_file().then_some(true),
+                |component| Some(runes::runes_mode(self, component)),
+            )
+        })
+    }
+
+    /// A rule's `svelteFileTypes: ['.svelte', '.svelte.[js|ts]']` condition.
+    #[must_use]
+    pub(crate) fn is_svelte_file(&self) -> bool {
+        self.is_component() || self.is_svelte_module()
     }
 
     /// Every JavaScript comment of the document, the scripts' and the template's, in document
@@ -267,7 +293,7 @@ impl<'a> File<'a> {
     pub fn semantic(&self) -> &'a Semantic {
         let semantic = match self.parsed {
             Source::Component(_) => self.resolution().map(Resolution::semantic),
-            Source::Module(_) => Some(self.context.get::<ModuleSemantic>()),
+            Source::Module(_) => module_semantic(self.context),
         };
         semantic.expect("a parsed document resolves")
     }

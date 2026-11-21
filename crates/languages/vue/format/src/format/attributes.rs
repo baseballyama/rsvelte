@@ -1,10 +1,11 @@
 use oxc_span::GetSpan;
+use rsvelte_document_printer::LayoutInstructionIdentifier;
+use rsvelte_kernel::diagnostics::Unsupported;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::document_span;
+use rsvelte_vue_syntax::syntax_tree::{Attribute, AttributeKind, DirectiveExpression};
 
-use super::{
-    Attribute, AttributeKind, Attributes, DirectiveExpression, LayoutInstructionIdentifier,
-    NodeIdentifier, NodeKind, Printer, R, Span, Unsupported,
-};
+use super::{Attributes, NodeIdentifier, NodeKind, Printer, R};
 
 impl Printer<'_, '_, '_> {
     /// `printAttributes`.

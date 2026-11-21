@@ -1,9 +1,9 @@
 # Release
 
-A release publishes the `rsvelte` command to npm and its programs to a GitHub release.
-[Changesets](https://github.com/changesets/changesets) decides the version: a pull request that
-changes what a user sees adds `.changeset/<name>.md`, which names the bump and the changelog
-line:
+A release publishes the `rsvelte` command and `@rsvelte/eslint-plugin` to npm, and the programs
+to a GitHub release. [Changesets](https://github.com/changesets/changesets) decides the version:
+a pull request that changes what a user sees adds `.changeset/<name>.md`, which names the bump
+and the changelog line:
 
 ```md
 ---
@@ -27,15 +27,17 @@ yet.
 Each platform builds `rsvelte` and `rsvelte-svelte-content-mapper`. Then
 `node tools/release/release.ts stage` writes the packages:
 
+- `@rsvelte/eslint-plugin`, from [`apps/eslint-plugin`](../../apps/eslint-plugin), which turns
+  off the ESLint rules `rsvelte lint` runs.
 - `@rsvelte/cli-<platform>` for each platform in `stage.ts`, with its two programs.
 - `@rsvelte/cli`, which depends on every platform package. npm installs only the one for the
   machine. The package's `rsvelte` command is [`apps/cli/launcher.js`](../../apps/cli/launcher.js),
   which starts that program, and its README is [`apps/cli/README.md`](../../apps/cli/README.md).
 
-The workflow publishes the platform packages first, then `@rsvelte/cli`, and last the GitHub
-release with each platform's programs, which makes the tag. It skips what an earlier attempt
-already published, so the next push to `main` finishes a partial release. Run it by hand
-(`workflow_dispatch`) to build and stage without publishing.
+The workflow publishes in that order: `@rsvelte/eslint-plugin`, the platform packages and
+`@rsvelte/cli`. Last comes the GitHub release with each platform's programs, which makes the tag.
+It skips what an earlier attempt already published, so the next push to `main` finishes a
+partial release. Run it by hand (`workflow_dispatch`) to build and stage without publishing.
 
 npm refuses the name `rsvelte` as too close to `svelte`, so the command package has a scope.
 

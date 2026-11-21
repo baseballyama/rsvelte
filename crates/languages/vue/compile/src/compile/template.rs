@@ -10,19 +10,27 @@
 //! insertion-ordered map: which helpers the import names, and in which order, falls out of exactly
 //! when each transform adds and removes one.
 
-use oxc_ast::ast::Expression;
 use oxc_semantic::ReferenceId;
-use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::index::IndexVector;
 use rsvelte_kernel::newtype_index;
 use rsvelte_typescript_tree::{ExpressionIdentifier, ParametersIdentifier, Tree};
-use rsvelte_vue_semantic::compiler_syntax_tree::{
-    CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind, PropertyIdentifier, PropertyKind, TagType,
-};
-use rsvelte_vue_semantic::resolve::{BindingType, Resolution};
-use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
+use rsvelte_vue_semantic::compiler_syntax_tree::{CompilerSyntaxTree, PropertyIdentifier};
+use rsvelte_vue_semantic::resolve::Resolution;
+use rsvelte_vue_syntax::syntax_tree::DirectiveName;
 
 use super::R;
+
+mod branches;
+mod directives;
+mod elements;
+mod events;
+mod expressions;
+mod generate;
+mod hoist;
+mod loops;
+mod patch;
+mod rewrite;
+mod traverse;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Helper {
@@ -74,8 +82,6 @@ impl Helper {
         }
     }
 }
-
-mod patch;
 
 /// `ConstantTypes`.
 const NOT_CONSTANT: u8 = 0;
@@ -424,23 +430,3 @@ enum Exit {
     },
     For(TransformNodeIdentifier),
 }
-
-mod events;
-use events::{is_keyboard_event, is_on, is_reserved, resolve_modifiers};
-
-mod rewrite;
-use rewrite::ExpRewrite;
-
-mod branches;
-mod directives;
-mod elements;
-mod expressions;
-mod hoist;
-mod loops;
-mod traverse;
-
-mod generate;
-use generate::is_object_bind;
-use rsvelte_vue_semantic::expressions::{
-    Parent, camelize, can_prefix, collect_identifiers, is_simple_identifier, to_handler_key,
-};

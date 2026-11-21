@@ -3,10 +3,8 @@
 use oxc_ast::ast::{BinaryOperator, UnaryOperator};
 
 use super::Value;
-use super::conversions::{
-    to_int32, to_number, to_primitive, to_string, to_uint32, truthy, type_of,
-};
-use crate::number::exponentiate;
+use super::conversions::{to_int32, to_number, to_primitive, to_string, truthy, type_of};
+use crate::number::numeric_binary;
 
 pub(super) fn unary(operator: UnaryOperator, value: &Value) -> Option<Value> {
     Some(match operator {
@@ -42,22 +40,11 @@ pub(super) fn binary(operator: BinaryOperator, left: &Value, right: &Value) -> O
                 Value::Number(to_number(&left)? + to_number(&right)?)
             }
         }
-        B::Subtraction => numbers().map(|(a, b)| Value::Number(a - b))?,
-        B::Multiplication => numbers().map(|(a, b)| Value::Number(a * b))?,
-        B::Division => numbers().map(|(a, b)| Value::Number(a / b))?,
-        B::Remainder => numbers().map(|(a, b)| Value::Number(a % b))?,
-        B::Exponential => numbers().map(|(a, b)| Value::Number(exponentiate(a, b)))?,
-        B::BitwiseOR => Value::Number(f64::from(to_int32(left)? | to_int32(right)?)),
-        B::BitwiseXOR => Value::Number(f64::from(to_int32(left)? ^ to_int32(right)?)),
-        B::BitwiseAnd => Value::Number(f64::from(to_int32(left)? & to_int32(right)?)),
-        B::ShiftLeft => Value::Number(f64::from(
-            to_int32(left)?.wrapping_shl(to_uint32(right)? & 31),
-        )),
-        B::ShiftRight => Value::Number(f64::from(to_int32(left)? >> (to_uint32(right)? & 31))),
-        B::ShiftRightZeroFill => {
-            Value::Number(f64::from(to_uint32(left)? >> (to_uint32(right)? & 31)))
-        }
         B::In | B::Instanceof => return None,
+        _ => {
+            let (a, b) = numbers()?;
+            Value::Number(numeric_binary(operator, a, b)?)
+        }
     })
 }
 

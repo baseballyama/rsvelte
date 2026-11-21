@@ -131,6 +131,7 @@ impl Printer<'_, '_, '_> {
             line_ending: core.line_ending,
             single_quote: self.options.single_quote.into(),
             variant,
+            sort_tailwindcss: self.options.tailwind.is_some(),
             ..oxc_formatter_css::CssFormatOptions::default()
         };
         // oxc-css-parser rejects what the language's grammar owner rejects, and oxc prints a part

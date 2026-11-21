@@ -11,7 +11,7 @@ use serde::Deserialize;
 
 use super::shared::element_kind::{ElementKind, element_kind};
 use super::shared::style_sheet::{StyleVerdict, verdict};
-use crate::Pattern;
+use crate::pattern::Pattern;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

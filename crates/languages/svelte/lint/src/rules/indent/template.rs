@@ -84,9 +84,8 @@ impl<'a> Template<'_, 'a> {
     /// Lays out the whole component.
     pub(super) fn visit(&mut self) {
         let component = self.component;
-        let mut tops: Vec<(u32, Top<'_>)> = [&component.module, &component.instance]
-            .into_iter()
-            .flatten()
+        let mut tops: Vec<(u32, Top<'_>)> = component
+            .scripts()
             .map(|s| (s.span.start_offset, Top::Script(s)))
             .collect();
         if let Some(style) = &component.style {

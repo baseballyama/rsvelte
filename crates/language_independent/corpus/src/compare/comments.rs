@@ -10,6 +10,7 @@ use oxc_ast::Comment;
 use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, Parser, Token};
 use oxc_span::SourceType;
+use rsvelte_kernel::source::characters::is_ecmascript_line_terminator;
 
 use super::javascript::Unparsed;
 
@@ -118,7 +119,7 @@ pub(crate) fn places(text: &str) -> Result<Vec<String>, String> {
 }
 
 fn breaks(text: &str) -> bool {
-    text.contains(['\n', '\r', '\u{2028}', '\u{2029}'])
+    text.contains(is_ecmascript_line_terminator)
 }
 
 /// For each place between tokens, from before the first to after the last: the nearest word

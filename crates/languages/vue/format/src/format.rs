@@ -18,17 +18,12 @@ use std::borrow::Cow;
 use oxc_allocator::Allocator;
 use oxc_formatter::JsFormatOptions;
 use oxc_formatter_core::{CoreFormatOptions, IndentStyle, IndentWidth, LineEnding, LineWidth};
-use rsvelte_document_printer::{
-    Embedding, GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions,
-};
-pub(crate) use rsvelte_kernel::diagnostics::Unsupported;
+use rsvelte_document_printer::{Embedding, LayoutInstructions};
+use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::index::IndexVector;
 use rsvelte_kernel::newtype_index;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
-use rsvelte_vue_syntax::syntax_tree::{
-    Attribute, AttributeKind, DirectiveExpression, SingleFileComponent, TagAttributes,
-    TemplateNode, TemplateNodeIdentifier,
-};
+use rsvelte_vue_syntax::syntax_tree::{Attribute, SingleFileComponent, TagAttributes};
 
 type R<T> = Result<T, Unsupported>;
 

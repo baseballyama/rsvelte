@@ -1,125 +1,122 @@
 <svelte:head>
-	<title>仕組み ・ rsvelte</title>
+	<title>Architecture · rsvelte</title>
 </svelte:head>
 
-<h1>仕組み</h1>
+<h1>Architecture</h1>
 
-<p>
-	rsvelte の開発に参加する人向けの概要です。rsvelte は 1
-	回の実行の中で各ファイルを一度だけ解析し、その結果をタスクの間で共有します。
-</p>
+<p>An overview for contributors.</p>
 
-<h2 id="flow">一度読んで共有する</h2>
+<h2 id="flow">Parse once, share the results</h2>
 
 <ol>
 	<li>
-		パーサーがソースを読み、構文木を作ります。構文木は作ったあと変更しません。例外は、JavaScript
-		のパーサー oxc の意味解析が、スコープや変数の番号を書き込むことだけです。
+		A parser reads the source and builds syntax trees. rsvelte parses JavaScript and TypeScript with <a
+			href="https://oxc.rs/">oxc</a
+		>. After parsing, nothing changes a tree, with one exception: the semantic analysis of oxc
+		writes scope and symbol IDs into the trees of oxc.
 	</li>
 	<li>
-		意味解析は、変数のスコープなどの事実を構文木とは別の表に記録します。構文木と表は、ファイルごとのデータベースに保存されます。
+		Semantic analysis records facts, such as the scope of each variable, in tables beside the trees.
+		A database per file holds the trees and the tables.
 	</li>
 	<li>
-		タスクは、ファイルごとに動く 1 つの処理です。名前は「プラグイン名/種類」の形です（Svelte
-		のコード検査なら <code>svelte.lint</code>
-		プラグインの
-		<code>svelte.lint/default</code
-		>）。タスクは必要な計算結果だけをデータベースに求めます。まだない結果はその場で計算され、同じファイルのほかのタスクと共有されます。
+		A plugin, such as the Svelte linter, adds tasks. A task is one job that runs on each file. Its
+		name is the plugin's name and a kind:
+		<code>svelte.lint/default</code> is the lint task of the <code>svelte.lint</code> plugin. A task asks
+		the database for the results it needs. The database computes a missing result once and shares it with
+		the other tasks of that file.
 	</li>
 	<li>
-		ファイルは 1 スレッドに 1
-		つずつ割り当てられ、並列に処理されます。型検査のタスクだけは、全ファイルの処理のあとにプロジェクト全体をまとめて
-		1 回検査します。
+		Each worker thread takes one file at a time, so files run in parallel. A type check task also
+		runs once after all files, to check the whole project.
 	</li>
 </ol>
 
-<h2 id="crates">クレートの構成</h2>
+<h2 id="crates">Crates</h2>
 
 <table>
 	<thead>
-		<tr><th>ディレクトリ</th><th>役割</th></tr>
+		<tr><th>Directory</th><th>What it holds</th></tr>
 	</thead>
 	<tbody>
 		<tr>
 			<td><code>crates/language_independent/</code></td>
 			<td>
-				どの言語も知らない部分。文書、位置、診断、計算結果のデータベース、タスクのスケジューラ（<code
+				Code that does not depend on a language: the database and the task scheduler (<code
 					>kernel</code
-				>）と、プラグインの接続口（<code>plugin_interface</code
-				>）。コード検査と整形の共通部品、テストの仕組みもここにあります
+				>), and the interface between hosts and plugins (<code>plugin_interface</code>). It also
+				holds documents, positions and diagnostics, and the shared code of lint tools, formatters
+				and test runners.
 			</td>
 		</tr>
 		<tr>
-			<td><code>crates/languages/&lt;言語&gt;/</code></td>
+			<td><code>crates/languages/&lt;language&gt;/</code></td>
 			<td>
-				言語ごとの構文解析と意味解析、各ツール（<code>compile</code>、<code>lint</code>、<code
-					>format</code
-				>、<code>check</code>）
+				Each language's parser and analysis, and its tools: <code>compile</code>, <code>lint</code>,
+				<code>format</code> and <code>check</code>.
 			</td>
 		</tr>
 		<tr>
 			<td><code>crates/bridges/</code></td>
-			<td
-				>Vue のコンポーネントを Svelte
-				のランタイム向けにコンパイルするなど、フレームワークをまたぐコンパイル。<code>rsvelte</code> コマンドには含まれません</td
-			>
+			<td>
+				Cross-framework compilers, such as one that compiles Vue components for the Svelte runtime.
+				The
+				<code>rsvelte</code> command does not include them.
+			</td>
 		</tr>
 		<tr>
 			<td><code>crates/hosts/</code></td>
 			<td>
-				プラグインを組み合わせて動かすプログラム。<code>rsvelte</code> コマンド（<code
+				Programs that combine plugins and run them: the <code>rsvelte</code> command (<code
 					>command_line</code
-				>）と WebAssembly 版（<code>browser</code>）
+				>) and the WebAssembly build (<code>browser</code>).
 			</td>
 		</tr>
 	</tbody>
 </table>
 
 <p>
-	各ツールは、自分のタスク（<code>svelte.compile/client</code>
-	など）を登録するクレートです。JavaScript と TypeScript の解析には
-	<a href="https://oxc.rs/">oxc</a>
-	を使います。<code>rsvelte format</code>
-	だけはタスクを使わず、oxfmt のファイル処理から Svelte の整形を呼び出します。
+	Each tool is a crate that registers its tasks, such as <code>svelte.compile/client</code>.
+	<code>rsvelte format</code> is the one command without tasks: it runs oxfmt's file handling, which calls
+	the Svelte formatter.
 </p>
 
-<h2 id="typecheck">型検査</h2>
+<h2 id="typecheck">Type checking</h2>
 
 <p>
-	<code>typecheck</code> は Svelte コンポーネントを TypeScript
-	のコードに変換し、元の位置との対応表を付けて型検査器へ渡します。型検査器は、この対応表でエラーの位置を元の
-	Svelte ファイルの位置に戻します。変換は
-	<code>crates/languages/svelte/typescript_projection</code> にあります。
+	<code>typecheck</code> turns each Svelte component into TypeScript code. It passes that code and a
+	map back to the original positions to the TypeScript 7 type checker. The checker uses the map to
+	report each error at its position in the Svelte file. The conversion lives in
+	<code>crates/languages/svelte/typescript_projection</code>.
 </p>
 
-<h2 id="correctness">公式ツールとの比較</h2>
+<h2 id="correctness">Comparison with the official tools</h2>
 
 <p>
-	<code>corpus/</code> には、MIT などの緩いライセンスで公開された実在の Svelte 5 ファイルと、このプロジェクト用に書いたファイルがあります。正解の出力は、svelte
-	や svelte-check などの公式ツールで作ります。
+	<code>corpus/</code> holds real Svelte 5 files from projects under permissive licenses, such as MIT,
+	and files written for this project. The official tools, such as svelte and svelte-check, produce the
+	expected output.
 </p>
 
 <p>
-	<code>cargo test</code> は rsvelte
-	の出力を正解と比べます。一致したかどうかの判定は、タスクごとに台帳（<code
+	<code>cargo test</code> compares rsvelte's output with the expected output. A ledger (<code
 		>corpus/_registry/parity/</code
-	>）に記録されています。判定が台帳と変わると、テストが失敗します。意図した変化は
-	<code>UPDATE_EXPECT=1</code> で記録し直します。
+	>) records, for each task, whether each file matches: its verdict. When a verdict changes, the
+	test fails. To accept an intended change, run it with <code>UPDATE_EXPECT=1</code>.
 </p>
 
-<h2 id="contribute">開発に参加する</h2>
+<h2 id="contribute">Contributing</h2>
 
 <pre><code
-		>{`cargo test                                        # Rust のテスト
-cargo test -p rsvelte_command_line --test corpus  # 公式ツールとの比較
-pnpm install && pnpm run check                    # TypeScript 側の検査`}</code
+		>{`cargo test                                        # the Rust tests
+cargo test -p rsvelte_command_line --test corpus  # the comparison with the official tools
+pnpm install && pnpm run check                    # the TypeScript side`}</code
 	></pre>
 
 <p>
-	開発のルールは <a href="https://github.com/baseballyama/rsvelte/blob/main/AGENTS.md"
-		><code>AGENTS.md</code></a
-	>、クレートの詳細は
+	<a href="https://github.com/baseballyama/rsvelte/blob/main/AGENTS.md"><code>AGENTS.md</code></a>
+	has the rules for contributors, and
 	<a href="https://github.com/baseballyama/rsvelte/blob/main/crates/README.md"
 		><code>crates/README.md</code></a
-	> にあります。
+	> describes the crates.
 </p>

@@ -1,10 +1,13 @@
 //! `traverseNode`, over the nodes as the transforms hold them.
-
-use super::{
-    CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Exit, Exp, ExpressionIdentifier,
-    Helper, NOT_CONSTANT, Node, NodeKind, Property, PropertyIdentifier, PropertyKind, R, TagType,
-    Transform, TransformNodeIdentifier, Unsupported,
+use rsvelte_kernel::diagnostics::Unsupported;
+use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_vue_semantic::compiler_syntax_tree::{
+    CompilerNodeIdentifier, NodeKind, PropertyIdentifier, PropertyKind, TagType,
 };
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
+
+use super::{Exit, Exp, Helper, NOT_CONSTANT, Node, Property, Transform, TransformNodeIdentifier};
+use crate::compile::R;
 
 impl Transform<'_> {
     /// The nodes as the transforms hold them, refusing what the port does not compile.

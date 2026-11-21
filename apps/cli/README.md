@@ -16,6 +16,8 @@ npx @rsvelte/cli lint [<path>...]
 npx @rsvelte/cli format [<path>...] [--check]
 npx @rsvelte/cli typecheck
 npx @rsvelte/cli help [<command>]
+npx @rsvelte/cli version
+npx @rsvelte/cli format lint typecheck [<path>...] [--check]
 ```
 
 `npx` runs the project's copy, or downloads one when the project has none. In `package.json`
@@ -54,13 +56,20 @@ configure `format`.
 
 The Svelte formatter prints only the default value of these options:
 
-- `semi`, `singleQuote` and `trailingComma`
-- `arrowParens`, `bracketSpacing` and `quoteProps`
-- `objectWrap`
+- `trailingComma`, `arrowParens` and `bracketSpacing`
+- `quoteProps` and `objectWrap`
 
-It does not sort Tailwind CSS classes (`sortTailwindcss`) yet. With another value of these
-options, or with `sortTailwindcss`, `format` reports an error for each Svelte file and formats
+With another value of these options, `format` reports an error for each Svelte file and formats
 the other files.
+
+With `sortTailwindcss`, `format` sorts Tailwind CSS classes as oxfmt does, with the
+[`prettier-plugin-tailwindcss`](https://github.com/tailwindlabs/prettier-plugin-tailwindcss) of
+the file's project, run by `node`. In a Svelte file, it sorts the classes of `class` and of the
+attributes `sortTailwindcss` names, of the functions it names in the scripts, and of `@apply`.
+Install the plugin, version 0.8 or later, in the project: `format` does not ship one, so the
+project chooses its version. Without `node` or the plugin, `format` reports an error for each
+file whose classes it would sort and formats the others. It also reports an error for a Svelte
+file when `sortTailwindcss` names attributes by a pattern (`/…/`).
 
 `typecheck` checks the project of `tsconfig.json` in the current directory, or next to
 `rsvelte.config` when it gives `typescript.check` options, and reports the
@@ -74,6 +83,14 @@ type errors that svelte-check reports. It runs a TypeScript 7 type checker from 
 `format` exits with the codes of oxfmt. It exits with 1 when `--check` finds a file to format
 or when the configuration is invalid. It exits with 2 when a file does not format or when no
 path matches a file.
+
+Name more than one command to run them together, as `rsvelte format lint typecheck --check` in CI.
+The paths go to `lint` and `format`, `--check` goes to `format`, and the `--config` options go
+to `lint` and `typecheck`. To pass other oxfmt options, run `format` alone. `format` runs first,
+and the other commands read what it wrote. `lint` and `typecheck` then run together and read each
+file once. Each prints what it prints alone. The run exits with the worst exit code of its
+commands. rsvelte reads each leading `lint`, `format` or `typecheck` as a command, so write a
+directory named `lint` as `./lint`.
 
 ## Svelte 5 runes mode only
 

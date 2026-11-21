@@ -374,6 +374,7 @@ fn what_svelte_rejects_is_refused() {
 /// the expression printer does not build: Prettier prints `<title>x</title>{a +\n  b}`.
 mod comments;
 mod directives;
+mod options;
 mod scripts;
 mod shapes;
 

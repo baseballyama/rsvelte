@@ -97,9 +97,8 @@ impl SvelteRule for BlockLang {
             .char_indices()
             .nth(1)
             .map_or(first_line.len(), |(i, _)| i) as u32;
-        let mut scripts: Vec<_> = [&component.module, &component.instance]
-            .into_iter()
-            .flatten()
+        let mut scripts: Vec<_> = component
+            .scripts()
             .map(|script| (script.span, script.attributes.as_slice()))
             .collect();
         scripts.sort_by_key(|(span, _)| span.start_offset);

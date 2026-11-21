@@ -2,9 +2,9 @@
 //! its globals, store subscriptions, names `$:` declares, and top-level names, which it keeps in
 //! one scope for both scripts and the template.
 
-use oxc_ast::ast::Statement;
 use oxc_semantic::{ScopeId, SymbolId};
 use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
+use rsvelte_svelte_semantic::legacy::reactive_body;
 use rsvelte_svelte_semantic::resolve::{Resolution, TemplateScope};
 use rustc_hash::FxHashMap;
 
@@ -110,9 +110,8 @@ pub(crate) fn has_reactive_statement(file: &File<'_>) -> bool {
         return false;
     };
     component.scripts().any(|script| {
-        tree.get_program(script.program).body.iter().any(|statement| {
-            matches!(statement, Statement::LabeledStatement(labeled) if labeled.label.name == "$")
-        })
+        (tree.get_program(script.program).body.iter())
+            .any(|statement| reactive_body(statement).is_some())
     })
 }
 

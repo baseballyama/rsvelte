@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import Code from '#lib/Code.svelte';
 	import { example, load, operations, view, type Operation, type Result } from '#lib/playground.ts';
 
 	let source = $state(example);
@@ -26,18 +27,18 @@
 </script>
 
 <svelte:head>
-	<title>プレイグラウンド ・ rsvelte</title>
+	<title>Playground · rsvelte</title>
 </svelte:head>
 
-<h1>プレイグラウンド</h1>
+<h1>Playground</h1>
 
 <p>
-	Svelte
-	コンポーネントを書くと、コード検査、整形、コンパイルの結果がすぐに表示されます。コンパイルは、まだ
-	<code>rsvelte</code> コマンドにはありません。型検査はブラウザでは動きません。
+	Write a Svelte component to see rsvelte lint, format and compile it. rsvelte also has a Svelte
+	compiler, which the <code>rsvelte</code> command does not include yet. Type checking does not run in
+	a browser.
 </p>
 
-<div class="operations" role="radiogroup" aria-label="処理">
+<div class="operations" role="radiogroup" aria-label="Operation">
 	{#each operations as option (option.id)}
 		<label>
 			<input type="radio" name="operation" value={option.id} bind:group={operation} />
@@ -47,14 +48,16 @@
 </div>
 
 <div class="panes">
-	<textarea bind:value={source} spellcheck="false" aria-label="App.svelte の内容"></textarea>
+	<div class="editor">
+		<Code bind:value={source} file="App.svelte" label="Source of App.svelte" />
+	</div>
 	<div class="output" aria-live="polite">
 		{#if failure}
-			<p>読み込みに失敗しました：{failure}</p>
+			<p>rsvelte did not load: {failure}</p>
 		{:else if !result}
-			<p class="muted">読み込み中です。</p>
+			<p class="muted">Loading…</p>
 		{:else if !result.ok}
-			<p>エラー：{result.message}</p>
+			<p>Error: {result.message}</p>
 		{:else}
 			{#each result.steps.map(view) as shown, i (i)}
 				{#each shown.problems as problem, j (j)}
@@ -66,10 +69,12 @@
 				{/each}
 				{#each shown.files as file (file.name)}
 					{#if shown.files.length > 1}<p class="muted">{file.name}</p>{/if}
-					<pre>{file.text}</pre>
+					<div class="file">
+						<Code value={file.text} file={file.name} label={file.name} readonly />
+					</div>
 				{/each}
 				{#if operation === 'lint' && shown.problems.length === 0}
-					<p class="muted">問題は見つかりませんでした。</p>
+					<p class="muted">No problems found.</p>
 				{/if}
 			{/each}
 		{/if}
@@ -86,30 +91,33 @@
 
 	.panes {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
 		gap: 1rem;
 	}
 
-	textarea {
-		width: 100%;
-		min-height: 28rem;
-		padding: 0.9rem 1rem;
-		border: 1px solid var(--line);
-		border-radius: 8px;
-		color: inherit;
-		background: var(--code-bg);
-		font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-		font-size: 0.9em;
-		line-height: 1.55;
-		resize: vertical;
+	.editor {
+		min-width: 0;
+		height: max(28rem, calc(100vh - 20rem));
+	}
+
+	.file {
+		margin-bottom: 1rem;
 	}
 
 	.output {
 		min-width: 0;
+		height: max(28rem, calc(100vh - 20rem));
+		overflow: auto;
 	}
 
-	.output pre {
-		margin-top: 0;
+	@media (max-width: 50rem) {
+		.editor {
+			height: 24rem;
+		}
+
+		.output {
+			height: auto;
+		}
 	}
 
 	.problem {

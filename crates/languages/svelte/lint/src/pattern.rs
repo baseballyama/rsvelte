@@ -4,11 +4,12 @@
 use std::borrow::Cow;
 
 use regress::{Flags, Regex};
+use rsvelte_kernel::source::characters::is_ecmascript_line_terminator;
 
 /// A compiled option string: `/^foo/u` is an ECMAScript regular expression, anything else matches
 /// only itself.
 #[derive(Debug)]
-pub enum Pattern {
+pub(crate) enum Pattern {
     Exact(String),
     Regex {
         regex: Regex,
@@ -22,7 +23,7 @@ impl Pattern {
     /// # Errors
     ///
     /// The flags or the pattern are not valid, where `new RegExp` throws.
-    pub fn new(option: &str) -> Result<Self, String> {
+    pub(crate) fn new(option: &str) -> Result<Self, String> {
         let Some((body, flags)) = split(option) else {
             return Ok(Self::Exact(option.to_owned()));
         };
@@ -53,7 +54,7 @@ impl Pattern {
 
     /// `RegExp.prototype.test` on a fresh expression, or string equality.
     #[must_use]
-    pub fn matches(&self, text: &str) -> bool {
+    pub(crate) fn matches(&self, text: &str) -> bool {
         match self {
             Self::Exact(name) => name == text,
             Self::Regex {
@@ -79,7 +80,7 @@ fn split(option: &str) -> Option<(&str, &str)> {
     let slash = rest.rfind('/')?;
     let (body, flags) = (&rest[..slash], &rest[slash + 1..]);
     // `.` stops at a line terminator.
-    let one_line = !body.contains(['\n', '\r', '\u{2028}', '\u{2029}']);
+    let one_line = !body.contains(is_ecmascript_line_terminator);
     (!body.is_empty() && one_line && flags.bytes().all(|b| b.is_ascii_alphabetic()))
         .then_some((body, flags))
 }

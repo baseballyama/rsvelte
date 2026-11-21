@@ -10,7 +10,7 @@ use rsvelte_typescript_tree::{Parsed, is_typescript, matches};
 
 use crate::{CheckedDocument, TypeScriptDocument, TypeScriptEnv, TypeScriptView, kit};
 
-pub static PLUGIN: Plugin = Plugin {
+pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "typescript.check",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[],
@@ -33,10 +33,7 @@ pub fn register(registry: &mut Registry) {
             |_| Vec::new(),
             |script| {
                 let document = context.document;
-                let path = document
-                    .file
-                    .as_deref()
-                    .unwrap_or_else(|| Path::new(&document.path));
+                let path = document.file_path();
                 let program = script.tree.get_program(script.root);
                 kit::insertions(path, source, program, || hooks_module(path))
             },

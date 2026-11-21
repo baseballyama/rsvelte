@@ -153,7 +153,7 @@ pass	printer/self-closing-tags-lenient.html
 pass	printer/self-closing-tags.html
 pass	printer/single-attribute-per-line-bracket-no-new-line.html
 pass	printer/single-attribute-per-line.html
-refused	printer/single-quote.html	singleQuote
+pass	printer/single-quote.html
 pass	printer/snippet-ts.html
 pass	printer/snippet.html
 pass	printer/sort-order-markup-options-scripts-styles.html

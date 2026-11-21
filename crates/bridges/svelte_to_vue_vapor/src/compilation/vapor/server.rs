@@ -7,7 +7,7 @@ use rsvelte_vue_semantic::compiler_syntax_tree::{
 };
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
-use super::{Body, Emitter, method};
+use super::{Body, Emitter};
 use crate::compilation::markers;
 use crate::compilation::script::async_arrow;
 
@@ -54,7 +54,7 @@ impl<'o> Emitter<'_, 'o> {
             [push],
             false,
         );
-        fields.push(method(b, "ssrRender", ssr_render));
+        fields.push(b.method("ssrRender", ssr_render));
         b.object([b.init("renderContent", render)])
     }
 

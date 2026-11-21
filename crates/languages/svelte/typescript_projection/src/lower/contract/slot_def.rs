@@ -3,11 +3,10 @@
 
 use oxc_ast::ast::{Expression, IdentifierReference};
 use oxc_ast_visit::Visit;
-use oxc_span::GetSpan;
 use oxc_syntax::identifier::is_identifier_name;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range};
-use rsvelte_typescript_tree::document_span;
+use rsvelte_typescript_tree::node_span;
 
 use super::super::{Builder, Node, NodeIdentifier, Span};
 
@@ -119,8 +118,7 @@ impl<'s> Builder<'s> {
                     if reads_template(expression, (self.resolution)()?) {
                         self.tree.push(Node::Identifier("__rsvelte_untyped_prop()"))
                     } else {
-                        self.tree
-                            .push(Node::UnmappedSource(document_span(expression.span())))
+                        self.tree.push(Node::UnmappedSource(node_span(expression)))
                     }
                 }
                 // svelte2tsx types text, or text with expressions, as a string.

@@ -1,6 +1,6 @@
 //! Svelte lint.
 
-pub mod lint;
+mod lint;
 pub use lint::lint;
 
 mod computation;
@@ -8,9 +8,8 @@ mod configuration;
 pub use configuration::{Configuration, ConfiguredRule, definition};
 mod extension;
 pub use extension::EXTENSION;
-pub mod host_rule;
+mod host_rule;
 mod pattern;
-pub use pattern::Pattern;
 pub mod project;
 pub mod rule;
 mod rules;

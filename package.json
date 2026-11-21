@@ -1,7 +1,7 @@
 {
 	"name": "@rsvelte-experimental/workspace",
 	"private": true,
-	"description": "The JavaScript side of the repository: the site and the tools, one pnpm workspace",
+	"description": "The JavaScript side of the repository: the npm packages, the site and the tools, one pnpm workspace",
 	"type": "module",
 	"scripts": {
 		"format": "oxfmt",

@@ -141,3 +141,43 @@ fn an_end_tag_for_an_element_a_start_tag_closed_says_so_until_its_parent_closes(
         error.message
     );
 }
+
+#[test]
+fn a_comment_ends_at_the_first_closer_after_its_opener() {
+    // The comments and errors of svelte 5.57.3: the `-->` and the `*/` are read after the `<!--`
+    // and the `/*`, so `<!-->` and `/*/` open a comment.
+    for (source, data) in [
+        ("<!---->", ""),
+        ("<!--> -->", "> "),
+        ("<!-->a-->", ">a"),
+        ("<!--->a-->", "->a"),
+        ("<!--a--!>b-->", "a--!>b"),
+    ] {
+        let c = parse(source).expect(source);
+        let comments: Vec<&str> = (c.children(c.root).iter())
+            .filter_map(|&child| match *c.node(child) {
+                TemplateNode::Comment { data, .. } => Some(data.text(source)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(comments, [data], "{source}");
+    }
+    for (source, code, at) in [
+        ("<!-->", "expected_token", 5),
+        ("<!-->a", "expected_token", 6),
+        ("<!--->", "expected_token", 6),
+        ("<!--><div></div>", "expected_token", 16),
+        ("<div><!--></div>", "expected_token", 16),
+        ("<!--", "unexpected_eof", 4),
+        ("<!--a", "expected_token", 5),
+        ("<div /*/ a=\"1\"></div>", "unexpected_eof", 21),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert_eq!(
+            (&*error.code, error.span.start_offset),
+            (code, at),
+            "{source}"
+        );
+    }
+    parse("<div /*/ */ a=\"1\"></div>").expect("the `*/` after the `/*` closes the comment");
+}

@@ -5,8 +5,8 @@ export type Rule = { name: string; category: string; files: string; url: string 
 
 const fileLabels: Record<string, string> = {
 	svelte: 'Svelte',
-	'js-ts': 'JavaScript と TypeScript',
-	'svelte+js-ts+jsx-tsx': 'Svelte、JavaScript、TypeScript',
+	'js-ts': 'JavaScript, TypeScript',
+	'svelte+js-ts+jsx-tsx': 'Svelte, JavaScript, TypeScript',
 	'svelte+vue': 'Svelte',
 };
 

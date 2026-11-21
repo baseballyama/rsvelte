@@ -18,5 +18,6 @@ mod visited;
 
 mod computation;
 pub use computation::{
-    Analyzed, Lowered, PLUGIN, Resolved, Warned, component_input, register, resolve_component,
+    Analyzed, Lowered, PLUGIN, Resolved, Warned, component_input, register, resolve_alone,
+    resolve_component,
 };

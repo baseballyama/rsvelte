@@ -1,7 +1,8 @@
 # Writing
 
 Checks the English prose of the repository's first-party Markdown files with textlint. It skips
-text written by others, such as the corpus, copied upstream files and changelogs.
+text written by others, such as the corpus, copied upstream files and changelogs. The site
+(`apps/site`) runs the same linter on its pages.
 
 ```sh
 pnpm --filter @rsvelte-experimental/writing run writing             # every first-party file

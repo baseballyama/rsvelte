@@ -4,7 +4,7 @@ use oxc_ast::ast::{
 };
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, Script, TemplateNode};
-use rsvelte_typescript_tree::document_span;
+use rsvelte_typescript_tree::{document_span, node_span};
 
 use super::nested::Nested;
 use super::render::Generics;
@@ -74,7 +74,7 @@ impl Builder<'_> {
                         if props.is_some() {
                             return Err(refuse(
                                 "multiple props declarations",
-                                document_span(declarator.id.span()),
+                                node_span(&declarator.id),
                             ));
                         }
                         let annotation = declarator
@@ -476,7 +476,7 @@ impl Builder<'_> {
         if let PropertyKey::StringLiteral(string) = key {
             self.source(string.span, None)
         } else {
-            let text = self.tree.push(Node::Text(document_span(key.span())));
+            let text = self.tree.push(Node::Text(node_span(key)));
             let parts = self.tree.list(&[text]);
             self.tree.push(Node::String {
                 parts,

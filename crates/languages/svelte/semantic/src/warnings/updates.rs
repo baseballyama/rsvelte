@@ -23,11 +23,7 @@ pub(super) fn non_reactive_updates(
     found: &mut Found,
 ) {
     let scoping = resolution.scoping();
-    let scripts: Vec<Span> = [&component.module, &component.instance]
-        .into_iter()
-        .flatten()
-        .map(|s| s.span)
-        .collect();
+    let scripts: Vec<Span> = component.scripts().map(|s| s.span).collect();
     // The module's scope, then the instance's: the template's expressions resolve in the latter.
     let mut tops: Vec<ScopeId> = vec![scoping.root_scope_id(), resolution.instance_scope()];
     tops.dedup();

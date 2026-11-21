@@ -20,7 +20,6 @@ use rsvelte_typescript_semantic::static_value::{StaticValues, Value};
 use rsvelte_typescript_tree::node_span;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::shared::runes::is_svelte_file;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -49,7 +48,7 @@ const ENVIRONMENT_MODULES: &[(&str, &str)] = &[
 
 impl SvelteRule for NoTopLevelBrowserGlobals {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        if !is_svelte_file(file) {
+        if !file.is_svelte_file() {
             return;
         }
         let semantic = file.semantic();

@@ -3,7 +3,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 use serde::Deserialize;
 
-use super::shared::markup::is_markup;
+use super::shared::element_kind::{ElementKind, element_kind};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -88,10 +88,10 @@ impl SvelteRule for NoRestrictedMarkupElements {
             else {
                 continue;
             };
-            let name = name.text(source);
-            if !is_markup(name) {
+            if element_kind(node, source) != Some(ElementKind::Markup) {
                 continue;
             }
+            let name = name.text(source);
             for (elements, message) in &self.0 {
                 for element in elements {
                     if element == name {

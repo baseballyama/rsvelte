@@ -24,6 +24,11 @@ directory, so a later build or run in the same tree cannot change what it measur
 finishes between another run's build and its copy can still get copied, so run one ratchet per
 tree. Cargo reads `CARGO_BUILD_JOBS` from the environment.
 
+The allocation build uses the `metrics` profile, a release build without link-time optimization,
+and the instruction build uses `dist`, the profile npm ships. CI runs them as two jobs, `ratchet`
+and `ratchet --instructions --no-allocations`, so the two builds do not share a runner. `--update`
+needs a run that measures allocations.
+
 ## Cache profiles
 
 Run in Linux with `valgrind`, `cg_annotate`, Node and a release binary with debug line tables;
@@ -39,7 +44,7 @@ The config has these fields:
 | `inputs`, `sources`     | Lists of input files and files used by the build; hashed before profiling |
 | `revision`              | Full base commit hash for a frozen snapshot; otherwise read from Git      |
 | `model`                 | Optional `i1`, `d1`, `ll` cache objects: `bytes`, `ways`, `line_bytes`    |
-| `expect_stdout`         | Optional expected fields in a JSON workload summary                       |
+| `expect_stdout`         | Optional expected fields in the JSON summary the command prints           |
 | `minimum_output_bytes`  | Optional lower bound on that summary's `output_bytes`                     |
 | `baseline`              | Optional previous complete report to compare                              |
 | `tolerance`             | Optional relative tolerance for the two-sided gate; default 0.02          |
@@ -115,5 +120,5 @@ compiler workloads, so that a sample with skipped units or empty output fails. C
 these fields may print plain text.
 
 CI runs a real sequential and strided memory control, and checks that the baseline gate rejects
-the deliberate rise in misses. The cache gate is for pinned workload configs and does not touch
+the deliberate rise in misses. The cache gate is for pinned counter configs and does not touch
 the allocation and instruction baseline of the whole corpus.

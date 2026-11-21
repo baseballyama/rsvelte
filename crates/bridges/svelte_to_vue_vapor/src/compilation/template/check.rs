@@ -356,8 +356,7 @@ pub(super) fn check_element(
         return Err(unsupported(format_args!("the element <{name}>"), el.name));
     }
     check_table_part(compiler_syntax_tree, source_text, identifier, name, el.name)?;
-    if rsvelte_svelte_compile::lower::is_customizable_select(compiler_syntax_tree, source_text, el)
-    {
+    if compiler_syntax_tree.is_customizable_select(el, source_text) {
         return Err(unsupported(
             format_args!("rich content in <{name}>"),
             el.name,

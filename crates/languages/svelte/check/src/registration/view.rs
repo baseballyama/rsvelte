@@ -19,6 +19,7 @@ use rsvelte_svelte_typescript_projection::{EmittedProjection, THROWN, store_read
 use rsvelte_typescript_check::{
     CheckedDocument, Hidden, Import, TypeScriptDocument, TypeScriptEnv,
 };
+use rsvelte_typescript_tree::node_span;
 
 pub(super) fn typescript_view(
     context: &DocumentContext<'_>,
@@ -189,7 +190,7 @@ fn relative_imports(component: &Component) -> Vec<Import> {
                 && specifier.starts_with('.')
             {
                 self.0.push(Import {
-                    at: Span::new(source.span.start, source.span.end),
+                    at: node_span(source),
                     specifier: specifier.to_owned(),
                     names,
                 });

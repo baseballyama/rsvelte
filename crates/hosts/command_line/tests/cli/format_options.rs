@@ -100,7 +100,10 @@ fn format_takes_oxfmts_options_and_configuration_for_svelte_too() {
 fn format_reports_each_svelte_file_whose_options_it_cannot_print_and_formats_the_others() {
     let svelte = "<script>\nlet   a = \"1\"\n</script>\n";
     let project = Project::new(&[
-        (".oxfmtrc.json", r#"{ "singleQuote": true }"#),
+        (
+            ".oxfmtrc.json",
+            r#"{ "singleQuote": true, "experimentalOperatorPosition": "start" }"#,
+        ),
         ("a.ts", "y(\"z\");\n"),
         ("App.svelte", svelte),
     ]);
@@ -108,12 +111,30 @@ fn format_reports_each_svelte_file_whose_options_it_cannot_print_and_formats_the
     let report = format!("{}{}", text(&output.stdout), text(&output.stderr));
     assert_eq!(output.status.code(), Some(2), "{report}");
     assert!(
-        report.contains("`singleQuote`") && report.contains("App.svelte"),
+        report.contains("`experimentalOperatorPosition`") && report.contains("App.svelte"),
         "{report}"
     );
     let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
     assert_eq!(read("a.ts"), "y('z');\n");
     assert_eq!(read("App.svelte"), svelte);
+}
+
+#[test]
+fn format_gives_svelte_files_the_script_options() {
+    let project = Project::new(&[
+        (".oxfmtrc.json", r#"{ "semi": false, "singleQuote": true }"#),
+        (
+            "App.svelte",
+            "<script>\nlet   a = \"1\";\n</script>\n<p>{f(\"x\")}</p>\n",
+        ),
+    ]);
+    let output = project.rsvelte(&["format"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(
+        read("App.svelte"),
+        "<script>\n  let a = '1'\n</script>\n\n<p>{f('x')}</p>\n"
+    );
 }
 
 #[test]
@@ -143,26 +164,6 @@ fn format_reads_an_editorconfig_for_svelte_files_as_oxfmt_does() {
     let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
     assert_eq!(read("a.ts"), "if (x) {\n\ty(\"z\");\n}\n");
     assert_eq!(read("App.svelte"), "<script>\n\tlet a = 1;\n</script>\n");
-}
-
-#[test]
-fn format_reports_each_svelte_file_whose_classes_tailwind_would_sort() {
-    let svelte = "<p class=\"p-4 flex\">a</p>\n";
-    let project = Project::new(&[
-        (".oxfmtrc.json", r#"{ "sortTailwindcss": {} }"#),
-        ("a.ts", "y(\"z\")\n"),
-        ("App.svelte", svelte),
-    ]);
-    let output = project.rsvelte(&["format"]);
-    let report = format!("{}{}", text(&output.stdout), text(&output.stderr));
-    assert_eq!(output.status.code(), Some(2), "{report}");
-    assert!(
-        report.contains("App.svelte") && report.contains("`sortTailwindcss`"),
-        "{report}"
-    );
-    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
-    assert_eq!(read("a.ts"), "y(\"z\");\n");
-    assert_eq!(read("App.svelte"), svelte);
 }
 
 const APP: &str = "\

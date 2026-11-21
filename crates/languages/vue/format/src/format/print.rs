@@ -1,6 +1,7 @@
 //! prettier's `printer-html.js` and `print/element.js`.
+use rsvelte_document_printer::LayoutInstructionIdentifier;
 
-use super::{Embed, LayoutInstructionIdentifier, NodeIdentifier, NodeKind, Printer, R};
+use super::{Embed, NodeIdentifier, NodeKind, Printer, R};
 
 impl Printer<'_, '_, '_> {
     pub(super) fn print(&mut self, i: NodeIdentifier) -> R<LayoutInstructionIdentifier> {

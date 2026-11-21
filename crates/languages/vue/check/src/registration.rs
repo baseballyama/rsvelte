@@ -15,7 +15,7 @@ use rsvelte_vue_syntax::Parsed;
 use crate::Configuration;
 use crate::project::Projection;
 
-pub static PLUGIN: Plugin = Plugin {
+pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "vue.check",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[

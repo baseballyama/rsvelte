@@ -12,7 +12,7 @@ result.
 | `rsvelte/lint/`         | `rsvelte`                 | lint cases, one directory per rule             |
 | `rsvelte/lint-env/`     | `rsvelte`                 | lint cases whose `package.json` varies         |
 | `rsvelte/check/`        | `rsvelte`                 | type check projects                            |
-| `rsvelte/crates/`       | `rsvelte`                 | files the crates' tests read                   |
+| `rsvelte/crates/`       | `rsvelte`                 | files the old port's crate tests read          |
 | `rsvelte/lsp/`          | `rsvelte`                 | language server probes                         |
 | `main-tests/core-1/` …  | `rsvelte-tests-core-1` …  | inputs of the compiler's tests                 |
 | `main-tests/formatter/` | `rsvelte-tests-formatter` | inputs of the formatter's tests                |

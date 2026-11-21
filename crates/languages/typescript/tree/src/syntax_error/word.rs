@@ -52,13 +52,36 @@ pub(super) enum Home {
     Initializer,
 }
 
-/// How oxc's tree reads a word, which is how acorn reads it.
+impl Home {
+    /// Whether acorn reads `await` here as the keyword.
+    const fn awaits(self) -> bool {
+        matches!(self, Self::TopLevel | Self::Function { is_async: true, .. })
+    }
+
+    /// Whether acorn reads `yield` here as the keyword.
+    const fn yields(self) -> bool {
+        matches!(
+            self,
+            Self::Function {
+                is_generator: true,
+                ..
+            }
+        )
+    }
+}
+
+/// How acorn reads a word.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Read {
     /// As a name, which acorn checks with `checkUnreserved`.
     Name,
-    /// As a token of its own, or unknown, where oxc left no tree.
+    /// As a token of its own, where oxc's tree reads no name or oxc left no tree.
     Token,
+    /// As an expression, which `=>` then ends: a keyword where it is one, such as `await` where
+    /// acorn can await.
+    Expression,
+    /// As an expression in a list that acorn then checks as an arrow's parameters.
+    Parameter,
 }
 
 /// What acorn reports for the word oxc labels `start..end`, by the name oxc's tree reads there or
@@ -82,23 +105,48 @@ pub(super) fn misused(
     {
         return None;
     }
-    let (home, name) = home(start, end, tokens, visit);
-    let (word, read) = match (name, token) {
-        (Some(name), _) => (name, Read::Name),
+    let next = (tokens.clone())
+        .find(|token| token.start() >= end)
+        .map(|token| token.start());
+    let (home, named) = home(start, end, tokens, visit);
+    let (word, read) = match (named, token) {
+        (Some(named), _) => named,
         (None, token) => (token?, Read::Token),
     };
-    (coded || word.escaped || read == Read::Name)
-        .then(|| misused_word(word, read, home, start))
+    (coded || word.escaped || named.is_some())
+        .then(|| misused_word(word, read, home, (start, next)))
         .flatten()
 }
 
-/// What acorn reports for `word`, read as `read` in `home`: `checkUnreserved`'s error for a name,
-/// or its tokenizer's for a keyword written with an escape; `None` where that depends on a `home`
-/// that is unknown, or acorn reads the word as a plain name.
-fn misused_word(word: Word, read: Read, home: Option<Home>, at: u32) -> Option<Acorn> {
+/// What acorn reports for `word`, read as `read` in `home`, at `at` or at the token after it:
+/// `checkUnreserved`'s error for a name, its tokenizer's for a keyword written with an escape, or
+/// the error of the expression `await` or `yield` starts; `None` where that depends on a `home`
+/// or a token that is unknown, or acorn reads the word as a plain name.
+fn misused_word(
+    word: Word,
+    read: Read,
+    home: Option<Home>,
+    (at, next): (u32, Option<u32>),
+) -> Option<Acorn> {
     let Word { kind, escaped } = word;
-    let message = match kind {
-        Kind::Await => Cow::Borrowed(match home? {
+    let unexpected_next = || {
+        Some(Acorn::Fails {
+            message: Cow::Borrowed("Unexpected token"),
+            at: next?,
+        })
+    };
+    let as_keyword = (!escaped).then_some(read);
+    let message = match (kind, as_keyword) {
+        // An `await` expression's operand is missing where acorn meets the next token.
+        (Kind::Await, Some(Read::Expression | Read::Parameter)) if home?.awaits() => {
+            return unexpected_next();
+        }
+        // A `yield` expression ends at `=>`, or is checked as a parameter's default value.
+        (Kind::Yield, Some(Read::Expression)) if home?.yields() => return unexpected_next(),
+        (Kind::Yield, Some(Read::Parameter)) if home?.yields() => {
+            Cow::Borrowed("Yield expression cannot be a default value")
+        }
+        (Kind::Await, _) => Cow::Borrowed(match home? {
             Home::Function { is_async: true, .. } => {
                 "Cannot use 'await' as identifier inside an async function"
             }
@@ -107,7 +155,7 @@ fn misused_word(word: Word, read: Read, home: Option<Home>, at: u32) -> Option<A
                 "Cannot use keyword 'await' outside an async function"
             }
         }),
-        Kind::Yield => Cow::Borrowed(match home? {
+        (Kind::Yield, _) => Cow::Borrowed(match home? {
             Home::Function {
                 is_generator: true, ..
             } => "Cannot use 'yield' as identifier inside a generator",
@@ -115,11 +163,13 @@ fn misused_word(word: Word, read: Read, home: Option<Home>, at: u32) -> Option<A
                 "The keyword 'yield' is reserved"
             }
         }),
-        Kind::Enum => return Some(keyword(kind.to_str(), at)),
+        (Kind::Enum, _) => return Some(keyword(kind.to_str(), at)),
         _ if kind.is_strict_mode_contextual_keyword() => return Some(keyword(kind.to_str(), at)),
         _ if escaped && kind.is_reserved_keyword() => Cow::Owned(match read {
             Read::Name => format!("Unexpected keyword '{}'", kind.to_str()),
             Read::Token => format!("Escape sequence in keyword {}", kind.to_str()),
+            // acorn's expression reader meets a keyword that starts no expression.
+            Read::Expression | Read::Parameter => "Unexpected token".to_owned(),
         }),
         _ => return None,
     };
@@ -134,7 +184,7 @@ fn home(
     end: u32,
     tokens: impl Iterator<Item = Token>,
     visit: impl FnOnce(&mut Locator),
-) -> (Option<Home>, Option<Word>) {
+) -> (Option<Home>, Option<(Word, Read)>) {
     let mut locator = Locator::new(start, end, Find::Home);
     visit(&mut locator);
     if locator.walked {
