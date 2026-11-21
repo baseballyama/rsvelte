@@ -1,6 +1,7 @@
 use super::{
-    Attribute, AttributeKind, Directive, DirectiveExpression, DirectiveName, LoopExpression, P, R,
-    Range, Span, TemplateNode, TemplateNodeIdentifier, TokenType, is_void, javascript_error,
+    Attribute, AttributeKind, Directive, DirectiveExpression, DirectiveName, LoopExpression,
+    Parser, R, Range, Span, TemplateNode, TemplateNodeIdentifier, TokenType, is_void,
+    javascript_error,
 };
 
 /// `/([\s\S]*?)\s+(?:in|of)\s+(\S[\s\S]*)/`: (end of the alias, start of the keyword).
@@ -31,7 +32,7 @@ fn split_for(text: &str) -> Option<(usize, usize)> {
 /// A directive's name, argument and modifiers.
 type ParsedDirective = (DirectiveName, Option<Span>, Box<[Span]>);
 
-impl P<'_, '_> {
+impl Parser<'_, '_> {
     /// Nodes up to the end tag of `parent` (left unconsumed).
     pub(super) fn fragment(&mut self, parent: Option<&str>) -> R<Range> {
         let mut items = Vec::new();
@@ -40,11 +41,11 @@ impl P<'_, '_> {
             if rest.is_empty() {
                 return match parent {
                     Some(name) => self.err(format!("`<{name}>` was left open")),
-                    None => Ok(Self::range_of(&mut self.c.children, items)),
+                    None => Ok(Self::range_of(&mut self.markup.children, items)),
                 };
             }
             if rest.starts_with("</") {
-                return Ok(Self::range_of(&mut self.c.children, items));
+                return Ok(Self::range_of(&mut self.markup.children, items));
             }
             if rest.starts_with("<!--") {
                 items.push(self.comment()?);
@@ -126,7 +127,7 @@ impl P<'_, '_> {
         let start_tag = Span::new(start_offset as u32, self.position as u32);
         let children = if self_closing || is_void(name_text) {
             Range {
-                start: self.c.children.len() as u32,
+                start: self.markup.children.len() as u32,
                 len: 0,
             }
         } else {
@@ -162,9 +163,9 @@ impl P<'_, '_> {
                 Some(_) => list.push(self.attribute()?),
             }
         };
-        let start = self.c.attributes.len() as u32;
+        let start = self.markup.attributes.len() as u32;
         let len = list.len() as u32;
-        self.c.attributes.extend(list);
+        self.markup.attributes.extend(list);
         Ok((Range { start, len }, self_closing))
     }
 

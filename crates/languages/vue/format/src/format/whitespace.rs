@@ -93,25 +93,25 @@ impl Tree<'_> {
     /// (every one but `<script>` and `<style>`), recording where whitespace was.
     pub(super) fn extract_whitespace(&mut self) {
         for i in self.identifiers() {
-            if self.is_script_like(i) || matches!(self.n[i].kind, NodeKind::Root) {
+            if self.is_script_like(i) || matches!(self.nodes[i].kind, NodeKind::Root) {
                 continue;
             }
-            let children = std::mem::take(&mut self.n[i].children);
+            let children = std::mem::take(&mut self.nodes[i].children);
             if children.len() == 1
-                && let NodeKind::Text(t) = &self.n[children[0]].kind
+                && let NodeKind::Text(t) = &self.nodes[children[0]].kind
                 && only_ws(t)
             {
-                self.n[i].has.dangling = true;
+                self.nodes[i].has.dangling = true;
                 continue;
             }
             let mut out: Vec<NodeIdentifier> = Vec::with_capacity(children.len());
             let mut pending_leading = false;
             for (j, &k) in children.iter().enumerate() {
                 if pending_leading {
-                    self.n[k].has.leading = true;
+                    self.nodes[k].has.leading = true;
                     pending_leading = false;
                 }
-                let NodeKind::Text(text) = &self.n[k].kind else {
+                let NodeKind::Text(text) = &self.nodes[k].kind else {
                     out.push(k);
                     continue;
                 };
@@ -119,7 +119,7 @@ impl Tree<'_> {
                 let trimmed_end = text.trim_ascii_end().len();
                 if lead == text.len() {
                     if let Some(&p) = out.last() {
-                        self.n[p].has.trailing = true;
+                        self.nodes[p].has.trailing = true;
                     }
                     pending_leading = j + 1 < children.len();
                     continue;
@@ -129,32 +129,32 @@ impl Tree<'_> {
                     Cow::Borrowed(s) => Cow::Borrowed(&s[lead..trimmed_end]),
                     Cow::Owned(s) => Cow::Owned(s[lead..trimmed_end].to_owned()),
                 };
-                let span = self.n[k].span;
-                self.n[k].span = Span::new(
+                let span = self.nodes[k].span;
+                self.nodes[k].span = Span::new(
                     span.start_offset + u32::try_from(lead).expect("fits"),
                     span.end_offset - u32::try_from(trail).expect("fits"),
                 );
-                self.n[k].kind = NodeKind::Text(value);
+                self.nodes[k].kind = NodeKind::Text(value);
                 if lead > 0 {
                     if let Some(&p) = out.last() {
-                        self.n[p].has.trailing = true;
+                        self.nodes[p].has.trailing = true;
                     }
-                    self.n[k].has.leading = true;
+                    self.nodes[k].has.leading = true;
                 }
                 if trail > 0 {
-                    self.n[k].has.trailing = true;
+                    self.nodes[k].has.trailing = true;
                     pending_leading = j + 1 < children.len();
                 }
                 out.push(k);
             }
-            self.n[i].children = out;
+            self.nodes[i].children = out;
         }
     }
 
     /// `addStylesheetDisplay` and `addIsSelfClosing`.
     pub(super) fn display_and_closing(&mut self) {
         for i in self.identifiers().skip(1) {
-            let display = match self.n[i].kind {
+            let display = match self.nodes[i].kind {
                 NodeKind::Element { .. } if self.is_top_level(i) => "block",
                 NodeKind::Element { name, .. } => STYLESHEET_DISPLAY
                     .iter()
@@ -162,9 +162,9 @@ impl Tree<'_> {
                     .map_or("inline", |(_, d)| d),
                 _ => "inline",
             };
-            self.n[i].display = display;
+            self.nodes[i].display = display;
             if self.is_text(i) {
-                self.n[i].self_closing = true;
+                self.nodes[i].self_closing = true;
             }
         }
     }
@@ -174,10 +174,10 @@ impl Tree<'_> {
     }
 
     pub(super) fn is_leading_sensitive(&self, i: NodeIdentifier) -> bool {
-        let n = &self.n[i];
+        let n = &self.nodes[i];
         let texty = |j: NodeIdentifier| {
             matches!(
-                self.n[j].kind,
+                self.nodes[j].kind,
                 NodeKind::Text(_) | NodeKind::Interpolation(_)
             )
         };
@@ -185,7 +185,7 @@ impl Tree<'_> {
             return true;
         }
         let parent_identifier = self.parent(i);
-        let parent = &self.n[parent_identifier];
+        let parent = &self.nodes[parent_identifier];
         if parent.display == "none" {
             return false;
         }
@@ -198,7 +198,7 @@ impl Tree<'_> {
             return false;
         }
         if let Some(p) = n.prev
-            && Self::is_block_like(self.n[p].display)
+            && Self::is_block_like(self.nodes[p].display)
         {
             return false;
         }
@@ -206,10 +206,10 @@ impl Tree<'_> {
     }
 
     pub(super) fn is_trailing_sensitive(&self, i: NodeIdentifier) -> bool {
-        let n = &self.n[i];
+        let n = &self.nodes[i];
         let texty = |j: NodeIdentifier| {
             matches!(
-                self.n[j].kind,
+                self.nodes[j].kind,
                 NodeKind::Text(_) | NodeKind::Interpolation(_)
             )
         };
@@ -217,7 +217,7 @@ impl Tree<'_> {
             return true;
         }
         let parent_identifier = self.parent(i);
-        let parent = &self.n[parent_identifier];
+        let parent = &self.nodes[parent_identifier];
         if parent.display == "none" {
             return false;
         }
@@ -230,7 +230,7 @@ impl Tree<'_> {
             return false;
         }
         if let Some(x) = n.next
-            && Self::is_block_like(self.n[x].display)
+            && Self::is_block_like(self.nodes[x].display)
         {
             return false;
         }
@@ -240,25 +240,27 @@ impl Tree<'_> {
     /// `addIsSpaceSensitive`.
     pub(super) fn space_sensitivity(&mut self) {
         for i in self.identifiers() {
-            let children = self.n[i].children.clone();
+            let children = self.nodes[i].children.clone();
             if children.is_empty() {
-                let d = self.n[i].display;
-                self.n[i].sensitive.dangling =
+                let d = self.nodes[i].display;
+                self.nodes[i].sensitive.dangling =
                     !Self::is_block_like(d) && d != "inline-block" && !self.is_script_like(i);
                 continue;
             }
             for &k in &children {
-                self.n[k].sensitive.leading = self.is_leading_sensitive(k);
-                self.n[k].sensitive.trailing = self.is_trailing_sensitive(k);
+                self.nodes[k].sensitive.leading = self.is_leading_sensitive(k);
+                self.nodes[k].sensitive.trailing = self.is_trailing_sensitive(k);
             }
             for (j, &k) in children.iter().enumerate() {
                 if j > 0 {
-                    self.n[k].sensitive.leading =
-                        self.n[children[j - 1]].sensitive.trailing && self.n[k].sensitive.leading;
+                    self.nodes[k].sensitive.leading =
+                        self.nodes[children[j - 1]].sensitive.trailing
+                            && self.nodes[k].sensitive.leading;
                 }
                 if j + 1 < children.len() {
-                    self.n[k].sensitive.trailing =
-                        self.n[children[j + 1]].sensitive.leading && self.n[k].sensitive.trailing;
+                    self.nodes[k].sensitive.trailing =
+                        self.nodes[children[j + 1]].sensitive.leading
+                            && self.nodes[k].sensitive.trailing;
                 }
             }
         }
@@ -268,8 +270,8 @@ impl Tree<'_> {
     pub(super) fn merge_simple_elements(&mut self) {
         for i in self.identifiers() {
             let mut j = 0;
-            while j < self.n[i].children.len() {
-                let children = &self.n[i].children;
+            while j < self.nodes[i].children.len() {
+                let children = &self.nodes[i].children;
                 let k = children[j];
                 let simple = self.is_simple_element(k, j, children);
                 if !simple {
@@ -278,24 +280,26 @@ impl Tree<'_> {
                 }
                 let (prev, next) = (children[j - 1], children[j + 1]);
                 let name = self.name(k).expect("an element");
-                let inner = match &self.n[self.n[k].children[0]].kind {
+                let inner = match &self.nodes[self.nodes[k].children[0]].kind {
                     NodeKind::Text(t) => t.to_string(),
                     _ => unreachable!("a simple element holds text"),
                 };
-                let next_text = match &self.n[next].kind {
+                let next_text = match &self.nodes[next].kind {
                     NodeKind::Text(t) => t.to_string(),
                     _ => unreachable!("followed by text"),
                 };
-                let NodeKind::Text(prev_text) = &self.n[prev].kind else {
+                let NodeKind::Text(prev_text) = &self.nodes[prev].kind else {
                     unreachable!("preceded by text")
                 };
                 let merged = format!("{prev_text}<{name}>{inner}</{name}>{next_text}");
-                self.n[prev].kind = NodeKind::Text(Cow::Owned(merged));
-                self.n[prev].span =
-                    Span::new(self.n[prev].span.start_offset, self.n[next].span.end_offset);
-                self.n[prev].sensitive.trailing = self.n[next].sensitive.trailing;
-                self.n[prev].has.trailing = self.n[next].has.trailing;
-                self.n[i].children.drain(j..=j + 1);
+                self.nodes[prev].kind = NodeKind::Text(Cow::Owned(merged));
+                self.nodes[prev].span = Span::new(
+                    self.nodes[prev].span.start_offset,
+                    self.nodes[next].span.end_offset,
+                );
+                self.nodes[prev].sensitive.trailing = self.nodes[next].sensitive.trailing;
+                self.nodes[prev].has.trailing = self.nodes[next].has.trailing;
+                self.nodes[i].children.drain(j..=j + 1);
             }
         }
     }
@@ -306,7 +310,7 @@ impl Tree<'_> {
         j: usize,
         children: &[NodeIdentifier],
     ) -> bool {
-        let n = &self.n[k];
+        let n = &self.nodes[k];
         let NodeKind::Element {
             attributes: Attributes::Template(attributes),
             ..
@@ -317,13 +321,13 @@ impl Tree<'_> {
         let [child] = n.children[..] else {
             return false;
         };
-        let NodeKind::Text(t) = &self.n[child].kind else {
+        let NodeKind::Text(t) = &self.nodes[child].kind else {
             return false;
         };
         attributes.is_empty()
             && !t.bytes().any(|b| b.is_ascii_whitespace())
-            && !self.n[child].has.leading
-            && !self.n[child].has.trailing
+            && !self.nodes[child].has.leading
+            && !self.nodes[child].has.trailing
             && n.sensitive.leading
             && !n.has.leading
             && n.sensitive.trailing

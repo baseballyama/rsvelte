@@ -38,12 +38,12 @@ pub fn parse(source_text: &str) -> R<SingleFileComponent> {
 fn parse_as(source_text: &str, typescript: bool) -> (R<SingleFileComponent>, Option<bool>) {
     let mut lang_read = None;
     let parsed = Tree::build(source_text, |builder| {
-        let mut p = P {
+        let mut p = Parser {
             source_text: builder.source_text(),
             b: source_text.as_bytes(),
             position: 0,
             builder,
-            c: Markup {
+            markup: Markup {
                 nodes: Vec::new(),
                 children: Vec::new(),
                 attributes: Vec::new(),
@@ -58,26 +58,26 @@ fn parse_as(source_text: &str, typescript: bool) -> (R<SingleFileComponent>, Opt
         let blocks = p.blocks();
         lang_read = p.lang_read;
         blocks?;
-        let program = match &p.c.script {
+        let program = match &p.markup.script {
             Some(s) => s.program,
             None => p
                 .builder
                 .program(Span::new(0, 0), p.source_type())
                 .map_err(javascript_error)?,
         };
-        Ok((p.c, program))
+        Ok((p.markup, program))
     });
-    let component = parsed.map(|(javascript, (c, program))| SingleFileComponent {
+    let component = parsed.map(|(javascript, (markup, program))| SingleFileComponent {
         javascript,
-        nodes: c.nodes,
-        children: c.children,
-        attributes: c.attributes,
-        template: c.template,
-        script: c.script,
+        nodes: markup.nodes,
+        children: markup.children,
+        attributes: markup.attributes,
+        template: markup.template,
+        script: markup.script,
         program,
-        styles: c.styles,
-        typescript: c.typescript,
-        tokens: c.tokens,
+        styles: markup.styles,
+        typescript: markup.typescript,
+        tokens: markup.tokens,
     });
     (component, lang_read)
 }
@@ -102,17 +102,17 @@ fn javascript_error(e: impl Into<Diagnostic>) -> Diagnostic {
     e
 }
 
-struct P<'a, 'b> {
+struct Parser<'a, 'b> {
     source_text: &'a str,
     b: &'b [u8],
     position: usize,
     builder: &'b mut TreeBuilder<'a>,
-    c: Markup,
+    markup: Markup,
     /// The language the script's `lang` gives the component, once the script is read.
     lang_read: Option<bool>,
 }
 
-impl<'a> P<'a, '_> {
+impl<'a> Parser<'a, '_> {
     fn err<X>(&self, message: impl Into<String>) -> R<X> {
         Self::err_at(
             Span::new(self.position as u32, self.position as u32),
@@ -133,7 +133,7 @@ impl<'a> P<'a, '_> {
     }
 
     fn token(&mut self, kind: TokenType, start_offset: usize) {
-        self.c
+        self.markup
             .tokens
             .push(kind, Span::new(start_offset as u32, self.position as u32));
     }
@@ -153,7 +153,7 @@ impl<'a> P<'a, '_> {
     }
 
     const fn source_type(&self) -> SourceType {
-        if self.c.typescript {
+        if self.markup.typescript {
             SourceType::ts()
         } else {
             SourceType::mjs()
@@ -165,17 +165,17 @@ impl<'a> P<'a, '_> {
     fn javascript_region(&mut self, start_offset: u32, end_offset: u32) {
         let mut at = start_offset;
         for r in self.builder.recorded().iter() {
-            self.c
+            self.markup
                 .tokens
                 .push(TokenType::Whitespace, Span::new(at, r.span.start_offset));
-            self.c.tokens.push(
+            self.markup.tokens.push(
                 r.kind
                     .map_or(TokenType::JavaScriptComment, TokenType::JavaScript),
                 r.span,
             );
             at = r.span.end_offset;
         }
-        self.c
+        self.markup
             .tokens
             .push(TokenType::Whitespace, Span::new(at, end_offset));
     }
@@ -213,8 +213,8 @@ impl<'a> P<'a, '_> {
     }
 
     fn push(&mut self, n: TemplateNode) -> TemplateNodeIdentifier {
-        self.c.nodes.push(n);
-        (self.c.nodes.len() - 1) as TemplateNodeIdentifier
+        self.markup.nodes.push(n);
+        (self.markup.nodes.len() - 1) as TemplateNodeIdentifier
     }
 
     fn range_of(v: &mut Vec<TemplateNodeIdentifier>, items: Vec<TemplateNodeIdentifier>) -> Range {

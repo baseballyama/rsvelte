@@ -83,7 +83,12 @@ impl Artifact for LintStyleSheet {
         let scss = lang_attribute(&style.attributes, source)
             .and_then(|&(_, value)| value)
             .is_some_and(|value| value.text(source) == "scss");
-        rsvelte_stylesheet_syntax::parse_for_lint(source, style.content, scss).ok()
+        let dialect = if scss {
+            Dialect::Scss
+        } else {
+            Dialect::Standard
+        };
+        rsvelte_stylesheet_syntax::parse_for_lint(source, style.content, dialect).ok()
     }
 }
 

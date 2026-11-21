@@ -79,6 +79,12 @@ pub struct Position {
 }
 
 impl Diagnostic {
+    /// Whether the category is TypeScript's `DiagnosticCategory.Error`.
+    #[must_use]
+    pub const fn is_error(&self) -> bool {
+        self.category == 1
+    }
+
     /// The message chain, one line per link, indented two spaces per level, as
     /// `ts.flattenDiagnosticMessageText(…, "\n")` renders it.
     #[must_use]
