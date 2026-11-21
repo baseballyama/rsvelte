@@ -29,5 +29,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<any, {}, "">} */ (__rsvelte_export_component))();
 }
-const StateEager__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof StateEager__SvelteComponent_>} */ (StateEager__SvelteComponent_);
+export const StateEager__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof StateEager__SvelteComponent_>} StateEager__SvelteComponent_ */
+export default StateEager__SvelteComponent_;

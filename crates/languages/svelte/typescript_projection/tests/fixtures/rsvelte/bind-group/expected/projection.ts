@@ -89,7 +89,8 @@ function $$render() {
       __rsvelte_bindings(__rsvelte_component_0).$$bindings = "group";
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_component))();
 }
-const BindGroup__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof BindGroup__SvelteComponent_>} */ (BindGroup__SvelteComponent_);
+export const BindGroup__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof BindGroup__SvelteComponent_>} BindGroup__SvelteComponent_ */
+export default BindGroup__SvelteComponent_;

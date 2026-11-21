@@ -17,7 +17,8 @@ function $$render() {
       size.current;
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, string>} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_isomorphic<{ [x: string]: never }, { [evt: string]: CustomEvent<any> }, {}, string>} */ (__rsvelte_export_isomorphic))()({});
 }
-const Spring__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof Spring__SvelteComponent_>} */ (Spring__SvelteComponent_);
+export const Spring__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {InstanceType<typeof Spring__SvelteComponent_>} Spring__SvelteComponent_ */
+export default Spring__SvelteComponent_;

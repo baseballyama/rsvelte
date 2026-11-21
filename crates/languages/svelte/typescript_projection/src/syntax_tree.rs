@@ -35,6 +35,7 @@ pub(crate) enum Node {
     TypeProperty {
         name: NodeIdentifier,
         value: NodeIdentifier,
+        optional: bool,
     },
     TypeUnion(Range),
     NamedProperty {
@@ -49,7 +50,11 @@ pub(crate) enum Node {
         name: NodeIdentifier,
         value: NodeIdentifier,
     },
-    ExportDefault(NodeIdentifier),
+    /// The component, under a name whose type is the component's instance.
+    ExportDefault {
+        component: NodeIdentifier,
+        instance: Instance,
+    },
     /// svelte2tsx's `$$render` of a generic component: the instance script and the template in a
     /// function of the type parameters, which returns the contract.
     Render {
@@ -237,6 +242,16 @@ pub(crate) enum Node {
 // or copied part of every component.
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(size_of::<Node>() == 40, "`Node` is 40 bytes");
+
+/// How a component makes its instance, which the type of its default export's name is:
+/// svelte2tsx's `ReturnType` or `InstanceType` of the component.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Instance {
+    /// A function component, whose call returns the instance.
+    Returned,
+    /// An isomorphic component, a class and a function at once, whose `new` constructs it.
+    Constructed,
+}
 
 /// A generic component's type parameters, without their angle brackets.
 #[derive(Clone, Copy, Debug)]

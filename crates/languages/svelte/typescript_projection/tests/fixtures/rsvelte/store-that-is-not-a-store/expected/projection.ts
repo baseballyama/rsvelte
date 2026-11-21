@@ -23,8 +23,8 @@ function $$render() {
       $later;
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
 }
 const StoreThatIsNotAStore__SvelteComponent_ = $$render();
-type StoreThatIsNotAStore__SvelteComponent_ = ReturnType<typeof StoreThatIsNotAStore__SvelteComponent_>;
+type StoreThatIsNotAStore__SvelteComponent_ = InstanceType<typeof StoreThatIsNotAStore__SvelteComponent_>;
 export default StoreThatIsNotAStore__SvelteComponent_;

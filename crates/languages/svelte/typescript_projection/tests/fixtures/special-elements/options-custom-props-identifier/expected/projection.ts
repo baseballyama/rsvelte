@@ -16,5 +16,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<any, {}, "">} */ (__rsvelte_export_component))();
 }
-const OptionsCustomPropsIdentifier__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof OptionsCustomPropsIdentifier__SvelteComponent_>} */ (OptionsCustomPropsIdentifier__SvelteComponent_);
+export const OptionsCustomPropsIdentifier__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof OptionsCustomPropsIdentifier__SvelteComponent_>} OptionsCustomPropsIdentifier__SvelteComponent_ */
+export default OptionsCustomPropsIdentifier__SvelteComponent_;

@@ -23,9 +23,10 @@ function $$render() {
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {
+  return (/** @type {typeof __rsvelte_export_component<globalThis.Record<string, never>, {
     swap: typeof swap;
   }, "">} */ (__rsvelte_export_component))();
 }
-const AssignmentPatternArrayNames__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof AssignmentPatternArrayNames__SvelteComponent_>} */ (AssignmentPatternArrayNames__SvelteComponent_);
+export const AssignmentPatternArrayNames__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof AssignmentPatternArrayNames__SvelteComponent_>} AssignmentPatternArrayNames__SvelteComponent_ */
+export default AssignmentPatternArrayNames__SvelteComponent_;
