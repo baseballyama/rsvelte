@@ -2,11 +2,12 @@
 
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_typescript_tree::{Acorn, SyntaxError};
+use rsvelte_svelte_syntax::Parsed;
+use rsvelte_svelte_syntax::syntax_tree::{Component, Style};
+use rsvelte_typescript_semantic::semantic::Semantic;
+use rsvelte_typescript_tree::{Acorn, SyntaxError, Tree};
 
-use crate::component_input;
 use crate::computation::Resolved;
-use crate::input::ComponentInput;
 use crate::resolve::Resolution;
 
 /// The first error acorn throws while upstream parses the scripts.
@@ -16,45 +17,104 @@ use crate::resolve::Resolution;
 /// acorn stops is its own verdict, so it wins over a checker's error at the same place.
 #[must_use]
 pub fn first(res: &Resolution) -> Option<SyntaxError> {
-    first_and_whether_redeclared(res).map(|(error, _)| error)
+    first_of(res.tree(), [res.semantic()], |_, _| true)
 }
 
-/// [`first`], and whether it is a name declared again: oxc's TS2300 or acorn's own.
-fn first_and_whether_redeclared(res: &Resolution) -> Option<(SyntaxError, bool)> {
-    let checked = res.javascript_syntax_error().cloned().map(|error| {
-        let redeclared = error.typescript_code == Some(2300);
-        (error, redeclared)
+/// The [`first`] error that upstream raises as it parses, as Svelte reports it.
+#[must_use]
+pub fn parse_error(res: &Resolution) -> Option<Diagnostic> {
+    raised_first(res.tree(), [res.semantic()], |_| true)
+}
+
+/// The first JavaScript syntax error upstream's parser raises in the component, of those `keep`
+/// keeps.
+///
+/// It is in the scripts or in the template's expressions, whichever comes first, as Svelte reports
+/// it. In a component the parser rejects, it is the first raised before the parser's own error.
+#[must_use]
+pub fn of_document(
+    context: &DocumentContext<'_>,
+    keep: impl Fn(&Diagnostic) -> bool,
+) -> Option<Diagnostic> {
+    match context.get::<Parsed>() {
+        Ok(_) => {
+            let res = context.get::<Resolved>().as_ref()?;
+            raised_first(res.tree(), [res.semantic()], keep)
+        }
+        Err(error) => {
+            let parts = Semantic::of_each_part(error.read());
+            raised_first(error.read(), &parts, |javascript| {
+                javascript.span.start_offset < error.raised_at() && keep(javascript)
+            })
+        }
+    }
+}
+
+/// [`rsvelte_svelte_syntax::fully_parsed`], whose error is the one upstream raises first.
+///
+/// Acorn throws in a part as the parser reads it: before the parser stops, and before the style
+/// sheet's error when the part comes before the sheet.
+///
+/// # Errors
+///
+/// The first error upstream's parser raises.
+pub fn fully_parsed<'a>(context: &'a DocumentContext<'_>) -> Result<&'a Component, Diagnostic> {
+    let error = match rsvelte_svelte_syntax::fully_parsed(context) {
+        Ok(component) => return Ok(component),
+        Err(error) => error,
+    };
+    // A parsed component's error is its style sheet's; [`of_document`] knows where the parser
+    // raised a parse error.
+    let raised_at = (context.get::<Parsed>().as_ref().ok())
+        .and_then(|component| component.style.as_ref())
+        .map_or(u32::MAX, Style::raised_at);
+    let javascript = of_document(context, |javascript| {
+        javascript.span.start_offset < raised_at
     });
-    [
-        res.tree().acorn_rejection().map(|error| (error, false)),
-        checked,
-        res.semantic()
-            .acorn_redeclaration()
-            .map(|error| (error, true)),
-    ]
-    .into_iter()
-    .flatten()
-    .min_by_key(|(error, _)| error.acorn_at())
+    Err(javascript.unwrap_or_else(|| error.clone()))
 }
 
-/// The first JavaScript syntax error that upstream's parser raises in the component, as Svelte
-/// reports it: in the scripts or in the template's expressions, whichever comes first.
-#[must_use]
-pub fn of_document(context: &DocumentContext<'_>) -> Option<Diagnostic> {
-    let input = component_input(context)?;
-    let res = context.get::<Resolved>().as_ref()?;
-    parse_error(&input, res)
-}
-
-/// The [`first`] error that upstream raises as it parses, as Svelte reports it. A name the
+/// The [`first_of`] error that upstream raises as it parses, as Svelte reports it. A name the
 /// template declares twice is not one: upstream's `declaration_duplicate`, raised later.
-#[must_use]
-pub fn parse_error(input: &ComponentInput<'_>, res: &Resolution) -> Option<Diagnostic> {
-    first_and_whether_redeclared(res)
-        .filter(|(error, redeclared)| {
-            !(*redeclared && !clashes(error) && outside_scripts(input, &error.diagnostic))
-        })
-        .map(|(error, _)| rsvelte_svelte_syntax::parse::javascript_failure(error))
+fn raised_first<'s>(
+    tree: &Tree,
+    semantics: impl IntoIterator<Item = &'s Semantic>,
+    keep: impl Fn(&Diagnostic) -> bool,
+) -> Option<Diagnostic> {
+    first_of(tree, semantics, |error, redeclared_by| {
+        let template = redeclared_by.is_some_and(|semantic| {
+            !clashes(error)
+                && outside_programs(tree, &error.diagnostic)
+                && semantic.redeclares_in_host_scope(error.acorn_at())
+        });
+        !template && keep(&error.diagnostic)
+    })
+    .map(rsvelte_svelte_syntax::parse::javascript_failure)
+}
+
+/// The first error acorn throws in `tree`'s parts, which `semantics` analyze, of those `keep`
+/// keeps, given the analysis of a name declared again: oxc's TS2300 or acorn's own.
+fn first_of<'s>(
+    tree: &Tree,
+    semantics: impl IntoIterator<Item = &'s Semantic>,
+    keep: impl Fn(&SyntaxError, Option<&Semantic>) -> bool,
+) -> Option<SyntaxError> {
+    let analyzed = semantics.into_iter().flat_map(|semantic| {
+        let checked = semantic.javascript_syntax_error().cloned().map(|error| {
+            let redeclared = error.typescript_code == Some(2300);
+            (error, redeclared.then_some(semantic))
+        });
+        let redeclared = (semantic.acorn_redeclaration()).map(|error| (error, Some(semantic)));
+        checked.into_iter().chain(redeclared)
+    });
+    (tree
+        .acorn_rejection()
+        .map(|error| (error, None))
+        .into_iter())
+    .chain(analyzed)
+    .filter(|(error, redeclared_by)| keep(error, *redeclared_by))
+    .min_by_key(|(error, _)| error.acorn_at())
+    .map(|(error, _)| error)
 }
 
 /// Whether `error` is two parameters of one function with the same name, which acorn rejects as
@@ -66,12 +126,13 @@ fn clashes(error: &SyntaxError) -> bool {
     )
 }
 
-/// Whether `error` is outside the scripts.
-fn outside_scripts(input: &ComponentInput<'_>, error: &Diagnostic) -> bool {
-    let javascript = input.javascript;
+/// Whether `error` is outside the programs of `tree`, the component's scripts.
+fn outside_programs(tree: &Tree, error: &Diagnostic) -> bool {
     let start = error.span.start_offset;
-    !input
+    !tree
         .programs()
-        .map(|program| javascript.get_program(program).span)
-        .any(|span| span.start <= start && start < span.end)
+        .any(|(_, program)| program.span.start <= start && start < program.span.end)
 }
+
+#[cfg(test)]
+mod tests;

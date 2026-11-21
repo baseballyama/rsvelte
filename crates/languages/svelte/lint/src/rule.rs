@@ -255,7 +255,7 @@ impl<'a> File<'a> {
             || {
                 (self.context.get::<rsvelte_svelte_syntax::Parsed>().as_ref())
                     .err()
-                    .map(Err)
+                    .map(|error| Err(&**error))
             },
             |warnings| Some(Ok(warnings)),
         )
