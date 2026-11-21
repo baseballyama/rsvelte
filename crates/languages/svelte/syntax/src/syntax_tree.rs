@@ -11,7 +11,7 @@ use rsvelte_kernel::source::tokens::{TokenKind, Tokens};
 pub use rsvelte_markup_syntax::{decode_attribute, decode_text, escape_markup};
 use rsvelte_stylesheet_syntax::StyleSheet;
 use rsvelte_typescript_tree::{
-    DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
+    DeclarationIdentifier, ExpressionIdentifier, Holes, ParametersIdentifier, PatternIdentifier,
     ProgramIdentifier, SyntaxError, Tree, TypeParametersIdentifier,
 };
 
@@ -339,6 +339,8 @@ pub struct Script {
     pub typescript: bool,
     /// The type parameters of an instance script's `generics="…"`, when they parse.
     pub generics: Option<TypeParametersIdentifier>,
+    /// The text of a script read as TSX that no statement of its program reads.
+    pub holes: Holes,
 }
 
 #[derive(Debug)]

@@ -18,7 +18,7 @@ use rsvelte_kernel::source::document::Document;
 
 mod acorn_grammar;
 mod builder;
-pub use builder::{Recorded, RecordedPart, Rejected, TreeBuilder};
+pub use builder::{Holes, Recorded, RecordedPart, Rejected, TreeBuilder, WithHoles};
 mod syntax_error;
 pub use syntax_error::{
     Acorn, Locator, Reader, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, analysis_error,

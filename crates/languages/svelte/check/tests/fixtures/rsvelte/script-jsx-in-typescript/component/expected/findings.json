@@ -1,0 +1,26 @@
+[
+	{
+		"code": 1005,
+		"message": "'>' expected.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 18
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'div'.",
+		"start": {
+			"line": 2,
+			"character": 13
+		},
+		"end": {
+			"line": 2,
+			"character": 16
+		}
+	}
+]

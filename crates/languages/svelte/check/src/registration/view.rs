@@ -32,16 +32,11 @@ pub(super) fn typescript_view(
                 error.span.start_offset,
             )
         });
-    // svelte-check type-checks a component whose style sheet does not parse.
+    // svelte-check type-checks a component whose style sheet does not parse, and svelte2tsx
+    // throws Svelte's parse error of the markup, which svelte-check reports as it is.
     let read = match rsvelte_svelte_typescript_projection::read(context) {
         Ok(read) => read,
-        Err(error) => {
-            if let Some(document) = script_syntax::view(&context.document.text, || env_of(env)) {
-                return document;
-            }
-            // svelte2tsx throws Svelte's parse error, which svelte-check reports as it is.
-            return Ok(rejected(javascript_error.as_ref().unwrap_or(error)));
-        }
+        Err(error) => return Ok(rejected(javascript_error.as_ref().unwrap_or(error))),
     };
     let component = read.component;
     if let Some(error) = &javascript_error {
@@ -77,7 +72,7 @@ pub(super) fn typescript_view(
             .map(store_reads)
             .unwrap_or_default(),
         hidden: hidden(component, &context.document.text),
-        drops_unmapped: false,
+        drops_unmapped: read.has_script_errors(),
         inserted: Vec::new(),
     })))
 }
@@ -243,7 +238,6 @@ fn env_of(
 }
 
 mod directive;
-mod script_syntax;
 
 #[cfg(test)]
 mod tests;

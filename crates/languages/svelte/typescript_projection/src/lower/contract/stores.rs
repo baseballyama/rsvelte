@@ -110,7 +110,7 @@ impl Builder<'_> {
                 });
             }
             self.type_assertions(program, &mut edits);
-            self.script_parts(script.content, &edits);
+            self.script_parts(script, &edits);
         }
         let render_start = self.scratch.len();
         let mut edits = Buffer::new(0);

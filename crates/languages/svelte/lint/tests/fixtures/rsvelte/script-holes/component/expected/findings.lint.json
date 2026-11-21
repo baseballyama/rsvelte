@@ -1,0 +1,14 @@
+{
+	"rules": [],
+	"findings": [
+		{
+			"rule": null,
+			"message": "Parsing error: Expression expected.",
+			"start": {
+				"line": 2,
+				"column": 12
+			},
+			"end": null
+		}
+	]
+}
