@@ -43,7 +43,7 @@ use commands::{benchmark, format, lint, performance};
 pub use release::release;
 use rsvelte_configuration_loading::LoadedConfiguration;
 use rsvelte_kernel::computation::registry::Registry;
-use rsvelte_plugin_interface::Extension;
+use rsvelte_plugin_interface::{Extension, Selection};
 
 // The allocation counters need the counting allocator, so mimalloc only serves the plain build.
 #[cfg(not(feature = "metrics"))]
@@ -121,22 +121,20 @@ pub fn development() -> ExitCode {
             config.argument(a, value);
         }
     }
-    let selection = if !tasks.is_empty() {
-        rsvelte_plugin_interface::Selection::Named(tasks.iter().map(|&t| t.to_owned()).collect())
-    } else if positional.first() == Some(&"lint") {
-        rsvelte_plugin_interface::Selection::Named(
-            lint::TASKS.iter().map(|&t| t.to_owned()).collect(),
-        )
-    } else if positional.first() == Some(&"format") {
-        rsvelte_plugin_interface::Selection::Named(
-            format::TASKS.iter().map(|&t| t.to_owned()).collect(),
-        )
-    } else if positional.first() == Some(&"check") {
-        rsvelte_plugin_interface::Selection::Named(vec![PROJECT_CHECK.to_owned()])
-    } else if matches!(positional.first(), Some(&("corpus" | "run"))) {
-        rsvelte_plugin_interface::Selection::Every
-    } else {
-        rsvelte_plugin_interface::Selection::DocumentTasks
+    if fix && positional.first() != Some(&"run") {
+        return usage("--fix applies to `run` only");
+    }
+    if check && positional.first() != Some(&"format") {
+        return usage("--check applies to `format` only");
+    }
+    let selection = match (tasks.is_empty(), Defaults::of(positional.first().copied())) {
+        (true, Defaults::Named(named)) => {
+            tasks.extend_from_slice(named);
+            Selection::Named(named.iter().map(|&t| t.to_owned()).collect())
+        }
+        (true, Defaults::Every) => Selection::Every,
+        (true, Defaults::DocumentTasks) => Selection::DocumentTasks,
+        (false, _) => Selection::Named(tasks.iter().map(|&t| t.to_owned()).collect()),
     };
     let installation = Installation {
         extensions: EXTENSIONS,
@@ -150,20 +148,33 @@ pub fn development() -> ExitCode {
     if let Err(e) = reg.check_task_identifiers(&tasks) {
         return usage(&e.to_string());
     }
-    if fix && positional.first() != Some(&"run") {
-        return usage("--fix applies to `run` only");
-    }
-    if check && positional.first() != Some(&"format") {
-        return usage("--check applies to `format` only");
-    }
     dispatch(&reg, &positional, &tasks, tools, (fix, check))
+}
+
+/// The tasks a subcommand runs without `--task`.
+enum Defaults {
+    Named(&'static [&'static str]),
+    Every,
+    DocumentTasks,
+}
+
+impl Defaults {
+    fn of(command: Option<&str>) -> Self {
+        match command {
+            Some("lint") => Self::Named(lint::TASKS),
+            Some("format") => Self::Named(format::TASKS),
+            Some("check") => Self::Named(&[PROJECT_CHECK]),
+            Some("corpus" | "run") => Self::Every,
+            _ => Self::DocumentTasks,
+        }
+    }
 }
 
 /// What a program installs: its plugins, the tasks that will run, and the options, as JSON, of
 /// the plugins that neither the configuration nor `--options` gives any.
 struct Installation {
     extensions: &'static [&'static Extension],
-    selection: rsvelte_plugin_interface::Selection,
+    selection: Selection,
     defaults: Vec<(&'static str, String)>,
 }
 
@@ -241,18 +252,11 @@ fn dispatch(
             let files: Vec<PathBuf> = files.iter().map(PathBuf::from).collect();
             run_files(reg, files, tasks)
         }
-        ["lint", paths @ ..] if !fix => lint::lint(
-            reg,
-            if paths.is_empty() { &["."] } else { paths },
-            if tasks.is_empty() { lint::TASKS } else { tasks },
-        ),
+        ["lint", paths @ ..] => {
+            lint::lint(reg, if paths.is_empty() { &["."] } else { paths }, tasks)
+        }
         ["format", paths @ ..] => {
             let paths = if paths.is_empty() { &["."] } else { paths };
-            let tasks = if tasks.is_empty() {
-                format::TASKS
-            } else {
-                tasks
-            };
             match commands::files::load(reg, paths, tasks, format::IGNORE_FILES) {
                 Ok(documents) => format::format(
                     &[format::Batch {
@@ -265,14 +269,7 @@ fn dispatch(
                 Err(e) => usage(&e),
             }
         }
-        ["check"] if !fix => run_project(
-            reg,
-            if tasks.is_empty() {
-                &[PROJECT_CHECK]
-            } else {
-                tasks
-            },
-        ),
+        ["check"] => run_project(reg, tasks),
         ["benchmark", dir, rest @ ..] => match benchmark::Options::parse(rest) {
             Ok(mut options) => {
                 options.tools = tools;

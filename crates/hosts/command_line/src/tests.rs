@@ -5,7 +5,7 @@ use super::*;
 /// Every plugin, installed without options for a run of the document tasks.
 fn installed() -> Registry {
     let mut settings = rsvelte_plugin_interface::Settings::new(
-        rsvelte_plugin_interface::Selection::DocumentTasks,
+        Selection::DocumentTasks,
         std::sync::Arc::new(rsvelte_plugin_interface::NoFunctions),
     );
     let mut reg = Registry::new();
