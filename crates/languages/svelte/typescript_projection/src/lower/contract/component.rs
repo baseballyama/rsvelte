@@ -34,8 +34,12 @@ impl Builder<'_> {
                 } else {
                     props
                 };
-                let component =
+                let callee =
                     self.instantiated("__rsvelte_export_generic", &[props, exports, bindings]);
+                let events =
+                    self.events_value(events, events.strict || mode == ComponentMode::Runes);
+                let arguments = self.tree.list(&[events]);
+                let component = self.tree.push(Node::Call { callee, arguments });
                 (component, Instance::Returned)
             }
             (false, ComponentMode::Runes, false) => {
@@ -61,7 +65,8 @@ impl Builder<'_> {
                     let slots = self.slot_def(elements);
                     slots.unwrap_or_else(|| self.untyped_prop())
                 };
-                let arguments = self.tree.list(&[events.value, slots]);
+                let events = self.events_value(events, events.strict);
+                let arguments = self.tree.list(&[events, slots]);
                 let component = self.tree.push(Node::Call { callee, arguments });
                 (component, Instance::Constructed)
             }
