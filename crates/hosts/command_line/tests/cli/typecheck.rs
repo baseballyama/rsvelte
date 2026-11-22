@@ -416,3 +416,70 @@ fn a_run_on_a_replaced_file_reads_the_replaced_text() {
         "{stdout}"
     );
 }
+
+/// A component's events are svelte2tsx's: a typed dispatcher's, an untyped one's as
+/// `CustomEvent<any>`, a forwarded element's or component's, and with `strictEvents` only those.
+/// svelte-check 4.7.8 reports these four lines.
+#[cfg(unix)]
+#[test]
+fn typecheck_types_the_events_a_component_dispatches_and_forwards() {
+    let dispatches = "<script lang=\"ts\">\n\timport { createEventDispatcher } from 'svelte';\n\
+        \tconst dispatch = createEventDispatcher<{ go: number }>();\n</script>\n\
+        <button onclick={() => dispatch('go', 1)}>x</button>\n";
+    let untyped = "<script lang=\"ts\">\n\timport { createEventDispatcher } from 'svelte';\n\
+        \tconst dispatch = createEventDispatcher();\n\tdispatch('go');\n</script>\n\
+        <button onclick={() => dispatch('tap')}>x</button>\n";
+    let consumer = "<script lang=\"ts\">\n\timport Dispatches from './Dispatches.svelte';\n\
+        \timport Untyped from './Untyped.svelte';\n\
+        \timport Forwards from './Forwards.svelte';\n\
+        \timport Clicks from './Clicks.svelte';\n\
+        \timport Strict from './Strict.svelte';\n</script>\n\
+        <Dispatches on:go={(e) => { const s: string = e.detail; }} />\n\
+        <Forwards on:go={(e) => { const s: string = e.detail; }} />\n\
+        <Untyped on:tap={(e) => { const s: string = e.detail; }} />\n\
+        <Clicks on:click={(e) => { const s: string = e; }} />\n\
+        <Dispatches on:other={(e) => { const s: string = e.detail; }} />\n\
+        <Strict on:other={() => {}} />\n";
+    let project = Project::new(&[
+        (
+            "tsconfig.json",
+            r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
+"target":"esnext","types":[],"skipLibCheck":true},"include":["src"]}"#,
+        ),
+        ("src/Dispatches.svelte", dispatches),
+        ("src/Untyped.svelte", untyped),
+        (
+            "src/Forwards.svelte",
+            "<script lang=\"ts\">\n\timport Dispatches from './Dispatches.svelte';\n</script>\n\
+             <Dispatches on:go />\n",
+        ),
+        (
+            "src/Clicks.svelte",
+            "<script lang=\"ts\">\n\tlet x = 1;\n</script>\n<button on:click>{x}</button>\n",
+        ),
+        (
+            "src/Strict.svelte",
+            "<script lang=\"ts\" strictEvents>\n\tlet x = 1;\n</script>\n\
+             <button on:click>{x}</button>\n",
+        ),
+        ("src/App.svelte", consumer),
+    ]);
+    std::fs::create_dir_all(project.0.join("node_modules")).expect("node_modules");
+    let svelte = NodePackages::locate().package("svelte");
+    std::os::unix::fs::symlink(svelte, project.0.join("node_modules/svelte")).expect("link");
+    let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
+    std::fs::write(project.0.join("rsvelte.config.json"), config).expect("config");
+    let output = project.rsvelte(&["typecheck"]);
+    assert_eq!(
+        text(&output.stdout),
+        "src/App.svelte(8,35): error TS2322: Type 'number' is not assignable to type 'string'.\n\
+         src/App.svelte(9,33): error TS2322: Type 'number' is not assignable to type 'string'.\n\
+         src/App.svelte(11,34): error TS2322: Type 'PointerEvent' is not assignable to type \
+         'string'.\n\
+         src/App.svelte(13,12): error TS2345: Argument of type '\"other\"' is not assignable to \
+         parameter of type '\"click\"'.\n\
+         \nFound 4 errors in 1 file.\n",
+        "{}",
+        text(&output.stderr)
+    );
+}

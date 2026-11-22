@@ -12,7 +12,10 @@ function $$render() {
       });
     }
   };
-  return (/** @type {typeof __rsvelte_export_isomorphic<{ [x: string]: never }, { [evt: string]: CustomEvent<any> }, {}, string>} */ (__rsvelte_export_isomorphic))()({});
+  return (/** @type {typeof __rsvelte_export_isomorphic<{ [x: string]: never }, {}, string>} */ (__rsvelte_export_isomorphic))()(__rsvelte_any_event({
+    "resize": __sveltets_2_mapWindowEvent("resize"),
+    "visibilitychange": undefined,
+  }), {});
 }
 export const GlobalOnForward__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {InstanceType<typeof GlobalOnForward__SvelteComponent_>} GlobalOnForward__SvelteComponent_ */

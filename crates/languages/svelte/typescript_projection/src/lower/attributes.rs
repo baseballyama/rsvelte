@@ -195,7 +195,10 @@ impl Builder<'_> {
                         let value = self.tree.push(Node::Call { callee, arguments });
                         let at = attribute.span.start_offset;
                         let dots = Span::new(at, at);
-                        property = self.tree.push(Node::Spread { value, dots });
+                        property = self.tree.push(Node::Spread {
+                            value,
+                            dots: Some(dots),
+                        });
                     }
                     let property = self.commented(previous, attribute, property);
                     self.scratch.push(property);

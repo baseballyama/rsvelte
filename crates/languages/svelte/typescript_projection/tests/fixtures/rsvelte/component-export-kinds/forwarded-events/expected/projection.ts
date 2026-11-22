@@ -17,7 +17,9 @@ function $$render() {
       a;
     }
   };
-  return __rsvelte_export_isomorphic<$$ComponentProps, { [evt: string]: CustomEvent<any> }, {}, "">()({});
+  return __rsvelte_export_isomorphic<$$ComponentProps, {}, "">()(__rsvelte_any_event({
+    "click": __sveltets_2_mapElementEvent("click"),
+  }), {});
 }
 const ForwardedEvents__SvelteComponent_ = $$render();
 type ForwardedEvents__SvelteComponent_ = InstanceType<typeof ForwardedEvents__SvelteComponent_>;

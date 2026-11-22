@@ -16,12 +16,14 @@ declare function __rsvelte_internals(): Parameters<import('svelte').Component>[0
 // As svelte2tsx's `__sveltets_2_fn_component`: `keyof Props` of a large union of props is too complex to represent.
 // @ts-ignore
 declare function __rsvelte_export_component<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string>(): import('svelte').Component<Props, Exports, Bindings>;
-// As svelte2tsx's `__sveltets_2_isomorphic_component`: outside runes mode, or with events, a class and a function at once. The slots are a value, the object each `<slot>`'s attributes make.
+// As svelte2tsx's `__sveltets_2_isomorphic_component`: outside runes mode, or with events, a class and a function at once. The events and the slots are values: svelte2tsx's events definition, and the object each `<slot>`'s attributes make.
 // @ts-ignore
-declare function __rsvelte_export_isomorphic<Props extends Record<string, any>, Events extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string>(): <Slots>(slots: Slots) => __sveltets_2_IsomorphicComponent<Props, Events, Slots, Exports, Bindings>;
+declare function __rsvelte_export_isomorphic<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string>(): <Events extends Record<string, any>, Slots>(events: Events, slots: Slots) => __sveltets_2_IsomorphicComponent<Props, Events, Slots, Exports, Bindings>;
 // As svelte2tsx's `__sveltets_2_isomorphic_component_slots`: a component with slots, whose default slot takes children.
 // @ts-ignore
-declare function __rsvelte_export_isomorphic_slots<Props extends Record<string, any>, Events extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string>(): <Slots>(slots: Slots) => __sveltets_2_IsomorphicComponent<__sveltets_2_PropsWithChildren<Props, Slots>, Events, Slots, Exports, Bindings>;
+declare function __rsvelte_export_isomorphic_slots<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string>(): <Events extends Record<string, any>, Slots>(events: Events, slots: Slots) => __sveltets_2_IsomorphicComponent<__sveltets_2_PropsWithChildren<Props, Slots>, Events, Slots, Exports, Bindings>;
+// As svelte2tsx's `__sveltets_2_with_any_event`: a component without `strictEvents` takes any event too.
+declare function __rsvelte_any_event<Events>(events: Events): Events & { [evt: string]: CustomEvent<any> };
 declare function __rsvelte_value<T>(): T;
 // What `bind:this` assigns: a generic component's instance, or else what its call returns.
 declare function __rsvelte_bind_this<C>(component: C): C extends { __rsvelte_instance: infer Instance } ? Instance : C;

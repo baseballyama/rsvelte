@@ -176,8 +176,8 @@ pub(crate) enum Node {
     Shorthand(NodeIdentifier),
     Spread {
         value: NodeIdentifier,
-        /// The source `...`, where a finding on the spread starts.
-        dots: Span,
+        /// The source `...`, where a finding on the spread starts; `None` in generated code.
+        dots: Option<Span>,
     },
     ComputedProperty {
         key: NodeIdentifier,

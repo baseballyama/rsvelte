@@ -15,7 +15,7 @@ function $$render() {
       });
     }
   };
-  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, {}, string>()(__rsvelte_any_event({}), {});
 }
 const DynamicElementIsAttribute__SvelteComponent_ = $$render();
 type DynamicElementIsAttribute__SvelteComponent_ = InstanceType<typeof DynamicElementIsAttribute__SvelteComponent_>;

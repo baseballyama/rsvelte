@@ -4,7 +4,7 @@
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
 
 use super::super::{Builder, Node, NodeIdentifier, Range};
-use super::{ComponentMode, Contract, Events};
+use super::{ComponentMode, Contract};
 use crate::syntax_tree::Instance;
 
 impl Builder<'_> {
@@ -44,16 +44,12 @@ impl Builder<'_> {
                 (component, Instance::Returned)
             }
             (false, ComponentMode::Runes, true) | (false, ComponentMode::Legacy, _) => {
-                let events = self.tree.push(Node::Identifier(match events {
-                    Events::Declared { .. } => "$$Events",
-                    Events::Inferred { .. } => "{ [evt: string]: CustomEvent<any> }",
-                }));
                 let helper = if slots {
                     "__rsvelte_export_isomorphic_slots"
                 } else {
                     "__rsvelte_export_isomorphic"
                 };
-                let callee = self.instantiated(helper, &[props, events, exports, bindings]);
+                let callee = self.instantiated(helper, &[props, exports, bindings]);
                 let slots = if self.declares_slots() {
                     let slots = self.tree.push(Node::Identifier("$$Slots"));
                     self.instantiated("__rsvelte_value", &[slots])
@@ -65,7 +61,7 @@ impl Builder<'_> {
                     let slots = self.slot_def(elements);
                     slots.unwrap_or_else(|| self.untyped_prop())
                 };
-                let arguments = self.tree.list(&[slots]);
+                let arguments = self.tree.list(&[events.value, slots]);
                 let component = self.tree.push(Node::Call { callee, arguments });
                 (component, Instance::Constructed)
             }
