@@ -49,6 +49,19 @@ test('a component compiles to the official code, stylesheet and warnings', () =>
 	}
 });
 
+test('a filename below rootDir, the working directory by default, is read relative to it', () => {
+	for (const options of [
+		{ filename: `${process.cwd()}/src/App.svelte` },
+		{ filename: '/project/src/App.svelte', rootDir: '/project' },
+		{ filename: '/elsewhere/App.svelte', rootDir: '/project' },
+	]) {
+		const ours = rsvelte.compile(COMPONENT, options);
+		const theirs = official.compile(COMPONENT, options);
+		assert.equal(ours.css?.code, theirs.css?.code);
+		assert.deepEqual(ours.warnings.map(fields), theirs.warnings.map(fields));
+	}
+});
+
 test('a module compiles to the official code', () => {
 	const source = 'let count = $state(0);\nexport function increment() {\n\tcount++;\n}\n';
 	const options = { filename: 'src/count.svelte.js' };

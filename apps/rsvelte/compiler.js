@@ -26,8 +26,14 @@ const DEFAULTS = {
 	runes: true,
 };
 
-const COMPONENT = new Set(['filename', 'generate', 'preserveWhitespace', 'warningFilter']);
-const MODULE = new Set(['filename', 'generate', 'warningFilter']);
+const COMPONENT = new Set([
+	'filename',
+	'generate',
+	'preserveWhitespace',
+	'rootDir',
+	'warningFilter',
+]);
+const MODULE = new Set(['filename', 'generate', 'rootDir', 'warningFilter']);
 
 /**
  * @param {string} source
@@ -62,9 +68,22 @@ function taken(options, names) {
 			);
 		}
 	}
-	const { filename, generate, preserveWhitespace } = options;
+	const { generate, preserveWhitespace } = options;
+	const filename = relative(options);
 	if (generate === false) throw new Error('rsvelte/compiler does not take `generate: false` yet');
 	return { filename, generate, preserveWhitespace };
+}
+
+/**
+ * The filename below `rootDir`, which defaults to the working directory: the CSS hash and the
+ * diagnostics read it.
+ * @param {Record<string, unknown>} options
+ */
+function relative({ filename, rootDir = process.cwd() }) {
+	if (typeof filename !== 'string') return undefined;
+	const root = typeof rootDir === 'string' ? rootDir.replace(/\\/g, '/') : undefined;
+	if (root === undefined || !filename.startsWith(root)) return filename;
+	return filename.replace(root, '').replace(/^[/\\]/, '');
 }
 
 /**
@@ -73,7 +92,7 @@ function taken(options, names) {
  * @param {import('./binding.js').Outcome} outcome
  */
 function result(source, options, outcome) {
-	const filename = typeof options.filename === 'string' ? options.filename : undefined;
+	const filename = relative(options);
 	if (outcome.error) throw compileError(diagnostic(source, filename, outcome.error));
 	const { js, css, warnings } = /** @type {NonNullable<typeof outcome.compiled>} */ (
 		outcome.compiled
