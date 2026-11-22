@@ -54,6 +54,8 @@ impl Printer<'_, '_, '_> {
         let is_pre_el = kind == ElementKind::Regular
             && matches!(name.to_ascii_lowercase().as_str(), "pre" | "textarea");
         let in_pre = was_pre || is_pre_el;
+        let hug_start = self.should_hug(identifier, children, true, in_pre);
+        let hug_end = self.should_hug(identifier, children, false, in_pre);
 
         let mut attribute_docs = Vec::new();
         let c = self.c;
@@ -80,15 +82,17 @@ impl Printer<'_, '_, '_> {
                 .filter(|&(i, _)| Some(i) != this)
                 .map(|(_, a)| a)
                 .collect();
-            let comments = self.attribute_comments(tag.start_offset, &listed);
+            let after_name = this.map_or(tag.start_offset, |i| attributes[i].span.end_offset);
+            let (comments, dangling) =
+                self.attribute_comments(tag.start_offset, after_name, &listed);
             // Where the attributes' group ends in a line break.
             let ends_line = !self.options.bracket_same_line
                 && if self_closing {
                     !is_doctype
                 } else {
-                    (is_empty || !self.should_hug(identifier, children, true)) && !in_pre
+                    (is_empty || !hug_start) && !in_pre
                 };
-            (comments, ends_line)
+            (comments, ends_line, dangling)
         });
         // The plugin's `isPreTagContent` counts the `<pre>` itself, attributes included.
         self.in_pre = in_pre;
@@ -96,7 +100,7 @@ impl Printer<'_, '_, '_> {
         for (j, (_, a)) in listed.enumerate() {
             let line = self.attribute_line(many);
             let document = self.attribute(a, kind).and_then(|d| match &comments {
-                Some((comments, ends_line)) => self.commented(&comments[j], d, *ends_line),
+                Some((comments, ends_line, _)) => self.commented(&comments[j], d, *ends_line),
                 None => Ok(d),
             });
             let document = match document {
@@ -109,6 +113,10 @@ impl Printer<'_, '_, '_> {
             attribute_docs.push(self.cat(&[line, document]));
         }
         self.in_pre = was_pre;
+        let trailing_line_comment = match &comments {
+            Some((_, _, dangling)) => self.dangling_comments(dangling, &mut attribute_docs),
+            None => false,
+        };
         // What the children see: Svelte's `parent_is_head` and `parent_is_shadowroot_template`.
         let context = (
             match (name, kind) {
@@ -138,13 +146,13 @@ impl Printer<'_, '_, '_> {
         let name_doc = self.d().text(name);
         if self_closing {
             let mut inner = attribute_docs;
-            if !same_line && !is_doctype {
+            if !same_line && !is_doctype && !trailing_line_comment {
                 let line = self.d().line();
                 inner.push(self.d().dedent(line));
             }
             let g = self.group(&inner);
             let indentation = self.d().indent(g);
-            let close = self.lit(match (is_doctype, same_line) {
+            let close = self.lit(match (is_doctype, same_line && !trailing_line_comment) {
                 (true, _) => ">",
                 (false, true) => " />",
                 (false, false) => "/>",
@@ -155,16 +163,20 @@ impl Printer<'_, '_, '_> {
         let first = children.first().copied();
         let last = children.last().copied();
         let is_inline = kind == ElementKind::Regular && !self.is_block(identifier) && !in_pre;
-        let hug_start = self.should_hug(identifier, children, true);
-        let hug_end = self.should_hug(identifier, children, false);
         // Decided before the separators below trim the first text.
         let empty_line = is_empty
             && is_inline
             && children.first().is_some_and(|&f| self.text_starts_ws(f))
             && !in_pre;
 
+        let has_attributes = !attribute_docs.is_empty();
         let mut open_inner = attribute_docs;
-        if (is_empty || !hug_start) && !same_line && !in_pre {
+        if !trailing_line_comment
+            && (is_empty || !hug_start)
+            && !same_line
+            && !in_pre
+            && has_attributes
+        {
             let soft = self.d().softline();
             open_inner.push(self.d().dedent(soft));
         }
@@ -175,11 +187,15 @@ impl Printer<'_, '_, '_> {
 
         if hug_start && hug_end {
             let body = self.element_body(children, is_empty, empty_line, in_pre, context)?;
-            let soft = self.d().softline();
             let gt = self.lit(">");
             let close_open = self.d().text_parts(&["</", name]);
             let inner = self.group(&[gt, body, close_open]);
-            let hugged = self.cat(&[soft, inner]);
+            let hugged = if trailing_line_comment {
+                inner
+            } else {
+                let soft = self.d().softline();
+                self.cat(&[soft, inner])
+            };
             let hugged = if is_empty {
                 self.group(&[hugged])
             } else {
@@ -209,13 +225,13 @@ impl Printer<'_, '_, '_> {
                     sep_start = self.d().hardline();
                     sep_end = self.d().hardline();
                     did_set_end = true;
-                } else if is_inline {
+                } else if is_inline && self.text_starts_ws(f) {
                     sep_start = self.d().line();
                 }
                 self.trim_left(f);
             }
             if !hug_end && let Some(l) = last.filter(|&l| self.is_text(l)) {
-                if is_inline && !did_set_end {
+                if is_inline && !did_set_end && self.text_ends_ws(l) {
                     sep_end = self.d().line();
                 }
                 self.trim_right(l);
@@ -227,8 +243,12 @@ impl Printer<'_, '_, '_> {
             let body = self.element_body(children, is_empty, empty_line, in_pre, context)?;
             let gt = self.lit(">");
             let inner = self.group(&[gt, body]);
-            let soft = self.d().softline();
-            let indentation = self.cat(&[soft, inner]);
+            let indentation = if trailing_line_comment {
+                inner
+            } else {
+                let soft = self.d().softline();
+                self.cat(&[soft, inner])
+            };
             let indentation = self.d().indent(indentation);
             let mut parts = opening.to_vec();
             parts.extend([indentation, sep_end, close_full]);
@@ -334,12 +354,14 @@ impl Printer<'_, '_, '_> {
         Ok(self.cat(&out))
     }
 
-    /// `shouldHugStart` / `shouldHugEnd`.
+    /// `shouldHugStart` / `shouldHugEnd`, for an element that is `in_pre` if it or an ancestor is
+    /// a `<pre>` or `<textarea>`.
     pub(super) fn should_hug(
         &self,
         identifier: TemplateNodeIdentifier,
         children: &[TemplateNodeIdentifier],
         start: bool,
+        in_pre: bool,
     ) -> bool {
         if self.is_block(identifier) || self.element_name(identifier) == Some("svelte:boundary") {
             return false;
@@ -354,6 +376,9 @@ impl Printer<'_, '_, '_> {
         if self.options.markup_whitespace_sensitivity == WhitespaceSensitivity::Ignore {
             return false;
         }
+        if !self.keeps_edge_whitespace(identifier, in_pre) {
+            return false;
+        }
         if start {
             !self.text_starts_ws(edge)
         } else {
@@ -363,9 +388,19 @@ impl Printer<'_, '_, '_> {
 }
 
 impl Printer<'_, '_, '_> {
+    /// The negation of `canIgnoreElementEdgeWhitespace`: Svelte trims an element's edges except
+    /// in preformatted content, a head `<title>` and a component that preserves whitespace, and
+    /// strict sensitivity keeps them too.
+    fn keeps_edge_whitespace(&self, identifier: TemplateNodeIdentifier, in_pre: bool) -> bool {
+        self.options.markup_whitespace_sensitivity == WhitespaceSensitivity::Strict
+            || self.preserve_whitespace
+            || (self.in_head && self.element_name(identifier) == Some("title"))
+            || in_pre
+    }
+
     /// `this=` of `<svelte:component>` or `<svelte:element>`. Svelte reads a string `this` of
-    /// `<svelte:element>` into a literal, which the plugin prints in double quotes, in braces if
-    /// it was written in braces.
+    /// `<svelte:element>` into a literal, which the plugin prints in double quotes unless it was
+    /// written in braces.
     fn this_binding(&mut self, a: &Attribute, element: bool) -> R<LayoutInstructionIdentifier> {
         let (c, source_text) = (self.c, self.source_text);
         let parts = match a.value {
@@ -392,7 +427,9 @@ impl Printer<'_, '_, '_> {
                         c.javascript.get_expression(expression),
                         oxc_ast::ast::Expression::StringLiteral(_)
                     );
-                if !literal {
+                let raw = self.javascript_span(expression);
+                // `originalText[tag.start - 1] === '{'`: a literal in braces prints as code.
+                if !literal || raw.start_offset == span.start_offset + 1 {
                     // Svelte takes `this` out of the attributes, so the plugin attaches its
                     // comment to an attribute too and prints it twice, once more on each run.
                     if let Some(comment) = (c.tokens.within(a.span).iter())
@@ -409,14 +446,8 @@ impl Printer<'_, '_, '_> {
                     let close = self.lit("}");
                     return Ok(self.cat(&[open, e, close]));
                 }
-                let raw = self.javascript_span(expression);
                 let value = quoted(&raw.text(source_text)[1..raw.len() as usize - 1])?;
-                // `originalText[tag.start - 1] === '{'`.
-                if raw.start_offset == span.start_offset + 1 {
-                    format!("this={{\"{value}\"}}")
-                } else {
-                    format!("this=\"{value}\"")
-                }
+                format!("this=\"{value}\"")
             }
             _ => return Err(Unsupported::at("this `this`", a.span)),
         };

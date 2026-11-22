@@ -12,9 +12,11 @@
     { "onUpdate:modelValue": (v) => (model = v) },
   )}
 >
-  <option value="a" selected={looseEqual(model, "a") ? "" : undefined}>A</option
-  >
-  <option value="b" selected={looseEqual(model, "b") ? "" : undefined}>B</option
-  >
+  <option value="a" selected={looseEqual(model, "a") ? "" : undefined}>
+    A
+  </option>
+  <option value="b" selected={looseEqual(model, "b") ? "" : undefined}>
+    B
+  </option>
   <option disabled={model === "a" ? "" : undefined}>c</option>
 </select>
