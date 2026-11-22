@@ -11,7 +11,7 @@ use oxc_span::{GetSpan, SourceType};
 
 use super::Acorn;
 use super::locator::{Find, Holder, Locator, Reading, locate};
-use super::word::{home, keyword, misused};
+use super::word::{Home, home, keyword, misused};
 
 mod lexer;
 mod pattern;
@@ -30,10 +30,43 @@ pub(crate) fn reported(
     let number = (error.code.scope.as_deref() == Some("TS"))
         .then(|| error.code.number.as_deref())
         .flatten();
+    if number.is_none() && error.message == ARGUMENTS_IN_STATIC_BLOCK {
+        return !as_acorn || in_static_block(error, visit);
+    }
     number.is_none_or(|number| {
         let accepted = as_acorn && acorn_accepts(error, number, visit);
         !(unchecked.contains(&number) || accepted)
     })
+}
+
+/// oxc's errors for `arguments` in a class field initializer and in a class static block.
+const ARGUMENTS_IN_INITIALIZER: &str = "'arguments' is not allowed in class field initializer";
+const ARGUMENTS_IN_STATIC_BLOCK: &str = "'arguments' is not allowed in static initialization block";
+
+/// acorn's wording for oxc's error about `arguments` at `start`.
+fn arguments_misused(error: &OxcDiagnostic, start: u32) -> Option<Acorn> {
+    match error.message.as_ref() {
+        ARGUMENTS_IN_INITIALIZER => Some(fails(
+            "Cannot use 'arguments' in class field initializer",
+            start,
+        )),
+        ARGUMENTS_IN_STATIC_BLOCK => Some(fails(
+            "Cannot use arguments in class static initialization block",
+            start,
+        )),
+        _ => None,
+    }
+}
+
+/// Whether acorn reads the name `error` labels in a class static block: oxc also refuses
+/// `arguments` in an arrow function there, which acorn reads as a function of its own.
+fn in_static_block(error: &OxcDiagnostic, visit: impl FnOnce(&mut Locator)) -> bool {
+    let Some(label) = error.labels.first() else {
+        return true;
+    };
+    let mut locator = Locator::new(label.offset(), label.offset() + label.len(), Find::Home);
+    visit(&mut locator);
+    locator.home == Some(Home::StaticBlock)
 }
 
 /// Whether acorn reads the text oxc rejects with `error`, whose code is `number`, without failing.
@@ -47,9 +80,9 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
         "1047" => optional_rest(start, end, visit) == Some(Ok(())),
         // acorn-typescript reads a class accessor without a body as a signature.
         "1005" => locate(start, end, Find::BodilessAccessor, visit).is_some(),
-        // acorn-typescript checks no interface, no public class member, no parameter of a
-        // signature or of a function without a body, and a type alias only against the types
-        // before it.
+        // acorn-typescript checks no interface, public class member, enum member, nor parameter
+        // of a signature or of a function without a body, and a type alias only against the
+        // types before it.
         "2300" => {
             let Some(second) = error.labels.get(1) else {
                 return false;
@@ -63,6 +96,7 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
                     | AstType::PropertyDefinition
                     | AstType::MethodDefinition
                     | AstType::AccessorProperty
+                    | AstType::TSEnumMember
                     | AstType::Function
                     | AstType::TSFunctionType
                     | AstType::TSConstructorType
@@ -103,11 +137,10 @@ pub(crate) fn acorn(
             .then(|| keyword(kind.to_str(), at))
     };
     if error.code.scope.as_deref() != Some("TS") {
-        if let Some(acorn) = misused(start, end, read(), visit, false) {
-            return Some(acorn);
-        }
-        // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.
-        return regular_expression(text, start, read())
+        return arguments_misused(error, start)
+            .or_else(|| misused(start, end, read(), visit, false))
+            .or_else(|| regular_expression(text, start, read()))
+            // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.
             .or_else(|| reserved(start).filter(|_| kind_at(start) == Some(Kind::Enum)));
     }
     let token = |after: u32, kind: Option<Kind>| {
@@ -332,13 +365,12 @@ fn early_error(
             let name = text.get(start as usize..end as usize)?;
             let mut locator = Locator::new(start, end, Find::Binding);
             visit(&mut locator);
-            let message = if locator.found.is_some() && locator.declares {
-                format!("Binding {name} in strict mode")
-            } else {
-                format!("Assigning to {name} in strict mode")
-            };
+            if locator.found.is_some() && locator.declares {
+                let message = Cow::Owned(format!("Binding {name} in strict mode"));
+                return Some(locator.checked(message, start));
+            }
             Some(Acorn::Fails {
-                message: Cow::Owned(message),
+                message: Cow::Owned(format!("Assigning to {name} in strict mode")),
                 at: start,
             })
         }
@@ -512,7 +544,9 @@ fn redeclaration(
     let locator = redeclared(first, second, visit);
     let at = locator.redeclared_name()?.start;
     let message = match (locator.found, locator.first_is_type) {
-        (Some((_, AstType::FormalParameters)), _) => return Some(fails("Argument name clash", at)),
+        (Some((_, AstType::FormalParameters)), _) => {
+            return Some(locator.checked(Cow::Borrowed("Argument name clash"), at));
+        }
         (Some((_, AstType::TSTypeAliasDeclaration)), true) => {
             format!("type '{name}' has already been declared.")
         }

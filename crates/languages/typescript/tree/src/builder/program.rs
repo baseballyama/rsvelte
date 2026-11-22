@@ -192,7 +192,7 @@ impl<'a> TreeBuilder<'a> {
             let stop = (self.as_acorn)
                 .then(|| whitespace(text, &parsed.irregular_whitespaces, 0))
                 .flatten();
-            if let Some(stop) = stop.filter(|stop| stop.0 <= error.acorn_at()) {
+            if let Some(stop) = stop.filter(|stop| stop.0 <= error.acorn_raised_at()) {
                 error = rejection(stop);
             }
             return Err(Box::new(Read {

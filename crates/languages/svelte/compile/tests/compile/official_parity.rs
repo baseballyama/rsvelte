@@ -6,6 +6,7 @@ use rsvelte_svelte_compile::{Target, compile_to_javascript};
 
 mod const_tags;
 mod derived;
+mod enums;
 mod errors;
 mod exports;
 mod keywords;
