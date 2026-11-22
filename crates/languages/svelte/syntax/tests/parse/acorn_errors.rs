@@ -364,7 +364,10 @@ fn a_target_is_read_where_acorn_reads_it() {
         ),
         ("<script>class A { static { (f()) = 1; } }</script>", 28),
         (
-            "<script>async function f() { (await x) = 1; } async function g() { (await y) = 1; }</script>",
+            concat!(
+                "<script>async function f() { (await x) = 1; } ",
+                "async function g() { (await y) = 1; }</script>",
+            ),
             30,
         ),
         ("<script>({ async m() { (await x) = 1; } })</script>", 24),
