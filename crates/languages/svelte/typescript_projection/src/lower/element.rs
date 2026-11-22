@@ -96,9 +96,11 @@ impl Builder<'_> {
                     || !directives.bindable.is_empty()
                     || !directives.lets.is_empty()
                     || self.fills_slot_with_lets(children),
-                bindings
-                    .iter()
-                    .any(|b| matches!(b, binding::Binding::This { .. })),
+                // The `$on` calls read the instance the call constructs.
+                !directives.events.is_empty()
+                    || bindings
+                        .iter()
+                        .any(|b| matches!(b, binding::Binding::This { .. })),
             )
         } else if slot {
             (
@@ -148,13 +150,15 @@ impl Builder<'_> {
     ) -> Option<usize> {
         self.scratch.extend(directives.slot_let);
         self.scratch.extend_from_slice(&directives.actions);
-        self.bound_call(call, bindings);
+        let constructed = self.bound_call(call, bindings, !directives.events.is_empty());
         if let Some(component) = named {
             self.bindable_checks(component, &directives.bindable);
         }
         self.scratch.extend_from_slice(&directives.checks);
         let component = named?;
-        self.component_events(component, &directives.events);
+        if let Some(constructed) = constructed {
+            self.component_events(component, constructed, &directives.events);
+        }
         if snippets.len != 0 {
             let declaration = self.tree.push(Node::SnippetNames {
                 names: snippets,
