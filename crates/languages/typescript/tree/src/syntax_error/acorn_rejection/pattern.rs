@@ -1,147 +1,202 @@
 //! Acorn's check of a destructuring pattern as a whole, which it makes before it checks the
 //! elements.
 
-use oxc_parser::{Kind, Token};
+use oxc_ast::ast::{ArrayExpressionElement, ChainElement, Expression, ObjectPropertyKind};
+use oxc_parser::{Kind, Parser, Token};
+use oxc_span::{GetSpan, SourceType};
 
-/// Where acorn's check of the destructuring pattern around `start` fails: at the `(` of its first
-/// element whose operand is parenthesized and is not a simple target, which acorn records as it
-/// reads the elements and raises before it checks any of them. The pattern is the innermost array
-/// or object around `start` that `=` assigns to.
-pub(super) fn parenthesized_element(start: u32, tokens: &[Token]) -> Option<u32> {
+/// Where acorn's check of a destructuring pattern around `start` fails, in `text` whose tokens are
+/// `tokens`: at the parenthesis it recorded while it read the pattern as an expression. The pattern
+/// is the outermost array or object around `start` that `=` or a `for` head assigns to and that oxc
+/// reads as an expression.
+pub(super) fn parenthesized_element(text: &str, start: u32, tokens: &[Token]) -> Option<u32> {
+    assigned_patterns(start, tokens)
+        .find_map(|pattern| recorded(text, pattern))
+        .and_then(|record| record.at)
+}
+
+/// What acorn records in the pattern `open..close` of `text`, or none where oxc does not read it as
+/// an expression.
+#[cold]
+fn recorded(text: &str, (open, close): (u32, u32)) -> Option<Record> {
+    let pattern = text.get(open as usize..close as usize)?;
+    crate::scratch::with_scratch_arena(|allocator| {
+        let parsed = Parser::new(allocator, pattern, SourceType::ts())
+            .parse_expression_at(0)
+            .ok()
+            .filter(|parsed| parsed.end == close - open)?;
+        let mut record = Record::default();
+        record.atom(&parsed.expression, pattern);
+        record.at = record.at.map(|at| open + at);
+        Some(record)
+    })
+}
+
+/// The arrays and objects around `start` that `=` or a `for` head assigns to, outermost first, each
+/// from its opening token's start to its closing token's end.
+fn assigned_patterns(start: u32, tokens: &[Token]) -> impl Iterator<Item = (u32, u32)> {
     let mut open = Vec::new();
+    let mut patterns = Vec::new();
     for (index, token) in tokens.iter().enumerate() {
         match token.kind() {
             Kind::LParen | Kind::LBrack | Kind::LCurly => open.push(index),
             Kind::RParen | Kind::RBrack | Kind::RCurly => {
-                let opener = open.pop()?;
-                let assigned = tokens.get(index + 1).is_some_and(|t| t.kind() == Kind::Eq);
-                if assigned
-                    && matches!(tokens[opener].kind(), Kind::LBrack | Kind::LCurly)
-                    && (tokens[opener].start()..token.end()).contains(&start)
+                let Some(opener) = open.pop() else { break };
+                let span = (tokens[opener].start(), token.end());
+                if matches!(tokens[opener].kind(), Kind::LBrack | Kind::LCurly)
+                    && (span.0..span.1).contains(&start)
+                    && assigned(tokens, opener, index)
                 {
-                    return first_parenthesized(tokens, opener, index);
+                    patterns.push(span);
                 }
             }
             _ => {}
         }
     }
-    None
+    patterns.into_iter().rev()
 }
 
-/// [`parenthesized_element`] in the pattern `tokens[open..=close]`, and in the patterns nested in
-/// it, which acorn reads with the same record. An element that is itself an assignment, or a
-/// default, records nothing, and neither does a parenthesized operand a subscript follows.
-fn first_parenthesized(tokens: &[Token], open: usize, close: usize) -> Option<u32> {
-    let object = tokens[open].kind() == Kind::LCurly;
-    let mut from = open + 1;
-    while from < close {
-        let end = top_level(tokens, from, close)
-            .find(|&index| tokens[index].kind() == Kind::Comma)
-            .unwrap_or(close);
-        let mut operand = from + usize::from(tokens[from].kind() == Kind::Dot3);
-        if object
-            && let Some(colon) =
-                top_level(tokens, operand, end).find(|&index| tokens[index].kind() == Kind::Colon)
-        {
-            operand = colon + 1;
+/// Whether the group `tokens[open..=close]` is assigned: `=` follows it, or it is a `for` head's
+/// target that `in` or `of` follows.
+fn assigned(tokens: &[Token], open: usize, close: usize) -> bool {
+    let kind = |index: Option<usize>| index.and_then(|index| tokens.get(index)).map(Token::kind);
+    match kind(Some(close + 1)) {
+        Some(Kind::Eq) => true,
+        Some(Kind::In | Kind::Of) => {
+            kind(open.checked_sub(1)) == Some(Kind::LParen)
+                && matches!(kind(open.checked_sub(2)), Some(Kind::For | Kind::Await))
         }
-        let assigns = top_level(tokens, operand, end).any(|index| tokens[index].kind() == Kind::Eq);
-        if operand < end && !assigns {
-            let group_end = closing(tokens, operand);
-            let after = group_end
-                .map(|index| index + 1)
-                .filter(|&index| index < end);
-            match tokens[operand].kind() {
-                Kind::LBrack | Kind::LCurly if after.is_none() => {
-                    if let Some(at) = first_parenthesized(tokens, operand, group_end?) {
-                        return Some(at);
+        _ => false,
+    }
+}
+
+/// acorn's `parenthesizedAssign`: where the first parenthesized operand that is not a simple target
+/// starts, among the elements of one pattern, which share it.
+#[derive(Default)]
+struct Record {
+    at: Option<u32>,
+}
+
+impl Record {
+    /// acorn's `parseMaybeAssign` of an element: it reads it with a fresh record, which an
+    /// assignment clears and which otherwise yields to the one the elements before it left.
+    fn element(&mut self, element: &Expression<'_>, text: &str) {
+        let before = self.at.take();
+        if let Expression::AssignmentExpression(_) = element {
+            return;
+        }
+        self.operand(element, text);
+        if before.is_some() {
+            self.at = before;
+        }
+    }
+
+    /// The leftmost operand of `expression`, the only one acorn reads with the record, and the
+    /// subscripts after it, which clear what it recorded.
+    fn operand(&mut self, expression: &Expression<'_>, text: &str) {
+        match expression {
+            Expression::ConditionalExpression(conditional) => self.operand(&conditional.test, text),
+            Expression::BinaryExpression(binary) => self.operand(&binary.left, text),
+            Expression::LogicalExpression(logical) => self.operand(&logical.left, text),
+            Expression::TSAsExpression(cast) => self.operand(&cast.expression, text),
+            Expression::TSSatisfiesExpression(cast) => self.operand(&cast.expression, text),
+            _ => match subscripted(expression) {
+                Some(atom) => {
+                    self.atom(atom, text);
+                    if self.at.is_some_and(|at| at >= expression.span().start) {
+                        self.at = None;
                     }
                 }
-                Kind::LParen => {
-                    let subscript =
-                        after.is_some_and(|index| starts_subscript(tokens[index].kind()));
-                    if !subscript && !is_simple_target(&tokens[operand + 1..group_end?]) {
-                        return Some(tokens[operand].start());
+                None => self.atom(expression, text),
+            },
+        }
+    }
+
+    /// acorn's `parseExprAtom`, which records a parenthesized expression that is not a simple
+    /// target, an arrow function's parameter list included, and reads an array's or an object's
+    /// elements with the record.
+    fn atom(&mut self, atom: &Expression<'_>, text: &str) {
+        let parenthesized = match atom {
+            Expression::ParenthesizedExpression(parenthesized) => {
+                !is_simple_target(&parenthesized.expression)
+            }
+            Expression::ArrowFunctionExpression(arrow) => {
+                !arrow.r#async && text.as_bytes().get(arrow.span.start as usize) == Some(&b'(')
+            }
+            Expression::ArrayExpression(array) => {
+                for element in &array.elements {
+                    match element {
+                        ArrayExpressionElement::SpreadElement(spread) => {
+                            self.element(&spread.argument, text);
+                        }
+                        ArrayExpressionElement::Elision(_) => {}
+                        element => {
+                            if let Some(element) = element.as_expression() {
+                                self.element(element, text);
+                            }
+                        }
                     }
                 }
-                _ => {}
+                false
             }
-        }
-        from = end + 1;
-    }
-    None
-}
-
-/// Whether `tokens` are acorn's simple assignment target: an identifier or a member expression
-/// that is not an optional chain, inside any parentheses.
-fn is_simple_target(mut tokens: &[Token]) -> bool {
-    while tokens.first().is_some_and(|t| t.kind() == Kind::LParen)
-        && closing(tokens, 0) == Some(tokens.len() - 1)
-    {
-        tokens = &tokens[1..tokens.len() - 1];
-    }
-    let mut top = top_level(tokens, 0, tokens.len());
-    let Some(operand) = top.next() else {
-        return false;
-    };
-    let kind = tokens[operand].kind();
-    let identifier = kind == Kind::Ident || kind.is_contextual_keyword();
-    // `new`, `typeof`, `await` and the like make an operand that is no member's object.
-    if kind.is_any_keyword() && !identifier && !matches!(kind, Kind::This | Kind::Super) {
-        return false;
-    }
-    let mut member = None;
-    while let Some(index) = top.next() {
-        member = Some(match tokens[index].kind() {
-            Kind::Dot => top
-                .next()
-                .is_some_and(|name| tokens[name].kind().is_identifier_name()),
-            Kind::LBrack => true,
-            Kind::LParen => false,
-            kind if kind.is_template_start_of_tagged_template() => false,
-            _ => return false,
-        });
-    }
-    member.unwrap_or(identifier)
-}
-
-/// Whether a token of `kind` after an operand starts a subscript of it.
-const fn starts_subscript(kind: Kind) -> bool {
-    matches!(
-        kind,
-        Kind::Dot | Kind::QuestionDot | Kind::LBrack | Kind::LParen
-    ) || kind.is_template_start_of_tagged_template()
-}
-
-/// The indices of the tokens of `tokens[from..to]` outside the groups they open, each group by
-/// its opening token.
-fn top_level(tokens: &[Token], from: usize, to: usize) -> impl Iterator<Item = usize> + '_ {
-    std::iter::successors(Some(from), move |&index| {
-        Some(closing(tokens, index).unwrap_or(index) + 1)
-    })
-    .take_while(move |&index| index < to)
-}
-
-/// The index of the token that closes the group `tokens[open]` opens, or none when it opens none.
-fn closing(tokens: &[Token], open: usize) -> Option<usize> {
-    if !matches!(
-        tokens.get(open)?.kind(),
-        Kind::LParen | Kind::LBrack | Kind::LCurly
-    ) {
-        return None;
-    }
-    let mut depth = 0usize;
-    for (index, token) in tokens.iter().enumerate().skip(open) {
-        match token.kind() {
-            Kind::LParen | Kind::LBrack | Kind::LCurly => depth += 1,
-            Kind::RParen | Kind::RBrack | Kind::RCurly => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(index);
+            Expression::ObjectExpression(object) => {
+                for property in &object.properties {
+                    match property {
+                        ObjectPropertyKind::SpreadProperty(spread) => {
+                            self.element(&spread.argument, text);
+                        }
+                        ObjectPropertyKind::ObjectProperty(property)
+                            if !property.shorthand && !property.method =>
+                        {
+                            self.element(&property.value, text);
+                        }
+                        ObjectPropertyKind::ObjectProperty(_) => {}
+                    }
                 }
+                false
             }
-            _ => {}
+            _ => false,
+        };
+        if parenthesized && self.at.is_none() {
+            self.at = Some(atom.span().start);
         }
     }
-    None
+}
+
+/// The operand at the start of `expression` when subscripts follow it.
+fn subscripted<'e, 'a>(expression: &'e Expression<'a>) -> Option<&'e Expression<'a>> {
+    let mut operand = expression;
+    loop {
+        operand = match operand {
+            Expression::CallExpression(call) => &call.callee,
+            Expression::StaticMemberExpression(member) => &member.object,
+            Expression::ComputedMemberExpression(member) => &member.object,
+            Expression::PrivateFieldExpression(member) => &member.object,
+            Expression::TaggedTemplateExpression(tagged) => &tagged.tag,
+            Expression::TSNonNullExpression(non_null) => &non_null.expression,
+            Expression::ChainExpression(chain) => match chain.expression.as_member_expression() {
+                Some(member) => member.object(),
+                None => match &chain.expression {
+                    ChainElement::CallExpression(call) => &call.callee,
+                    _ => return None,
+                },
+            },
+            _ => break,
+        };
+    }
+    (!std::ptr::eq(operand, expression)).then_some(operand)
+}
+
+/// acorn's `isSimpleAssignTarget`: a name or a member expression, inside any parentheses.
+fn is_simple_target(expression: &Expression<'_>) -> bool {
+    match expression {
+        Expression::ParenthesizedExpression(parenthesized) => {
+            is_simple_target(&parenthesized.expression)
+        }
+        Expression::Identifier(_)
+        | Expression::StaticMemberExpression(_)
+        | Expression::ComputedMemberExpression(_)
+        | Expression::PrivateFieldExpression(_) => true,
+        _ => false,
+    }
 }

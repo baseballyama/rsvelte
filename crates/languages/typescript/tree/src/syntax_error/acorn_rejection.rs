@@ -156,7 +156,7 @@ pub(crate) fn acorn(
                 .start(),
         )),
         number if let Some(message) = unassignable_message(number) => {
-            unassignable(message, start, &read().collect::<Vec<_>>())
+            unassignable(message, text, start, &read().collect::<Vec<_>>())
         }
         "1127" => unexpected_character(text, start, end),
         // A word reserved in strict code, or `await` outside an async function, which acorn reads
@@ -212,8 +212,8 @@ fn unassignable_message(number: &str) -> Option<&'static str> {
 /// parentheses at `start`. In a destructuring pattern, acorn first checks the pattern as a whole:
 /// see [`parenthesized_element`]. Otherwise it reports `message` at the target inside the
 /// parentheses, or at them around an object or an array.
-fn unassignable(message: &'static str, start: u32, tokens: &[Token]) -> Option<Acorn> {
-    if let Some(at) = parenthesized_element(start, tokens) {
+fn unassignable(message: &'static str, text: &str, start: u32, tokens: &[Token]) -> Option<Acorn> {
+    if let Some(at) = parenthesized_element(text, start, tokens) {
         return Some(fails("Assigning to rvalue", at));
     }
     let mut after = tokens.iter().skip_while(|token| token.start() < start);
