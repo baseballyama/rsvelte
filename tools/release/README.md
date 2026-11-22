@@ -24,6 +24,12 @@ writes the version and the changelog into [`apps/cli`](../../apps/cli), and
 Merging that pull request releases the version, because its tag `v<version>` does not exist
 yet.
 
+The workspace and the site run the published `@rsvelte/cli`, pinned to an exact version. Changesets
+leaves that pin alone (`bumpVersionsWithWorkspaceProtocolOnly` in
+[`.changeset/config.json`](../../.changeset/config.json)): the version it writes is not on npm
+yet, so neither `pnpm-lock.yaml` nor a frozen install could resolve it. Renovate moves the pin
+once npm has the version.
+
 Each platform builds `rsvelte` and `rsvelte-svelte-content-mapper`. Then
 `node tools/release/release.ts stage` writes the packages:
 
