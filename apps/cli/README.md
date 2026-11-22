@@ -43,9 +43,8 @@ Svelte rule that applies to modules, such as `svelte/no-inspect`, also runs on J
 TypeScript files.
 
 The configuration turns Svelte rules on and off as it does oxlint's, under the `svelte/`
-prefix. They need no `plugins` entry. Each has one of oxlint's categories (`correctness`,
-`suspicious`, `pedantic`, `perf`, `style`, `restriction` and `nursery`), and by default only
-`correctness` runs, as in oxlint:
+prefix. They need no `plugins` entry. Each has one of oxlint's categories. By default only the
+rules of `correctness` run, as in oxlint:
 
 ```json
 {

@@ -2,6 +2,6 @@
 
 const { rulesByScope } = require('./configs.cjs');
 
-const { eslintRules, typescriptRules, svelteRules, vueRules } = rulesByScope;
+const { eslintRules, svelteRules } = rulesByScope;
 
-module.exports = { eslintRules, typescriptRules, svelteRules, vueRules };
+module.exports = { eslintRules, svelteRules };

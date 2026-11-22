@@ -3,6 +3,7 @@
 	"private": true,
 	"description": "@rsvelte/eslint-plugin: turns off the ESLint rules rsvelte lint runs; tools/release writes the package npm publishes from this manifest",
 	"files": [
+		"build-from-oxlint-config.cjs",
 		"configs.cjs",
 		"index.cjs",
 		"index.d.cts",
