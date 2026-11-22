@@ -1,4 +1,4 @@
-// svelte 5.57.3
+// svelte 5.59.1
 [
     "a11y_accesskey",
     "a11y_aria_activedescendant_has_tabindex",

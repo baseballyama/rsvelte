@@ -21,7 +21,7 @@ function $$render() {
       z;
     }
   };
-  return __rsvelte_export_isomorphic_slots<$$ComponentProps, { [evt: string]: CustomEvent<any> }, {}, "">()({
+  return __rsvelte_export_isomorphic_slots<$$ComponentProps, {}, "">()(__rsvelte_any_event({}), {
     "default": {},
   });
 }

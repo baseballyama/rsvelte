@@ -242,9 +242,8 @@ impl Builder<'_> {
             },
         };
         let element = match host.kind {
-            Kind::Element { .. } => self.map_element_tag(host.name),
+            Kind::Element { .. } | Kind::Slot => self.map_element_tag(host.name),
             Kind::Component => self.tree.push(Node::Identifier("__rsvelte_any_node")),
-            Kind::Slot => return Err(unsupported()),
         };
         // svelte-check maps a finding on the movement to where svelte2tsx's last mapping before it
         // starts: the name's last character, or the name's end when parameters follow.

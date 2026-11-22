@@ -1,5 +1,20 @@
 # @rsvelte/cli
 
+## 0.5.1
+
+### Patch Changes
+
+- 5c7fece: Report `arguments` in a class field or a class static block with the same error as Svelte.
+- 008f2f6: `rsvelte check` no longer skips a component that has a `use:`, transition, `animate:` or `style:` directive on a child component. The compiler rejects those directives, and `rsvelte check` now types their expressions as svelte2tsx does, with any value standing for the node.
+- ee9878f: `rsvelte check` no longer skips a component whose instance script has an `export default`. Like svelte2tsx, it removes the `export` of a default function or class, reports the `default` left in its place, and exports a named one by its name. It leaves an interface or an expression as written.
+- c90cc27: `rsvelte check` no longer skips a component that has a directive on a `<slot>`. The compiler rejects them, and `rsvelte check` now types them as svelte2tsx does. `use:`, transition and `animate:` take the slot as their element, `on:` and an unfilled `let:` are properties of the slot, and `bind:this` reads the slot as `Record<string, any>`.
+- 59a972b: `rsvelte format` prints the files it cannot format in the same order on every run, sorted by path.
+- d50923c: The README says that `rsvelte format` refuses `experimentalTernaries`, as oxfmt does.
+- 27daac6: `compile` now reports an error in an arrow function's expression body before a clash between its parameter names, as svelte does.
+- 0ee77f9: A string statement in a component script no longer becomes a directive in the compiled output. Before, `let { x } = $props(); "use strict";` could print `"use strict";` first in the component function, where it turned on strict mode. It now prints in parentheses, as Svelte does. The compiler also reads an optional property's `?:` in a template type annotation, as in `{#each items as item: { a?: string }}` or `{@const first: { a?: string } = row[0]}`, and an arrow type in a snippet's type parameters, as in `{#snippet s<T extends () => void>(x: T)}`.
+- d026f45: Follow Svelte 5.59.1. The client output imports `svelte/internal/init-operations`, which Svelte 5.59 needs to mount a component. The server output renders `<title>` after the rest of `<svelte:head>`. It also drops the comments inside removed `$effect` and `$inspect.trace` statements.
+- 64e3921: `compile` now refuses a TypeScript `enum` with a repeated member as svelte does, with `typescript_invalid_feature`, instead of reporting the repeated name.
+
 ## 0.5.0
 
 ### Minor Changes

@@ -6,7 +6,7 @@ declare const __rsvelte_children: () => any;
 declare const __rsvelte_any_component: (internals: any, props: any) => any;
 // The node of a directive on a component, which the compiler rejects; svelte2tsx passes `undefined.mapElementTag('undefined')`.
 declare const __rsvelte_any_node: any;
-declare function __rsvelte_slots<Slots = Record<string, Record<string, any>>>(): <Name extends keyof Slots>(name: Name, attributes: Slots[Name]) => void;
+declare function __rsvelte_slots<Slots = Record<string, Record<string, any>>>(): <Name extends keyof Slots>(name: Name, attributes: Slots[Name]) => Record<string, any>;
 declare const __rsvelte_snippet_return: any;
 declare function __rsvelte_slot_flags<Key extends string>(): Record<Key, boolean>;
 declare function __rsvelte_component_props<C extends (internals: any, props: any) => unknown>(component: C): Parameters<C>[1] & Record<string, any>;

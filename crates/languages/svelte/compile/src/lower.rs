@@ -102,7 +102,7 @@ pub(crate) fn lower_with_facts<'o>(
     allocator: &'o Allocator,
 ) -> Result<Program<'o>, Diagnostic> {
     let b = Builder::new(allocator);
-    let prepared = prepare::prepare(facts, target, &b)?;
+    let (prepared, removed) = prepare::prepare(facts, target, &b)?;
     let body = match target {
         Target::Client => client::lower_prepared(facts, prepared, &b),
         Target::Server => server::lower_prepared(facts, prepared, &b),
@@ -116,6 +116,7 @@ pub(crate) fn lower_with_facts<'o>(
     let comments = scripts
         .flat_map(|p| p.comments.iter())
         .chain(component.javascript.comments())
+        .filter(|comment| script::outside(&removed, comment.span))
         .cloned();
     let mut program = Program::new(
         SPAN,

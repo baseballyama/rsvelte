@@ -1,4 +1,4 @@
-// svelte 5.57.3, @vue/compiler-sfc 3.5.44
+// svelte 5.59.1, @vue/compiler-sfc 3.5.44
 [
     ("AElig", 198, 0, true),
     ("AMP", 38, 0, true),

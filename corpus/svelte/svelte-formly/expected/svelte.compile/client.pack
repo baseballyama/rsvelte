@@ -36,7 +36,8 @@
 		color: rgb(247, 63, 63);
 	}
 
-=== 450 src/routes/__layout.svelte	js
+=== 492 src/routes/__layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import '@picocss/pico/css/pico.css';
@@ -71,7 +72,8 @@ export default function __layout($$anchor, $$props) {
 	}
 ]
 
-=== 2499 src/routes/_index.svelte	js
+=== 2541 src/routes/_index.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Formly } from 'svelte-formly-light';
@@ -200,7 +202,8 @@ export default function _index($$anchor) {
 		margin-bottom: 1rem;
 	}
 
-=== 1529 src/routes/index.svelte	js
+=== 1571 src/routes/index.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Formly } from '$lib';

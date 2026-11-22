@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 5042 docs/src/components/motion.svelte	js
+=== 5084 docs/src/components/motion.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { animate as motionAnimate } from "motion";
@@ -268,7 +269,8 @@ export default function Motion($$anchor, $$props) {
 			translate 0.15s var(--ease-out-quad);
 	}
 
-=== 6860 docs/src/components/preview.svelte	js
+=== 6902 docs/src/components/preview.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { linear } from "svelte/easing";
@@ -478,7 +480,8 @@ export default function Preview($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 8255 docs/src/components/transition.svelte	js
+=== 8297 docs/src/components/transition.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext, setContext, tick } from "svelte";
@@ -896,7 +899,8 @@ export default function Transition($$anchor, $$props/** state of element (shown 
 		-webkit-mask-image: var(--mask-image);
 	}
 
-=== 6440 docs/src/previews/SpatialMenu.svelte	js
+=== 6482 docs/src/previews/SpatialMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { usePreviewControls } from "@components/preview-ctx.svelte";
@@ -1131,7 +1135,8 @@ export default function SpatialMenu_1($$anchor, $$props) {
 		display: block;
 	}
 
-=== 4154 docs/src/previews/accordion.svelte	js
+=== 4196 docs/src/previews/accordion.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { usePreviewControls } from "@components/preview-ctx.svelte";
@@ -1303,7 +1308,8 @@ export default function Accordion_1($$anchor, $$props) {
 		}
 	}
 
-=== 3564 docs/src/previews/avatar.svelte	js
+=== 3606 docs/src/previews/avatar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { usePreviewControls } from "@components/preview-ctx.svelte";
@@ -1418,7 +1424,8 @@ export default function Avatar_1($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2831 docs/src/previews/collapsible.svelte	js
+=== 2873 docs/src/previews/collapsible.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { usePreviewControls } from "@components/preview-ctx.svelte";
@@ -1523,7 +1530,8 @@ export default function Collapsible_1($$anchor, $$props) {
 		transform: scale(1);
 	}
 
-=== 5322 docs/src/previews/combobox.svelte	js
+=== 5364 docs/src/previews/combobox.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { usePreviewControls } from "@components/preview-ctx.svelte";
@@ -1788,7 +1796,8 @@ export default function Combobox_1($$anchor, $$props) {
 		}
 	}
 
-=== 13376 docs/src/previews/dialog.svelte	js
+=== 13418 docs/src/previews/dialog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { usePreviewControls } from "@components/preview-ctx.svelte";
@@ -2157,7 +2166,8 @@ export default function Dialog_1($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 5896 docs/src/previews/file-upload.svelte	js
+=== 5938 docs/src/previews/file-upload.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { usePreviewControls } from "@components/preview-ctx.svelte";
@@ -2347,7 +2357,8 @@ export default function File_upload($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 2002 docs/src/previews/pin-input.svelte	js
+=== 2044 docs/src/previews/pin-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { usePreviewControls } from "@components/preview-ctx.svelte";
@@ -2447,7 +2458,8 @@ export default function Pin_input($$anchor, $$props) {
 		transform: scale(1);
 	}
 
-=== 5132 docs/src/previews/popover-multiple-triggers.svelte	js
+=== 5174 docs/src/previews/popover-multiple-triggers.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { objectEntries } from "@antfu/utils";
@@ -2631,7 +2643,8 @@ export default function Popover_multiple_triggers($$anchor, $$props) {
 		transform: scale(1);
 	}
 
-=== 3190 docs/src/previews/popover.svelte	js
+=== 3232 docs/src/previews/popover.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Preview from "@components/preview.svelte";
@@ -2747,7 +2760,8 @@ export default function Popover_1($$anchor, $$props) {
 
 	$.pop();
 }
-=== 3329 docs/src/previews/progress.svelte	js
+=== 3371 docs/src/previews/progress.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import NumberFlow from "@number-flow/svelte";
@@ -2877,7 +2891,8 @@ export default function Progress_1($$anchor, $$props) {
 
 	$.pop();
 }
-=== 3521 docs/src/previews/radio-group.svelte	js
+=== 3563 docs/src/previews/radio-group.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { usePreviewControls } from "@components/preview-ctx.svelte";
@@ -3024,7 +3039,8 @@ export default function Radio_group($$anchor, $$props) {
 		transform: scale(1);
 	}
 
-=== 4118 docs/src/previews/select.svelte	js
+=== 4160 docs/src/previews/select.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { usePreviewControls } from "@components/preview-ctx.svelte";
@@ -3160,7 +3176,8 @@ export default function Select_1($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2388 docs/src/previews/slider.svelte	js
+=== 2430 docs/src/previews/slider.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { usePreviewControls } from "@components/preview-ctx.svelte";
@@ -3341,7 +3358,8 @@ export default function Slider_1($$anchor, $$props) {
 		grid-column: 7 / 13;
 	}
 
-=== 10287 docs/src/previews/tabs.svelte	js
+=== 10329 docs/src/previews/tabs.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Preview from "@components/preview.svelte";
@@ -3746,7 +3764,8 @@ export default function Tabs_1($$anchor, $$props) {
 		translate: 0 calc(var(--percentage) - var(--toast-gap));
 	}
 
-=== 6182 docs/src/previews/toaster.svelte	js
+=== 6224 docs/src/previews/toaster.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { usePreviewControls } from "@components/preview-ctx.svelte";
@@ -3999,7 +4018,8 @@ export default function Toaster_1($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 2149 docs/src/previews/toggle.svelte	js
+=== 2191 docs/src/previews/toggle.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Preview from "@components/preview.svelte";
@@ -4088,7 +4108,8 @@ export default function Toggle_1($$anchor, $$props) {
 		transform: scale(1);
 	}
 
-=== 2445 docs/src/previews/tooltip.svelte	js
+=== 2487 docs/src/previews/tooltip.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { usePreviewControls } from "@components/preview-ctx.svelte";
@@ -4181,7 +4202,8 @@ export default function Tooltip_1($$anchor, $$props) {
 
 	$.pop();
 }
-=== 7760 docs/src/previews/tree.svelte	js
+=== 7802 docs/src/previews/tree.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Motion from "@components/motion.svelte";
@@ -4504,7 +4526,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 1773 packages/melt/src/lib/builders/tests/ComboboxTest.svelte	js
+=== 1815 packages/melt/src/lib/builders/tests/ComboboxTest.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Combobox } from "../Combobox.svelte.js";
@@ -4571,7 +4594,8 @@ export default function ComboboxTest($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1818 packages/melt/src/lib/builders/tests/SelectTest.svelte	js
+=== 1860 packages/melt/src/lib/builders/tests/SelectTest.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Select } from "../Select.svelte.js";
@@ -4758,7 +4782,8 @@ export default function SelectTest($$anchor, $$props) {
 		font-weight: bold;
 	}
 
-=== 4590 packages/melt/src/lib/builders/tests/SpatialMenuDisabledTest.svelte	js
+=== 4632 packages/melt/src/lib/builders/tests/SpatialMenuDisabledTest.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { SpatialMenu } from "../SpatialMenu.svelte.js";
@@ -4973,7 +4998,8 @@ export default function SpatialMenuDisabledTest($$anchor, $$props) {
 		opacity: 0.5;
 	}
 
-=== 2061 packages/melt/src/lib/builders/tests/SpatialMenuNavTest.svelte	js
+=== 2103 packages/melt/src/lib/builders/tests/SpatialMenuNavTest.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { SpatialMenu } from "$lib/builders/SpatialMenu.svelte.js";
@@ -5212,7 +5238,8 @@ export default function SpatialMenuNavTest($$anchor, $$props) {
 		font-weight: bold;
 	}
 
-=== 4544 packages/melt/src/lib/builders/tests/SpatialMenuTest.svelte	js
+=== 4586 packages/melt/src/lib/builders/tests/SpatialMenuTest.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { SpatialMenu } from "../SpatialMenu.svelte.js";
@@ -5455,7 +5482,8 @@ export default function SpatialMenuTest($$anchor, $$props) {
 	}
 ]
 
-=== 1310 packages/melt/src/lib/builders/tests/ToastTest.svelte	js
+=== 1352 packages/melt/src/lib/builders/tests/ToastTest.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Toaster } from "../Toaster.svelte";
@@ -5506,7 +5534,8 @@ export default function ToastTest($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 818 packages/melt/src/lib/components/Accordion.svelte	js
+=== 860 packages/melt/src/lib/components/Accordion.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getters } from "$lib/utils/getters.svelte.js";
@@ -5555,7 +5584,8 @@ export default function Accordion($$anchor, $$props) {
 	}
 ]
 
-=== 708 packages/melt/src/lib/components/Avatar.svelte	js
+=== 750 packages/melt/src/lib/components/Avatar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getters } from "$lib/utils/getters.svelte.js";
@@ -5601,7 +5631,8 @@ export default function Avatar($$anchor, $$props) {
 	}
 ]
 
-=== 818 packages/melt/src/lib/components/Collapsible.svelte	js
+=== 860 packages/melt/src/lib/components/Collapsible.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getters } from "$lib/utils/getters.svelte.js";
@@ -5648,7 +5679,8 @@ export default function Collapsible($$anchor, $$props) {
 	}
 ]
 
-=== 1113 packages/melt/src/lib/components/Combobox.svelte	js
+=== 1155 packages/melt/src/lib/components/Combobox.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getters } from "../utils/getters.svelte";
@@ -5740,7 +5772,8 @@ export default function Combobox($$anchor, $$props) {
 	}
 ]
 
-=== 851 packages/melt/src/lib/components/FileUpload.svelte	js
+=== 893 packages/melt/src/lib/components/FileUpload.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getters } from "$lib/utils/getters.svelte.js";
@@ -5796,7 +5829,8 @@ export default function FileUpload_1($$anchor, $$props) {
 	}
 ]
 
-=== 800 packages/melt/src/lib/components/PinInput.svelte	js
+=== 842 packages/melt/src/lib/components/PinInput.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getters } from "$lib/utils/getters.svelte.js";
@@ -5843,7 +5877,8 @@ export default function PinInput($$anchor, $$props) {
 	}
 ]
 
-=== 826 packages/melt/src/lib/components/Popover.svelte	js
+=== 868 packages/melt/src/lib/components/Popover.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getters } from "../utils/getters.svelte";
@@ -5905,7 +5940,8 @@ export default function Popover($$anchor, $$props) {
 	}
 ]
 
-=== 800 packages/melt/src/lib/components/Progress.svelte	js
+=== 842 packages/melt/src/lib/components/Progress.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getters } from "$lib/utils/getters.svelte.js";
@@ -5952,7 +5988,8 @@ export default function Progress($$anchor, $$props) {
 	}
 ]
 
-=== 808 packages/melt/src/lib/components/RadioGroup.svelte	js
+=== 850 packages/melt/src/lib/components/RadioGroup.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getters } from "$lib/utils/getters.svelte.js";
@@ -5999,7 +6036,8 @@ export default function RadioGroup($$anchor, $$props) {
 	}
 ]
 
-=== 1107 packages/melt/src/lib/components/Select.svelte	js
+=== 1149 packages/melt/src/lib/components/Select.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getters } from "../utils/getters.svelte";
@@ -6091,7 +6129,8 @@ export default function Select($$anchor, $$props) {
 	}
 ]
 
-=== 788 packages/melt/src/lib/components/Slider.svelte	js
+=== 830 packages/melt/src/lib/components/Slider.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getters } from "$lib/utils/getters.svelte.js";
@@ -6138,7 +6177,8 @@ export default function Slider($$anchor, $$props) {
 	}
 ]
 
-=== 605 packages/melt/src/lib/components/SpatialMenu.svelte	js
+=== 647 packages/melt/src/lib/components/SpatialMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { SpatialMenu as SpatialMenuBuilder } from "../builders/SpatialMenu.svelte";
@@ -6175,7 +6215,8 @@ export default function SpatialMenu($$anchor, $$props) {
 	}
 ]
 
-=== 776 packages/melt/src/lib/components/Tabs.svelte	js
+=== 818 packages/melt/src/lib/components/Tabs.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getters } from "$lib/utils/getters.svelte.js";
@@ -6222,7 +6263,8 @@ export default function Tabs($$anchor, $$props) {
 	}
 ]
 
-=== 755 packages/melt/src/lib/components/Toggle.svelte	js
+=== 797 packages/melt/src/lib/components/Toggle.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Toggle as Builder } from "../builders/Toggle.svelte";
@@ -6250,7 +6292,8 @@ export default function Toggle($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 734 packages/melt/src/lib/components/Tooltip.svelte	js
+=== 776 packages/melt/src/lib/components/Tooltip.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Tooltip as Builder } from "$lib/builders";

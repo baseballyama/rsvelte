@@ -701,7 +701,7 @@ export default function CodeExplorer($$renderer, $$props) {
 	}
 ]
 
-=== 2673 apps/docs/src/components/Example/CodeWrapper.svelte	js
+=== 2545 apps/docs/src/components/Example/CodeWrapper.svelte	js
 import * as $ from 'svelte/internal/server';
 import { CodeXml } from 'lucide-svelte';
 import CodeExplorer from './CodeExplorer.svelte';
@@ -742,15 +742,11 @@ export default function CodeWrapper($$renderer, $$props) {
 			}
 		};
 
-		$$renderer.push(`<div${$.attr_class($.clsx(
-			// hide all children except the one that was selected
-			// path is relative to the root of the example directory
-			[
-				'not-content relative flex w-full flex-col items-stretch overflow-hidden rounded-b-md! border-x border-b border-white/20 transition-all duration-700 ease-in-out will-change-[max-height] md:max-h-[80vh] md:flex-row',
-				!expanded && 'max-h-[100px]! overflow-hidden',
-				hidePreview && 'rounded-md! border-t'
-			]
-		))}>`);
+		$$renderer.push(`<div${$.attr_class($.clsx([
+			'not-content relative flex w-full flex-col items-stretch overflow-hidden rounded-b-md! border-x border-b border-white/20 transition-all duration-700 ease-in-out will-change-[max-height] md:max-h-[80vh] md:flex-row',
+			!expanded && 'max-h-[100px]! overflow-hidden',
+			hidePreview && 'rounded-md! border-t'
+		]))}>`);
 
 		if (!expanded) {
 			$$renderer.push(`<!--[0--><div class="absolute top-0 left-0 z-10 h-full w-full bg-linear-to-t from-blue-900 to-blue-900/50"></div>`);
@@ -4143,7 +4139,7 @@ export default function App($$renderer) {
 
 	$$renderer.push(`<!----></div>`);
 }
-=== 1724 apps/docs/src/examples/animation/transitions/Character.svelte	js
+=== 1676 apps/docs/src/examples/animation/transitions/Character.svelte	js
 import * as $ from 'svelte/internal/server';
 import { GLTF, useGltfAnimations } from '@threlte/extras';
 
@@ -4155,7 +4151,6 @@ export default function Character($$renderer, $$props) {
 		let { actions } = useGltfAnimations(() => gltf);
 		let currentActionKey = 'idle';
 
-		// This effect acts like an init default pose
 		function transitionTo(actionKey, duration = 1) {
 			const currentAction = $.store_get($$store_subs ??= {}, '$actions', actions)[currentActionKey];
 			const nextAction = $.store_get($$store_subs ??= {}, '$actions', actions)[actionKey];
@@ -39849,7 +39844,7 @@ export default function FlyerSpritesTyped($$renderer, $$props) {
 		$$renderer.push(`<!--]-->`);
 	});
 }
-=== 2596 apps/docs/src/examples/instancing/instanced-sprite-mania/sprites/GoblinSprites.svelte	js
+=== 2591 apps/docs/src/examples/instancing/instanced-sprite-mania/sprites/GoblinSprites.svelte	js
 import * as $ from 'svelte/internal/server';
 import { useTask } from '@threlte/core';
 import { InstancedSprite, buildSpritesheet } from '@threlte/extras';
@@ -39913,7 +39908,6 @@ export default function GoblinSprites($$renderer, $$props) {
 		 * GOBLIN LOGIC -
 		 * randomize positions by directly accessing the instanced sprite api without any helpers
 		 */
-		//
 		let goblinId = 0;
 
 		useTask(() => {
@@ -62286,7 +62280,7 @@ export default function AnimatedSpriteMaterial($$renderer, $$props) {
 	}
 ]
 
-=== 1817 packages/extras/src/lib/components/AsciiRenderer/AsciiRenderer.svelte	js
+=== 1766 packages/extras/src/lib/components/AsciiRenderer/AsciiRenderer.svelte	js
 import * as $ from 'svelte/internal/server';
 import { AsciiEffect } from 'three/examples/jsm/effects/AsciiEffect.js';
 import { fromStore } from 'svelte/store';
@@ -62359,9 +62353,7 @@ export default function AsciiRenderer($$renderer, $$props) {
 			onstop?.();
 		};
 
-		// this should stop the task on unmount as well
 		children?.($$renderer, { asciiEffect: asciiEffect() });
-
 		$$renderer.push(`<!---->`);
 		$.bind_props($$props, { getEffect, start, stop });
 	});
@@ -64249,7 +64241,7 @@ export default function RadialGradientTexture($$renderer, $$props) {
 		$.bind_props($$props, { ref });
 	});
 }
-=== 4649 packages/extras/src/lib/components/Grid/Grid.svelte	js
+=== 4595 packages/extras/src/lib/components/Grid/Grid.svelte	js
 import * as $ from 'svelte/internal/server';
 import { isInstanceOf, T, useTask, useThrelte } from '@threlte/core';
 import { Color, DoubleSide, Plane, Uniform, Vector3, Mesh } from 'three';
@@ -64327,7 +64319,6 @@ export default function Grid($$renderer, $$props) {
 			worldPlanePosition: new Uniform(new Vector3())
 		};
 
-		// convert axis string to int indexes xzy = [0,2,1]
 		useTask(
 			() => {
 				gridPlane.setFromNormalAndCoplanarPoint(gridPlaneNormal, zeroVector).applyMatrix4(mesh.matrixWorld);
@@ -64427,7 +64418,7 @@ export default function Grid($$renderer, $$props) {
 		$.bind_props($$props, { ref });
 	});
 }
-=== 13107 packages/extras/src/lib/components/HTML/HTML.svelte	js
+=== 13013 packages/extras/src/lib/components/HTML/HTML.svelte	js
 import * as $ from 'svelte/internal/server';
 import { T, useTask, useThrelte } from '@threlte/core';
 import { untrack } from 'svelte';
@@ -64702,7 +64693,6 @@ export default function HTML($$renderer, $$props) {
 			running: () => autoRender
 		});
 
-		// Track $size so resize updates the DOM synchronously, ahead of the next renderStage tick.
 		const portalAction = (el) => {
 			const target = portal ?? dom;
 
@@ -65178,7 +65168,7 @@ export default function InjectPlugin($$renderer, $$props) {
 	}
 ]
 
-=== 2771 packages/extras/src/lib/components/InstancedSprite/InstancedSprite.svelte	js
+=== 2697 packages/extras/src/lib/components/InstancedSprite/InstancedSprite.svelte	js
 import * as $ from 'svelte/internal/server';
 import { InstancedSpriteMesh } from '@threejs-kit/instanced-sprite-mesh';
 import { T, useTask, useThrelte } from '@threlte/core';
@@ -65224,8 +65214,6 @@ export default function InstancedSprite($$renderer, $$props) {
 		// RANDOM PLAYBACK OFFSET
 		let previousRndOffset = false;
 
-		// going from no offset to random
-		// going from random offset to none
 		// MATRIX UPDATE - POSITION AND SCALE
 		let instanceMatrixNeedsUpdate = false;
 
@@ -67022,7 +67010,7 @@ export default function Sky_1($$renderer, $$props) {
 		$.bind_props($$props, { ref });
 	});
 }
-=== 5411 packages/extras/src/lib/components/SoftShadows/SoftShadows.svelte	js
+=== 4664 packages/extras/src/lib/components/SoftShadows/SoftShadows.svelte	js
 import * as $ from 'svelte/internal/server';
 import { useThrelte } from '@threlte/core';
 import { BasicShadowMap } from 'three';
@@ -67149,17 +67137,6 @@ export default function SoftShadows($$renderer, $$props) {
 
 			renderer.info.programs.length = 0;
 		};
-		// On modern (r183+) chunks the PCF branch binds the shadow map as
-		// `sampler2DShadow`, which doesn't allow raw depth reads — PCSS needs
-		// those, so force `BasicShadowMap` (which binds as `sampler2D`). Legacy
-		// chunks use `sampler2D` for every shadow type, so we leave the user's
-		// configured shadow type alone.
-		// Legacy chunks have a single getShadow() with branches per shadow type;
-		// inject right inside `if (frustumTest) {` ahead of the PCF branch so
-		// the early `return` short-circuits whichever branch was selected.
-		// Modern chunks have a dedicated BASIC getShadow() with a `sampler2D
-		// shadowMap` that we can read raw depth from; inject before its depth
-		// lookup so PCSS replaces the per-pixel comparison.
 	});
 }
 === 2001 packages/extras/src/lib/components/Sparkles/Sparkles.svelte	js
@@ -68036,7 +68013,7 @@ export default function View($$renderer, $$props) {
 
 	$$renderer.push(`<!--]-->`);
 }
-=== 2122 packages/extras/src/lib/components/Wireframe/Wireframe.svelte	js
+=== 2090 packages/extras/src/lib/components/Wireframe/Wireframe.svelte	js
 import * as $ from 'svelte/internal/server';
 
 import {
@@ -68113,10 +68090,9 @@ export default function Wireframe($$renderer, $$props) {
 		const fill = new Uniform(new Color());
 
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
-		// Disallow WireframeGeometry
 	});
 }
-=== 11137 packages/extras/src/lib/components/Wobble/Wobble.svelte	js
+=== 11017 packages/extras/src/lib/components/Wobble/Wobble.svelte	js
 import * as $ from 'svelte/internal/server';
 import { isInstanceOf, useParent, useTask, useThrelte } from '@threlte/core';
 
@@ -68419,8 +68395,6 @@ export default function Wobble($$renderer, $$props) {
 
 		const basisRef = new Vector3();
 
-		// Build the orthonormal basis (axis + two perpendicular axes) once on
-		// the CPU. Saves recomputing it per vertex.
 		// Drive the clock externally when `time` is supplied
 		useTask(
 			(delta) => {
@@ -69293,7 +69267,7 @@ export default function Scene($$renderer, $$props) {
 		}
 	});
 }
-=== 1656 packages/extras/src/lib/suspense/Suspense.svelte	js
+=== 1507 packages/extras/src/lib/suspense/Suspense.svelte	js
 import * as $ from 'svelte/internal/server';
 import { T, useParentObject3D, useThrelte } from '@threlte/core';
 import { Group } from 'three';
@@ -69319,9 +69293,7 @@ export default function Suspense($$renderer, $$props) {
 		const parent = useParentObject3D();
 
 		T($$renderer, {
-			is: // we don't have a parent, so we can't add ourselves to it
-			// if the component is suspended or has errors, we remove ourselves from the parent
-			group,
+			is: group,
 			attach: false,
 			children: ($$renderer) => {
 				children?.($$renderer, {
@@ -71513,7 +71485,7 @@ export default function AutoColliders($$renderer, $$props) {
 		$.bind_props($$props, { colliders, refresh });
 	});
 }
-=== 2898 packages/rapier/src/lib/components/Colliders/Collider/Collider.svelte	js
+=== 2757 packages/rapier/src/lib/components/Colliders/Collider/Collider.svelte	js
 import * as $ from 'svelte/internal/server';
 import { ActiveCollisionTypes, CoefficientCombineRule, ColliderDesc } from '@dimforge/rapier3d-compat';
 import { createParentObject3DContext, useParentObject3D, useTask } from '@threlte/core';
@@ -71577,13 +71549,6 @@ export default function Collider($$renderer, $$props) {
 		/**
 		 * Actual collider setup happens onMount as only then
 		 * the transforms are finished.
-		 */
-		// @ts-expect-error Todo
-		/**
-		 * Add collider to context
-		 */
-		/**
-		 * For use in conjunction with component <CollisionGroups>
 		 */
 		const refresh = () => {
 			if (!collider) return;
@@ -77179,7 +77144,7 @@ export default function SceneHierarchy($$renderer, $$props) {
 		$$renderer.subsume($$inner_renderer);
 	});
 }
-=== 4977 packages/studio/src/lib/extensions/scene-hierarchy/Tree.svelte	js
+=== 4965 packages/studio/src/lib/extensions/scene-hierarchy/Tree.svelte	js
 import * as $ from 'svelte/internal/server';
 import { useThrelte } from '@threlte/core';
 import { TreeViewItem, TreeViewWebComponent } from 'flexible-tree';
@@ -77393,7 +77358,6 @@ max-height: 50vh;
 
 		const noUndef = (v) => v !== undefined;
 
-		// ignore
 		const replace = (node) => {
 			node.replaceWith(treeview.wc);
 
@@ -78132,7 +78096,7 @@ export default function Transactions($$renderer, $$props) {
 		$$renderer.push(`<!---->`);
 	});
 }
-=== 5180 packages/studio/src/lib/extensions/transform-controls/ContainerTransform.svelte	js
+=== 5141 packages/studio/src/lib/extensions/transform-controls/ContainerTransform.svelte	js
 import * as $ from 'svelte/internal/server';
 import { T } from '@threlte/core';
 import { TransformControls } from '@threlte/extras';
@@ -78163,7 +78127,6 @@ export default function ContainerTransform($$renderer, $$props) {
 		let centerObject = new Object3D();
 		let lastPosition = new Vector3();
 
-		// make bb with all selected objects
 		const onChange = () => {
 			if (mode() === 'translate') {
 				const delta = new Vector3().subVectors(centerObject.position, lastPosition);
@@ -80230,7 +80193,7 @@ export default function VRButton($$renderer, $$props) {
 		{ mode: 'immersive-vr' }
 	]));
 }
-=== 4564 packages/xr/src/lib/components/XR.svelte	js
+=== 4215 packages/xr/src/lib/components/XR.svelte	js
 import * as $ from 'svelte/internal/server';
 import { untrack } from 'svelte';
 import { useThrelte } from '@threlte/core';
@@ -80355,13 +80318,7 @@ export default function XR($$renderer, $$props) {
 			dispatchXRInputSourceEvent(event);
 		};
 
-		if (// Capture the mode from before we forced 'always' so it survives
-		// any manual renderMode changes made during the session.
-		// if unmounted while presenting (e.g. due to sveltekit navigation), end the session
-		// Do nothing
-		// Prefer to replay whatever mode + sessionInit the app entered with last.
-		// user declined or offer was rejected
-		isPresenting.current) {
+		if (isPresenting.current) {
 			$$renderer.push('<!--[0-->');
 			children?.($$renderer);
 			$$renderer.push(`<!---->`);

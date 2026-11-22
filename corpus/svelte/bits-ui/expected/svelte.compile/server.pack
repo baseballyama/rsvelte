@@ -29100,11 +29100,11 @@ export default function Metadata($$renderer, $$props) {
 			: `${title} - ${siteConfig.current.name}`);
 
 		$.head('5v2rt', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="description"${$.attr('content', description)}/> <meta name="keywords"${$.attr('content', keywords?.join(","))}/> <meta name="author" content="huntabyte"/> <meta name="twitter:card" content="summary_large_image"/> <meta name="twitter:site"${$.attr('content', siteConfig.current.url)}/> <meta name="twitter:title"${$.attr('content', title)}/> <meta name="twitter:description"${$.attr('content', description)}/> <meta name="twitter:image"${$.attr('content', ogImage?.url)}/> <meta name="twitter:image:alt"${$.attr('content', title)}/> <meta name="twitter:creator" content="huntabyte"/> <meta property="og:title"${$.attr('content', title)}/> <meta property="og:type" content="website"/> <meta property="og:url"${$.attr('content', siteConfig.current.url + page.url.pathname)}/> <meta property="og:image"${$.attr('content', ogImage?.url)}/> <meta property="og:image:alt"${$.attr('content', title)}/> <meta property="og:image:width"${$.attr('content', ogImage?.width)}/> <meta property="og:image:height"${$.attr('content', ogImage?.height)}/> <meta property="og:description"${$.attr('content', description)}/> <meta property="og:site_name"${$.attr('content', siteConfig.current.name)}/> <meta property="og:locale" content="EN_US"/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>${$.escape(trueTitle())}</title>`);
 			});
-
-			$$renderer.push(`<meta name="description"${$.attr('content', description)}/> <meta name="keywords"${$.attr('content', keywords?.join(","))}/> <meta name="author" content="huntabyte"/> <meta name="twitter:card" content="summary_large_image"/> <meta name="twitter:site"${$.attr('content', siteConfig.current.url)}/> <meta name="twitter:title"${$.attr('content', title)}/> <meta name="twitter:description"${$.attr('content', description)}/> <meta name="twitter:image"${$.attr('content', ogImage?.url)}/> <meta name="twitter:image:alt"${$.attr('content', title)}/> <meta name="twitter:creator" content="huntabyte"/> <meta property="og:title"${$.attr('content', title)}/> <meta property="og:type" content="website"/> <meta property="og:url"${$.attr('content', siteConfig.current.url + page.url.pathname)}/> <meta property="og:image"${$.attr('content', ogImage?.url)}/> <meta property="og:image:alt"${$.attr('content', title)}/> <meta property="og:image:width"${$.attr('content', ogImage?.width)}/> <meta property="og:image:height"${$.attr('content', ogImage?.height)}/> <meta property="og:description"${$.attr('content', description)}/> <meta property="og:site_name"${$.attr('content', siteConfig.current.name)}/> <meta property="og:locale" content="EN_US"/>`);
 		});
 	});
 }
@@ -33547,11 +33547,11 @@ export default function _page($$renderer, $$props) {
 
 		function $$render_inner($$renderer) {
 			$.head('18thta0', $$renderer, ($$renderer) => {
+				$$renderer.push(`<meta name="description" content="Headless components for Svelte - flexible, unstyled, and accessible primitives that provide the foundation for building your own high-quality component library."/>`);
+
 				$$renderer.title(($$renderer) => {
 					$$renderer.push(`<title>Bits UI – Headless components for Svelte</title>`);
 				});
-
-				$$renderer.push(`<meta name="description" content="Headless components for Svelte - flexible, unstyled, and accessible primitives that provide the foundation for building your own high-quality component library."/>`);
 			});
 
 			$$renderer.push(`<div class="border-b border-solid border-black/10 bg-white dark:border-white/20 dark:bg-[#171717]"><header class="flex items-center justify-between px-3 py-[17px] lg:grid lg:grid-cols-3 lg:px-5"><a href="/" class="focus-visible:ring-foreground focus-visible:ring-offset-background focus-visible:outline-hidden ml-2 mt-2 rounded-md focus-visible:ring-2 focus-visible:ring-offset-2" aria-label="Home">`);

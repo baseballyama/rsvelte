@@ -1923,10 +1923,6 @@ export default function DocPage($$renderer, $$props) {
 		});
 
 		$.head('1wur4sp', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>${$.escape(title ? `${title} | svelte-chartjs` : 'svelte-chartjs')}</title>`);
-			});
-
 			if (description) {
 				$$renderer.push(`<!--[0--><meta name="description"${$.attr('content', description)}/>`);
 			} else {
@@ -1934,6 +1930,10 @@ export default function DocPage($$renderer, $$props) {
 			}
 
 			$$renderer.push(`<!--]-->`);
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(title ? `${title} | svelte-chartjs` : 'svelte-chartjs')}</title>`);
+			});
 		});
 
 		$$renderer.push(`<div class="doc-layout svelte-1wur4sp"><article class="svelte-1wur4sp">`);

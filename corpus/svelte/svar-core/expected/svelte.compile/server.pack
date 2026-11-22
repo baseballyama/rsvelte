@@ -12505,7 +12505,7 @@ export default function TimePicker($$renderer, $$props) {
 		filter: drop-shadow(-1px 0 0 var(--wx-tooltip-border, transparent));
 	}
 
-=== 7335 svelte/src/components/Tooltip.svelte	js
+=== 7068 svelte/src/components/Tooltip.svelte	js
 import * as $ from 'svelte/internal/server';
 import { calculatePosition, getAbsParent } from "@svar-ui/lib-dom";
 import Portal from "./Portal.svelte";
@@ -12596,11 +12596,6 @@ export default function Tooltip($$renderer, $$props) {
 		}
 
 		// Positioning of the tooltip
-		// Offset from the mouse cursor when at="point"
-		// Calculate the position of the tooltip
-		// Detect if calculatePosition flipped to the opposite side
-		// Add gap for the arrow if needed, using realSide for direction
-		// Submit the result to the position state
 		function defaultResolver(element) {
 			if (overflow && element.scrollWidth <= element.clientWidth) return null;
 

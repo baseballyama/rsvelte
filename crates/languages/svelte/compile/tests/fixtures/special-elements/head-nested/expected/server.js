@@ -3,11 +3,10 @@ export default function Head_nested($$renderer) {
 	let show = true;
 	$.head("12tw8ly", $$renderer, ($$renderer) => {
 		if (show) {
-			$$renderer.push("<!--[0-->");
+			$$renderer.push(`<!--[0--><meta name="test" content="shown"/>`);
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>Shown</title>`);
 			});
-			$$renderer.push(`<meta name="test" content="shown"/>`);
 		} else {
 			$$renderer.push("<!--[-1-->");
 		}

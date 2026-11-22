@@ -1,3 +1,4 @@
+import "svelte/internal/init-operations";
 import "svelte/internal/disclose-version";
 import * as $ from "svelte/internal/client";
 var root = $.with_script($.from_html(`<script async="" src="https://x/y.js"></script> <script>window.a = 1;</script>`, 1));
