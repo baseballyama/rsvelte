@@ -5,6 +5,7 @@ use oxc_ast::ast::{
 };
 use oxc_semantic::{AstNode, SymbolId};
 use oxc_syntax::operator::{AssignmentOperator, BinaryOperator, UnaryOperator};
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
@@ -15,6 +16,7 @@ use rsvelte_typescript_tree::{ExpressionIdentifier, Tree, node_span};
 use rustc_hash::FxHashMap;
 
 use super::shared::element_kind::is_markup_like;
+use super::shared::legacy_reactivity::is_top_level;
 use super::shared::svelte_store::store_calls;
 use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 
@@ -56,6 +58,7 @@ impl SvelteRule for RequireStoreReactiveAccess {
             file,
             javascript,
             stores: &stores,
+            module: component.module.as_ref().map(|module| module.span),
             reporter,
         };
         for node in file.nodes().iter() {
@@ -69,6 +72,8 @@ struct Check<'a, 'r, 'p> {
     file: &'a File<'a>,
     javascript: &'a Tree,
     stores: &'a FxHashMap<SymbolId, bool>,
+    /// The `<script module>` element.
+    module: Option<Span>,
     reporter: &'r mut Reporter<'p>,
 }
 
@@ -86,33 +91,43 @@ impl Check<'_, '_, '_> {
         fix: bool,
         consistent: bool,
     ) {
-        if identifier.name.starts_with('$') {
-            return;
-        }
-        let scoping = self.file.semantic().scoping();
-        let Some(symbol) = identifier
-            .reference_id
-            .get()
-            .and_then(|id| scoping.get_reference(id).symbol_id())
-        else {
+        let Some(symbol) = self.store(identifier, consistent) else {
             return;
         };
-        let Some(&constant) = self.stores.get(&symbol) else {
-            return;
-        };
-        if consistent && !constant {
-            return;
-        }
         let at = node_span(identifier);
         let mut report = Report::range(
             "Use the $ prefix or the get function to access reactive values instead of accessing \
              the raw store.",
             at,
         );
-        if fix {
+        if fix && self.can_use_store_prefix(symbol, at) {
             report = report.fix(Fix::insert(at.start_offset, "$"));
         }
         self.reporter.report(report);
+    }
+
+    /// `isStore` without type information: the store it reads, `const` when `consistent`.
+    fn store(&self, identifier: &IdentifierReference<'_>, consistent: bool) -> Option<SymbolId> {
+        if identifier.name.starts_with('$') {
+            return None;
+        }
+        let scoping = self.file.semantic().scoping();
+        let symbol = scoping
+            .get_reference(identifier.reference_id.get()?)
+            .symbol_id()?;
+        let &constant = self.stores.get(&symbol)?;
+        (constant || !consistent).then_some(symbol)
+    }
+
+    /// `canUseStorePrefix`: Svelte accepts `$` only on a top-level store outside the module script.
+    fn can_use_store_prefix(&self, symbol: SymbolId, at: Span) -> bool {
+        let scope = self.file.semantic().scoping().symbol_scope_id(symbol);
+        self.file
+            .resolution()
+            .is_some_and(|resolution| is_top_level(resolution, scope))
+            && !self.module.is_some_and(|module| {
+                module.start_offset <= at.start_offset && at.end_offset <= module.end_offset
+            })
     }
 
     /// [`Check::verify`] of the expression a template part holds.
@@ -164,6 +179,23 @@ impl Check<'_, '_, '_> {
                 }
             }
             AstKind::SpreadElement(spread) => self.verify(&spread.argument, true, false),
+            AstKind::AssignmentExpression(assignment) if assignment.operator.is_logical() => {
+                let left = match &assignment.left {
+                    AssignmentTarget::AssignmentTargetIdentifier(identifier) => Some(&**identifier),
+                    _ => None,
+                };
+                // No fix, since `$store ||= foo` would set the store's value instead.
+                if let Some(identifier) = left {
+                    self.verify_identifier(identifier, false, false);
+                }
+                // Assigning a store to a store is fine.
+                if left
+                    .and_then(|identifier| self.store(identifier, false))
+                    .is_none()
+                {
+                    self.verify(&assignment.right, true, false);
+                }
+            }
             AstKind::AssignmentExpression(assignment)
                 if assignment.operator != AssignmentOperator::Assign =>
             {

@@ -71,9 +71,15 @@
 	"require-event-prefix/invalid/overload-maybe-async01-input.svelte": "needs which properties of the `$props()` type are functions, which only a type checker resolves",
 	"require-event-prefix/invalid/overload01-input.svelte": "needs which properties of the `$props()` type are functions, which only a type checker resolves",
 	"require-event-prefix/invalid/void-like01-input.svelte": "needs which properties of the `$props()` type are functions, which only a type checker resolves",
+	"require-store-reactive-access/invalid/ts/ts-callable-store01-input.svelte": "whether a variable's type is a store: `export let store: Readable<() => void>` has no `svelte/store` call",
+	"require-store-reactive-access/invalid/ts/ts-callable-store03-input.svelte": "whether a variable's type is a store: `export let store: Readable<() => void>` has no `svelte/store` call",
 	"require-store-reactive-access/invalid/ts/ts-class-directives01-input.svelte": "whether a variable's type is a store: `let store: Writable<number> | null` has no `svelte/store` call",
 	"require-store-reactive-access/invalid/ts/ts-i18n-input.svelte": "whether an expression's type is a store: `_` imported from svelte-i18n is a readable store of a function",
 	"require-store-reactive-access/invalid/ts/ts-if-block01-input.svelte": "whether a variable's type is a store: `let store: Writable<number> | null` has no `svelte/store` call",
+	"require-store-reactive-access/invalid/ts/ts-local-store01-input.svelte": "whether a variable's type is a store: an `{#each}` item of `Readable<number>[]` has no `svelte/store` call",
+	"require-store-reactive-access/invalid/ts/ts-logical01-input.svelte": "whether an expression's type is a store: `{#if loading || saving}` tests a store when both operands are stores",
+	"require-store-reactive-access/invalid/ts/ts-nullish01-input.svelte": "whether an expression's type is a store: `props.count`, `getCount()` and a store behind `as Writable<number>` have no `svelte/store` call of their own",
+	"require-store-reactive-access/invalid/ts/ts-nullish02-input.svelte": "whether an expression's type is a store: a prop, a member, an alias, a destructured property, `as` expressions and a bare `writable(0)` call",
 	"require-store-reactive-access/invalid/ts/ts-stores01-input.svelte": "whether an expression's type is a store: members of a namespace imported from another file (`stores.wStore`)",
 	"require-store-reactive-access/invalid/ts/ts-test01-input.svelte": "whether an expression's type is a store: names imported from another file (`../../ts/store`)"
 }
