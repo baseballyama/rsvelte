@@ -384,91 +384,137 @@ fn a_target_is_read_where_acorn_reads_it() {
     }
 }
 
+/// What svelte 5.59.1 reports: a for statement's head and a method with a return type are where
+/// `await` and `yield` mean what the function around them makes them.
+const READ_WHERE_ACORN_READS: &[(bool, &str, &str, u32)] = &[
+    (
+        false,
+        "async function f() { for await ([(f())] of o); }",
+        "Assigning to rvalue",
+        41,
+    ),
+    (
+        false,
+        "async function f() { for ([(await x)] of o); }",
+        "Assigning to rvalue",
+        35,
+    ),
+    (
+        false,
+        "async function f() { for ([a = await x, (f())] of o); }",
+        "Assigning to rvalue",
+        48,
+    ),
+    (
+        false,
+        "async function f() { for ([a = await x, (f())] in o); }",
+        "Assigning to rvalue",
+        48,
+    ),
+    (
+        false,
+        "async function f() { for await ([a = await x, (f())] of o); }",
+        "Assigning to rvalue",
+        54,
+    ),
+    (
+        false,
+        "function* g() { for ([(yield)] of o); }",
+        "Assigning to rvalue",
+        30,
+    ),
+    (
+        false,
+        "function* g() { for ([(yield), (f())] of o); }",
+        "Assigning to rvalue",
+        30,
+    ),
+    (
+        false,
+        "function* g() { for ([(yield)] in o); }",
+        "Assigning to rvalue",
+        30,
+    ),
+    (
+        true,
+        "const o2 = { *m(): Generator<number> { for ([(yield), (f())] of o); } };",
+        "Assigning to rvalue",
+        63,
+    ),
+    (
+        true,
+        "const o2 = { async m(): Promise<void> { for ([(await x)] of o); } };",
+        "Assigning to rvalue",
+        64,
+    ),
+    (
+        true,
+        "const o2 = { get m(): number { for ([(await x)] of o); return 1; } };",
+        "Cannot use keyword 'await' outside an async function",
+        56,
+    ),
+    (
+        true,
+        "class C { get m(): number { for ([(await x)] of o); return 1; } }",
+        "Cannot use keyword 'await' outside an async function",
+        53,
+    ),
+    (
+        true,
+        "const o2 = { get m(): number { [(f()), (g())] = o; return 1; } };",
+        "Assigning to rvalue",
+        50,
+    ),
+    (
+        false,
+        concat!(
+            "async function f0() { for ([(await a), (await b)] of o); } ",
+            "async function f1() { for ([(await a), (await b)] of o); }",
+        ),
+        "Assigning to rvalue",
+        36,
+    ),
+    (
+        false,
+        "async function f() { for ([(await a), (await b), (await c)] of o); }",
+        "Assigning to rvalue",
+        35,
+    ),
+    (
+        false,
+        "async function f() { for ([(await a), (f())] of o); } for ((y()) of o);",
+        "Assigning to rvalue",
+        35,
+    ),
+    (
+        false,
+        "switch (a) { case 1: (f()) = 1; }",
+        "Assigning to rvalue",
+        30,
+    ),
+    (
+        false,
+        "async function f() { switch (a) { case 1: [(await x), (g())] = o; } }",
+        "Assigning to rvalue",
+        51,
+    ),
+    (
+        false,
+        "x = [async () => 1, (await y) = 1];",
+        "Assigning to rvalue",
+        29,
+    ),
+    (
+        false,
+        "async () => [(await x), (g())] = o;",
+        "Assigning to rvalue",
+        21,
+    ),
+];
+
 #[test]
 fn a_target_in_a_loop_head_or_a_typed_method_is_read_where_acorn_reads_it() {
-    // What svelte 5.59.1 reports: a for statement's head and a method with a return type are where
-    // `await` and `yield` mean what the function around them makes them.
-    const AWAIT_OUTSIDE: &str = "Cannot use keyword 'await' outside an async function";
-    for (typescript, script, message, at) in [
-        (
-            false,
-            "async function f() { for await ([(f())] of o); }",
-            "Assigning to rvalue",
-            41,
-        ),
-        (
-            false,
-            "async function f() { for ([(await x)] of o); }",
-            "Assigning to rvalue",
-            35,
-        ),
-        (
-            false,
-            "async function f() { for ([a = await x, (f())] of o); }",
-            "Assigning to rvalue",
-            48,
-        ),
-        (
-            false,
-            "async function f() { for ([a = await x, (f())] in o); }",
-            "Assigning to rvalue",
-            48,
-        ),
-        (
-            false,
-            "async function f() { for await ([a = await x, (f())] of o); }",
-            "Assigning to rvalue",
-            54,
-        ),
-        (
-            false,
-            "function* g() { for ([(yield)] of o); }",
-            "Assigning to rvalue",
-            30,
-        ),
-        (
-            false,
-            "function* g() { for ([(yield), (f())] of o); }",
-            "Assigning to rvalue",
-            30,
-        ),
-        (
-            false,
-            "function* g() { for ([(yield)] in o); }",
-            "Assigning to rvalue",
-            30,
-        ),
-        (
-            true,
-            "const o2 = { *m(): Generator<number> { for ([(yield), (f())] of o); } };",
-            "Assigning to rvalue",
-            63,
-        ),
-        (
-            true,
-            "const o2 = { async m(): Promise<void> { for ([(await x)] of o); } };",
-            "Assigning to rvalue",
-            64,
-        ),
-        (
-            true,
-            "const o2 = { get m(): number { for ([(await x)] of o); return 1; } };",
-            AWAIT_OUTSIDE,
-            56,
-        ),
-        (
-            true,
-            "class C { get m(): number { for ([(await x)] of o); return 1; } }",
-            AWAIT_OUTSIDE,
-            53,
-        ),
-        (
-            true,
-            "const o2 = { get m(): number { [(f()), (g())] = o; return 1; } };",
-            "Assigning to rvalue",
-            50,
-        ),
-    ] {
+    for &(typescript, script, message, at) in READ_WHERE_ACORN_READS {
         let open = if typescript {
             "<script lang=\"ts\">"
         } else {
@@ -476,13 +522,7 @@ fn a_target_in_a_loop_head_or_a_typed_method_is_read_where_acorn_reads_it() {
         };
         let source = format!("{open}{script}</script>");
         let error = parse(&source).expect_err(&source);
-        // Where acorn reads `await` as a keyword, the place is right and the wording is oxc's.
         let read = error.message.lines().next().unwrap_or_default();
-        let read = if message == AWAIT_OUTSIDE {
-            message
-        } else {
-            read
-        };
         assert_eq!((read, error.span.start_offset), (message, at), "{source}");
     }
 }

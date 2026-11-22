@@ -1,16 +1,14 @@
 use oxc_ast::ast::Program;
 use oxc_diagnostics::Diagnostics;
 use oxc_parser::config::TokensParserConfig;
-use oxc_parser::{Kind, Parser, Token};
+use oxc_parser::{Kind, Parser};
 use oxc_span::SourceType;
 use rsvelte_kernel::source::positions::Span;
 
 use super::{Part, TreeBuilder, parentheses};
 use crate::ProgramIdentifier;
 use crate::acorn_grammar::{rejection, whitespace};
-use crate::syntax_error::{
-    SyntaxError, acorn, syntax_error, typescript_eslint_at, unassignable_target,
-};
+use crate::syntax_error::{SyntaxError, acorn, syntax_error, typescript_eslint_at};
 
 impl<'a> TreeBuilder<'a> {
     /// Parses `range` of the document as a program, such as the body of a `<script>` element.
@@ -172,21 +170,8 @@ impl<'a> TreeBuilder<'a> {
             .with_start(start)
             .parse();
         if parsed.fatal_error {
-            let acorn = parsed.diagnostics.first().and_then(|first| {
-                crate::scratch::with_scratch_arena(|allocator| {
-                    let named = named_target(
-                        allocator,
-                        (text, start),
-                        source_type,
-                        (first, &parsed.tokens),
-                    );
-                    acorn(first, text, (&parsed.tokens, None), |locator| {
-                        if let Some(program) = &named {
-                            Part::Program(program).walk(locator);
-                        }
-                    })
-                })
-            });
+            let acorn = (parsed.diagnostics.first())
+                .and_then(|first| acorn(first, text, (&parsed.tokens, None), |_| {}));
             let mut error = syntax_error(parsed.diagnostics.iter().cloned(), text, &[], start, 0);
             error.acorn = acorn;
             let stop = (self.as_acorn)
@@ -287,12 +272,13 @@ impl Holes {
 /// program ends at `end`: the tokens it read, the text they cover, and where the next statement
 /// starts. `None` when nothing is left to read.
 fn skip<'t>(
-    tokens: &'t [Token],
+    tokens: &'t [oxc_parser::Token],
     diagnostics: &Diagnostics,
     (at, text, end): (u32, &str, u32),
-) -> Option<(&'t [Token], Span, u32)> {
-    let covered =
-        |read: &[Token], until: u32| Span::new(read.first().map_or(at, Token::start), until);
+) -> Option<(&'t [oxc_parser::Token], Span, u32)> {
+    let covered = |read: &[oxc_parser::Token], until: u32| {
+        Span::new(read.first().map_or(at, oxc_parser::Token::start), until)
+    };
     // TypeScript's scanner reads on past the token it cannot finish where the lexer gave up on the
     // rest; the tokens from there on are the lexer's guesses.
     let stopped_the_lexer =
@@ -306,7 +292,7 @@ fn skip<'t>(
     }
     // Otherwise to the token the statement stopped at, or past it when it stopped at its first.
     let (&stop, read) = tokens.split_last()?;
-    let read_end = read.last().map_or(at, Token::end);
+    let read_end = read.last().map_or(at, oxc_parser::Token::end);
     Some(match stop.kind() {
         Kind::Eof => (read, covered(read, read_end), end),
         _ if stop.start() > at => (read, covered(read, read_end), stop.start()),
@@ -417,77 +403,4 @@ struct Read {
     error: SyntaxError,
     diagnostics: Diagnostics,
     recovered: Option<ProgramIdentifier>,
-}
-
-/// A program oxc reads from `text[start..]` with the target it cannot assign that `first` labels
-/// replaced by a name of the same length: its tree places the target in the functions around it,
-/// where acorn reads `await` and `yield`. The whole text is read with each target oxc reports
-/// replaced, for at most [`WHOLE_READS`] reads, which covers a pattern with two such elements, as
-/// in a loop's head; then the text up to the last target reported, with the brackets open there
-/// closed. A constant number of reads, so a document with many such targets costs what one does.
-/// `None` for another error, or where none reads.
-#[cold]
-fn named_target<'b>(
-    allocator: &'b oxc_allocator::Allocator,
-    (text, start): (&str, u32),
-    source_type: SourceType,
-    (first, tokens): (&oxc_diagnostics::OxcDiagnostic, &[Token]),
-) -> Option<Program<'b>> {
-    const WHOLE_READS: usize = 2;
-    let label = |error: &oxc_diagnostics::OxcDiagnostic| {
-        let label = error
-            .labels
-            .first()
-            .filter(|_| unassignable_target(error))?;
-        Some((label.offset() as usize, label.len() as usize))
-    };
-    let read = |named: &str| {
-        Parser::new(allocator, allocator.alloc_str(named), source_type)
-            .with_options(parentheses::options(false))
-            .with_config(TokensParserConfig)
-            .with_start(start)
-            .parse()
-    };
-    let mut named = text.to_owned();
-    let (mut target, mut tokens) = (label(first)?, tokens.to_vec());
-    for _ in 0..WHOLE_READS {
-        let (at, len) = target;
-        named.replace_range(
-            at..at + len,
-            &format!("_{}", " ".repeat(len.checked_sub(1)?)),
-        );
-        let parsed = read(&named);
-        if !parsed.fatal_error {
-            return Some(parsed.program);
-        }
-        match parsed.diagnostics.first().and_then(label) {
-            Some(next) if next.0 > at => (target, tokens) = (next, parsed.tokens.to_vec()),
-            _ => break,
-        }
-    }
-    let (at, len) = target;
-    named.replace_range(
-        at..at + len,
-        &format!("_{}", " ".repeat(len.checked_sub(1)?)),
-    );
-    named.truncate(at + len);
-    let mut closers = Vec::new();
-    for token in tokens
-        .iter()
-        .take_while(|token| (token.start() as usize) < at)
-    {
-        match token.kind() {
-            Kind::LParen => closers.push(")"),
-            Kind::LBrack => closers.push("]"),
-            Kind::LCurly => closers.push("}"),
-            Kind::TemplateHead => closers.push("}`"),
-            Kind::RParen | Kind::RBrack | Kind::RCurly | Kind::TemplateTail => {
-                closers.pop();
-            }
-            _ => {}
-        }
-    }
-    named.extend(closers.into_iter().rev());
-    let parsed = read(&named);
-    (!parsed.fatal_error).then_some(parsed.program)
 }

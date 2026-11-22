@@ -144,7 +144,7 @@ impl Acorn {
 }
 
 mod acorn_rejection;
-pub(crate) use acorn_rejection::{acorn, reported, unassignable_target};
+pub(crate) use acorn_rejection::{acorn, reported};
 mod locator;
 mod readers;
 mod typescript_eslint;

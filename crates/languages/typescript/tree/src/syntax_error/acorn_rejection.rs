@@ -78,6 +78,8 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
     let (start, end) = (label.offset(), label.offset() + label.len());
     match number {
         "1047" => optional_rest(start, end, visit) == Some(Ok(())),
+        // An `await` where acorn reads it as the keyword: an enum at the top level is one.
+        "1308" => (home(start, end, std::iter::empty(), visit).0).is_some_and(Home::awaits),
         // acorn-typescript reads a class accessor without a body as a signature.
         "1005" => locate(start, end, Find::BodilessAccessor, visit).is_some(),
         // acorn-typescript checks no interface, public class member, enum member, nor parameter
@@ -244,13 +246,6 @@ pub(crate) fn acorn(
     }
 }
 
-/// Whether `error` is about a target that cannot be assigned, which acorn reports as such.
-pub(crate) fn unassignable_target(error: &OxcDiagnostic) -> bool {
-    error.code.scope.as_deref() == Some("TS")
-        && (error.code.number.as_deref())
-            .is_some_and(|number| unassignable_message(number).is_some())
-}
-
 /// Acorn's message for a target that tsc's code `number` says cannot be assigned, which names an
 /// optional chain apart.
 fn unassignable_message(number: &str) -> Option<&'static str> {
@@ -280,7 +275,7 @@ fn unassignable(
     let tokens = &tokens.collect::<Vec<_>>();
     let (home, _) = home(start, end, tokens.iter().copied(), visit);
     if let Some(home) = home {
-        if let Some(at) = parenthesized_element(text, start, tokens, home) {
+        if let Some(at) = parenthesized_element(text, (start, end), tokens, home) {
             return Some(fails("Assigning to rvalue", at));
         }
         let node = reparsed(text, (start, end), home, |target| {

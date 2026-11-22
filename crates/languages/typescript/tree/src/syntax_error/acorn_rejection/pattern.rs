@@ -9,25 +9,32 @@ use oxc_span::{GetSpan, SourceType};
 
 use super::super::word::Home;
 
-/// Where acorn's check of a destructuring pattern around `start` fails, in `text` whose tokens are
-/// `tokens` and where acorn reads as `home` says: at the parenthesis it recorded while it read the
-/// pattern as an expression. The pattern is the outermost array or object around `start` that `=`
-/// or a `for` head assigns to and that reads as an expression there.
+/// Where acorn's check of a destructuring pattern around the target `start..end` fails, in `text`
+/// whose tokens are `tokens` and where acorn reads as `home` says: at the parenthesis it recorded
+/// while it read the pattern as an expression. The pattern is the outermost array or object around
+/// the target that `=` or a `for` head assigns to and whose check fails. A target an assignment of
+/// its own assigns to fails at that assignment, which acorn reads before the pattern's.
 pub(super) fn parenthesized_element(
     text: &str,
-    start: u32,
+    (start, end): (u32, u32),
     tokens: &[Token],
     home: Home,
 ) -> Option<u32> {
-    assigned_patterns(start, tokens)
-        .find_map(|pattern| {
-            reparsed(text, pattern, home, |pattern| {
-                let mut record = Record::default();
-                record.atom(pattern.expression, pattern.source);
-                record.at.map(|at| pattern.at(at))
-            })
+    let after = tokens.partition_point(|token| token.start() < end);
+    if tokens
+        .get(after)
+        .is_some_and(|token| token.kind().is_assignment_operator())
+    {
+        return None;
+    }
+    assigned_patterns(start, tokens).find_map(|pattern| {
+        reparsed(text, pattern, home, |pattern| {
+            let mut record = Record::default();
+            record.atom(pattern.expression, pattern.source);
+            record.at.map(|at| pattern.at(at))
         })
         .flatten()
+    })
 }
 
 /// An expression read again apart from the rest of the source, in a source of its own.
