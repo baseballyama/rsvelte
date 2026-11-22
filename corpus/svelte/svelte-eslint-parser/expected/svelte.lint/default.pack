@@ -5046,16 +5046,11 @@
 7:1 20:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 16:7 16:15 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 1186 tests/fixtures/parser/selector-parsing/simple-scss-input.svelte	lint.txt
+=== 472 tests/fixtures/parser/selector-parsing/simple-scss-input.svelte	lint.txt
 7:1 26:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 8:3 8:13 svelte/consistent-selector-style "Selector should select by ID instead of class"
 9:5 9:15 svelte/consistent-selector-style "Selector should select by ID instead of class"
 14:5 14:16 svelte/consistent-selector-style "Selector should select by element type instead of class"
-18:5 19:10 svelte/valid-compile "Unused CSS selector \".container a:active\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
-18:5 19:11 svelte/valid-compile "Unused CSS selector \".container a::before\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
-18:5 19:7 svelte/valid-compile "Unused CSS selector \".container b + a\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
-18:5 19:14 svelte/valid-compile "Unused CSS selector \".container b + .myClass\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
-18:5 20:4 svelte/valid-compile "Unused CSS selector \".container a[data-key=value]\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 21:9 21:17 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
 === 76 tests/fixtures/parser/style-context/empty-style-element-input.svelte	lint.txt

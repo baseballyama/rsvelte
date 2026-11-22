@@ -14517,12 +14517,10 @@
 2:1 4:9 svelte/valid-style-parse "Error parsing style element. Error message: \"css_custom_property_block_3052/an_ordinary_property_does_not_gain_the_custom_property_grammar/2510649d5f4831a6.svelte:2:14: Unknown word red\""
 3:11 3:11 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
 
-=== 536 css_custom_property_block_3052/scss_line_comment_parentheses_do_not_end_the_enclosing_rule_early/508af60a57fab5fd.svelte	lint.txt
+=== 287 css_custom_property_block_3052/scss_line_comment_parentheses_do_not_end_the_enclosing_rule_early/508af60a57fab5fd.svelte	lint.txt
 2:1 15:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 3:3 3:8 svelte/consistent-selector-style "Selector should select by element type instead of class"
-3:3 3:8 svelte/valid-compile "Unused CSS selector \".pill\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 9:5 9:10 svelte/consistent-selector-style "Selector should select by element type instead of class"
-9:5 9:10 svelte/valid-compile "Unused CSS selector \".pill\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
 === 136 css_custom_property_block_3052/strings_comments_and_escapes_do_not_close_a_custom_property_block/6321983ad0d9ef4f.svelte	lint.txt
 3:14 3:14 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
@@ -16300,15 +16298,13 @@
 4:2 4:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
 5:9 5:9 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
 
-=== 307 css_value_scan_4046/a_line_comment_that_reaches_a_brace_is_still_an_identifier_error/565742e847c7ca12.svelte	lint.txt
+=== 186 css_value_scan_4046/a_line_comment_that_reaches_a_brace_is_still_an_identifier_error/565742e847c7ca12.svelte	lint.txt
 3:1 8:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 5:2 5:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
-5:2 5:4 svelte/valid-compile "Unused CSS selector \".a\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
-=== 308 css_value_scan_4046/a_line_comment_that_reaches_a_brace_is_still_an_identifier_error/6dd628aaa6b68558.svelte	lint.txt
+=== 187 css_value_scan_4046/a_line_comment_that_reaches_a_brace_is_still_an_identifier_error/6dd628aaa6b68558.svelte	lint.txt
 3:1 10:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 4:2 4:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
-4:2 4:4 svelte/valid-compile "Unused CSS selector \".a\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
 === 226 css_value_scan_4046/a_plain_paren_is_not_a_bracket_the_value_scan_balances/3574410c285bd1a9.svelte	lint.txt
 4:2 4:4 svelte/consistent-selector-style "Selector should select by element type instead of class"

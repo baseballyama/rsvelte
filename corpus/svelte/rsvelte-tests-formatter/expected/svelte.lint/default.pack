@@ -11480,9 +11480,8 @@
 === 120 style/callback_receives_body_and_lang_default_css/01146b1b35a8be0f.svelte	lint.txt
 1:8 1:9 svelte/valid-compile "Unused CSS selector \"p\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
-=== 210 style/callback_receives_scss_lang_attribute/2da0f4f245354019.svelte	lint.txt
+=== 88 style/callback_receives_scss_lang_attribute/2da0f4f245354019.svelte	lint.txt
 1:1 1:45 svelte/block-lang "The lang attribute of the <style> block should be omitted."
-1:20 1:21 svelte/valid-compile "Unused CSS selector \"p\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
 === 0 style/empty_style_block_skips_callback/0c78fa9b9c01dfd5.svelte	lint.txt
 
