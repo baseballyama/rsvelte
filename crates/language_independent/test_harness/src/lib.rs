@@ -59,11 +59,17 @@ pub fn svelte_content_mapper() -> PathBuf {
     )
 }
 
+/// Cargo writes executables to the profile directory and a test to a directory below it, whose
+/// depth depends on the build directory's layout.
 fn built(name: &str, package: &str) -> PathBuf {
     std::env::current_exe()
         .ok()
-        .and_then(|test| Some(test.parent()?.parent()?.join(name)))
-        .filter(|program| program.is_file())
+        .and_then(|test| {
+            test.ancestors()
+                .skip(1)
+                .map(|directory| directory.join(name))
+                .find(|program| program.is_file())
+        })
         .unwrap_or_else(|| panic!("{name} is not built: run `cargo build -p {package} --bins`"))
 }
 
@@ -154,7 +160,6 @@ impl Fixtures {
     /// # Panics
     ///
     /// If no snapshot is registered.
-    #[must_use]
     pub fn run(self) -> ExitCode {
         assert!(
             !self.snapshots.is_empty(),
