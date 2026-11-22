@@ -246,18 +246,19 @@ impl Builder<'_> {
             Kind::Component => self.tree.push(Node::Identifier("__rsvelte_any_node")),
         };
         // svelte-check maps a finding on the movement to where svelte2tsx's last mapping before it
-        // starts: the name's last character, or the name's end when parameters follow.
+        // starts: the name's last character when the start tag's `>` follows it, or else the
+        // name's end.
         let movement = (attribute.kind == AttributeKind::Animate).then(|| {
             let value = self
                 .tree
                 .push(Node::Identifier("__sveltets_2_AnimationMove"));
-            let last = match argument {
-                Some(_) => 0,
-                None => name
-                    .text(self.source)
+            let last = if host.closes_at == Some(name.end_offset) {
+                name.text(self.source)
                     .chars()
                     .last()
-                    .map_or(0, char::len_utf8),
+                    .map_or(0, char::len_utf8)
+            } else {
+                0
             };
             let at = name.end_offset - last as u32;
             let at = Span::new(at, at);
