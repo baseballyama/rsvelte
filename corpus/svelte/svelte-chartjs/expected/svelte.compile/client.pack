@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 331 sandboxes/bar/App.svelte	js
+=== 373 sandboxes/bar/App.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Chart from './components/Chart.svelte';
@@ -14,7 +15,8 @@ export default function App($$anchor) {
 	$.reset(main);
 	$.append($$anchor, main);
 }
-=== 528 sandboxes/bar/components/Chart.svelte	js
+=== 570 sandboxes/bar/components/Chart.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Bar } from 'svelte-chartjs';
@@ -43,7 +45,8 @@ export default function Chart_1($$anchor, $$props) {
 
 	$.pop();
 }
-=== 518 sandboxes/bubble/components/Chart.svelte	js
+=== 560 sandboxes/bubble/components/Chart.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Bubble } from 'svelte-chartjs';
@@ -71,7 +74,8 @@ export default function Chart($$anchor, $$props) {
 
 	$.pop();
 }
-=== 522 sandboxes/doughnut/components/Chart.svelte	js
+=== 564 sandboxes/doughnut/components/Chart.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Doughnut } from 'svelte-chartjs';
@@ -99,7 +103,8 @@ export default function Chart($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1590 sandboxes/events/components/Chart.svelte	js
+=== 1632 sandboxes/events/components/Chart.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -203,7 +208,8 @@ export default function Chart_1($$anchor, $$props) {
 	}
 ]
 
-=== 572 sandboxes/line/components/Chart.svelte	js
+=== 614 sandboxes/line/components/Chart.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Line } from 'svelte-chartjs';
@@ -233,7 +239,8 @@ export default function Chart($$anchor, $$props) {
 
 	$.pop();
 }
-=== 512 sandboxes/pie/components/Chart.svelte	js
+=== 554 sandboxes/pie/components/Chart.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Pie } from 'svelte-chartjs';
@@ -261,7 +268,8 @@ export default function Chart($$anchor, $$props) {
 
 	$.pop();
 }
-=== 532 sandboxes/polar/components/Chart.svelte	js
+=== 574 sandboxes/polar/components/Chart.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { PolarArea } from 'svelte-chartjs';
@@ -289,7 +297,8 @@ export default function Chart($$anchor, $$props) {
 
 	$.pop();
 }
-=== 555 sandboxes/radar/components/Chart.svelte	js
+=== 597 sandboxes/radar/components/Chart.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Radar } from 'svelte-chartjs';
@@ -318,7 +327,8 @@ export default function Chart($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1342 sandboxes/ref/components/Chart.svelte	js
+=== 1384 sandboxes/ref/components/Chart.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -408,7 +418,8 @@ export default function Chart_1($$anchor, $$props) {
 	}
 ]
 
-=== 578 sandboxes/scatter/components/Chart.svelte	js
+=== 620 sandboxes/scatter/components/Chart.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Scatter } from 'svelte-chartjs';
@@ -516,7 +527,8 @@ export default function Chart($$anchor, $$props) {
     }
   }
 
-=== 2586 sites/docs/src/lib/components/Header.svelte	js
+=== 2628 sites/docs/src/lib/components/Header.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { base } from '$app/paths';
@@ -626,7 +638,8 @@ $.delegate(['click']);
     }
   }
 
-=== 4451 sites/docs/src/lib/components/Sidebar.svelte	js
+=== 4493 sites/docs/src/lib/components/Sidebar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/state';
@@ -832,7 +845,8 @@ $.delegate(['click', 'keydown']);
     }
   }
 
-=== 2273 sites/docs/src/lib/components/TableOfContents.svelte	js
+=== 2315 sites/docs/src/lib/components/TableOfContents.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -949,7 +963,8 @@ export default function TableOfContents($$anchor, $$props) {
     background: var(--color-bg-secondary);
   }
 
-=== 2250 sites/docs/src/lib/components/ThemeToggle.svelte	js
+=== 2292 sites/docs/src/lib/components/ThemeToggle.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1016,7 +1031,8 @@ export default function ThemeToggle($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1129 sites/docs/src/lib/demos/BarDemo.svelte	js
+=== 1171 sites/docs/src/lib/demos/BarDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Bar } from 'svelte-chartjs';
@@ -1071,7 +1087,8 @@ export default function BarDemo($$anchor, $$props) {
 
 	$.pop();
 }
-=== 955 sites/docs/src/lib/demos/BubbleDemo.svelte	js
+=== 997 sites/docs/src/lib/demos/BubbleDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Bubble } from 'svelte-chartjs';
@@ -1124,7 +1141,8 @@ export default function BubbleDemo($$anchor, $$props) {
 
 	$.pop();
 }
-=== 798 sites/docs/src/lib/demos/DoughnutDemo.svelte	js
+=== 840 sites/docs/src/lib/demos/DoughnutDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Doughnut } from 'svelte-chartjs';
@@ -1174,7 +1192,8 @@ export default function DoughnutDemo($$anchor, $$props) {
     font-size: 0.85rem;
   }
 
-=== 2394 sites/docs/src/lib/demos/EventsDemo.svelte	js
+=== 2436 sites/docs/src/lib/demos/EventsDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1292,7 +1311,8 @@ export default function EventsDemo($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1582 sites/docs/src/lib/demos/GradientDemo.svelte	js
+=== 1624 sites/docs/src/lib/demos/GradientDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -1380,7 +1400,8 @@ export default function GradientDemo($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1196 sites/docs/src/lib/demos/HorizontalBarDemo.svelte	js
+=== 1238 sites/docs/src/lib/demos/HorizontalBarDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Bar } from 'svelte-chartjs';
@@ -1449,7 +1470,8 @@ export default function HorizontalBarDemo($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1932 sites/docs/src/lib/demos/LineDemo.svelte	js
+=== 1974 sites/docs/src/lib/demos/LineDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Line } from 'svelte-chartjs';
@@ -1535,7 +1557,8 @@ export default function LineDemo($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1575 sites/docs/src/lib/demos/MultitypeDemo.svelte	js
+=== 1617 sites/docs/src/lib/demos/MultitypeDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Chart } from 'svelte-chartjs';
@@ -1619,7 +1642,8 @@ export default function MultitypeDemo($$anchor, $$props) {
 
 	$.pop();
 }
-=== 877 sites/docs/src/lib/demos/PieDemo.svelte	js
+=== 919 sites/docs/src/lib/demos/PieDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Pie } from 'svelte-chartjs';
@@ -1671,7 +1695,8 @@ export default function PieDemo($$anchor, $$props) {
 
 	$.pop();
 }
-=== 856 sites/docs/src/lib/demos/PolarDemo.svelte	js
+=== 898 sites/docs/src/lib/demos/PolarDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { PolarArea } from 'svelte-chartjs';
@@ -1715,7 +1740,8 @@ export default function PolarDemo($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1018 sites/docs/src/lib/demos/RadarDemo.svelte	js
+=== 1060 sites/docs/src/lib/demos/RadarDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Radar } from 'svelte-chartjs';
@@ -1793,7 +1819,8 @@ export default function RadarDemo($$anchor, $$props) {
     background: var(--color-border);
   }
 
-=== 3469 sites/docs/src/lib/demos/ReactiveDemo.svelte	js
+=== 3511 sites/docs/src/lib/demos/ReactiveDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Line } from 'svelte-chartjs';
@@ -1947,7 +1974,8 @@ export default function ReactiveDemo($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 2051 sites/docs/src/lib/demos/RefDemo.svelte	js
+=== 2093 sites/docs/src/lib/demos/RefDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -2058,7 +2086,8 @@ export default function RefDemo($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1684 sites/docs/src/lib/demos/ScatterDemo.svelte	js
+=== 1726 sites/docs/src/lib/demos/ScatterDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Scatter } from 'svelte-chartjs';
@@ -2131,7 +2160,8 @@ export default function ScatterDemo($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1191 sites/docs/src/lib/demos/StackedBarDemo.svelte	js
+=== 1233 sites/docs/src/lib/demos/StackedBarDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Bar } from 'svelte-chartjs';
@@ -2243,7 +2273,8 @@ export default function StackedBarDemo($$anchor, $$props) {
     color: var(--color-primary);
   }
 
-=== 2237 sites/docs/src/lib/layouts/DocPage.svelte	js
+=== 2279 sites/docs/src/lib/layouts/DocPage.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/state';
@@ -2348,7 +2379,8 @@ export default function DocPage($$anchor, $$props) {
     }
   }
 
-=== 984 sites/docs/src/routes/+layout.svelte	js
+=== 1026 sites/docs/src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import '../app.css';
@@ -2390,7 +2422,8 @@ export default function _layout($$anchor, $$props) {
 	$.reset(div);
 	$.append($$anchor, fragment);
 }
-=== 644 src/Bar.svelte	js
+=== 686 src/Bar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Chart as ChartJS, BarController } from 'chart.js';
@@ -2417,7 +2450,8 @@ export default function Bar($$anchor, $$props) {
 
 	$.pop();
 }
-=== 656 src/Bubble.svelte	js
+=== 698 src/Bubble.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Chart as ChartJS, BubbleController } from 'chart.js';
@@ -2444,7 +2478,8 @@ export default function Bubble($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1557 src/Chart.svelte	js
+=== 1599 src/Chart.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, onDestroy, untrack } from 'svelte';
@@ -2516,7 +2551,8 @@ export default function Chart($$anchor, $$props) {
 	$.append($$anchor, canvas);
 	$.pop();
 }
-=== 664 src/Doughnut.svelte	js
+=== 706 src/Doughnut.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Chart as ChartJS, DoughnutController } from 'chart.js';
@@ -2543,7 +2579,8 @@ export default function Doughnut($$anchor, $$props) {
 
 	$.pop();
 }
-=== 648 src/Line.svelte	js
+=== 690 src/Line.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Chart as ChartJS, LineController } from 'chart.js';
@@ -2570,7 +2607,8 @@ export default function Line($$anchor, $$props) {
 
 	$.pop();
 }
-=== 644 src/Pie.svelte	js
+=== 686 src/Pie.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Chart as ChartJS, PieController } from 'chart.js';
@@ -2597,7 +2635,8 @@ export default function Pie($$anchor, $$props) {
 
 	$.pop();
 }
-=== 668 src/PolarArea.svelte	js
+=== 710 src/PolarArea.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Chart as ChartJS, PolarAreaController } from 'chart.js';
@@ -2624,7 +2663,8 @@ export default function PolarArea($$anchor, $$props) {
 
 	$.pop();
 }
-=== 652 src/Radar.svelte	js
+=== 694 src/Radar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Chart as ChartJS, RadarController } from 'chart.js';
@@ -2651,7 +2691,8 @@ export default function Radar($$anchor, $$props) {
 
 	$.pop();
 }
-=== 660 src/Scatter.svelte	js
+=== 702 src/Scatter.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Chart as ChartJS, ScatterController } from 'chart.js';

@@ -7475,6 +7475,9 @@
 === 3 pattern/global-focused-bindings.svelte	json
 []
 
+=== 3 pattern/head-title-renders-after-the-rest-of-the-head.svelte	json
+[]
+
 === 3 pattern/input-default-value-style-directive.svelte	json
 []
 
@@ -11212,6 +11215,9 @@
 	}
 ]
 
+=== 3 pattern/server-drops-comments-of-removed-effects.svelte	json
+[]
+
 === 244 pattern/slot-closed-by-parent-end-tag.svelte	json
 [
 	{
@@ -11235,6 +11241,9 @@
 []
 
 === 3 pattern/store-member-write-invalidates-inner-signals.svelte	json
+[]
+
+=== 3 pattern/string-statements-outside-a-prologue.svelte	json
 []
 
 === 194 pattern/svelte-options-left-open.svelte	json

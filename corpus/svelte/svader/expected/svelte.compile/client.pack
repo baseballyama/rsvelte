@@ -44,7 +44,8 @@
         font-style: italic;
     }
 
-=== 1386 packages/logo/src/routes/+page.svelte	js
+=== 1428 packages/logo/src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebGlShader } from "svader";
@@ -90,7 +91,8 @@ export default function _page($$anchor) {
 	$.template_effect(() => $.set_attribute(img, 'src', logo));
 	$.append($$anchor, main);
 }
-=== 4841 packages/test-site/src/invalid.svelte	js
+=== 4883 packages/test-site/src/invalid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebGlShader, WebGpuShader } from "svader";
@@ -296,7 +298,8 @@ export default function Invalid($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1388 packages/test-site/src/routes/+page.svelte	js
+=== 1430 packages/test-site/src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { resolve } from "$app/paths";
@@ -344,7 +347,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, ol);
 	$.pop();
 }
-=== 672 packages/test-site/src/routes/hello-world/+page.svelte	js
+=== 714 packages/test-site/src/routes/hello-world/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { resolve } from "$app/paths";
@@ -376,7 +380,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, ul);
 	$.pop();
 }
-=== 659 packages/test-site/src/routes/hello-world/webgl/+page.svelte	js
+=== 701 packages/test-site/src/routes/hello-world/webgl/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebGlShader } from "svader";
@@ -405,7 +410,8 @@ export default function _page($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 684 packages/test-site/src/routes/hello-world/webgpu/+page.svelte	js
+=== 726 packages/test-site/src/routes/hello-world/webgpu/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebGpuShader } from "svader";
@@ -434,7 +440,8 @@ export default function _page($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 690 packages/test-site/src/routes/landing-page-bubbles/+page.svelte	js
+=== 732 packages/test-site/src/routes/landing-page-bubbles/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { resolve } from "$app/paths";
@@ -506,7 +513,8 @@ export default function _page($$anchor, $$props) {
         }
     }
 
-=== 1652 packages/test-site/src/routes/landing-page-bubbles/webgl/+page.svelte	js
+=== 1694 packages/test-site/src/routes/landing-page-bubbles/webgl/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebGlShader } from "svader";
@@ -608,7 +616,8 @@ export default function _page($$anchor) {
         }
     }
 
-=== 1692 packages/test-site/src/routes/landing-page-bubbles/webgpu/+page.svelte	js
+=== 1734 packages/test-site/src/routes/landing-page-bubbles/webgpu/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebGpuShader } from "svader";
@@ -672,7 +681,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, main);
 	$.pop();
 }
-=== 684 packages/test-site/src/routes/landing-page-halo/+page.svelte	js
+=== 726 packages/test-site/src/routes/landing-page-halo/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { resolve } from "$app/paths";
@@ -743,7 +753,8 @@ export default function _page($$anchor, $$props) {
         }
     }
 
-=== 1072 packages/test-site/src/routes/landing-page-halo/webgl/+page.svelte	js
+=== 1114 packages/test-site/src/routes/landing-page-halo/webgl/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebGlShader } from "svader";
@@ -820,7 +831,8 @@ export default function _page($$anchor) {
         }
     }
 
-=== 1096 packages/test-site/src/routes/landing-page-halo/webgpu/+page.svelte	js
+=== 1138 packages/test-site/src/routes/landing-page-halo/webgpu/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebGpuShader } from "svader";
@@ -858,7 +870,8 @@ export default function _page($$anchor) {
 	$.reset(main);
 	$.append($$anchor, main);
 }
-=== 682 packages/test-site/src/routes/oversized-canvas/+page.svelte	js
+=== 724 packages/test-site/src/routes/oversized-canvas/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { resolve } from "$app/paths";
@@ -890,7 +903,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, ul);
 	$.pop();
 }
-=== 663 packages/test-site/src/routes/oversized-canvas/webgl/+page.svelte	js
+=== 705 packages/test-site/src/routes/oversized-canvas/webgl/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebGlShader } from "svader";
@@ -919,7 +933,8 @@ export default function _page($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 688 packages/test-site/src/routes/oversized-canvas/webgpu/+page.svelte	js
+=== 730 packages/test-site/src/routes/oversized-canvas/webgpu/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebGpuShader } from "svader";
@@ -948,7 +963,8 @@ export default function _page($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 664 packages/test-site/src/routes/remount/+page.svelte	js
+=== 706 packages/test-site/src/routes/remount/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { resolve } from "$app/paths";
@@ -980,7 +996,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, ul);
 	$.pop();
 }
-=== 1201 packages/test-site/src/routes/remount/webgl/+page.svelte	js
+=== 1243 packages/test-site/src/routes/remount/webgl/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebGlShader } from "svader";
@@ -1029,7 +1046,8 @@ export default function _page($$anchor) {
 	$.bind_checked(input, () => $.get(show), ($$value) => $.set(show, $$value));
 	$.append($$anchor, fragment);
 }
-=== 1226 packages/test-site/src/routes/remount/webgpu/+page.svelte	js
+=== 1268 packages/test-site/src/routes/remount/webgpu/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebGpuShader } from "svader";
@@ -1078,7 +1096,8 @@ export default function _page($$anchor) {
 	$.bind_checked(input, () => $.get(show), ($$value) => $.set(show, $$value));
 	$.append($$anchor, fragment);
 }
-=== 662 packages/test-site/src/routes/slider/+page.svelte	js
+=== 704 packages/test-site/src/routes/slider/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { resolve } from "$app/paths";
@@ -1150,7 +1169,8 @@ export default function _page($$anchor, $$props) {
         cursor: ew-resize;
     }
 
-=== 1193 packages/test-site/src/routes/slider/webgl/+page.svelte	js
+=== 1235 packages/test-site/src/routes/slider/webgl/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebGlShader } from "svader";
@@ -1234,7 +1254,8 @@ export default function _page($$anchor) {
         cursor: ew-resize;
     }
 
-=== 1303 packages/test-site/src/routes/slider/webgpu/+page.svelte	js
+=== 1345 packages/test-site/src/routes/slider/webgpu/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebGpuShader } from "svader";

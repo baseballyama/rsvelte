@@ -8,7 +8,8 @@
     text-align: left;
   }
 
-=== 3129 example/Example1.svelte	js
+=== 3171 example/Example1.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SvelteTable from "../src/SvelteTable.svelte";
@@ -159,7 +160,8 @@ export default function Example1($$anchor, $$props) {
     text-align: left;
   }
 
-=== 4865 example/Example5.svelte	js
+=== 4907 example/Example5.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SvelteTable from "../src/SvelteTable.svelte";
@@ -447,7 +449,8 @@ export default function Example5($$anchor, $$props) {
     text-align: left;
   }
 
-=== 1890 example/Example6.svelte	js
+=== 1932 example/Example6.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SvelteTable from "../src/SvelteTable.svelte";
@@ -552,7 +555,8 @@ export default function Example6($$anchor, $$props) {
     background: rgba(0, 0, 0, 0.05);
   }
 
-=== 2813 example/Example8.svelte	js
+=== 2855 example/Example8.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SvelteTable from "../src/SvelteTable.svelte";
@@ -686,7 +690,8 @@ export default function Example8($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 361 example/example6/HelpButtonComponent.svelte	js
+=== 403 example/example6/HelpButtonComponent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 

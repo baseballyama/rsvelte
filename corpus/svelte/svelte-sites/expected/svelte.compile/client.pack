@@ -75,7 +75,8 @@
 		}
 	}
 
-=== 1627 sites/hn.svelte.dev/src/lib/Nav.svelte	js
+=== 1669 sites/hn.svelte.dev/src/lib/Nav.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { resolve } from '$app/paths';
@@ -177,7 +178,8 @@ export default function Nav($$anchor, $$props) {
 		}
 	}
 
-=== 1345 sites/hn.svelte.dev/src/lib/PreloadingIndicator.svelte	js
+=== 1387 sites/hn.svelte.dev/src/lib/PreloadingIndicator.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -240,7 +242,8 @@ export default function PreloadingIndicator($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 4255 sites/hn.svelte.dev/src/lib/SubsetHTML.svelte	js
+=== 4297 sites/hn.svelte.dev/src/lib/SubsetHTML.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { parse } from './htmlSubsetParse';
@@ -435,7 +438,8 @@ export default function SubsetHTML($$anchor, $$props) {
 		opacity: 1;
 	}
 
-=== 1795 sites/hn.svelte.dev/src/lib/ThemeToggler.svelte	js
+=== 1837 sites/hn.svelte.dev/src/lib/ThemeToggler.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -502,7 +506,8 @@ $.delegate(['mousedown', 'click']);
 		}
 	}
 
-=== 917 sites/hn.svelte.dev/src/routes/+error.svelte	js
+=== 959 sites/hn.svelte.dev/src/routes/+error.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/state';
@@ -550,7 +555,8 @@ export default function _error($$anchor, $$props) {
 		box-sizing: border-box;
 	}
 
-=== 1101 sites/hn.svelte.dev/src/routes/+layout.svelte	js
+=== 1143 sites/hn.svelte.dev/src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page, navigating } from '$app/state';
@@ -598,7 +604,8 @@ export default function _layout($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 2616 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/+page.svelte	js
+=== 2658 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { resolve } from '$app/paths';
@@ -756,7 +763,8 @@ export default function _page($$anchor, $$props) {
 		line-height: 1;
 	}
 
-=== 3005 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/ItemSummary.svelte	js
+=== 3047 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/ItemSummary.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { resolve } from '$app/paths';
@@ -911,7 +919,8 @@ export default function ItemSummary($$anchor, $$props) {
 		line-height: 1;
 	}
 
-=== 703 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/NullItem.svelte	js
+=== 745 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/NullItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -933,7 +942,8 @@ export default function NullItem($$anchor, $$props) {
 
 	$.append($$anchor, article);
 }
-=== 1164 sites/hn.svelte.dev/src/routes/about/+page.svelte	js
+=== 1206 sites/hn.svelte.dev/src/routes/about/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -992,7 +1002,8 @@ export default function _page($$anchor) {
 		border-top: none;
 	}
 
-=== 4077 sites/hn.svelte.dev/src/routes/item/[id=numeric]/+page.svelte	js
+=== 4119 sites/hn.svelte.dev/src/routes/item/[id=numeric]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { resolve } from '$app/paths';
@@ -1214,7 +1225,8 @@ export default function _page($$anchor, $$props) {
 		overflow-x: auto;
 	}
 
-=== 2711 sites/hn.svelte.dev/src/routes/item/[id=numeric]/Comment.svelte	js
+=== 2753 sites/hn.svelte.dev/src/routes/item/[id=numeric]/Comment.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SubsetHTML from '$lib/SubsetHTML.svelte';
@@ -1318,7 +1330,8 @@ export default function Comment($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 2176 sites/hn.svelte.dev/src/routes/user/[name]/+page.svelte	js
+=== 2218 sites/hn.svelte.dev/src/routes/user/[name]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SubsetHTML from '$lib/SubsetHTML.svelte';

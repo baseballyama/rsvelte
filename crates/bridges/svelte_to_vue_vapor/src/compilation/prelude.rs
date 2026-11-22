@@ -68,7 +68,11 @@ fn prelude(source: &'static str) -> Prelude {
 /// A statement that stands for `source` in a translated script, which [`expand`] reads back.
 pub(crate) fn marker<'t>(b: &Builder<'t>, source: &'static str) -> Statement<'t> {
     parsed(source);
-    b.statement(Expression::new_string_literal(SPAN, source, None, b))
+    Statement::new_expression_statement(
+        SPAN,
+        Expression::new_string_literal(SPAN, source, None, b),
+        b,
+    )
 }
 
 /// The prelude `statement` stands for, or `None` for any other statement.

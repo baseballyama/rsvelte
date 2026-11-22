@@ -33845,6 +33845,22 @@ https://svelte.dev/e/expected_token
 <svelte:window bind:focused />
 <svelte:document bind:focused />
 
+=== 324 pattern/head-title-renders-after-the-rest-of-the-head.svelte	svelte
+<script>
+  let { title, description } = $props();
+</script>
+
+<svelte:head>
+  <meta name="description" content={description} />
+  <title>{title} | site</title>
+  <link rel="canonical" href="/{title}" />
+  {#if description}
+    <meta property="og:description" content={description} />
+  {/if}
+</svelte:head>
+
+<h1>{title}</h1>
+
 === 147 pattern/input-default-value-style-directive.svelte	svelte
 <script>
   let { b } = $props();
@@ -46512,6 +46528,35 @@ https://svelte.dev/e/expected_token
     |                   ^
   3 |
 
+=== 549 pattern/server-drops-comments-of-removed-effects.svelte	svelte
+<script>
+  let count = $state(0);
+
+  // kept: before the effect
+  $effect(() => {
+    /* @__PURE__ */ console.log(count); // dropped with the effect
+  });
+
+  $effect.pre(() => {
+    // dropped with the pre effect
+    count;
+  });
+
+  const stop = $effect.root(() => {
+    /** dropped with the root effect */
+    return () => {};
+  });
+
+  function track() {
+    $inspect.trace(); // dropped with the trace
+    /* kept: after the trace */
+    return count;
+  }
+  // kept: after the effects
+</script>
+
+<button onclick={() => count++}>{track()}</button>
+
 === 164 pattern/slot-closed-by-parent-end-tag.svelte	error.txt
 `</div>` attempted to close an element that was not open
 https://svelte.dev/e/element_invalid_closing_tag
@@ -46576,6 +46621,29 @@ https://svelte.dev/e/element_invalid_closing_tag
     <option value={o}>{o}</option>
   {/each}
 </select>
+
+=== 292 pattern/string-statements-outside-a-prologue.svelte	svelte
+<script module>
+  "use strict";
+  "module directive";
+  export const m = 1;
+  ("module string");
+</script>
+
+<script>
+  "use client";
+  "x";
+  let v = $state(1);
+  ("after a declaration");
+  function f() {
+    "use strict";
+    g();
+    ("h");
+  }
+  function g() {}
+</script>
+
+<p>{v}{f()}</p>
 
 === 145 pattern/svelte-options-left-open.svelte	error.txt
 Block was left open

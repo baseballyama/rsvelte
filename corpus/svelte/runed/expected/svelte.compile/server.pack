@@ -2093,11 +2093,11 @@ export default function _page($$renderer, $$props) {
 		const ogUrl = $.derived(() => `https://runed.dev/og?title=${encodeURIComponent(data.metadata.title)}&description=${encodeURIComponent(data.metadata.description)}`);
 
 		$.head('5dqvvw', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="description"${$.attr('content', data.metadata.description)}/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>${$.escape(data.metadata.title)}</title>`);
 			});
-
-			$$renderer.push(`<meta name="description"${$.attr('content', data.metadata.description)}/>`);
 		});
 
 		DocPage($$renderer, $.spread_props([
@@ -2119,11 +2119,11 @@ export default function _page($$renderer, $$props) {
 		const ogUrl = $.derived(() => `https://runed.dev/og?title=${encodeURIComponent(data.metadata.title)}&description=${encodeURIComponent(data.metadata.description)}`);
 
 		$.head('80dzim', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="description"${$.attr('content', data.metadata.description)}/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>${$.escape(data.metadata.title)}</title>`);
 			});
-
-			$$renderer.push(`<meta name="description"${$.attr('content', data.metadata.description)}/>`);
 		});
 
 		DocPage($$renderer, $.spread_props([

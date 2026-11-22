@@ -53,12 +53,23 @@ impl<'a> Parser<'a, '_> {
         Ok(pattern)
     }
 
+    /// The length of the type annotation at `at`, through its type, which oxc reads as upstream
+    /// reads it. The scan only bounds it: it runs to the `,`, `)`, `}` or `=` outside brackets that
+    /// can end the annotation, which a type such as `{ a?: T } (key)`'s runs past.
     fn type_annotation_len(&self, at: usize) -> usize {
         let rest = &self.source_text[at..];
         let trimmed = super::whitespace::trim_whitespace_start(rest);
         if !trimmed.starts_with(':') {
             return 0;
         }
+        let bound = Self::type_annotation_bound(rest, trimmed);
+        let start = at + rest.len() - trimmed.len() + 1;
+        self.builder
+            .type_end(start as u32, (at + bound) as u32, self.source_type())
+            .map_or(bound, |end| end as usize - at)
+    }
+
+    fn type_annotation_bound(rest: &str, trimmed: &str) -> usize {
         let bytes = rest.as_bytes();
         let mut depth = 0i32;
         let mut i = rest.len() - trimmed.len() + 1;

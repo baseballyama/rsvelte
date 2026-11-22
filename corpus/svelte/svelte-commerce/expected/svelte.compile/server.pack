@@ -3831,7 +3831,7 @@ export default function Store_font($$renderer, $$props) {
 		});
 	});
 }
-=== 888 src/lib/components/common/store-palette.svelte	js
+=== 790 src/lib/components/common/store-palette.svelte	js
 import * as $ from 'svelte/internal/server';
 import { page } from '$app/state';
 
@@ -3847,7 +3847,6 @@ export default function Store_palette($$renderer, $$props) {
 		const activeTheme = $.derived(() => page.data?.theme?.name ?? 'default');
 
 		const vars = $.derived(() => page.data?.store?.cssVariables ?? {});
-		// Same shadcn-raw transform the core ColorPalette uses: "hsl(24, 100%, 50%)" → "24 100% 50%"
 	});
 }
 === 7737 src/lib/components/coupon/coupons-drawer.svelte	js
@@ -10393,7 +10392,7 @@ export default function Badge($$renderer, $$props) {
 		$.bind_props($$props, { ref });
 	});
 }
-=== 2703 src/lib/components/ui/breadcrumb-route.svelte	js
+=== 2446 src/lib/components/ui/breadcrumb-route.svelte	js
 import * as $ from 'svelte/internal/server';
 import { page } from '$app/state';
 import { ChevronRight, Home } from '@lucide/svelte';
@@ -10408,20 +10407,7 @@ export default function Breadcrumb_route($$renderer, $$props) {
 		Home($$renderer, { class: 'mr-2 h-4 w-4' });
 		$$renderer.push(`<!----> Home</a></div> <ol class="hidden sm:inline-flex md:items-center md:space-x-2"><!--[-->`);
 
-		const each_array = $.ensure_array_like(
-			// if (path?.isCategory) {
-			// } else {
-			// 	href =
-			// 		'/' +
-			// 		paths
-			// 			?.map((p) => p?.name)
-			// 			?.slice(0, index + 1)
-			// 			.join('/')
-			// }
-			// Remove hyphens and replace with spaces
-			// Convert to title case
-			items
-		);
+		const each_array = $.ensure_array_like(items);
 
 		for (let i = 0, $$length = each_array.length; i < $$length; i++) {
 			let { label, href } = each_array[i];
@@ -26755,7 +26741,7 @@ export default function _page($$renderer, $$props) {
 		background-color: #fafafa;
 	}
 
-=== 10225 src/routes/(my)/my/orders/+page.svelte	js
+=== 10186 src/routes/(my)/my/orders/+page.svelte	js
 import * as $ from 'svelte/internal/server';
 import { Button } from '$lib/components/ui/button';
 import LazyImg from '$lib/core/components/image/lazy-img.svelte';
@@ -26807,7 +26793,6 @@ export default function _page($$renderer, $$props) {
 			}
 		}
 
-		// Re-fetch whenever ?page= changes.
 		const getStatusStyles = (status) => {
 			switch (status?.toLowerCase()) {
 				case 'delivered':
@@ -29199,11 +29184,11 @@ export default function _page($$renderer, $$props) {
 
 		function $$render_inner($$renderer) {
 			$.head('17eisb9', $$renderer, ($$renderer) => {
+				$$renderer.push(`<meta name="description"${$.attr('content', `Create your account at ${$.stringify(page?.data?.store?.name)} to start shopping and discover amazing products.`)}/>`);
+
 				$$renderer.title(($$renderer) => {
 					$$renderer.push(`<title>Create Account - ${$.escape(page?.data?.store?.name || '')}</title>`);
 				});
-
-				$$renderer.push(`<meta name="description"${$.attr('content', `Create your account at ${$.stringify(page?.data?.store?.name)} to start shopping and discover amazing products.`)}/>`);
 			});
 
 			$$renderer.push(`<div class="flex min-h-screen items-center justify-center border bg-gray-50 p-3 dark:bg-gray-950 sm:p-4"><div class="w-full max-w-[420px] space-y-4 rounded-radius border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6"><div class="space-y-1 text-center"><h2 class="text-2xl font-bold tracking-tight text-gray-950 dark:text-white">Create account</h2> <p class="text-sm text-gray-600 dark:text-gray-300">Save details for faster checkout.</p></div> <form class="space-y-3" aria-label="Sign up form"><div class="grid grid-cols-1 gap-3 sm:grid-cols-2">`);
@@ -29427,11 +29412,11 @@ export default function _page($$renderer, $$props) {
 
 		function $$render_inner($$renderer) {
 			$.head('1rgjizz', $$renderer, ($$renderer) => {
+				$$renderer.push(`<meta name="description"${$.attr('content', `Start your online business with ${$.stringify(page?.data?.store?.name)}. Create your store and reach customers worldwide.`)}/>`);
+
 				$$renderer.title(($$renderer) => {
 					$$renderer.push(`<title>Create Store - ${$.escape(page?.data?.store?.name || '')}</title>`);
 				});
-
-				$$renderer.push(`<meta name="description"${$.attr('content', `Start your online business with ${$.stringify(page?.data?.store?.name)}. Create your store and reach customers worldwide.`)}/>`);
 			});
 
 			$$renderer.push(`<div class="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-white p-4 dark:from-gray-900 dark:to-gray-800" role="main"><div class="grid w-full max-w-4xl items-center gap-8 md:grid-cols-2"><div class="hidden space-y-6 p-8 md:block" aria-hidden="true"><div class="space-y-4"><h1 class="text-4xl font-bold tracking-tighter text-[#1E293B] sm:text-5xl xl:text-6xl/none">Start your business journey</h1> <p class="text-lg text-gray-600 dark:text-gray-300">Create your online store and start selling to customers worldwide.</p></div> <div class="space-y-4"><div class="flex items-center space-x-3"><div class="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-900"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg></div> <p class="text-gray-600 dark:text-gray-300">Reach millions of customers</p></div> <div class="flex items-center space-x-3"><div class="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-900"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div> <p class="text-gray-600 dark:text-gray-300">Powerful tools to grow your business</p></div> <div class="flex items-center space-x-3"><div class="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-900"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg></div> <p class="text-gray-600 dark:text-gray-300">Secure and reliable platform</p></div></div></div> <div class="w-full max-w-md transform space-y-6 rounded-xl bg-white/80 p-8 shadow-2xl backdrop-blur-sm transition-all dark:bg-gray-800/90"><div class="space-y-2"><h2 class="text-2xl font-bold text-gray-900 dark:text-white">Create your store</h2> <p class="text-gray-500 dark:text-gray-400">Enter your email to get started</p></div> <form class="space-y-4" aria-label="Store creation form">`);
@@ -29590,11 +29575,11 @@ export default function _page($$renderer, $$props) {
 
 		function $$render_inner($$renderer) {
 			$.head('1ipkjju', $$renderer, ($$renderer) => {
+				$$renderer.push(`<meta name="description"${$.attr('content', `Complete your store setup at ${$.stringify(page?.data?.store?.name)} and start selling online.`)}/>`);
+
 				$$renderer.title(($$renderer) => {
 					$$renderer.push(`<title>Complete Store Setup - ${$.escape(page?.data?.store?.name || '')}</title>`);
 				});
-
-				$$renderer.push(`<meta name="description"${$.attr('content', `Complete your store setup at ${$.stringify(page?.data?.store?.name)} and start selling online.`)}/>`);
 			});
 
 			$$renderer.push(`<div class="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-white p-4 dark:from-gray-900 dark:to-gray-800" role="main"><div class="grid w-full max-w-4xl items-center gap-8 md:grid-cols-2"><div class="hidden space-y-6 p-8 md:block" aria-hidden="true"><div class="space-y-4"><h1 class="text-4xl font-bold tracking-tighter text-[#1E293B] sm:text-5xl xl:text-6xl/none">Almost there!</h1> <p class="text-lg text-gray-600 dark:text-gray-300">Complete your account details to start setting up your store.</p></div> <div class="space-y-8"><div class="relative"><div class="flex items-center space-x-4"><div class="flex h-8 w-8 items-center justify-center rounded-full bg-green-500 text-white"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg></div> <div><p class="font-medium text-gray-900 dark:text-white">Email verification</p> <p class="text-sm text-gray-500">${$.escape(email)}</p></div></div></div> <div class="relative"><div class="flex items-center space-x-4"><div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-white"><span class="text-sm font-bold">2</span></div> <div><p class="font-medium text-gray-900 dark:text-white">Account setup</p> <p class="text-sm text-gray-500">Create your login credentials</p></div></div></div></div></div> <div class="w-full max-w-md transform space-y-6 rounded-xl bg-white/80 p-8 shadow-2xl backdrop-blur-sm transition-all dark:bg-gray-800/90"><div class="space-y-2"><h2 class="text-2xl font-bold text-gray-900 dark:text-white">Complete your details</h2> <p class="text-gray-500 dark:text-gray-400">Fill in your information to create your store</p></div> <form class="space-y-4" aria-label="Store details form"><div class="grid grid-cols-2 gap-4">`);
@@ -29774,11 +29759,11 @@ import AuthButton from '$lib/components/auth/auth-button.svelte';
 export default function _page($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
 		$.head('1a9m7ih', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="description" content="Thank you for signing up! Please verify your email to complete registration."/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>Signup Success - ${$.escape(page?.data?.store?.name || '')}</title>`);
 			});
-
-			$$renderer.push(`<meta name="description" content="Thank you for signing up! Please verify your email to complete registration."/>`);
 		});
 
 		$$renderer.push(`<div class="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-white p-4 dark:from-gray-900 dark:to-gray-800"><div class="w-full max-w-md space-y-8 rounded-lg bg-white/80 p-8 text-center shadow-xl backdrop-blur-sm dark:bg-gray-800/90"><div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/20"><svg class="h-10 w-10 text-green-600 dark:text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg></div> <div class="space-y-4"><h1 class="text-3xl font-bold text-gray-900 dark:text-white">Welcome aboard!</h1> <p class="text-lg text-gray-600 dark:text-gray-300">Hi ${$.escape(page.url.searchParams.get('email'))}, Thank you for creating an account with ${$.escape(page?.data?.store?.name)}. Please verify your email to
@@ -32028,11 +32013,11 @@ export default function Review($$renderer, $$props) {
 		const currencyCode = $.derived(() => page?.data?.store?.currency?.code);
 
 		$.head('1qy067h', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="robots" content="noindex, nofollow"/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>Checkout - Review Order</title>`);
 			});
-
-			$$renderer.push(`<meta name="robots" content="noindex, nofollow"/>`);
 		});
 
 		$$renderer.push(`<div class="min-h-screen py-8"><div class="container mx-auto px-4">`);
@@ -37489,11 +37474,11 @@ export default function _page($$renderer, $$props) {
 		const email = $.derived(() => page.state?.email);
 
 		$.head('yfbtyd', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="robots" content="noindex"/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>Subscription Successful — ${$.escape(page.data?.store?.name || 'Store')}</title>`);
 			});
-
-			$$renderer.push(`<meta name="robots" content="noindex"/>`);
 		});
 
 		$$renderer.push(`<div class="flex min-h-[60vh] w-full items-center justify-center bg-background px-4 py-16"><div class="w-full max-w-lg text-center"><div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-50">`);

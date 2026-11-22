@@ -665,11 +665,11 @@ import InfoTiles from 'src/containers/home/info-tiles.svelte';
 
 export default function Routes($$renderer) {
 	$.head('1iahb9e', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="og:title" content="Attractions"/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>Attractions</title>`);
 		});
-
-		$$renderer.push(`<meta name="og:title" content="Attractions"/>`);
 	});
 
 	$$renderer.push(`<main>`);

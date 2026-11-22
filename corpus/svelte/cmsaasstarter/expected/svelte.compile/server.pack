@@ -1030,11 +1030,11 @@ export default function _page($$renderer) {
 	];
 
 	$.head('skv6c4', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="description"${$.attr('content', WebsiteDescription)}/> ${$.html(jsonldScript)}`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>${$.escape(WebsiteName)}</title>`);
 		});
-
-		$$renderer.push(`<meta name="description"${$.attr('content', WebsiteDescription)}/> ${$.html(jsonldScript)}`);
 	});
 
 	$$renderer.push(`<div class="hero min-h-[60vh]"><div class="hero-content text-center py-12"><div class="max-w-xl"><div class="text-xl md:text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-primary to-accent mb-3 md:mb-7 pb-1">SaaS Starter Demo</div> <div class="text-4xl md:text-6xl font-bold px-2" style="line-height: 1.2;">The <span class="underline decoration-secondary decoration-4 md:decoration-[6px]">open source</span>, <span class="underline decoration-secondary decoration-4 md:decoration-[6px]">fast</span>, and <span class="underline decoration-secondary decoration-4 md:decoration-[6px]">free to host</span> <span>SaaS template</span></div> <div class="mt-6 md:mt-10 text-sm md:text-lg">Built with <a href="https://kit.svelte.dev" class="link font-bold" target="_blank">SvelteKit</a>, <a href="https://supabase.com" class="link font-bold" target="_blank">Supabase</a>, <a href="https://stripe.com" class="link font-bold" target="_blank">Stripe</a>, <a href="https://tailwindcss.com" class="link font-bold" target="_blank">Tailwind</a>, <a href="https://daisyui.com" class="link font-bold" target="_blank">DaisyUI</a>, and <a href="https://www.postgresql.org" class="link font-bold" target="_blank">Postgres</a></div> <div class="mt-6 md:mt-4 flex flex-row flex-wrap gap-4 place-content-center"><a href="https://github.com/CriticalMoments/CMSaasStarter"><button class="btn btn-primary px-6">★ us on Github</button></a> <a href="https://github.com/CriticalMoments/CMSaasStarter/tree/main#saas-starter"><button class="btn btn-outline btn-primary px-6">Read the Docs</button></a></div></div></div></div> <div class="min-h-[60vh]"><div class="pt-20 pb-8 px-7"><div class="max-w-lg mx-auto text-center"><div class="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-linear-to-r from-primary to-accent pb-2">Explore the Features</div> <div class="mt-4 text-xl font-bold">And try them on this <span class="underline decoration-secondary decoration-[3px] md:decoration-[4px]">fully functional demo</span></div></div> <div class="flex gap-6 mt-12 max-w-[1064px] mx-auto place-content-center flex-wrap"><!--[-->`);
@@ -1103,11 +1103,11 @@ export default function _layout($$renderer, $$props) {
 		let pageUrl = $.derived(() => $.store_get($$store_subs ??= {}, '$page', page).url.origin + $.store_get($$store_subs ??= {}, '$page', page).url.pathname);
 
 		$.head('1lsl30p', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="description"${$.attr('content', currentPost().description)}/> <meta property="og:title"${$.attr('content', currentPost().title)}/> <meta property="og:description"${$.attr('content', currentPost().description)}/> <meta property="og:site_name"${$.attr('content', WebsiteName)}/> <meta property="og:url"${$.attr('content', pageUrl())}/>  <meta name="twitter:card" content="summary"/> <meta name="twitter:title"${$.attr('content', currentPost().title)}/> <meta name="twitter:description"${$.attr('content', currentPost().description)}/>  ${$.html(jsonldScript())}`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>${$.escape(currentPost().title)}</title>`);
 			});
-
-			$$renderer.push(`<meta name="description"${$.attr('content', currentPost().description)}/> <meta property="og:title"${$.attr('content', currentPost().title)}/> <meta property="og:description"${$.attr('content', currentPost().description)}/> <meta property="og:site_name"${$.attr('content', WebsiteName)}/> <meta property="og:url"${$.attr('content', pageUrl())}/>  <meta name="twitter:card" content="summary"/> <meta name="twitter:title"${$.attr('content', currentPost().title)}/> <meta name="twitter:description"${$.attr('content', currentPost().description)}/>  ${$.html(jsonldScript())}`);
 		});
 
 		$$renderer.push(`<article class="prose mx-auto py-12 px-6 font-sans"><div class="text-sm text-accent">${$.escape(currentPost().parsedDate?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }))}</div> <h1>${$.escape(currentPost().title)}</h1> `);
@@ -1141,11 +1141,11 @@ import { sortedBlogPosts, blogInfo } from "./posts";
 export default function _page($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
 		$.head('8fdu19', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="description" content="Our blog posts."/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>${$.escape(blogInfo.name)}</title>`);
 			});
-
-			$$renderer.push(`<meta name="description" content="Our blog posts."/>`);
 		});
 
 		$$renderer.push(`<div class="py-8 lg:py-12 px-6 max-w-lg mx-auto"><div class="text-3xl lg:text-5xl font-medium text-primary flex gap-3 items-baseline text-center place-content-center"><div class="text-center leading-relaxed font-bold bg-clip-text text-transparent bg-linear-to-r from-primary to-accent">${$.escape(blogInfo.name)}</div> <a href="/blog/rss.xml" target="_blank" rel="noreferrer"><img class="flex-none w-5 h-5 object-contain" src="/images/rss.svg" alt="rss feed"/></a></div> <div class="text-lg text-center">A demo blog with sample content.</div> <!--[-->`);
@@ -1466,11 +1466,11 @@ export default function _page($$renderer) {
 	];
 
 	$.head('133tnjx', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="description"${$.attr('content', `Pricing - ${$.stringify(WebsiteName)}`)}/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>Pricing</title>`);
 		});
-
-		$$renderer.push(`<meta name="description"${$.attr('content', `Pricing - ${$.stringify(WebsiteName)}`)}/>`);
 	});
 
 	$$renderer.push(`<div class="min-h-[70vh] pb-8 pt-[5vh] px-4"><h1 class="text-3xl font-bold text-center">Pricing</h1> <h2 class="text-xl text-center text-slate-500 mt-1 pb-3">Totally free, scale to millions of users</h2> <div class="w-full my-8">`);
@@ -1640,11 +1640,11 @@ export default function _page($$renderer, $$props) {
 		}
 
 		$.head('1ou5319', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="description" content="Search our website."/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>Search</title>`);
 			});
-
-			$$renderer.push(`<meta name="description" content="Search our website."/>`);
 		});
 
 		$$renderer.push(`<div class="py-8 lg:py-12 px-6 max-w-lg mx-auto"><div class="text-3xl lg:text-5xl font-medium text-primary flex gap-3 items-baseline text-center place-content-center"><div class="text-center leading-relaxed font-bold bg-clip-text text-transparent bg-linear-to-r from-primary to-accent">Search</div></div> <label class="input input-bordered flex items-center gap-2 mt-10 mb-5 w-full"><input id="search-input" type="text" class="grow w-full" placeholder="Search"${$.attr('value', searchQuery)} aria-label="Search input"/></label> `);

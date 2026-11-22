@@ -9913,10 +9913,6 @@ export default function _ff65b3fab5a4745($$renderer) {
 			if (open) {
 				$$renderer.push('<!--[0-->');
 
-				$$renderer.title(($$renderer) => {
-					$$renderer.push(`<title>${$.escape(open)}</title>`);
-				});
-
 				const t = open;
 				var bind_get = () => t;
 				var bind_set = (v) => open = v;
@@ -9929,6 +9925,10 @@ export default function _ff65b3fab5a4745($$renderer) {
 					set value($$value) {
 						bind_set($$value);
 					}
+				});
+
+				$$renderer.title(($$renderer) => {
+					$$renderer.push(`<title>${$.escape(open)}</title>`);
 				});
 			} else {
 				$$renderer.push('<!--[-1-->');
@@ -9959,10 +9959,6 @@ export default function _5dd611416a9eecf($$renderer) {
 
 	function $$render_inner($$renderer) {
 		$.head('1u94b5i', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>${$.escape(open)}</title>`);
-			});
-
 			var bind_get = () => open;
 			var bind_set = (v) => open = v;
 
@@ -9974,6 +9970,10 @@ export default function _5dd611416a9eecf($$renderer) {
 				set value($$value) {
 					bind_set($$value);
 				}
+			});
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(open)}</title>`);
 			});
 		});
 	}
@@ -11239,7 +11239,7 @@ export default function D5d8789d323f6885($$renderer, $$props) {
 		$$renderer.push(`<p></p>`);
 	});
 }
-=== 228 server_removed_statement_comments_2567/dev_effect_with_no_successor_lands_inside_the_component_callback/60ba39cb8f7b64e0.svelte	js
+=== 214 server_removed_statement_comments_2567/dev_effect_with_no_successor_lands_inside_the_component_callback/60ba39cb8f7b64e0.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function _0ba39cb8f7b64e0($$renderer, $$props) {
@@ -11248,7 +11248,6 @@ export default function _0ba39cb8f7b64e0($$renderer, $$props) {
 
 		$$renderer.push(`<p>1</p>`);
 		// leading
-		// interior
 	});
 }
 === 207 server_removed_statement_comments_2567/dev_inspect_keeps_a_leading_comment_before_the_generated_call/16cb48d6530ae5d8.svelte	js
@@ -11277,7 +11276,7 @@ export default function _f8583dbf259ac75($$renderer) {
 	console.log(2);
 	$$renderer.push(`<p>1</p>`);
 }
-=== 259 server_removed_statement_comments_2567/effect_nested_in_a_function_keeps_both_comments/90c73eab03ec23c6.svelte	js
+=== 244 server_removed_statement_comments_2567/effect_nested_in_a_function_keeps_both_comments/90c73eab03ec23c6.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function _0c73eab03ec23c6($$renderer, $$props) {
@@ -11286,14 +11285,13 @@ export default function _0c73eab03ec23c6($$renderer, $$props) {
 
 		function f() {
 			// leading
-			// interior
 		}
 
 		f();
 		$$renderer.push(`<p>1</p>`);
 	});
 }
-=== 228 server_removed_statement_comments_2567/effect_with_no_successor_lands_at_the_component_body_end/9af6620917d7eeda.svelte	js
+=== 214 server_removed_statement_comments_2567/effect_with_no_successor_lands_at_the_component_body_end/9af6620917d7eeda.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function _af6620917d7eeda($$renderer, $$props) {
@@ -11302,7 +11300,6 @@ export default function _af6620917d7eeda($$renderer, $$props) {
 
 		$$renderer.push(`<p>1</p>`);
 		// leading
-		// interior
 	});
 }
 === 162 server_removed_statement_comments_2567/final_inspect_keeps_its_leading_and_trailing_comments_before_markup/029b699d52a5f9af.svelte	js
@@ -11325,7 +11322,7 @@ export default function _f4456a63e81bd70($$renderer) {
 	;; /* trailing */
 	$$renderer.push(`<p>1</p>`);
 }
-=== 247 server_removed_statement_comments_2567/instance_effect_keeps_the_leading_and_interior_comments/3bb169ca83adf96e.svelte	js
+=== 233 server_removed_statement_comments_2567/instance_effect_keeps_the_leading_and_interior_comments/3bb169ca83adf96e.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function _bb169ca83adf96e($$renderer, $$props) {
@@ -11333,7 +11330,6 @@ export default function _bb169ca83adf96e($$renderer, $$props) {
 		let a = 1;
 
 		// leading
-		// interior
 		console.log(2);
 
 		$$renderer.push(`<p>1</p>`);

@@ -268,11 +268,11 @@ export default function _layout($$renderer, $$props) {
 
 		function $$render_inner($$renderer) {
 			$.head('12qhfyh', $$renderer, ($$renderer) => {
+				$$renderer.push(`<meta name="description" content="A Fantastic pane splitter for Svelte"/> ${$.html(theme)}`);
+
 				$$renderer.title(($$renderer) => {
 					$$renderer.push(`<title>Svelte-Splitpanes${$.escape(curPage ? ` - ${curPage.title}` : '')}</title>`);
 				});
-
-				$$renderer.push(`<meta name="description" content="A Fantastic pane splitter for Svelte"/> ${$.html(theme)}`);
 			});
 
 			$$renderer.push(`<div class="page-container svelte-12qhfyh"><div role="presentation" class="toc-container-space svelte-12qhfyh"></div> <main${$.attr_class('svelte-12qhfyh', void 0, { 'rtl-containers': isRTL })}><!--[-->`);

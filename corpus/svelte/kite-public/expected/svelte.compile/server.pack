@@ -469,7 +469,7 @@ export default function BackToTop($$renderer, $$props) {
     }
   }
 
-=== 5059 src/lib/components/BaseModal.svelte	js
+=== 4930 src/lib/components/BaseModal.svelte	js
 import * as $ from 'svelte/internal/server';
 import { useOverlayScrollbars } from 'overlayscrollbars-svelte';
 import { browser } from '$app/environment';
@@ -571,10 +571,6 @@ export default function BaseModal($$renderer, $$props) {
 		}
 
 		if (// Manage scroll lock and focus
-		// Store current active element
-		// Lock scroll if enabled
-		// Focus modal after a tick
-		// Restore focus without scrolling
 		// Initialize OverlayScrollbars on content element
 		isOpen) {
 			$$renderer.push(`<!--[0--><div${$.attr_class(`fixed inset-0 bg-black/50 flex ${$.stringify(positionClasses[position])} p-0 sm:p-4`, 'svelte-5hkr9u')}${$.attr_style(`z-index: ${$.stringify(zIndex)}`)}><div${$.attr_class(`relative w-full h-full sm:h-auto ${$.stringify(sizeClasses[size])} ${position === 'bottom' ? 'rounded-t-2xl' : 'sm:rounded-lg'} bg-white shadow-xl dark:bg-gray-800 flex flex-col ${$.stringify(className)}`, 'svelte-5hkr9u')} role="dialog" aria-modal="true"${$.attr('aria-label', ariaLabel || title || "Modal dialog")}${$.attr('aria-labelledby', title ? "modal-title" : undefined)} tabindex="-1">`);
@@ -714,7 +710,7 @@ export default function BetaLabel($$renderer, $$props) {
     background-color: rgba(59, 130, 246, 0.1);
   }
 
-=== 9825 src/lib/components/CategoryNavigation.svelte	js
+=== 9343 src/lib/components/CategoryNavigation.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount, tick, untrack } from 'svelte';
 import { flip } from 'svelte/animate';
@@ -951,21 +947,12 @@ export default function CategoryNavigation($$renderer, $$props) {
 		});
 
 		// Watch for categories changes
-		// Track changes
 		// Watch for font size changes
-		// React to font size changes
-		// Use a longer delay to ensure CSS changes have taken effect
 		// On initial load, scroll active category to the start of the nav bar
 		let initialScrollDone = false;
 
 		$$renderer.push(`<div${$.attr_class(
-			`category-slider-container dark:bg-dark-bg md:relative md:bg-transparent md:dark:bg-transparent md:px-0 md:pb-2 md:shadow-none md:start-auto md:end-auto md:top-auto md:bottom-auto ${// Jump most of the way instantly, then smooth the last bit for a fast reveal
-			// Scroll to temporary category when it's added (not when removed)
-			// Hide tooltip while scrolling
-			// Wait for DOM to update and category element to be rendered
-			// Add a small delay to ensure layout is complete
-			// Simply scroll all the way to the right (max scroll)
-			// Show tooltip after scroll completes (smooth scroll takes ~300-500ms)
+			`category-slider-container dark:bg-dark-bg md:relative md:bg-transparent md:dark:bg-transparent md:px-0 md:pb-2 md:shadow-none md:start-auto md:end-auto md:top-auto md:bottom-auto ${// Scroll to temporary category when it's added (not when removed)
 			mobilePosition === 'integrated'
 				? 'relative bg-white dark:bg-gray-900 px-6 pb-2'
 				: 'fixed z-modal bg-white px-6 start-0 end-0'} ${mobilePosition === 'top'
@@ -995,7 +982,7 @@ export default function CategoryNavigation($$renderer, $$props) {
 		$.bind_props($$props, { getCategoryElement });
 	});
 }
-=== 20945 src/lib/components/ChaosIndex.svelte	js
+=== 20772 src/lib/components/ChaosIndex.svelte	js
 import * as $ from 'svelte/internal/server';
 import Chart from 'chart.js/auto';
 import Portal from 'svelte-portal';
@@ -1035,8 +1022,6 @@ export default function ChaosIndex($$renderer, $$props) {
 		// Clear historical data cache when new chaos index data arrives
 		let lastKnownUpdate;
 
-		// Clear cached data so it gets re-fetched next time modal opens
-		// If modal is already open, trigger a refresh
 		// Fetch historical data
 		async function refreshHistoricalData() {
 			isLoadingHistory = true;
@@ -1168,7 +1153,6 @@ export default function ChaosIndex($$renderer, $$props) {
 
 		// Close modal when browser back removes ?view=chaos
 		// Auto-open when open prop is set externally (e.g., from ?view=chaos on page load)
-		// Trigger data loading if modal was opened externally
 		// Score-to-color mapping — smooth interpolation between thresholds
 		// Returns [r, g, b] for a given score so we can blend between adjacent thresholds.
 		const COLOR_STOPS = [
@@ -1414,7 +1398,7 @@ export default function ChaosIndex($$renderer, $$props) {
 		$.bind_props($$props, { open });
 	});
 }
-=== 22041 src/lib/components/DataLoader.svelte	js
+=== 21689 src/lib/components/DataLoader.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount } from 'svelte';
 import { dev } from '$app/environment';
@@ -2020,13 +2004,7 @@ export default function DataLoader($$renderer, $$props) {
 		// Watch for batch changes (time travel mode toggle)
 		let previousBatchId = null;
 
-		if (// If batch changed and we're not in initial loading
-		// Skip if a reload is already in progress (e.g., from timeTravelNavigationService)
-		// If clearing batch (going back to latest), set isLatestBatch to true
-		// Otherwise, loadInitialData will determine it by comparing to actual latest batch
-		// Show loading screen briefly
-		// Load new data
-		initialLoading) {
+		if (initialLoading) {
 			$$renderer.push('<!--[0-->');
 
 			SplashScreen($$renderer, {
@@ -2097,7 +2075,7 @@ export default function Footer($$renderer, $$props) {
 		$$renderer.push(`<footer class="mt-8 pt-4 pb-8 md:pb-4"><div${$.attr_class(`container mx-auto flex ${$.stringify(getContainerWidthClass())} items-center justify-center space-x-3 sm:space-x-6 px-4`)}><a href="https://github.com/kagisearch/kite-public" target="_blank"${$.attr('title', s("footer.contribute") || "Contribute to Kagi News")} class="flex items-center space-x-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"><svg class="h-5 w-5 text-gray-600 dark:text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"></path></svg> <span class="text-xs sm:text-sm">${$.escape(s("footer.contribute") || "Contribute")}</span></a> <button class="flex items-center space-x-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"${$.attr('title', s("footer.about") || "About Kagi News")}><img src="/favicon.svg"${$.attr('alt', s("app.logo.iconAlt") || "Kagi News")} class="h-5 w-5"/> <span class="text-xs sm:text-sm"><span class="sm:hidden">${$.escape(s("footer.aboutMobile") || "About")}</span> <span class="hidden sm:inline">${$.escape(s("footer.about") || "About Kagi News")}</span></span></button> <a${$.attr('href', getRSSFeedUrl())} target="_blank" class="flex items-center space-x-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"${$.attr('title', s("footer.rssFeed") || "RSS feed")}><img src="/svg/rss.svg" alt="" class="h-5 w-5 dark:invert"/> <span class="text-xs sm:text-sm"><span class="sm:hidden">${$.escape(s("footer.rssFeedMobile") || "RSS")}</span> <span class="hidden sm:inline">${$.escape(s("footer.rssFeed") || "RSS Feed")}</span></span></a></div></footer>`);
 	});
 }
-=== 5991 src/lib/components/HistoryManager.svelte	js
+=== 5069 src/lib/components/HistoryManager.svelte	js
 import * as $ from 'svelte/internal/server';
 import { browser } from '$app/environment';
 import { goto, replaceState } from '$app/navigation';
@@ -2233,15 +2211,6 @@ export default function HistoryManager($$renderer, $$props) {
 		let initialLoadProcessed = false;
 
 		// Handle initial page load and browser navigation
-		// Build what we EXPECT the URL to be based on current state
-		// If the page URL matches what we expect, we're in sync - nothing to do
-		// This is a real navigation (from browser back/forward or external)
-		// Parse the URL
-		// Update shared view state from URL
-		// If shared=1 but no story, clean it from URL
-		// Don't call onNavigate for this cleanup
-		// Handle initial load
-		// Notify parent component about navigation
 		// Track previous props to detect actual changes
 		let previousBatchId = void 0;
 
@@ -2263,16 +2232,9 @@ export default function HistoryManager($$renderer, $$props) {
 			navigateTo
 		});
 		// Update URL when props change (but only call updateUrl, which is idempotent)
-		// Only update URL if props actually changed
-		// Don't update URL on initial stories load if we already have a story in the URL
-		// This prevents overwriting article URLs with category URLs when loading from a direct link
-		// Use != null (loose equality) to catch both null and undefined
-		// Don't update URL - keep the original story URL or shared view state
-		// Update URL to reflect current state
-		// updateUrl() is idempotent - it won't do anything if the URL is already correct
 	});
 }
-=== 4081 src/lib/components/IntroScreen.svelte	js
+=== 4068 src/lib/components/IntroScreen.svelte	js
 import * as $ from 'svelte/internal/server';
 import { useOverlayScrollbars } from 'overlayscrollbars-svelte';
 import { browser } from '$app/environment';
@@ -2305,7 +2267,6 @@ export default function IntroScreen($$renderer, $$props) {
 		}
 
 		if (// Close on escape key
-		// Cleanup
 		// Initialize OverlayScrollbars
 		visible) {
 			$$renderer.push(`<!--[0--><div class="fixed inset-0 z-50 overflow-y-auto bg-white dark:bg-dark-bg" data-overlayscrollbars-initialize=""><div class="flex min-h-full items-center justify-center p-4 sm:p-8"><div class="w-full max-w-3xl rounded-lg bg-primary-50 p-8"><div class="mb-8 flex items-start justify-between"><div class="w-full"><h1 class="mb-2 text-3xl font-bold text-primary">${$.escape(s("app.title") || "Kite")}</h1> <p class="text-primary-600">${$.escape(s("about.subtitle") || "News app by Kagi")}</p></div></div> <div class="space-y-6 text-primary-700"><section><h2 class="mb-3 text-xl font-semibold text-primary">${$.html(s("about.why.title") || "Why Kite?")}</h2> <p class="mb-4">${$.html(s("about.why.description") || "Kite provides a better way to read news.")}</p></section> <section><h2 class="mb-3 text-xl font-semibold text-primary">${$.html(s("about.approach.title") || "Our Approach")}</h2> <p class="mb-4 text-primary-700">${$.html(s("about.approach.description1") || "We aggregate news from multiple sources.")}</p> <p class="mb-4 text-primary-700">${$.html(s("about.approach.description2") || "We provide summaries and context.")}</p> <p class="mb-4 text-primary-700">${$.html(s("about.approach.description3") || "We respect your privacy.")}</p></section> <section><h2 class="mb-3 text-xl font-semibold text-primary">${$.html(s("about.principles.title") || "Our Principles")}</h2> <ul class="space-y-2"><li>• ${$.escape(s("about.principles.item1") || "No tracking or cookies")}</li> <li>• ${$.escape(s("about.principles.item2") || "No ads or sponsored content")}</li> <li>• ${$.escape(s("about.principles.item3") || "Multiple perspectives")}</li> <li>• ${$.escape(s("about.principles.item4") || "Source transparency")}</li> <li>• ${$.escape(s("about.principles.item5") || "Fast and lightweight")}</li> <li>• ${$.escape(s("about.principles.item6") || "Open source")}</li></ul></section> <section><h2 class="mb-3 text-xl font-semibold text-primary">${$.html(s("about.customization.title") || "Customization")}</h2> <p>${$.html(s("about.customization.description") || "Customize Kite to fit your reading preferences.")}</p></section> <section><h2 class="mb-3 text-xl font-semibold text-primary">${$.html(s("about.contact.title") || "Contact")}</h2> <p>${$.html(s("about.contact.description") || "Questions or feedback? Contact us at news@kagi.com")}</p></section> <section class="mt-6 rounded-lg bg-primary-100 p-4"><p class="text-sm text-primary-600 text-center">${$.escape(s("app.disclaimerAutoGenerated") || "Summaries are AI-generated and Kite can make mistakes.")}
@@ -2807,7 +2768,7 @@ export default function OnThisDay($$renderer, $$props) {
 		$$renderer.push(`<!---->`);
 	});
 }
-=== 4684 src/lib/components/OnboardingModal.svelte	js
+=== 4629 src/lib/components/OnboardingModal.svelte	js
 import * as $ from 'svelte/internal/server';
 import { useOverlayScrollbars } from 'overlayscrollbars-svelte';
 import { browser } from '$app/environment';
@@ -2902,8 +2863,6 @@ export default function OnboardingModal($$renderer, $$props) {
 		}
 
 		if (// Handle visibility changes and scroll lock
-		// Lock background scroll
-		// Add keyboard listener
 		// Initialize OverlayScrollbars
 		visible) {
 			$$renderer.push(`<!--[0--><div class="fixed inset-0 z-modal overflow-y-auto bg-black/30"><div class="flex min-h-full items-center justify-center p-4"><div class="w-full max-w-2xl shadow-2xl"><div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-t-2xl"><div class="h-full bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-400 dark:to-blue-500 transition-all duration-200 rounded-t-2xl"${$.attr_style(`width: ${$.stringify(currentStep / totalSteps * 100)}%`)}></div></div> <div class="bg-white dark:bg-gray-800 rounded-b-2xl overflow-hidden"><div class="max-h-[600px] overflow-hidden" data-overlayscrollbars-initialize=""><div class="p-8">`);
@@ -3206,7 +3165,7 @@ export default function ReportButton($$renderer, $$props) {
     overflow: hidden;
   }
 
-=== 21074 src/lib/components/Select.svelte	js
+=== 21033 src/lib/components/Select.svelte	js
 import * as $ from 'svelte/internal/server';
 import { IconCheck, IconChevronDown, IconChevronUp, IconSearch, IconX } from '@tabler/icons-svelte';
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
@@ -3559,7 +3518,6 @@ export default function Select($$renderer, $$props) {
 		});
 
 		if (// Update dropdown position when options change (which affects dropdown size)
-		// Track changes to trigger reposition
 		label && !hideLabel) {
 			$$renderer.push(`<!--[0--><label${$.attr('for', `select-button-${uniqueId}`)}${$.attr('id', `select-label-${uniqueId}`)} class="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">${$.escape(label)}</label>`);
 		} else if (label && hideLabel) {
@@ -3785,7 +3743,7 @@ export default function Select($$renderer, $$props) {
 		});
 	});
 }
-=== 16542 src/lib/components/Settings.svelte	js
+=== 16148 src/lib/components/Settings.svelte	js
 import * as $ from 'svelte/internal/server';
 
 import {
@@ -3935,13 +3893,6 @@ export default function Settings($$renderer, $$props) {
 		}
 
 		// Handle visibility changes
-		// Stop all TTS playback when settings opens
-		// Store the previously active element
-		// Lock background scroll
-		// Focus the close button after modal renders (whichever is visible)
-		// Desktop close button is visible on md+ screens
-		// Cleanup only runs when visible changes from true to false, or on destroy
-		// Return focus to the previously active element
 		// Initialize OverlayScrollbars
 		// Tab change handler
 		function changeTab(tabName) {
@@ -4049,7 +4000,6 @@ export default function Settings($$renderer, $$props) {
 			});
 		}
 
-		// Also check on resize
 		// Tab configuration with icons
 		const tabs = $.derived(() => [
 			{
@@ -4515,7 +4465,7 @@ export default function ShareButton($$renderer, $$props) {
 		$$renderer.push(`<!--]-->`);
 	});
 }
-=== 13741 src/lib/components/SourceOverlay.svelte	js
+=== 13531 src/lib/components/SourceOverlay.svelte	js
 import * as $ from 'svelte/internal/server';
 
 import {
@@ -4628,11 +4578,6 @@ export default function SourceOverlay($$renderer, $$props) {
 		}
 
 		// Handle visibility changes for scroll lock and focus management
-		// Store the previously active element
-		// Lock background scroll
-		// Set up keyboard listeners
-		// Set initial focus after DOM updates
-		// Return focus to the previously active element without scrolling
 		// Handle close
 		function handleClose() {
 			if (onClose) onClose();
@@ -5278,7 +5223,7 @@ export default function StoryList($$renderer, $$props) {
 		});
 	});
 }
-=== 2156 src/lib/components/TemporaryCategoryTooltip.svelte	js
+=== 1910 src/lib/components/TemporaryCategoryTooltip.svelte	js
 import * as $ from 'svelte/internal/server';
 import { flip, offset, shift, useFloating } from '@skeletonlabs/floating-ui-svelte';
 import { fade } from 'svelte/transition';
@@ -5305,14 +5250,7 @@ export default function TemporaryCategoryTooltip($$renderer, $$props) {
 		});
 
 		if (// Track tooltip visibility
-		// Clear any existing timeout
-		// Auto-dismiss after 3 seconds
-		// Clear timeout if tooltip is being hidden externally
 		// Update floating reference when tooltip should show
-		// Manually set the reference element
-		// Update position on scroll
-		// Listen to scroll events on window
-		// Cleanup
 		localShowTooltip && referenceElement && browser) {
 			$$renderer.push('<!--[0-->');
 
@@ -5870,7 +5808,7 @@ export default function Toast($$renderer, $$props) {
     transform-origin: center bottom;
   }
 
-=== 8610 src/lib/components/Tooltip.svelte	js
+=== 8476 src/lib/components/Tooltip.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onDestroy, onMount } from 'svelte';
 import { fade } from 'svelte/transition';
@@ -5907,13 +5845,10 @@ export default function Tooltip($$renderer, $$props) {
 		const SHOW_DELAY = 0; // Delay before showing tooltip in ms
 
 		// Add reactive statement to update position when text changes
-		// Wait for next frame to ensure DOM is updated
 		// Track previous text to detect meaningful changes
 		let previousText = '';
 
 		// Show updated tooltip when text changes significantly after a click
-		// Text changed after a click - show the updated tooltip
-		// Reset clicked state
 		function isMouseOverTrigger() {
 			if (!triggerElement) return false;
 
@@ -6655,7 +6590,7 @@ export default function TestModalWithContent($$renderer, $$props) {
     filter: invert(1) hue-rotate(180deg) contrast(1.05);
   }
 
-=== 2795 src/lib/components/common/FaviconImage.svelte	js
+=== 2739 src/lib/components/common/FaviconImage.svelte	js
 import * as $ from 'svelte/internal/server';
 import { fetchFavicon, getImmediateFaviconUrl } from '$lib/services/faviconService';
 
@@ -6692,8 +6627,6 @@ export default function FaviconImage($$renderer, $$props) {
 
 		// Watch for theme changes via MutationObserver on <html> class
 		// Update when domain changes
-		// Reset state for new domain
-		// Fetch with updates
 		/**
 		 * Analyze the favicon's brightness by drawing it to an offscreen canvas
 		 * and computing the average luminance of opaque pixels.
@@ -6741,7 +6674,7 @@ export default function FaviconImage($$renderer, $$props) {
 		$$renderer.push(`<img${$.attr('src', displayUrl())}${$.attr('alt', alt || `${domain} favicon`)}${$.attr_class($.clsx(className), 'svelte-17bjp6z', { 'high-quality': isBestQuality, 'needs-invert': needsInvert() })}${$.attr('loading', loading)} crossorigin="anonymous" onload="this.__e=event" onerror="this.__e=event"/>`);
 	});
 }
-=== 6399 src/lib/components/common/GlobePreview.svelte	js
+=== 5499 src/lib/components/common/GlobePreview.svelte	js
 import * as $ from 'svelte/internal/server';
 import * as THREE from 'three';
 import { feature } from 'topojson-client';
@@ -6946,24 +6879,6 @@ export default function GlobePreview($$renderer, $$props) {
 
 		$$renderer.push(`<div${$.attr_style(`width: ${$.stringify(
 			// Three.js scene
-			// Find which country contains the target point
-			// Create texture from GeoJSON (standard equirectangular projection)
-			// Scene setup
-			// Globe group - everything rotates together
-			// Globe sphere with country texture
-			// Location marker (child of globeGroup so it rotates with the globe)
-			// Marker dot
-			// Marker ring (pulsing)
-			// Atmosphere glow
-			// Lighting
-			// Blend marker position with country centroid for better framing of large countries
-			// How far the marker is from centroid relative to country size (0 = at centroid, 1 = at edge)
-			// Only pull toward centroid when marker is near the edge of a large country
-			// Y rotation: -90 - lng works for horizontal centering
-			// X rotation: try positive value ~= latitude to tilt north toward camera
-			// Start slightly offset for a spin-in animation
-			// Smooth lerp toward target rotation
-			// Pulse the ring
 			size
 		)}px; height: ${$.stringify(size)}px;`)} class="overflow-hidden rounded-lg"></div>`);
 	});
@@ -10582,7 +10497,7 @@ export default function SearchInput($$renderer, $$props) {
 		$.bind_props($$props, { getElement, getTextFromContentEditable });
 	});
 }
-=== 14808 src/lib/components/search/SearchModal.svelte	js
+=== 14718 src/lib/components/search/SearchModal.svelte	js
 import * as $ from 'svelte/internal/server';
 import { IconLoader2 } from '@tabler/icons-svelte';
 import { browser } from '$app/environment';
@@ -10632,9 +10547,6 @@ export default function SearchModal($$renderer, $$props) {
 
 		// Initialize search service when categories change
 		// Initialize search service when visible
-		// Clear search when opening
-		// Reset loading state when modal opens
-		// Focus input
 		// Handle scroll lock
 		// Platform detection for keyboard shortcuts
 		const isMac = $.derived(() => browser && ('userAgentData' in navigator && navigator.userAgentData?.platform === 'macOS' || navigator.userAgent.toUpperCase().indexOf('MAC') >= 0));
@@ -12320,7 +12232,7 @@ export default function SettingsAppearance($$renderer, $$props) {
 		$$renderer.subsume($$inner_renderer);
 	});
 }
-=== 25292 src/lib/components/settings/SettingsCategories.svelte	js
+=== 25226 src/lib/components/settings/SettingsCategories.svelte	js
 import * as $ from 'svelte/internal/server';
 import { IconCheck, IconSearch, IconWorld } from '@tabler/icons-svelte';
 import { untrack } from 'svelte';
@@ -12370,7 +12282,6 @@ export default function SettingsCategories($$renderer, $$props) {
 		let containerMinHeight = 320; // Default min height
 
 		// Capture natural height when showing all items (no filters)
-		// Measure after DOM updates
 		// Get all available letters from disabled items
 		const availableLetters = $.derived(() => {
 			const letters = new Set();
@@ -12462,7 +12373,6 @@ export default function SettingsCategories($$renderer, $$props) {
 
 		// Initialize categories when they change
 		// Sync from store when not dragging
-		// Explicitly track dependencies
 		function syncFromStore() {
 			// Filter out temporary category from enabled list - it should only appear in disabled
 			enabledItems = categorySettings.enabled.filter((categoryId) => categoryId !== categorySettings.temporaryCategory).map((categoryId) => {
@@ -14277,7 +14187,7 @@ export default function SettingsLanguage($$renderer, $$props) {
 		$$renderer.push(`<!--]--></div>`);
 	});
 }
-=== 6043 src/lib/components/settings/SettingsSections.svelte	js
+=== 6001 src/lib/components/settings/SettingsSections.svelte	js
 import * as $ from 'svelte/internal/server';
 import { flip } from 'svelte/animate';
 import { dragHandle, dragHandleZone } from 'svelte-dnd-action';
@@ -14294,7 +14204,6 @@ export default function SettingsSections($$renderer, $$props) {
 		let showResetConfirmation = false;
 
 		// Initialize sections when store changes
-		// Convert sections to drag-drop format
 		// Handle drag and drop
 		function handleConsider(e) {
 			sectionItems = e.detail.items;
@@ -17040,7 +16949,7 @@ export default function StoryActions($$renderer, $$props) {
 		$$renderer.push(`<!--]--> <div class="flex-1"></div></div>`);
 	});
 }
-=== 10456 src/lib/components/story/StoryCard.svelte	js
+=== 10357 src/lib/components/story/StoryCard.svelte	js
 import * as $ from 'svelte/internal/server';
 import { browser } from '$app/environment';
 import { s } from '$lib/client/localization.svelte';
@@ -17098,8 +17007,6 @@ export default function StoryCard($$renderer, $$props) {
 		let isRevealing = false;
 
 		// Sync blur state with filter prop when it changes
-		// Reset blur state to match current filter state
-		// Reset revealing state when filter changes
 		// Determine language code from story
 		const storyLanguageCode = $.derived(() => story.sourceLanguage || 'en');
 
@@ -18478,7 +18385,7 @@ export default function StoryListSection($$renderer, $$props) {
 		$$renderer.push(`<!--]--></section>`);
 	});
 }
-=== 8531 src/lib/components/story/StoryPerspectives.svelte	js
+=== 8497 src/lib/components/story/StoryPerspectives.svelte	js
 import * as $ from 'svelte/internal/server';
 import { fade } from 'svelte/transition';
 import { s } from '$lib/client/localization.svelte';
@@ -18573,10 +18480,7 @@ export default function StoryPerspectives($$renderer, $$props) {
 			});
 		}
 
-		$$renderer.push(`<section class="mt-6"><h3 class="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">${$.escape(
-			// Also check on resize
-			storyLocalizer("section.perspectives") || "Perspectives"
-		)}</h3> <div class="relative overflow-x-hidden"><div class="horizontal-scroll-container flex flex-row gap-3 overflow-x-scroll pb-4" role="region"${$.attr('aria-label', storyLocalizer("section.perspectives.carousel") || "Perspectives carousel - use arrow keys or swipe to navigate")}><!--[-->`);
+		$$renderer.push(`<section class="mt-6"><h3 class="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">${$.escape(storyLocalizer("section.perspectives") || "Perspectives")}</h3> <div class="relative overflow-x-hidden"><div class="horizontal-scroll-container flex flex-row gap-3 overflow-x-scroll pb-4" role="region"${$.attr('aria-label', storyLocalizer("section.perspectives.carousel") || "Perspectives carousel - use arrow keys or swipe to navigate")}><!--[-->`);
 
 		const each_array = $.ensure_array_like(displayPerspectives());
 
@@ -19937,7 +19841,7 @@ export default function StorySuggestedQnA($$renderer, $$props) {
 		$$renderer.push(`<!--]--></div></section>`);
 	});
 }
-=== 6802 src/lib/components/story/StorySummary.svelte	js
+=== 6740 src/lib/components/story/StorySummary.svelte	js
 import * as $ from 'svelte/internal/server';
 import { s } from '$lib/client/localization.svelte';
 import Tooltip from '$lib/components/Tooltip.svelte';
@@ -20038,7 +19942,6 @@ export default function StorySummary($$renderer, $$props) {
 			: null;
 
 		// Prefetch coordinates only on desktop
-		// Geocoding failed; globe preview will simply not be shown
 		// Bind the location button as the floating reference
 		function handleLocationMouseEnter() {
 			if (!hasMousePointer) return;
@@ -20551,7 +20454,7 @@ export default function _error($$renderer, $$props) {
 		});
 	});
 }
-=== 3746 src/routes/+layout.svelte	js
+=== 3665 src/routes/+layout.svelte	js
 import * as $ from 'svelte/internal/server';
 import { browser } from '$app/environment';
 import { page } from '$app/state';
@@ -20608,7 +20511,6 @@ export default function _layout($$renderer, $$props) {
 		const isRtl = $.derived(() => isRtlLocale(languageSettings.ui));
 
 		// Apply RTL direction to the HTML element
-		// Also add/remove RTL class for Tailwind CSS utilities
 		onMount(async () => {
 			// Load all settings from localStorage
 			const isLoggedIn = !!data.session?.loggedIn;
@@ -20657,7 +20559,6 @@ export default function _layout($$renderer, $$props) {
 
 		MetaTags($$renderer, $.spread_props([
 			// Watch for language changes (e.g., from sync) and reload locale data
-			// Skip initial run
 			metaTags()
 		]));
 

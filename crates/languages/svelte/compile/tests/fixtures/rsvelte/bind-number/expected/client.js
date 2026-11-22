@@ -1,3 +1,4 @@
+import "svelte/internal/init-operations";
 import "svelte/internal/disclose-version";
 import * as $ from "svelte/internal/client";
 var root = $.from_html(`<input type="number"/> <input type="range" min="0" max="10"/> <p> </p>`, 1);

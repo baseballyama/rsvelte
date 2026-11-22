@@ -241,7 +241,7 @@ export default function Header($$renderer, $$props) {
 		$.bind_props($$props, { getElement });
 	});
 }
-=== 4341 packages/accordion/src/Panel.svelte	js
+=== 4001 packages/accordion/src/Panel.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount, setContext, getContext } from 'svelte';
 import { on } from 'svelte/events';
@@ -319,17 +319,7 @@ export default function Panel($$renderer, $$props) {
 		setContext('SMUI:accordion:panel:open', openStore);
 
 		let previousOpen = open;
-
-		// Calculate the height of the content and apply it. This lets the CSS
-		// animation run properly.
-		// Force a reflow to get the height.
-		// Force another reflow to reset the height.
-		// Assign only when the panel is fully opened.
-		// Force a reflow.
-		// Assign as soon as the panel is closing.
-		// Set the aria-hidden property.
 		const SMUIAccordionPanelMount = getContext('SMUI:accordion:panel:mount');
-
 		const SMUIAccordionPanelUnmount = getContext('SMUI:accordion:panel:unmount');
 
 		onMount(() => {
@@ -447,7 +437,7 @@ export default function Panel($$renderer, $$props) {
 	}
 ]
 
-=== 14055 packages/autocomplete/src/Autocomplete.svelte	js
+=== 13808 packages/autocomplete/src/Autocomplete.svelte	js
 import * as $ from 'svelte/internal/server';
 import { setContext } from 'svelte';
 import { on } from 'svelte/events';
@@ -602,16 +592,8 @@ export default function Autocomplete($$renderer, $$props) {
 		let menuId = restProps['menu$id'] ?? 'SMUI-autocomplete-' + counter++ + '-menu';
 		const menuOpen = $.derived(() => focused && (text !== '' || showMenuWithNoInput) && (loadingState > 0 || !combobox && !(matches.length === 1 && matches[0] === value) || combobox && !!matches.length && !(matches.length === 1 && matches[0] === value)));
 		let previousText = text;
-
-		// Only when we're focused do we need to perform a search.
 		let performingSearchForOptions = false;
-
-		// Set search results on init and refresh search results when `options` is
-		// changed.
 		let previousValue = value;
-
-		// If the value changed from outside, update the text.
-		// An update came from the user.
 		let previousFocusedIndex = undefined;
 
 		setContext('SMUI:list:mount', (accessor) => {
@@ -2557,7 +2539,7 @@ export default function PrimaryAction($$renderer, $$props) {
 		$.bind_props($$props, { getElement });
 	});
 }
-=== 7562 packages/checkbox/src/Checkbox.svelte	js
+=== 6749 packages/checkbox/src/Checkbox.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount, getContext } from 'svelte';
 import { classMap, exclude, prefixFilter, useActions, dispatch } from '@smui/common/internal';
@@ -2652,27 +2634,7 @@ export default function Checkbox($$renderer, $$props) {
 		let previousChecked = checked;
 		let previousGroup = isUninitializedValue(group) ? [] : [...group];
 		let previousNativeChecked = nativeChecked;
-
-		// This is a substitute for an onchange listener that is
-		// smarter about when it calls the instance's handler. I do
-		// this so that a group of changes will only trigger one
-		// handler call, since the handler will reset currently
-		// running animations.
-		// First check for group state.
-		// The change needs to flow up.
-		// Potential changes need to flow down.
-		// The checkbox was removed from the group.
-		// The checkbox was added to the group.
-		// Now check individual state.
-		// The checkbox was clicked by the user.
-		// The checkbox was clicked by the user
-		// and the change needs to flow up.
-		// The checkbox was changed programmatically
-		// and the change needs to flow down.
-		// Sync indeterminate state with the native input.
-		// I don't think this can happen, but just in case.
 		const SMUIGenericInputMount = getContext('SMUI:generic:input:mount');
-
 		const SMUIGenericInputUnmount = getContext('SMUI:generic:input:unmount');
 		const SMUICheckboxMount = getContext('SMUI:checkbox:mount');
 		const SMUICheckboxUnmount = getContext('SMUI:checkbox:unmount');
@@ -11926,7 +11888,7 @@ export default function Option($$renderer, $$props) {
 		$.bind_props($$props, { getElement });
 	});
 }
-=== 19910 packages/select/src/Select.svelte	js
+=== 19873 packages/select/src/Select.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount, onDestroy, getContext, setContext } from 'svelte';
 import { writable } from 'svelte/store';
@@ -12136,8 +12098,6 @@ export default function Select($$renderer, $$props) {
 
 		let previousSelectedIndex = selectedIndex;
 
-		/* closeMenu */
-		/* skipNotify */
 		if (addLayoutListener) {
 			removeLayoutListener = addLayoutListener(layout);
 		}
@@ -48840,7 +48800,7 @@ import * as $ from 'svelte/internal/server';
 export default function _Typography($$renderer) {
 	$$renderer.push(`<div class="mdc-typography--headline1">Headline 1</div> <div class="mdc-typography--headline2">Headline 2</div> <div class="mdc-typography--headline3">Headline 3</div> <div class="mdc-typography--headline4">Headline 4</div> <div class="mdc-typography--headline5">Headline 5</div> <div class="mdc-typography--headline6">Headline 6</div> <div class="mdc-typography--subtitle1">Subtitle 1</div> <div class="mdc-typography--subtitle2">Subtitle 2</div> <div class="mdc-typography--body1">Body 1</div> <div class="mdc-typography--body2">Body 2</div> <div class="mdc-typography--caption">Caption</div> <div class="mdc-typography--button">Button</div> <div class="mdc-typography--overline">Overline</div> <div class="mdc-typography--body1"><small>small</small> <big>big</big> <sup>sup</sup> <sub>sub</sub> <strong>strong</strong> <em>em</em></div>`);
 }
-=== 17299 packages/slider/src/Slider.svelte	js
+=== 17253 packages/slider/src/Slider.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount, onDestroy, getContext } from 'svelte';
 
@@ -49001,10 +48961,7 @@ export default function Slider($$renderer, $$props) {
 		let previousValue = value;
 		let previousStart = start;
 		let previousEnd = end;
-
-		// Needed for range start to take effect.
 		const SMUIGenericInputMount = getContext('SMUI:generic:input:mount');
-
 		const SMUIGenericInputUnmount = getContext('SMUI:generic:input:unmount');
 
 		onMount(() => {
@@ -50123,7 +50080,7 @@ export default function Snackbar($$renderer, $$props) {
 		});
 	});
 }
-=== 4400 packages/snackbar/src/kitchen/Kitchen.svelte	js
+=== 4357 packages/snackbar/src/kitchen/Kitchen.svelte	js
 import * as $ from 'svelte/internal/server';
 import { tick } from 'svelte';
 import { prefixFilter } from '@smui/common/internal';
@@ -50153,7 +50110,6 @@ export default function Kitchen($$renderer, $$props) {
 		let config = void 0;
 		let waiting = false;
 
-		// Let the snackbar render its elements.
 		function handleClosed(e) {
 			if (config?.onClose) {
 				config.onClose(e);
@@ -50299,7 +50255,7 @@ export default function Kitchen($$renderer, $$props) {
 		$.bind_props($$props, { push, getElement });
 	});
 }
-=== 6617 packages/switch/src/Switch.svelte	js
+=== 5911 packages/switch/src/Switch.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount, getContext } from 'svelte';
 import { classMap, exclude, prefixFilter, useActions, dispatch } from '@smui/common/internal';
@@ -50414,25 +50370,7 @@ export default function Switch($$renderer, $$props) {
 		let previousChecked = checked;
 		let previousGroup = isUninitializedValue(group) ? [] : [...group];
 		let previousSelected = selected;
-
-		// This is a substitute for an onchange listener that is
-		// smarter about when it calls the instance's handler. I do
-		// this so that a group of changes will only trigger one
-		// handler call, since the handler will reset currently
-		// running animations.
-		// First check for group state.
-		// The change needs to flow up.
-		// Potential changes need to flow down.
-		// The checkbox was removed from the group.
-		// The checkbox was added to the group.
-		// Now check individual state.
-		// The checkbox was clicked by the user.
-		// The checkbox was clicked by the user
-		// and the change needs to flow up.
-		// The checkbox was changed programmatically
-		// and the change needs to flow down.
 		const SMUIGenericInputMount = getContext('SMUI:generic:input:mount');
-
 		const SMUIGenericInputUnmount = getContext('SMUI:generic:input:unmount');
 
 		onMount(() => {
@@ -50575,7 +50513,7 @@ export default function Switch($$renderer, $$props) {
 	}
 ]
 
-=== 5819 packages/tab-bar/src/TabBar.svelte	js
+=== 5769 packages/tab-bar/src/TabBar.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount, setContext } from 'svelte';
 import { classMap, exclude, prefixFilter, useActions, dispatch } from '@smui/common/internal';
@@ -50652,7 +50590,6 @@ export default function TabBar($$renderer, $$props) {
 		setContext('SMUI:tab:focusOnActivate', focusOnActivate);
 		setContext('SMUI:tab:initialActive', { active: active == null ? null : key(active), key });
 
-		// Manually get the accessor so it is reactive.
 		let setUseAutomaticActivation = false;
 
 		setContext('SMUI:tab:mount', (accessor) => {
@@ -51949,7 +51886,7 @@ export default function Textarea($$renderer, $$props) {
 		});
 	});
 }
-=== 22205 packages/textfield/src/Textfield.svelte	js
+=== 22168 packages/textfield/src/Textfield.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount, onDestroy, getContext, setContext, tick } from 'svelte';
 import { events } from '@smui/common/dom';
@@ -52160,7 +52097,6 @@ export default function Textfield($$renderer, $$props) {
 		// React to changes of value from outside component.
 		let previousValue = value;
 
-		// Check the data is flowing down.
 		if (addLayoutListener) {
 			removeLayoutListener = addLayoutListener(layout);
 		}
