@@ -12,11 +12,12 @@ use super::validation::check_runes;
 use super::{Builder, Prepared, names, script};
 use crate::input::Target;
 
+/// The scripts, lowered, and the statements of theirs that the server removes, in source order.
 pub(super) fn prepare<'c, 'o>(
     facts: super::LoweringFacts<'c, 'o>,
     target: Target,
     b: &Builder<'o>,
-) -> Result<Prepared<'c, 'o>, Diagnostic> {
+) -> Result<(Prepared<'c, 'o>, Vec<oxc_span::Span>), Diagnostic> {
     let input = facts.input;
     let res = facts.res;
     let custom_element = facts.validated.custom_element.as_ref();
@@ -64,11 +65,13 @@ pub(super) fn prepare<'c, 'o>(
         )?,
         None => Vec::new(),
     };
+    let mut removed = std::mem::take(&mut rewrite.removed);
+    removed.sort_unstable_by_key(|statement| statement.start);
     let props_id = input
         .component
         .instance
         .and_then(|program| script::props_id(javascript.get_program(program), res));
-    Ok(Prepared {
+    let prepared = Prepared {
         names,
         each_index,
         binding_groups,
@@ -79,7 +82,8 @@ pub(super) fn prepare<'c, 'o>(
         exports,
         custom_element,
         component_name,
-    })
+    };
+    Ok((prepared, removed))
 }
 
 /// The names the source declares or reads, which a generated name avoids.

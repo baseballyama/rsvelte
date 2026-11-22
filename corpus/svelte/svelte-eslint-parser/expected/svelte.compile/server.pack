@@ -180,11 +180,11 @@ import AstExplorer from '$lib/AstExplorer.svelte';
 
 export default function _page($$renderer) {
 	$.head('1r63b47', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="description" content="Svelte parser for ESLint"/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>svelte-eslint-parser</title>`);
 		});
-
-		$$renderer.push(`<meta name="description" content="Svelte parser for ESLint"/>`);
 	});
 
 	AstExplorer($$renderer, {});
@@ -4189,15 +4189,13 @@ export default function Example01_input($$renderer, $$props) {
 		}
 	});
 }
-=== 283 tests/fixtures/parser/ast/svelte5/docs/functions/01-untrack-input.svelte	js
+=== 216 tests/fixtures/parser/ast/svelte5/docs/functions/01-untrack-input.svelte	js
 import * as $ from 'svelte/internal/server';
 import { untrack } from 'svelte';
 
 export default function _1_untrack_input($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
 		let { a, b } = $$props;
-		// this will run when `a` changes,
-		// but not when `b` changes
 	});
 }
 === 299 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/01-counter-input.svelte	js
@@ -4501,7 +4499,7 @@ export default function _2_2_$derived_by_input($$renderer) {
 	}
 ]
 
-=== 598 tests/fixtures/parser/ast/svelte5/docs/runes/03-1-$effect-input.svelte	js
+=== 339 tests/fixtures/parser/ast/svelte5/docs/runes/03-1-$effect-input.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function _3_1_$effect_input($$renderer, $$props) {
@@ -4509,13 +4507,7 @@ export default function _3_1_$effect_input($$renderer, $$props) {
 		let count = 0;
 		let double = $.derived(() => count * 2);
 
-		$$renderer.push(`<button>${$.escape(// runs when the component is mounted, and again
-		// whenever `count` or `double` change,
-		// after the DOM has been updated
-		// if a callback is provided, it will run
-		// a) immediately before the effect re-runs
-		// b) when the component is destroyed
-		double())}</button> <p>${$.escape(count)} doubled is ${$.escape(double())}</p>`);
+		$$renderer.push(`<button>${$.escape(double())}</button> <p>${$.escape(count)} doubled is ${$.escape(double())}</p>`);
 	});
 }
 === 354 tests/fixtures/parser/ast/svelte5/docs/runes/03-1-$effect-input.svelte	warnings.json
@@ -4536,7 +4528,7 @@ export default function _3_1_$effect_input($$renderer, $$props) {
 	}
 ]
 
-=== 303 tests/fixtures/parser/ast/svelte5/docs/runes/03-2-$effect-tracking-input.svelte	js
+=== 293 tests/fixtures/parser/ast/svelte5/docs/runes/03-2-$effect-tracking-input.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function _3_2_$effect_tracking_input($$renderer, $$props) {
@@ -4547,10 +4539,9 @@ export default function _3_2_$effect_tracking_input($$renderer, $$props) {
 		);
 
 		$$renderer.push(`<p>in template: ${$.escape(false)}</p>`);
-		// true
 	});
 }
-=== 690 tests/fixtures/parser/ast/svelte5/docs/runes/04-$effect-pre-input.svelte	js
+=== 550 tests/fixtures/parser/ast/svelte5/docs/runes/04-$effect-pre-input.svelte	js
 import * as $ from 'svelte/internal/server';
 import { tick } from 'svelte';
 
@@ -4563,9 +4554,6 @@ export default function _4_$effect_pre_input($$renderer, $$props) {
 
 		const each_array = $.ensure_array_like(
 			// ...
-			// not yet mounted
-			// reference `messages` so that this code re-runs whenever it changes
-			// autoscroll when new messages are added
 			messages
 		);
 
@@ -5553,7 +5541,7 @@ export default function Ts_$derived01_type_output($$renderer) {
 	}
 ]
 
-=== 602 tests/fixtures/parser/ast/svelte5/ts-$effect01-input.svelte	js
+=== 342 tests/fixtures/parser/ast/svelte5/ts-$effect01-input.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function Ts_$effect01_input($$renderer, $$props) {
@@ -5561,13 +5549,7 @@ export default function Ts_$effect01_input($$renderer, $$props) {
 		let count = 0;
 		let doubled = $.derived(() => count * 2);
 
-		$$renderer.push(`<button>${$.escape(// runs when the component is mounted, and again
-		// whenever `count` or `doubled` change,
-		// after the DOM has been updated
-		// if a callback is provided, it will run
-		// a) immediately before the effect re-runs
-		// b) when the component is destroyed
-		doubled())}</button> <p>${$.escape(count)} doubled is ${$.escape(doubled())}</p>`);
+		$$renderer.push(`<button>${$.escape(doubled())}</button> <p>${$.escape(count)} doubled is ${$.escape(doubled())}</p>`);
 	});
 }
 === 354 tests/fixtures/parser/ast/svelte5/ts-$effect01-input.svelte	warnings.json
@@ -5588,7 +5570,7 @@ export default function Ts_$effect01_input($$renderer, $$props) {
 	}
 ]
 
-=== 1040 tests/fixtures/parser/ast/svelte5/ts-$effect01-type-output.svelte	js
+=== 427 tests/fixtures/parser/ast/svelte5/ts-$effect01-type-output.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function Ts_$effect01_type_output($$renderer, $$props) {
@@ -5596,14 +5578,7 @@ export default function Ts_$effect01_type_output($$renderer, $$props) {
 		let count = 0; // count: number, $state(0): 0
 		let doubled = $.derived(() => count * 2); // doubled: number, $derived(count * 2): number
 
-		$$renderer.push(`<button>${$.escape(// $effect(() => { // runs when the component is mounted, and again // whenever `count` or `doubled` change, // after the DOM has been updated console.log({ count, doubled }); return () => { // if a callback is provided, it will run // a) immediately before the effect re-runs // b) when the component is destroyed console.log("cleanup"); }; }): void
-		// runs when the component is mounted, and again
-		// whenever `count` or `doubled` change,
-		// after the DOM has been updated
-		// if a callback is provided, it will run
-		// a) immediately before the effect re-runs
-		// b) when the component is destroyed
-		doubled())}</button> <p>${$.escape(count)} doubled is ${$.escape(doubled())}</p>`);
+		$$renderer.push(`<button>${$.escape(doubled())}</button> <p>${$.escape(count)} doubled is ${$.escape(doubled())}</p>`);
 	});
 }
 === 354 tests/fixtures/parser/ast/svelte5/ts-$effect01-type-output.svelte	warnings.json
@@ -5624,7 +5599,7 @@ export default function Ts_$effect01_type_output($$renderer, $$props) {
 	}
 ]
 
-=== 607 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-input.svelte	js
+=== 347 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-input.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function Ts_$effectpre01_input($$renderer, $$props) {
@@ -5632,13 +5607,7 @@ export default function Ts_$effectpre01_input($$renderer, $$props) {
 		let count = 0;
 		const doubled = $.derived(() => count * 2);
 
-		$$renderer.push(`<button>${$.escape(// runs when the component is mounted, and again
-		// whenever `count` or `doubled` change,
-		// after the DOM has been updated
-		// if a callback is provided, it will run
-		// a) immediately before the effect re-runs
-		// b) when the component is destroyed
-		doubled())}</button> <p>${$.escape(count)} doubled is ${$.escape(doubled())}</p>`);
+		$$renderer.push(`<button>${$.escape(doubled())}</button> <p>${$.escape(count)} doubled is ${$.escape(doubled())}</p>`);
 	});
 }
 === 354 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-input.svelte	warnings.json
@@ -5659,7 +5628,7 @@ export default function Ts_$effectpre01_input($$renderer, $$props) {
 	}
 ]
 
-=== 1045 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-type-output.svelte	js
+=== 432 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-type-output.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function Ts_$effectpre01_type_output($$renderer, $$props) {
@@ -5667,14 +5636,7 @@ export default function Ts_$effectpre01_type_output($$renderer, $$props) {
 		let count = 0; // count: number, $state(0): 0
 		const doubled = $.derived(() => count * 2); // doubled: number, $derived(count * 2): number
 
-		$$renderer.push(`<button>${$.escape(// $effect(() => { // runs when the component is mounted, and again // whenever `count` or `doubled` change, // after the DOM has been updated console.log({ count, doubled }); return () => { // if a callback is provided, it will run // a) immediately before the effect re-runs // b) when the component is destroyed console.log("cleanup"); }; }): void
-		// runs when the component is mounted, and again
-		// whenever `count` or `doubled` change,
-		// after the DOM has been updated
-		// if a callback is provided, it will run
-		// a) immediately before the effect re-runs
-		// b) when the component is destroyed
-		doubled())}</button> <p>${$.escape(count)} doubled is ${$.escape(doubled())}</p>`);
+		$$renderer.push(`<button>${$.escape(doubled())}</button> <p>${$.escape(count)} doubled is ${$.escape(doubled())}</p>`);
 	});
 }
 === 354 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-type-output.svelte	warnings.json

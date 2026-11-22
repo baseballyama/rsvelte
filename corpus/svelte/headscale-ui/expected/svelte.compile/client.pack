@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 2385 src/lib/common/Stores.svelte	js
+=== 2427 src/lib/common/Stores.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -62,7 +63,8 @@ export default function Stores($$anchor, $$props) {
 
 	$.pop();
 }
-=== 13210 src/lib/common/apiFunctions.svelte	js
+=== 13252 src/lib/common/apiFunctions.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { APIKey, Device, PreAuthKey, User } from '$lib/common/classes';
 import { deviceStore, userStore, apiTestStore } from '$lib/common/stores.js';
@@ -639,7 +641,8 @@ export default function ApiFunctions($$anchor, $$props) {
 		@apply flex items-center text-sm py-4 px-4 h-12 overflow-hidden text-base-content stroke-base-content text-ellipsis cursor-default whitespace-nowrap rounded hover:bg-base-300 transition duration-300 ease-in-out;
 	}
 
-=== 5707 src/lib/common/nav.svelte	js
+=== 5749 src/lib/common/nav.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -788,7 +791,8 @@ export default function Nav($$anchor, $$props) {
 	}
 ]
 
-=== 1404 src/lib/common/searching.svelte	js
+=== 1446 src/lib/common/searching.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 
 import {
@@ -852,7 +856,8 @@ export default function Searching($$anchor, $$props) {
 	}
 ]
 
-=== 2341 src/lib/common/sorting.svelte	js
+=== 2383 src/lib/common/sorting.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -960,7 +965,8 @@ export default function Sorting($$anchor, $$props) {
 	}
 ]
 
-=== 904 src/lib/devices/DeviceCard/DeviceRoutes/DeviceRouteAPI.svelte	js
+=== 946 src/lib/devices/DeviceCard/DeviceRoutes/DeviceRouteAPI.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1014,7 +1020,8 @@ export default function DeviceRouteAPI($$anchor, $$props) {
 	}
 ]
 
-=== 3124 src/lib/devices/SortDevices.svelte	js
+=== 3166 src/lib/devices/SortDevices.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getDevices } from '$lib/common/apiFunctions.svelte';
@@ -1183,7 +1190,8 @@ export default function SortDevices($$anchor, $$props) {
 	}
 ]
 
-=== 1713 src/lib/settings/DevSettings.svelte	js
+=== 1755 src/lib/settings/DevSettings.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { showACLPagesStore } from '$lib/common/stores';
@@ -1248,7 +1256,8 @@ export default function DevSettings($$anchor) {
 	}
 ]
 
-=== 7066 src/lib/settings/ServerSettings.svelte	js
+=== 7108 src/lib/settings/ServerSettings.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { fly } from 'svelte/transition';
@@ -1556,7 +1565,8 @@ export default function ServerSettings($$anchor, $$props) {
 	}
 ]
 
-=== 2166 src/lib/settings/ServerSettings/APIKeyTimeLeft.svelte	js
+=== 2208 src/lib/settings/ServerSettings/APIKeyTimeLeft.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getAPIKeys } from '$lib/common/apiFunctions.svelte';
@@ -1657,7 +1667,8 @@ export default function APIKeyTimeLeft($$anchor, $$props) {
 	}
 ]
 
-=== 1585 src/lib/settings/ThemeSettings.svelte	js
+=== 1627 src/lib/settings/ThemeSettings.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { themeStore } from '$lib/common/stores.js';
@@ -1727,7 +1738,8 @@ export default function ThemeSettings($$anchor) {
 	$.append($$anchor, fragment);
 	$$cleanup();
 }
-=== 2939 src/lib/users/SortUsers.svelte	js
+=== 2981 src/lib/users/SortUsers.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getUsers } from '$lib/common/apiFunctions.svelte';
@@ -1878,7 +1890,8 @@ export default function SortUsers($$anchor, $$props) {
 	}
 ]
 
-=== 1278 src/routes/+layout.svelte	js
+=== 1320 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import '../app.css';
@@ -1940,7 +1953,8 @@ export default function _layout($$anchor, $$props) {
 	}
 ]
 
-=== 344 src/routes/+page.svelte	js
+=== 386 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { goto } from '$app/navigation';
@@ -1956,7 +1970,8 @@ export default function _page($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1029 src/routes/groups.html/+page.svelte	js
+=== 1071 src/routes/groups.html/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { showACLPagesStore } from '$lib/common/stores';
@@ -2018,7 +2033,8 @@ export default function _page($$anchor, $$props) {
 	}
 ]
 
-=== 1328 src/routes/settings.html/+page.svelte	js
+=== 1370 src/routes/settings.html/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DevSettings from '$lib/settings/DevSettings.svelte';

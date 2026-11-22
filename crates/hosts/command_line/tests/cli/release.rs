@@ -192,7 +192,10 @@ fn lint_reads_a_typescript_configuration_with_node() {
     let project = Project::new(&[
         (
             "oxlint.config.ts",
-            "const level: string = 'error';\nexport default { rules: { 'svelte/no-at-html-tags': level } };\n",
+            concat!(
+                "const level: string = 'error';\n",
+                "export default { rules: { 'svelte/no-at-html-tags': level } };\n",
+            ),
         ),
         (
             "A.svelte",

@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 434 packages/create/template-js/src/routes/+layout.svelte	js
+=== 476 packages/create/template-js/src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -15,7 +16,8 @@ export default function _layout($$anchor, $$props) {
 	 */
 	/** @type {Props} */
 }
-=== 293 packages/create/template-ts/src/routes/+layout.svelte	js
+=== 335 packages/create/template-ts/src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -26,7 +28,8 @@ export default function _layout($$anchor, $$props) {
 	$.snippet(node, () => $$props.children ?? $.noop);
 	$.append($$anchor, fragment);
 }
-=== 293 packages/docs-site-bn/src/routes/+layout.svelte	js
+=== 335 packages/docs-site-bn/src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -37,7 +40,8 @@ export default function _layout($$anchor, $$props) {
 	$.snippet(node, () => $$props.children ?? $.noop);
 	$.append($$anchor, fragment);
 }
-=== 497 packages/docs-site-bn/src/routes/guide/markdown/svelte-in-markdown/Counter.svelte	js
+=== 539 packages/docs-site-bn/src/routes/guide/markdown/svelte-in-markdown/Counter.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -54,7 +58,8 @@ export default function Counter($$anchor) {
 }
 
 $.delegate(['click']);
-=== 456 packages/docs-site-zh/src/routes/guide/markdown/svelte-in-markdown/Counter.svelte	js
+=== 498 packages/docs-site-zh/src/routes/guide/markdown/svelte-in-markdown/Counter.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -71,7 +76,8 @@ export default function Counter($$anchor) {
 }
 
 $.delegate(['click']);
-=== 460 packages/docs-site/src/routes/guide/markdown/svelte-in-markdown/Counter.svelte	js
+=== 502 packages/docs-site/src/routes/guide/markdown/svelte-in-markdown/Counter.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -88,7 +94,8 @@ export default function Counter($$anchor) {
 }
 
 $.delegate(['click']);
-=== 2431 packages/docsearch/src/Search.svelte	js
+=== 2473 packages/docsearch/src/Search.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import docsearch from '@docsearch/js';
@@ -168,7 +175,8 @@ export default function Search($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 812 packages/example-blog/src/routes/+page.svelte	js
+=== 854 packages/example-blog/src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MasonryGrid from '@sveltepress/theme-blog/components/MasonryGrid.svelte';
@@ -208,7 +216,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 843 packages/example-blog/src/routes/categories/[cat]/+page.svelte	js
+=== 885 packages/example-blog/src/routes/categories/[cat]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MasonryGrid from '@sveltepress/theme-blog/components/MasonryGrid.svelte';
@@ -246,7 +255,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 555 packages/example-blog/src/routes/posts/[slug]/+page.svelte	js
+=== 597 packages/example-blog/src/routes/posts/[slug]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import PostLayout from '@sveltepress/theme-blog/PostLayout.svelte';
@@ -311,7 +321,8 @@ export default function _page($$anchor, $$props) {
     font-size: 0.8rem;
   }
 
-=== 1146 packages/example-blog/src/routes/tags/+page.svelte	js
+=== 1188 packages/example-blog/src/routes/tags/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { base } from '$app/paths';
@@ -347,7 +358,8 @@ export default function _page($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 823 packages/example-blog/src/routes/tags/[tag]/+page.svelte	js
+=== 865 packages/example-blog/src/routes/tags/[tag]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MasonryGrid from '@sveltepress/theme-blog/components/MasonryGrid.svelte';
@@ -385,7 +397,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 332 packages/example-blog/src/routes/timeline/+page.svelte	js
+=== 374 packages/example-blog/src/routes/timeline/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Timeline from '@sveltepress/theme-blog/components/Timeline.svelte';
@@ -584,7 +597,8 @@ export default function _page($$anchor) {
     --meilisearch-link: #818cf8;
   }
 
-=== 6714 packages/meilisearch/src/Search.svelte	js
+=== 6756 packages/meilisearch/src/Search.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { MeiliSearch } from 'meilisearch';
@@ -831,7 +845,8 @@ $.delegate(['click', 'keydown', 'input']);
     margin: 0;
   }
 
-=== 1852 packages/theme-blog/src/components/AuthorCard.svelte	js
+=== 1894 packages/theme-blog/src/components/AuthorCard.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { blogConfig } from 'virtual:sveltepress/blog-config';
@@ -947,7 +962,8 @@ export default function AuthorCard($$anchor, $$props) {
     text-decoration: none;
   }
 
-=== 3314 packages/theme-blog/src/components/AuthorProfile.svelte	js
+=== 3356 packages/theme-blog/src/components/AuthorProfile.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { blogConfig } from 'virtual:sveltepress/blog-config';
@@ -1091,7 +1107,8 @@ export default function AuthorProfile($$anchor, $$props) {
     border-top: 1px solid var(--sp-blog-border);
   }
 
-=== 2222 packages/theme-blog/src/components/GiscusComments.svelte	js
+=== 2264 packages/theme-blog/src/components/GiscusComments.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -1641,7 +1658,8 @@ export default function GiscusComments($$anchor, $$props) {
     }
   }
 
-=== 6718 packages/theme-blog/src/components/GlobalLayout.svelte	js
+=== 6760 packages/theme-blog/src/components/GlobalLayout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onNavigate } from '$app/navigation';
@@ -1893,7 +1911,8 @@ export default function GlobalLayout($$anchor, $$props) {
     }
   }
 
-=== 1580 packages/theme-blog/src/components/MasonryGrid.svelte	js
+=== 1622 packages/theme-blog/src/components/MasonryGrid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import PostCardFeatured from './PostCardFeatured.svelte';
@@ -1968,7 +1987,8 @@ export default function MasonryGrid($$anchor, $$props) {
     padding-top: 1rem;
   }
 
-=== 434 packages/theme-blog/src/components/PageLayout.svelte	js
+=== 476 packages/theme-blog/src/components/PageLayout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2032,7 +2052,8 @@ export default function PageLayout($$anchor, $$props) {
     color: var(--sp-blog-muted);
   }
 
-=== 2936 packages/theme-blog/src/components/Pagination.svelte	js
+=== 2978 packages/theme-blog/src/components/Pagination.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { base } from '$app/paths';
@@ -2214,7 +2235,8 @@ export default function Pagination($$anchor, $$props) {
     color: #a8a29e;
   }
 
-=== 3010 packages/theme-blog/src/components/PostCardFeatured.svelte	js
+=== 3052 packages/theme-blog/src/components/PostCardFeatured.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { base } from '$app/paths';
@@ -2364,7 +2386,8 @@ export default function PostCardFeatured($$anchor, $$props) {
     margin-top: 0.75rem;
   }
 
-=== 4373 packages/theme-blog/src/components/PostCardLarge.svelte	js
+=== 4415 packages/theme-blog/src/components/PostCardLarge.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { base } from '$app/paths';
@@ -2544,7 +2567,8 @@ export default function PostCardLarge($$anchor, $$props) {
     margin-top: 0.75rem;
   }
 
-=== 2337 packages/theme-blog/src/components/PostCardSmall.svelte	js
+=== 2379 packages/theme-blog/src/components/PostCardSmall.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { base } from '$app/paths';
@@ -2682,7 +2706,8 @@ export default function PostCardSmall($$anchor, $$props) {
     display: none;
   }
 
-=== 1724 packages/theme-blog/src/components/PostHero.svelte	js
+=== 1766 packages/theme-blog/src/components/PostHero.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { base } from '$app/paths';
@@ -2791,7 +2816,8 @@ export default function PostHero($$anchor, $$props) {
     }
   }
 
-=== 5354 packages/theme-blog/src/components/PostLayout.svelte	js
+=== 5396 packages/theme-blog/src/components/PostLayout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { base } from '$app/paths';
@@ -3043,7 +3069,8 @@ export default function PostLayout($$anchor, $$props) {
     background: var(--sp-blog-border);
   }
 
-=== 3696 packages/theme-blog/src/components/PostMeta.svelte	js
+=== 3738 packages/theme-blog/src/components/PostMeta.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { base } from '$app/paths';
@@ -3200,7 +3227,8 @@ export default function PostMeta($$anchor, $$props) {
     text-decoration: underline;
   }
 
-=== 1894 packages/theme-blog/src/components/PostNav.svelte	js
+=== 1936 packages/theme-blog/src/components/PostNav.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { base } from '$app/paths';
@@ -3292,7 +3320,8 @@ export default function PostNav($$anchor, $$props) {
     will-change: width;
   }
 
-=== 1462 packages/theme-blog/src/components/ReadingProgress.svelte	js
+=== 1504 packages/theme-blog/src/components/ReadingProgress.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -3411,7 +3440,8 @@ export default function ReadingProgress($$anchor, $$props) {
     overflow: hidden;
   }
 
-=== 1715 packages/theme-blog/src/components/RelatedPosts.svelte	js
+=== 1757 packages/theme-blog/src/components/RelatedPosts.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { base } from '$app/paths';
@@ -3561,7 +3591,8 @@ export default function RelatedPosts($$anchor, $$props) {
     text-align: center;
   }
 
-=== 6224 packages/theme-blog/src/components/SearchModal.svelte	js
+=== 6266 packages/theme-blog/src/components/SearchModal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { goto } from '$app/navigation';
@@ -3794,7 +3825,8 @@ $.delegate(['click', 'input', 'keydown']);
     pointer-events: none;
   }
 
-=== 824 packages/theme-blog/src/components/SideRail.svelte	js
+=== 866 packages/theme-blog/src/components/SideRail.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { blogConfig } from 'virtual:sveltepress/blog-config';
@@ -4019,7 +4051,8 @@ export default function SideRail($$anchor, $$props) {
     }
   }
 
-=== 6684 packages/theme-blog/src/components/Sidebar.svelte	js
+=== 6726 packages/theme-blog/src/components/Sidebar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { base } from '$app/paths';
@@ -4319,7 +4352,8 @@ $.delegate(['click']);
     font-weight: 500;
   }
 
-=== 3174 packages/theme-blog/src/components/TableOfContents.svelte	js
+=== 3216 packages/theme-blog/src/components/TableOfContents.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, tick } from 'svelte';
@@ -4471,7 +4505,8 @@ export default function TableOfContents($$anchor, $$props) {
     margin-top: 0.4rem;
   }
 
-=== 835 packages/theme-blog/src/components/TaxonomyHeader.svelte	js
+=== 877 packages/theme-blog/src/components/TaxonomyHeader.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4519,7 +4554,8 @@ export default function TaxonomyHeader($$anchor, $$props) {
     color: var(--sp-blog-primary);
   }
 
-=== 2799 packages/theme-blog/src/components/ThemeToggle.svelte	js
+=== 2841 packages/theme-blog/src/components/ThemeToggle.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4882,7 +4918,8 @@ $.delegate(['click']);
     }
   }
 
-=== 6834 packages/theme-blog/src/components/Timeline.svelte	js
+=== 6876 packages/theme-blog/src/components/Timeline.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { base } from '$app/paths';
@@ -5115,14 +5152,16 @@ export default function Timeline($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 167 packages/theme-default/.sveltepress/live-code/LiveCode49474281849.svelte	js
+=== 209 packages/theme-default/.sveltepress/live-code/LiveCode49474281849.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function LiveCode49474281849($$anchor) {
 	let count = void 0;
 }
-=== 472 packages/theme-default/.sveltepress/live-code/LiveCode5666bdf98c2.svelte	js
+=== 514 packages/theme-default/.sveltepress/live-code/LiveCode5666bdf98c2.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5139,7 +5178,8 @@ export default function LiveCode5666bdf98c2($$anchor) {
 }
 
 $.delegate(['click']);
-=== 472 packages/theme-default/.sveltepress/live-code/LiveCode7bf64e1cddc.svelte	js
+=== 514 packages/theme-default/.sveltepress/live-code/LiveCode7bf64e1cddc.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5156,7 +5196,8 @@ export default function LiveCode7bf64e1cddc($$anchor) {
 }
 
 $.delegate(['click']);
-=== 260 packages/theme-default/.sveltepress/live-code/LiveCode89fef1a4d71.svelte	js
+=== 302 packages/theme-default/.sveltepress/live-code/LiveCode89fef1a4d71.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5167,7 +5208,8 @@ export default function LiveCode89fef1a4d71($$anchor) {
 
 	$.append($$anchor, h1);
 }
-=== 260 packages/theme-default/.sveltepress/live-code/LiveCodebaa49804eec.svelte	js
+=== 302 packages/theme-default/.sveltepress/live-code/LiveCodebaa49804eec.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5178,7 +5220,8 @@ export default function LiveCodebaa49804eec($$anchor) {
 
 	$.append($$anchor, h1);
 }
-=== 588 packages/theme-default/__tests__/test.svelte	js
+=== 630 packages/theme-default/__tests__/test.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -5224,7 +5267,8 @@ $.delegate(['click']);
     --at-apply: 'flex-grow text-center';
   }
 
-=== 1558 packages/theme-default/src/components/ActionButton.svelte	js
+=== 1600 packages/theme-default/src/components/ActionButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import External from './icons/External.svelte';
@@ -5292,7 +5336,8 @@ export default function ActionButton($$anchor, $$props) {
     width: var(--ajax-bar-width);
   }
 
-=== 1185 packages/theme-default/src/components/AjaxBar.svelte	js
+=== 1227 packages/theme-default/src/components/AjaxBar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy } from 'svelte';
@@ -5360,7 +5405,8 @@ export default function AjaxBar($$anchor, $$props) {
     --at-apply: 'svp-modal-bg-show';
   }
 
-=== 1149 packages/theme-default/src/components/Backdrop.svelte	js
+=== 1191 packages/theme-default/src/components/Backdrop.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { createEventDispatcher } from 'svelte';
@@ -5399,7 +5445,8 @@ export default function Backdrop($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keyup']);
-=== 1069 packages/theme-default/src/components/CodeBlock.svelte	js
+=== 1111 packages/theme-default/src/components/CodeBlock.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -5457,7 +5504,8 @@ export default function CodeBlock($$anchor, $$props) {
     --at-apply: 'opacity-100 events-all';
   }
 
-=== 1554 packages/theme-default/src/components/CopyCode.svelte	js
+=== 1596 packages/theme-default/src/components/CopyCode.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Copy from './icons/Copy.svelte';
@@ -5533,7 +5581,8 @@ $.delegate(['click', 'keyup']);
     --at-apply: 'ml-1';
   }
 
-=== 1413 packages/theme-default/src/components/EditPage.svelte	js
+=== 1455 packages/theme-default/src/components/EditPage.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/state';
@@ -5596,7 +5645,8 @@ $.delegate(['click', 'keyup']);
     --at-apply: 'text-6 ml-2 flex items-center';
   }
 
-=== 1153 packages/theme-default/src/components/Error.svelte	js
+=== 1195 packages/theme-default/src/components/Error.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Home from './icons/Home.svelte';
@@ -5666,7 +5716,8 @@ export default function Error($$anchor, $$props) {
     --at-apply: 'text-3.5';
   }
 
-=== 6767 packages/theme-default/src/components/Expansion.svelte	js
+=== 6809 packages/theme-default/src/components/Expansion.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import slide from './actions/slide';
@@ -6124,7 +6175,8 @@ $.delegate(['click']);
     --at-apply: 'mb-0';
   }
 
-=== 6427 packages/theme-default/src/components/GlobalLayout.svelte	js
+=== 6469 packages/theme-default/src/components/GlobalLayout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { afterNavigate, beforeNavigate, onNavigate } from '$app/navigation';
@@ -6379,7 +6431,8 @@ export default function GlobalLayout($$anchor, $$props) {
 	}
 ]
 
-=== 992 packages/theme-default/src/components/GoogleAnalytics.svelte	js
+=== 1034 packages/theme-default/src/components/GoogleAnalytics.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import themeOption from 'virtual:sveltepress/theme-default';
@@ -6482,7 +6535,8 @@ export default function GoogleAnalytics($$anchor, $$props) {
     --at-apply: 'basis-full sm:basis-[calc((100%-1.25rem)/2)] md:basis-[calc((100%-2.5rem)/3)] grow-0 shrink-0 box-border';
   }
 
-=== 2414 packages/theme-default/src/components/Home.svelte	js
+=== 2456 packages/theme-default/src/components/Home.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ActionButton from './ActionButton.svelte';
@@ -6571,7 +6625,8 @@ export default function Home($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 535 packages/theme-default/src/components/IconifyIcon.svelte	js
+=== 577 packages/theme-default/src/components/IconifyIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6607,7 +6662,8 @@ export default function IconifyIcon($$anchor, $$props) {
 	}
 ]
 
-=== 3003 packages/theme-default/src/components/InstallPkg.svelte	js
+=== 3045 packages/theme-default/src/components/InstallPkg.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Bun from './icons/logos/Bun.svelte';
@@ -6736,7 +6792,8 @@ export default function InstallPkg($$anchor, $$props) {
     --at-apply: 'mt-4 sm:mt-0 text-zinc-5 dark:text-zinc-4 text-[14px]';
   }
 
-=== 1025 packages/theme-default/src/components/LastUpdate.svelte	js
+=== 1067 packages/theme-default/src/components/LastUpdate.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import themeOptions from 'virtual:sveltepress/theme-default';
@@ -6802,7 +6859,8 @@ export default function LastUpdate($$anchor, $$props) {
     --at-apply: 'text-svp-primary-deep dark:text-svp-primary hover:text-svp-primary-deep dark:hover:text-svp-primary font-600 cursor-default';
   }
 
-=== 2885 packages/theme-default/src/components/Link.svelte	js
+=== 2927 packages/theme-default/src/components/Link.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import External from './icons/External.svelte';
@@ -6916,7 +6974,8 @@ export default function Link($$anchor, $$props) {
     --at-apply: 'font-600 ml-2';
   }
 
-=== 1488 packages/theme-default/src/components/Logo.svelte	js
+=== 1530 packages/theme-default/src/components/Logo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import siteConfig from 'virtual:sveltepress/site';
@@ -6983,7 +7042,8 @@ export default function Logo($$anchor, $$props) {
     --at-apply: 'flex items-center justify-between sm:hidden px-4 py-2';
   }
 
-=== 1474 packages/theme-default/src/components/MobileSubNav.svelte	js
+=== 1516 packages/theme-default/src/components/MobileSubNav.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import themeOptions from 'virtual:sveltepress/theme-default';
@@ -7091,7 +7151,8 @@ $.delegate(['click']);
     background-color: currentColor;
   }
 
-=== 5397 packages/theme-default/src/components/NavItem.svelte	js
+=== 5439 packages/theme-default/src/components/NavItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/state';
@@ -7413,7 +7474,8 @@ export default function NavItem($$anchor, $$props) {
     --at-apply: 'hidden sm:flex';
   }
 
-=== 5511 packages/theme-default/src/components/Navbar.svelte	js
+=== 5553 packages/theme-default/src/components/Navbar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/state';
@@ -7666,7 +7728,8 @@ export default function Navbar($$anchor, $$props) {
     --at-apply: 'indent-[1em]';
   }
 
-=== 3781 packages/theme-default/src/components/NavbarMobile.svelte	js
+=== 3823 packages/theme-default/src/components/NavbarMobile.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { slide } from 'svelte/transition';
@@ -7870,7 +7933,8 @@ $.delegate(['click']);
     --at-apply: 'justify-end';
   }
 
-=== 5644 packages/theme-default/src/components/PageLayout.svelte	js
+=== 5686 packages/theme-default/src/components/PageLayout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { afterNavigate, beforeNavigate } from '$app/navigation';
@@ -8144,7 +8208,8 @@ export default function PageLayout($$anchor, $$props) {
     --at-apply: 'px-4 py-3 block';
   }
 
-=== 3790 packages/theme-default/src/components/PageSwitcher.svelte	js
+=== 3832 packages/theme-default/src/components/PageSwitcher.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/state';
@@ -8288,7 +8353,8 @@ export default function PageSwitcher($$anchor, $$props) {
     --at-apply: 'text-5 flex items-center sm:hidden ml-4';
   }
 
-=== 2313 packages/theme-default/src/components/Sidebar.svelte	js
+=== 2355 packages/theme-default/src/components/Sidebar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { afterNavigate } from '$app/navigation';
@@ -8405,7 +8471,8 @@ $.delegate(['click', 'keyup']);
     --at-apply: 'rotate--90';
   }
 
-=== 3688 packages/theme-default/src/components/SidebarGroup.svelte	js
+=== 3730 packages/theme-default/src/components/SidebarGroup.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/state';
@@ -8547,7 +8614,8 @@ $.delegate(['click']);
     --at-apply: 'm-none';
   }
 
-=== 1326 packages/theme-default/src/components/TabPanel.svelte	js
+=== 1368 packages/theme-default/src/components/TabPanel.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -8684,7 +8752,8 @@ export default function TabPanel($$anchor, $$props) {
     left: var(--bar-left);
   }
 
-=== 5693 packages/theme-default/src/components/Tabs.svelte	js
+=== 5735 packages/theme-default/src/components/Tabs.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext, tick } from 'svelte';
@@ -8936,7 +9005,8 @@ $.delegate(['click']);
     transform: translateX(100%);
   }
 
-=== 4505 packages/theme-default/src/components/Toc.svelte	js
+=== 4547 packages/theme-default/src/components/Toc.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { afterNavigate } from '$app/navigation';
@@ -9108,7 +9178,8 @@ export default function Toc($$anchor, $$props) {
     --at-apply: 'h-[28px] text-[24px] cursor-pointer px-3 flex items-center h-100% hover:opacity-80 relative';
   }
 
-=== 5701 packages/theme-default/src/components/ToggleDark.svelte	js
+=== 5743 packages/theme-default/src/components/ToggleDark.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { browser } from '$app/environment';
@@ -9326,7 +9397,8 @@ $.delegate(['click', 'keyup']);
     --at-apply: 'text-9 inline-flex items-center p-1.5 bg-black/5 dark:bg-white/8 rounded-lg';
   }
 
-=== 3018 packages/theme-default/src/components/home/Feature.svelte	js
+=== 3060 packages/theme-default/src/components/home/Feature.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { goto } from '$app/navigation';
@@ -9509,7 +9581,8 @@ $.delegate(['click']);
     --at-apply: 'svp-gradient-bg text-white text-[10px] font-600 rounded-full px-3 py-1.5 w-fit mt-1 leading-none';
   }
 
-=== 1722 packages/theme-default/src/components/home/HeroCode.svelte	js
+=== 1764 packages/theme-default/src/components/home/HeroCode.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9539,7 +9612,8 @@ export default function HeroCode($$anchor) {
     --at-apply: 'sm:w-60 w-full max-w-[220px] dark:bg-white/6 dark:p-7 dark:rounded-[28px] dark:b-1 dark:b-solid dark:b-white/10 box-border';
   }
 
-=== 635 packages/theme-default/src/components/home/HeroImage.svelte	js
+=== 677 packages/theme-default/src/components/home/HeroImage.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import siteConfig from 'virtual:sveltepress/site';
@@ -9564,7 +9638,8 @@ export default function HeroImage($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 465 packages/theme-default/src/components/icons/ActionLeft.svelte	js
+=== 507 packages/theme-default/src/components/icons/ActionLeft.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9575,7 +9650,8 @@ export default function ActionLeft($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 469 packages/theme-default/src/components/icons/ActionRight.svelte	js
+=== 511 packages/theme-default/src/components/icons/ActionRight.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9586,7 +9662,8 @@ export default function ActionRight($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 2058 packages/theme-default/src/components/icons/Apple.svelte	js
+=== 2100 packages/theme-default/src/components/icons/Apple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9597,7 +9674,8 @@ export default function Apple($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 360 packages/theme-default/src/components/icons/ArrowDown.svelte	js
+=== 402 packages/theme-default/src/components/icons/ArrowDown.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9608,7 +9686,8 @@ export default function ArrowDown($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 1151 packages/theme-default/src/components/icons/Banana.svelte	js
+=== 1193 packages/theme-default/src/components/icons/Banana.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9619,7 +9698,8 @@ export default function Banana($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 503 packages/theme-default/src/components/icons/Close.svelte	js
+=== 545 packages/theme-default/src/components/icons/Close.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9630,7 +9710,8 @@ export default function Close($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 859 packages/theme-default/src/components/icons/Copy.svelte	js
+=== 901 packages/theme-default/src/components/icons/Copy.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9641,7 +9722,8 @@ export default function Copy($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 388 packages/theme-default/src/components/icons/CopyDone.svelte	js
+=== 430 packages/theme-default/src/components/icons/CopyDone.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9652,7 +9734,8 @@ export default function CopyDone($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 1510 packages/theme-default/src/components/icons/Discord.svelte	js
+=== 1552 packages/theme-default/src/components/icons/Discord.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9675,7 +9758,8 @@ export default function Discord($$anchor, $$props) {
 
 	$.append($$anchor, svg);
 }
-=== 801 packages/theme-default/src/components/icons/Edit.svelte	js
+=== 843 packages/theme-default/src/components/icons/Edit.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9698,7 +9782,8 @@ export default function Edit($$anchor, $$props) {
 
 	$.append($$anchor, svg);
 }
-=== 1177 packages/theme-default/src/components/icons/External.svelte	js
+=== 1219 packages/theme-default/src/components/icons/External.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9714,7 +9799,8 @@ export default function External($$anchor, $$props) {
 	$.attribute_effect(svg, () => ({ ...rest, width: '1em', height: '1em', viewBox: '0 0 24 24' }));
 	$.append($$anchor, svg);
 }
-=== 1086 packages/theme-default/src/components/icons/Github.svelte	js
+=== 1128 packages/theme-default/src/components/icons/Github.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9730,7 +9816,8 @@ export default function Github($$anchor, $$props) {
 	$.attribute_effect(svg, () => ({ width: '1em', height: '1em', viewBox: '0 0 24 24', ...rest }));
 	$.append($$anchor, svg);
 }
-=== 3345 packages/theme-default/src/components/icons/Grapes.svelte	js
+=== 3387 packages/theme-default/src/components/icons/Grapes.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9741,7 +9828,8 @@ export default function Grapes($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 567 packages/theme-default/src/components/icons/Home.svelte	js
+=== 609 packages/theme-default/src/components/icons/Home.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9752,7 +9840,8 @@ export default function Home($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 721 packages/theme-default/src/components/icons/Markdown.svelte	js
+=== 763 packages/theme-default/src/components/icons/Markdown.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9763,7 +9852,8 @@ export default function Markdown($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 701 packages/theme-default/src/components/icons/Menu.svelte	js
+=== 743 packages/theme-default/src/components/icons/Menu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9774,7 +9864,8 @@ export default function Menu($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 865 packages/theme-default/src/components/icons/MenuOpen.svelte	js
+=== 907 packages/theme-default/src/components/icons/MenuOpen.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9795,7 +9886,8 @@ export default function MenuOpen($$anchor, $$props) {
 
 	$.append($$anchor, svg);
 }
-=== 3810 packages/theme-default/src/components/icons/Moon.svelte	js
+=== 3852 packages/theme-default/src/components/icons/Moon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9806,7 +9898,8 @@ export default function Moon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 434 packages/theme-default/src/components/icons/More.svelte	js
+=== 476 packages/theme-default/src/components/icons/More.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9817,7 +9910,8 @@ export default function More($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 450 packages/theme-default/src/components/icons/NavArrowDown.svelte	js
+=== 492 packages/theme-default/src/components/icons/NavArrowDown.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9828,7 +9922,8 @@ export default function NavArrowDown($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 610 packages/theme-default/src/components/icons/Next.svelte	js
+=== 652 packages/theme-default/src/components/icons/Next.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9844,7 +9939,8 @@ export default function Next($$anchor, $$props) {
 	$.attribute_effect(svg, () => ({ width: '1em', height: '1em', viewBox: '0 0 24 24', ...rest }));
 	$.append($$anchor, svg);
 }
-=== 2813 packages/theme-default/src/components/icons/Peach.svelte	js
+=== 2855 packages/theme-default/src/components/icons/Peach.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9855,7 +9951,8 @@ export default function Peach($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 1404 packages/theme-default/src/components/icons/PointLeft.svelte	js
+=== 1446 packages/theme-default/src/components/icons/PointLeft.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9866,7 +9963,8 @@ export default function PointLeft($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 1197 packages/theme-default/src/components/icons/PointRight.svelte	js
+=== 1239 packages/theme-default/src/components/icons/PointRight.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9877,7 +9975,8 @@ export default function PointRight($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 611 packages/theme-default/src/components/icons/Prev.svelte	js
+=== 653 packages/theme-default/src/components/icons/Prev.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9893,7 +9992,8 @@ export default function Prev($$anchor, $$props) {
 	$.attribute_effect(svg, () => ({ width: '1em', height: '1em', viewBox: '0 0 24 24', ...rest }));
 	$.append($$anchor, svg);
 }
-=== 486 packages/theme-default/src/components/icons/Refresh.svelte	js
+=== 528 packages/theme-default/src/components/icons/Refresh.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9904,7 +10004,8 @@ export default function Refresh($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 3085 packages/theme-default/src/components/icons/Sun.svelte	js
+=== 3127 packages/theme-default/src/components/icons/Sun.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9915,7 +10016,8 @@ export default function Sun($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 1200 packages/theme-default/src/components/icons/Svelte.svelte	js
+=== 1242 packages/theme-default/src/components/icons/Svelte.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9926,7 +10028,8 @@ export default function Svelte($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 1712 packages/theme-default/src/components/icons/SvelteWithColor.svelte	js
+=== 1754 packages/theme-default/src/components/icons/SvelteWithColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9937,7 +10040,8 @@ export default function SvelteWithColor($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 1128 packages/theme-default/src/components/icons/SystemDefault.svelte	js
+=== 1170 packages/theme-default/src/components/icons/SystemDefault.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9958,7 +10062,8 @@ export default function SystemDefault($$anchor, $$props) {
 
 	$.append($$anchor, svg);
 }
-=== 818 packages/theme-default/src/components/icons/TocClose.svelte	js
+=== 860 packages/theme-default/src/components/icons/TocClose.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9969,7 +10074,8 @@ export default function TocClose($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 817 packages/theme-default/src/components/icons/TocMenu.svelte	js
+=== 859 packages/theme-default/src/components/icons/TocMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9980,7 +10086,8 @@ export default function TocMenu($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 1750 packages/theme-default/src/components/icons/Tomato.svelte	js
+=== 1792 packages/theme-default/src/components/icons/Tomato.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9991,7 +10098,8 @@ export default function Tomato($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 389 packages/theme-default/src/components/icons/Up.svelte	js
+=== 431 packages/theme-default/src/components/icons/Up.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10002,7 +10110,8 @@ export default function Up($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 2092 packages/theme-default/src/components/icons/Watermelon.svelte	js
+=== 2134 packages/theme-default/src/components/icons/Watermelon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10013,7 +10122,8 @@ export default function Watermelon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 2075 packages/theme-default/src/components/icons/logos/Bun.svelte	js
+=== 2117 packages/theme-default/src/components/icons/logos/Bun.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10034,7 +10144,8 @@ export default function Bun($$anchor, $$props) {
 
 	$.append($$anchor, svg);
 }
-=== 4831 packages/theme-default/src/components/icons/logos/BunWithColor.svelte	js
+=== 4873 packages/theme-default/src/components/icons/logos/BunWithColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10055,7 +10166,8 @@ export default function BunWithColor($$anchor, $$props) {
 
 	$.append($$anchor, svg);
 }
-=== 544 packages/theme-default/src/components/icons/logos/Npm.svelte	js
+=== 586 packages/theme-default/src/components/icons/logos/Npm.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10066,7 +10178,8 @@ export default function Npm($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 419 packages/theme-default/src/components/icons/logos/NpmWithColor.svelte	js
+=== 461 packages/theme-default/src/components/icons/logos/NpmWithColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10077,7 +10190,8 @@ export default function NpmWithColor($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 603 packages/theme-default/src/components/icons/logos/Pnpm.svelte	js
+=== 645 packages/theme-default/src/components/icons/logos/Pnpm.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10088,7 +10202,8 @@ export default function Pnpm($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 569 packages/theme-default/src/components/icons/logos/PnpmWithColor.svelte	js
+=== 611 packages/theme-default/src/components/icons/logos/PnpmWithColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10099,7 +10214,8 @@ export default function PnpmWithColor($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 2188 packages/theme-default/src/components/icons/logos/Yarn.svelte	js
+=== 2230 packages/theme-default/src/components/icons/logos/Yarn.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10110,7 +10226,8 @@ export default function Yarn($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 2647 packages/theme-default/src/components/icons/logos/YarnWithColor.svelte	js
+=== 2689 packages/theme-default/src/components/icons/logos/YarnWithColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10133,7 +10250,8 @@ export default function YarnWithColor($$anchor) {
     --at-apply: 'text-gray-8 hover:bg-gray-3 dark:text-gray-2 dark:hover:bg-gray-8 bg-gray-1 dark:bg-gray-9';
   }
 
-=== 766 packages/theme-default/src/components/pwa/Btn.svelte	js
+=== 808 packages/theme-default/src/components/pwa/Btn.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10176,7 +10294,8 @@ $.delegate(['click', 'keyup']);
     --at-apply: 'flex justify-end mt-8';
   }
 
-=== 1841 packages/theme-default/src/components/pwa/Prompt.svelte	js
+=== 1883 packages/theme-default/src/components/pwa/Prompt.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { createEventDispatcher } from 'svelte';
@@ -10244,7 +10363,8 @@ export default function Prompt($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 2020 packages/theme-default/src/components/pwa/Pwa.svelte	js
+=== 2062 packages/theme-default/src/components/pwa/Pwa.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -10326,7 +10446,8 @@ export default function Pwa($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 2649 packages/theme-default/src/components/pwa/ReloadPrompt.svelte	js
+=== 2691 packages/theme-default/src/components/pwa/ReloadPrompt.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useRegisterSW } from 'virtual:pwa-register/svelte';
@@ -10410,7 +10531,8 @@ export default function ReloadPrompt($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 21757 packages/twoslash/__tests__/test-result.svelte	js
+=== 21799 packages/twoslash/__tests__/test-result.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10951,7 +11073,8 @@ export default function Test_result($$anchor) {
 	}
 ]
 
-=== 1674 packages/twoslash/__tests__/test-ts.svelte	js
+=== 1716 packages/twoslash/__tests__/test-ts.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -11010,7 +11133,8 @@ export default function Test_ts($$anchor) {
 	}
 ]
 
-=== 827 packages/twoslash/__tests__/test.svelte	js
+=== 869 packages/twoslash/__tests__/test.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -11113,7 +11237,8 @@ $.delegate(['click']);
     word-spacing: -6px;
   }
 
-=== 3403 packages/twoslash/src/components/Floating.svelte	js
+=== 3445 packages/twoslash/src/components/Floating.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { arrow, autoUpdate, computePosition, offset } from '@floating-ui/dom';
@@ -11230,7 +11355,8 @@ export default function Floating($$anchor, $$props) {
 	$.append($$anchor, span);
 	$.pop();
 }
-=== 1415 packages/twoslash/src/components/FloatingWrapper.svelte	js
+=== 1457 packages/twoslash/src/components/FloatingWrapper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -11287,7 +11413,8 @@ export default function FloatingWrapper($$anchor, $$props) {
 
 	$.append($$anchor, fragment);
 }
-=== 57187 packages/vite/__tests__/real-world.svelte	js
+=== 57229 packages/vite/__tests__/real-world.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 

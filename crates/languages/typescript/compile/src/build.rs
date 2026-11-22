@@ -375,9 +375,24 @@ impl<'o> Builder<'o> {
         Expression::new_template_literal(SPAN, self.vec(quasis), self.vec(expressions), self)
     }
 
+    /// `expression;`. A string is put in parentheses, as esrap prints a statement that is not a
+    /// directive, so that it does not read as one.
     #[must_use]
     pub fn statement(&self, expression: Expression<'o>) -> Statement<'o> {
+        let expression = match expression {
+            Expression::StringLiteral(_) => {
+                Expression::new_parenthesized_expression(SPAN, expression, self)
+            }
+            expression => expression,
+        };
         Statement::new_expression_statement(SPAN, expression, self)
+    }
+
+    /// The directive `'raw';`, `raw` being its text between the quotes.
+    #[must_use]
+    pub fn directive(&self, span: Span, raw: &str) -> ast::Directive<'o> {
+        let raw = self.str(raw);
+        ast::Directive::new(span, StringLiteral::new(span, raw, None, self), raw, self)
     }
 
     pub fn block(&self, body: impl IntoIterator<Item = Statement<'o>>) -> Statement<'o> {

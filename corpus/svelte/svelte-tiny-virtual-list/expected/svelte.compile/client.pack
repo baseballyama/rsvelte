@@ -13,7 +13,8 @@
 		width: 100%;
 	}
 
-=== 11710 src/lib/VirtualList.svelte	js
+=== 11752 src/lib/VirtualList.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { untrack } from 'svelte';
@@ -635,7 +636,8 @@ export default function VirtualList($$anchor, $$props) {
 	}
 ]
 
-=== 1487 src/lib/VirtualList.test.svelte	js
+=== 1529 src/lib/VirtualList.test.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import VirtualList from './VirtualList.svelte';
@@ -701,7 +703,8 @@ export default function VirtualList_test($$anchor, $$props) {
 
 	@import '../app.css';
 
-=== 12218 src/routes/+layout.svelte	js
+=== 12260 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { asset, resolve } from '$app/paths';
@@ -1041,7 +1044,8 @@ $.delegate(['click']);
 		text-align: center;
 	}
 
-=== 941 src/routes/+page.svelte	js
+=== 983 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import readme from '../../README.md?raw';
@@ -1172,7 +1176,8 @@ export default function _page($$anchor, $$props) {
 		text-decoration: underline;
 	}
 
-=== 6560 src/routes/demos/hacker-news/+page.svelte	js
+=== 6602 src/routes/demos/hacker-news/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import VirtualList from '$lib/VirtualList.svelte';
@@ -1367,7 +1372,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1943 src/routes/examples/controlled-scroll-offset/+page.svelte	js
+=== 1985 src/routes/examples/controlled-scroll-offset/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import VirtualList from '$lib/VirtualList.svelte';
@@ -1444,7 +1450,8 @@ export default function _page($$anchor) {
 	$.bind_value(input, () => $.get(scrollOffset), ($$value) => $.set(scrollOffset, $$value));
 	$.append($$anchor, div);
 }
-=== 1667 src/routes/examples/elements-of-equal-height/+page.svelte	js
+=== 1709 src/routes/examples/elements-of-equal-height/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import VirtualList from '$lib/VirtualList.svelte';
@@ -1524,7 +1531,8 @@ export default function _page($$anchor) {
 	}
 ]
 
-=== 1406 src/routes/examples/horizontal-list/+page.svelte	js
+=== 1448 src/routes/examples/horizontal-list/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import VirtualList from '$lib/VirtualList.svelte';
@@ -1580,7 +1588,8 @@ export default function _page($$anchor) {
 	$.bind_element_size(div_1, 'clientWidth', ($$value) => $.set(width, $$value));
 	$.append($$anchor, div);
 }
-=== 3895 src/routes/examples/scroll-to-index/+page.svelte	js
+=== 3937 src/routes/examples/scroll-to-index/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import VirtualList from '$lib/VirtualList.svelte';
@@ -1715,7 +1724,8 @@ export default function _page($$anchor) {
 	$.bind_select_value(select_1, () => $.get(scrollToBehaviour), ($$value) => $.set(scrollToBehaviour, $$value));
 	$.append($$anchor, div);
 }
-=== 1681 src/routes/examples/variable-heights/+page.svelte	js
+=== 1723 src/routes/examples/variable-heights/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import VirtualList from '$lib/VirtualList.svelte';

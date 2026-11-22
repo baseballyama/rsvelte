@@ -1,6 +1,6 @@
 import { defineComponent as $$v_defineComponent, normalizeStyle as $$v_normalizeStyle } from "vue";
 import { shallowRef as $$ref } from "vue";
-"module text";
+("module text");
 export const shared = 1;
 const $$boolean_names = [
 	"allowfullscreen",

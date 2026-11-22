@@ -1,3 +1,4 @@
+import "svelte/internal/init-operations";
 import "svelte/internal/disclose-version";
 import * as $ from "svelte/internal/client";
 var root = $.from_html(`<p>expression</p> <p>interpolated</p> <p>directive only</p> <p>static and directive</p> <p>object</p> <p>literal</p> <span class="plain svelte-sdhwnl">static</span> <button>toggle</button>`, 1);
