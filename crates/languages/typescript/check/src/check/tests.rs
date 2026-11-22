@@ -10,6 +10,7 @@ fn empty(env: &TypeScriptEnv) -> CheckRequest<'_> {
         mapped_files: Vec::new(),
         env,
         stand_ins: Vec::new(),
+        imports: Vec::new(),
     }
 }
 

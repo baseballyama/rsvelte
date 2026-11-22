@@ -100,7 +100,7 @@ fn a_command_needs_a_program_and_options_are_checked() {
 }
 
 #[test]
-fn without_a_command_the_first_installed_checker_runs_through_node() {
+fn without_a_command_the_first_installed_checker_runs_through_node_without_its_native_package() {
     let scratch = Scratch::new("installed");
     let none = checker(&scratch.0, "{}").unwrap_err();
     assert!(none.0.contains("is installed. Install tsrs"), "{}", none.0);
@@ -126,6 +126,77 @@ fn without_a_command_the_first_installed_checker_runs_through_node() {
         got.checker.arguments,
         [tsrs.join("./bin/tsrs").to_string_lossy()],
         "tsrs before TypeScript"
+    );
+}
+
+/// pnpm's layout: the platform package is beside the package in the store, not in the project.
+#[cfg(unix)]
+#[test]
+fn without_a_command_an_installed_typescript_starts_its_native_executable() {
+    let scratch = Scratch::new("native");
+    let store = scratch
+        .0
+        .join("node_modules/.pnpm/typescript@7.1.0/node_modules");
+    let write = |path: PathBuf, text: &str| {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, text).unwrap();
+    };
+    write(
+        store.join("typescript/package.json"),
+        r#"{"name":"typescript","version":"7.1.0","bin":{"tsc":"./bin/tsc"}}"#,
+    );
+    std::os::unix::fs::symlink(
+        store.join("typescript"),
+        scratch.0.join("node_modules/typescript"),
+    )
+    .unwrap();
+    let got = checker(&scratch.0, "{}").unwrap().unwrap();
+    assert_eq!(
+        got.checker.program,
+        Path::new("node"),
+        "no platform package"
+    );
+    let native = store.join(native_package("typescript").unwrap());
+    write(native.join("package.json"), "{}");
+    let got = checker(&scratch.0, "{}").unwrap().unwrap();
+    assert_eq!(got.checker.program, Path::new("node"), "no executable");
+    let executable = native.join("lib/tsc");
+    write(executable.clone(), "");
+    let got = checker(&scratch.0, "{}").unwrap().unwrap();
+    assert_eq!(
+        got.checker.program,
+        std::fs::canonicalize(executable).unwrap()
+    );
+    assert_eq!(got.checker.arguments, Vec::<String>::new());
+}
+
+/// npm's layout: the platform package is hoisted next to the package in the project.
+#[test]
+fn without_a_command_an_installed_native_preview_starts_its_native_executable() {
+    let scratch = Scratch::new("native-preview");
+    let modules = scratch.0.join("node_modules");
+    let write = |path: PathBuf, text: &str| {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, text).unwrap();
+    };
+    write(
+        modules.join("@typescript/native-preview/package.json"),
+        concat!(
+            r#"{"name":"@typescript/native-preview","version":"7.1.0-dev.20261102.1","#,
+            r#""bin":{"tsgo":"./bin/tsgo"}}"#,
+        ),
+    );
+    let native = native_package("native-preview").unwrap();
+    let native = modules.join(native);
+    write(native.join("package.json"), "{}");
+    let executable = native
+        .join("lib/tsgo")
+        .with_extension(std::env::consts::EXE_EXTENSION);
+    write(executable.clone(), "");
+    let got = checker(&scratch.0, "{}").unwrap().unwrap();
+    assert_eq!(
+        got.checker.program,
+        std::fs::canonicalize(executable).unwrap()
     );
 }
 
