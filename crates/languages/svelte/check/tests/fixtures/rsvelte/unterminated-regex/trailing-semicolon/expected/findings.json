@@ -1,0 +1,38 @@
+[
+	{
+		"code": 1161,
+		"message": "Unterminated regular expression literal.",
+		"start": {
+			"line": 2,
+			"character": 5
+		},
+		"end": {
+			"line": 2,
+			"character": 9
+		}
+	},
+	{
+		"code": 1005,
+		"message": "')' expected.",
+		"start": {
+			"line": 2,
+			"character": 10
+		},
+		"end": {
+			"line": 2,
+			"character": 11
+		}
+	},
+	{
+		"code": 1128,
+		"message": "Declaration or statement expected.",
+		"start": {
+			"line": 2,
+			"character": 11
+		},
+		"end": {
+			"line": 2,
+			"character": 12
+		}
+	}
+]

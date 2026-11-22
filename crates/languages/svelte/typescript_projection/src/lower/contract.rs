@@ -5,6 +5,7 @@ use oxc_ast::ast::{
 };
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::Script;
+use rsvelte_typescript_semantic::property_key::literal_key_name;
 use rsvelte_typescript_tree::{document_span, node_span};
 
 use super::nested::Nested;
@@ -446,15 +447,21 @@ impl Builder<'_> {
     }
 
     fn property_string(&mut self, key: &PropertyKey<'_>) -> NodeIdentifier {
-        if let PropertyKey::StringLiteral(string) = key {
-            self.source(string.span, None)
-        } else {
-            let text = self.tree.push(Node::Text(node_span(key)));
-            let parts = self.tree.list(&[text]);
-            self.tree.push(Node::String {
-                parts,
-                template: false,
-            })
+        match key {
+            PropertyKey::StringLiteral(string) => self.source(string.span, None),
+            PropertyKey::StaticIdentifier(_) => {
+                let text = self.tree.push(Node::Text(node_span(key)));
+                let parts = self.tree.list(&[text]);
+                self.tree.push(Node::String {
+                    parts,
+                    template: false,
+                })
+            }
+            // The compiler names the prop `String(key.value)`, not as the key is written.
+            _ => match literal_key_name(key) {
+                Some(name) => self.tree.computed_string_literal(&name),
+                None => unreachable!("a computed props key is refused before its binding"),
+            },
         }
     }
 
