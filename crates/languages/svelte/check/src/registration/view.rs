@@ -3,11 +3,6 @@
 
 use std::sync::Arc;
 
-use oxc_ast::ast::{
-    ExportAllDeclaration, ExportFromDeclaration, Expression, ImportDeclaration, ImportExpression,
-    StringLiteral,
-};
-use oxc_ast_visit::{Visit, walk};
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
@@ -19,7 +14,6 @@ use rsvelte_svelte_typescript_projection::{EmittedProjection, THROWN, store_read
 use rsvelte_typescript_check::{
     CheckedDocument, Hidden, Import, TypeScriptDocument, TypeScriptEnv,
 };
-use rsvelte_typescript_tree::node_span;
 
 pub(super) fn typescript_view(
     context: &DocumentContext<'_>,
@@ -67,7 +61,7 @@ pub(super) fn typescript_view(
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),
         extension: if typescript { ".ts" } else { ".js" },
-        imports: relative_imports(component),
+        imports: imports(component),
         store_reads: read.resolution(context).map_or_default(store_reads),
         hidden: hidden(component, &context.document.text),
         drops_unmapped: read.has_script_errors(),
@@ -176,55 +170,13 @@ fn rejected(error: &Diagnostic) -> TypeScriptDocument {
     }
 }
 
-/// Each relative module specifier the scripts import, re-export from or load with `import()`, by
-/// its string literal, with the names a static import binds.
-fn relative_imports(component: &Component) -> Vec<Import> {
-    struct Specifiers(Vec<Import>);
-    impl Specifiers {
-        fn push(&mut self, source: &StringLiteral<'_>, names: Vec<String>) {
-            // A specifier with a lone surrogate names no file.
-            if let Some(specifier) = source.value.as_str()
-                && specifier.starts_with('.')
-            {
-                self.0.push(Import {
-                    at: node_span(source),
-                    specifier: specifier.to_owned(),
-                    names,
-                });
-            }
-        }
-    }
-    impl<'a> Visit<'a> for Specifiers {
-        fn visit_import_declaration(&mut self, it: &ImportDeclaration<'a>) {
-            let names = (it.specifiers.iter().flatten())
-                .map(|specifier| specifier.local().name.as_str().to_owned())
-                .collect();
-            self.push(&it.source, names);
-        }
-
-        fn visit_export_from_declaration(&mut self, it: &ExportFromDeclaration<'a>) {
-            self.push(&it.source, Vec::new());
-        }
-
-        fn visit_export_all_declaration(&mut self, it: &ExportAllDeclaration<'a>) {
-            self.push(&it.source, Vec::new());
-        }
-
-        fn visit_import_expression(&mut self, it: &ImportExpression<'a>) {
-            if let Expression::StringLiteral(source) = &it.source {
-                self.push(source, Vec::new());
-            }
-            walk::walk_import_expression(self, it);
-        }
-    }
-    let mut found = Specifiers(Vec::new());
-    for script in [&component.instance, &component.module]
-        .into_iter()
-        .flatten()
-    {
-        found.visit_program(component.javascript.get_program(script.program));
-    }
-    found.0
+/// Each module the scripts name.
+fn imports(component: &Component) -> Vec<Import> {
+    (component.instance.iter().chain(&component.module))
+        .flat_map(|script| {
+            rsvelte_typescript_check::imports(component.javascript.get_program(script.program))
+        })
+        .collect()
 }
 
 fn env_of(

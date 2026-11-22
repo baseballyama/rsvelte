@@ -11,6 +11,7 @@ mod errors;
 mod exports;
 mod keywords;
 mod lets;
+mod namespaces;
 mod outcomes;
 mod patterns;
 mod props;

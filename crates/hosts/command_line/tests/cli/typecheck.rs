@@ -6,10 +6,10 @@ use rsvelte_test_harness::NodePackages;
 
 use crate::Scratch;
 
-struct Project(Scratch);
+pub(crate) struct Project(pub(crate) Scratch);
 
 impl Project {
-    fn new(files: &[(&str, &str)]) -> Self {
+    pub(crate) fn new(files: &[(&str, &str)]) -> Self {
         Self(Scratch::new(files))
     }
 
@@ -18,7 +18,7 @@ impl Project {
     }
 
     /// Runs the CLI in the project's directory `dir`.
-    fn rsvelte_in(&self, dir: &str, arguments: &[&str]) -> Output {
+    pub(crate) fn rsvelte_in(&self, dir: &str, arguments: &[&str]) -> Output {
         Command::new(env!("CARGO_BIN_EXE_rsvelte"))
             .current_dir(self.0.join(dir))
             .args(arguments)
@@ -27,7 +27,7 @@ impl Project {
     }
 }
 
-fn text(bytes: &[u8]) -> String {
+pub(crate) fn text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }
 
