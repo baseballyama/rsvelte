@@ -11,9 +11,9 @@ function $$render() {
   };
   return __rsvelte_export_isomorphic<{
     api?: typeof api;
-  }, { [evt: string]: CustomEvent<any> }, {
+  }, {
     api: typeof api;
-  }, string>()({});
+  }, string>()(__rsvelte_any_event({}), {});
 }
 const NoBracket__SvelteComponent_ = $$render();
 type NoBracket__SvelteComponent_ = InstanceType<typeof NoBracket__SvelteComponent_>;
