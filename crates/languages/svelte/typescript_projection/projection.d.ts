@@ -4,6 +4,8 @@ declare function __rsvelte_each<T extends ArrayLike<unknown> | Iterable<unknown>
 declare function __rsvelte_component<C extends (new (options: any) => { $$prop_def: any }) | ((internals: Parameters<import('svelte').Component>[0], props: never) => unknown) | null | undefined>(component: C): NonNullable<C extends (new (options: any) => infer Instance extends { $$prop_def: any }) ? (internals: Parameters<import('svelte').Component>[0], props: Instance['$$prop_def']) => Instance : C>;
 declare const __rsvelte_children: () => any;
 declare const __rsvelte_any_component: (internals: any, props: any) => any;
+// The node of a directive on a component, which the compiler rejects; svelte2tsx passes `undefined.mapElementTag('undefined')`.
+declare const __rsvelte_any_node: any;
 declare function __rsvelte_slots<Slots = Record<string, Record<string, any>>>(): <Name extends keyof Slots>(name: Name, attributes: Slots[Name]) => void;
 declare const __rsvelte_snippet_return: any;
 declare function __rsvelte_slot_flags<Key extends string>(): Record<Key, boolean>;
