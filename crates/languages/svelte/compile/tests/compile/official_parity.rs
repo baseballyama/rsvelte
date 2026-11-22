@@ -15,6 +15,7 @@ mod patterns;
 mod props;
 mod redeclarations;
 mod runes;
+mod signatures;
 mod transitions;
 
 /// The output, or the code of the diagnostic that refuses the source.
