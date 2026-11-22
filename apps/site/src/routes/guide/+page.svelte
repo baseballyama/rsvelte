@@ -99,7 +99,9 @@
 <p>
 	It formats Svelte files with every option that oxfmt gives prettier-plugin-svelte. It applies
 	<code>sortImports</code>, <code>jsdoc</code> and <code>sortTailwindcss</code> to them as oxfmt
-	does. <code>"svelte": false</code> in the configuration turns Svelte formatting off.
+	does. <code>"svelte": false</code> in the configuration turns Svelte formatting off. Like oxfmt,
+	it refuses a configuration that sets <code>experimentalTernaries</code>, which oxc does not print
+	yet.
 </p>
 
 <h2 id="typecheck"><code>typecheck</code></h2>

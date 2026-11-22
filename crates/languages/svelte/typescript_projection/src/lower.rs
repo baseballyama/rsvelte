@@ -99,6 +99,8 @@ pub fn lower<'a>(
         names: OnceCell::new(),
     };
     builder.tree.javascript = !component.checked_as_typescript(source);
+    builder.tree.holes =
+        (component.instance.as_ref()).is_some_and(|script| !script.holes.is_empty());
     // svelte2tsx moves the root's snippets after the instance script's imports. Without one it
     // moves those it may into the module script and leaves the rest in place.
     let instance = component.instance.is_some();

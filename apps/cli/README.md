@@ -71,8 +71,9 @@ in Rust, such as TypeScript, JSON, CSS and Markdown files. It formats a `.svelte
 options that oxfmt would give prettier-plugin-svelte, and it sorts imports and formats `/** */`
 comments in its scripts as oxfmt does. It also formats the `svelte` code blocks of a Markdown
 file. `format` never runs Prettier, so it skips the files that oxfmt hands to Prettier.
-`"svelte": false` in the configuration turns Svelte formatting off. `rsvelte.config` does not
-configure `format`.
+`"svelte": false` in the configuration turns Svelte formatting off. Like oxfmt, `format` refuses
+a configuration that sets `experimentalTernaries`, which oxc does not print yet. `rsvelte.config`
+does not configure `format`.
 
 With `sortTailwindcss`, `format` sorts Tailwind CSS classes as oxfmt does, with the
 [`prettier-plugin-tailwindcss`](https://github.com/tailwindlabs/prettier-plugin-tailwindcss) of

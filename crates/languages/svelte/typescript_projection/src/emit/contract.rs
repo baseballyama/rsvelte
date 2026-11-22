@@ -132,17 +132,22 @@ impl Printer<'_> {
     /// svelte2tsx's `const X = component; type X = …; export default X;`: the type of the same
     /// name lets an import name the component's instance.
     fn export_default(&mut self, component: NodeIdentifier, instance: Instance) {
+        let unrendered = instance.unrendered();
         let instance = match instance {
             Instance::Returned => "ReturnType",
             Instance::Constructed => "InstanceType",
         };
         if self.tree.javascript {
-            return self.javascript_export(component, instance);
+            return self.javascript_export(component, instance, unrendered);
         }
         self.output.push("const ");
         self.push_default_export();
         self.output.push(" = ");
         self.node(component);
+        if self.tree.holes {
+            self.output.push(" as unknown as ");
+            self.render_result(|_| {}, unrendered);
+        }
         self.output.push(";\ntype ");
         self.push_default_export();
         for part in [" = ", instance, "<typeof "] {
@@ -152,6 +157,24 @@ impl Printer<'_> {
         self.output.push(">;\nexport default ");
         self.push_default_export();
         self.output.push(";\n");
+    }
+
+    /// The type of what `$$render` returns, instantiated with what `arguments` writes. svelte2tsx
+    /// makes the component outside the render function, so when a hole closes it before its
+    /// return, the component is `unrendered`, its helper's constraints.
+    pub(super) fn render_result(&mut self, arguments: impl FnOnce(&mut Self), unrendered: &str) {
+        let holes = self.tree.holes;
+        if holes {
+            self.output.push("__rsvelte_rendered<");
+        }
+        self.output.push("Awaited<ReturnType<typeof $$render");
+        arguments(self);
+        self.output.push(">>");
+        if holes {
+            for part in [", ", unrendered, ">"] {
+                self.output.push(part);
+            }
+        }
     }
 
     /// svelte2tsx's `function $$render<type parameters>() { body }`, async after a top-level
