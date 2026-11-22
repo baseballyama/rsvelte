@@ -159,7 +159,7 @@ fn a_module_file_store_subscription_is_the_module_error() {
 }
 
 #[test]
-fn the_css_hash_comes_from_the_filename_or_else_from_the_stylesheet() {
+fn the_stylesheet_hash_comes_from_the_filename_or_else_from_the_stylesheet() {
     // svelte/compiler 5.57.3 gives these classes for this source.
     let source = "<p class=\"a\">x</p><style>.a { color: red; }</style>";
     let class = |filename: &str| {
@@ -167,8 +167,8 @@ fn the_css_hash_comes_from_the_filename_or_else_from_the_stylesheet() {
             filename: filename.to_owned(),
             ..CompileOptions::default()
         };
-        let css = compile(source, &options).expect("it compiles").css;
-        css.expect("a stylesheet")
+        let stylesheet = compile(source, &options).expect("it compiles").css;
+        stylesheet.expect("a stylesheet")
     };
     assert!(class("Logo.svelte").contains("svelte-70rkpb"));
     assert!(class(UNKNOWN_FILENAME).contains("svelte-1erwqir"));
