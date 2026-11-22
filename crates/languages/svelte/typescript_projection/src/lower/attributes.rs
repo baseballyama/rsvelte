@@ -28,6 +28,7 @@ pub(super) struct Host {
 }
 
 impl Host {
+    /// svelte2tsx's `InlineComponent`; every other tag, a `<slot>` too, is its `Element`.
     const fn is_component(&self) -> bool {
         matches!(self.kind, Kind::Component)
     }
@@ -125,23 +126,23 @@ impl Builder<'_> {
                         host.intrinsic(),
                     )?);
                 }
-                AttributeKind::On if host.intrinsic() => {
-                    let property = self.event_property(attribute)?;
-                    let property = self.commented(previous, attribute, property);
-                    self.scratch.push(property);
-                }
                 AttributeKind::On if host.is_component() => {
                     let event = self.component_event(attribute)?;
                     directives.events.push(event);
                 }
+                AttributeKind::On => {
+                    let property = self.event_property(attribute)?;
+                    let property = self.commented(previous, attribute, property);
+                    self.scratch.push(property);
+                }
                 AttributeKind::Let
                     if self.has_slot(attributes)
-                        || (host.intrinsic() && self.slot_parent.is_some()) =>
+                        || (!host.is_component() && self.slot_parent.is_some()) =>
                 {
                     let property = self.component_let(attribute)?;
                     directives.slot_lets.push(property);
                 }
-                AttributeKind::Let if host.is_component() && !self.has_slot(attributes) => {
+                AttributeKind::Let if host.is_component() => {
                     let property = self.component_let(attribute)?;
                     directives.lets.push(property);
                 }
@@ -150,9 +151,6 @@ impl Builder<'_> {
                 | AttributeKind::Animate
                 | AttributeKind::Style => {
                     self.directive(attribute, host, directives)?;
-                }
-                AttributeKind::On | AttributeKind::Let => {
-                    return Err(refuse("directives", attribute.span));
                 }
                 AttributeKind::Class if !host.is_component() => {}
                 AttributeKind::Class if host.is_component() => {
@@ -173,6 +171,8 @@ impl Builder<'_> {
                             AttributeValue::Parts(parts)
                                 if matches!(self.component.parts(parts), [Part::Text(_)])
                         ) => {}
+                // An attribute, or a `let:` that fills no slot, which svelte2tsx's `handleLet`
+                // writes as one.
                 _ => {
                     let mut property = self.attribute(
                         attribute,
