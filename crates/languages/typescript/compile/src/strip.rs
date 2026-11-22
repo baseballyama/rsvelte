@@ -5,11 +5,11 @@ use oxc_allocator::{Allocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::Comment;
 use oxc_ast::ast::{
     ArrowFunctionExpression, CallExpression, CatchParameter, ChainElement, Class, ClassElement,
-    CommentPosition, Declaration, ExportDefaultDeclarationKind, ExportSpecifier, Expression,
-    FormalParameter, FormalParameterRest, Function, FunctionBody, ImportDeclarationSpecifier,
-    MethodDefinition, MethodDefinitionType, NewExpression, Program, PropertyDefinition,
-    PropertyDefinitionType, SimpleAssignmentTarget, Statement, TaggedTemplateExpression,
-    VariableDeclarator,
+    CommentPosition, Declaration, ExportDeclaration, ExportDefaultDeclarationKind, ExportSpecifier,
+    Expression, FormalParameter, FormalParameterRest, Function, FunctionBody,
+    ImportDeclarationSpecifier, MethodDefinition, MethodDefinitionType, NewExpression, Program,
+    PropertyDefinition, PropertyDefinitionType, SimpleAssignmentTarget, Statement,
+    TaggedTemplateExpression, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
 use oxc_span::{GetSpan, Span};
@@ -57,9 +57,8 @@ fn is_type_declaration(statement: &Statement<'_>) -> bool {
     match statement {
         Statement::TSNamespaceExportDeclaration(_) => true,
         Statement::ImportDeclaration(d) => d.import_kind.is_type(),
-        // acorn-typescript reads `export declare …` as an export of types.
         Statement::ExportDeclaration(d) => {
-            d.declaration.declare() || is_type_only_declaration(&d.declaration)
+            exports_only_types(d) || is_type_only_declaration(&d.declaration)
         }
         Statement::ExportNamedDeclaration(d) => d.export_kind.is_type(),
         Statement::ExportFromDeclaration(d) => d.export_kind.is_type(),
@@ -70,6 +69,13 @@ fn is_type_declaration(statement: &Statement<'_>) -> bool {
         ),
         _ => false,
     }
+}
+
+/// Whether `export` exports only types: acorn-typescript reads `export declare …` as an export of
+/// types, which upstream erases whatever it declares.
+#[must_use]
+pub fn exports_only_types(export: &ExportDeclaration<'_>) -> bool {
+    export.declaration.declare()
 }
 
 fn is_type_only_declaration(declaration: &Declaration<'_>) -> bool {
