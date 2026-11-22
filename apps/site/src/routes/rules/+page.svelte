@@ -26,25 +26,17 @@
 <h1>Rules</h1>
 
 <p>
-	<code>rsvelte lint</code> implements these {rules.length} rules, ported from ESLint, typescript-eslint
-	and eslint-plugin-svelte under the same names. Some of them check
-	<a href={resolve('/guide') + '#legacy'}>legacy syntax</a>, such as <code>$:</code>. The categories
-	come from oxlint, the linter of the oxc project.
+	<code>rsvelte lint</code> is oxlint with a built-in Svelte linter. It runs
+	<a href="https://oxc.rs/docs/guide/usage/linter/rules">oxlint's rules</a>, and adds these
+	{rules.length} rules, ported from ESLint and eslint-plugin-svelte under the same names. Some of them
+	check <a href={resolve('/guide') + '#legacy'}>legacy syntax</a>, such as <code>$:</code>. Each has
+	one of oxlint's categories, and by default only <code>correctness</code> runs.
 </p>
 
-<p>Without a configuration, three rules run:</p>
-
-<ul class="inline">
-	<li><code>no-unused-vars</code></li>
-	<li><code>svelte/button-has-type</code></li>
-	<li><code>@typescript-eslint/no-unused-vars</code></li>
-</ul>
-
 <p>
-	Turn on the others in <code>rsvelte.config.json</code> (see the
-	<a href={resolve('/guide') + '#config'}>guide</a>). Write
-	<code>@typescript-eslint/no-unused-vars</code>
-	under <code>typescript.lint</code>, and every other rule under <code>svelte.lint</code>. A
+	Turn them on and off in <code>.oxlintrc.json</code>, as oxlint's (see the
+	<a href={resolve('/guide') + '#lint'}>guide</a>). <code>no-unused-vars</code> and
+	<code>no-undef</code> are oxlint's names: in a Svelte file, rsvelte runs them instead of oxlint. A
 	<code>svelte/</code>
 	rule whose Files column includes JavaScript and TypeScript also checks <code>.jsx</code> and
 	<code>.tsx</code> files.

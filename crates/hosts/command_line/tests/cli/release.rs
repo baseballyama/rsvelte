@@ -14,6 +14,9 @@ impl Project {
         Command::new(env!("CARGO_BIN_EXE_rsvelte"))
             .current_dir(&self.0)
             .args(arguments)
+            // oxlint colours its report wherever `CI` or `FORCE_COLOR` is set.
+            .env_remove("CI")
+            .env_remove("FORCE_COLOR")
             .output()
             .expect("run CLI")
     }
@@ -216,7 +219,10 @@ fn lint_reads_the_scripts_of_a_component_as_svelte_does() {
         ),
         (
             "Both.svelte",
-            "<script module>\n\tdebugger;\n</script>\n<script lang=\"ts\">\n\tdebugger;\n</script>\n",
+            concat!(
+                "<script module>\n\tdebugger;\n</script>\n",
+                "<script lang=\"ts\">\n\tdebugger;\n</script>\n",
+            ),
         ),
     ]);
     let lint = project.rsvelte(&["lint", "-f", "unix"]);
