@@ -113,6 +113,7 @@ impl Task for CountCoverage {
                 let type_syntax =
                     javascript_rejects(component, source, projection, &result, generics.as_ref());
                 let own = script_errors(component, source);
+                let rejected = rejected_default_exports(component, source);
                 // The projection keeps the script's own grammar, which may break these rules.
                 let added = result.diagnostics.iter().any(|d| {
                     let unchecked = d.code.scope.as_deref() == Some("TS")
@@ -137,6 +138,8 @@ impl Task for CountCoverage {
                     !unchecked
                         && !in_generics
                         && !in_tag(component, projection, &d.labels)
+                        && !source_offsets(projection, &d.labels)
+                            .any(|at| rejected.iter().any(|export| export.contains(&at)))
                         && !script_error(
                             d.code.number.as_deref(),
                             d.labels.first().map(oxc_span::LabeledSpan::offset),
@@ -190,12 +193,43 @@ fn in_tag(
             _ => false,
         })
     };
-    labels.iter().any(|label| {
-        projection.mappings.iter().any(|m| {
-            (m.generated..m.generated + m.len).contains(&label.offset())
-                && in_a_tag(m.source_text + (label.offset() - m.generated))
-        })
+    source_offsets(projection, labels).any(in_a_tag)
+}
+
+/// The source offsets the projection's mappings copy the labels' starts from.
+fn source_offsets<'a>(
+    projection: &'a rsvelte_kernel::output::emitter::Emitter,
+    labels: &'a [oxc_span::LabeledSpan],
+) -> impl Iterator<Item = u32> + 'a {
+    labels.iter().flat_map(|label| {
+        let offset = label.offset();
+        (projection.mappings.iter())
+            .filter(move |m| (m.generated..m.generated + m.len).contains(&offset))
+            .map(move |m| m.source_text + (offset - m.generated))
     })
+}
+
+/// The instance script's default exports, which the compiler rejects and svelte2tsx leaves in the
+/// render function as a `default` statement TypeScript refuses.
+fn rejected_default_exports(
+    component: &rsvelte_svelte_syntax::syntax_tree::Component,
+    source: &str,
+) -> Vec<std::ops::Range<u32>> {
+    let Some(script) = &component.instance else {
+        return Vec::new();
+    };
+    let allocator = Allocator::default();
+    let source_type = SourceType::ts().with_module(true);
+    let parsed = Parser::new(&allocator, script.content.text(source), source_type).parse();
+    let start = script.content.start_offset;
+    (parsed.program.body.iter())
+        .filter_map(|statement| match statement {
+            oxc_ast::ast::Statement::ExportDefaultDeclaration(export) => {
+                Some(start + export.span.start..start + export.span.end)
+            }
+            _ => None,
+        })
+        .collect()
 }
 
 /// The projection's copy of the instance script's `generics` value, from our `<` to just past our
