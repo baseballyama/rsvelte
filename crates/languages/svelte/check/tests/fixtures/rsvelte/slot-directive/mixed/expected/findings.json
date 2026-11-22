@@ -1,0 +1,26 @@
+[
+	{
+		"code": 2554,
+		"message": "Expected 2 arguments, but got 1.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 26
+		}
+	},
+	{
+		"code": 2741,
+		"message": "Property 'd' is missing in type '{ from: DOMRect; to: DOMRect; }' but required in type '{ d: number; }'.",
+		"start": {
+			"line": 3,
+			"character": 35
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	}
+]
