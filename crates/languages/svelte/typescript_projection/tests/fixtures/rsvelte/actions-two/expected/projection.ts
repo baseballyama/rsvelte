@@ -21,7 +21,7 @@ function $$render() {
       svelteHTML.createElement("input", __sveltets_2_union(__rsvelte_action0), {});
     }
   };
-  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, {}, string>()(__rsvelte_any_event({}), {});
 }
 const ActionsTwo__SvelteComponent_ = $$render();
 type ActionsTwo__SvelteComponent_ = InstanceType<typeof ActionsTwo__SvelteComponent_>;

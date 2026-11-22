@@ -68,3 +68,63 @@ fn an_interpolated_attribute_decodes_references_as_an_attribute_value() {
     })
     .expect("parses");
 }
+
+// The directives acorn reads at the start of the component function in svelte 5.59.1's output,
+// client then server: a string statement is one only where the script's prologue put it.
+#[test]
+fn only_the_scripts_prologue_opens_the_component_function_with_directives() {
+    use oxc_ast::ast::{ExportDefaultDeclarationKind, Statement};
+    let cells: [(&str, [&[&str]; 2]); 4] = [
+        (
+            "let { x } = $props();\n\"use strict\";\n`template stmt`;\n(\"parens\");",
+            [&[], &[]],
+        ),
+        (
+            "\"use strict\";\n\"b\";\nlet { x } = $props();\n\"late\";",
+            [&["use strict", "b"], &["use strict", "b"]],
+        ),
+        (
+            "\"use strict\";\nlet { x } = $props();\nexport function f() {}",
+            [&[], &["use strict"]],
+        ),
+        (
+            "\"use strict\";\nlet x = 1;",
+            [&["use strict"], &["use strict"]],
+        ),
+    ];
+    for (script, expected) in cells {
+        let source = format!("<script>\n{script}\n</script>\n<p>{{x}}</p>\n");
+        for (generate, expected) in [Target::Client, Target::Server].into_iter().zip(expected) {
+            let options = rsvelte_svelte_compile::CompileOptions {
+                filename: "App.svelte".to_owned(),
+                generate,
+                ..rsvelte_svelte_compile::CompileOptions::default()
+            };
+            let code = rsvelte_svelte_compile::compile(&source, &options)
+                .expect("compiles")
+                .js
+                .code;
+            let allocator = oxc_allocator::Allocator::default();
+            let parsed =
+                oxc_parser::Parser::new(&allocator, &code, oxc_span::SourceType::mjs()).parse();
+            let body = parsed
+                .program
+                .body
+                .iter()
+                .find_map(|statement| match statement {
+                    Statement::ExportDefaultDeclaration(export) => match &export.declaration {
+                        ExportDefaultDeclarationKind::FunctionDeclaration(f) => f.body.as_ref(),
+                        _ => None,
+                    },
+                    _ => None,
+                });
+            let directives: Vec<&str> = body
+                .expect("a component function")
+                .directives
+                .iter()
+                .map(|d| d.directive.as_str())
+                .collect();
+            assert_eq!(directives, expected, "{generate:?}\n{code}");
+        }
+    }
+}

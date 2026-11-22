@@ -1,3 +1,4 @@
+import "svelte/internal/init-operations";
 import "svelte/internal/disclose-version";
 import { tick } from "svelte";
 import * as $ from "svelte/internal/client";

@@ -1,3 +1,4 @@
+import "svelte/internal/init-operations";
 import "svelte/internal/disclose-version";
 import * as $ from "svelte/internal/client";
 var root = $.from_html(`<select><option>one</option><option> </option><option> </option></select> <select><option>a</option><option selected="">b</option></select> <select><option>static</option><option disabled="">none</option></select> <button type="button">more</button>`, 1);

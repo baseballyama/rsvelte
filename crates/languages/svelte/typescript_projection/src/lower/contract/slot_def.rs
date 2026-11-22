@@ -117,7 +117,10 @@ impl<'s> Builder<'s> {
                 if dots.text(self.source) != "..." {
                     return None;
                 }
-                Node::Spread { value, dots }
+                Node::Spread {
+                    value,
+                    dots: Some(dots),
+                }
             } else if is_identifier_name(property) {
                 let name = self.tree.push(Node::UnmappedSource(attribute.name));
                 Node::NamedProperty { name, value }

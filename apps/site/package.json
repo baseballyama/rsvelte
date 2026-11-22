@@ -35,14 +35,14 @@
 		"@replit/codemirror-lang-svelte": "6.0.0",
 		"@rsvelte/cli": "0.5.0",
 		"@sveltejs/adapter-static": "4.0.1",
-		"@sveltejs/kit": "3.1.1",
+		"@sveltejs/kit": "3.4.0",
 		"@sveltejs/vite-plugin-svelte": "7.3.1",
 		"@types/node": "26.6.6",
 		"shiki": "4.6.0",
-		"svelte": "5.57.3",
+		"svelte": "5.59.1",
 		"tsrs": "7.1.0-beta.tsrs4",
 		"typescript": "6.0.3",
-		"vite": "8.3.5"
+		"vite": "8.3.8"
 	},
 	"engines": {
 		"node": ">=26"

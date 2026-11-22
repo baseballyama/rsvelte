@@ -163,13 +163,12 @@ fn values_pass_through_expressions_assignments_and_defaults() {
         ("ns[`writable`]();", vec!["writable@ns[`writable`]()"]),
     ] {
         let source = format!("{prefix}{code}");
-        let found = calls(&source);
         // Two names may share one call, whose span sorts them in either order.
-        let mut sorted = found.clone();
-        sorted.sort();
+        let mut found = calls(&source);
+        found.sort();
         let mut want: Vec<String> = expected.iter().map(|&text| text.to_owned()).collect();
         want.sort();
-        assert_eq!(sorted, want, "{code}");
+        assert_eq!(found, want, "{code}");
     }
 }
 

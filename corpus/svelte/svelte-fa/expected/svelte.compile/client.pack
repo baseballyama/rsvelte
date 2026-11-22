@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 311 src/routes/+layout.svelte	js
+=== 353 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import "../styles.scss";
@@ -29,7 +30,8 @@ export default function _layout($$anchor, $$props) {
 	}
 ]
 
-=== 583 src/routes/+page.svelte	js
+=== 625 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Showcase from "./showcase.svelte";
@@ -56,7 +58,8 @@ export default function _page($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 4229 src/routes/components/sections/additional-styling.svelte	js
+=== 4271 src/routes/components/sections/additional-styling.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Fa from "$lib/fa.svelte";
@@ -301,7 +304,8 @@ export default function Additional_styling($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1611 src/routes/components/sections/animating-icons.svelte	js
+=== 1653 src/routes/components/sections/animating-icons.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Fa from "$lib/fa.svelte";
@@ -394,7 +398,8 @@ export default function Animating_icons($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1606 src/routes/components/sections/basic-use.svelte	js
+=== 1648 src/routes/components/sections/basic-use.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Fa from "$lib/fa.svelte";
@@ -457,7 +462,8 @@ export default function Basic_use($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3370 src/routes/components/sections/duotone-icons.svelte	js
+=== 3412 src/routes/components/sections/duotone-icons.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DocsCode from "../ui/docs-code.svelte";
@@ -630,7 +636,8 @@ export default function Duotone_icons($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1961 src/routes/components/sections/installation.svelte	js
+=== 2003 src/routes/components/sections/installation.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DocsCode from "../ui/docs-code.svelte";
@@ -697,7 +704,8 @@ export default function Installation($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 5389 src/routes/components/sections/layering-and-text.svelte	js
+=== 5431 src/routes/components/sections/layering-and-text.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Fa from "$lib/fa.svelte";
@@ -988,7 +996,8 @@ export default function Layering_and_text($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 4454 src/routes/components/sections/power-transforms.svelte	js
+=== 4496 src/routes/components/sections/power-transforms.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Fa from "$lib/fa.svelte";
@@ -1246,7 +1255,8 @@ export default function Power_transforms($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1222 src/routes/docs.svelte	js
+=== 1264 src/routes/docs.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import AdditionalStyling from "./components/sections/additional-styling.svelte";
@@ -1308,7 +1318,8 @@ export default function Docs($$anchor) {
     }
   }
 
-=== 6589 src/routes/showcase.svelte	js
+=== 6631 src/routes/showcase.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Fa } from "$lib/index.js";

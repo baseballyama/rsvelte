@@ -8027,11 +8027,11 @@ import * as $ from 'svelte/internal/server';
 
 export default function Main($$renderer) {
 	$.head('r55nhh', $$renderer, ($$renderer) => {
+		$$renderer.push(`<link rel="canonical" href="/"/> <meta name="description" content="some description"/> <meta name="keywords" content="some keywords"/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>Some Title</title>`);
 		});
-
-		$$renderer.push(`<link rel="canonical" href="/"/> <meta name="description" content="some description"/> <meta name="keywords" content="some keywords"/>`);
 	});
 
 	$$renderer.push(`<div>Just a dummy page.</div>`);
@@ -20224,11 +20224,11 @@ import * as $ from 'svelte/internal/server';
 
 export default function Input($$renderer) {
 	$.head('m1jztp', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="description" content="This is where the description goes for SEO"/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>Hello world!</title>`);
 		});
-
-		$$renderer.push(`<meta name="description" content="This is where the description goes for SEO"/>`);
 	});
 }
 === 342 packages/svelte/tests/print/samples/svelte-head/output.svelte	js
@@ -20236,11 +20236,11 @@ import * as $ from 'svelte/internal/server';
 
 export default function Output($$renderer) {
 	$.head('f0r7fc', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="description" content="This is where the description goes for SEO"/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>Hello world!</title>`);
 		});
-
-		$$renderer.push(`<meta name="description" content="This is where the description goes for SEO"/>`);
 	});
 }
 === 90 packages/svelte/tests/print/samples/svelte-options/input.svelte	js
@@ -32705,11 +32705,11 @@ export default function Main($$renderer) {
 	let x = 'sveltejs';
 
 	$.head('aq8dss', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="twitter:creator" content="@sveltejs"/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>changed</title>`);
 		});
-
-		$$renderer.push(`<meta name="twitter:creator" content="@sveltejs"/>`);
 	});
 }
 === 306 packages/svelte/tests/runtime-legacy/samples/head-title-static/main.svelte	js
@@ -32717,11 +32717,11 @@ import * as $ from 'svelte/internal/server';
 
 export default function Main($$renderer) {
 	$.head('d1l7pt', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="twitter:creator" content="@sveltejs"/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>changed</title>`);
 		});
-
-		$$renderer.push(`<meta name="twitter:creator" content="@sveltejs"/>`);
 	});
 }
 === 279 packages/svelte/tests/runtime-legacy/samples/helpers/main.svelte	js
@@ -42172,7 +42172,7 @@ export default function Main($$renderer) {
 
 	$$renderer.push(`<label><input${$.attr('value', value)}/> arrow up/down</label> <p>value = ${$.escape(value)}</p>`);
 }
-=== 1476 packages/svelte/tests/runtime-runes/samples/bindings-form-reset/main.svelte	js
+=== 1416 packages/svelte/tests/runtime-runes/samples/bindings-form-reset/main.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function Main($$renderer, $$props) {
@@ -42187,17 +42187,14 @@ export default function Main($$renderer, $$props) {
 
 		let textarea = 'textarea';
 
-		$$renderer.push(`<p>${$.escape(
-			// changing the value of `select` on mount
-			JSON.stringify({
-				text,
-				checkbox,
-				radio_group,
-				checkbox_group,
-				select,
-				textarea
-			})
-		)}</p> <form><input${$.attr('value', text)}/> <input type="checkbox"${$.attr('checked', checkbox, true)}/> <input type="radio" name="radio" value="a"${$.attr('checked', radio_group === 'a', true)}/> <input type="radio" name="radio" value="b"${$.attr('checked', radio_group === 'b', true)}/> <input type="checkbox" name="checkbox" value="a"${$.attr('checked', checkbox_group.includes('a'), true)}/> <input type="checkbox" name="checkbox" value="b"${$.attr('checked', checkbox_group.includes('b'), true)}/> `);
+		$$renderer.push(`<p>${$.escape(JSON.stringify({
+			text,
+			checkbox,
+			radio_group,
+			checkbox_group,
+			select,
+			textarea
+		}))}</p> <form><input${$.attr('value', text)}/> <input type="checkbox"${$.attr('checked', checkbox, true)}/> <input type="radio" name="radio" value="a"${$.attr('checked', radio_group === 'a', true)}/> <input type="radio" name="radio" value="b"${$.attr('checked', radio_group === 'b', true)}/> <input type="checkbox" name="checkbox" value="a"${$.attr('checked', checkbox_group.includes('a'), true)}/> <input type="checkbox" name="checkbox" value="b"${$.attr('checked', checkbox_group.includes('b'), true)}/> `);
 
 		$$renderer.select({ value: select }, ($$renderer) => {
 			$$renderer.option({ value: 'a' }, ($$renderer) => {
@@ -48597,7 +48594,7 @@ export default function Main($$renderer, $$props) {
 		$$renderer.push(`<!--]-->`);
 	});
 }
-=== 229 packages/svelte/tests/runtime-runes/samples/effect-cleanup/main.svelte	js
+=== 207 packages/svelte/tests/runtime-runes/samples/effect-cleanup/main.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function Main($$renderer, $$props) {
@@ -48605,7 +48602,6 @@ export default function Main($$renderer, $$props) {
 		let count = 0;
 
 		$$renderer.push(`<button>Click</button>`);
-		// @ts-expect-error
 	});
 }
 === 361 packages/svelte/tests/runtime-runes/samples/effect-cleanup/main.svelte	warnings.json
@@ -54595,7 +54591,7 @@ export default function Main($$renderer, $$props) {
 		$$renderer.push(`<button>${$.escape(count)}</button>`);
 	});
 }
-=== 352 packages/svelte/tests/runtime-runes/samples/inspect-trace-reassignment/main.svelte	js
+=== 303 packages/svelte/tests/runtime-runes/samples/inspect-trace-reassignment/main.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function Main($$renderer, $$props) {
@@ -54603,10 +54599,7 @@ export default function Main($$renderer, $$props) {
 		let count = 0;
 		let checked = false;
 
-		$$renderer.push(`<input type="checkbox"${$.attr('checked', checked, true)}/> <button>${$.escape(
-			// this should not show up in the logs
-			count
-		)}</button>`);
+		$$renderer.push(`<input type="checkbox"${$.attr('checked', checked, true)}/> <button>${$.escape(count)}</button>`);
 	});
 }
 === 402 packages/svelte/tests/runtime-runes/samples/inspect-trace-store/main.svelte	js
@@ -55544,11 +55537,11 @@ export default function MetaTag($$renderer) {
 	let desc = 'Some description';
 
 	$.head('119wqki', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="description"${$.attr('content', desc)}/> <meta name="author" content="@svelteawesome"/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>Hello world</title>`);
 		});
-
-		$$renderer.push(`<meta name="description"${$.attr('content', desc)}/> <meta name="author" content="@svelteawesome"/>`);
 	});
 }
 === 392 packages/svelte/tests/runtime-runes/samples/multiple-head/main.svelte	js

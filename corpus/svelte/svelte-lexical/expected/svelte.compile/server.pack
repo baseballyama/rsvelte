@@ -1861,7 +1861,7 @@ export default function App($$renderer, $$props) {
     will-change: auto;
   }
 
-=== 8379 demos/qalam/src/lib/Editor.svelte	js
+=== 8304 demos/qalam/src/lib/Editor.svelte	js
 import * as $ from 'svelte/internal/server';
 
 import {
@@ -1950,7 +1950,6 @@ export default function Editor($$renderer, $$props) {
 		// destroys/remounts Editor on note switch), so switching notes means
 		// swapping the visible content and the active undo/redo stacks in place,
 		// rather than relying on a fresh editor+history per note.
-		// focus often requires a tick to ensure the editor is fully initialized
 		function switchNote(oldNoteId, newNoteId, newContent) {
 			const editor = composerRef?.getEditor();
 			const historyState = composerRef?.getHistoryState();
@@ -3534,7 +3533,7 @@ export default function MoveWrapper($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
-=== 4675 packages/svelte-lexical/src/lib/components/generic/contextmenu/ContextMenu.svelte	js
+=== 4546 packages/svelte-lexical/src/lib/components/generic/contextmenu/ContextMenu.svelte	js
 import * as $ from 'svelte/internal/server';
 
 import {
@@ -3574,8 +3573,6 @@ export default function ContextMenu($$renderer, $$props) {
 
 		const selectedIndex = { value: null };
 
-		// TODO: this is a $effect dependency. Test if it is reactive.
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		const selectOptionAndCleanUp = (selectedEntry) => {
 			editor.update(() => {
 				const textNodeContainingQuery = resolution.value.match != null && shouldSplitNodeWithQuery
@@ -3717,7 +3714,7 @@ export default function ContextMenu($$renderer, $$props) {
 		$$renderer.push(`<!---->`);
 	});
 }
-=== 4614 packages/svelte-lexical/src/lib/components/generic/contextmenu/TypeAheadMenu.svelte	js
+=== 4572 packages/svelte-lexical/src/lib/components/generic/contextmenu/TypeAheadMenu.svelte	js
 import * as $ from 'svelte/internal/server';
 
 import {
@@ -3858,8 +3855,7 @@ export default function TypeAheadMenu($$renderer, $$props) {
 			}
 		};
 
-		if (// Check if editor is in read-only mode
-		!(resolution.value === null || editor === null || anchorElementRef === null)) {
+		if (!(resolution.value === null || editor === null || anchorElementRef === null)) {
 			$$renderer.push('<!--[0-->');
 
 			ContextMenu($$renderer, {
@@ -10537,7 +10533,7 @@ export default function TableActionMenu($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
-=== 6706 packages/svelte-lexical/src/lib/core/plugins/Table/TableActionMenuPlugin.svelte	js
+=== 6585 packages/svelte-lexical/src/lib/core/plugins/Table/TableActionMenuPlugin.svelte	js
 import * as $ from 'svelte/internal/server';
 
 import {
@@ -10694,10 +10690,7 @@ export default function TableActionMenuPlugin($$renderer, $$props) {
 			}
 		};
 
-		// We call the $moveMenu callback every time the selection changes,
-		// once up front, and once after each pointerup
 		let prevTableCellDOM = tableCellNode;
-
 		let colorPicker = void 0;
 
 		if ($.store_get($$store_subs ??= {}, '$isEditable', isEditable)) {
@@ -12585,7 +12578,7 @@ export default function YjsHistory($$renderer, $$props) {
 		$.bind_props($$props, { clearHistory });
 	});
 }
-=== 6105 packages/svelte-lexical/src/lib/core/plugins/link/FloatingLinkEditor.svelte	js
+=== 6028 packages/svelte-lexical/src/lib/core/plugins/link/FloatingLinkEditor.svelte	js
 import * as $ from 'svelte/internal/server';
 import './FloatingLinkEditor.css';
 
@@ -12680,7 +12673,6 @@ export default function FloatingLinkEditor($$renderer, $$props) {
 			);
 		});
 
-		// isLink = false; // goes into a race with code that launches link editor
 		function updateLinkEditor() {
 			const selection = getSelection();
 

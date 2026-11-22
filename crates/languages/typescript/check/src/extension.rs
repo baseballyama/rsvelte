@@ -1,9 +1,11 @@
+use std::ffi::OsString;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 
 use rsvelte_kernel::computation::registry::{ProjectFiles, Registry};
 use rsvelte_plugin_interface::{
-    CallError, Extension, Settings, TaskKind, installed_bin, installed_version, program_path,
+    CallError, Extension, Settings, TaskKind, installed_bin, installed_package, installed_version,
+    program_path,
 };
 use serde::Deserialize;
 
@@ -22,11 +24,63 @@ pub const TASK: &str = "ts.check/default";
 pub const NEEDS_TYPE_CHECKER: &str =
     "a type checker: `command` in the options of `typescript.check`";
 
-/// The checkers looked for when the options name none, by package and command, in order.
-const INSTALLED: [(&str, &str); 3] = [
-    ("tsrs", "tsrs"),
-    ("@typescript/native-preview", "tsgo"),
-    ("typescript", "tsc"),
+/// A checker looked for when the options name none.
+struct Installed {
+    package: &'static str,
+    bin: &'static str,
+    /// Its package's version is TypeScript's, which has the API from 7.1 on.
+    versioned: bool,
+    /// The platform package that holds the native executable the script starts.
+    native: Native,
+}
+
+/// Where a checker's script finds its native executable: in the package
+/// `<prefix><process.platform>-<process.arch>`, which the checker's package resolves.
+struct Native {
+    prefix: &'static str,
+    /// The executable's directory in the package.
+    directory: &'static str,
+    /// On Linux, the name ends with the C library, as `-gnu`.
+    libc: bool,
+    /// The variable whose value the script starts in place of the package's executable.
+    variable: Option<&'static str>,
+}
+
+/// The checkers looked for when the options name none, in order.
+const INSTALLED: [Installed; 3] = [
+    Installed {
+        package: "tsrs",
+        bin: "tsrs",
+        versioned: false,
+        native: Native {
+            prefix: "@tsrs/",
+            directory: "",
+            libc: true,
+            variable: Some("TSRS_BINARY"),
+        },
+    },
+    Installed {
+        package: "@typescript/native-preview",
+        bin: "tsgo",
+        versioned: true,
+        native: Native {
+            prefix: "@typescript/native-preview-",
+            directory: "lib",
+            libc: false,
+            variable: None,
+        },
+    },
+    Installed {
+        package: "typescript",
+        bin: "tsc",
+        versioned: true,
+        native: Native {
+            prefix: "@typescript/typescript-",
+            directory: "lib",
+            libc: false,
+            variable: None,
+        },
+    },
 ];
 
 #[derive(Debug, Deserialize)]
@@ -88,7 +142,8 @@ pub fn type_checker(settings: &mut Settings, runs: bool) -> Result<Option<Tsc>, 
                 program_path(program, base).map_err(|e| error(format!("{program}: {e}")))?;
             (program, arguments.to_vec())
         }
-        None => installed(base)?.map_err(|older| CallError(no_checker_installed(base, &older)))?,
+        None => installed(base, &|name| std::env::var_os(name))?
+            .map_err(|older| CallError(no_checker_installed(base, &older)))?,
     };
     let tsconfig = options.value.tsconfig.map_or_else(
         || Some(base.join("tsconfig.json")).filter(|default| default.is_file()),
@@ -149,22 +204,30 @@ fn install_command(base: &Path) -> &'static str {
 /// A program and the arguments that start it.
 type Command = (PathBuf, Vec<String>);
 
-/// `node` and the script of the first of [`INSTALLED`] that `base` resolves and that has the API;
-/// otherwise the TypeScript packages it resolves that are older than 7.1, as `<name> <version>`.
-fn installed(base: &Path) -> Result<Result<Command, Vec<String>>, CallError> {
+/// The first of [`INSTALLED`] that `base` resolves and that has the API: its native executable,
+/// else `node` and its script; otherwise the TypeScript packages it resolves that are older than
+/// 7.1, as `<name> <version>`. `variable` reads the environment.
+fn installed(
+    base: &Path,
+    variable: &dyn Fn(&str) -> Option<OsString>,
+) -> Result<Result<Command, Vec<String>>, CallError> {
     let mut older = Vec::new();
-    for (package, bin) in INSTALLED {
+    for checker in &INSTALLED {
+        let package = checker.package;
         let failed =
             |e: std::io::Error| CallError(format!("options of `typescript.check`: {package}: {e}"));
-        let Some(script) = installed_bin(package, bin, base).map_err(failed)? else {
+        let Some(script) = installed_bin(package, checker.bin, base).map_err(failed)? else {
             continue;
         };
-        if package != "tsrs"
+        if checker.versioned
             && let Some(version) = installed_version(package, base).map_err(failed)?
             && version_before_7_1(&version)
         {
             older.push(format!("{package} {version}"));
             continue;
+        }
+        if let Some(executable) = native_executable(checker, base, variable).map_err(failed)? {
+            return Ok(Ok((executable, Vec::new())));
         }
         return Ok(Ok((
             "node".into(),
@@ -172,6 +235,57 @@ fn installed(base: &Path) -> Result<Result<Command, Vec<String>>, CallError> {
         )));
     }
     Ok(Err(older))
+}
+
+/// The native executable that `checker`'s script starts, found as the script finds it. Running
+/// it directly saves a Node start each time the checker runs.
+fn native_executable(
+    checker: &Installed,
+    base: &Path,
+    variable: &dyn Fn(&str) -> Option<OsString>,
+) -> std::io::Result<Option<PathBuf>> {
+    let native = &checker.native;
+    // The script ignores an empty value, and reports a missing program itself.
+    if let Some(chosen) = native.variable.and_then(variable).filter(|v| !v.is_empty()) {
+        // The checker starts in another directory, where a relative path names another file.
+        let chosen = std::path::absolute(PathBuf::from(chosen))?;
+        return Ok(chosen.is_file().then_some(chosen));
+    }
+    let Some(name) = native_package(native) else {
+        return Ok(None);
+    };
+    let Some(package) = installed_package(checker.package, base)? else {
+        return Ok(None);
+    };
+    let Some(platform_package) = installed_package(&name, &package)? else {
+        return Ok(None);
+    };
+    let executable = (platform_package.join(native.directory).join(checker.bin))
+        .with_extension(std::env::consts::EXE_EXTENSION);
+    Ok(executable.is_file().then_some(executable))
+}
+
+/// The name of `native`'s package for this platform. On Linux, the C library is the one rsvelte
+/// runs with.
+fn native_package(native: &Native) -> Option<String> {
+    let platform = match std::env::consts::OS {
+        "macos" => "darwin",
+        "linux" => "linux",
+        "windows" => "win32",
+        _ => return None,
+    };
+    let arch = match std::env::consts::ARCH {
+        "aarch64" => "arm64",
+        "x86_64" => "x64",
+        "arm" => "arm",
+        _ => return None,
+    };
+    let libc = match platform {
+        "linux" if native.libc && cfg!(target_env = "musl") => "-musl",
+        "linux" if native.libc => "-gnu",
+        _ => "",
+    };
+    Some(format!("{}{platform}-{arch}{libc}", native.prefix))
 }
 
 #[cfg(test)]

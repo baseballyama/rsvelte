@@ -25,8 +25,7 @@ pub(super) fn hoist(instance: &Program<'_>, scoping: &mut Scoping) {
             let references: Vec<_> = scoping
                 .root_unresolved_references()
                 .get(&local.name)
-                .map(|references| references.to_vec())
-                .unwrap_or_default();
+                .map_or_default(|references| references.to_vec());
             for reference in references {
                 scoping.get_reference_mut(reference).set_symbol_id(symbol);
                 scoping.add_resolved_reference(symbol, reference);

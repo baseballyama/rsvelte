@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 830 src/lib/Components/CustomJs.svelte	js
+=== 872 src/lib/Components/CustomJs.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { base } from '$app/paths';
@@ -86,7 +87,8 @@ export default function CustomJs($$anchor, $$props) {
 		}
 	}
 
-=== 1020 src/lib/Components/Loader.svelte	js
+=== 1062 src/lib/Components/Loader.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { motion } from '$lib/Stores';
@@ -144,7 +146,8 @@ export default function Loader($$anchor, $$props) {
 	}
 ]
 
-=== 1929 src/lib/Drawer/AppearanceButton.svelte	js
+=== 1971 src/lib/Drawer/AppearanceButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { lang, ripple } from '$lib/Stores';
@@ -269,7 +272,8 @@ export default function AppearanceButton($$anchor, $$props) {
 		text-transform: capitalize;
 	}
 
-=== 1520 src/lib/Drawer/CodeButton.svelte	js
+=== 1562 src/lib/Drawer/CodeButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { lang, ripple } from '$lib/Stores';
@@ -373,7 +377,8 @@ export default function CodeButton($$anchor, $$props) {
 		align-self: center;
 	}
 
-=== 4976 src/lib/Drawer/SayButton.svelte	js
+=== 5018 src/lib/Drawer/SayButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { connection, lang, motion, selectedLanguage, ripple } from '$lib/Stores';
@@ -686,7 +691,8 @@ export default function SayButton($$anchor, $$props) {
 		}
 	}
 
-=== 236 src/lib/Drawer/Separator.svelte	js
+=== 278 src/lib/Drawer/Separator.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -704,7 +710,8 @@ export default function Separator($$anchor) {
 		transform: scaleX(-1);
 	}
 
-=== 1711 src/lib/Drawer/SidebarButton.svelte	js
+=== 1753 src/lib/Drawer/SidebarButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { dashboard, lang, ripple, record } from '$lib/Stores';
@@ -781,7 +788,8 @@ export default function SidebarButton($$anchor, $$props) {
 	}
 ]
 
-=== 2287 src/lib/Drawer/ViewButton.svelte	js
+=== 2329 src/lib/Drawer/ViewButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { dashboard, lang, ripple, record } from '$lib/Stores';
@@ -885,7 +893,8 @@ export default function ViewButton($$anchor, $$props) {
 		aspect-ratio: 16/9;
 	}
 
-=== 389 src/lib/Main/Camera/Broken.svelte	js
+=== 431 src/lib/Main/Camera/Broken.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Icon from '@iconify/svelte';
@@ -918,7 +927,8 @@ export default function Broken($$anchor) {
 		overflow: hidden;
 	}
 
-=== 959 src/lib/Main/DragIndicator.svelte	js
+=== 1001 src/lib/Main/DragIndicator.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { lang, motion } from '$lib/Stores';
@@ -971,7 +981,8 @@ export default function DragIndicator($$anchor, $$props) {
 		border-radius: 0.4rem;
 	}
 
-=== 1427 src/lib/Settings/CustomJs.svelte	js
+=== 1469 src/lib/Settings/CustomJs.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { customJs, lang } from '$lib/Stores';
@@ -1047,7 +1058,8 @@ export default function CustomJs($$anchor, $$props) {
 		margin-top: 1.3rem;
 	}
 
-=== 1713 src/lib/Settings/Logout.svelte	js
+=== 1755 src/lib/Settings/Logout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { openModal, closeModal } from 'svelte-modals';
@@ -1145,7 +1157,8 @@ export default function Logout($$anchor, $$props) {
 		cursor: default;
 	}
 
-=== 1677 src/lib/Settings/Token.svelte	js
+=== 1719 src/lib/Settings/Token.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { configuration, lang } from '$lib/Stores';
@@ -1275,7 +1288,8 @@ export default function Token($$anchor, $$props) {
 		color: #00dbff;
 	}
 
-=== 5107 src/lib/Settings/Version.svelte	js
+=== 5149 src/lib/Settings/Version.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -1579,7 +1593,8 @@ export default function Version($$anchor, $$props) {
 		transition: opacity 100ms ease-out;
 	}
 
-=== 1890 src/routes/+layout.svelte	js
+=== 1932 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { motion } from '$lib/Stores';

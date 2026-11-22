@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 519 attractions/autocomplete/more-horizontal.svelte	js
+=== 561 attractions/autocomplete/more-horizontal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10,7 +11,8 @@ export default function More_horizontal($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 446 attractions/date-picker/chevron-left.svelte	js
+=== 488 attractions/date-picker/chevron-left.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -21,7 +23,8 @@ export default function Chevron_left($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 446 attractions/date-picker/chevron-right.svelte	js
+=== 488 attractions/date-picker/chevron-right.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -32,7 +35,8 @@ export default function Chevron_right($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 475 attractions/dialog/x.svelte	js
+=== 517 attractions/dialog/x.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -43,7 +47,8 @@ export default function X($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 851 attractions/file-input/paperclip.svelte	js
+=== 893 attractions/file-input/paperclip.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import classes from '../utils/classes.js';
@@ -90,7 +95,8 @@ export default function Paperclip($$anchor, $$props) {
 	}
 ]
 
-=== 803 attractions/file-input/plus.svelte	js
+=== 845 attractions/file-input/plus.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import classes from '../utils/classes.js';
@@ -137,7 +143,8 @@ export default function Plus($$anchor, $$props) {
 	}
 ]
 
-=== 624 attractions/file-input/trash-2.svelte	js
+=== 666 attractions/file-input/trash-2.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -151,7 +158,8 @@ export default function Trash_2($$anchor) {
 === 1 attractions/loading/loading.svelte	css
 
 
-=== 637 attractions/loading/loading.svelte	js
+=== 679 attractions/loading/loading.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import classes from '../utils/classes.js';
@@ -240,7 +248,8 @@ export default function Loading($$anchor, $$props) {
 	}
 ]
 
-=== 503 attractions/star-rating/star.svelte	js
+=== 545 attractions/star-rating/star.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -251,7 +260,8 @@ export default function Star($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 480 attractions/time-picker/clock.svelte	js
+=== 522 attractions/time-picker/clock.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -265,7 +275,8 @@ export default function Clock($$anchor) {
 === 1 docs/src/containers/docs/showcase.svelte	css
 
 
-=== 1219 docs/src/containers/docs/showcase.svelte	js
+=== 1261 docs/src/containers/docs/showcase.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Label } from 'attractions';
@@ -357,7 +368,8 @@ export default function Showcase($$anchor, $$props) {
 === 1 docs/src/containers/home/info-tiles.svelte	css
 
 
-=== 2532 docs/src/containers/home/info-tiles.svelte	js
+=== 2574 docs/src/containers/home/info-tiles.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -481,7 +493,8 @@ export default function Info_tiles($$anchor, $$props) {
 	}
 ]
 
-=== 997 docs/src/mdsvex/layout-no-head.svelte	js
+=== 1039 docs/src/mdsvex/layout-no-head.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import Heading1 from 'src/mdsvex/h1.svelte';
 import Heading2 from 'src/mdsvex/h2.svelte';
@@ -552,7 +565,8 @@ export default function Layout_no_head($$anchor, $$props) {
 === 1 docs/src/mdsvex/li.svelte	css
 
 
-=== 307 docs/src/mdsvex/li.svelte	js
+=== 349 docs/src/mdsvex/li.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -587,7 +601,8 @@ export default function Li($$anchor, $$props) {
 === 1 docs/src/mdsvex/mark.svelte	css
 
 
-=== 321 docs/src/mdsvex/mark.svelte	js
+=== 363 docs/src/mdsvex/mark.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -622,7 +637,8 @@ export default function Mark($$anchor, $$props) {
 === 1 docs/src/mdsvex/p.svelte	css
 
 
-=== 300 docs/src/mdsvex/p.svelte	js
+=== 342 docs/src/mdsvex/p.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -657,7 +673,8 @@ export default function P($$anchor, $$props) {
 === 1 docs/src/mdsvex/table.svelte	css
 
 
-=== 328 docs/src/mdsvex/table.svelte	js
+=== 370 docs/src/mdsvex/table.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -692,7 +709,8 @@ export default function Table($$anchor, $$props) {
 === 1 docs/src/mdsvex/td.svelte	css
 
 
-=== 307 docs/src/mdsvex/td.svelte	js
+=== 349 docs/src/mdsvex/td.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -727,7 +745,8 @@ export default function Td($$anchor, $$props) {
 === 1 docs/src/mdsvex/th.svelte	css
 
 
-=== 550 docs/src/mdsvex/th.svelte	js
+=== 592 docs/src/mdsvex/th.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Label } from 'attractions';
@@ -773,7 +792,8 @@ export default function Th($$anchor, $$props) {
 === 1 docs/src/mdsvex/tr.svelte	css
 
 
-=== 307 docs/src/mdsvex/tr.svelte	js
+=== 349 docs/src/mdsvex/tr.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -808,7 +828,8 @@ export default function Tr($$anchor, $$props) {
 === 1 docs/src/mdsvex/ul.svelte	css
 
 
-=== 307 docs/src/mdsvex/ul.svelte	js
+=== 349 docs/src/mdsvex/ul.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -843,7 +864,8 @@ export default function Ul($$anchor, $$props) {
 === 1 docs/src/routes/index.svelte	css
 
 
-=== 3038 docs/src/routes/index.svelte	js
+=== 3080 docs/src/routes/index.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Card, Button, H1 } from 'attractions';

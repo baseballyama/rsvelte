@@ -20,11 +20,11 @@ fn library_names_are_types_and_some_are_values() {
 fn builtins_and_browser_globals_are_told_apart() {
     assert_eq!(global("Math"), Some(Global::Builtin));
     assert_eq!(global("DisposableStack"), Some(Global::Builtin));
-    for name in ["console", "setTimeout", "fetch"] {
+    // globals 16.5.0 gives Node.js the Web Storage API.
+    for name in ["console", "setTimeout", "fetch", "localStorage"] {
         assert_eq!(global(name), Some(Global::Browser { node: true }), "{name}");
     }
-    // globals 16.4.0, which eslint-plugin-svelte's tests use, gives Node.js no Web Storage API.
-    for name in ["window", "document", "localStorage"] {
+    for name in ["window", "document"] {
         assert_eq!(
             global(name),
             Some(Global::Browser { node: false }),

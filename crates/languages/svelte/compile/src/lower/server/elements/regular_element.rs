@@ -8,6 +8,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 use rsvelte_svelte_syntax::parse::is_void;
 
 use crate::lower::attributes::lowercase;
+use crate::lower::server::special::Hoisted;
 use crate::lower::server::template::Template;
 use crate::lower::server::{R, ServerCompilationContext};
 
@@ -123,14 +124,14 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 b.id(&name)
             };
             let mut children = Template::new(b);
-            self.hoisted_elements(&cleaned.hoisted, |_| false, &mut children)?;
+            self.hoisted_elements(&cleaned.hoisted, (Hoisted::All, |_| false), &mut children)?;
             self.process_children(&cleaned.items, &mut children)?;
             let mut content = Template::new(b);
             content.expression(id.clone_in(b.allocator()));
             let (content, children) = (content.finish(), children.finish());
             template.statement(b.if_(id, b.block(content), Some(b.block(children))));
         } else {
-            self.hoisted_elements(&cleaned.hoisted, |_| false, template)?;
+            self.hoisted_elements(&cleaned.hoisted, (Hoisted::All, |_| false), template)?;
             self.process_children(&cleaned.items, template)?;
             // The hydration marker of rich content, which upstream puts after it.
             if matches!(tag, "optgroup" | "select")

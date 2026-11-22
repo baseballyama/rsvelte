@@ -1,4 +1,4 @@
-# svelte.check/default: 35044 match
+# svelte.check/default: 35047 match
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_broken_script_3232/every_unterminated_statement_in_one_script_is_recovered/147d312bc327f7bb.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_broken_script_3232/export_is_blanked_when_the_instance_script_does_not_parse/59e03ffbb50128a1.svelte	mismatch
 svelte/rsvelte/pattern/issues/3200-asi-reactive-block.svelte	mismatch

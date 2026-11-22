@@ -92,8 +92,7 @@ pub fn sources(root: &Path) -> Result<Vec<Source>, String> {
         .map(|dir| {
             let name = |p: &Path| {
                 p.file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_default()
+                    .map_or_default(|n| n.to_string_lossy().into_owned())
             };
             Source {
                 family: name(dir.parent().expect("a source is in a family")),

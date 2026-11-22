@@ -741,7 +741,7 @@ export default function Em_dash_style_directive($$renderer, $$props) {
 		})}></div>`);
 	});
 }
-=== 265 crates/rsvelte_core/fixtures_utf8_boundary/sourcemap_column.svelte	js
+=== 224 crates/rsvelte_core/fixtures_utf8_boundary/sourcemap_column.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function Sourcemap_column($$renderer, $$props) {
@@ -749,7 +749,6 @@ export default function Sourcemap_column($$renderer, $$props) {
 		const recompile = () => {
 			scene.traverse((object) => {});
 		};
-		// raw depth reads — PCSS needs this
 	});
 }
 === 3071 crates/rsvelte_core/fixtures_utf8_boundary/svelte_ignore_scan.svelte	js
@@ -38462,10 +38461,6 @@ export default function Head_control_flow($$renderer) {
 	let raw = '<meta name="raw" content="r">';
 
 	$.head('1i5ge2j', $$renderer, ($$renderer) => {
-		$$renderer.title(($$renderer) => {
-			$$renderer.push(`<title>page — site</title>`);
-		});
-
 		if (title.length > 2) {
 			$$renderer.push(`<!--[0--><meta name="long"${$.attr('content', title)}/>`);
 		} else {
@@ -38483,6 +38478,10 @@ export default function Head_control_flow($$renderer) {
 		}
 
 		$$renderer.push(`<!--]--> ${$.html(raw)} <link rel="canonical" href="/p/page"/>`);
+
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>page — site</title>`);
+		});
 	});
 
 	$$renderer.push(`<p>page</p>`);
@@ -38900,11 +38899,11 @@ export default function Special_elements_combo($$renderer) {
 	}
 
 	$.head('p70tfq', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="width"${$.attr('content', String(innerWidth))}/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>scroll ${$.escape(scrollY)}</title>`);
 		});
-
-		$$renderer.push(`<meta name="width"${$.attr('content', String(innerWidth))}/>`);
 	});
 
 	$$renderer.push(`<p>${$.escape(online)}:${$.escape(fullscreenElement ? 'fs' : 'no')}</p>`);
@@ -47570,10 +47569,6 @@ export default function Head_and_document_metadata($$renderer) {
 	const links = [{ rel: "icon", href: "/a.png" }];
 
 	$.head('47f8km', $$renderer, ($$renderer) => {
-		$$renderer.title(($$renderer) => {
-			$$renderer.push(`<title>t — suffix</title>`);
-		});
-
 		$$renderer.push(`<!--[-->`);
 
 		const each_array = $.ensure_array_like(links);
@@ -47605,6 +47600,10 @@ export default function Head_and_document_metadata($$renderer) {
       margin: 0;
     }
   </style>`);
+
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>t — suffix</title>`);
+		});
 	});
 
 	$$renderer.push(`<b>t</b>`);
@@ -47617,10 +47616,6 @@ export default function Head_and_options($$renderer) {
 	let desc = 'b';
 
 	$.head('1kiqqd3', $$renderer, ($$renderer) => {
-		$$renderer.title(($$renderer) => {
-			$$renderer.push(`<title>${$.escape(title)} — suffix</title>`);
-		});
-
 		$$renderer.push(`<meta name="description"${$.attr('content', desc)}/> `);
 
 		if (desc) {
@@ -47634,6 +47629,10 @@ export default function Head_and_options($$renderer) {
 		$$renderer.push(`<style>
 		.head-scoped { color: red; }
 	</style>`);
+
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>${$.escape(title)} — suffix</title>`);
+		});
 	});
 
 	$$renderer.push(`<button>${$.escape(title)}${$.escape(desc)}</button>`);
@@ -47647,10 +47646,6 @@ export default function Head_conditional_html($$renderer) {
 	let raw = '<meta name="raw" content="2" />';
 
 	$.head('oryhsb', $$renderer, ($$renderer) => {
-		$$renderer.title(($$renderer) => {
-			$$renderer.push(`<title>t — ${$.escape(meta.length)}</title>`);
-		});
-
 		$$renderer.push(`<!--[-->`);
 
 		const each_array = $.ensure_array_like(meta);
@@ -47676,6 +47671,10 @@ export default function Head_conditional_html($$renderer) {
 			color: red;
 		}
 	</style>`);
+
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>t — ${$.escape(meta.length)}</title>`);
+		});
 	});
 
 	$$renderer.push(`<h1 class="head-scoped">t</h1>`);
@@ -47715,10 +47714,6 @@ export default function Head_nesting_hostile($$renderer, $$props) {
 	const meta = [{ name: 'a', content: '1' }, { name: 'b', content: '2' }];
 
 	$.head('nqb0ka', $$renderer, ($$renderer) => {
-		$$renderer.title(($$renderer) => {
-			$$renderer.push(`<title>${$.escape(title)} — ${$.escape(desc || 'untitled')}</title>`);
-		});
-
 		$$renderer.push(`<!--[-->`);
 
 		const each_array = $.ensure_array_like(meta);
@@ -47750,6 +47745,10 @@ export default function Head_nesting_hostile($$renderer, $$props) {
 			color: red;
 		}
 	</style>`);
+
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>${$.escape(title)} — ${$.escape(desc || 'untitled')}</title>`);
+		});
 	});
 
 	$$renderer.push(`<h1 class="head-scoped">${$.escape(title)}</h1>`);
@@ -47762,11 +47761,11 @@ export default function Head_with_html_and_expressions($$renderer) {
 	let title = "t";
 
 	$.head('pebrd', $$renderer, ($$renderer) => {
+		$$renderer.push(`${$.html(`<script type="application/ld+json">${json}<` + "/script>")} ${$.html('<meta name="raw" content="1" />')} <meta name="a"${$.attr('content', `${title}-${json.length}`)}/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>t</title>`);
 		});
-
-		$$renderer.push(`${$.html(`<script type="application/ld+json">${json}<` + "/script>")} ${$.html('<meta name="raw" content="1" />')} <meta name="a"${$.attr('content', `${title}-${json.length}`)}/>`);
 	});
 
 	$$renderer.push(`<b>t</b>`);
@@ -47911,11 +47910,11 @@ export default function Scoped_content_in_every_container($$renderer) {
 	}
 
 	$.head('18qbe58', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="x"${$.attr('content', String(n))}/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>1</title>`);
 		});
-
-		$$renderer.push(`<meta name="x"${$.attr('content', String(n))}/>`);
 	});
 
 	if (C) {
@@ -47996,11 +47995,11 @@ export default function Special_elements_zoo($$renderer) {
 	let title = 't';
 
 	$.head('1t9qtaq', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="x"${$.attr('content', title)}/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>${$.escape(title)}</title>`);
 		});
-
-		$$renderer.push(`<meta name="x"${$.attr('content', title)}/>`);
 	});
 
 	$$renderer.push(`<p>${$.escape(w)}${$.escape(scrollY)}${$.escape(visible)}</p>`);
@@ -48249,10 +48248,6 @@ export default function Svelte_head_and_window($$renderer) {
 	let online = true;
 
 	$.head('weadwl', $$renderer, ($$renderer) => {
-		$$renderer.title(($$renderer) => {
-			$$renderer.push(`<title>${$.escape(title)}</title>`);
-		});
-
 		$$renderer.push(`<meta name="description"${$.attr('content', title)}/> `);
 
 		if (title) {
@@ -48262,6 +48257,10 @@ export default function Svelte_head_and_window($$renderer) {
 		}
 
 		$$renderer.push(`<!--]-->`);
+
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>${$.escape(title)}</title>`);
+		});
 	});
 
 	$$renderer.push(`<b>${$.escape(width)}${$.escape(scrollY)}${$.escape(online)}</b>`);
@@ -48275,10 +48274,6 @@ export default function Svelte_head_content($$renderer) {
 	let rows = [1, 2];
 
 	$.head('642efo', $$renderer, ($$renderer) => {
-		$$renderer.title(($$renderer) => {
-			$$renderer.push(`<title>t — suffix</title>`);
-		});
-
 		$$renderer.push(`<meta name="description"${$.attr('content', description)}/> <meta property="og:title"${$.attr('content', `og ${title}`)}/> <link rel="canonical" href="https://example.com/t"/> <link rel="preload" as="font" href="/f.woff2" crossorigin="anonymous"/> <!--[-->`);
 
 		const each_array = $.ensure_array_like(rows);
@@ -48304,6 +48299,10 @@ export default function Svelte_head_content($$renderer) {
       margin: 0;
     }
   </style>`);
+
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>t — suffix</title>`);
+		});
 	});
 
 	$$renderer.push(`<b>td</b>`);
@@ -50042,6 +50041,30 @@ export default function Global_focused_bindings($$renderer) {
 	let focused = false;
 
 	$$renderer.push(`<input/>`);
+}
+=== 743 pattern/head-title-renders-after-the-rest-of-the-head.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Head_title_renders_after_the_rest_of_the_head($$renderer, $$props) {
+	let { title, description } = $$props;
+
+	$.head('d9cp67', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="description"${$.attr('content', description)}/> <link rel="canonical"${$.attr('href', `/${$.stringify(title)}`)}/> `);
+
+		if (description) {
+			$$renderer.push(`<!--[0--><meta property="og:description"${$.attr('content', description)}/>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]-->`);
+
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>${$.escape(title)} | site</title>`);
+		});
+	});
+
+	$$renderer.push(`<h1>${$.escape(title)}</h1>`);
 }
 === 374 pattern/input-default-value-style-directive.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -52475,11 +52498,11 @@ export default function _061_title_chunk_fold($$renderer, $$props) {
 	let count = 3;
 
 	$.head('1e7okdb', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="description"${$.attr('content', `Zoo: ${$.stringify(name)}`)}/> <link rel="canonical"${$.attr('href', `https://x.test/${name}`)}/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>Zoo — ${$.escape(name)} (${$.escape(count)})</title>`);
 		});
-
-		$$renderer.push(`<meta name="description"${$.attr('content', `Zoo: ${$.stringify(name)}`)}/> <link rel="canonical"${$.attr('href', `https://x.test/${name}`)}/>`);
 	});
 
 	$$renderer.push(`<button>${$.escape(count)}</button>`);
@@ -52502,14 +52525,13 @@ export default function _068_const_alias_fold($$renderer) {
 
 	$$renderer.push(`<p>11x21</p>`);
 }
-=== 216 pattern/issues/3070-server-own-line-rune-comment.svelte	js
+=== 205 pattern/issues/3070-server-own-line-rune-comment.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function _070_server_own_line_rune_comment($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
 		let d = [1, 2];
 		// trailing
-		/* fx */
 	});
 }
 === 182 pattern/issues/3071-rune-argument-class-in-component.svelte	js
@@ -67101,10 +67123,6 @@ export default function Server_bind_get_after_const($$renderer) {
 		var bind_set_4 = (v) => open = v;
 
 		$.head('163u8zh', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>${$.escape(open)}</title>`);
-			});
-
 			var bind_get_1 = () => open;
 			var bind_set_1 = (v) => open = v;
 
@@ -67116,6 +67134,10 @@ export default function Server_bind_get_after_const($$renderer) {
 				set open($$value) {
 					bind_set_1($$value);
 				}
+			});
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(open)}</title>`);
 			});
 		});
 
@@ -69998,11 +70020,11 @@ import * as $ from 'svelte/internal/server';
 
 export default function Comment_in_head($$renderer) {
 	$.head('11nrpy8', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="description" content="d"/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>t</title>`);
 		});
-
-		$$renderer.push(`<meta name="description" content="d"/>`);
 	});
 }
 === 225 pattern/matrix/whitespace-comments/comment-in-snippet.svelte	js
@@ -70236,6 +70258,28 @@ export default function Self_closing_block_in_a_string($$renderer) {
 	}
 }
 
+=== 453 pattern/server-drops-comments-of-removed-effects.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Server_drops_comments_of_removed_effects($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let count = 0;
+
+		// kept: before the effect
+		const stop = () => {};
+
+		function track() {
+			// dropped with the trace
+			/* kept: after the trace */
+			return count;
+		}
+
+		$$renderer.push(`<button>${$.escape(
+			// kept: after the effects
+			track()
+		)}</button>`);
+	});
+}
 === 287 pattern/slot-closed-by-parent-end-tag.svelte	error.json
 {
 	"code": "element_invalid_closing_tag",
@@ -70308,6 +70352,34 @@ export default function Store_member_write_invalidates_inner_signals($$renderer,
 
 		$.bind_props($$props, { shape });
 	});
+}
+=== 376 pattern/string-statements-outside-a-prologue.svelte	js
+import * as $ from 'svelte/internal/server';
+
+'use strict';
+'module directive';
+
+export const m = 1;
+
+('module string');
+
+export default function String_statements_outside_a_prologue($$renderer) {
+	"use client";
+	'x';
+
+	let v = 1;
+
+	('after a declaration');
+
+	function f() {
+		'use strict';
+		g();
+		('h');
+	}
+
+	function g() {}
+
+	$$renderer.push(`<p>1${$.escape(f())}</p>`);
 }
 === 222 pattern/svelte-options-left-open.svelte	error.json
 {
