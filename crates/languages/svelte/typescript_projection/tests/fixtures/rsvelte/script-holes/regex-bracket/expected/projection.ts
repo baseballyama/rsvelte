@@ -17,6 +17,6 @@ function $$render() {
     api: typeof api;
   }, "">();
 }
-const RegexBracket__SvelteComponent_ = $$render();
+const RegexBracket__SvelteComponent_ = __rsvelte_rendered_component($$render());
 type RegexBracket__SvelteComponent_ = ReturnType<typeof RegexBracket__SvelteComponent_>;
 export default RegexBracket__SvelteComponent_;

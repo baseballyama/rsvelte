@@ -1,0 +1,2 @@
+error js_parse_error 4:2-4:2 Unexpected token
+    https://svelte.dev/e/js_parse_error

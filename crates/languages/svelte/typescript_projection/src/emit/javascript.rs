@@ -48,13 +48,27 @@ impl Printer<'_> {
     /// svelte2tsx's default export in `JSDoc`, whose `@typedef` merges with the constant because
     /// the constant is exported; an import of the component may read it as `any`, as the run
     /// declares.
-    pub(super) fn javascript_export(&mut self, component: NodeIdentifier, instance: &str) {
+    pub(super) fn javascript_export(
+        &mut self,
+        component: NodeIdentifier,
+        instance: &str,
+        rendered: Option<&str>,
+    ) {
         self.output.push("export const ");
         self.push_default_export();
-        self.output.push(
-            " = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ (",
-        );
-        self.node(component);
+        self.output
+            .push(" = /** @type {__rsvelte_javascript_export<");
+        let returned = "Awaited<ReturnType<typeof $$render>>";
+        match rendered {
+            Some(rendered) => {
+                for part in [rendered, "<", returned, ">"] {
+                    self.output.push(part);
+                }
+            }
+            None => self.output.push(returned),
+        }
+        self.output.push(">} */ (");
+        self.rendered(component, rendered);
         for part in [");\n/** @typedef {", instance, "<typeof "] {
             self.output.push(part);
         }

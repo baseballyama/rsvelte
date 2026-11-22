@@ -57,6 +57,9 @@ pub(crate) enum Node {
     ExportDefault {
         component: NodeIdentifier,
         instance: Instance,
+        /// Whether the instance script has a hole, whose text can close the render function
+        /// before it returns the component.
+        holes: bool,
     },
     /// svelte2tsx's `$$render` of a generic component: the instance script and the template in a
     /// function of the type parameters, which returns the contract.
@@ -266,6 +269,17 @@ pub(crate) enum Instance {
     Returned,
     /// An isomorphic component, a class and a function at once, whose `new` constructs it.
     Constructed,
+}
+
+impl Instance {
+    /// The helper that types what the render function returns, as svelte2tsx's helper does when
+    /// it returns nothing: the component of the helper's constraints.
+    pub(crate) const fn rendered(self) -> &'static str {
+        match self {
+            Self::Returned => "__rsvelte_rendered_component",
+            Self::Constructed => "__rsvelte_rendered_isomorphic",
+        }
+    }
 }
 
 /// A generic component's type parameters, without their angle brackets.

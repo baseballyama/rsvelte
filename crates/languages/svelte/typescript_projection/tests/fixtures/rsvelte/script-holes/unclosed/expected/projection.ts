@@ -18,6 +18,6 @@ function $$render() {
   };
   return __rsvelte_export_component<$$ComponentProps, {}, "">();
 }
-const Unclosed__SvelteComponent_ = $$render();
+const Unclosed__SvelteComponent_ = __rsvelte_rendered_component($$render());
 type Unclosed__SvelteComponent_ = ReturnType<typeof Unclosed__SvelteComponent_>;
 export default Unclosed__SvelteComponent_;

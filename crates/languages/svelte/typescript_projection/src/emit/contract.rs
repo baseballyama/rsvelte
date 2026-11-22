@@ -106,7 +106,8 @@ impl Printer<'_> {
             Node::ExportDefault {
                 component,
                 instance,
-            } => self.export_default(component, instance),
+                holes,
+            } => self.export_default(component, instance, holes),
             _ => unreachable!("ordinary nodes are printed by node"),
         }
     }
@@ -131,18 +132,20 @@ impl Printer<'_> {
 
     /// svelte2tsx's `const X = component; type X = …; export default X;`: the type of the same
     /// name lets an import name the component's instance.
-    fn export_default(&mut self, component: NodeIdentifier, instance: Instance) {
+    fn export_default(&mut self, component: NodeIdentifier, instance: Instance, holes: bool) {
+        // svelte2tsx makes the component of what the render function returns, outside it.
+        let rendered = holes.then(|| instance.rendered());
         let instance = match instance {
             Instance::Returned => "ReturnType",
             Instance::Constructed => "InstanceType",
         };
         if self.tree.javascript {
-            return self.javascript_export(component, instance);
+            return self.javascript_export(component, instance, rendered);
         }
         self.output.push("const ");
         self.push_default_export();
         self.output.push(" = ");
-        self.node(component);
+        self.rendered(component, rendered);
         self.output.push(";\ntype ");
         self.push_default_export();
         for part in [" = ", instance, "<typeof "] {
@@ -152,6 +155,17 @@ impl Printer<'_> {
         self.output.push(">;\nexport default ");
         self.push_default_export();
         self.output.push(";\n");
+    }
+
+    /// `component`, in the call of `rendered` when there is one.
+    pub(super) fn rendered(&mut self, component: NodeIdentifier, rendered: Option<&str>) {
+        let Some(rendered) = rendered else {
+            return self.node(component);
+        };
+        self.output.push(rendered);
+        self.output.push("(");
+        self.node(component);
+        self.output.push(")");
     }
 
     /// svelte2tsx's `function $$render<type parameters>() { body }`, async after a top-level

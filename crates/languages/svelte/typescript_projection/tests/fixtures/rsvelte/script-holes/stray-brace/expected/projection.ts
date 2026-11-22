@@ -20,6 +20,6 @@ function $$render() {
   };
   return __rsvelte_export_component<$$ComponentProps, {}, "">();
 }
-const StrayBrace__SvelteComponent_ = $$render();
+const StrayBrace__SvelteComponent_ = __rsvelte_rendered_component($$render());
 type StrayBrace__SvelteComponent_ = ReturnType<typeof StrayBrace__SvelteComponent_>;
 export default StrayBrace__SvelteComponent_;
