@@ -35,7 +35,7 @@ scripts, the command is `rsvelte`:
 
 `lint` is [oxlint](https://oxc.rs/docs/guide/usage/linter) with a built-in Svelte linter. It
 takes oxlint's options (`rsvelte lint --help`) and reads oxlint's configuration,
-`.oxlintrc.json`. oxlint lints each file it lints, and the scripts of a `.svelte` file, with
+`.oxlintrc.json`, or `oxlint.config.ts`, which Node evaluates. oxlint lints each file it lints, and the scripts of a `.svelte` file, with
 its own rules. The Svelte linter lints the whole `.svelte` file with the `svelte/*` rules of
 [eslint-plugin-svelte](https://sveltejs.github.io/eslint-plugin-svelte/rules/), and runs
 `no-unused-vars` and `no-undef` there instead of oxlint, because they read the template. A

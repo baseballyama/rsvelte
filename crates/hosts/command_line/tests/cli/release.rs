@@ -188,6 +188,24 @@ fn lint_applies_directive_comments_to_svelte_findings_as_oxlint_does() {
 }
 
 #[test]
+fn lint_reads_a_typescript_configuration_with_node() {
+    let project = Project::new(&[
+        (
+            "oxlint.config.ts",
+            "const level: string = 'error';\nexport default { rules: { 'svelte/no-at-html-tags': level } };\n",
+        ),
+        (
+            "A.svelte",
+            "<script>\n\tlet html = '';\n</script>\n{@html html}\n",
+        ),
+    ]);
+    let lint = project.rsvelte(&["lint", "-f", "unix"]);
+    let report = format!("{}{}", text(&lint.stdout), text(&lint.stderr));
+    assert_eq!(lint.status.code(), Some(1), "{report}");
+    assert!(report.contains("A.svelte:4:1:"), "{report}");
+}
+
+#[test]
 fn lint_checks_the_svelte_configuration_once() {
     let project = Project::new(&[
         (

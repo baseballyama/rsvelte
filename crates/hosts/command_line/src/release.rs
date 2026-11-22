@@ -12,6 +12,7 @@ mod combined;
 mod format;
 mod help;
 mod host_lint;
+mod node_configuration;
 mod version;
 
 /// The plugins `rsvelte` installs for `typecheck`, in installation order.

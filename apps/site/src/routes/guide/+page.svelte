@@ -39,10 +39,11 @@
 <p>
 	<code>lint</code> is <a href="https://oxc.rs/docs/guide/usage/linter">oxlint</a> with a built-in
 	Svelte linter. It takes oxlint's options (<code>rsvelte lint --help</code>), reads oxlint's
-	configuration, <code>.oxlintrc.json</code>, and prints and exits as oxlint does. oxlint checks
-	each file it checks, and the scripts of each <code>.svelte</code> file, with its own rules. The
-	Svelte linter checks the whole <code>.svelte</code> file with the <code>svelte/</code> rules, and
-	runs
+	configuration, <code>.oxlintrc.json</code> or <code>oxlint.config.ts</code> (which Node
+	evaluates), and prints and exits as oxlint does. oxlint checks each file it checks, and the
+	scripts of each <code>.svelte</code> file, with its own rules. The Svelte linter checks the whole
+	<code>.svelte</code>
+	file with the <code>svelte/</code> rules, and runs
 	<code>no-unused-vars</code> and <code>no-undef</code> there instead of oxlint, because they read
 	the template.
 </p>
