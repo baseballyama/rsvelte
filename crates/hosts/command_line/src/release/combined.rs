@@ -5,10 +5,12 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Arc;
 
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::Document;
 
+use super::format::lint::Lint;
 use super::{LINT, LINT_AND_TYPECHECK, TYPECHECK, alone, format, installation};
 use crate::commands::typecheck::Project;
 use crate::commands::{files, lint, typecheck};
@@ -34,20 +36,44 @@ pub(super) fn run(
         return usage(&format!("`{twice}` is named twice"));
     }
     let runs = |command: &str| commands.contains(&command);
+    // `--check` writes nothing, so lint reads the text format reads.
+    let lints_with_format = check && runs("format") && runs("lint");
     let mut codes = Vec::new();
     if runs("format") {
         let arguments: Vec<String> = (paths.iter().map(|&path| path.to_owned()))
             .chain(check.then(|| "--check".to_owned()))
             .collect();
-        codes.push(format::format(&arguments));
+        if lints_with_format {
+            codes.extend(format_and_lint(config, paths, &arguments));
+        } else {
+            codes.push(format::format(&arguments));
+        }
     }
-    match (runs("lint"), runs("typecheck")) {
+    match (runs("lint") && !lints_with_format, runs("typecheck")) {
         (true, true) => codes.extend(lint_and_typecheck(config, paths)),
         (true, false) => codes.push(alone(config, LINT, paths)),
         (false, true) => codes.push(alone(config, TYPECHECK, paths)),
         (false, false) => {}
     }
     worst(&codes)
+}
+
+/// `format --check` with `arguments` and `lint` below `paths`, with each Svelte file both read
+/// parsed once; the exit code of each.
+fn format_and_lint(
+    config: &configuration::Options,
+    paths: &[&str],
+    arguments: &[String],
+) -> Vec<ExitCode> {
+    let found = configured_registry(config, &[], installation(LINT))
+        .and_then(|(reg, _)| Ok((lint::linted(&reg, paths, LINT)?, reg)));
+    // A lint that cannot start reports so after format, as when each runs alone.
+    let Ok((files, reg)) = found else {
+        return vec![format::format(arguments), alone(config, LINT, paths)];
+    };
+    let lint = Arc::new(Lint::new(reg, files));
+    let format = format::format_with(arguments, Some(Arc::clone(&lint)));
+    vec![format, lint.print()]
 }
 
 /// The exit code of a run whose commands exited with `codes`: 2 when one could not run, else 1

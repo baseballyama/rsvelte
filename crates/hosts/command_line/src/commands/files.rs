@@ -93,7 +93,7 @@ pub(crate) fn document(file: PathBuf, text: String) -> Result<Document, String> 
 }
 
 /// The document named `name` of `text`, read from `file`.
-fn named(name: String, file: PathBuf, text: String) -> Result<Document, String> {
+pub(crate) fn named(name: String, file: PathBuf, text: String) -> Result<Document, String> {
     let document = Document::new(name, text).map_err(|e| format!("{}: {e:?}", file.display()))?;
     Ok(document.read_from(file))
 }

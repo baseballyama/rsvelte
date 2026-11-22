@@ -8,7 +8,7 @@ pub use options::{Options, unported};
 
 mod task;
 use task::register_with_options;
-pub use task::{TASK, format, register};
+pub use task::{Format, TASK, format, register};
 
 /// Takes [`Options`], under Prettier's names.
 pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_interface::Extension {

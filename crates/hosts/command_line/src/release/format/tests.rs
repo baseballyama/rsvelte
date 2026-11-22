@@ -4,7 +4,11 @@ use serde_json::json;
 use super::*;
 
 fn format(source_text: &str, options: &Value) -> Result<String, String> {
-    Svelte(tailwind::Tailwind::default()).format(source_text, options, &JsFormatOptions::default())
+    Svelte {
+        tailwind: tailwind::Tailwind::default(),
+        lint: None,
+    }
+    .format(source_text, options, &JsFormatOptions::default())
 }
 
 #[test]
@@ -62,9 +66,12 @@ function f(x) {}
         jsdoc: Some(JsdocOptions::default()),
         ..JsFormatOptions::default()
     };
-    let formatted = Svelte(tailwind::Tailwind::default())
-        .format(source, &json!({ "printWidth": 80 }), &javascript)
-        .unwrap();
+    let formatted = Svelte {
+        tailwind: tailwind::Tailwind::default(),
+        lint: None,
+    }
+    .format(source, &json!({ "printWidth": 80 }), &javascript)
+    .unwrap();
     assert_eq!(
         formatted,
         "\

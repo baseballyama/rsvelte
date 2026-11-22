@@ -38,9 +38,18 @@ pub(crate) fn register_with_options(registry: &mut Registry, options: Options) {
 /// The identifier of the task that formats each component.
 pub const TASK: &str = "svelte.format/default";
 
+/// The task that formats each component with `options`, from the parse the document's other
+/// tasks share.
 #[derive(Debug)]
-pub(crate) struct Format {
+pub struct Format {
     options: Options,
+}
+
+impl Format {
+    #[must_use]
+    pub const fn new(options: Options) -> Self {
+        Self { options }
+    }
 }
 
 impl Task for Format {

@@ -20,6 +20,8 @@ use crate::source::document::Document;
 pub enum RunError {
     Plugins(PluginError),
     UnknownTask(UnknownTask),
+    /// [`run_one`] runs one document, and this task's project pass needs every document.
+    NeedsProject(&'static str),
 }
 
 impl std::fmt::Display for RunError {
@@ -27,6 +29,7 @@ impl std::fmt::Display for RunError {
         match self {
             Self::Plugins(error) => error.fmt(f),
             Self::UnknownTask(error) => error.fmt(f),
+            Self::NeedsProject(task) => write!(f, "`{task}` needs the whole project"),
         }
     }
 }
@@ -269,6 +272,38 @@ pub fn run_each(
         }
     });
     Ok(())
+}
+
+/// The document tasks among `tasks`, then `last`, over `document` on one context, on the calling
+/// thread: for a host that hands documents over one at a time and has work of its own on each.
+///
+/// # Errors
+///
+/// [`RunError`] if plugins are invalid, a selected task is unknown, or one needs the whole
+/// project; nothing runs then.
+pub fn run_one(
+    reg: &Registry,
+    document: &Document,
+    tasks: &[&str],
+    last: &dyn Task,
+) -> Result<DocumentResult, RunError> {
+    let options = RunOptions {
+        tasks,
+        sharing: Sharing::Shared,
+        threads: None,
+    };
+    let (mut tasks, finish_tasks) = selected(reg, &options)?;
+    if let Some(task) = finish_tasks.first() {
+        return Err(RunError::NeedsProject(task.identifier()));
+    }
+    tasks.push(last);
+    Ok(run_document(
+        reg,
+        document,
+        (&tasks, &[]),
+        &|_| true,
+        Sharing::Shared,
+    ))
 }
 
 /// [`run_each`], collected in document order.

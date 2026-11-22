@@ -6,8 +6,10 @@ use std::panic::AssertUnwindSafe;
 use std::process::ExitCode;
 use std::sync::Arc;
 
+use lint::Lint;
 use oxc_formatter::JsFormatOptions;
 use oxfmt::{HostFormatter, HostFormatters, Language};
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::stack;
 use rsvelte_kernel::source::positions::LineIndex;
 use rsvelte_svelte_format::Options;
@@ -16,6 +18,11 @@ use serde_json::Value;
 
 /// Runs oxfmt's command line over `arguments`, the words after `format`.
 pub(crate) fn format(arguments: &[String]) -> ExitCode {
+    format_with(arguments, None)
+}
+
+/// [`format`], with each Svelte file `lint` lints linted from the parse its format reads.
+pub(super) fn format_with(arguments: &[String], lint: Option<Arc<Lint>>) -> ExitCode {
     let arguments: Vec<&str> = arguments.iter().map(String::as_str).collect();
     let command = match oxfmt::cli::format_command()
         .run_inner(bpaf::Args::from(arguments.as_slice()).set_name("rsvelte format"))
@@ -30,13 +37,22 @@ pub(crate) fn format(arguments: &[String]) -> ExitCode {
     oxfmt::cli::init_rayon(command.runtime_options.threads);
     let tailwind = tailwind::Tailwind::default();
     let hosts = HostFormatters::default()
-        .with(Language::Svelte, Svelte(tailwind.clone()))
+        .with(
+            Language::Svelte,
+            Svelte {
+                tailwind: tailwind.clone(),
+                lint,
+            },
+        )
         .with_tailwind_sorter(tailwind);
     let result = oxfmt::cli::WalkRunner::new(command).with_hosts(hosts).run();
     ExitCode::from(result.exit_code())
 }
 
-struct Svelte(tailwind::Tailwind);
+struct Svelte {
+    tailwind: tailwind::Tailwind,
+    lint: Option<Arc<Lint>>,
+}
 
 impl HostFormatter for Svelte {
     fn format(
@@ -51,7 +67,7 @@ impl HostFormatter for Svelte {
         options.jsdoc.clone_from(&javascript.jsdoc);
         if let Some(sort) = &javascript.sort_tailwindcss {
             let sorter = tailwind::ForFile {
-                tailwind: self.0.clone(),
+                tailwind: self.tailwind.clone(),
                 options: prettier.clone(),
             };
             options.tailwind = Some(rsvelte_svelte_format::tailwind::Tailwind::new(
@@ -63,6 +79,11 @@ impl HostFormatter for Svelte {
         if let Some(name) = rsvelte_svelte_format::unported(&options) {
             return Err(unprinted(&format!("this `{name}` value")));
         }
+        if let Some(formatted) =
+            (self.lint.as_ref()).and_then(|lint| lint.format(source_text, prettier, &options))
+        {
+            return formatted;
+        }
         // oxfmt runs a host on its own rayon workers, which neither catch a panic nor have the
         // stack oxc's passes need for deeply nested text.
         let formatted = std::panic::catch_unwind(AssertUnwindSafe(|| {
@@ -71,11 +92,14 @@ impl HostFormatter for Svelte {
             })
         }))
         .map_err(|panic| format!("the Svelte formatter panicked: {}", panic_message(&*panic)))?;
-        formatted.map_err(|diagnostic| {
-            let at = LineIndex::new(source_text).line_column(diagnostic.span.start_offset);
-            format!("{} ({}:{})", diagnostic.message, at.line, at.column + 1)
-        })
+        formatted.map_err(|diagnostic| located(source_text, &diagnostic))
     }
+}
+
+/// The message of the error `diagnostic` in `source_text`, with its line and column.
+fn located(source_text: &str, diagnostic: &Diagnostic) -> String {
+    let at = LineIndex::new(source_text).line_column(diagnostic.span.start_offset);
+    format!("{} ({}:{})", diagnostic.message, at.line, at.column + 1)
 }
 
 /// What oxfmt gives a host that changes nothing in a Svelte file's output.
@@ -125,6 +149,7 @@ fn panic_message(panic: &(dyn Any + Send)) -> &str {
         .unwrap_or("a payload that is not a string")
 }
 
+pub(super) mod lint;
 mod tailwind;
 
 #[cfg(test)]
