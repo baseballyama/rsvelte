@@ -197,3 +197,35 @@ fn version_names_the_oracles_of_the_corpus_and_the_type_checker() {
     assert_eq!(broken.status.code(), Some(2));
     assert_eq!(text(&broken.stdout), "");
 }
+
+#[test]
+fn lint_reads_the_scripts_of_a_component_as_svelte_does() {
+    let project = Project::new(&[
+        (
+            ".oxlintrc.json",
+            r#"{ "rules": { "no-debugger": "error" } }"#,
+        ),
+        (
+            "Attribute.svelte",
+            "<p title=\"<script>debugger;</script>\">x</p>\n",
+        ),
+        ("Html.svelte", "{@html \"<script>debugger;</script>\"}\n"),
+        (
+            "Head.svelte",
+            "<svelte:head><script>debugger;</script></svelte:head>\n",
+        ),
+        (
+            "Both.svelte",
+            "<script module>\n\tdebugger;\n</script>\n<script lang=\"ts\">\n\tdebugger;\n</script>\n",
+        ),
+    ]);
+    let lint = project.rsvelte(&["lint", "-f", "unix"]);
+    let report = text(&lint.stdout);
+    // Each of these is text to Svelte, not a script.
+    for file in ["Attribute.svelte", "Html.svelte", "Head.svelte"] {
+        assert!(!report.contains(file), "{file}: {report}");
+    }
+    for position in ["Both.svelte:2:2:", "Both.svelte:5:2:"] {
+        assert!(report.contains(position), "{position}: {report}");
+    }
+}

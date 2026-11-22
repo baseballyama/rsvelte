@@ -8,10 +8,12 @@ use std::process::{ExitCode, Termination};
 use std::sync::Arc;
 
 use oxc_diagnostics::OxcDiagnostic;
+use oxc_linter::loader::JavaScriptSource;
 use oxc_linter::{
     AllowWarnDeny, Fix, FixKind, HostFile, HostLinter, HostPlugin, HostRule, Message,
     PossibleFixes, RuleCategory,
 };
+use oxc_span::SourceType;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
@@ -106,6 +108,36 @@ impl Svelte {
 }
 
 impl HostLinter for Svelte {
+    /// The component's `<script module>` and `<script>`, as Svelte reads its markup. oxlint's own
+    /// loader also takes a `<script>` in an attribute value, in `{@html}` or in `<svelte:head>`.
+    fn scripts<'a>(&self, path: &Path, source_text: &'a str) -> Option<Vec<JavaScriptSource<'a>>> {
+        if !is_component(path) {
+            return None;
+        }
+        let component = std::panic::catch_unwind(|| {
+            stack::for_text(source_text.len(), || {
+                rsvelte_svelte_syntax::parse::parse_without_scripts(source_text)
+            })
+        });
+        // Markup that does not parse has no scripts to lint: the Svelte linter reports it.
+        let Ok(Ok(component)) = component else {
+            return Some(Vec::new());
+        };
+        let scripts = (component.scripts())
+            .map(|script| {
+                let content = script.content;
+                let source_type = if script.typescript {
+                    SourceType::ts()
+                } else {
+                    SourceType::mjs()
+                };
+                let text = &source_text[content.start_offset as usize..content.end_offset as usize];
+                JavaScriptSource::partial(text, source_type, content.start_offset)
+            })
+            .collect();
+        Some(scripts)
+    }
+
     fn globals(&self, path: &Path) -> &[&str] {
         let name = path
             .file_name()
