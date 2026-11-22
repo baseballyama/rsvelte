@@ -4,18 +4,21 @@
 use std::borrow::Cow;
 
 use oxc_ast::ast::{
-    Argument, CallExpression, Declaration, Expression, ImportDeclarationSpecifier, Program,
-    PropertyKey, Statement, TSInterfaceDeclaration, TSPropertySignature, TSSignature, TSType,
-    TSTypeAliasDeclaration, VariableDeclarator,
+    Argument, CallExpression, Expression, ImportDeclarationSpecifier, Program, Statement,
+    TSInterfaceDeclaration, TSPropertySignature, TSSignature, TSType, TSTypeAliasDeclaration,
+    VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
-use oxc_parser::Kind;
 use oxc_span::GetSpan;
-use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, TemplateNode, TokenType};
+use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, TemplateNode};
 use rsvelte_typescript_tree::node_span;
 
 use super::super::{Buffer, Builder, Node, NodeIdentifier, Range, Refusal, Result, Span};
 use super::Edit;
+
+mod names;
+
+use names::{UNNAMED_EVENT, UnnamedKey};
 
 /// A component's events: how many svelte2tsx finds, the value whose type the component's events
 /// are, and whether they are svelte2tsx's `hasStrictEvents`.
@@ -127,37 +130,6 @@ impl<'a> Builder<'a> {
             value: self.tree.push(Node::Object { properties }),
             strict: self.strict_events(),
         })
-    }
-
-    /// The key as svelte2tsx's `ComputedPropertyName` spans it: with its brackets, which the
-    /// AST leaves out.
-    fn key_span(
-        &self,
-        UnnamedKey {
-            property,
-            key,
-            computed,
-        }: UnnamedKey,
-    ) -> Span {
-        if !computed {
-            return key;
-        }
-        let open = self
-            .component
-            .tokens
-            .within(Span::new(property.start_offset, key.start_offset))
-            .iter()
-            .rfind(|token| token.kind == TokenType::JavaScript(Kind::LBrack));
-        let close = self
-            .component
-            .tokens
-            .within(Span::new(key.end_offset, property.end_offset))
-            .iter()
-            .find(|token| token.kind == TokenType::JavaScript(Kind::RBrack));
-        let (Some(open), Some(close)) = (open, close) else {
-            unreachable!("a computed key is in brackets");
-        };
-        Span::new(open.span.start_offset, close.span.end_offset)
     }
 
     /// The events value svelte2tsx's `_events(strict, render)` passes: outside `strict`, a
@@ -487,6 +459,14 @@ impl<'a: 't, 't> Found<'a, 't> {
         }
     }
 
+    /// svelte2tsx's `getName`; the first key it throws on is kept.
+    fn event_name(&mut self, property: &TSPropertySignature<'a>) -> Option<&'a str> {
+        names::event_name(self.top_level, property).unwrap_or_else(|key| {
+            self.thrown.get_or_insert(key);
+            None
+        })
+    }
+
     /// The property signatures among `members`, which svelte2tsx reads as events.
     fn properties(&mut self, members: &[TSSignature<'a>]) -> usize {
         members
@@ -496,28 +476,6 @@ impl<'a: 't, 't> Found<'a, 't> {
                 _ => None,
             })
             .count()
-    }
-
-    /// svelte2tsx's `getName` of an event's key: the identifier or the string, or the string a
-    /// top-level variable named in brackets holds. On any other key it throws, which is kept.
-    fn event_name(&mut self, property: &TSPropertySignature<'a>) -> Option<&'a str> {
-        let name = match &property.key {
-            PropertyKey::StaticIdentifier(name) if !property.computed => Some(name.name.as_str()),
-            // Named, even when the string is not text this side can hold.
-            PropertyKey::StringLiteral(name) if !property.computed => return name.value.as_str(),
-            PropertyKey::Identifier(variable) if property.computed => {
-                top_level_string(self.top_level, variable.name.as_str())
-            }
-            _ => None,
-        };
-        if name.is_none() && self.thrown.is_none() {
-            self.thrown = Some(UnnamedKey {
-                property: node_span(property),
-                key: node_span(&property.key),
-                computed: property.computed,
-            });
-        }
-        name
     }
 
     /// svelte2tsx's `addToEvents`: an event found again is typed `CustomEvent<any>`.
@@ -540,45 +498,6 @@ impl<'a: 't, 't> Found<'a, 't> {
             self.dispatched.push(name);
         }
     }
-}
-
-/// A property signature whose key svelte2tsx's `getName` throws on.
-#[derive(Clone, Copy)]
-struct UnnamedKey {
-    property: Span,
-    key: Span,
-    computed: bool,
-}
-
-/// The message of svelte2tsx's `getName` for a key that does not name an event.
-const UNNAMED_EVENT: &str = "The ComponentEvents interface can only have properties of type \
-    Identifier, StringLiteral or ComputedPropertyName. In case of ComputedPropertyName, it must \
-    be a const declared within the component and initialized with a string.";
-
-/// The string a top-level variable is initialized to, from its first declaration, as
-/// svelte2tsx's `getVariableAtTopLevel` finds it.
-fn top_level_string<'a>(statements: &[Statement<'a>], name: &str) -> Option<&'a str> {
-    statements
-        .iter()
-        .filter_map(|statement| match statement {
-            Statement::VariableDeclaration(declaration) => Some(declaration),
-            Statement::ExportDeclaration(export) => match &export.declaration {
-                Declaration::VariableDeclaration(declaration) => Some(declaration),
-                _ => None,
-            },
-            _ => None,
-        })
-        .flat_map(|declaration| &declaration.declarations)
-        .find(|declarator| {
-            declarator
-                .id
-                .get_binding_identifier()
-                .is_some_and(|binding| binding.name == name)
-        })
-        .and_then(|declarator| match &declarator.init {
-            Some(Expression::StringLiteral(value)) => value.value.as_str(),
-            _ => None,
-        })
 }
 
 /// The template's calls of a name with a literal first argument.
