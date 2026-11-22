@@ -39,6 +39,9 @@ enum Forwarder {
     Body,
     /// A component, by its name.
     Component(Span),
+    /// `<svelte:component>`, whose name svelte2tsx writes as the component's, which TypeScript
+    /// recovers as `any`.
+    Dynamic,
     /// Any other element, such as `<svelte:document>`, whose event svelte2tsx types `undefined`.
     Other,
 }
@@ -142,10 +145,14 @@ impl<'a> Builder<'a> {
             .iter()
             .map(|forwarder| {
                 let helper = match forwarder {
-                    Forwarder::Element => "__sveltets_2_mapElementEvent",
-                    Forwarder::Window => "__sveltets_2_mapWindowEvent",
-                    Forwarder::Body => "__sveltets_2_mapBodyEvent",
+                    Forwarder::Element => "__rsvelte_element_event",
+                    Forwarder::Window => "__rsvelte_window_event",
+                    Forwarder::Body => "__rsvelte_body_event",
                     Forwarder::Other => return self.tree.push(Node::Identifier("undefined")),
+                    Forwarder::Dynamic => {
+                        let any = self.tree.push(Node::Identifier("any"));
+                        return self.value_of(any);
+                    }
                     &Forwarder::Component(component) => {
                         let instance = self.tree.push(Node::Identifier("__sveltets_2_instanceOf"));
                         // svelte2tsx reads the component itself, where a finding such as
@@ -213,6 +220,7 @@ impl<'a> Builder<'a> {
                 let event = event.split('|').next().unwrap_or(event);
                 let by = match tag {
                     _ if reference.is_some() => Forwarder::Component(name),
+                    "svelte:component" => Forwarder::Dynamic,
                     "svelte:window" => Forwarder::Window,
                     "svelte:body" => Forwarder::Body,
                     "svelte:element" => Forwarder::Element,
@@ -220,7 +228,9 @@ impl<'a> Builder<'a> {
                     _ => Forwarder::Element,
                 };
                 match forwarded.iter_mut().find(|(name, _)| *name == event) {
-                    Some((_, forwarders)) if matches!(by, Forwarder::Component(_)) => {
+                    Some((_, forwarders))
+                        if matches!(by, Forwarder::Component(_) | Forwarder::Dynamic) =>
+                    {
                         forwarders.push(by);
                     }
                     Some((_, forwarders)) => *forwarders = vec![by],
@@ -245,12 +255,25 @@ impl<'a> Builder<'a> {
         template.0
     }
 
-    /// svelte2tsx's `strictEvents`: a script's attribute that keeps the component to the events
-    /// it names.
+    /// svelte2tsx's `strictEvents`: an attribute of any `<script>` or `<style>` that keeps the
+    /// component to the events it names.
     fn strict_events(&self) -> bool {
-        (self.component.instance.iter().chain(&self.component.module))
-            .flat_map(|script| &script.attributes)
-            .any(|(name, _)| name.text(self.source) == "strictEvents")
+        let source = self.source;
+        let component = self.component;
+        let strict = |name: Span| name.text(source) == "strictEvents";
+        let scripts = component.instance.iter().chain(&component.module);
+        (scripts.flat_map(|script| &script.attributes))
+            .chain(component.style.iter().flat_map(|style| &style.attributes))
+            .any(|&(name, _)| strict(name))
+            || component.nodes.iter().any(|node| match *node {
+                TemplateNode::Element {
+                    name, attributes, ..
+                } if matches!(name.text(source), "script" | "style") => component
+                    .attributes(attributes)
+                    .iter()
+                    .any(|attribute| strict(attribute.name)),
+                _ => false,
+            })
     }
 }
 
@@ -359,7 +382,9 @@ impl<'a: 't, 't> Visit<'a> for Found<'a, 't> {
                     .iter()
                     .rev()
                     .find(|(name, _)| *name == variable.name.as_str())
-                    .map(|&(_, value)| value),
+                    .map(|&(_, value)| value)
+                    // svelte2tsx's `if (str)`.
+                    .filter(|value| !value.is_empty()),
                 _ => None,
             };
             if let Some(name) = name {

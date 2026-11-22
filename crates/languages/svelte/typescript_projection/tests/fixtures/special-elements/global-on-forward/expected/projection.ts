@@ -13,7 +13,7 @@ function $$render() {
     }
   };
   return (/** @type {typeof __rsvelte_export_isomorphic<{ [x: string]: never }, {}, string>} */ (__rsvelte_export_isomorphic))()(__rsvelte_any_event({
-    "resize": __sveltets_2_mapWindowEvent("resize"),
+    "resize": __rsvelte_window_event("resize"),
     "visibilitychange": undefined,
   }), {});
 }

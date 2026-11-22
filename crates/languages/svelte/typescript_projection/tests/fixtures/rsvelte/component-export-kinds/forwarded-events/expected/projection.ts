@@ -18,7 +18,7 @@ function $$render() {
     }
   };
   return __rsvelte_export_isomorphic<$$ComponentProps, {}, "">()(__rsvelte_any_event({
-    "click": __sveltets_2_mapElementEvent("click"),
+    "click": __rsvelte_element_event("click"),
   }), {});
 }
 const ForwardedEvents__SvelteComponent_ = $$render();
