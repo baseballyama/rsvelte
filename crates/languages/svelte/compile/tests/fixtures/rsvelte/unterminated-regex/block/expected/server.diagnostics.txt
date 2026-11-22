@@ -1,0 +1,2 @@
+error js_parse_error 3:12-3:12 Unterminated regular expression
+    https://svelte.dev/e/js_parse_error

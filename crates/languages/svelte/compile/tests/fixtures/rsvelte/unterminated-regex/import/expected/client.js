@@ -1,0 +1,37 @@
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
+import CloseParen from "./close-paren.svelte";
+import InArray from "./array.svelte";
+import Group from "./group.svelte";
+import SpaceBeforeSemicolon from "./space-before-semicolon.svelte";
+import NoBracket from "./no-bracket.svelte";
+import Block from "./block.svelte";
+import Class from "./class.svelte";
+import Escape from "./escape.svelte";
+import Quantifier from "./quantifier.svelte";
+import TrailingSemicolon from "./trailing-semicolon.svelte";
+var root = $.from_html(`<!> <!> <!> <!> <!> <!> <!> <!> <!> <!>`, 1);
+export default function Import($$anchor) {
+	var fragment = root();
+	var node = $.first_child(fragment);
+	CloseParen(node, { n: "x" });
+	var node_1 = $.sibling(node, 2);
+	InArray(node_1, { n: "x" });
+	var node_2 = $.sibling(node_1, 2);
+	Group(node_2, { n: "x" });
+	var node_3 = $.sibling(node_2, 2);
+	SpaceBeforeSemicolon(node_3, { n: "x" });
+	var node_4 = $.sibling(node_3, 2);
+	NoBracket(node_4, { n: "x" });
+	var node_5 = $.sibling(node_4, 2);
+	Block(node_5, { n: "x" });
+	var node_6 = $.sibling(node_5, 2);
+	Class(node_6, { n: "x" });
+	var node_7 = $.sibling(node_6, 2);
+	Escape(node_7, { n: "x" });
+	var node_8 = $.sibling(node_7, 2);
+	Quantifier(node_8, { n: "x" });
+	var node_9 = $.sibling(node_8, 2);
+	TrailingSemicolon(node_9, { n: "x" });
+	$.append($$anchor, fragment);
+}
