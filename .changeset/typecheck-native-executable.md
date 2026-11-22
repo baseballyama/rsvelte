@@ -2,4 +2,4 @@
 '@rsvelte/cli': patch
 ---
 
-Without a `command`, `rsvelte typecheck` starts the native executable of `typescript` or `@typescript/native-preview` directly instead of through `node`. It saves about 100 ms on each run.
+Without a `command`, `rsvelte typecheck` starts the native executable of `tsrs`, `@typescript/native-preview` or `typescript` directly instead of through `node`, which saves a Node start each time the checker starts.
