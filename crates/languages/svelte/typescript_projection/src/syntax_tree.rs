@@ -57,9 +57,6 @@ pub(crate) enum Node {
     ExportDefault {
         component: NodeIdentifier,
         instance: Instance,
-        /// Whether the instance script has a hole, whose text can close the render function
-        /// before it returns the component.
-        holes: bool,
     },
     /// svelte2tsx's `$$render` of a generic component: the instance script and the template in a
     /// function of the type parameters, which returns the contract.
@@ -272,12 +269,12 @@ pub(crate) enum Instance {
 }
 
 impl Instance {
-    /// The helper that types what the render function returns, as svelte2tsx's helper does when
-    /// it returns nothing: the component of the helper's constraints.
-    pub(crate) const fn rendered(self) -> &'static str {
+    /// svelte2tsx's component of a render function that returns nothing: its helper's
+    /// constraints.
+    pub(crate) const fn unrendered(self) -> &'static str {
         match self {
-            Self::Returned => "__rsvelte_rendered_component",
-            Self::Constructed => "__rsvelte_rendered_isomorphic",
+            Self::Returned => "__rsvelte_unrendered_component",
+            Self::Constructed => "__rsvelte_unrendered_isomorphic",
         }
     }
 }
@@ -304,6 +301,9 @@ pub struct SyntaxTree {
     pub(crate) root: Range,
     /// Neither script is TypeScript, so the projection is JavaScript without type syntax.
     pub(crate) javascript: bool,
+    /// The instance script has a hole. A hole is copied as written, so its text can close the
+    /// render function before the return of the component; a script without one parses balanced.
+    pub(crate) holes: bool,
 }
 
 impl Default for SyntaxTree {
@@ -313,6 +313,7 @@ impl Default for SyntaxTree {
             children: buffer_pool::take_keyed::<Self, _>(),
             root: Range::default(),
             javascript: false,
+            holes: false,
         }
     }
 }

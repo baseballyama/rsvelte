@@ -16,6 +16,6 @@ function $$render() {
   };
   return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
 }
-const StrayBraceLegacy__SvelteComponent_ = __rsvelte_rendered_isomorphic($$render());
+const StrayBraceLegacy__SvelteComponent_ = $$render() as unknown as __rsvelte_rendered<Awaited<ReturnType<typeof $$render>>, __rsvelte_unrendered_isomorphic>;
 type StrayBraceLegacy__SvelteComponent_ = InstanceType<typeof StrayBraceLegacy__SvelteComponent_>;
 export default StrayBraceLegacy__SvelteComponent_;

@@ -5,7 +5,8 @@ import Legacy from "./stray-brace-legacy.svelte";
 import JavaScript from "./stray-brace-javascript.svelte";
 import Async from "./stray-brace-async.svelte";
 import Slot from "./stray-brace-slot.svelte";
-var root = $.from_html(`<!> <!> <!> <!> <!> <!>`, 1);
+import Generic from "./stray-brace-generic.svelte";
+var root = $.from_html(`<!> <!> <!> <!> <!> <!> <!>`, 1);
 export default function Stray_brace_import($$anchor) {
 	let legacy;
 	var fragment = root();
@@ -20,6 +21,11 @@ export default function Stray_brace_import($$anchor) {
 	var node_4 = $.sibling(node_3, 2);
 	Slot(node_4, { n: "x" });
 	var node_5 = $.sibling(node_4, 2);
-	$.bind_this(Legacy(node_5, { n: 1 }), ($$value) => legacy = $$value, () => legacy);
+	Generic(node_5, {
+		v: 1,
+		n: "x"
+	});
+	var node_6 = $.sibling(node_5, 2);
+	$.bind_this(Legacy(node_6, { n: 1 }), ($$value) => legacy = $$value, () => legacy);
 	$.append($$anchor, fragment);
 }

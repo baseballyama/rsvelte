@@ -19,6 +19,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }
-export const StrayBraceJavascript__SvelteComponent_ = /** @type {__rsvelte_javascript_export<__rsvelte_rendered_component<Awaited<ReturnType<typeof $$render>>>>} */ (__rsvelte_rendered_component($$render()));
+export const StrayBraceJavascript__SvelteComponent_ = /** @type {__rsvelte_javascript_export<__rsvelte_rendered<Awaited<ReturnType<typeof $$render>>, __rsvelte_unrendered_component>>} */ (/** @type {unknown} */ ($$render()));
 /** @typedef {ReturnType<typeof StrayBraceJavascript__SvelteComponent_>} StrayBraceJavascript__SvelteComponent_ */
 export default StrayBraceJavascript__SvelteComponent_;

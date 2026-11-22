@@ -17,6 +17,6 @@ function $$render() {
     api: typeof api;
   }, "">();
 }
-const Class__SvelteComponent_ = __rsvelte_rendered_component($$render());
+const Class__SvelteComponent_ = $$render() as unknown as __rsvelte_rendered<Awaited<ReturnType<typeof $$render>>, __rsvelte_unrendered_component>;
 type Class__SvelteComponent_ = ReturnType<typeof Class__SvelteComponent_>;
 export default Class__SvelteComponent_;

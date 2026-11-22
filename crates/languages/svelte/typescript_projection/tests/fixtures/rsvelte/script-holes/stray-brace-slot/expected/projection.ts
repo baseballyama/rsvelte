@@ -25,6 +25,6 @@ function $$render() {
     "default": {},
   });
 }
-const StrayBraceSlot__SvelteComponent_ = __rsvelte_rendered_isomorphic($$render());
+const StrayBraceSlot__SvelteComponent_ = $$render() as unknown as __rsvelte_rendered<Awaited<ReturnType<typeof $$render>>, __rsvelte_unrendered_isomorphic>;
 type StrayBraceSlot__SvelteComponent_ = InstanceType<typeof StrayBraceSlot__SvelteComponent_>;
 export default StrayBraceSlot__SvelteComponent_;

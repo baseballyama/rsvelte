@@ -17,6 +17,6 @@ function $$render() {
     api: typeof api;
   }, "">();
 }
-const Array__SvelteComponent_ = __rsvelte_rendered_component($$render());
+const Array__SvelteComponent_ = $$render() as unknown as __rsvelte_rendered<Awaited<ReturnType<typeof $$render>>, __rsvelte_unrendered_component>;
 type Array__SvelteComponent_ = ReturnType<typeof Array__SvelteComponent_>;
 export default Array__SvelteComponent_;

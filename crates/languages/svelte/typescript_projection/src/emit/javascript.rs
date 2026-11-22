@@ -52,23 +52,22 @@ impl Printer<'_> {
         &mut self,
         component: NodeIdentifier,
         instance: &str,
-        rendered: Option<&str>,
+        unrendered: &str,
     ) {
         self.output.push("export const ");
         self.push_default_export();
         self.output
             .push(" = /** @type {__rsvelte_javascript_export<");
-        let returned = "Awaited<ReturnType<typeof $$render>>";
-        match rendered {
-            Some(rendered) => {
-                for part in [rendered, "<", returned, ">"] {
-                    self.output.push(part);
-                }
-            }
-            None => self.output.push(returned),
-        }
+        self.render_result(|_| {}, unrendered);
         self.output.push(">} */ (");
-        self.rendered(component, rendered);
+        // What a render function closed early returns converts to its component through `unknown`.
+        if self.tree.holes {
+            self.output.push("/** @type {unknown} */ (");
+        }
+        self.node(component);
+        if self.tree.holes {
+            self.output.push(")");
+        }
         for part in [");\n/** @typedef {", instance, "<typeof "] {
             self.output.push(part);
         }

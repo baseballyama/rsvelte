@@ -367,8 +367,6 @@ impl Builder<'_> {
             Node::ExportDefault {
                 component,
                 instance,
-                holes: (self.component.instance.as_ref())
-                    .is_some_and(|script| !script.holes.is_empty()),
             }
         };
         self.scratch.push(self.tree.push(export));
