@@ -31,7 +31,8 @@ pub(crate) fn format(arguments: &[String]) -> ExitCode {
     let tailwind = tailwind::Tailwind::default();
     let hosts = HostFormatters::default()
         .with(Language::Svelte, Svelte(tailwind.clone()))
-        .with_tailwind_sorter(tailwind);
+        .with_tailwind_sorter(tailwind)
+        .with_config_loader(configuration::Node);
     let result = oxfmt::cli::WalkRunner::new(command).with_hosts(hosts).run();
     ExitCode::from(result.exit_code())
 }
@@ -125,6 +126,7 @@ fn panic_message(panic: &(dyn Any + Send)) -> &str {
         .unwrap_or("a payload that is not a string")
 }
 
+mod configuration;
 mod tailwind;
 
 #[cfg(test)]

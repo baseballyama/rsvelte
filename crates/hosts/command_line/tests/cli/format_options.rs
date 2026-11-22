@@ -97,26 +97,32 @@ fn format_takes_oxfmts_options_and_configuration_for_svelte_too() {
 }
 
 #[test]
-fn format_reports_each_svelte_file_whose_options_it_cannot_print_and_formats_the_others() {
-    let svelte = "<script>\nlet   a = \"1\"\n</script>\n";
+fn format_gives_svelte_files_every_option_value_oxfmt_takes() {
     let project = Project::new(&[
         (
             ".oxfmtrc.json",
-            r#"{ "singleQuote": true, "experimentalOperatorPosition": "start" }"#,
+            r#"{ "quoteProps": "preserve", "trailingComma": "none",
+                 "bracketSpacing": false, "arrowParens": "avoid" }"#,
         ),
-        ("a.ts", "y(\"z\");\n"),
-        ("App.svelte", svelte),
+        (
+            "App.svelte",
+            "<script>\nconst o = { \"a\": 1, b: [1, 2,], f: (x) => x };\n</script>\n\n\
+             <Comp style={{ \"color\": \"red\", b: 1 }} on:x={(e) => f({ \"a\": e })} />\n\
+             {#each items as { \"a\": first, b }}\n  \
+             {@const c = { \"a\": first, \"b\": b }}\n  {c}\n{/each}\n",
+        ),
     ]);
     let output = project.rsvelte(&["format"]);
-    let report = format!("{}{}", text(&output.stdout), text(&output.stderr));
-    assert_eq!(output.status.code(), Some(2), "{report}");
-    assert!(
-        report.contains("`experimentalOperatorPosition`") && report.contains("App.svelte"),
-        "{report}"
-    );
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
     let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
-    assert_eq!(read("a.ts"), "y('z');\n");
-    assert_eq!(read("App.svelte"), svelte);
+    // Expected output from oxfmt 0.75.0 with `"svelte": true`.
+    assert_eq!(
+        read("App.svelte"),
+        "<script>\n  const o = {\"a\": 1, b: [1, 2], f: x => x};\n</script>\n\n\
+         <Comp style={{\"color\": \"red\", b: 1}} on:x={e => f({\"a\": e})} />\n\
+         {#each items as { \"a\": first, b }}\n  \
+         {@const c = {\"a\": first, \"b\": b}}\n  {c}\n{/each}\n"
+    );
 }
 
 #[test]
@@ -134,6 +140,39 @@ fn format_gives_svelte_files_the_script_options() {
     assert_eq!(
         read("App.svelte"),
         "<script>\n  let a = '1'\n</script>\n\n<p>{f('x')}</p>\n"
+    );
+}
+
+#[test]
+fn format_reads_a_typescript_configuration_with_node() {
+    let project = Project::new(&[
+        (
+            "oxfmt.config.ts",
+            "const semi: boolean = false;\nconsole.log('loaded');\n\
+             export default { semi, singleQuote: true };\n",
+        ),
+        ("a.ts", "y(\"z\");\n"),
+        ("App.svelte", "<script>\nlet   a = \"1\";\n</script>\n"),
+    ]);
+    let output = project.rsvelte(&["format"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let read = |name: &str| std::fs::read_to_string(project.0.join(name)).expect("file");
+    assert_eq!(read("a.ts"), "y('z')\n");
+    assert_eq!(read("App.svelte"), "<script>\n  let a = '1'\n</script>\n");
+}
+
+#[test]
+fn format_reports_a_typescript_configuration_without_an_object() {
+    let project = Project::new(&[
+        ("oxfmt.config.ts", "export default 1;\n"),
+        ("a.ts", "y(\"z\");\n"),
+    ]);
+    let output = project.rsvelte(&["format"]);
+    assert_eq!(output.status.code(), Some(1), "{}", text(&output.stderr));
+    let printed = format!("{}{}", text(&output.stdout), text(&output.stderr));
+    assert!(
+        printed.contains("must have a default export that is an object"),
+        "{printed}"
     );
 }
 
