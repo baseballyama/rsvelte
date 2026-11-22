@@ -1,4 +1,8 @@
 {
+	"no-top-level-browser-globals/invalid/test03-input.svelte": {
+		"reason": "the fixture predates globals 16.5.0, where localStorage is also a node global, so eslint-plugin-svelte with globals 16.5.0 reports nothing either",
+		"errors": []
+	},
 	"valid-compile/invalid/invalid-svelte-ignore03-input.svelte": {
 		"reason": "upstream blanks svelte-ignore comments before compiling, so a block holding only one reports block_empty, which the compiler does not",
 		"errors": [
