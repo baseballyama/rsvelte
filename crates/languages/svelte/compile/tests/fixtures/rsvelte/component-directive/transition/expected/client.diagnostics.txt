@@ -1,0 +1,2 @@
+error component_invalid_directive 7:7-7:22 This type of directive is not valid on components
+    https://svelte.dev/e/component_invalid_directive

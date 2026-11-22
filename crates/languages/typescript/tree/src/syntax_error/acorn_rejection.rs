@@ -10,7 +10,7 @@ use oxc_span::SourceType;
 
 use super::Acorn;
 use super::locator::{Find, Holder, Locator, Reading, locate};
-use super::word::{keyword, misused};
+use super::word::{Home, keyword, misused};
 
 mod lexer;
 mod pattern;
@@ -29,10 +29,43 @@ pub(crate) fn reported(
     let number = (error.code.scope.as_deref() == Some("TS"))
         .then(|| error.code.number.as_deref())
         .flatten();
+    if number.is_none() && error.message == ARGUMENTS_IN_STATIC_BLOCK {
+        return !as_acorn || in_static_block(error, visit);
+    }
     number.is_none_or(|number| {
         let accepted = as_acorn && acorn_accepts(error, number, visit);
         !(unchecked.contains(&number) || accepted)
     })
+}
+
+/// oxc's errors for `arguments` in a class field initializer and in a class static block.
+const ARGUMENTS_IN_INITIALIZER: &str = "'arguments' is not allowed in class field initializer";
+const ARGUMENTS_IN_STATIC_BLOCK: &str = "'arguments' is not allowed in static initialization block";
+
+/// acorn's wording for oxc's error about `arguments` at `start`.
+fn arguments_misused(error: &OxcDiagnostic, start: u32) -> Option<Acorn> {
+    match error.message.as_ref() {
+        ARGUMENTS_IN_INITIALIZER => Some(fails(
+            "Cannot use 'arguments' in class field initializer",
+            start,
+        )),
+        ARGUMENTS_IN_STATIC_BLOCK => Some(fails(
+            "Cannot use arguments in class static initialization block",
+            start,
+        )),
+        _ => None,
+    }
+}
+
+/// Whether acorn reads the name `error` labels in a class static block: oxc also refuses
+/// `arguments` in an arrow function there, which acorn reads as a function of its own.
+fn in_static_block(error: &OxcDiagnostic, visit: impl FnOnce(&mut Locator)) -> bool {
+    let Some(label) = error.labels.first() else {
+        return true;
+    };
+    let mut locator = Locator::new(label.offset(), label.offset() + label.len(), Find::Home);
+    visit(&mut locator);
+    locator.home == Some(Home::StaticBlock)
 }
 
 /// Whether acorn reads the text oxc rejects with `error`, whose code is `number`, without failing.
@@ -103,11 +136,10 @@ pub(crate) fn acorn(
             .then(|| keyword(kind.to_str(), at))
     };
     if error.code.scope.as_deref() != Some("TS") {
-        if let Some(acorn) = misused(start, end, read(), visit, false) {
-            return Some(acorn);
-        }
-        // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.
-        return regular_expression(text, start, read())
+        return arguments_misused(error, start)
+            .or_else(|| misused(start, end, read(), visit, false))
+            .or_else(|| regular_expression(text, start, read()))
+            // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.
             .or_else(|| reserved(start).filter(|_| kind_at(start) == Some(Kind::Enum)));
     }
     let token = |after: u32, kind: Option<Kind>| {

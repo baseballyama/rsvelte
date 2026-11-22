@@ -4,6 +4,7 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range};
 
+use super::attributes::{Host, Kind};
 use super::{Builder, Node, NodeIdentifier, Result, SourceExpression, refuse};
 use crate::syntax_tree::Spelling;
 
@@ -206,11 +207,11 @@ impl Builder<'_> {
         }
     }
 
-    /// Adds what `use:`, a transition, `animate:` or `style:` on the element `tag` checks.
+    /// Adds what `use:`, a transition, `animate:` or `style:` on `host` checks.
     pub(super) fn directive(
         &mut self,
         attribute: &Attribute,
-        tag: Span,
+        host: &Host,
         directives: &mut Directives,
     ) -> Result<()> {
         let unsupported = || refuse("directives", attribute.span);
@@ -240,7 +241,11 @@ impl Builder<'_> {
                 _ => return Err(unsupported()),
             },
         };
-        let element = self.map_element_tag(tag);
+        let element = match host.kind {
+            Kind::Element { .. } => self.map_element_tag(host.name),
+            Kind::Component => self.tree.push(Node::Identifier("__rsvelte_any_node")),
+            Kind::Slot => return Err(unsupported()),
+        };
         // svelte-check maps a finding on the movement to where svelte2tsx's last mapping before it
         // starts: the name's last character, or the name's end when parameters follow.
         let movement = (attribute.kind == AttributeKind::Animate).then(|| {

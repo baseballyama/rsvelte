@@ -330,3 +330,57 @@ const CASES: &[(&str, &str, u32)] = &[
 fn a_misused_keyword_raises_acorns_error_in_a_script_and_in_a_module() {
     super::outcomes::assert_script_and_module_errors(CASES);
 }
+
+#[test]
+fn arguments_in_a_class_field_initializer_or_static_block_raises_acorns_error() {
+    super::outcomes::assert_script_and_module_errors(&[
+        (
+            "class A { x = arguments; }",
+            "Cannot use 'arguments' in class field initializer",
+            14,
+        ),
+        (
+            "class A { x = () => arguments; }",
+            "Cannot use 'arguments' in class field initializer",
+            20,
+        ),
+        (
+            "class A { static x = arguments; }",
+            "Cannot use 'arguments' in class field initializer",
+            21,
+        ),
+        (
+            "class A { x = { y: arguments }; }",
+            "Cannot use 'arguments' in class field initializer",
+            19,
+        ),
+        (
+            "class A { static { arguments; } }",
+            "Cannot use arguments in class static initialization block",
+            19,
+        ),
+    ]);
+}
+
+#[test]
+fn arguments_in_a_function_inside_a_class_static_block_is_left_to_svelte() {
+    super::outcomes::assert_component_outcomes(&[
+        (
+            "<script>class A { static { () => arguments; } }</script>",
+            Some((
+                "invalid_arguments_usage",
+                "The arguments keyword cannot be used within the template or at the top level of \
+                 a component",
+                33,
+            )),
+        ),
+        (
+            "<script>class A { static { function f() { arguments; } } }</script>",
+            None,
+        ),
+        (
+            "<script>class A { x = function () { return arguments; }; }</script>",
+            None,
+        ),
+    ]);
+}
