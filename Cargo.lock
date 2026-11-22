@@ -1714,8 +1714,6 @@ dependencies = [
 name = "rsvelte_svelte_check"
 version = "0.5.1"
 dependencies = [
- "oxc_ast",
- "oxc_ast_visit",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
  "rsvelte_svelte_semantic",
@@ -1923,6 +1921,7 @@ version = "0.5.1"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
+ "oxc_ast_visit",
  "oxc_parser",
  "oxc_span",
  "rsvelte_kernel",
