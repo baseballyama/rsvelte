@@ -26,8 +26,8 @@
 <h1>Rules</h1>
 
 <p>
-	<code>rsvelte lint</code> implements these {rules.length} rules, ported from ESLint, typescript-eslint
-	and eslint-plugin-svelte under the same names. Some of them check
+	<code>rsvelte lint</code> implements these {rules.length} rules, ported from ESLint,
+	typescript-eslint and eslint-plugin-svelte under the same names. Some of them check
 	<a href={resolve('/guide') + '#legacy'}>legacy syntax</a>, such as <code>$:</code>. The categories
 	come from oxlint, the linter of the oxc project.
 </p>
