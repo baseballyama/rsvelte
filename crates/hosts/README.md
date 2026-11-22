@@ -65,8 +65,8 @@ any product with its API, such as `tsrs`. rsvelte starts it with
 `--api --cwd <dir> --runExternalCode` and asks it for diagnostics. The CLI looks for a bare name
 such as `tsrs` in the project's `node_modules/.bin`, then in `PATH`. Without `command`, it runs
 the first of `tsrs`, `@typescript/native-preview` and `typescript` that the project installs.
-It starts a TypeScript package's native executable directly, found as the package's script
-finds it, and runs `tsrs`, or a TypeScript package without one, through `node`. It passes over a TypeScript older than 7.1. If it finds no checker, the error
+It starts a TypeScript package's native executable directly, as the package's script finds it.
+It runs `tsrs` and a TypeScript package without that executable through `node`. It passes over a TypeScript older than 7.1. If it finds no checker, the error
 names the ones it passed over and the command that installs `tsrs` with the project's package
 manager. Before it reads any file,
 the CLI runs `<checker> --version`; `benchmark` and `performance` record each program and its
