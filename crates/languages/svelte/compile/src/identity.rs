@@ -43,9 +43,15 @@ impl OutputIdentity {
                 .elements()
                 .any(|(_, element)| element.kind == ElementKind::Metadata(Some(MetadataTag::Head)))
                 .then(|| hash(input.filename)),
-            stylesheet_hash: input
-                .style
-                .map(|_| format!("svelte-{}", hash(input.filename))),
+            // A source without a name takes its hash from the stylesheet, as the official one does.
+            stylesheet_hash: input.style.map(|style| {
+                let key = if input.filename == crate::UNKNOWN_FILENAME {
+                    style.content.text(input.source_text)
+                } else {
+                    input.filename
+                };
+                format!("svelte-{}", hash(key))
+            }),
         }
     }
 }
