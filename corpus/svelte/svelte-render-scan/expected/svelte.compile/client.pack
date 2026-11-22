@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 1710 src/lib/components/Logo.svelte	js
+=== 1752 src/lib/components/Logo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -112,7 +113,8 @@ export default function Logo($$anchor, $$props) {
 		transform: rotate(0deg);
 	}
 
-=== 2607 src/lib/components/RenderScan.svelte	js
+=== 2649 src/lib/components/RenderScan.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Eye from '$lib/components/Logo.svelte';
@@ -233,7 +235,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 5392 src/lib/components/RenderScanObserver.svelte	js
+=== 5434 src/lib/components/RenderScanObserver.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -466,7 +469,8 @@ export default function RenderScanObserver($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1695 src/routes/+layout.svelte	js
+=== 1737 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import '../app.css';
@@ -547,7 +551,8 @@ export default function _layout($$anchor, $$props) {
 		}
 	}
 
-=== 15476 src/routes/+page.svelte	js
+=== 15518 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';

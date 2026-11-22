@@ -38127,7 +38127,7 @@ export default function LiveDemo($$renderer, $$props) {
 		$$renderer.push(`<!--]--></div></div></section>`);
 	});
 }
-=== 7517 src/lib/components/landing/Navbar/Navbar.svelte	js
+=== 7489 src/lib/components/landing/Navbar/Navbar.svelte	js
 import * as $ from 'svelte/internal/server';
 import { page } from '$app/state';
 import { useStars } from '$lib/hooks/useStars.svelte';
@@ -38221,7 +38221,6 @@ export default function Navbar($$renderer, $$props) {
 		// Close the landing mobile menu when tapping outside the navbar.
 		// Scroll listener
 		// Reposition highlight on route change
-		// reactive dep: pathname
 		scrolled ? 'ln-navbar-scrolled' : ''} ${showDocs ? 'ln-navbar-docs' : ''}`)}><div class="ln-navbar-inner"><div class="ln-navbar-left"><a href="/" class="ln-navbar-logo" aria-label="svelte-bits home">${$.html(logoSvg)}</a> <span class="ln-navbar-divider">/</span> <nav class="ln-navbar-links"><div class="ln-navbar-link-highlight"></div> <!--[-->`);
 
 		const each_array = $.ensure_array_like(NAV_LINKS);
@@ -40197,7 +40196,7 @@ export default function LaserFlow($$renderer, $$props) {
 		$$renderer.push(`<div${$.attr_class(`w-full h-full relative ${$.stringify(className)}`)}${$.attr_style(style)}></div>`);
 	});
 }
-=== 6338 src/lib/components/library/Animations/LogoLoop/LogoLoop.svelte	js
+=== 6318 src/lib/components/library/Animations/LogoLoop/LogoLoop.svelte	js
 import * as $ from 'svelte/internal/server';
 
 const SMOOTH_TAU = 0.25;
@@ -40274,7 +40273,6 @@ export default function LogoLoop($$renderer, $$props) {
 			}
 		}
 
-		// preload images
 		const cssVars = $.derived(() => `--logoloop-gap:${gap}px;--logoloop-logoHeight:${logoHeight}px;${fadeOutColor ? `--logoloop-fadeColor:${fadeOutColor};` : ''}--logoloop-fadeColorAuto:#0b0b0b;`);
 
 		const widthStyle = $.derived(() => {
@@ -40742,7 +40740,7 @@ export default function MetaBalls($$renderer, $$props) {
 		$$renderer.push(`<div class="absolute inset-0"></div>`);
 	});
 }
-=== 8065 src/lib/components/library/Animations/MetallicPaint/MetallicPaint.svelte	js
+=== 8033 src/lib/components/library/Animations/MetallicPaint/MetallicPaint.svelte	js
 import * as $ from 'svelte/internal/server';
 
 const VS = `#version 300 es
@@ -41006,10 +41004,9 @@ export default function MetallicPaint($$renderer, $$props) {
 		let canvas;
 
 		$$renderer.push(`<canvas class="block h-full w-full object-contain"></canvas>`);
-		// Update uniforms reactively
 	});
 }
-=== 556 src/lib/components/library/Animations/Noise/Noise.svelte	js
+=== 474 src/lib/components/library/Animations/Noise/Noise.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function Noise($$renderer, $$props) {
@@ -41025,7 +41022,6 @@ export default function Noise($$renderer, $$props) {
 		let canvas = void 0;
 
 		$$renderer.push(`<canvas class="pointer-events-none absolute top-0 left-0 h-screen w-screen"${$.attr_style('', { 'image-rendering': 'pixelated' })}></canvas>`);
-		// Touch all props so the effect re-runs when they change (matches React deps).
 	});
 }
 === 6589 src/lib/components/library/Animations/OrbitImages/OrbitImages.svelte	js
@@ -41241,7 +41237,7 @@ export default function OrbitImages($$renderer, $$props) {
 		$$renderer.push(`<!--]--></div></div></div>`);
 	});
 }
-=== 1594 src/lib/components/library/Animations/PixelTrail/PixelTrail.svelte	js
+=== 1088 src/lib/components/library/Animations/PixelTrail/PixelTrail.svelte	js
 import * as $ from 'svelte/internal/server';
 import * as THREE from 'three';
 
@@ -41260,17 +41256,7 @@ export default function PixelTrail($$renderer, $$props) {
 
 		let host;
 
-		if (// Trail canvas (used as texture source)
-		// Compute the texture-space (coverUv) coordinate that matches the shader sampling.
-		// Pointer trail recording
-		// 0..1 left-to-right
-		// 0..1 bottom-to-top (matches gl_FragCoord)
-		// fade trail (full clear each frame, repaint surviving points)
-		// canvas y is top-down
-		// Reactive uniform sync
-		// (no-op reactive dependency demonstration; the effect above re-runs on prop change via $effect
-		// implicitly on reactive uniforms used inside its body)
-		gooeyFilter) {
+		if (gooeyFilter) {
 			$$renderer.push(`<!--[0--><svg class="z-[1] absolute overflow-hidden"><defs><filter${$.attr('id', gooeyFilter.id)}><feGaussianBlur in="SourceGraphic"${$.attr('stdDeviation', gooeyFilter.strength)} result="blur"></feGaussianBlur><feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9" result="goo"></feColorMatrix><feComposite in="SourceGraphic" in2="goo" operator="atop"></feComposite></filter></defs></svg>`);
 		} else {
 			$$renderer.push('<!--[-1-->');
@@ -41472,7 +41458,7 @@ export default function ShapeBlur($$renderer, $$props) {
 		$$renderer.push(`<div${$.attr_class(`absolute inset-0 ${$.stringify(className)}`)}></div>`);
 	});
 }
-=== 1169 src/lib/components/library/Animations/SplashCursor/SplashCursor.svelte	js
+=== 1083 src/lib/components/library/Animations/SplashCursor/SplashCursor.svelte	js
 import * as $ from 'svelte/internal/server';
 
 function pointerPrototype() {
@@ -41516,8 +41502,6 @@ export default function SplashCursor($$renderer, $$props) {
 		let canvasRef;
 
 		$$renderer.push(`<div class="pointer-events-none fixed left-0 top-0 z-50 h-full w-full"><canvas id="fluid" class="block h-screen w-screen"></canvas></div>`);
-		// svelte-ignore perf_avoid_nested_class
-		// svelte-ignore perf_avoid_nested_class
 	});
 }
 === 1362 src/lib/components/library/Animations/StickerPeel/StickerPeel.svelte	css
@@ -49785,7 +49769,7 @@ void main() {
 		$$renderer.push(`<div class="h-full w-full"></div>`);
 	});
 }
-=== 1739 src/lib/components/library/Backgrounds/LiquidEther/LiquidEther.svelte	js
+=== 1118 src/lib/components/library/Backgrounds/LiquidEther/LiquidEther.svelte	js
 import * as $ from 'svelte/internal/server';
 import * as THREE from 'three';
 
@@ -49824,25 +49808,7 @@ export default function LiquidEther($$renderer, $$props) {
 		let isVisibleRef = true;
 		let resizeRafRef = null;
 
-		$$renderer.push(`<div${$.attr_class(`relative h-full w-full overflow-hidden pointer-events-none touch-none ${$.stringify(
-			// svelte-ignore perf_avoid_nested_class
-			// svelte-ignore perf_avoid_nested_class
-			// svelte-ignore perf_avoid_nested_class
-			// svelte-ignore perf_avoid_nested_class
-			// svelte-ignore perf_avoid_nested_class
-			// svelte-ignore perf_avoid_nested_class
-			// svelte-ignore perf_avoid_nested_class
-			// svelte-ignore perf_avoid_nested_class
-			// svelte-ignore perf_avoid_nested_class
-			// svelte-ignore perf_avoid_nested_class
-			// svelte-ignore perf_avoid_nested_class
-			// svelte-ignore perf_avoid_nested_class
-			// svelte-ignore perf_avoid_nested_class
-			/* noop */
-			/* noop */
-			/* noop */
-			className
-		)}`)}></div>`);
+		$$renderer.push(`<div${$.attr_class(`relative h-full w-full overflow-hidden pointer-events-none touch-none ${$.stringify(className)}`)}></div>`);
 	});
 }
 === 8452 src/lib/components/library/Backgrounds/Orb/Orb.svelte	js
@@ -54839,7 +54805,7 @@ export default function BounceCards($$renderer, $$props) {
 		.bubble-menu-items .pill-link:active { transform: scale(0.94); }
 	}
 
-=== 4253 src/lib/components/library/Components/BubbleMenu/BubbleMenu.svelte	js
+=== 4153 src/lib/components/library/Components/BubbleMenu/BubbleMenu.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount } from 'svelte';
 import { gsap } from 'gsap';
@@ -54917,8 +54883,6 @@ export default function BubbleMenu($$renderer, $$props) {
 			onMenuClick?.(next);
 		}
 
-		// Re-run when these change
-		// Defer one frame so {#if showOverlay} mount + bind have committed
 		onMount(() => {
 			const handleResize = () => {
 				if (!isMenuOpen || !overlayRef) return;
@@ -56532,7 +56496,7 @@ export default function DecayCard($$renderer, $$props) {
 		$$renderer.push(`<!--]--></div></div>`);
 	});
 }
-=== 4255 src/lib/components/library/Components/Dock/Dock.svelte	js
+=== 4224 src/lib/components/library/Components/Dock/Dock.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount } from 'svelte';
 import { motionValue, animate, transform } from 'motion';
@@ -56606,7 +56570,6 @@ export default function Dock($$renderer, $$props) {
 		// Per-item size state (parallel array indexed by item index)
 		let sizes = items.map(() => baseItemSize);
 
-		// keep array length in sync
 		// Per-item label visibility
 		let labelVisible = items.map(() => false);
 
@@ -58451,7 +58414,7 @@ export default function GlassIcons($$renderer, $$props) {
 
 	$$renderer.push(`<!--]--></div>`);
 }
-=== 8380 src/lib/components/library/Components/GlassSurface/GlassSurface.svelte	js
+=== 8349 src/lib/components/library/Components/GlassSurface/GlassSurface.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount } from 'svelte';
 
@@ -58562,7 +58525,6 @@ export default function GlassSurface($$renderer, $$props) {
 			return typeof window !== 'undefined' && CSS.supports('backdrop-filter', 'blur(10px)');
 		}
 
-		// react to all visual props
 		onMount(() => {
 			svgSupported = supportsSVGFilters();
 
@@ -64296,7 +64258,7 @@ void main() {
 		$$renderer.push(`<div style="position:absolute;width:100%;height:100%;" class="svelte-7nwm30"></div>`);
 	});
 }
-=== 2859 src/lib/components/library/TextAnimations/BlurText/BlurText.svelte	js
+=== 2743 src/lib/components/library/TextAnimations/BlurText/BlurText.svelte	js
 import * as $ from 'svelte/internal/server';
 import { animate } from 'motion';
 
@@ -64377,8 +64339,6 @@ export default function BlurText($$renderer, $$props) {
 
 		$$renderer.push(`<p${$.attr_class(`blur-text ${$.stringify(
 			// Set initial styles immediately on mount
-			// re-run when snapshots change
-			// Build per-property keyframe arrays with `y` mapped to translateY transform
 			className
 		)} flex flex-wrap`)}><!--[-->`);
 
@@ -65039,7 +64999,7 @@ export default function GlitchText($$renderer, $$props) {
 		})}>${$.escape(text)}</div>`);
 	});
 }
-=== 2434 src/lib/components/library/TextAnimations/GradientText/GradientText.svelte	js
+=== 2402 src/lib/components/library/TextAnimations/GradientText/GradientText.svelte	js
 import * as $ from 'svelte/internal/server';
 import { animate } from 'motion';
 
@@ -65059,7 +65019,6 @@ export default function GradientText($$renderer, $$props) {
 		let progress = 0;
 		let isPaused = false;
 
-		// reset on speed/yoyo change
 		// Reference `animate` so the dep import is not tree-shaken (kept available for users who extend)
 		void animate;
 
@@ -65571,7 +65530,7 @@ export default function ScrollVelocity($$renderer, $$props) {
 		$$renderer.push(`<!--]--></section>`);
 	});
 }
-=== 1117 src/lib/components/library/TextAnimations/ShinyText/ShinyText.svelte	js
+=== 1084 src/lib/components/library/TextAnimations/ShinyText/ShinyText.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function ShinyText($$renderer, $$props) {
@@ -65592,10 +65551,7 @@ export default function ShinyText($$renderer, $$props) {
 
 		let progress = direction === 'left' ? 0 : 100;
 		let isPaused = false;
-
-		// reset on direction change
 		const backgroundImage = $.derived(() => `linear-gradient(${spread}deg, ${color} 0%, ${color} 35%, ${shineColor} 50%, ${color} 65%, ${color} 100%)`);
-
 		const backgroundPosition = $.derived(() => `${150 - progress * 2}% center`);
 
 		$$renderer.push(`<span${$.attr_class(`inline-block ${$.stringify(className)}`)} role="presentation"${$.attr_style('', {
@@ -65650,7 +65606,7 @@ export default function ShinyText($$renderer, $$props) {
 		text-align: center;
 	}
 
-=== 1623 src/lib/components/library/TextAnimations/Shuffle/Shuffle.svelte	js
+=== 1609 src/lib/components/library/TextAnimations/Shuffle/Shuffle.svelte	js
 import * as $ from 'svelte/internal/server';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -65705,7 +65661,6 @@ export default function Shuffle($$renderer, $$props) {
 
 		$.element(
 			$$renderer,
-			/* noop */
 			tag,
 			() => {
 				$$renderer.push(`${$.attr_class(`shuffle-parent ${ready ? 'is-ready' : ''} ${$.stringify(className)}`)}${$.attr_style(`text-align:${$.stringify(textAlign)};${$.stringify(style)}`)}`);
@@ -65716,7 +65671,7 @@ export default function Shuffle($$renderer, $$props) {
 		);
 	});
 }
-=== 1284 src/lib/components/library/TextAnimations/SplitText/SplitText.svelte	js
+=== 1176 src/lib/components/library/TextAnimations/SplitText/SplitText.svelte	js
 import * as $ from 'svelte/internal/server';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -65749,8 +65704,6 @@ export default function SplitText($$renderer, $$props) {
 
 		$.element(
 			$$renderer,
-			// GSAP may already have reverted during teardown.
-			// GSAP may already have reverted during teardown.
 			tag,
 			() => {
 				$$renderer.push(`${$.attr_class(`split-parent overflow-hidden inline-block whitespace-normal ${$.stringify(className)}`)}${$.attr_style('', {
@@ -65969,7 +65922,7 @@ export default function TextCursor($$renderer, $$props) {
 		-webkit-text-stroke-color: var(--text-pressure-stroke, #ff0000);
 	}
 
-=== 1767 src/lib/components/library/TextAnimations/TextPressure/TextPressure.svelte	js
+=== 1671 src/lib/components/library/TextAnimations/TextPressure/TextPressure.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function TextPressure($$renderer, $$props) {
@@ -66002,13 +65955,7 @@ export default function TextPressure($$renderer, $$props) {
 		let lineHeight = 1;
 		const chars = $.derived(() => text.split(''));
 
-		$$renderer.push(`<div class="text-pressure-container svelte-flls7y"><h1${$.attr_class(
-			`text-pressure-title ${$.stringify(
-				// FontFace unsupported — silently skip; the fallback family kicks in.
-				className
-			)} ${flex ? 'flex-layout' : ''} ${stroke ? 'has-stroke' : ''}`,
-			'svelte-flls7y'
-		)}${$.attr_style(`font-family:${$.stringify(fontFamily)};font-size:${$.stringify(fontSize)}px;line-height:${$.stringify(lineHeight)};transform:scale(1, ${$.stringify(scaleY)});color:${$.stringify(textColor)};--text-pressure-stroke:${$.stringify(strokeColor)};`)}><!--[-->`);
+		$$renderer.push(`<div class="text-pressure-container svelte-flls7y"><h1${$.attr_class(`text-pressure-title ${$.stringify(className)} ${flex ? 'flex-layout' : ''} ${stroke ? 'has-stroke' : ''}`, 'svelte-flls7y')}${$.attr_style(`font-family:${$.stringify(fontFamily)};font-size:${$.stringify(fontSize)}px;line-height:${$.stringify(lineHeight)};transform:scale(1, ${$.stringify(scaleY)});color:${$.stringify(textColor)};--text-pressure-stroke:${$.stringify(strokeColor)};`)}><!--[-->`);
 
 		const each_array = $.ensure_array_like(chars());
 

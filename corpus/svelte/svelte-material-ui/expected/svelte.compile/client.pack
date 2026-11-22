@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 3689 packages/accordion/src/Accordion.svelte	js
+=== 3731 packages/accordion/src/Accordion.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext } from 'svelte';
@@ -162,7 +163,8 @@ export default function Accordion($$anchor, $$props) {
 	// Nested check.
 	// Nested check.
 }
-=== 5092 packages/accordion/src/Header.svelte	js
+=== 5134 packages/accordion/src/Header.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -382,7 +384,8 @@ export default function Header($$anchor, $$props) {
 
 	return $$pop;
 }
-=== 7359 packages/accordion/src/Panel.svelte	js
+=== 7401 packages/accordion/src/Panel.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, setContext, getContext } from 'svelte';
@@ -708,7 +711,8 @@ export default function Panel($$anchor, $$props) {
 	}
 ]
 
-=== 22672 packages/autocomplete/src/Autocomplete.svelte	js
+=== 22714 packages/autocomplete/src/Autocomplete.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext } from 'svelte';
@@ -1630,7 +1634,8 @@ $.delegate(['focusin', 'input']);
 	}
 ]
 
-=== 1905 packages/badge/src/Badge.svelte	js
+=== 1947 packages/badge/src/Badge.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { classMap, useActions } from '@smui/common/internal';
@@ -1709,7 +1714,8 @@ export default function Badge($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 9562 packages/banner/src/Banner.svelte	js
+=== 9604 packages/banner/src/Banner.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, onDestroy, getContext, setContext, tick } from 'svelte';
@@ -2127,7 +2133,8 @@ export default function Banner($$anchor, $$props) {
 	}
 ]
 
-=== 1426 packages/banner/src/Fixed.svelte	js
+=== 1468 packages/banner/src/Fixed.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2193,7 +2200,8 @@ export default function Fixed($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 3491 packages/bottom-app-bar/src/AutoAdjust.svelte	js
+=== 3533 packages/bottom-app-bar/src/AutoAdjust.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { classMap } from '@smui/common/internal';
@@ -2337,7 +2345,8 @@ export default function AutoAdjust($$anchor, $$props) {
 
 	return $$pop;
 }
-=== 8639 packages/bottom-app-bar/src/BottomAppBar.svelte	js
+=== 8681 packages/bottom-app-bar/src/BottomAppBar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, setContext } from 'svelte';
@@ -2748,7 +2757,8 @@ export default function BottomAppBar($$anchor, $$props) {
 	}
 ]
 
-=== 1929 packages/bottom-app-bar/src/Section.svelte	js
+=== 1971 packages/bottom-app-bar/src/Section.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -2841,7 +2851,8 @@ export default function Section($$anchor, $$props) {
 
 	return $$pop;
 }
-=== 6477 packages/button/src/Button.svelte	js
+=== 6519 packages/button/src/Button.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext, getContext } from 'svelte';
@@ -3123,7 +3134,8 @@ export default function Button($$anchor, $$props) {
 	}
 ]
 
-=== 1463 packages/button/src/Group.svelte	js
+=== 1505 packages/button/src/Group.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { classMap, useActions } from '@smui/common/internal';
@@ -3185,7 +3197,8 @@ export default function Group($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 932 packages/card/src/ActionButtons.svelte	js
+=== 974 packages/card/src/ActionButtons.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -3221,7 +3234,8 @@ export default function ActionButtons($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 928 packages/card/src/ActionIcons.svelte	js
+=== 970 packages/card/src/ActionIcons.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -3257,7 +3271,8 @@ export default function ActionIcons($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 1553 packages/card/src/Actions.svelte	js
+=== 1595 packages/card/src/Actions.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext } from 'svelte';
@@ -3322,7 +3337,8 @@ export default function Actions($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 1508 packages/card/src/Card.svelte	js
+=== 1550 packages/card/src/Card.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { classMap, useActions } from '@smui/common/internal';
@@ -3389,7 +3405,8 @@ export default function Card($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 920 packages/card/src/Content.svelte	js
+=== 962 packages/card/src/Content.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -3425,7 +3442,8 @@ export default function Content($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 1399 packages/card/src/Media.svelte	js
+=== 1441 packages/card/src/Media.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { classMap, useActions } from '@smui/common/internal';
@@ -3486,7 +3504,8 @@ export default function Media($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 930 packages/card/src/MediaContent.svelte	js
+=== 972 packages/card/src/MediaContent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -3522,7 +3541,8 @@ export default function MediaContent($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 2767 packages/card/src/PrimaryAction.svelte	js
+=== 2809 packages/card/src/PrimaryAction.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { classMap, useActions } from '@smui/common/internal';
@@ -3649,7 +3669,8 @@ export default function PrimaryAction($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 13412 packages/checkbox/src/Checkbox.svelte	js
+=== 13454 packages/checkbox/src/Checkbox.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext } from 'svelte';
@@ -4140,7 +4161,8 @@ export default function Checkbox($$anchor, $$props) {
 	}
 ]
 
-=== 12845 packages/chip-input/src/ChipInput.svelte	js
+=== 12887 packages/chip-input/src/ChipInput.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -4671,7 +4693,8 @@ export default function ChipInput($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 1797 packages/chips/src/Checkmark.svelte	js
+=== 1839 packages/chips/src/Checkmark.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { classMap, useActions } from '@smui/common/internal';
@@ -4743,7 +4766,8 @@ export default function Checkmark($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 12746 packages/chips/src/Chip.svelte	js
+=== 12788 packages/chips/src/Chip.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, setContext, getContext } from 'svelte';
@@ -5265,7 +5289,8 @@ export default function Chip($$anchor, $$props) {
 	}
 ]
 
-=== 11019 packages/chips/src/ChipSet.svelte	js
+=== 11061 packages/chips/src/ChipSet.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, setContext } from 'svelte';
@@ -5808,7 +5833,8 @@ export default function ChipSet($$anchor, $$props) {
 	}
 ]
 
-=== 1894 packages/chips/src/LeadingIcon.svelte	js
+=== 1936 packages/chips/src/LeadingIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -5879,7 +5905,8 @@ export default function LeadingIcon($$anchor, $$props) {
 
 	return $$pop;
 }
-=== 5194 packages/chips/src/Text.svelte	js
+=== 5236 packages/chips/src/Text.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext, tick } from 'svelte';
@@ -6114,7 +6141,8 @@ export default function Text($$anchor, $$props) {
 	}
 ]
 
-=== 6135 packages/chips/src/TrailingAction.svelte	js
+=== 6177 packages/chips/src/TrailingAction.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext, tick } from 'svelte';
@@ -6369,7 +6397,8 @@ export default function TrailingAction($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 1328 packages/chips/src/TrailingIcon.svelte	js
+=== 1370 packages/chips/src/TrailingIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { classMap, useActions } from '@smui/common/internal';
@@ -6427,7 +6456,8 @@ export default function TrailingIcon($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 6475 packages/circular-progress/src/CircularProgress.svelte	js
+=== 6517 packages/circular-progress/src/CircularProgress.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -6647,7 +6677,8 @@ export default function CircularProgress($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 2576 packages/common/src/CommonIcon.svelte	js
+=== 2618 packages/common/src/CommonIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -6755,7 +6786,8 @@ export default function CommonIcon($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 2724 packages/common/src/CommonLabel.svelte	js
+=== 2766 packages/common/src/CommonLabel.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -6865,7 +6897,8 @@ export default function CommonLabel($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 862 packages/common/src/ContextFragment.svelte	js
+=== 904 packages/common/src/ContextFragment.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy, setContext } from 'svelte';
@@ -6899,7 +6932,8 @@ export default function ContextFragment($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 2721 packages/common/src/SmuiElement.svelte	js
+=== 2763 packages/common/src/SmuiElement.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useActions } from './internal/index.js';
@@ -7021,7 +7055,8 @@ export default function SmuiElement($$anchor, $$props) {
 	}
 ]
 
-=== 1125 packages/common/src/Svg.svelte	js
+=== 1167 packages/common/src/Svg.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useActions } from './internal/index.js';
@@ -7063,7 +7098,8 @@ export default function Svg($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 3289 packages/common/src/classadder/ClassAdder.svelte	js
+=== 3331 packages/common/src/classadder/ClassAdder.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy, getContext, setContext } from 'svelte';
@@ -7270,7 +7306,8 @@ export default function ClassAdder($$anchor, $$props) {
 	}
 ]
 
-=== 2423 packages/data-table/src/Body.svelte	js
+=== 2465 packages/data-table/src/Body.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, setContext, getContext } from 'svelte';
@@ -7367,7 +7404,8 @@ export default function Body($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 7432 packages/data-table/src/Cell.svelte	js
+=== 7474 packages/data-table/src/Cell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext, setContext } from 'svelte';
@@ -7709,7 +7747,8 @@ export default function Cell($$anchor, $$props) {
 	}
 ]
 
-=== 14028 packages/data-table/src/DataTable.svelte	js
+=== 14070 packages/data-table/src/DataTable.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, onDestroy, getContext, setContext } from 'svelte';
@@ -8260,7 +8299,8 @@ export default function DataTable($$anchor, $$props) {
 	}
 ]
 
-=== 2758 packages/data-table/src/Head.svelte	js
+=== 2800 packages/data-table/src/Head.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, setContext, getContext } from 'svelte';
@@ -8364,7 +8404,8 @@ export default function Head($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 3288 packages/data-table/src/Pagination.svelte	js
+=== 3330 packages/data-table/src/Pagination.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext } from 'svelte';
@@ -8490,7 +8531,8 @@ export default function Pagination($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 4587 packages/data-table/src/Row.svelte	js
+=== 4629 packages/data-table/src/Row.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext, setContext } from 'svelte';
@@ -8697,7 +8739,8 @@ export default function Row($$anchor, $$props) {
 	 * If none is provided, one will be generated.
 	 */
 }
-=== 1114 packages/dialog/src/Actions.svelte	js
+=== 1156 packages/dialog/src/Actions.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -8744,7 +8787,8 @@ export default function Actions($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 947 packages/dialog/src/CloseTooltipWrapper.svelte	js
+=== 989 packages/dialog/src/CloseTooltipWrapper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -8780,7 +8824,8 @@ export default function CloseTooltipWrapper($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 921 packages/dialog/src/Content.svelte	js
+=== 963 packages/dialog/src/Content.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -8816,7 +8861,8 @@ export default function Content($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 13736 packages/dialog/src/Dialog.svelte	js
+=== 13778 packages/dialog/src/Dialog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, onDestroy, getContext, setContext } from 'svelte';
@@ -9398,7 +9444,8 @@ export default function Dialog($$anchor, $$props) {
 	}
 ]
 
-=== 1019 packages/dialog/src/Header.svelte	js
+=== 1061 packages/dialog/src/Header.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -9442,7 +9489,8 @@ export default function Header($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 1109 packages/dialog/src/Title.svelte	js
+=== 1151 packages/dialog/src/Title.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -9484,7 +9532,8 @@ export default function Title($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 927 packages/drawer/src/AppContent.svelte	js
+=== 969 packages/drawer/src/AppContent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -9520,7 +9569,8 @@ export default function AppContent($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 921 packages/drawer/src/Content.svelte	js
+=== 963 packages/drawer/src/Content.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -9556,7 +9606,8 @@ export default function Content($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 6739 packages/drawer/src/Drawer.svelte	js
+=== 6781 packages/drawer/src/Drawer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, setContext } from 'svelte';
@@ -9843,7 +9894,8 @@ export default function Drawer($$anchor, $$props) {
 	}
 ]
 
-=== 919 packages/drawer/src/Header.svelte	js
+=== 961 packages/drawer/src/Header.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -9879,7 +9931,8 @@ export default function Header($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 2318 packages/drawer/src/Scrim.svelte	js
+=== 2360 packages/drawer/src/Scrim.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { classMap, dispatch } from '@smui/common/internal';
@@ -9988,7 +10041,8 @@ export default function Scrim($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 922 packages/drawer/src/Subtitle.svelte	js
+=== 964 packages/drawer/src/Subtitle.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -10024,7 +10078,8 @@ export default function Subtitle($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 916 packages/drawer/src/Title.svelte	js
+=== 958 packages/drawer/src/Title.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -10060,7 +10115,8 @@ export default function Title($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 5018 packages/fab/src/Fab.svelte	js
+=== 5060 packages/fab/src/Fab.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext } from 'svelte';
@@ -10290,7 +10346,8 @@ export default function Fab($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 6496 packages/floating-label/src/FloatingLabel.svelte	js
+=== 6538 packages/floating-label/src/FloatingLabel.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext } from 'svelte';
@@ -10567,7 +10624,8 @@ export default function FloatingLabel($$anchor, $$props) {
 	}
 ]
 
-=== 3919 packages/form-field/src/FormField.svelte	js
+=== 3961 packages/form-field/src/FormField.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, setContext } from 'svelte';
@@ -10748,7 +10806,8 @@ export default function FormField($$anchor, $$props) {
 	}
 ]
 
-=== 9653 packages/icon-button/src/IconButton.svelte	js
+=== 9695 packages/icon-button/src/IconButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext, setContext } from 'svelte';
@@ -11172,7 +11231,8 @@ export default function IconButton($$anchor, $$props) {
 	}
 ]
 
-=== 921 packages/image-list/src/Image.svelte	js
+=== 963 packages/image-list/src/Image.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -11208,7 +11268,8 @@ export default function Image($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 985 packages/image-list/src/ImageAspectContainer.svelte	js
+=== 1027 packages/image-list/src/ImageAspectContainer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -11251,7 +11312,8 @@ export default function ImageAspectContainer($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 1698 packages/image-list/src/ImageList.svelte	js
+=== 1740 packages/image-list/src/ImageList.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext } from 'svelte';
@@ -11321,7 +11383,8 @@ export default function ImageList($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 918 packages/image-list/src/Item.svelte	js
+=== 960 packages/image-list/src/Item.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -11357,7 +11420,8 @@ export default function Item($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 931 packages/image-list/src/Supporting.svelte	js
+=== 973 packages/image-list/src/Supporting.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -11393,7 +11457,8 @@ export default function Supporting($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 2195 packages/layout-grid/src/Cell.svelte	js
+=== 2237 packages/layout-grid/src/Cell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { classMap, useActions } from '@smui/common/internal';
@@ -11476,7 +11541,8 @@ export default function Cell($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 1225 packages/layout-grid/src/InnerGrid.svelte	js
+=== 1267 packages/layout-grid/src/InnerGrid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { classMap, useActions } from '@smui/common/internal';
@@ -11528,7 +11594,8 @@ export default function InnerGrid($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 2071 packages/layout-grid/src/LayoutGrid.svelte	js
+=== 2113 packages/layout-grid/src/LayoutGrid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { classMap, exclude, prefixFilter, useActions } from '@smui/common/internal';
@@ -11611,7 +11678,8 @@ export default function LayoutGrid($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 3132 packages/line-ripple/src/LineRipple.svelte	js
+=== 3174 packages/line-ripple/src/LineRipple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -11743,7 +11811,8 @@ export default function LineRipple($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 6871 packages/linear-progress/src/LinearProgress.svelte	js
+=== 6913 packages/linear-progress/src/LinearProgress.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext } from 'svelte';
@@ -12029,7 +12098,8 @@ export default function LinearProgress($$anchor, $$props) {
 
 	return $$pop;
 }
-=== 1425 packages/list/src/Graphic.svelte	js
+=== 1467 packages/list/src/Graphic.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -12087,7 +12157,8 @@ export default function Graphic($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 925 packages/list/src/Group.svelte	js
+=== 967 packages/list/src/Group.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -12123,7 +12194,8 @@ export default function Group($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 11851 packages/list/src/Item.svelte	js
+=== 11893 packages/list/src/Item.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, setContext, getContext } from 'svelte';
@@ -12654,7 +12726,8 @@ export default function Item($$anchor, $$props) {
 	}
 ]
 
-=== 1415 packages/list/src/Label.svelte	js
+=== 1457 packages/list/src/Label.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -12716,7 +12789,8 @@ export default function Label($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 14661 packages/list/src/List.svelte	js
+=== 14703 packages/list/src/List.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, onDestroy, getContext, setContext } from 'svelte';
@@ -13375,7 +13449,8 @@ export default function List($$anchor, $$props) {
 	}
 ]
 
-=== 930 packages/list/src/Meta.svelte	js
+=== 972 packages/list/src/Meta.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -13411,7 +13486,8 @@ export default function Meta($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 977 packages/list/src/PrimaryText.svelte	js
+=== 1019 packages/list/src/PrimaryText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -13454,7 +13530,8 @@ export default function PrimaryText($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 981 packages/list/src/SecondaryText.svelte	js
+=== 1023 packages/list/src/SecondaryText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -13497,7 +13574,8 @@ export default function SecondaryText($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 2673 packages/list/src/Separator.svelte	js
+=== 2715 packages/list/src/Separator.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -13615,7 +13693,8 @@ export default function Separator($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 971 packages/list/src/Subheader.svelte	js
+=== 1013 packages/list/src/Subheader.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -13658,7 +13737,8 @@ export default function Subheader($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 930 packages/list/src/Text.svelte	js
+=== 972 packages/list/src/Text.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -13694,7 +13774,8 @@ export default function Text($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 13057 packages/menu-surface/src/MenuSurface.svelte	js
+=== 13099 packages/menu-surface/src/MenuSurface.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, setContext, getContext } from 'svelte';
@@ -14217,7 +14298,8 @@ export default function MenuSurface($$anchor, $$props) {
 	 */
 	// Ignore error.
 }
-=== 7871 packages/menu/src/Menu.svelte	js
+=== 7913 packages/menu/src/Menu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext, setContext } from 'svelte';
@@ -14540,7 +14622,8 @@ export default function Menu($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 1774 packages/menu/src/SelectionGroup.svelte	js
+=== 1816 packages/menu/src/SelectionGroup.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext } from 'svelte';
@@ -14607,7 +14690,8 @@ export default function SelectionGroup($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 1047 packages/menu/src/SelectionGroupIcon.svelte	js
+=== 1089 packages/menu/src/SelectionGroupIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -14653,7 +14737,8 @@ export default function SelectionGroupIcon($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 4228 packages/notched-outline/src/NotchedOutline.svelte	js
+=== 4270 packages/notched-outline/src/NotchedOutline.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, setContext } from 'svelte';
@@ -14832,7 +14917,8 @@ export default function NotchedOutline($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 921 packages/paper/src/Content.svelte	js
+=== 963 packages/paper/src/Content.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -14868,7 +14954,8 @@ export default function Content($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 2352 packages/paper/src/Paper.svelte	js
+=== 2394 packages/paper/src/Paper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { classMap, useActions } from '@smui/common/internal';
@@ -14958,7 +15045,8 @@ export default function Paper($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 922 packages/paper/src/Subtitle.svelte	js
+=== 964 packages/paper/src/Subtitle.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -14994,7 +15082,8 @@ export default function Subtitle($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 916 packages/paper/src/Title.svelte	js
+=== 958 packages/paper/src/Title.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -15030,7 +15119,8 @@ export default function Title($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 5824 packages/radio/src/Radio.svelte	js
+=== 5866 packages/radio/src/Radio.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext } from 'svelte';
@@ -15280,7 +15370,8 @@ export default function Radio($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 6901 packages/segmented-button/src/Segment.svelte	js
+=== 6943 packages/segmented-button/src/Segment.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext } from 'svelte';
@@ -15567,7 +15658,8 @@ export default function Segment($$anchor, $$props) {
 
 	return $$pop;
 }
-=== 8832 packages/segmented-button/src/SegmentedButton.svelte	js
+=== 8874 packages/segmented-button/src/SegmentedButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, setContext } from 'svelte';
@@ -15979,7 +16071,8 @@ export default function SegmentedButton($$anchor, $$props) {
 	}
 ]
 
-=== 2202 packages/select/src/Option.svelte	js
+=== 2244 packages/select/src/Option.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, onDestroy, getContext, setContext } from 'svelte';
@@ -16080,7 +16173,8 @@ export default function Option($$anchor, $$props) {
 
 	return $$pop;
 }
-=== 28153 packages/select/src/Select.svelte	js
+=== 28195 packages/select/src/Select.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, onDestroy, getContext, setContext } from 'svelte';
@@ -17227,7 +17321,8 @@ export default function Select($$anchor, $$props) {
 	}
 ]
 
-=== 4353 packages/select/src/helper-text/HelperText.svelte	js
+=== 4395 packages/select/src/helper-text/HelperText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext } from 'svelte';
@@ -17410,7 +17505,8 @@ export default function HelperText($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 3884 packages/select/src/icon/Icon.svelte	js
+=== 3926 packages/select/src/icon/Icon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext } from 'svelte';
@@ -17606,7 +17702,8 @@ export default function Icon($$anchor, $$props) {
     color: inherit;
   }
 
-=== 13063 packages/site/src/lib/Demo.svelte	js
+=== 13105 packages/site/src/lib/Demo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { mdiGithub, mdiCodeTags, mdiCodeTagsCheck, mdiContentCopy } from '@mdi/js';
@@ -18074,7 +18171,8 @@ export default function Demo($$anchor, $$props) {
 	}
 ]
 
-=== 852 packages/site/src/lib/LoremIpsum.svelte	js
+=== 894 packages/site/src/lib/LoremIpsum.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18105,7 +18203,8 @@ export default function LoremIpsum($$anchor) {
     }
   }
 
-=== 33851 packages/site/src/routes/+layout.svelte	js
+=== 33893 packages/site/src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -19393,7 +19492,8 @@ export default function _layout($$anchor, $$props) {
     }
   }
 
-=== 21698 packages/site/src/routes/+page.svelte	js
+=== 21740 packages/site/src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -20243,7 +20343,8 @@ export default function _page($$anchor, $$props) {
     overflow-x: auto;
   }
 
-=== 499 packages/site/src/routes/INSTALL.md/+page.svelte	js
+=== 541 packages/site/src/routes/INSTALL.md/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Install from '../../../../../INSTALL.md';
@@ -20271,7 +20372,8 @@ export default function _page($$anchor) {
     overflow-x: auto;
   }
 
-=== 500 packages/site/src/routes/MIGRATING.md/+page.svelte	js
+=== 542 packages/site/src/routes/MIGRATING.md/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Migrating from '../../../../../MIGRATING.md';
@@ -20299,7 +20401,8 @@ export default function _page($$anchor) {
     overflow-x: auto;
   }
 
-=== 482 packages/site/src/routes/REPL.md/+page.svelte	js
+=== 524 packages/site/src/routes/REPL.md/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Repl from '../../../../../REPL.md';
@@ -20327,7 +20430,8 @@ export default function _page($$anchor) {
     overflow-x: auto;
   }
 
-=== 502 packages/site/src/routes/SVELTEKIT.md/+page.svelte	js
+=== 544 packages/site/src/routes/SVELTEKIT.md/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SvelteKit from '../../../../../SVELTEKIT.md';
@@ -20355,7 +20459,8 @@ export default function _page($$anchor) {
     overflow-x: auto;
   }
 
-=== 494 packages/site/src/routes/THEMING.md/+page.svelte	js
+=== 536 packages/site/src/routes/THEMING.md/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Theming from '../../../../../THEMING.md';
@@ -20383,7 +20488,8 @@ export default function _page($$anchor) {
     overflow-x: auto;
   }
 
-=== 506 packages/site/src/routes/TYPOGRAPHY.md/+page.svelte	js
+=== 548 packages/site/src/routes/TYPOGRAPHY.md/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Typography from '../../../../../TYPOGRAPHY.md';
@@ -20420,7 +20526,8 @@ export default function _page($$anchor) {
     margin-bottom: 0;
   }
 
-=== 4841 packages/site/src/routes/demo/accordion/+page.svelte	js
+=== 4883 packages/site/src/routes/demo/accordion/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -20651,7 +20758,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 7747 packages/site/src/routes/demo/accordion/_Complex.svelte	js
+=== 7789 packages/site/src/routes/demo/accordion/_Complex.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
@@ -20952,7 +21060,8 @@ export default function _Complex($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 4493 packages/site/src/routes/demo/accordion/_Description.svelte	js
+=== 4535 packages/site/src/routes/demo/accordion/_Description.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
@@ -21164,7 +21273,8 @@ export default function _Description($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 5322 packages/site/src/routes/demo/accordion/_DisabledNonInteractive.svelte	js
+=== 5364 packages/site/src/routes/demo/accordion/_DisabledNonInteractive.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
@@ -21416,7 +21526,8 @@ export default function _DisabledNonInteractive($$anchor) {
 	$.reset(div_1);
 	$.append($$anchor, fragment);
 }
-=== 4847 packages/site/src/routes/demo/accordion/_Extend.svelte	js
+=== 4889 packages/site/src/routes/demo/accordion/_Extend.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
@@ -21636,7 +21747,8 @@ export default function _Extend($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 9018 packages/site/src/routes/demo/accordion/_Icon.svelte	js
+=== 9060 packages/site/src/routes/demo/accordion/_Icon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
@@ -22047,7 +22159,8 @@ export default function _Icon($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 3907 packages/site/src/routes/demo/accordion/_Multiple.svelte	js
+=== 3949 packages/site/src/routes/demo/accordion/_Multiple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
@@ -22220,7 +22333,8 @@ export default function _Multiple($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 6016 packages/site/src/routes/demo/accordion/_Nested.svelte	js
+=== 6058 packages/site/src/routes/demo/accordion/_Nested.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
@@ -22477,7 +22591,8 @@ export default function _Nested($$anchor) {
     max-width: 200px !important;
   }
 
-=== 9810 packages/site/src/routes/demo/accordion/_PaperProps.svelte	js
+=== 9852 packages/site/src/routes/demo/accordion/_PaperProps.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
@@ -22923,7 +23038,8 @@ export default function _PaperProps($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 9518 packages/site/src/routes/demo/accordion/_PrimaryColor.svelte	js
+=== 9560 packages/site/src/routes/demo/accordion/_PrimaryColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
@@ -23356,7 +23472,8 @@ export default function _PrimaryColor($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 9528 packages/site/src/routes/demo/accordion/_SecondaryColor.svelte	js
+=== 9570 packages/site/src/routes/demo/accordion/_SecondaryColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
@@ -23789,7 +23906,8 @@ export default function _SecondaryColor($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 4091 packages/site/src/routes/demo/accordion/_Simple.svelte	js
+=== 4133 packages/site/src/routes/demo/accordion/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
@@ -23988,7 +24106,8 @@ export default function _Simple($$anchor) {
     width: 218px;
   }
 
-=== 4836 packages/site/src/routes/demo/autocomplete/+page.svelte	js
+=== 4878 packages/site/src/routes/demo/autocomplete/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -24212,7 +24331,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 4437 packages/site/src/routes/demo/autocomplete/_AddEntries.svelte	js
+=== 4479 packages/site/src/routes/demo/autocomplete/_AddEntries.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Autocomplete from '@smui-extra/autocomplete';
@@ -24407,7 +24527,8 @@ export default function _AddEntries($$anchor) {
 	$.template_effect(($0) => $.set_text(text_2, `Selected: ${$0 ?? ''}`), [() => $.get(value) ? JSON.stringify($.get(value)) : '']);
 	$.append($$anchor, div);
 }
-=== 2314 packages/site/src/routes/demo/autocomplete/_AddToList.svelte	js
+=== 2356 packages/site/src/routes/demo/autocomplete/_AddToList.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Autocomplete from '@smui-extra/autocomplete';
@@ -24511,7 +24632,8 @@ export default function _AddToList($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 2391 packages/site/src/routes/demo/autocomplete/_Async.svelte	js
+=== 2433 packages/site/src/routes/demo/autocomplete/_Async.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Autocomplete from '@smui-extra/autocomplete';
@@ -24606,7 +24728,8 @@ export default function _Async($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1812 packages/site/src/routes/demo/autocomplete/_Combobox.svelte	js
+=== 1854 packages/site/src/routes/demo/autocomplete/_Combobox.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Autocomplete from '@smui-extra/autocomplete';
@@ -24692,7 +24815,8 @@ export default function _Combobox($$anchor) {
 	$.template_effect(() => $.set_text(text, `Selected: ${($.get(value) || '') ?? ''}`));
 	$.append($$anchor, div);
 }
-=== 5301 packages/site/src/routes/demo/autocomplete/_CustomDisplay.svelte	js
+=== 5343 packages/site/src/routes/demo/autocomplete/_CustomDisplay.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -24929,7 +25053,8 @@ export default function _CustomDisplay($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 834 packages/site/src/routes/demo/autocomplete/_FullWidth.svelte	js
+=== 876 packages/site/src/routes/demo/autocomplete/_FullWidth.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Autocomplete from '@smui-extra/autocomplete';
@@ -24965,7 +25090,8 @@ export default function _FullWidth($$anchor) {
 	$.template_effect(() => $.set_text(text, `Selected: ${($.get(value) || '') ?? ''}`));
 	$.append($$anchor, div);
 }
-=== 3186 packages/site/src/routes/demo/autocomplete/_Manual.svelte	js
+=== 3228 packages/site/src/routes/demo/autocomplete/_Manual.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Autocomplete from '@smui-extra/autocomplete';
@@ -25125,7 +25251,8 @@ export default function _Manual($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 1133 packages/site/src/routes/demo/autocomplete/_Objects.svelte	js
+=== 1175 packages/site/src/routes/demo/autocomplete/_Objects.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Autocomplete from '@smui-extra/autocomplete';
@@ -25169,7 +25296,8 @@ export default function _Objects($$anchor) {
 	$.template_effect(($0) => $.set_text(text, `Selected: ${$0 ?? ''}`), [() => $.get(value) ? JSON.stringify($.get(value)) : '']);
 	$.append($$anchor, div);
 }
-=== 776 packages/site/src/routes/demo/autocomplete/_Prefilled.svelte	js
+=== 818 packages/site/src/routes/demo/autocomplete/_Prefilled.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Autocomplete from '@smui-extra/autocomplete';
@@ -25203,7 +25331,8 @@ export default function _Prefilled($$anchor) {
 	$.template_effect(() => $.set_text(text, `Selected: ${($.get(value) || '') ?? ''}`));
 	$.append($$anchor, div);
 }
-=== 2882 packages/site/src/routes/demo/autocomplete/_Simple.svelte	js
+=== 2924 packages/site/src/routes/demo/autocomplete/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Autocomplete from '@smui-extra/autocomplete';
@@ -25339,7 +25468,8 @@ export default function _Simple($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 2152 packages/site/src/routes/demo/badge/+page.svelte	js
+=== 2194 packages/site/src/routes/demo/badge/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -25440,7 +25570,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 1139 packages/site/src/routes/demo/badge/_Colored.svelte	js
+=== 1181 packages/site/src/routes/demo/badge/_Colored.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Badge from '@smui-extra/badge';
@@ -25493,7 +25624,8 @@ export default function _Colored($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 4081 packages/site/src/routes/demo/badge/_PositionAlign.svelte	js
+=== 4123 packages/site/src/routes/demo/badge/_PositionAlign.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Badge from '@smui-extra/badge';
@@ -25679,7 +25811,8 @@ export default function _PositionAlign($$anchor) {
 	$.reset(div_3);
 	$.append($$anchor, fragment);
 }
-=== 1146 packages/site/src/routes/demo/badge/_SecondaryColor.svelte	js
+=== 1188 packages/site/src/routes/demo/badge/_SecondaryColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Badge from '@smui-extra/badge';
@@ -25732,7 +25865,8 @@ export default function _SecondaryColor($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 4374 packages/site/src/routes/demo/badge/_Simple.svelte	js
+=== 4416 packages/site/src/routes/demo/badge/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Badge from '@smui-extra/badge';
@@ -25922,7 +26056,8 @@ export default function _Simple($$anchor) {
 	$.reset(div_5);
 	$.append($$anchor, fragment);
 }
-=== 1122 packages/site/src/routes/demo/badge/_Square.svelte	js
+=== 1164 packages/site/src/routes/demo/badge/_Square.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Badge from '@smui-extra/badge';
@@ -25989,7 +26124,8 @@ export default function _Square($$anchor) {
     display: inline-block;
   }
 
-=== 1922 packages/site/src/routes/demo/banner/+page.svelte	js
+=== 1964 packages/site/src/routes/demo/banner/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -26072,7 +26208,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, fragment);
 }
-=== 2751 packages/site/src/routes/demo/banner/_DisableAutoClose.svelte	js
+=== 2793 packages/site/src/routes/demo/banner/_DisableAutoClose.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Banner, { Label } from '@smui/banner';
@@ -26186,7 +26323,8 @@ export default function _DisableAutoClose($$anchor) {
 	$.template_effect(() => $.set_text(text, `Action Clicked: ${$.get(action) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 1014 packages/site/src/routes/demo/banner/_Fixed.svelte	js
+=== 1056 packages/site/src/routes/demo/banner/_Fixed.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Banner, { Label } from '@smui/banner';
@@ -26231,7 +26369,8 @@ export default function _Fixed($$anchor) {
 		});
 	}
 }
-=== 4716 packages/site/src/routes/demo/banner/_General.svelte	js
+=== 4758 packages/site/src/routes/demo/banner/_General.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Banner, { Label, CloseReason } from '@smui/banner';
@@ -26458,7 +26597,8 @@ export default function _General($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 5003 packages/site/src/routes/demo/banner/_Icon.svelte	js
+=== 5045 packages/site/src/routes/demo/banner/_Icon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Banner, { Label, Icon, CloseReason } from '@smui/banner';
@@ -26700,7 +26840,8 @@ export default function _Icon($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3641 packages/site/src/routes/demo/bottom-app-bar/+page.svelte	js
+=== 3683 packages/site/src/routes/demo/bottom-app-bar/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -26901,7 +27042,8 @@ export default function _page($$anchor) {
     overflow: auto;
   }
 
-=== 8276 packages/site/src/routes/demo/bottom-app-bar/_Fab.svelte	js
+=== 8318 packages/site/src/routes/demo/bottom-app-bar/_Fab.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import BottomAppBar, { Section } from '@smui-extra/bottom-app-bar';
@@ -27258,7 +27400,8 @@ export default function _Fab($$anchor) {
     }
   }
 
-=== 703 packages/site/src/routes/demo/bottom-app-bar/_InsetFab.svelte	js
+=== 745 packages/site/src/routes/demo/bottom-app-bar/_InsetFab.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -27287,7 +27430,8 @@ export default function _InsetFab($$anchor) {
     }
   }
 
-=== 456 packages/site/src/routes/demo/bottom-app-bar/_Snackbar.svelte	js
+=== 498 packages/site/src/routes/demo/bottom-app-bar/_Snackbar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -27338,7 +27482,8 @@ export default function _Snackbar($$anchor) {
     overflow: auto;
   }
 
-=== 6210 packages/site/src/routes/demo/bottom-app-bar/_Static.svelte	js
+=== 6252 packages/site/src/routes/demo/bottom-app-bar/_Static.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import BottomAppBar, { Section } from '@smui-extra/bottom-app-bar';
@@ -27610,7 +27755,8 @@ export default function _Static($$anchor) {
     }
   }
 
-=== 670 packages/site/src/routes/demo/bottom-app-bar/_Variants.svelte	js
+=== 712 packages/site/src/routes/demo/bottom-app-bar/_Variants.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -27634,7 +27780,8 @@ export default function _Variants($$anchor) {
     position: static !important;
   }
 
-=== 3044 packages/site/src/routes/demo/bottom-app-bar/iframe/fixed/+page.svelte	js
+=== 3086 packages/site/src/routes/demo/bottom-app-bar/iframe/fixed/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import BottomAppBar, { Section, AutoAdjust } from '@smui-extra/bottom-app-bar';
@@ -27768,7 +27915,8 @@ export default function _page($$anchor) {
     position: static !important;
   }
 
-=== 4123 packages/site/src/routes/demo/bottom-app-bar/iframe/inset-fab-right/+page.svelte	js
+=== 4165 packages/site/src/routes/demo/bottom-app-bar/iframe/inset-fab-right/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import BottomAppBar, { Section, AutoAdjust } from '@smui-extra/bottom-app-bar';
@@ -27946,7 +28094,8 @@ export default function _page($$anchor) {
     position: static !important;
   }
 
-=== 3723 packages/site/src/routes/demo/bottom-app-bar/iframe/inset-fab/+page.svelte	js
+=== 3765 packages/site/src/routes/demo/bottom-app-bar/iframe/inset-fab/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import BottomAppBar, { Section, AutoAdjust } from '@smui-extra/bottom-app-bar';
@@ -28108,7 +28257,8 @@ export default function _page($$anchor) {
     position: static !important;
   }
 
-=== 6356 packages/site/src/routes/demo/bottom-app-bar/iframe/snackbar/+page.svelte	js
+=== 6398 packages/site/src/routes/demo/bottom-app-bar/iframe/snackbar/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import BottomAppBar, { Section, AutoAdjust } from '@smui-extra/bottom-app-bar';
@@ -28386,7 +28536,8 @@ export default function _page($$anchor) {
     position: static !important;
   }
 
-=== 3026 packages/site/src/routes/demo/bottom-app-bar/iframe/standard/+page.svelte	js
+=== 3068 packages/site/src/routes/demo/bottom-app-bar/iframe/standard/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import BottomAppBar, { Section, AutoAdjust } from '@smui-extra/bottom-app-bar';
@@ -28518,7 +28669,8 @@ export default function _page($$anchor) {
     margin-bottom: 0;
   }
 
-=== 4743 packages/site/src/routes/demo/button/+page.svelte	js
+=== 4785 packages/site/src/routes/demo/button/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -28745,7 +28897,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 1793 packages/site/src/routes/demo/button/_Colored.svelte	js
+=== 1835 packages/site/src/routes/demo/button/_Colored.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Button, { Label } from '@smui/button';
@@ -28843,7 +28996,8 @@ export default function _Colored($$anchor) {
     list-style-type: disc;
   }
 
-=== 2008 packages/site/src/routes/demo/button/_CustomTag.svelte	js
+=== 2050 packages/site/src/routes/demo/button/_CustomTag.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Button, { Label } from '@smui/button';
@@ -28940,7 +29094,8 @@ export default function _CustomTag($$anchor) {
 	$.template_effect(() => $.set_text(text_3, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 8147 packages/site/src/routes/demo/button/_Groups.svelte	js
+=== 8189 packages/site/src/routes/demo/button/_Groups.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Button, { Group, Label } from '@smui/button';
@@ -29315,7 +29470,8 @@ export default function _Groups($$anchor) {
 	$.template_effect(() => $.set_text(text_15, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 3545 packages/site/src/routes/demo/button/_Icons.svelte	js
+=== 3587 packages/site/src/routes/demo/button/_Icons.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Button, { Label, Icon } from '@smui/button';
@@ -29486,7 +29642,8 @@ export default function _Icons($$anchor) {
 	$.template_effect(() => $.set_text(text_8, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 880 packages/site/src/routes/demo/button/_Link.svelte	js
+=== 922 packages/site/src/routes/demo/button/_Link.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Button, { Label } from '@smui/button';
@@ -29523,7 +29680,8 @@ export default function _Link($$anchor) {
 	$.template_effect(() => $.set_text(text_1, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 2967 packages/site/src/routes/demo/button/_Notched.svelte	js
+=== 3009 packages/site/src/routes/demo/button/_Notched.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Button, { Label, Icon } from '@smui/button';
@@ -29662,7 +29820,8 @@ export default function _Notched($$anchor) {
 	$.template_effect(() => $.set_text(text_6, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 3391 packages/site/src/routes/demo/button/_Round.svelte	js
+=== 3433 packages/site/src/routes/demo/button/_Round.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Button, { Label, Icon } from '@smui/button';
@@ -29828,7 +29987,8 @@ export default function _Round($$anchor) {
     font-style: italic;
   }
 
-=== 2197 packages/site/src/routes/demo/button/_SecondaryColor.svelte	js
+=== 2239 packages/site/src/routes/demo/button/_SecondaryColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Button, { Label } from '@smui/button';
@@ -29939,7 +30099,8 @@ export default function _SecondaryColor($$anchor) {
     font-style: italic;
   }
 
-=== 2101 packages/site/src/routes/demo/button/_Simple.svelte	js
+=== 2143 packages/site/src/routes/demo/button/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Button, { Label } from '@smui/button';
@@ -30037,7 +30198,8 @@ export default function _Simple($$anchor) {
 	$.template_effect(() => $.set_text(text_4, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 7218 packages/site/src/routes/demo/button/_SplitButtons.svelte	js
+=== 7260 packages/site/src/routes/demo/button/_SplitButtons.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Button, { Group, GroupItem, Label, Icon } from '@smui/button';
@@ -30335,7 +30497,8 @@ export default function _SplitButtons($$anchor) {
 	$.template_effect(() => $.set_text(text_10, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 2082 packages/site/src/routes/demo/button/_Touch.svelte	js
+=== 2124 packages/site/src/routes/demo/button/_Touch.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Button, { Label } from '@smui/button';
@@ -30434,7 +30597,8 @@ export default function _Touch($$anchor) {
 	$.template_effect(() => $.set_text(text_4, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 2907 packages/site/src/routes/demo/button/_Variants.svelte	js
+=== 2949 packages/site/src/routes/demo/button/_Variants.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Button, { Label } from '@smui/button';
@@ -30611,7 +30775,8 @@ export default function _Variants($$anchor) {
     }
   }
 
-=== 2114 packages/site/src/routes/demo/card/+page.svelte	js
+=== 2156 packages/site/src/routes/demo/card/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -30712,7 +30877,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 11353 packages/site/src/routes/demo/card/_Actions.svelte	js
+=== 11395 packages/site/src/routes/demo/card/_Actions.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Card, { Content, PrimaryAction, Actions, ActionButtons, ActionIcons } from '@smui/card';
@@ -31195,7 +31361,8 @@ export default function _Actions($$anchor) {
     background-image: url(https://placehold.co/320x180?text=16x9);
   }
 
-=== 11469 packages/site/src/routes/demo/card/_Complex.svelte	js
+=== 11511 packages/site/src/routes/demo/card/_Complex.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -31640,7 +31807,8 @@ export default function _Complex($$anchor) {
 	$.template_effect(() => $.set_text(text_13, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 2178 packages/site/src/routes/demo/card/_List.svelte	js
+=== 2220 packages/site/src/routes/demo/card/_List.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Card, { Content } from '@smui/card';
@@ -31736,7 +31904,8 @@ export default function _List($$anchor, $$props) {
     background-image: url(https://placehold.co/320x320?text=square);
   }
 
-=== 3980 packages/site/src/routes/demo/card/_Media.svelte	js
+=== 4022 packages/site/src/routes/demo/card/_Media.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Card, { Content, PrimaryAction, Media, MediaContent } from '@smui/card';
@@ -31867,7 +32036,8 @@ export default function _Media($$anchor) {
 	$.template_effect(() => $.set_text(text_2, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 1469 packages/site/src/routes/demo/card/_Simple.svelte	js
+=== 1511 packages/site/src/routes/demo/card/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Card, { Content } from '@smui/card';
@@ -31936,7 +32106,8 @@ export default function _Simple($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 2130 packages/site/src/routes/demo/checkbox/+page.svelte	js
+=== 2172 packages/site/src/routes/demo/checkbox/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -32037,7 +32208,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 4962 packages/site/src/routes/demo/checkbox/_Colored.svelte	js
+=== 5004 packages/site/src/routes/demo/checkbox/_Colored.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Checkbox from '@smui/checkbox';
@@ -32302,7 +32474,8 @@ export default function _Colored($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 2241 packages/site/src/routes/demo/checkbox/_Group.svelte	js
+=== 2283 packages/site/src/routes/demo/checkbox/_Group.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Checkbox from '@smui/checkbox';
@@ -32399,7 +32572,8 @@ export default function _Group($$anchor) {
 	$.template_effect(($0) => $.set_text(text_2, `Selected: ${$0 ?? ''}`), [() => $.get(selected).join(', ')]);
 	$.append($$anchor, fragment);
 }
-=== 1467 packages/site/src/routes/demo/checkbox/_Indeterminate.svelte	js
+=== 1509 packages/site/src/routes/demo/checkbox/_Indeterminate.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Checkbox from '@smui/checkbox';
@@ -32467,7 +32641,8 @@ export default function _Indeterminate($$anchor) {
 	$.template_effect(() => $.set_text(text_2, `Checked: ${$.get(checked) ?? 'indeterminate' ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 2185 packages/site/src/routes/demo/checkbox/_Simple.svelte	js
+=== 2227 packages/site/src/routes/demo/checkbox/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Checkbox from '@smui/checkbox';
@@ -32572,7 +32747,8 @@ export default function _Simple($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 984 packages/site/src/routes/demo/checkbox/_Touch.svelte	js
+=== 1026 packages/site/src/routes/demo/checkbox/_Touch.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Checkbox from '@smui/checkbox';
@@ -32618,7 +32794,8 @@ export default function _Touch($$anchor) {
 	$.template_effect(() => $.set_text(text_1, `Checked: ${$.get(checked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 4389 packages/site/src/routes/demo/chip-input/+page.svelte	js
+=== 4431 packages/site/src/routes/demo/chip-input/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -32824,7 +33001,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 1161 packages/site/src/routes/demo/chip-input/_AddChipKeys.svelte	js
+=== 1203 packages/site/src/routes/demo/chip-input/_AddChipKeys.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ChipInput from '@smui-extra/chip-input';
@@ -32883,7 +33061,8 @@ export default function _AddChipKeys($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 6931 packages/site/src/routes/demo/chip-input/_Async.svelte	js
+=== 6973 packages/site/src/routes/demo/chip-input/_Async.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ChipInput from '@smui-extra/chip-input';
@@ -33101,7 +33280,8 @@ export default function _Async($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1537 packages/site/src/routes/demo/chip-input/_Autocomplete.svelte	js
+=== 1579 packages/site/src/routes/demo/chip-input/_Autocomplete.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ChipInput from '@smui-extra/chip-input';
@@ -33178,7 +33358,8 @@ export default function _Autocomplete($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 2357 packages/site/src/routes/demo/chip-input/_AutocompleteObjects.svelte	js
+=== 2399 packages/site/src/routes/demo/chip-input/_AutocompleteObjects.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ChipInput from '@smui-extra/chip-input';
@@ -33294,7 +33475,8 @@ export default function _AutocompleteObjects($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 1168 packages/site/src/routes/demo/chip-input/_Disabled.svelte	js
+=== 1210 packages/site/src/routes/demo/chip-input/_Disabled.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ChipInput from '@smui-extra/chip-input';
@@ -33354,7 +33536,8 @@ export default function _Disabled($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 1704 packages/site/src/routes/demo/chip-input/_Objects.svelte	js
+=== 1746 packages/site/src/routes/demo/chip-input/_Objects.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ChipInput from '@smui-extra/chip-input';
@@ -33437,7 +33620,8 @@ export default function _Objects($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 1118 packages/site/src/routes/demo/chip-input/_Simple.svelte	js
+=== 1160 packages/site/src/routes/demo/chip-input/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ChipInput from '@smui-extra/chip-input';
@@ -33495,7 +33679,8 @@ export default function _Simple($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 1301 packages/site/src/routes/demo/chip-input/_SvgRemoveIcons.svelte	js
+=== 1343 packages/site/src/routes/demo/chip-input/_SvgRemoveIcons.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { mdiBomb } from '@mdi/js';
@@ -33554,7 +33739,8 @@ export default function _SvgRemoveIcons($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 1170 packages/site/src/routes/demo/chip-input/_Validity.svelte	js
+=== 1212 packages/site/src/routes/demo/chip-input/_Validity.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ChipInput from '@smui-extra/chip-input';
@@ -33614,7 +33800,8 @@ export default function _Validity($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 2812 packages/site/src/routes/demo/chips/+page.svelte	js
+=== 2854 packages/site/src/routes/demo/chips/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -33751,7 +33938,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 2930 packages/site/src/routes/demo/chips/_Choice.svelte	js
+=== 2972 packages/site/src/routes/demo/chips/_Choice.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Chip, { ChipSet, Text } from '@smui/chips';
@@ -33888,7 +34076,8 @@ export default function _Choice($$anchor) {
 	$.template_effect(() => $.set_text(text_5, `Selected: ${$.get(selected) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 2885 packages/site/src/routes/demo/chips/_Filter.svelte	js
+=== 2927 packages/site/src/routes/demo/chips/_Filter.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Chip, { ChipSet, Text } from '@smui/chips';
@@ -34010,7 +34199,8 @@ export default function _Filter($$anchor) {
 	$.template_effect(($0) => $.set_text(text_3, `Selected: ${$0 ?? ''}`), [() => $.get(selected).join(', ')]);
 	$.append($$anchor, fragment);
 }
-=== 1834 packages/site/src/routes/demo/chips/_FilterIcons.svelte	js
+=== 1876 packages/site/src/routes/demo/chips/_FilterIcons.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Chip, { ChipSet, LeadingIcon, Text } from '@smui/chips';
@@ -34090,7 +34280,8 @@ export default function _FilterIcons($$anchor) {
 	$.template_effect(($0) => $.set_text(text_2, `Selected: ${$0 ?? ''}`), [() => $.get(selected).join(', ')]);
 	$.append($$anchor, fragment);
 }
-=== 2020 packages/site/src/routes/demo/chips/_Input.svelte	js
+=== 2062 packages/site/src/routes/demo/chips/_Input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Chip, { ChipSet, TrailingAction, Text } from '@smui/chips';
@@ -34190,7 +34381,8 @@ export default function _Input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 2786 packages/site/src/routes/demo/chips/_Keyed.svelte	js
+=== 2828 packages/site/src/routes/demo/chips/_Keyed.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Chip, { ChipSet, TrailingAction, Text } from '@smui/chips';
@@ -34323,7 +34515,8 @@ export default function _Keyed($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 800 packages/site/src/routes/demo/chips/_NonInteractive.svelte	js
+=== 842 packages/site/src/routes/demo/chips/_NonInteractive.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Chip, { ChipSet, Text } from '@smui/chips';
@@ -34361,7 +34554,8 @@ export default function _NonInteractive($$anchor) {
 		});
 	}
 }
-=== 2321 packages/site/src/routes/demo/chips/_Simple.svelte	js
+=== 2363 packages/site/src/routes/demo/chips/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Chip, { ChipSet, LeadingIcon, TrailingIcon, Text } from '@smui/chips';
@@ -34462,7 +34656,8 @@ export default function _Simple($$anchor) {
 	$.template_effect(() => $.set_text(text_3, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 1931 packages/site/src/routes/demo/circular-progress/+page.svelte	js
+=== 1973 packages/site/src/routes/demo/circular-progress/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -34555,7 +34750,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 485 packages/site/src/routes/demo/circular-progress/_Colored.svelte	js
+=== 527 packages/site/src/routes/demo/circular-progress/_Colored.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CircularProgress from '@smui/circular-progress';
@@ -34575,7 +34771,8 @@ export default function _Colored($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 509 packages/site/src/routes/demo/circular-progress/_FourColor.svelte	js
+=== 551 packages/site/src/routes/demo/circular-progress/_FourColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CircularProgress from '@smui/circular-progress';
@@ -34596,7 +34793,8 @@ export default function _FourColor($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 461 packages/site/src/routes/demo/circular-progress/_Indeterminate.svelte	js
+=== 503 packages/site/src/routes/demo/circular-progress/_Indeterminate.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CircularProgress from '@smui/circular-progress';
@@ -34611,7 +34809,8 @@ export default function _Indeterminate($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 1931 packages/site/src/routes/demo/circular-progress/_Simple.svelte	js
+=== 1973 packages/site/src/routes/demo/circular-progress/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, onDestroy } from 'svelte';
@@ -34716,7 +34915,8 @@ export default function _Simple($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 7430 packages/site/src/routes/demo/common/+page.svelte	js
+=== 7472 packages/site/src/routes/demo/common/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -35039,7 +35239,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 2729 packages/site/src/routes/demo/common/_Announce.svelte	js
+=== 2771 packages/site/src/routes/demo/common/_Announce.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Button, { Label } from '@smui/button';
@@ -35130,7 +35331,8 @@ export default function _Announce($$anchor, $$props) {
     border: 2px solid currentColor;
   }
 
-=== 558 packages/site/src/routes/demo/common/_ClassAdder.svelte	js
+=== 600 packages/site/src/routes/demo/common/_ClassAdder.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MyClassAdder from './_ClassAdderComponent.svelte';
@@ -35155,7 +35357,8 @@ export default function _ClassAdder($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 929 packages/site/src/routes/demo/common/_ClassAdderComponent.svelte	js
+=== 971 packages/site/src/routes/demo/common/_ClassAdderComponent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -35211,7 +35414,8 @@ export default function _ClassAdderComponent($$anchor, $$props) {
     font-size: 1.5em;
   }
 
-=== 2476 packages/site/src/routes/demo/common/_ClassMap.svelte	js
+=== 2518 packages/site/src/routes/demo/common/_ClassMap.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { classMap } from '@smui/common/internal';
@@ -35329,7 +35533,8 @@ export default function _ClassMap($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1886 packages/site/src/routes/demo/common/_CommonLabelIcon.svelte	js
+=== 1928 packages/site/src/routes/demo/common/_CommonLabelIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Button from '@smui/button';
@@ -35426,7 +35631,8 @@ export default function _CommonLabelIcon($$anchor) {
     border: 1px solid currentColor;
   }
 
-=== 1749 packages/site/src/routes/demo/common/_Dispatch.svelte	js
+=== 1791 packages/site/src/routes/demo/common/_Dispatch.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { dispatch } from '@smui/common/internal';
@@ -35489,7 +35695,8 @@ export default function _Dispatch($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 571 packages/site/src/routes/demo/common/_ExcludeAndPrefixFilter.svelte	js
+=== 613 packages/site/src/routes/demo/common/_ExcludeAndPrefixFilter.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MyComponent from './_ExcludeAndPrefixFilterComponent.svelte';
@@ -35513,7 +35720,8 @@ export default function _ExcludeAndPrefixFilter($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 1308 packages/site/src/routes/demo/common/_ExcludeAndPrefixFilterComponent.svelte	js
+=== 1350 packages/site/src/routes/demo/common/_ExcludeAndPrefixFilterComponent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { exclude, prefixFilter } from '@smui/common/internal';
@@ -35570,7 +35778,8 @@ export default function _ExcludeAndPrefixFilterComponent($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 2665 packages/site/src/routes/demo/common/_SmuiElement.svelte	js
+=== 2707 packages/site/src/routes/demo/common/_SmuiElement.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { SmuiElement } from '@smui/common';
@@ -35698,7 +35907,8 @@ export default function _SmuiElement($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 6281 packages/site/src/routes/demo/common/_Svg.svelte	js
+=== 6323 packages/site/src/routes/demo/common/_Svg.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { mdiAccount } from '@mdi/js';
@@ -35862,7 +36072,8 @@ export default function _Svg($$anchor) {
     overflow: hidden;
   }
 
-=== 1006 packages/site/src/routes/demo/common/_UseActions.svelte	js
+=== 1048 packages/site/src/routes/demo/common/_UseActions.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MyComponent from './_UseActionsComponent.svelte';
@@ -35927,7 +36138,8 @@ export default function _UseActions($$anchor) {
     color: var(--mdc-theme-on-primary);
   }
 
-=== 634 packages/site/src/routes/demo/common/_UseActionsComponent.svelte	js
+=== 676 packages/site/src/routes/demo/common/_UseActionsComponent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useActions } from '@smui/common/internal';
@@ -35946,7 +36158,8 @@ export default function _UseActionsComponent($$anchor, $$props) {
 	$.action(div, ($$node, $$action_arg) => useActions?.($$node, $$action_arg), use);
 	$.append($$anchor, div);
 }
-=== 2892 packages/site/src/routes/demo/data-table/+page.svelte	js
+=== 2934 packages/site/src/routes/demo/data-table/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -36076,7 +36289,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 10441 packages/site/src/routes/demo/data-table/_Pagination.svelte	js
+=== 10483 packages/site/src/routes/demo/data-table/_Pagination.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DataTable, { Head, Body, Row, Cell, Pagination } from '@smui/data-table';
@@ -36499,7 +36713,8 @@ export default function _Pagination($$anchor, $$props) {
 
 	$.pop();
 }
-=== 5441 packages/site/src/routes/demo/data-table/_ProgressIndicator.svelte	js
+=== 5483 packages/site/src/routes/demo/data-table/_ProgressIndicator.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DataTable, { Head, Body, Row, Cell } from '@smui/data-table';
@@ -36727,7 +36942,8 @@ export default function _ProgressIndicator($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 5326 packages/site/src/routes/demo/data-table/_RowSelection.svelte	js
+=== 5368 packages/site/src/routes/demo/data-table/_RowSelection.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DataTable, { Head, Body, Row, Cell } from '@smui/data-table';
@@ -36957,7 +37173,8 @@ export default function _RowSelection($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 6218 packages/site/src/routes/demo/data-table/_Simple.svelte	js
+=== 6260 packages/site/src/routes/demo/data-table/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DataTable, { Head, Body, Row, Cell } from '@smui/data-table';
@@ -37242,7 +37459,8 @@ export default function _Simple($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 8877 packages/site/src/routes/demo/data-table/_Sortable.svelte	js
+=== 8919 packages/site/src/routes/demo/data-table/_Sortable.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DataTable, { Head, Body, Row, Cell, Label, SortValue } from '@smui/data-table';
@@ -37609,7 +37827,8 @@ export default function _Sortable($$anchor, $$props) {
       var(--mdc-theme-text-hint-on-background, rgba(0, 0, 0, 0.1));
   }
 
-=== 437 packages/site/src/routes/demo/data-table/_StickyHeader.svelte	js
+=== 479 packages/site/src/routes/demo/data-table/_StickyHeader.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -37636,7 +37855,8 @@ export default function _StickyHeader($$anchor) {
     overflow: initial;
   }
 
-=== 4292 packages/site/src/routes/demo/data-table/iframe/+page.svelte	js
+=== 4334 packages/site/src/routes/demo/data-table/iframe/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DataTable, { Head, Body, Row, Cell } from '@smui/data-table';
@@ -37814,7 +38034,8 @@ export default function _page($$anchor, $$props) {
 
 	$.pop();
 }
-=== 6479 packages/site/src/routes/demo/dialog/+page.svelte	js
+=== 6521 packages/site/src/routes/demo/dialog/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -38103,7 +38324,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 3317 packages/site/src/routes/demo/dialog/_DefaultFocus.svelte	js
+=== 3359 packages/site/src/routes/demo/dialog/_DefaultFocus.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Dialog, { Title, Content, Actions, InitialFocus } from '@smui/dialog';
@@ -38246,7 +38468,8 @@ export default function _DefaultFocus($$anchor) {
 	$.template_effect(() => $.set_text(text_5, `Response: ${$.get(response) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 3549 packages/site/src/routes/demo/dialog/_Event.svelte	js
+=== 3591 packages/site/src/routes/demo/dialog/_Event.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Dialog, { Title, Content, Actions } from '@smui/dialog';
@@ -38402,7 +38625,8 @@ export default function _Event($$anchor) {
 	$.template_effect(() => $.set_text(text_5, `Response: ${$.get(response) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 4498 packages/site/src/routes/demo/dialog/_Fullscreen.svelte	js
+=== 4540 packages/site/src/routes/demo/dialog/_Fullscreen.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Dialog, { Header, Title, CloseTooltipWrapper, Content, Actions } from '@smui/dialog';
@@ -38597,7 +38821,8 @@ export default function _Fullscreen($$anchor) {
 	$.template_effect(() => $.set_text(text_5, `Response: ${$.get(response) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 2518 packages/site/src/routes/demo/dialog/_LargeScroll.svelte	js
+=== 2560 packages/site/src/routes/demo/dialog/_LargeScroll.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Dialog, { Title, Content, Actions } from '@smui/dialog';
@@ -38707,7 +38932,8 @@ export default function _LargeScroll($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 2951 packages/site/src/routes/demo/dialog/_List.svelte	js
+=== 2993 packages/site/src/routes/demo/dialog/_List.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Dialog, { Title, Content } from '@smui/dialog';
@@ -38831,7 +39057,8 @@ export default function _List($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 4340 packages/site/src/routes/demo/dialog/_Mandatory.svelte	js
+=== 4382 packages/site/src/routes/demo/dialog/_Mandatory.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Dialog, { Title, Content, Actions } from '@smui/dialog';
@@ -39013,7 +39240,8 @@ export default function _Mandatory($$anchor) {
 	$.template_effect(() => $.set_text(text_6, `Result: ${$.get(response) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 3652 packages/site/src/routes/demo/dialog/_ManyActions.svelte	js
+=== 3694 packages/site/src/routes/demo/dialog/_ManyActions.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Dialog, { Title, Content, Actions } from '@smui/dialog';
@@ -39168,7 +39396,8 @@ export default function _ManyActions($$anchor) {
 	$.template_effect(() => $.set_text(text_6, `Action: ${$.get(buttoned) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 3180 packages/site/src/routes/demo/dialog/_NonCloseButton.svelte	js
+=== 3222 packages/site/src/routes/demo/dialog/_NonCloseButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Dialog, { Title, Content, Actions } from '@smui/dialog';
@@ -39304,7 +39533,8 @@ export default function _NonCloseButton($$anchor) {
 	$.template_effect(() => $.set_text(text_5, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 10363 packages/site/src/routes/demo/dialog/_OverFullscreen.svelte	js
+=== 10405 packages/site/src/routes/demo/dialog/_OverFullscreen.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -39738,7 +39968,8 @@ export default function _OverFullscreen($$anchor) {
 	$.template_effect(() => $.set_text(text_11, `Response: ${$.get(response) ?? ''}, Selected: ${$.get(selected) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 6600 packages/site/src/routes/demo/dialog/_Selection.svelte	js
+=== 6642 packages/site/src/routes/demo/dialog/_Selection.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Dialog, { Title, Content, Actions, InitialFocus } from '@smui/dialog';
@@ -40021,7 +40252,8 @@ export default function _Selection($$anchor) {
 	$.template_effect(() => $.set_text(text_7, `Selected: ${$.get(selected) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 3647 packages/site/src/routes/demo/dialog/_Sheet.svelte	js
+=== 3689 packages/site/src/routes/demo/dialog/_Sheet.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Dialog, { CloseTooltipWrapper, Content } from '@smui/dialog';
@@ -40187,7 +40419,8 @@ export default function _Sheet($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 3044 packages/site/src/routes/demo/dialog/_Simple.svelte	js
+=== 3086 packages/site/src/routes/demo/dialog/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Dialog, { Title, Content, Actions } from '@smui/dialog';
@@ -40322,7 +40555,8 @@ export default function _Simple($$anchor) {
 	$.template_effect(() => $.set_text(text_5, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 4704 packages/site/src/routes/demo/dialog/_Sliders.svelte	js
+=== 4746 packages/site/src/routes/demo/dialog/_Sliders.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Dialog, { Title, Content, Actions, InitialFocus } from '@smui/dialog';
@@ -40535,7 +40769,8 @@ export default function _Sliders($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 1658 packages/site/src/routes/demo/drawer/+page.svelte	js
+=== 1700 packages/site/src/routes/demo/drawer/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -40637,7 +40872,8 @@ export default function _page($$anchor) {
     box-sizing: border-box;
   }
 
-=== 6473 packages/site/src/routes/demo/drawer/_Dismissible.svelte	js
+=== 6515 packages/site/src/routes/demo/drawer/_Dismissible.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Drawer, { AppContent, Content, Header, Title, Subtitle } from '@smui/drawer';
@@ -40935,7 +41171,8 @@ export default function _Dismissible($$anchor) {
     box-sizing: border-box;
   }
 
-=== 11803 packages/site/src/routes/demo/drawer/_Modal.svelte	js
+=== 11845 packages/site/src/routes/demo/drawer/_Modal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Drawer, { AppContent, Content, Header, Title, Subtitle, Scrim } from '@smui/drawer';
@@ -41454,7 +41691,8 @@ export default function _Modal($$anchor) {
     box-sizing: border-box;
   }
 
-=== 4054 packages/site/src/routes/demo/drawer/_Permanent.svelte	js
+=== 4096 packages/site/src/routes/demo/drawer/_Permanent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Drawer, { AppContent, Content } from '@smui/drawer';
@@ -41606,7 +41844,8 @@ export default function _Permanent($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 1229 packages/site/src/routes/demo/elevation/+page.svelte	js
+=== 1271 packages/site/src/routes/demo/elevation/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -41674,7 +41913,8 @@ export default function _page($$anchor) {
     margin: 0 36px 36px 0;
   }
 
-=== 703 packages/site/src/routes/demo/elevation/_Elevation.svelte	js
+=== 745 packages/site/src/routes/demo/elevation/_Elevation.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -41722,7 +41962,8 @@ export default function _Elevation($$anchor, $$props) {
     border-radius: 4px;
   }
 
-=== 1647 packages/site/src/routes/demo/elevation/_TransitionsAndColor.svelte	js
+=== 1689 packages/site/src/routes/demo/elevation/_TransitionsAndColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Checkbox from '@smui/checkbox';
@@ -41791,7 +42032,8 @@ export default function _TransitionsAndColor($$anchor) {
     margin: 0 0.4em 0.4em 0;
   }
 
-=== 3510 packages/site/src/routes/demo/fab/+page.svelte	js
+=== 3552 packages/site/src/routes/demo/fab/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -41964,7 +42206,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 1603 packages/site/src/routes/demo/fab/_Colored.svelte	js
+=== 1645 packages/site/src/routes/demo/fab/_Colored.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Fab, { Label, Icon } from '@smui/fab';
@@ -42041,7 +42284,8 @@ export default function _Colored($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 2879 packages/site/src/routes/demo/fab/_Exited.svelte	js
+=== 2921 packages/site/src/routes/demo/fab/_Exited.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Fab, { Icon } from '@smui/fab';
@@ -42182,7 +42426,8 @@ export default function _Exited($$anchor) {
 	$.template_effect(() => $.set_text(text_4, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 3212 packages/site/src/routes/demo/fab/_Extended.svelte	js
+=== 3254 packages/site/src/routes/demo/fab/_Extended.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Fab, { Label, Icon } from '@smui/fab';
@@ -42333,7 +42578,8 @@ export default function _Extended($$anchor) {
 	$.template_effect(() => $.set_text(text_6, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 2622 packages/site/src/routes/demo/fab/_Link.svelte	js
+=== 2664 packages/site/src/routes/demo/fab/_Link.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Fab, { Label, Icon } from '@smui/fab';
@@ -42453,7 +42699,8 @@ export default function _Link($$anchor) {
 	$.template_effect(() => $.set_text(text_4, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 1509 packages/site/src/routes/demo/fab/_Mini.svelte	js
+=== 1551 packages/site/src/routes/demo/fab/_Mini.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Fab, { Icon } from '@smui/fab';
@@ -42520,7 +42767,8 @@ export default function _Mini($$anchor) {
 	$.template_effect(() => $.set_text(text_2, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 3282 packages/site/src/routes/demo/fab/_NoRipple.svelte	js
+=== 3324 packages/site/src/routes/demo/fab/_NoRipple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Fab, { Label, Icon } from '@smui/fab';
@@ -42675,7 +42923,8 @@ export default function _NoRipple($$anchor) {
 	$.template_effect(() => $.set_text(text_6, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 1018 packages/site/src/routes/demo/fab/_PrimaryColor.svelte	js
+=== 1060 packages/site/src/routes/demo/fab/_PrimaryColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Fab, { Icon } from '@smui/fab';
@@ -42717,7 +42966,8 @@ export default function _PrimaryColor($$anchor) {
 	$.template_effect(() => $.set_text(text_1, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 992 packages/site/src/routes/demo/fab/_Simple.svelte	js
+=== 1034 packages/site/src/routes/demo/fab/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Fab, { Icon } from '@smui/fab';
@@ -42764,7 +43014,8 @@ export default function _Simple($$anchor) {
     outline: 0;
   }
 
-=== 1204 packages/site/src/routes/demo/fab/_Svg.svelte	js
+=== 1246 packages/site/src/routes/demo/fab/_Svg.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { mdiPlus } from '@mdi/js';
@@ -42807,7 +43058,8 @@ export default function _Svg($$anchor) {
 	$.template_effect(() => $.set_text(text, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 1904 packages/site/src/routes/demo/form-field/+page.svelte	js
+=== 1946 packages/site/src/routes/demo/form-field/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -42898,7 +43150,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 1038 packages/site/src/routes/demo/form-field/_Checkbox.svelte	js
+=== 1080 packages/site/src/routes/demo/form-field/_Checkbox.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import FormField from '@smui/form-field';
@@ -42943,7 +43196,8 @@ export default function _Checkbox($$anchor) {
 	$.template_effect(() => $.set_text(text_1, `Checked: ${$.get(checked) ? 'Yes' : 'No'}`));
 	$.append($$anchor, fragment);
 }
-=== 1027 packages/site/src/routes/demo/form-field/_EndAlignment.svelte	js
+=== 1069 packages/site/src/routes/demo/form-field/_EndAlignment.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import FormField from '@smui/form-field';
@@ -42989,7 +43243,8 @@ export default function _EndAlignment($$anchor) {
 	$.template_effect(() => $.set_text(text_1, `Checked: ${$.get(checked) ? 'Yes' : 'No'}`));
 	$.append($$anchor, fragment);
 }
-=== 1267 packages/site/src/routes/demo/form-field/_Radio.svelte	js
+=== 1309 packages/site/src/routes/demo/form-field/_Radio.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import FormField from '@smui/form-field';
@@ -43043,7 +43298,8 @@ export default function _Radio($$anchor) {
 	$.template_effect(() => $.set_text(text_1, `Selected: ${$.get(selected) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 1163 packages/site/src/routes/demo/form-field/_Switch.svelte	js
+=== 1205 packages/site/src/routes/demo/form-field/_Switch.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import FormField from '@smui/form-field';
@@ -43090,7 +43346,8 @@ export default function _Switch($$anchor) {
 	$.template_effect(() => $.set_text(text, `Agreed: ${$.get(agreed) ? 'Yes, muahahah.' : 'Not yet.'}`));
 	$.append($$anchor, fragment);
 }
-=== 2464 packages/site/src/routes/demo/icon-button/+page.svelte	js
+=== 2506 packages/site/src/routes/demo/icon-button/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -43209,7 +43466,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 1284 packages/site/src/routes/demo/icon-button/_Colored.svelte	js
+=== 1326 packages/site/src/routes/demo/icon-button/_Colored.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import IconButton, { Icon } from '@smui/icon-button';
@@ -43266,7 +43524,8 @@ export default function _Colored($$anchor) {
 	$.reset(div_1);
 	$.append($$anchor, fragment);
 }
-=== 2077 packages/site/src/routes/demo/icon-button/_Simple.svelte	js
+=== 2119 packages/site/src/routes/demo/icon-button/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import IconButton, { Icon } from '@smui/icon-button';
@@ -43355,7 +43614,8 @@ export default function _Simple($$anchor) {
 	$.template_effect(() => $.set_text(text_3, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 2446 packages/site/src/routes/demo/icon-button/_Sizes.svelte	js
+=== 2488 packages/site/src/routes/demo/icon-button/_Sizes.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { mdiWrench } from '@mdi/js';
@@ -43448,7 +43708,8 @@ export default function _Sizes($$anchor) {
 	$.template_effect(() => $.set_text(text, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 2384 packages/site/src/routes/demo/icon-button/_Svgs.svelte	js
+=== 2426 packages/site/src/routes/demo/icon-button/_Svgs.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { mdiFormatColorFill, mdiWrench, mdiCurrencyUsd } from '@mdi/js';
@@ -43539,7 +43800,8 @@ export default function _Svgs($$anchor) {
 	$.template_effect(() => $.set_text(text, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 4209 packages/site/src/routes/demo/icon-button/_Toggle.svelte	js
+=== 4251 packages/site/src/routes/demo/icon-button/_Toggle.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import IconButton, { Icon } from '@smui/icon-button';
@@ -43735,7 +43997,8 @@ export default function _Toggle($$anchor) {
 	$.template_effect(() => $.set_text(text_7, `Clicked: ${$.get(toggleClicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 887 packages/site/src/routes/demo/icon-button/_Touch.svelte	js
+=== 929 packages/site/src/routes/demo/icon-button/_Touch.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import IconButton, { Icon } from '@smui/icon-button';
@@ -43772,7 +44035,8 @@ export default function _Touch($$anchor) {
 	$.template_effect(() => $.set_text(text_1, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 2110 packages/site/src/routes/demo/image-list/+page.svelte	js
+=== 2152 packages/site/src/routes/demo/image-list/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -43867,7 +44131,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 2036 packages/site/src/routes/demo/image-list/_EnforceAspectRatio.svelte	js
+=== 2078 packages/site/src/routes/demo/image-list/_EnforceAspectRatio.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ImageList, { Item, ImageAspectContainer, Image, Supporting, Label } from '@smui/image-list';
@@ -43944,7 +44209,8 @@ export default function _EnforceAspectRatio($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1559 packages/site/src/routes/demo/image-list/_FourByFive.svelte	js
+=== 1601 packages/site/src/routes/demo/image-list/_FourByFive.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ImageList, { Item, ImageAspectContainer, Image, Supporting, Label } from '@smui/image-list';
@@ -44005,7 +44271,8 @@ export default function _FourByFive($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 1862 packages/site/src/routes/demo/image-list/_Masonry.svelte	js
+=== 1904 packages/site/src/routes/demo/image-list/_Masonry.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ImageList, { Item, Image, Supporting, Label } from '@smui/image-list';
@@ -44078,7 +44345,8 @@ export default function _Masonry($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1535 packages/site/src/routes/demo/image-list/_Simple.svelte	js
+=== 1577 packages/site/src/routes/demo/image-list/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ImageList, { Item, ImageAspectContainer, Image, Supporting, Label } from '@smui/image-list';
@@ -44138,7 +44406,8 @@ export default function _Simple($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 2738 packages/site/src/routes/demo/layout-grid/+page.svelte	js
+=== 2780 packages/site/src/routes/demo/layout-grid/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -44279,7 +44548,8 @@ export default function _page($$anchor) {
     color: var(--mdc-theme-on-secondary, #fff);
   }
 
-=== 1771 packages/site/src/routes/demo/layout-grid/_Align.svelte	js
+=== 1813 packages/site/src/routes/demo/layout-grid/_Align.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import LayoutGrid, { Cell } from '@smui/layout-grid';
@@ -44363,7 +44633,8 @@ export default function _Align($$anchor) {
     color: var(--mdc-theme-on-secondary, #fff);
   }
 
-=== 801 packages/site/src/routes/demo/layout-grid/_FixedColumnWidth.svelte	js
+=== 843 packages/site/src/routes/demo/layout-grid/_FixedColumnWidth.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import LayoutGrid, { Cell } from '@smui/layout-grid';
@@ -44405,7 +44676,8 @@ export default function _FixedColumnWidth($$anchor) {
     color: var(--mdc-theme-on-secondary, #fff);
   }
 
-=== 1296 packages/site/src/routes/demo/layout-grid/_Nested.svelte	js
+=== 1338 packages/site/src/routes/demo/layout-grid/_Nested.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import LayoutGrid, { Cell, InnerGrid } from '@smui/layout-grid';
@@ -44463,7 +44735,8 @@ export default function _Nested($$anchor) {
     color: var(--mdc-theme-on-secondary, #fff);
   }
 
-=== 785 packages/site/src/routes/demo/layout-grid/_Order.svelte	js
+=== 827 packages/site/src/routes/demo/layout-grid/_Order.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import LayoutGrid, { Cell } from '@smui/layout-grid';
@@ -44505,7 +44778,8 @@ export default function _Order($$anchor) {
     color: var(--mdc-theme-on-secondary, #fff);
   }
 
-=== 766 packages/site/src/routes/demo/layout-grid/_Simple.svelte	js
+=== 808 packages/site/src/routes/demo/layout-grid/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import LayoutGrid, { Cell } from '@smui/layout-grid';
@@ -44546,7 +44820,8 @@ export default function _Simple($$anchor) {
     color: var(--mdc-theme-on-secondary, #fff);
   }
 
-=== 2970 packages/site/src/routes/demo/layout-grid/_Span.svelte	js
+=== 3012 packages/site/src/routes/demo/layout-grid/_Span.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import LayoutGrid, { Cell } from '@smui/layout-grid';
@@ -44661,7 +44936,8 @@ export default function _Span($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 1857 packages/site/src/routes/demo/linear-progress/+page.svelte	js
+=== 1899 packages/site/src/routes/demo/linear-progress/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -44749,7 +45025,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 248 packages/site/src/routes/demo/linear-progress/_Buffered.svelte	js
+=== 290 packages/site/src/routes/demo/linear-progress/_Buffered.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import LinearProgress from '@smui/linear-progress';
@@ -44757,7 +45034,8 @@ import LinearProgress from '@smui/linear-progress';
 export default function _Buffered($$anchor) {
 	LinearProgress($$anchor, { progress: 0.5, buffer: 0.75 });
 }
-=== 291 packages/site/src/routes/demo/linear-progress/_Colored.svelte	js
+=== 333 packages/site/src/routes/demo/linear-progress/_Colored.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import LinearProgress from '@smui/linear-progress';
@@ -44769,7 +45047,8 @@ export default function _Colored($$anchor) {
 		buffer: 0.75
 	});
 }
-=== 245 packages/site/src/routes/demo/linear-progress/_Indeterminate.svelte	js
+=== 287 packages/site/src/routes/demo/linear-progress/_Indeterminate.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import LinearProgress from '@smui/linear-progress';
@@ -44777,7 +45056,8 @@ import LinearProgress from '@smui/linear-progress';
 export default function _Indeterminate($$anchor) {
 	LinearProgress($$anchor, { indeterminate: true });
 }
-=== 1788 packages/site/src/routes/demo/linear-progress/_Simple.svelte	js
+=== 1830 packages/site/src/routes/demo/linear-progress/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, onDestroy } from 'svelte';
@@ -44878,7 +45158,8 @@ export default function _Simple($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3860 packages/site/src/routes/demo/list/+page.svelte	js
+=== 3902 packages/site/src/routes/demo/list/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -45068,7 +45349,8 @@ export default function _page($$anchor) {
     max-width: 300px;
   }
 
-=== 5694 packages/site/src/routes/demo/list/_Check.svelte	js
+=== 5736 packages/site/src/routes/demo/list/_Check.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import List, { Item, Meta, Label } from '@smui/list';
@@ -45330,7 +45612,8 @@ export default function _Check($$anchor) {
     max-width: 300px;
   }
 
-=== 4203 packages/site/src/routes/demo/list/_GraphicsDense.svelte	js
+=== 4245 packages/site/src/routes/demo/list/_GraphicsDense.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import List, { Item, Graphic, Separator, Text } from '@smui/list';
@@ -45527,7 +45810,8 @@ export default function _GraphicsDense($$anchor) {
       var(--mdc-theme-text-hint-on-background, rgba(0, 0, 0, 0.1));
   }
 
-=== 6396 packages/site/src/routes/demo/list/_Groups.svelte	js
+=== 6438 packages/site/src/routes/demo/list/_Groups.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import List, { Group, Item, Subheader, Text } from '@smui/list';
@@ -45805,7 +46089,8 @@ export default function _Groups($$anchor) {
     padding-left: 10px;
   }
 
-=== 5254 packages/site/src/routes/demo/list/_MultiLevel.svelte	js
+=== 5296 packages/site/src/routes/demo/list/_MultiLevel.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import List, { Item, Text } from '@smui/list';
@@ -46029,7 +46314,8 @@ export default function _MultiLevel($$anchor) {
     max-width: 300px;
   }
 
-=== 2190 packages/site/src/routes/demo/list/_NonInteractive.svelte	js
+=== 2232 packages/site/src/routes/demo/list/_NonInteractive.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import List, { Item, Separator, Text } from '@smui/list';
@@ -46141,7 +46427,8 @@ export default function _NonInteractive($$anchor) {
     max-width: 300px;
   }
 
-=== 5250 packages/site/src/routes/demo/list/_Radio.svelte	js
+=== 5292 packages/site/src/routes/demo/list/_Radio.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import List, { Item, Graphic, Label } from '@smui/list';
@@ -46387,7 +46674,8 @@ export default function _Radio($$anchor) {
     max-width: 300px;
   }
 
-=== 2534 packages/site/src/routes/demo/list/_Simple.svelte	js
+=== 2576 packages/site/src/routes/demo/list/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import List, { Item, Separator, Text } from '@smui/list';
@@ -46498,7 +46786,8 @@ export default function _Simple($$anchor) {
 	$.template_effect(() => $.set_text(text_4, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 4571 packages/site/src/routes/demo/list/_ThreeLine.svelte	js
+=== 4613 packages/site/src/routes/demo/list/_ThreeLine.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import List, { Item, Text, PrimaryText, SecondaryText } from '@smui/list';
@@ -46693,7 +46982,8 @@ export default function _ThreeLine($$anchor) {
     max-width: 600px;
   }
 
-=== 5311 packages/site/src/routes/demo/list/_TwoLineSelection.svelte	js
+=== 5353 packages/site/src/routes/demo/list/_TwoLineSelection.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import List, { Item, Graphic, Meta, Text, PrimaryText, SecondaryText } from '@smui/list';
@@ -46900,7 +47190,8 @@ export default function _TwoLineSelection($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1810 packages/site/src/routes/demo/menu-surface/+page.svelte	js
+=== 1852 packages/site/src/routes/demo/menu-surface/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -46981,7 +47272,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 1927 packages/site/src/routes/demo/menu-surface/_Anchored.svelte	js
+=== 1969 packages/site/src/routes/demo/menu-surface/_Anchored.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MenuSurface from '@smui/menu-surface';
@@ -47071,7 +47363,8 @@ export default function _Anchored($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 2791 packages/site/src/routes/demo/menu-surface/_ManualAnchor.svelte	js
+=== 2833 packages/site/src/routes/demo/menu-surface/_ManualAnchor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -47180,7 +47473,8 @@ export default function _ManualAnchor($$anchor, $$props) {
 	// This sets the menu surface's origin corner to the top end instead of the
 	// top start.
 }
-=== 629 packages/site/src/routes/demo/menu-surface/_Simple.svelte	js
+=== 671 packages/site/src/routes/demo/menu-surface/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MenuSurface from '@smui/menu-surface';
@@ -47201,7 +47495,8 @@ export default function _Simple($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 2730 packages/site/src/routes/demo/menu-surface/_Static.svelte	js
+=== 2772 packages/site/src/routes/demo/menu-surface/_Static.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MenuSurface from '@smui/menu-surface';
@@ -47315,7 +47610,8 @@ export default function _Static($$anchor) {
 	$.template_effect(() => $.set_text(text_4, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 2536 packages/site/src/routes/demo/menu/+page.svelte	js
+=== 2578 packages/site/src/routes/demo/menu/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -47428,7 +47724,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 3337 packages/site/src/routes/demo/menu/_Anchored.svelte	js
+=== 3379 packages/site/src/routes/demo/menu/_Anchored.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Menu from '@smui/menu';
@@ -47569,7 +47866,8 @@ export default function _Anchored($$anchor) {
 	$.template_effect(() => $.set_text(text_5, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 9172 packages/site/src/routes/demo/menu/_Portal.svelte	js
+=== 9214 packages/site/src/routes/demo/menu/_Portal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -47930,7 +48228,8 @@ export default function _Portal($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 5666 packages/site/src/routes/demo/menu/_SelectionGroup.svelte	js
+=== 5708 packages/site/src/routes/demo/menu/_SelectionGroup.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Menu, { SelectionGroup, SelectionGroupIcon } from '@smui/menu';
@@ -48143,7 +48442,8 @@ export default function _SelectionGroup($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 2735 packages/site/src/routes/demo/menu/_Static.svelte	js
+=== 2777 packages/site/src/routes/demo/menu/_Static.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Menu from '@smui/menu';
@@ -48258,7 +48558,8 @@ export default function _Static($$anchor) {
 	$.template_effect(() => $.set_text(text_4, `Clicked: ${$.get(clicked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 6588 packages/site/src/routes/demo/menu/_TwoLineManunalAnchor.svelte	js
+=== 6630 packages/site/src/routes/demo/menu/_TwoLineManunalAnchor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Menu from '@smui/menu';
@@ -48543,7 +48844,8 @@ export default function _TwoLineManunalAnchor($$anchor, $$props) {
     margin-bottom: 0;
   }
 
-=== 2633 packages/site/src/routes/demo/paper/+page.svelte	js
+=== 2675 packages/site/src/routes/demo/paper/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -48662,7 +48964,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 3691 packages/site/src/routes/demo/paper/_Colored.svelte	js
+=== 3733 packages/site/src/routes/demo/paper/_Colored.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Paper, { Title, Content } from '@smui/paper';
@@ -48827,7 +49130,8 @@ export default function _Colored($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 4601 packages/site/src/routes/demo/paper/_ElevationTransition.svelte	js
+=== 4643 packages/site/src/routes/demo/paper/_ElevationTransition.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Paper, { Title, Content } from '@smui/paper';
@@ -49034,7 +49338,8 @@ export default function _ElevationTransition($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 3637 packages/site/src/routes/demo/paper/_PrimaryColor.svelte	js
+=== 3679 packages/site/src/routes/demo/paper/_PrimaryColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Paper, { Title, Content } from '@smui/paper';
@@ -49199,7 +49504,8 @@ export default function _PrimaryColor($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 3667 packages/site/src/routes/demo/paper/_SecondaryColor.svelte	js
+=== 3709 packages/site/src/routes/demo/paper/_SecondaryColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Paper, { Title, Content } from '@smui/paper';
@@ -49364,7 +49670,8 @@ export default function _SecondaryColor($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 3337 packages/site/src/routes/demo/paper/_Simple.svelte	js
+=== 3379 packages/site/src/routes/demo/paper/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Paper, { Title, Subtitle, Content } from '@smui/paper';
@@ -49526,7 +49833,8 @@ export default function _Simple($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 2787 packages/site/src/routes/demo/paper/_Square.svelte	js
+=== 2829 packages/site/src/routes/demo/paper/_Square.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Paper, { Title, Content } from '@smui/paper';
@@ -49659,7 +49967,8 @@ export default function _Square($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 2679 packages/site/src/routes/demo/quick-guide/+page.svelte	js
+=== 2721 packages/site/src/routes/demo/quick-guide/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -49788,7 +50097,8 @@ export default function _page($$anchor) {
     overflow: auto;
   }
 
-=== 4546 packages/site/src/routes/demo/quick-guide/_EventsAndModifiers.svelte	js
+=== 4588 packages/site/src/routes/demo/quick-guide/_EventsAndModifiers.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { preventDefault } from '@smui/common/events';
@@ -49979,7 +50289,8 @@ export default function _EventsAndModifiers($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1043 packages/site/src/routes/demo/quick-guide/_InnerElementProps.svelte	js
+=== 1085 packages/site/src/routes/demo/quick-guide/_InnerElementProps.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -50036,7 +50347,8 @@ export default function _InnerElementProps($$anchor) {
     font-style: italic;
   }
 
-=== 666 packages/site/src/routes/demo/quick-guide/_TargetingClasses.svelte	js
+=== 708 packages/site/src/routes/demo/quick-guide/_TargetingClasses.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Button, { Label } from '@smui/button';
@@ -50067,7 +50379,8 @@ export default function _TargetingClasses($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 1399 packages/site/src/routes/demo/radio/+page.svelte	js
+=== 1441 packages/site/src/routes/demo/radio/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -50132,7 +50445,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 4344 packages/site/src/routes/demo/radio/_Colored.svelte	js
+=== 4386 packages/site/src/routes/demo/radio/_Colored.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Radio from '@smui/radio';
@@ -50385,7 +50699,8 @@ export default function _Colored($$anchor) {
     margin: 0 0.2em;
   }
 
-=== 2080 packages/site/src/routes/demo/radio/_Simple.svelte	js
+=== 2122 packages/site/src/routes/demo/radio/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Radio from '@smui/radio';
@@ -50482,7 +50797,8 @@ export default function _Simple($$anchor) {
     margin: 0 0.2em;
   }
 
-=== 1239 packages/site/src/routes/demo/radio/_Touch.svelte	js
+=== 1281 packages/site/src/routes/demo/radio/_Touch.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Radio from '@smui/radio';
@@ -50537,7 +50853,8 @@ export default function _Touch($$anchor) {
 	$.template_effect(() => $.set_text(text_1, `Selected: ${$.get(onoff) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 1659 packages/site/src/routes/demo/ripple/+page.svelte	js
+=== 1701 packages/site/src/routes/demo/ripple/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -50625,7 +50942,8 @@ export default function _page($$anchor) {
     cursor: pointer;
   }
 
-=== 827 packages/site/src/routes/demo/ripple/_KeyboardActivation.svelte	js
+=== 869 packages/site/src/routes/demo/ripple/_KeyboardActivation.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Ripple from '@smui/ripple';
@@ -50654,7 +50972,8 @@ export default function _KeyboardActivation($$anchor) {
     cursor: pointer;
   }
 
-=== 444 packages/site/src/routes/demo/ripple/_PrimaryColor.svelte	js
+=== 486 packages/site/src/routes/demo/ripple/_PrimaryColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Ripple from '@smui/ripple';
@@ -50678,7 +50997,8 @@ export default function _PrimaryColor($$anchor) {
     cursor: pointer;
   }
 
-=== 450 packages/site/src/routes/demo/ripple/_SecondaryColor.svelte	js
+=== 492 packages/site/src/routes/demo/ripple/_SecondaryColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Ripple from '@smui/ripple';
@@ -50702,7 +51022,8 @@ export default function _SecondaryColor($$anchor) {
     cursor: pointer;
   }
 
-=== 524 packages/site/src/routes/demo/ripple/_Simple.svelte	js
+=== 566 packages/site/src/routes/demo/ripple/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Ripple from '@smui/ripple';
@@ -50736,7 +51057,8 @@ export default function _Simple($$anchor) {
     cursor: pointer;
   }
 
-=== 2598 packages/site/src/routes/demo/ripple/_Unbounded.svelte	js
+=== 2640 packages/site/src/routes/demo/ripple/_Unbounded.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Ripple from '@smui/ripple';
@@ -50830,7 +51152,8 @@ export default function _Unbounded($$anchor, $$props) {
 	$.append($$anchor, p);
 	$.pop();
 }
-=== 2419 packages/site/src/routes/demo/segmented-button/+page.svelte	js
+=== 2461 packages/site/src/routes/demo/segmented-button/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -50939,7 +51262,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 1404 packages/site/src/routes/demo/segmented-button/_GroupSelection.svelte	js
+=== 1446 packages/site/src/routes/demo/segmented-button/_GroupSelection.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SegmentedButton, { Segment, Label } from '@smui/segmented-button';
@@ -51015,7 +51339,8 @@ export default function _GroupSelection($$anchor) {
     outline: 0;
   }
 
-=== 5027 packages/site/src/routes/demo/segmented-button/_IconsKeys.svelte	js
+=== 5069 packages/site/src/routes/demo/segmented-button/_IconsKeys.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { preventDefault } from '@smui/common/events';
@@ -51238,7 +51563,8 @@ export default function _IconsKeys($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1655 packages/site/src/routes/demo/segmented-button/_ManualSelection.svelte	js
+=== 1697 packages/site/src/routes/demo/segmented-button/_ManualSelection.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SegmentedButton, { Segment, Label } from '@smui/segmented-button';
@@ -51311,7 +51637,8 @@ export default function _ManualSelection($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3024 packages/site/src/routes/demo/segmented-button/_SingleSelection.svelte	js
+=== 3066 packages/site/src/routes/demo/segmented-button/_SingleSelection.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SegmentedButton, { Segment } from '@smui/segmented-button';
@@ -51449,7 +51776,8 @@ export default function _SingleSelection($$anchor) {
 	$.template_effect(() => $.set_text(text_5, `Selected: ${$.get(selected) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 2082 packages/site/src/routes/demo/segmented-button/_Touch.svelte	js
+=== 2124 packages/site/src/routes/demo/segmented-button/_Touch.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SegmentedButton, { Segment, Icon } from '@smui/segmented-button';
@@ -51555,7 +51883,8 @@ export default function _Touch($$anchor) {
     margin-right: 0;
   }
 
-=== 5893 packages/site/src/routes/demo/select/+page.svelte	js
+=== 5935 packages/site/src/routes/demo/select/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -51841,7 +52170,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 6323 packages/site/src/routes/demo/select/_ConditionalIcon.svelte	js
+=== 6365 packages/site/src/routes/demo/select/_ConditionalIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Select, { Option } from '@smui/select';
@@ -52130,7 +52460,8 @@ export default function _ConditionalIcon($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 3754 packages/site/src/routes/demo/select/_Disabled.svelte	js
+=== 3796 packages/site/src/routes/demo/select/_Disabled.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Select, { Option } from '@smui/select';
@@ -52305,7 +52636,8 @@ export default function _Disabled($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 5528 packages/site/src/routes/demo/select/_Filled.svelte	js
+=== 5570 packages/site/src/routes/demo/select/_Filled.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Select, { Option } from '@smui/select';
@@ -52558,7 +52890,8 @@ export default function _Filled($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 2224 packages/site/src/routes/demo/select/_Forms.svelte	js
+=== 2266 packages/site/src/routes/demo/select/_Forms.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Select, { Option } from '@smui/select';
@@ -52655,7 +52988,8 @@ export default function _Forms($$anchor) {
 	$.event('submit', form, handleSubmit);
 	$.append($$anchor, div);
 }
-=== 2207 packages/site/src/routes/demo/select/_Invalid.svelte	js
+=== 2249 packages/site/src/routes/demo/select/_Invalid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Select, { Option } from '@smui/select';
@@ -52757,7 +53091,8 @@ export default function _Invalid($$anchor) {
 	$.template_effect(() => $.set_text(text_2, `Selected: ${$.get(valueA) ?? ''}`));
 	$.append($$anchor, div);
 }
-=== 4055 packages/site/src/routes/demo/select/_Keys.svelte	js
+=== 4097 packages/site/src/routes/demo/select/_Keys.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Select, { Option } from '@smui/select';
@@ -52938,7 +53273,8 @@ export default function _Keys($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 5538 packages/site/src/routes/demo/select/_Outlined.svelte	js
+=== 5580 packages/site/src/routes/demo/select/_Outlined.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Select, { Option } from '@smui/select';
@@ -53191,7 +53527,8 @@ export default function _Outlined($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 3754 packages/site/src/routes/demo/select/_Required.svelte	js
+=== 3796 packages/site/src/routes/demo/select/_Required.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Select, { Option } from '@smui/select';
@@ -53373,7 +53710,8 @@ export default function _Required($$anchor) {
     border-radius: 16px 16px 0 0;
   }
 
-=== 5798 packages/site/src/routes/demo/select/_ShapedFilled.svelte	js
+=== 5840 packages/site/src/routes/demo/select/_ShapedFilled.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Select, { Option } from '@smui/select';
@@ -53665,7 +54003,8 @@ export default function _ShapedFilled($$anchor) {
     left: 16px;
   }
 
-=== 5816 packages/site/src/routes/demo/select/_ShapedOutlined.svelte	js
+=== 5858 packages/site/src/routes/demo/select/_ShapedOutlined.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Select, { Option } from '@smui/select';
@@ -53922,7 +54261,8 @@ export default function _ShapedOutlined($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 1411 packages/site/src/routes/demo/select/_Showcase.svelte	js
+=== 1453 packages/site/src/routes/demo/select/_Showcase.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Select, { Option } from '@smui/select';
@@ -53981,7 +54321,8 @@ export default function _Showcase($$anchor) {
 	$.template_effect(() => $.set_text(text_1, `Selected: ${$.get(value) ?? ''}`));
 	$.append($$anchor, div);
 }
-=== 5444 packages/site/src/routes/demo/select/_Standard.svelte	js
+=== 5486 packages/site/src/routes/demo/select/_Standard.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Select, { Option } from '@smui/select';
@@ -54230,7 +54571,8 @@ export default function _Standard($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 3397 packages/site/src/routes/demo/slider/+page.svelte	js
+=== 3439 packages/site/src/routes/demo/slider/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -54396,7 +54738,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 701 packages/site/src/routes/demo/slider/_Continuous.svelte	js
+=== 743 packages/site/src/routes/demo/slider/_Continuous.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Slider from '@smui/slider';
@@ -54428,7 +54771,8 @@ export default function _Continuous($$anchor) {
 	$.template_effect(() => $.set_text(text, `Value: ${$.get(value) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 220 packages/site/src/routes/demo/slider/_Disabled.svelte	js
+=== 262 packages/site/src/routes/demo/slider/_Disabled.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Slider from '@smui/slider';
@@ -54436,7 +54780,8 @@ import Slider from '@smui/slider';
 export default function _Disabled($$anchor) {
 	Slider($$anchor, { disabled: true, value: 5 });
 }
-=== 711 packages/site/src/routes/demo/slider/_Discrete.svelte	js
+=== 753 packages/site/src/routes/demo/slider/_Discrete.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Slider from '@smui/slider';
@@ -54469,7 +54814,8 @@ export default function _Discrete($$anchor) {
 	$.template_effect(() => $.set_text(text, `Value: ${$.get(value) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 929 packages/site/src/routes/demo/slider/_DiscreteRange.svelte	js
+=== 971 packages/site/src/routes/demo/slider/_DiscreteRange.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Slider from '@smui/slider';
@@ -54513,7 +54859,8 @@ export default function _DiscreteRange($$anchor) {
 	$.template_effect(() => $.set_text(text, `Value: ${$.get(valueStart) ?? ''} - ${$.get(valueEnd) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 908 packages/site/src/routes/demo/slider/_MinRange.svelte	js
+=== 950 packages/site/src/routes/demo/slider/_MinRange.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Slider from '@smui/slider';
@@ -54556,7 +54903,8 @@ export default function _MinRange($$anchor) {
 	$.template_effect(() => $.set_text(text, `Value: ${$.get(valueStart) ?? ''} - ${$.get(valueEnd) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 1272 packages/site/src/routes/demo/slider/_Range.svelte	js
+=== 1314 packages/site/src/routes/demo/slider/_Range.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Slider from '@smui/slider';
@@ -54620,7 +54968,8 @@ export default function _Range($$anchor) {
 	$.template_effect(() => $.set_text(text_1, `Value: ${$.get(valueStart) ?? ''} - ${$.get(valueEnd) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 1733 packages/site/src/routes/demo/slider/_Simple.svelte	js
+=== 1775 packages/site/src/routes/demo/slider/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Slider from '@smui/slider';
@@ -54700,7 +55049,8 @@ export default function _Simple($$anchor) {
 	$.template_effect(() => $.set_text(text_1, `Value: ${$.get(value) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 734 packages/site/src/routes/demo/slider/_TickMarks.svelte	js
+=== 776 packages/site/src/routes/demo/slider/_TickMarks.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Slider from '@smui/slider';
@@ -54734,7 +55084,8 @@ export default function _TickMarks($$anchor) {
 	$.template_effect(() => $.set_text(text, `Value: ${$.get(value) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 3199 packages/site/src/routes/demo/snackbar/+page.svelte	js
+=== 3241 packages/site/src/routes/demo/snackbar/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -54882,7 +55233,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 5272 packages/site/src/routes/demo/snackbar/_Colors.svelte	js
+=== 5314 packages/site/src/routes/demo/snackbar/_Colors.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Snackbar, { Label, Actions } from '@smui/snackbar';
@@ -55115,7 +55467,8 @@ export default function _Colors($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 2116 packages/site/src/routes/demo/snackbar/_DynamicText.svelte	js
+=== 2158 packages/site/src/routes/demo/snackbar/_DynamicText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Snackbar, { Actions, Label } from '@smui/snackbar';
@@ -55212,7 +55565,8 @@ export default function _DynamicText($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 1780 packages/site/src/routes/demo/snackbar/_Kitchen.svelte	js
+=== 1822 packages/site/src/routes/demo/snackbar/_Kitchen.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Kitchen from '@smui/snackbar/kitchen';
@@ -55278,7 +55632,8 @@ export default function _Kitchen($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 2162 packages/site/src/routes/demo/snackbar/_KitchenSvg.svelte	js
+=== 2204 packages/site/src/routes/demo/snackbar/_KitchenSvg.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { mdiCloseCircle } from '@mdi/js';
@@ -55364,7 +55719,8 @@ export default function _KitchenSvg($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 2042 packages/site/src/routes/demo/snackbar/_LeadingWithAction.svelte	js
+=== 2084 packages/site/src/routes/demo/snackbar/_LeadingWithAction.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Snackbar, { Actions, Label } from '@smui/snackbar';
@@ -55454,7 +55810,8 @@ export default function _LeadingWithAction($$anchor) {
 	$.template_effect(() => $.set_text(text_3, `Closed Reason: ${$.get(reason) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 2849 packages/site/src/routes/demo/snackbar/_Simple.svelte	js
+=== 2891 packages/site/src/routes/demo/snackbar/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Snackbar, { Actions, Label } from '@smui/snackbar';
@@ -55582,7 +55939,8 @@ export default function _Simple($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 3388 packages/site/src/routes/demo/snackbar/_StackedWithAction.svelte	js
+=== 3430 packages/site/src/routes/demo/snackbar/_StackedWithAction.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Snackbar, { Actions, Label } from '@smui/snackbar';
@@ -55722,7 +56080,8 @@ export default function _StackedWithAction($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 2927 packages/site/src/routes/demo/switch/+page.svelte	js
+=== 2969 packages/site/src/routes/demo/switch/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -55854,7 +56213,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 2902 packages/site/src/routes/demo/switch/_Colored.svelte	js
+=== 2944 packages/site/src/routes/demo/switch/_Colored.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Switch from '@smui/switch';
@@ -56007,7 +56367,8 @@ export default function _Colored($$anchor) {
 	$.reset(div_5);
 	$.append($$anchor, fragment);
 }
-=== 1660 packages/site/src/routes/demo/switch/_Events.svelte	js
+=== 1702 packages/site/src/routes/demo/switch/_Events.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Switch from '@smui/switch';
@@ -56079,7 +56440,8 @@ export default function _Events($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 2356 packages/site/src/routes/demo/switch/_Group.svelte	js
+=== 2398 packages/site/src/routes/demo/switch/_Group.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Switch from '@smui/switch';
@@ -56181,7 +56543,8 @@ export default function _Group($$anchor) {
 	$.template_effect(($0) => $.set_text(text_2, `Selected: ${$0 ?? ''}`), [() => $.get(selected).join(', ')]);
 	$.append($$anchor, fragment);
 }
-=== 1830 packages/site/src/routes/demo/switch/_NoIcons.svelte	js
+=== 1872 packages/site/src/routes/demo/switch/_NoIcons.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Switch from '@smui/switch';
@@ -56270,7 +56633,8 @@ export default function _NoIcons($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 1841 packages/site/src/routes/demo/switch/_SecondaryColor.svelte	js
+=== 1883 packages/site/src/routes/demo/switch/_SecondaryColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Switch from '@smui/switch';
@@ -56359,7 +56723,8 @@ export default function _SecondaryColor($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 2189 packages/site/src/routes/demo/switch/_Simple.svelte	js
+=== 2231 packages/site/src/routes/demo/switch/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Switch from '@smui/switch';
@@ -56470,7 +56835,8 @@ export default function _Simple($$anchor) {
     margin-bottom: 40px;
   }
 
-=== 3468 packages/site/src/routes/demo/tabs/+page.svelte	js
+=== 3510 packages/site/src/routes/demo/tabs/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -56618,7 +56984,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 1443 packages/site/src/routes/demo/tabs/_HrefAnchors.svelte	js
+=== 1485 packages/site/src/routes/demo/tabs/_HrefAnchors.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Tab, { Label } from '@smui/tab';
@@ -56688,7 +57055,8 @@ export default function _HrefAnchors($$anchor) {
     opacity: 0.2;
   }
 
-=== 1383 packages/site/src/routes/demo/tabs/_IconIndicators.svelte	js
+=== 1425 packages/site/src/routes/demo/tabs/_IconIndicators.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Tab, { Label } from '@smui/tab';
@@ -56754,7 +57122,8 @@ export default function _IconIndicators($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 1733 packages/site/src/routes/demo/tabs/_Icons.svelte	js
+=== 1775 packages/site/src/routes/demo/tabs/_Icons.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Tab, { Icon, Label } from '@smui/tab';
@@ -56838,7 +57207,8 @@ export default function _Icons($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 2076 packages/site/src/routes/demo/tabs/_KeyedIconsAboveRestrictedIndicatorsFadeTransition.svelte	js
+=== 2118 packages/site/src/routes/demo/tabs/_KeyedIconsAboveRestrictedIndicatorsFadeTransition.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Tab, { Icon, Label } from '@smui/tab';
@@ -56929,7 +57299,8 @@ export default function _KeyedIconsAboveRestrictedIndicatorsFadeTransition($$anc
 	$.template_effect(() => $.set_text(text_2, `Selected: ${$.get(active).k ?? ''}`));
 	$.append($$anchor, div);
 }
-=== 1074 packages/site/src/routes/demo/tabs/_MinWidth.svelte	js
+=== 1116 packages/site/src/routes/demo/tabs/_MinWidth.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Tab, { Label } from '@smui/tab';
@@ -56983,7 +57354,8 @@ export default function _MinWidth($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 1048 packages/site/src/routes/demo/tabs/_ScrollingNoInitialActive.svelte	js
+=== 1090 packages/site/src/routes/demo/tabs/_ScrollingNoInitialActive.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Tab, { Label } from '@smui/tab';
@@ -57036,7 +57408,8 @@ export default function _ScrollingNoInitialActive($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 3724 packages/site/src/routes/demo/tabs/_Simple.svelte	js
+=== 3766 packages/site/src/routes/demo/tabs/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Tab, { Label } from '@smui/tab';
@@ -57215,7 +57588,8 @@ export default function _Simple($$anchor) {
     overflow-wrap: break-word;
   }
 
-=== 10995 packages/site/src/routes/demo/textfield/+page.svelte	js
+=== 11037 packages/site/src/routes/demo/textfield/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -57738,7 +58112,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 3611 packages/site/src/routes/demo/textfield/_BothIcons.svelte	js
+=== 3653 packages/site/src/routes/demo/textfield/_BothIcons.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -57918,7 +58293,8 @@ export default function _BothIcons($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 2705 packages/site/src/routes/demo/textfield/_CharacterCount.svelte	js
+=== 2747 packages/site/src/routes/demo/textfield/_CharacterCount.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -58053,7 +58429,8 @@ export default function _CharacterCount($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 6594 packages/site/src/routes/demo/textfield/_ConditionalIcons.svelte	js
+=== 6636 packages/site/src/routes/demo/textfield/_ConditionalIcons.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -58378,7 +58755,8 @@ export default function _ConditionalIcons($$anchor) {
     color: transparent;
   }
 
-=== 1961 packages/site/src/routes/demo/textfield/_DifferentTypes.svelte	js
+=== 2003 packages/site/src/routes/demo/textfield/_DifferentTypes.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -58473,7 +58851,8 @@ export default function _DifferentTypes($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1798 packages/site/src/routes/demo/textfield/_Disabled.svelte	js
+=== 1840 packages/site/src/routes/demo/textfield/_Disabled.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -58571,7 +58950,8 @@ export default function _Disabled($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 1138 packages/site/src/routes/demo/textfield/_ElementsInLabel.svelte	js
+=== 1180 packages/site/src/routes/demo/textfield/_ElementsInLabel.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -58624,7 +59004,8 @@ export default function _ElementsInLabel($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 4058 packages/site/src/routes/demo/textfield/_Filled.svelte	js
+=== 4100 packages/site/src/routes/demo/textfield/_Filled.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -58828,7 +59209,8 @@ export default function _Filled($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 939 packages/site/src/routes/demo/textfield/_FixedSizeTextarea.svelte	js
+=== 981 packages/site/src/routes/demo/textfield/_FixedSizeTextarea.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -58876,7 +59258,8 @@ export default function _FixedSizeTextarea($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 911 packages/site/src/routes/demo/textfield/_FullWidth.svelte	js
+=== 953 packages/site/src/routes/demo/textfield/_FullWidth.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -58922,7 +59305,8 @@ export default function _FullWidth($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 938 packages/site/src/routes/demo/textfield/_FullWidthTextarea.svelte	js
+=== 980 packages/site/src/routes/demo/textfield/_FullWidthTextarea.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -58969,7 +59353,8 @@ export default function _FullWidthTextarea($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 3852 packages/site/src/routes/demo/textfield/_HelperTextCharacterCount.svelte	js
+=== 3894 packages/site/src/routes/demo/textfield/_HelperTextCharacterCount.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -59160,7 +59545,8 @@ export default function _HelperTextCharacterCount($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 9024 packages/site/src/routes/demo/textfield/_ManualSetup.svelte	js
+=== 9066 packages/site/src/routes/demo/textfield/_ManualSetup.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield, { Input, Textarea } from '@smui/textfield';
@@ -59556,7 +59942,8 @@ export default function _ManualSetup($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 1606 packages/site/src/routes/demo/textfield/_NoLabelOrHelperText.svelte	js
+=== 1648 packages/site/src/routes/demo/textfield/_NoLabelOrHelperText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -59633,7 +60020,8 @@ export default function _NoLabelOrHelperText($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 2026 packages/site/src/routes/demo/textfield/_NullAndUndefined.svelte	js
+=== 2068 packages/site/src/routes/demo/textfield/_NullAndUndefined.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -59732,7 +60120,8 @@ export default function _NullAndUndefined($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 4068 packages/site/src/routes/demo/textfield/_Outlined.svelte	js
+=== 4110 packages/site/src/routes/demo/textfield/_Outlined.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -59936,7 +60325,8 @@ export default function _Outlined($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 2690 packages/site/src/routes/demo/textfield/_PersistentHelperText.svelte	js
+=== 2732 packages/site/src/routes/demo/textfield/_PersistentHelperText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -60071,7 +60461,8 @@ export default function _PersistentHelperText($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 1812 packages/site/src/routes/demo/textfield/_Prefixed.svelte	js
+=== 1854 packages/site/src/routes/demo/textfield/_Prefixed.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -60157,7 +60548,8 @@ export default function _Prefixed($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 1710 packages/site/src/routes/demo/textfield/_Required.svelte	js
+=== 1752 packages/site/src/routes/demo/textfield/_Required.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -60246,7 +60638,8 @@ export default function _Required($$anchor) {
     border-radius: 16px 16px 0 0;
   }
 
-=== 4330 packages/site/src/routes/demo/textfield/_ShapedFilled.svelte	js
+=== 4372 packages/site/src/routes/demo/textfield/_ShapedFilled.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -60486,7 +60879,8 @@ export default function _ShapedFilled($$anchor) {
     padding-right: 28px;
   }
 
-=== 4348 packages/site/src/routes/demo/textfield/_ShapedOutlined.svelte	js
+=== 4390 packages/site/src/routes/demo/textfield/_ShapedOutlined.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -60694,7 +61088,8 @@ export default function _ShapedOutlined($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 2717 packages/site/src/routes/demo/textfield/_Showcase.svelte	js
+=== 2759 packages/site/src/routes/demo/textfield/_Showcase.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -60854,7 +61249,8 @@ export default function _Showcase($$anchor) {
     flex-shrink: 0;
   }
 
-=== 2203 packages/site/src/routes/demo/textfield/_Solo.svelte	js
+=== 2245 packages/site/src/routes/demo/textfield/_Solo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Input } from '@smui/textfield';
@@ -60959,7 +61355,8 @@ export default function _Solo($$anchor) {
 	$.template_effect(() => $.set_text(text_2, `Value: ${$.get(value) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 3972 packages/site/src/routes/demo/textfield/_Standard.svelte	js
+=== 4014 packages/site/src/routes/demo/textfield/_Standard.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -61159,7 +61556,8 @@ export default function _Standard($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 1782 packages/site/src/routes/demo/textfield/_Suffixed.svelte	js
+=== 1824 packages/site/src/routes/demo/textfield/_Suffixed.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -61245,7 +61643,8 @@ export default function _Suffixed($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 866 packages/site/src/routes/demo/textfield/_Textarea.svelte	js
+=== 908 packages/site/src/routes/demo/textfield/_Textarea.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -61290,7 +61689,8 @@ export default function _Textarea($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 946 packages/site/src/routes/demo/textfield/_TextareaCharacterCount.svelte	js
+=== 988 packages/site/src/routes/demo/textfield/_TextareaCharacterCount.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Textfield from '@smui/textfield';
@@ -61336,7 +61736,8 @@ export default function _TextareaCharacterCount($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 2398 packages/site/src/routes/demo/tooltip/+page.svelte	js
+=== 2440 packages/site/src/routes/demo/tooltip/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -61448,7 +61849,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 1405 packages/site/src/routes/demo/tooltip/_Delayed.svelte	js
+=== 1447 packages/site/src/routes/demo/tooltip/_Delayed.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Tooltip, { Wrapper } from '@smui/tooltip';
@@ -61512,7 +61914,8 @@ export default function _Delayed($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 2261 packages/site/src/routes/demo/tooltip/_Disappearing.svelte	js
+=== 2303 packages/site/src/routes/demo/tooltip/_Disappearing.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Tooltip, { Wrapper } from '@smui/tooltip';
@@ -61612,7 +62015,8 @@ export default function _Disappearing($$anchor) {
 	$.reset(div_1);
 	$.append($$anchor, fragment);
 }
-=== 6368 packages/site/src/routes/demo/tooltip/_Positioning.svelte	js
+=== 6410 packages/site/src/routes/demo/tooltip/_Positioning.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Tooltip, { Wrapper } from '@smui/tooltip';
@@ -61916,7 +62320,8 @@ export default function _Positioning($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 5655 packages/site/src/routes/demo/tooltip/_Rich.svelte	js
+=== 5697 packages/site/src/routes/demo/tooltip/_Rich.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Tooltip, { Wrapper, Title, Content, Link, RichActions } from '@smui/tooltip';
@@ -62150,7 +62555,8 @@ export default function _Rich($$anchor) {
     margin: 15px;
   }
 
-=== 6910 packages/site/src/routes/demo/tooltip/_Simple.svelte	js
+=== 6952 packages/site/src/routes/demo/tooltip/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Tooltip, { Wrapper } from '@smui/tooltip';
@@ -62455,7 +62861,8 @@ export default function _Simple($$anchor) {
 	$.template_effect(() => $.set_text(text_9, `Clicked: ${$.get(clicked) ?? ''}, Checked: ${$.get(checked) ?? ''}, Selected: ${$.get(selected) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 1955 packages/site/src/routes/demo/top-app-bar/+page.svelte	js
+=== 1997 packages/site/src/routes/demo/top-app-bar/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -62578,7 +62985,8 @@ export default function _page($$anchor) {
     overflow: auto;
   }
 
-=== 9824 packages/site/src/routes/demo/top-app-bar/_Static.svelte	js
+=== 9866 packages/site/src/routes/demo/top-app-bar/_Static.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TopAppBar, { Row, Section, Title } from '@smui/top-app-bar';
@@ -63013,7 +63421,8 @@ export default function _Static($$anchor) {
     }
   }
 
-=== 1496 packages/site/src/routes/demo/top-app-bar/_Variants.svelte	js
+=== 1538 packages/site/src/routes/demo/top-app-bar/_Variants.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -63037,7 +63446,8 @@ export default function _Variants($$anchor) {
     position: static !important;
   }
 
-=== 4266 packages/site/src/routes/demo/top-app-bar/iframe/dense/+page.svelte	js
+=== 4308 packages/site/src/routes/demo/top-app-bar/iframe/dense/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TopAppBar, { Row, Section, Title, AutoAdjust } from '@smui/top-app-bar';
@@ -63218,7 +63628,8 @@ export default function _page($$anchor) {
     position: static !important;
   }
 
-=== 4247 packages/site/src/routes/demo/top-app-bar/iframe/fixed/+page.svelte	js
+=== 4289 packages/site/src/routes/demo/top-app-bar/iframe/fixed/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TopAppBar, { Row, Section, Title, AutoAdjust } from '@smui/top-app-bar';
@@ -63398,7 +63809,8 @@ export default function _page($$anchor) {
     position: static !important;
   }
 
-=== 4274 packages/site/src/routes/demo/top-app-bar/iframe/prominent/+page.svelte	js
+=== 4316 packages/site/src/routes/demo/top-app-bar/iframe/prominent/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TopAppBar, { Row, Section, Title, AutoAdjust } from '@smui/top-app-bar';
@@ -63579,7 +63991,8 @@ export default function _page($$anchor) {
     position: static !important;
   }
 
-=== 3123 packages/site/src/routes/demo/top-app-bar/iframe/short-closed/+page.svelte	js
+=== 3165 packages/site/src/routes/demo/top-app-bar/iframe/short-closed/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TopAppBar, { Row, Section, Title, AutoAdjust } from '@smui/top-app-bar';
@@ -63714,7 +64127,8 @@ export default function _page($$anchor) {
     position: static !important;
   }
 
-=== 3056 packages/site/src/routes/demo/top-app-bar/iframe/short/+page.svelte	js
+=== 3098 packages/site/src/routes/demo/top-app-bar/iframe/short/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TopAppBar, { Row, Section, Title, AutoAdjust } from '@smui/top-app-bar';
@@ -63848,7 +64262,8 @@ export default function _page($$anchor) {
     position: static !important;
   }
 
-=== 4253 packages/site/src/routes/demo/top-app-bar/iframe/standard/+page.svelte	js
+=== 4295 packages/site/src/routes/demo/top-app-bar/iframe/standard/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TopAppBar, { Row, Section, Title, AutoAdjust } from '@smui/top-app-bar';
@@ -64016,7 +64431,8 @@ export default function _page($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 1160 packages/site/src/routes/demo/touch-target/+page.svelte	js
+=== 1202 packages/site/src/routes/demo/touch-target/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -64064,7 +64480,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 4888 packages/site/src/routes/demo/touch-target/_Simple.svelte	js
+=== 4930 packages/site/src/routes/demo/touch-target/_Simple.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Wrapper from '@smui/touch-target';
@@ -64287,7 +64704,8 @@ export default function _Simple($$anchor) {
 	$.template_effect(() => $.set_text(text_4, `Clicked: ${$.get(clicked) ?? ''}, Checked: ${$.get(checked) ?? ''}, Selected: ${$.get(selected) ?? ''}, Switched: ${$.get(switchChecked) ?? ''}`));
 	$.append($$anchor, fragment);
 }
-=== 799 packages/site/src/routes/demo/typography/+page.svelte	js
+=== 841 packages/site/src/routes/demo/typography/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Demo from '$lib/Demo.svelte';
@@ -64320,7 +64738,8 @@ export default function _page($$anchor) {
 	$.reset(section);
 	$.append($$anchor, section);
 }
-=== 1078 packages/site/src/routes/demo/typography/_Typography.svelte	js
+=== 1120 packages/site/src/routes/demo/typography/_Typography.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -64332,7 +64751,8 @@ export default function _Typography($$anchor) {
 	$.next(26);
 	$.append($$anchor, fragment);
 }
-=== 25100 packages/slider/src/Slider.svelte	js
+=== 25142 packages/slider/src/Slider.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, onDestroy, getContext } from 'svelte';
@@ -65726,7 +66146,8 @@ export default function Slider($$anchor, $$props) {
 	}
 ]
 
-=== 1164 packages/snackbar/src/Actions.svelte	js
+=== 1206 packages/snackbar/src/Actions.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -65775,7 +66196,8 @@ export default function Actions($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 7768 packages/snackbar/src/Snackbar.svelte	js
+=== 7810 packages/snackbar/src/Snackbar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, setContext } from 'svelte';
@@ -66094,7 +66516,8 @@ export default function Snackbar($$anchor, $$props) {
 	 * A space separated list of CSS classes.
 	 */
 }
-=== 7110 packages/snackbar/src/kitchen/Kitchen.svelte	js
+=== 7152 packages/snackbar/src/kitchen/Kitchen.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { tick } from 'svelte';
@@ -66359,7 +66782,8 @@ export default function Kitchen($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 9926 packages/switch/src/Switch.svelte	js
+=== 9968 packages/switch/src/Switch.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext } from 'svelte';
@@ -66767,7 +67191,8 @@ export default function Switch($$anchor, $$props) {
 	}
 ]
 
-=== 8286 packages/tab-bar/src/TabBar.svelte	js
+=== 8328 packages/tab-bar/src/TabBar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, setContext } from 'svelte';
@@ -67124,7 +67549,8 @@ export default function TabBar($$anchor, $$props) {
 	}
 ]
 
-=== 5454 packages/tab-indicator/src/TabIndicator.svelte	js
+=== 5496 packages/tab-indicator/src/TabIndicator.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -67358,7 +67784,8 @@ export default function TabIndicator($$anchor, $$props) {
 	}
 ]
 
-=== 7936 packages/tab-scroller/src/TabScroller.svelte	js
+=== 7978 packages/tab-scroller/src/TabScroller.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -67676,7 +68103,8 @@ export default function TabScroller($$anchor, $$props) {
 	 * A space separated list of CSS classes.
 	 */
 }
-=== 9076 packages/tab/src/Tab.svelte	js
+=== 9118 packages/tab/src/Tab.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, setContext, getContext } from 'svelte';
@@ -68075,7 +68503,8 @@ export default function Tab($$anchor, $$props) {
 	}
 ]
 
-=== 931 packages/textfield/src/HelperLine.svelte	js
+=== 973 packages/textfield/src/HelperLine.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -68111,7 +68540,8 @@ export default function HelperLine($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 5505 packages/textfield/src/Input.svelte	js
+=== 5547 packages/textfield/src/Input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -68373,7 +68803,8 @@ export default function Input($$anchor, $$props) {
 	// Always having a placeholder fixes Safari's baseline alignment.
 	// See: https://github.com/philipwalton/flexbugs/issues/270
 }
-=== 985 packages/textfield/src/Prefix.svelte	js
+=== 1027 packages/textfield/src/Prefix.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -68416,7 +68847,8 @@ export default function Prefix($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 985 packages/textfield/src/Suffix.svelte	js
+=== 1027 packages/textfield/src/Suffix.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -68459,7 +68891,8 @@ export default function Suffix($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 3647 packages/textfield/src/Textarea.svelte	js
+=== 3689 packages/textfield/src/Textarea.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -68628,7 +69061,8 @@ export default function Textarea($$anchor, $$props) {
 	 * Whether the textarea should be user resizeable.
 	 */
 }
-=== 32269 packages/textfield/src/Textfield.svelte	js
+=== 32311 packages/textfield/src/Textfield.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, onDestroy, getContext, setContext, tick } from 'svelte';
@@ -69884,7 +70318,8 @@ export default function Textfield($$anchor, $$props) {
 	}
 ]
 
-=== 2630 packages/textfield/src/character-counter/CharacterCounter.svelte	js
+=== 2672 packages/textfield/src/character-counter/CharacterCounter.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext } from 'svelte';
@@ -69990,7 +70425,8 @@ export default function CharacterCounter($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 4395 packages/textfield/src/helper-text/HelperText.svelte	js
+=== 4437 packages/textfield/src/helper-text/HelperText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext } from 'svelte';
@@ -70173,7 +70609,8 @@ export default function HelperText($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 4699 packages/textfield/src/icon/Icon.svelte	js
+=== 4741 packages/textfield/src/icon/Icon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext } from 'svelte';
@@ -70353,7 +70790,8 @@ export default function Icon($$anchor, $$props) {
 
 	return $$pop;
 }
-=== 922 packages/tooltip/src/Content.svelte	js
+=== 964 packages/tooltip/src/Content.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -70389,7 +70827,8 @@ export default function Content($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 922 packages/tooltip/src/Link.svelte	js
+=== 964 packages/tooltip/src/Link.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -70425,7 +70864,8 @@ export default function Link($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 1131 packages/tooltip/src/RichActions.svelte	js
+=== 1173 packages/tooltip/src/RichActions.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext } from 'svelte';
@@ -70472,7 +70912,8 @@ export default function RichActions($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 917 packages/tooltip/src/Title.svelte	js
+=== 959 packages/tooltip/src/Title.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -70508,7 +70949,8 @@ export default function Title($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 18436 packages/tooltip/src/Tooltip.svelte	js
+=== 18478 packages/tooltip/src/Tooltip.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, getContext, setContext } from 'svelte';
@@ -71155,7 +71597,8 @@ export default function Tooltip($$anchor, $$props) {
 	// Purposefully capitalized differently to match MDC.
 	// Purposefully capitalized differently to match MDC.
 }
-=== 2574 packages/tooltip/src/Wrapper.svelte	js
+=== 2616 packages/tooltip/src/Wrapper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext } from 'svelte';
@@ -71290,7 +71733,8 @@ export default function Wrapper($$anchor, $$props) {
 	}
 ]
 
-=== 2987 packages/top-app-bar/src/AutoAdjust.svelte	js
+=== 3029 packages/top-app-bar/src/AutoAdjust.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { classMap } from '@smui/common/internal';
@@ -71419,7 +71863,8 @@ export default function AutoAdjust($$anchor, $$props) {
 
 	return $$pop;
 }
-=== 918 packages/top-app-bar/src/Row.svelte	js
+=== 960 packages/top-app-bar/src/Row.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -71455,7 +71900,8 @@ export default function Row($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 1916 packages/top-app-bar/src/Section.svelte	js
+=== 1958 packages/top-app-bar/src/Section.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext } from 'svelte';
@@ -71566,7 +72012,8 @@ export default function Section($$anchor, $$props) {
 	}
 ]
 
-=== 923 packages/top-app-bar/src/Title.svelte	js
+=== 965 packages/top-app-bar/src/Title.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';
@@ -71602,7 +72049,8 @@ export default function Title($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 7537 packages/top-app-bar/src/TopAppBar.svelte	js
+=== 7579 packages/top-app-bar/src/TopAppBar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -71957,7 +72405,8 @@ export default function TopAppBar($$anchor, $$props) {
 	}
 ]
 
-=== 926 packages/touch-target/src/Wrapper.svelte	js
+=== 968 packages/touch-target/src/Wrapper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ClassAdder } from '@smui/common/classadder';

@@ -95,7 +95,8 @@
     }
   }
 
-=== 5855 src/lib/Confetti.svelte	js
+=== 5897 src/lib/Confetti.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from "svelte";
@@ -411,7 +412,8 @@ export default function Confetti($$anchor, $$props) {
 		line-height: 1.3rem;
 	}
 
-=== 67976 src/routes/+page.svelte	js
+=== 68018 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Confetti from "$lib/Confetti.svelte";
@@ -2524,7 +2526,8 @@ export default function _page($$anchor) {
 		background: var(--bg-well);
 	}
 
-=== 2093 src/routes/CodeBlock.svelte	js
+=== 2135 src/routes/CodeBlock.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2622,7 +2625,8 @@ $.delegate(['click']);
     pointer-events: none;
   }
 
-=== 1367 src/routes/ConfettiOnClick.svelte	js
+=== 1409 src/routes/ConfettiOnClick.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Confetti from "$lib/Confetti.svelte";

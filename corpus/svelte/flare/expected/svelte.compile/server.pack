@@ -3182,7 +3182,7 @@ export default function SearchSnippets($$renderer, $$props) {
 		$$renderer.subsume($$inner_renderer);
 	});
 }
-=== 20474 src/lib/components/SettingsView.svelte	js
+=== 20211 src/lib/components/SettingsView.svelte	js
 import * as $ from 'svelte/internal/server';
 import { Input } from '$lib/components/ui/input';
 import Icon from '$lib/components/Icon.svelte';
@@ -3215,10 +3215,6 @@ export default function SettingsView($$renderer, $$props) {
 		let activeTab = 'extensions';
 		const apps = $.derived(() => appsStore.apps);
 
-		// This effect syncs the local preference values with the prop.
-		// It's necessary because the form is a mutable copy of the preferences
-		// that needs to be reset when the selected plugin changes.
-		// eslint-disable-next-line svelte/prefer-writable-derived
 		const displayItems = $.derived(() => {
 			const items = [];
 			const extensions = new Map();

@@ -20838,10 +20838,6 @@ export default function _page($$renderer, $$props) {
 		});
 
 		$.head('fwkavo', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>${$.escape(data.title)} - Documentation</title>`);
-			});
-
 			$$renderer.push(`<meta name="description"${$.attr('content', data.description || `Documentation for ${data.title}`)}/> <meta property="article:author" content="https://github.com/rajnandan1"/> <link rel="canonical"${$.attr('href', `https://kener.ing/docs/${data.slug}`)}/> <meta property="og:title"${$.attr('content', `${$.stringify(data.title)} - Documentation`)}/> <meta property="og:description"${$.attr('content', data.description || `Documentation for ${data.title}`)}/> <meta property="og:type" content="article"/> <meta property="og:url"${$.attr('content', `https://kener.ing/docs/${data.slug}`)}/> <meta property="og:logo" content="https://kener.ing/logo96.png"/> <meta property="og:image" content="https://kener.ing/og.jpg"/> <meta name="twitter:title"${$.attr('content', `${$.stringify(data.title)} - Documentation`)}/> <meta name="twitter:card" content="summary_large_image"/> <meta name="twitter:description"${$.attr('content', data.description || `Documentation for ${data.title}`)}/> <meta name="twitter:image" content="https://kener.ing/og.jpg"/> ${$.html(`<script type="application/ld+json">${JSON.stringify({
 				"@context": "https://schema.org",
 				"@type": "BreadcrumbList",
@@ -20865,6 +20861,10 @@ export default function _page($$renderer, $$props) {
 					}
 				]
 			})}</script>`)}`);
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(data.title)} - Documentation</title>`);
+			});
 		});
 
 		$$renderer.push(`<div class="mx-auto flex justify-between gap-8"><article class="min-w-0 flex-1"><div class="relative mb-8"><span class="text-accent-foreground mb-2 inline-block text-xs font-semibold tracking-wide uppercase">${$.escape(data.group)}</span> <h1 class="text-foreground m-0 text-3xl leading-tight font-bold">${$.escape(data.title)}</h1> `);
@@ -21722,10 +21722,6 @@ export default function _page($$renderer, $$props) {
 		];
 
 		$.head('1ppbv43', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>${$.escape(data.config.name)} - Open Source Status Page | Self-Hosted Docker Status Page &amp; Uptime Monitor</title>`);
-			});
-
 			$$renderer.push(`<meta name="description"${$.attr('content', `${$.stringify(data.config.name)} is a free, open-source status page system you can self-host with Docker. Monitor APIs, Ping, TCP, DNS, SSL, and SQL services. Features incident management, maintenance scheduling, real-time notifications, embeddable widgets, and a REST API. Supports 11 monitor types, 21 languages, and deploys in under 2 minutes.`)}/> <meta name="keywords" content="open source status page, docker status page, self-hosted status page, uptime monitor, incident management, status page tool, free status page, kener, status page docker compose, open source uptime monitoring"/> <link rel="icon"${$.attr('href', data.config.favicon
 				? clientResolver(resolve, data.config.favicon)
 				: data.config.favicon)}/> <link rel="canonical" href="https://kener.ing/docs"/> <meta property="og:type" content="website"/> <meta property="og:url" content="https://kener.ing/docs"/> <meta property="og:title"${$.attr('content', `${$.stringify(data.config.name)} - Open Source Status Page | Self-Hosted with Docker`)}/> <meta property="og:description" content="Free, open-source status page you can self-host with Docker. Monitor 11 service types, manage incidents, schedule maintenance, and notify subscribers. Deploy in under 2 minutes with Docker Compose."/> <meta property="og:image" content="https://kener.ing/og.jpg"/> <meta property="og:image:width" content="1200"/> <meta property="og:image:height" content="630"/> <meta property="og:image:alt" content="Kener open source status page dashboard showing uptime monitoring and incident management"/> <meta property="og:site_name"${$.attr('content', data.config.name)}/> <meta property="og:locale" content="en_US"/> <meta name="twitter:card" content="summary_large_image"/> <meta name="twitter:title"${$.attr('content', `${$.stringify(data.config.name)} - Open Source Status Page & Docker Uptime Monitor`)}/> <meta name="twitter:description" content="Free, self-hosted status page with Docker support. Monitor APIs, DNS, SSL, and more. Incident management, maintenance scheduling, and real-time notifications out of the box."/> <meta name="twitter:image" content="https://kener.ing/og.jpg"/> ${$.html(`<script type="application/ld+json">${JSON.stringify([
@@ -21842,6 +21838,10 @@ export default function _page($$renderer, $$props) {
 					]
 				}
 			])}</script>`)}`);
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(data.config.name)} - Open Source Status Page | Self-Hosted Docker Status Page &amp; Uptime Monitor</title>`);
+			});
 		});
 
 		$$renderer.push(`<div class="docs-landing bg-background text-foreground min-h-screen svelte-1ppbv43"><header class="border-border/60 bg-background fixed top-0 right-0 left-0 z-40 border-b"><div class="mx-auto flex h-14 max-w-[1080px] items-center justify-between px-5 md:px-8"><a${$.attr('href', getHref("/docs"))} class="text-foreground group flex items-center gap-2.5 no-underline"><img${$.attr('src', `${$.stringify(base)}/logo96.png`)} alt="" class="h-6 w-6 rounded-md"/> <span class="text-[15px] font-semibold tracking-tight">${$.escape(data.config.name)}</span></a> <div class="flex items-center gap-1">`);
@@ -22398,7 +22398,7 @@ export default function DocsPageNavigation($$renderer, $$props) {
 		$$renderer.push(`<!--]--></div></nav>`);
 	});
 }
-=== 9673 src/routes/(docs)/docs/DocsSearch.svelte	js
+=== 9642 src/routes/(docs)/docs/DocsSearch.svelte	js
 import * as $ from 'svelte/internal/server';
 import { goto } from "$app/navigation";
 import * as Command from "$lib/components/ui/command/index.js";
@@ -22466,7 +22466,6 @@ export default function DocsSearch($$renderer, $$props) {
 		}
 
 		// Watch for query changes with debounce
-		// Capture query to track it
 		function handleSelect(slug, anchor) {
 			open = false;
 			query = "";
@@ -22733,7 +22732,7 @@ export default function DocsSearch($$renderer, $$props) {
     font-weight: 500;
   }
 
-=== 6297 src/routes/(docs)/docs/DocsSidebar.svelte	js
+=== 6260 src/routes/(docs)/docs/DocsSidebar.svelte	js
 import * as $ from 'svelte/internal/server';
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
 import ChevronRight from "@lucide/svelte/icons/chevron-right";
@@ -22777,7 +22776,6 @@ export default function DocsSidebar($$renderer, $$props) {
 		let prevSlug = "";
 
 		// Auto-expand when navigating to a different page (not when manually toggling)
-		// Slug changed, do auto-expansion
 		function toggleGroup(groupName) {
 			if (expandedGroups.includes(groupName)) {
 				expandedGroups = expandedGroups.filter((g) => g !== groupName);
@@ -22917,7 +22915,7 @@ export default function DocsSidebar($$renderer, $$props) {
     font-weight: 500;
   }
 
-=== 1791 src/routes/(docs)/docs/DocsTableOfContents.svelte	js
+=== 1674 src/routes/(docs)/docs/DocsTableOfContents.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function DocsTableOfContents($$renderer, $$props) {
@@ -22925,8 +22923,6 @@ export default function DocsTableOfContents($$renderer, $$props) {
 		let { items } = $$props;
 		let activeId = "";
 
-		// Re-run whenever items changes (e.g. on soft navigation)
-		// Wait a tick for the DOM to update with new content
 		function scrollToHeading(id) {
 			const element = document.getElementById(id);
 
@@ -22981,10 +22977,6 @@ export default function _layout($$renderer, $$props) {
 		let { children, data } = $$props;
 
 		$.head('rcuoo6', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>Kener Status</title>`);
-			});
-
 			$$renderer.push(`<meta name="robots" content="noindex, nofollow"/> <link rel="icon"${$.attr('href', data.favicon ? clientResolver(resolve, data.favicon) : data.favicon)}/> `);
 
 			if (data.font?.cssSrc) {
@@ -23015,6 +23007,10 @@ export default function _layout($$renderer, $$props) {
 			--accent-foreground: ${data.siteStatusColorsDark.ACCENT_FOREGROUND || data.siteStatusColorsDark.ACCENT || "#e96e2d"};
 		}
 	</style>`)}`);
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>Kener Status</title>`);
+			});
 		});
 
 		ModeWatcher($$renderer, { defaultMode: data.defaultSiteTheme });
@@ -23501,7 +23497,7 @@ export default function _layout($$renderer, $$props) {
 		$$renderer.push(`<!----></main>`);
 	});
 }
-=== 11808 src/routes/(kener)/+page.svelte	js
+=== 11730 src/routes/(kener)/+page.svelte	js
 import * as $ from 'svelte/internal/server';
 import { browser } from "$app/environment";
 import * as Item from "$lib/components/ui/item/index.js";
@@ -23578,29 +23574,23 @@ export default function _page($$renderer, $$props) {
 
 		$.head('16s165z', $$renderer, ($$renderer) => {
 			if (data.metaPageTitle) {
-				$$renderer.push('<!--[0-->');
+				$$renderer.push(`<!--[0--><meta property="og:title"${$.attr('content', data.metaPageTitle)}/>`);
 
 				$$renderer.title(($$renderer) => {
 					$$renderer.push(`<title>${$.escape(data.metaPageTitle)}</title>`);
 				});
-
-				$$renderer.push(`<meta property="og:title"${$.attr('content', data.metaPageTitle)}/>`);
 			} else if (data.pageDetails?.page_title) {
-				$$renderer.push('<!--[1-->');
+				$$renderer.push(`<!--[1--><meta property="og:title"${$.attr('content', data.pageDetails.page_title + " - " + data.siteName)}/>`);
 
 				$$renderer.title(($$renderer) => {
 					$$renderer.push(`<title>${$.escape(data.pageDetails.page_title)} - ${$.escape(data.siteName)}</title>`);
 				});
-
-				$$renderer.push(`<meta property="og:title"${$.attr('content', data.pageDetails.page_title + " - " + data.siteName)}/>`);
 			} else {
-				$$renderer.push('<!--[-1-->');
+				$$renderer.push(`<!--[-1--><meta property="og:title"${$.attr('content', data.siteName + " - Status Page")}/>`);
 
 				$$renderer.title(($$renderer) => {
 					$$renderer.push(`<title>${$.escape(data.siteName)} - Status Page</title>`);
 				});
-
-				$$renderer.push(`<meta property="og:title"${$.attr('content', data.siteName + " - Status Page")}/>`);
 			}
 
 			$$renderer.push(`<!--]--> `);
@@ -23822,7 +23812,7 @@ export default function _page($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
-=== 11218 src/routes/(kener)/[page_path]/+page.svelte	js
+=== 11140 src/routes/(kener)/[page_path]/+page.svelte	js
 import * as $ from 'svelte/internal/server';
 import { browser } from "$app/environment";
 import * as Item from "$lib/components/ui/item/index.js";
@@ -23898,29 +23888,23 @@ export default function _page($$renderer, $$props) {
 
 		$.head('ie2ftj', $$renderer, ($$renderer) => {
 			if (data.metaPageTitle) {
-				$$renderer.push('<!--[0-->');
+				$$renderer.push(`<!--[0--><meta property="og:title"${$.attr('content', data.metaPageTitle)}/>`);
 
 				$$renderer.title(($$renderer) => {
 					$$renderer.push(`<title>${$.escape(data.metaPageTitle)}</title>`);
 				});
-
-				$$renderer.push(`<meta property="og:title"${$.attr('content', data.metaPageTitle)}/>`);
 			} else if (data.pageDetails?.page_title) {
-				$$renderer.push('<!--[1-->');
+				$$renderer.push(`<!--[1--><meta property="og:title"${$.attr('content', data.pageDetails.page_title + " - " + data.siteName)}/>`);
 
 				$$renderer.title(($$renderer) => {
 					$$renderer.push(`<title>${$.escape(data.pageDetails.page_title)} - ${$.escape(data.siteName)}</title>`);
 				});
-
-				$$renderer.push(`<meta property="og:title"${$.attr('content', data.pageDetails.page_title + " - " + data.siteName)}/>`);
 			} else {
-				$$renderer.push('<!--[-1-->');
+				$$renderer.push(`<!--[-1--><meta property="og:title"${$.attr('content', data.siteName + " - Status Page")}/>`);
 
 				$$renderer.title(($$renderer) => {
 					$$renderer.push(`<title>${$.escape(data.siteName)} - Status Page</title>`);
 				});
-
-				$$renderer.push(`<meta property="og:title"${$.attr('content', data.siteName + " - Status Page")}/>`);
 			}
 
 			$$renderer.push(`<!--]--> `);
@@ -24285,10 +24269,6 @@ export default function _page($$renderer, $$props) {
 		});
 
 		$.head('1so5tot', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>${$.escape(currentMonth())} - Maintenances &amp; Incidents - ${$.escape(data.siteName)}</title>`);
-			});
-
 			$$renderer.push(`<meta name="description"${$.attr('content', `${currentMonth()} maintenances and incidents for ${data.siteName}`)}/> <meta property="og:title"${$.attr('content', `${currentMonth()} - Maintenances & Incidents - ${data.siteName}`)}/> <meta property="og:description"${$.attr('content', `${currentMonth()} maintenances and incidents for ${data.siteName}`)}/> <meta property="og:type" content="website"/> <meta name="twitter:card" content="summary_large_image"/> `);
 
 			if (data.socialPreviewImage) {
@@ -24298,6 +24278,10 @@ export default function _page($$renderer, $$props) {
 			}
 
 			$$renderer.push(`<!--]-->`);
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(currentMonth())} - Maintenances &amp; Incidents - ${$.escape(data.siteName)}</title>`);
+			});
 		});
 
 		$$renderer.push(`<div class="flex flex-col gap-3">`);
@@ -24635,10 +24619,6 @@ export default function _page($$renderer, $$props) {
 		});
 
 		$.head('11r5cs5', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>${$.escape(currentMonth())} - Maintenances &amp; Incidents - ${$.escape(data.siteName)}</title>`);
-			});
-
 			$$renderer.push(`<meta name="description"${$.attr('content', `${currentMonth()} maintenances and incidents for ${data.siteName}`)}/> <meta property="og:title"${$.attr('content', `${currentMonth()} - Maintenances & Incidents - ${data.siteName}`)}/> <meta property="og:description"${$.attr('content', `${currentMonth()} maintenances and incidents for ${data.siteName}`)}/> <meta property="og:type" content="website"/> <meta name="twitter:card" content="summary_large_image"/> `);
 
 			if (data.socialPreviewImage) {
@@ -24648,6 +24628,10 @@ export default function _page($$renderer, $$props) {
 			}
 
 			$$renderer.push(`<!--]-->`);
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(currentMonth())} - Maintenances &amp; Incidents - ${$.escape(data.siteName)}</title>`);
+			});
 		});
 
 		$$renderer.push(`<div class="flex flex-col gap-3">`);
@@ -24856,10 +24840,6 @@ export default function _page($$renderer, $$props) {
 		let { data } = $$props;
 
 		$.head('115s2d4', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>${$.escape(data.incident.title + " - " + data.siteName)}</title>`);
-			});
-
 			$$renderer.push(`<meta property="og:title"${$.attr('content', data.incident.title + " - " + data.siteName)}/> <meta property="og:type" content="article"/> <meta name="twitter:card" content="summary_large_image"/> `);
 
 			if (data.comments.length > 0) {
@@ -24877,6 +24857,10 @@ export default function _page($$renderer, $$props) {
 			}
 
 			$$renderer.push(`<!--]-->`);
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(data.incident.title + " - " + data.siteName)}</title>`);
+			});
 		});
 
 		$$renderer.push(`<div class="flex flex-col gap-3">`);
@@ -25253,10 +25237,6 @@ export default function _page($$renderer, $$props) {
 		}
 
 		$.head('1xl3cna', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>${$.escape(data.maintenance.title + " - " + data.siteName)}</title>`);
-			});
-
 			$$renderer.push(`<meta property="og:title"${$.attr('content', data.maintenance.title + " - " + data.siteName)}/> <meta property="og:type" content="article"/> <meta name="twitter:card" content="summary_large_image"/> `);
 
 			if (data.maintenance.description) {
@@ -25274,6 +25254,10 @@ export default function _page($$renderer, $$props) {
 			}
 
 			$$renderer.push(`<!--]-->`);
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(data.maintenance.title + " - " + data.siteName)}</title>`);
+			});
 		});
 
 		$$renderer.push(`<div class="flex flex-col gap-3">`);
@@ -25655,10 +25639,6 @@ export default function _page($$renderer, $$props) {
 		}
 
 		$.head('b9i0il', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>${$.escape(data.monitorName + " - " + data.siteName)}</title>`);
-			});
-
 			$$renderer.push(`<meta property="og:title"${$.attr('content', data.monitorName + " - " + data.siteName)}/> <meta property="og:type" content="website"/> <meta name="twitter:card" content="summary_large_image"/> `);
 
 			if (data.monitorDescription) {
@@ -25676,6 +25656,10 @@ export default function _page($$renderer, $$props) {
 			}
 
 			$$renderer.push(`<!--]-->`);
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(data.monitorName + " - " + data.siteName)}</title>`);
+			});
 		});
 
 		$$renderer.push(`<div class="flex flex-col gap-3">`);
@@ -26028,10 +26012,6 @@ export default function _layout($$renderer, $$props) {
 		let pageTitle = $.derived(() => navItems.find((item) => page.url.pathname.startsWith(item.url))?.title || "Dashboard");
 
 		$.head('1a0naxw', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>${$.escape(pageTitle())} | Kener</title>`);
-			});
-
 			$$renderer.push(`<meta name="robots" content="noindex, nofollow"/> <link rel="icon"${$.attr('href', clientResolver(resolve, "/logo96.png"))}/> `);
 
 			if (data.font?.cssSrc) {
@@ -26062,6 +26042,10 @@ export default function _layout($$renderer, $$props) {
 			--accent-foreground: ${data.siteStatusColorsDark.ACCENT_FOREGROUND || data.siteStatusColorsDark.ACCENT || "#e96e2d"};
 		}
 	</style>`)}`);
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(pageTitle())} | Kener</title>`);
+			});
 		});
 
 		ModeWatcher($$renderer, { defaultMode: data.defaultSiteTheme });
@@ -69653,12 +69637,6 @@ export default function _error($$renderer, $$props) {
 		const isServerFailure = $.derived(() => page.status >= 500);
 
 		$.head('1j96wlh', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>${$.escape(page.status)} — ${$.escape(isServerFailure()
-					? "Status page temporarily unavailable"
-					: "Something went wrong")}</title>`);
-			});
-
 			if (isServerFailure()) {
 				$$renderer.push(`<!--[0--><meta http-equiv="refresh" content="30"/>`);
 			} else {
@@ -69666,6 +69644,12 @@ export default function _error($$renderer, $$props) {
 			}
 
 			$$renderer.push(`<!--]-->`);
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(page.status)} — ${$.escape(isServerFailure()
+					? "Status page temporarily unavailable"
+					: "Something went wrong")}</title>`);
+			});
 		});
 
 		$$renderer.push(`<div class="error-wrap svelte-1j96wlh"><div class="error-card svelte-1j96wlh">`);

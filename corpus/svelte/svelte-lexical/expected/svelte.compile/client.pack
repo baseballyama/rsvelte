@@ -13,7 +13,8 @@
     max-width: 800px;
   }
 
-=== 582 demos/plaintext-editor/src/App.svelte	js
+=== 624 demos/plaintext-editor/src/App.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import PlainTextComposer from './PlainTextComposer.svelte';
@@ -28,7 +29,8 @@ export default function App($$anchor) {
 	$.reset(main);
 	$.append($$anchor, main);
 }
-=== 1312 demos/plaintext-editor/src/PlainTextComposer.svelte	js
+=== 1354 demos/plaintext-editor/src/PlainTextComposer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -107,7 +109,8 @@ export default function PlainTextComposer($$anchor) {
     color: var(--link-color);
   }
 
-=== 1669 demos/playground-lite/src/App.svelte	js
+=== 1711 demos/playground-lite/src/App.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext } from 'svelte';
@@ -161,7 +164,8 @@ export default function App($$anchor, $$props) {
     width: 15em;
   }
 
-=== 3732 demos/playground-lite/src/InsertImageDialog.svelte	js
+=== 3774 demos/playground-lite/src/InsertImageDialog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, tick } from 'svelte';
@@ -306,7 +310,8 @@ export default function InsertImageDialog($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 15205 demos/playground-lite/src/RichTextComposer.svelte	js
+=== 15247 demos/playground-lite/src/RichTextComposer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext, onMount } from 'svelte';
@@ -747,7 +752,8 @@ export default function RichTextComposer($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 7290 demos/playground-lite/src/ToolbarPlayground.svelte	js
+=== 7332 demos/playground-lite/src/ToolbarPlayground.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1133,7 +1139,8 @@ export default function ToolbarPlayground($$anchor, $$props) {
     }
   }
 
-=== 3243 demos/playground-lite/src/settings/Settings.svelte	js
+=== 3285 demos/playground-lite/src/settings/Settings.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -1321,7 +1328,8 @@ $.delegate(['click']);
     transform: translateX(20px);
   }
 
-=== 1059 demos/playground-lite/src/ui/Switch.svelte	js
+=== 1101 demos/playground-lite/src/ui/Switch.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1373,7 +1381,8 @@ $.delegate(['click']);
     color: var(--link-color);
   }
 
-=== 1510 demos/playground/src/App.svelte	js
+=== 1552 demos/playground/src/App.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext } from 'svelte';
@@ -1421,7 +1430,8 @@ export default function App($$anchor, $$props) {
 	$.append($$anchor, main);
 	$.pop();
 }
-=== 15718 demos/playground/src/RichTextComposer.svelte	js
+=== 15760 demos/playground/src/RichTextComposer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext, onMount } from 'svelte';
@@ -1880,7 +1890,8 @@ export default function RichTextComposer($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 7864 demos/playground/src/ToolbarPlayground.svelte	js
+=== 7906 demos/playground/src/ToolbarPlayground.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2288,7 +2299,8 @@ export default function ToolbarPlayground($$anchor, $$props) {
     }
   }
 
-=== 3515 demos/playground/src/settings/Settings.svelte	js
+=== 3557 demos/playground/src/settings/Settings.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -2493,7 +2505,8 @@ $.delegate(['click']);
     background: #b48ef0;
   }
 
-=== 1753 demos/qalam/src/App.svelte	js
+=== 1795 demos/qalam/src/App.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -2643,7 +2656,8 @@ $.delegate(['click']);
     will-change: auto;
   }
 
-=== 10464 demos/qalam/src/lib/Editor.svelte	js
+=== 10506 demos/qalam/src/lib/Editor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3104,7 +3118,8 @@ $.delegate(['keydown']);
     margin-top: 6px;
   }
 
-=== 7458 demos/qalam/src/lib/InsertImageDialog.svelte	js
+=== 7500 demos/qalam/src/lib/InsertImageDialog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { tick } from 'svelte';
@@ -3459,7 +3474,8 @@ $.delegate(['change', 'click']);
     background: #b48ef0;
   }
 
-=== 2067 demos/qalam/src/lib/Settings.svelte	js
+=== 2109 demos/qalam/src/lib/Settings.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { notesStore } from './notesStore.svelte';
@@ -3696,7 +3712,8 @@ $.delegate(['click']);
     color: #1e1e2e;
   }
 
-=== 5996 demos/qalam/src/lib/Sidebar.svelte	js
+=== 6038 demos/qalam/src/lib/Sidebar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { isTauri } from '@tauri-apps/api/core';
@@ -3888,7 +3905,8 @@ export default function Sidebar($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown', 'dblclick']);
-=== 7399 demos/qalam/src/lib/Toolbar.svelte	js
+=== 7441 demos/qalam/src/lib/Toolbar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4224,7 +4242,8 @@ export default function Toolbar_1($$anchor) {
     max-width: 800px;
   }
 
-=== 711 demos/richtext-editor/src/App.svelte	js
+=== 753 demos/richtext-editor/src/App.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { RichTextComposer } from 'svelte-lexical';
@@ -4245,7 +4264,8 @@ export default function App($$anchor) {
 	$.reset(main);
 	$.append($$anchor, main);
 }
-=== 2622 demos/sveltekit/src/RichTextComposer.svelte	js
+=== 2664 demos/sveltekit/src/RichTextComposer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4381,7 +4401,8 @@ export default function RichTextComposer($$anchor, $$props) {
     max-width: 800px;
   }
 
-=== 725 demos/sveltekit/src/routes/+page.svelte	js
+=== 767 demos/sveltekit/src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import RichTextComposer from './../RichTextComposer.svelte';
@@ -4399,7 +4420,8 @@ export default function _page($$anchor) {
 	$.reset(main);
 	$.append($$anchor, main);
 }
-=== 599 packages/svelte-lexical/src/lib/components/actionbar/ActionBar.svelte	js
+=== 641 packages/svelte-lexical/src/lib/components/actionbar/ActionBar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ImportButton from './ImportButton.svelte';
@@ -4424,7 +4446,8 @@ export default function ActionBar($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 698 packages/svelte-lexical/src/lib/components/actionbar/ExportButton.svelte	js
+=== 740 packages/svelte-lexical/src/lib/components/actionbar/ExportButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { exportFile } from '@lexical/file';
@@ -4448,7 +4471,8 @@ export default function ExportButton($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 616 packages/svelte-lexical/src/lib/components/actionbar/ImportButton.svelte	js
+=== 658 packages/svelte-lexical/src/lib/components/actionbar/ImportButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { importFile } from '@lexical/file';
@@ -4468,7 +4492,8 @@ export default function ImportButton($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1025 packages/svelte-lexical/src/lib/components/actionbar/ReadonlyButton.svelte	js
+=== 1067 packages/svelte-lexical/src/lib/components/actionbar/ReadonlyButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getEditor, getIsEditable } from '$lib/core/composerContext.js';
@@ -4523,7 +4548,8 @@ $.delegate(['click']);
     stroke-width: 2;
   }
 
-=== 574 packages/svelte-lexical/src/lib/components/generic/button/CloseCircleButton.svelte	js
+=== 616 packages/svelte-lexical/src/lib/components/generic/button/CloseCircleButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4595,7 +4621,8 @@ $.delegate(['click']);
     height: 20px;
   }
 
-=== 4622 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPicker.svelte	js
+=== 4664 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPicker.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { basicColors, transformColor, skipAddingToHistoryStack } from './helpers.js';
@@ -4750,7 +4777,8 @@ export default function ColorPicker($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1857 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDialog.svelte	js
+=== 1899 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDialog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { FocusEditor } from '$lib/core/commands/commands.js';
@@ -4830,7 +4858,8 @@ export default function ColorPickerDialog($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 1447 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDropDown.svelte	js
+=== 1489 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDropDown.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ColorPicker from './ColorPicker.svelte';
@@ -4925,7 +4954,8 @@ export default function ColorPickerDropDown($$anchor, $$props) {
     user-select: none;
   }
 
-=== 2112 packages/svelte-lexical/src/lib/components/generic/colorpicker/MoveWrapper.svelte	js
+=== 2154 packages/svelte-lexical/src/lib/components/generic/colorpicker/MoveWrapper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { calculateZoomLevel } from '@lexical/utils';
@@ -5009,7 +5039,8 @@ export default function MoveWrapper($$anchor, $$props) {
 }
 
 $.delegate(['mousedown']);
-=== 5629 packages/svelte-lexical/src/lib/components/generic/contextmenu/ContextMenu.svelte	js
+=== 5671 packages/svelte-lexical/src/lib/components/generic/contextmenu/ContextMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5225,7 +5256,8 @@ export default function ContextMenu($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 8037 packages/svelte-lexical/src/lib/components/generic/contextmenu/TypeAheadMenu.svelte	js
+=== 8079 packages/svelte-lexical/src/lib/components/generic/contextmenu/TypeAheadMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5557,7 +5589,8 @@ export default function TypeAheadMenu($$anchor, $$props) {
     }
   }
 
-=== 1542 packages/svelte-lexical/src/lib/components/generic/dialog/ModalDialog.svelte	js
+=== 1584 packages/svelte-lexical/src/lib/components/generic/dialog/ModalDialog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5624,7 +5657,8 @@ export default function ModalDialog($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 4178 packages/svelte-lexical/src/lib/components/generic/dropdown/DropDown.svelte	js
+=== 4220 packages/svelte-lexical/src/lib/components/generic/dropdown/DropDown.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { CAN_USE_DOM } from '@lexical/utils';
@@ -5784,7 +5818,8 @@ export default function DropDown($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1197 packages/svelte-lexical/src/lib/components/generic/dropdown/DropDownItem.svelte	js
+=== 1239 packages/svelte-lexical/src/lib/components/generic/dropdown/DropDownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -5831,7 +5866,8 @@ export default function DropDownItem($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1814 packages/svelte-lexical/src/lib/components/generic/dropdown/DropDownItems.svelte	js
+=== 1856 packages/svelte-lexical/src/lib/components/generic/dropdown/DropDownItems.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -5904,7 +5940,8 @@ export default function DropDownItems($$anchor, $$props) {
 }
 
 $.delegate(['keydown']);
-=== 935 packages/svelte-lexical/src/lib/components/generic/input/FileInput.svelte	js
+=== 977 packages/svelte-lexical/src/lib/components/generic/input/FileInput.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5937,7 +5974,8 @@ export default function FileInput($$anchor, $$props) {
 }
 
 $.delegate(['change']);
-=== 1344 packages/svelte-lexical/src/lib/components/generic/input/NumberInput.svelte	js
+=== 1386 packages/svelte-lexical/src/lib/components/generic/input/NumberInput.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5983,7 +6021,8 @@ export default function NumberInput($$anchor, $$props) {
 }
 
 $.delegate(['change']);
-=== 1340 packages/svelte-lexical/src/lib/components/generic/input/TextInput.svelte	js
+=== 1382 packages/svelte-lexical/src/lib/components/generic/input/TextInput.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6029,7 +6068,8 @@ export default function TextInput($$anchor, $$props) {
 }
 
 $.delegate(['change']);
-=== 800 packages/svelte-lexical/src/lib/components/generic/portal/Portal.svelte	js
+=== 842 packages/svelte-lexical/src/lib/components/generic/portal/Portal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, onDestroy } from 'svelte';
@@ -6063,7 +6103,8 @@ export default function Portal($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1119 packages/svelte-lexical/src/lib/components/generic/theme/ThemeImage.svelte	js
+=== 1161 packages/svelte-lexical/src/lib/components/generic/theme/ThemeImage.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -6176,7 +6217,8 @@ export default function ThemeImage($$anchor, $$props) {
     flex-shrink: 0;
   }
 
-=== 5566 packages/svelte-lexical/src/lib/components/generic/theme/ThemeSelector.svelte	js
+=== 5608 packages/svelte-lexical/src/lib/components/generic/theme/ThemeSelector.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { CAN_USE_DOM } from '@lexical/utils';
@@ -6343,7 +6385,8 @@ export default function ThemeSelector($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 3497 packages/svelte-lexical/src/lib/components/richtext/RichTextComposer.svelte	js
+=== 3539 packages/svelte-lexical/src/lib/components/richtext/RichTextComposer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ListItemNode, ListNode } from '@lexical/list';
@@ -6477,7 +6520,8 @@ export default function RichTextComposer($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 5191 packages/svelte-lexical/src/lib/components/richtext/ToolbarRichText.svelte	js
+=== 5233 packages/svelte-lexical/src/lib/components/richtext/ToolbarRichText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import BlockFormatDropDown from '../toolbar/BlockFormatDropDown/BlockFormatDropDown.svelte';
@@ -6654,7 +6698,8 @@ export default function ToolbarRichText($$anchor) {
 		Toolbar($$anchor, { children, $$slots: { default: true } });
 	}
 }
-=== 1388 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/BlockFormatDropDown.svelte	js
+=== 1430 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/BlockFormatDropDown.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getIsEditable } from '$lib/core/composerContext.js';
@@ -6702,7 +6747,8 @@ export default function BlockFormatDropDown($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1416 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/BulletDropDrownItem.svelte	js
+=== 1458 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/BulletDropDrownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -6744,7 +6790,8 @@ export default function BulletDropDrownItem($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1409 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/CheckDropDrownItem.svelte	js
+=== 1451 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/CheckDropDrownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -6786,7 +6833,8 @@ export default function CheckDropDrownItem($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1391 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/CodeDropDrownItem.svelte	js
+=== 1433 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/CodeDropDrownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -6828,7 +6876,8 @@ export default function CodeDropDrownItem($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1794 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/HeadingDropDownItem.svelte	js
+=== 1836 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/HeadingDropDownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DropDownItem from '../../generic/dropdown/DropDownItem.svelte';
@@ -6888,7 +6937,8 @@ export default function HeadingDropDownItem($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1426 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/NumberDropDrownItem.svelte	js
+=== 1468 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/NumberDropDrownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -6930,7 +6980,8 @@ export default function NumberDropDrownItem($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1393 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/ParagraphDropDownItem.svelte	js
+=== 1435 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/ParagraphDropDownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -6972,7 +7023,8 @@ export default function ParagraphDropDownItem($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1386 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/QuoteDropDrownItem.svelte	js
+=== 1428 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/QuoteDropDrownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -7014,7 +7066,8 @@ export default function QuoteDropDrownItem($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1302 packages/svelte-lexical/src/lib/components/toolbar/BoldButton.svelte	js
+=== 1344 packages/svelte-lexical/src/lib/components/toolbar/BoldButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getActiveEditor, getBold, getIsEditable } from '$lib/core/composerContext.js';
@@ -7049,7 +7102,8 @@ export default function BoldButton($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 3093 packages/svelte-lexical/src/lib/components/toolbar/CodeLanguageDropDown.svelte	js
+=== 3135 packages/svelte-lexical/src/lib/components/toolbar/CodeLanguageDropDown.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7154,7 +7208,8 @@ export default function CodeLanguageDropDown($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 3353 packages/svelte-lexical/src/lib/components/toolbar/CodeThemeShikiDropDown.svelte	js
+=== 3395 packages/svelte-lexical/src/lib/components/toolbar/CodeThemeShikiDropDown.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { $isCodeNode as isCodeNode } from '@lexical/code';
@@ -7267,7 +7322,8 @@ export default function CodeThemeShikiDropDown($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 236 packages/svelte-lexical/src/lib/components/toolbar/Divider.svelte	js
+=== 278 packages/svelte-lexical/src/lib/components/toolbar/Divider.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7278,7 +7334,8 @@ export default function Divider($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 6183 packages/svelte-lexical/src/lib/components/toolbar/DropDownAlign.svelte	js
+=== 6225 packages/svelte-lexical/src/lib/components/toolbar/DropDownAlign.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7468,7 +7525,8 @@ export default function DropDownAlign($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1447 packages/svelte-lexical/src/lib/components/toolbar/DropDownBackColorPicker.svelte	js
+=== 1489 packages/svelte-lexical/src/lib/components/toolbar/DropDownBackColorPicker.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getActiveEditor } from '$lib/core/composerContext.js';
@@ -7516,7 +7574,8 @@ export default function DropDownBackColorPicker($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1490 packages/svelte-lexical/src/lib/components/toolbar/DropDownTextColorPicker.svelte	js
+=== 1532 packages/svelte-lexical/src/lib/components/toolbar/DropDownTextColorPicker.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getActiveEditor } from '$lib/core/composerContext.js';
@@ -7565,7 +7624,8 @@ export default function DropDownTextColorPicker($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 2793 packages/svelte-lexical/src/lib/components/toolbar/FontFamilyDropDown.svelte	js
+=== 2835 packages/svelte-lexical/src/lib/components/toolbar/FontFamilyDropDown.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { $patchStyleText as patchStyleText } from '@lexical/selection';
@@ -7662,7 +7722,8 @@ export default function FontFamilyDropDown($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 2746 packages/svelte-lexical/src/lib/components/toolbar/FontSizeDropDown.svelte	js
+=== 2788 packages/svelte-lexical/src/lib/components/toolbar/FontSizeDropDown.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { $patchStyleText as patchStyleText } from '@lexical/selection';
@@ -7781,7 +7842,8 @@ export default function FontSizeDropDown($$anchor, $$props) {
     -moz-appearance: textfield;
   }
 
-=== 3427 packages/svelte-lexical/src/lib/components/toolbar/FontSizeEntry.svelte	js
+=== 3469 packages/svelte-lexical/src/lib/components/toolbar/FontSizeEntry.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getActiveEditor, getIsEditable } from '$lib/core/composerContext.js';
@@ -7882,7 +7944,8 @@ export default function FontSizeEntry($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown']);
-=== 1332 packages/svelte-lexical/src/lib/components/toolbar/FormatCodeButton.svelte	js
+=== 1374 packages/svelte-lexical/src/lib/components/toolbar/FormatCodeButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { FORMAT_TEXT_COMMAND } from 'lexical';
@@ -7920,7 +7983,8 @@ export default function FormatCodeButton($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 732 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertBlueskyDropDownItem.svelte	js
+=== 774 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertBlueskyDropDownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getEditor } from '$lib/core/composerContext.js';
@@ -7949,7 +8013,8 @@ export default function InsertBlueskyDropDownItem($$anchor, $$props) {
 
 	$.pop();
 }
-=== 737 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertColumnLayoutDropDownItem.svelte	js
+=== 779 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertColumnLayoutDropDownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getEditor } from '$lib/core/composerContext.js';
@@ -7978,7 +8043,8 @@ export default function InsertColumnLayoutDropDownItem($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1023 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertDropDown.svelte	js
+=== 1065 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertDropDown.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getIsEditable } from '$lib/core/composerContext.js';
@@ -8016,7 +8082,8 @@ export default function InsertDropDown($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1019 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertHRDropDownItem.svelte	js
+=== 1061 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertHRDropDownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getActiveEditor } from '$lib/core/composerContext.js';
@@ -8049,7 +8116,8 @@ export default function InsertHRDropDownItem($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 719 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertImageDropDownItem.svelte	js
+=== 761 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertImageDropDownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DropDownItem from '../../generic/dropdown/DropDownItem.svelte';
@@ -8078,7 +8146,8 @@ export default function InsertImageDropDownItem($$anchor, $$props) {
 
 	$.pop();
 }
-=== 719 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertTableDropDownItem.svelte	js
+=== 761 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertTableDropDownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getEditor } from '$lib/core/composerContext.js';
@@ -8107,7 +8176,8 @@ export default function InsertTableDropDownItem($$anchor, $$props) {
 
 	$.pop();
 }
-=== 719 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertTweetDropDownItem.svelte	js
+=== 761 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertTweetDropDownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getEditor } from '$lib/core/composerContext.js';
@@ -8136,7 +8206,8 @@ export default function InsertTweetDropDownItem($$anchor, $$props) {
 
 	$.pop();
 }
-=== 733 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertYoutubeDropDownItem.svelte	js
+=== 775 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertYoutubeDropDownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getEditor } from '$lib/core/composerContext.js';
@@ -8165,7 +8236,8 @@ export default function InsertYoutubeDropDownItem($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1300 packages/svelte-lexical/src/lib/components/toolbar/InsertLink.svelte	js
+=== 1342 packages/svelte-lexical/src/lib/components/toolbar/InsertLink.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -8200,7 +8272,8 @@ export default function InsertLink_1($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1379 packages/svelte-lexical/src/lib/components/toolbar/ItalicButton.svelte	js
+=== 1421 packages/svelte-lexical/src/lib/components/toolbar/ItalicButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getActiveEditor, getIsEditable } from '$lib/core/composerContext.js';
@@ -8239,7 +8312,8 @@ export default function ItalicButton($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1304 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/ClearFormattingDropDownItem.svelte	js
+=== 1346 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/ClearFormattingDropDownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DropDownItem from '$lib/components/generic/dropdown/DropDownItem.svelte';
@@ -8275,7 +8349,8 @@ export default function ClearFormattingDropDownItem($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1055 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/MoreStylesDropDown.svelte	js
+=== 1097 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/MoreStylesDropDown.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getIsEditable } from '$lib/core/composerContext.js';
@@ -8313,7 +8388,8 @@ export default function MoreStylesDropDown($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1663 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/StrikethroughDropDownItem.svelte	js
+=== 1705 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/StrikethroughDropDownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DropDownItem from '$lib/components/generic/dropdown/DropDownItem.svelte';
@@ -8361,7 +8437,8 @@ export default function StrikethroughDropDownItem($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1597 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/SubscriptDropDownItem.svelte	js
+=== 1639 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/SubscriptDropDownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DropDownItem from '$lib/components/generic/dropdown/DropDownItem.svelte';
@@ -8409,7 +8486,8 @@ export default function SubscriptDropDownItem($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1623 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/SuperscriptDropDownItem.svelte	js
+=== 1665 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/SuperscriptDropDownItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DropDownItem from '$lib/components/generic/dropdown/DropDownItem.svelte';
@@ -8457,7 +8535,8 @@ export default function SuperscriptDropDownItem($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1519 packages/svelte-lexical/src/lib/components/toolbar/RedoButton.svelte	js
+=== 1561 packages/svelte-lexical/src/lib/components/toolbar/RedoButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { CAN_REDO_COMMAND, COMMAND_PRIORITY_CRITICAL } from 'lexical';
@@ -8509,7 +8588,8 @@ export default function RedoButton($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 4198 packages/svelte-lexical/src/lib/components/toolbar/ShortcutsPlugin.svelte	js
+=== 4240 packages/svelte-lexical/src/lib/components/toolbar/ShortcutsPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getActiveEditor, getBlockType, getFontSize, getIsLink } from '$lib/core/composerContext.js';
@@ -8644,7 +8724,8 @@ export default function ShortcutsPlugin($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 7949 packages/svelte-lexical/src/lib/components/toolbar/StateStoreRichTextUpdator.svelte	js
+=== 7991 packages/svelte-lexical/src/lib/components/toolbar/StateStoreRichTextUpdator.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8874,7 +8955,8 @@ export default function StateStoreRichTextUpdator($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1411 packages/svelte-lexical/src/lib/components/toolbar/StrikethroughButton.svelte	js
+=== 1453 packages/svelte-lexical/src/lib/components/toolbar/StrikethroughButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -8912,7 +8994,8 @@ export default function StrikethroughButton($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1969 packages/svelte-lexical/src/lib/components/toolbar/Toolbar.svelte	js
+=== 2011 packages/svelte-lexical/src/lib/components/toolbar/Toolbar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { writable } from 'svelte/store';
@@ -8973,7 +9056,8 @@ export default function Toolbar($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1421 packages/svelte-lexical/src/lib/components/toolbar/UnderlineButton.svelte	js
+=== 1463 packages/svelte-lexical/src/lib/components/toolbar/UnderlineButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -9012,7 +9096,8 @@ export default function UnderlineButton($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1523 packages/svelte-lexical/src/lib/components/toolbar/UndoButton.svelte	js
+=== 1565 packages/svelte-lexical/src/lib/components/toolbar/UndoButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { CAN_UNDO_COMMAND, COMMAND_PRIORITY_CRITICAL } from 'lexical';
@@ -9070,7 +9155,8 @@ $.delegate(['click']);
     width: 30em;
   }
 
-=== 4196 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertBlueskyDialog.svelte	js
+=== 4238 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertBlueskyDialog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CloseCircleButton from '$lib/components/generic/button/CloseCircleButton.svelte';
@@ -9247,7 +9333,8 @@ $.delegate(['click']);
     width: 20em;
   }
 
-=== 4223 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertColumnsDialog.svelte	js
+=== 4265 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertColumnsDialog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getActiveEditor } from '$lib/core/composerContext.js';
@@ -9393,7 +9480,8 @@ export default function InsertColumnsDialog($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1379 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageDialog.svelte	js
+=== 1421 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageDialog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { FocusEditor } from '$lib/core/commands/commands.js';
@@ -9456,7 +9544,8 @@ export default function InsertImageDialog($$anchor, $$props) {
     width: 30em;
   }
 
-=== 2220 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageUploadedDialogBody.svelte	js
+=== 2262 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageUploadedDialogBody.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getActiveEditor } from '$lib/core/composerContext.js';
@@ -9542,7 +9631,8 @@ $.delegate(['click']);
     width: 30em;
   }
 
-=== 2051 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageUriDialogBody.svelte	js
+=== 2093 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageUriDialogBody.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getActiveEditor } from '$lib/core/composerContext.js';
@@ -9618,7 +9708,8 @@ $.delegate(['click']);
     width: 20em;
   }
 
-=== 3298 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertTableDialog.svelte	js
+=== 3340 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertTableDialog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getActiveEditor } from '$lib/core/composerContext.js';
@@ -9752,7 +9843,8 @@ $.delegate(['click']);
     width: 30em;
   }
 
-=== 2780 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertTweetDialog.svelte	js
+=== 2822 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertTweetDialog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CloseCircleButton from '$lib/components/generic/button/CloseCircleButton.svelte';
@@ -9864,7 +9956,8 @@ $.delegate(['click']);
     width: 30em;
   }
 
-=== 2815 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertYoutubeDialog.svelte	js
+=== 2857 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertYoutubeDialog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CloseCircleButton from '$lib/components/generic/button/CloseCircleButton.svelte';
@@ -9966,7 +10059,8 @@ export default function InsertYoutubeDialog($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1893 packages/svelte-lexical/src/lib/core/Composer.svelte	js
+=== 1935 packages/svelte-lexical/src/lib/core/Composer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { createEmptyHistoryState } from '@lexical/history';
@@ -10046,7 +10140,8 @@ export default function Composer($$anchor, $$props) {
 
 	return $$pop;
 }
-=== 3662 packages/svelte-lexical/src/lib/core/ContentEditable.svelte	js
+=== 3704 packages/svelte-lexical/src/lib/core/ContentEditable.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import './ContentEditable.css';
@@ -10133,7 +10228,8 @@ export default function ContentEditable($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 2314 packages/svelte-lexical/src/lib/core/Decorator.svelte	js
+=== 2356 packages/svelte-lexical/src/lib/core/Decorator.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { mergeRegister } from '@lexical/utils';
@@ -10208,7 +10304,8 @@ export default function Decorator($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1832 packages/svelte-lexical/src/lib/core/NestedComposer.svelte	js
+=== 1874 packages/svelte-lexical/src/lib/core/NestedComposer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { createSharedNodeState } from 'lexical';
@@ -10266,7 +10363,8 @@ export default function NestedComposer($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 402 packages/svelte-lexical/src/lib/core/plugins/AutoFocusPlugin.svelte	js
+=== 444 packages/svelte-lexical/src/lib/core/plugins/AutoFocusPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -10284,7 +10382,8 @@ export default function AutoFocusPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1308 packages/svelte-lexical/src/lib/core/plugins/AutoLink/AutoLinkPlugin.svelte	js
+=== 1350 packages/svelte-lexical/src/lib/core/plugins/AutoLink/AutoLinkPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import AutoLinkPluginCore from './AutoLinkPluginCore.svelte';
@@ -10333,7 +10432,8 @@ export default function AutoLinkPlugin($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 12312 packages/svelte-lexical/src/lib/core/plugins/AutoLink/AutoLinkPluginCore.svelte	js
+=== 12354 packages/svelte-lexical/src/lib/core/plugins/AutoLink/AutoLinkPluginCore.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10770,7 +10870,8 @@ export default function AutoLinkPluginCore($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2709 packages/svelte-lexical/src/lib/core/plugins/BlockWithAlignableContents.svelte	js
+=== 2751 packages/svelte-lexical/src/lib/core/plugins/BlockWithAlignableContents.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { $isDecoratorBlockNode as isDecoratorBlockNode } from './DecoratorBlockNode.js';
@@ -10885,7 +10986,8 @@ export default function BlockWithAlignableContents($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 411 packages/svelte-lexical/src/lib/core/plugins/CheckListPlugin.svelte	js
+=== 453 packages/svelte-lexical/src/lib/core/plugins/CheckListPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { registerCheckList } from '@lexical/list';
@@ -10952,7 +11054,8 @@ export default function CheckListPlugin($$anchor, $$props) {
     border: 1px solid rgba(0, 0, 0, 0.45);
   }
 
-=== 4662 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/CodeActionMenuPlugin.svelte	js
+=== 4704 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/CodeActionMenuPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -11152,7 +11255,8 @@ export default function CodeActionMenuPlugin($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1952 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/components/CopyButton.svelte	js
+=== 1994 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/components/CopyButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { $isCodeNode as isCodeNode } from '@lexical/code';
@@ -11259,7 +11363,8 @@ $.delegate(['click']);
     right: 0;
   }
 
-=== 3417 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/components/PrettierButton.svelte	js
+=== 3459 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/components/PrettierButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getEditor } from '../../../../composerContext.js';
@@ -11410,7 +11515,8 @@ export default function PrettierButton($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 437 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeHighlightPrismPlugin.svelte	js
+=== 479 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeHighlightPrismPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { registerCodeHighlighting } from '@lexical/code';
@@ -11428,7 +11534,8 @@ export default function CodeHighlightPrismPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 419 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeHighlightShikiPlugin.svelte	js
+=== 461 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeHighlightShikiPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getEditor } from '$lib/core/composerContext.js';
@@ -11445,7 +11552,8 @@ export default function CodeHighlightShikiPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 6068 packages/svelte-lexical/src/lib/core/plugins/ColumnsLayout/ColumnLayoutPlugin.svelte	js
+=== 6110 packages/svelte-lexical/src/lib/core/plugins/ColumnsLayout/ColumnLayoutPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getEditor } from '../../composerContext.js';
@@ -11645,7 +11753,8 @@ export default function ColumnLayoutPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1178 packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuItem.svelte	js
+=== 1220 packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -11688,7 +11797,8 @@ export default function ComponentPickerMenuItem($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 3440 packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuPlugin.svelte	js
+=== 3482 packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TypeAheadMenu from '$lib/components/generic/contextmenu/TypeAheadMenu.svelte';
@@ -11821,7 +11931,8 @@ export default function ComponentPickerMenuPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 10710 packages/svelte-lexical/src/lib/core/plugins/HashtagPlugin.svelte	js
+=== 10752 packages/svelte-lexical/src/lib/core/plugins/HashtagPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { $createHashtagNode as createHashtagNode, HashtagNode } from './HashtagNode.js';
@@ -11949,7 +12060,8 @@ export default function HashtagPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 630 packages/svelte-lexical/src/lib/core/plugins/HistoryPlugin.svelte	js
+=== 672 packages/svelte-lexical/src/lib/core/plugins/HistoryPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -11969,7 +12081,8 @@ export default function HistoryPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1333 packages/svelte-lexical/src/lib/core/plugins/HorizontalRuleComponent.svelte	js
+=== 1375 packages/svelte-lexical/src/lib/core/plugins/HorizontalRuleComponent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -12022,7 +12135,8 @@ export default function HorizontalRuleComponent($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1115 packages/svelte-lexical/src/lib/core/plugins/HorizontalRulePlugin.svelte	js
+=== 1157 packages/svelte-lexical/src/lib/core/plugins/HorizontalRulePlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -12073,7 +12187,8 @@ export default function HorizontalRulePlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 510 packages/svelte-lexical/src/lib/core/plugins/Image/CaptionEditorCollaborationPlugin.svelte	js
+=== 552 packages/svelte-lexical/src/lib/core/plugins/Image/CaptionEditorCollaborationPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CollaborationPlugin from '../collaboration/CollaborationPlugin.svelte';
@@ -12092,7 +12207,8 @@ export default function CaptionEditorCollaborationPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 399 packages/svelte-lexical/src/lib/core/plugins/Image/CaptionEditorHistoryPlugin.svelte	js
+=== 441 packages/svelte-lexical/src/lib/core/plugins/Image/CaptionEditorHistoryPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setImageHistoryPluginType } from '../../composerContext.js';
@@ -12103,7 +12219,8 @@ export default function CaptionEditorHistoryPlugin($$anchor, $$props) {
 	setImageHistoryPluginType({ componentType: SharedHistoryPlugin });
 	$.pop();
 }
-=== 11704 packages/svelte-lexical/src/lib/core/plugins/Image/ImageComponent.svelte	js
+=== 11746 packages/svelte-lexical/src/lib/core/plugins/Image/ImageComponent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import './ImageNodeStyles.css';
@@ -12558,7 +12675,8 @@ export default function ImageComponent($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 5078 packages/svelte-lexical/src/lib/core/plugins/Image/ImagePlugin.svelte	js
+=== 5120 packages/svelte-lexical/src/lib/core/plugins/Image/ImagePlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -12794,7 +12912,8 @@ export default function ImagePlugin($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 8495 packages/svelte-lexical/src/lib/core/plugins/Image/ImageResizer.svelte	js
+=== 8537 packages/svelte-lexical/src/lib/core/plugins/Image/ImageResizer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { calculateZoomLevel } from '@lexical/utils';
@@ -13047,7 +13166,8 @@ export default function ImageResizer($$anchor, $$props) {
 }
 
 $.delegate(['click', 'pointerdown']);
-=== 1213 packages/svelte-lexical/src/lib/core/plugins/KeywordPlugin.svelte	js
+=== 1255 packages/svelte-lexical/src/lib/core/plugins/KeywordPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { $createKeywordNode as createKeywordNode, KeywordNode } from './KeywordNode.js';
@@ -13089,7 +13209,8 @@ export default function KeywordPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 432 packages/svelte-lexical/src/lib/core/plugins/ListPlugin.svelte	js
+=== 474 packages/svelte-lexical/src/lib/core/plugins/ListPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -13108,7 +13229,8 @@ export default function ListPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 467 packages/svelte-lexical/src/lib/core/plugins/MarkdownShortcut/MarkdownShortcutPlugin.svelte	js
+=== 509 packages/svelte-lexical/src/lib/core/plugins/MarkdownShortcut/MarkdownShortcutPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -13126,7 +13248,8 @@ export default function MarkdownShortcutPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 972 packages/svelte-lexical/src/lib/core/plugins/OnChangePlugin.svelte	js
+=== 1014 packages/svelte-lexical/src/lib/core/plugins/OnChangePlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { HISTORY_MERGE_TAG } from 'lexical';
@@ -13186,7 +13309,8 @@ export default function OnChangePlugin($$anchor, $$props) {
     }
   }
 
-=== 1600 packages/svelte-lexical/src/lib/core/plugins/PlaceHolder.svelte	js
+=== 1642 packages/svelte-lexical/src/lib/core/plugins/PlaceHolder.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { $canShowPlaceholderCurry as canShowPlaceholderCurry } from '@lexical/text';
@@ -13242,7 +13366,8 @@ export default function PlaceHolder($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 498 packages/svelte-lexical/src/lib/core/plugins/PlainTextPlugin.svelte	js
+=== 540 packages/svelte-lexical/src/lib/core/plugins/PlainTextPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -13260,7 +13385,8 @@ export default function PlainTextPlugin($$anchor, $$props) {
 	$.pop();
 	// TODO: add Dragon support - registerDragonSupport(editor)
 }
-=== 566 packages/svelte-lexical/src/lib/core/plugins/RichTextPlugin.svelte	js
+=== 608 packages/svelte-lexical/src/lib/core/plugins/RichTextPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -13281,7 +13407,8 @@ export default function RichTextPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 453 packages/svelte-lexical/src/lib/core/plugins/SharedHistoryPlugin.svelte	js
+=== 495 packages/svelte-lexical/src/lib/core/plugins/SharedHistoryPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getHistoryStateContext } from '../composerContext.js';
@@ -13302,7 +13429,8 @@ export default function SharedHistoryPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 3094 packages/svelte-lexical/src/lib/core/plugins/TabIndentationPlugin.svelte	js
+=== 3136 packages/svelte-lexical/src/lib/core/plugins/TabIndentationPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13426,7 +13554,8 @@ export default function TabIndentationPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 20157 packages/svelte-lexical/src/lib/core/plugins/Table/TableActionMenu.svelte	js
+=== 20199 packages/svelte-lexical/src/lib/core/plugins/Table/TableActionMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getEditor } from '$lib/core/composerContext.js';
@@ -14065,7 +14194,8 @@ export default function TableActionMenu($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 8888 packages/svelte-lexical/src/lib/core/plugins/Table/TableActionMenuPlugin.svelte	js
+=== 8930 packages/svelte-lexical/src/lib/core/plugins/Table/TableActionMenuPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -14374,7 +14504,8 @@ $.delegate(['click']);
     }
   }
 
-=== 12359 packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte	js
+=== 12401 packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -14821,7 +14952,8 @@ export default function TableCellResizerPlugin($$anchor, $$props) {
 }
 
 $.delegate(['pointerdown']);
-=== 9012 packages/svelte-lexical/src/lib/core/plugins/Table/TableHoverActionPlugin.svelte	js
+=== 9054 packages/svelte-lexical/src/lib/core/plugins/Table/TableHoverActionPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -15141,7 +15273,8 @@ export default function TableHoverActionPlugin($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 2066 packages/svelte-lexical/src/lib/core/plugins/Table/TablePlugin.svelte	js
+=== 2108 packages/svelte-lexical/src/lib/core/plugins/Table/TablePlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getEditor } from '$lib/core/composerContext.js';
@@ -15212,7 +15345,8 @@ export default function TablePlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1114 packages/svelte-lexical/src/lib/core/plugins/TreeView/CommandsLog.svelte	js
+=== 1156 packages/svelte-lexical/src/lib/core/plugins/TreeView/CommandsLog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -15284,7 +15418,8 @@ export default function CommandsLog($$anchor, $$props) {
     background: #999;
   }
 
-=== 21313 packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeView.svelte	js
+=== 21355 packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeView.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { $generateHtmlFromNodes as generateHtmlFromNodes } from '@lexical/html';
@@ -16039,7 +16174,8 @@ export default function TreeView($$anchor, $$props) {
 }
 
 $.delegate(['click', 'change']);
-=== 567 packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeViewPlugin.svelte	js
+=== 609 packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeViewPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import './TreeView.css';
@@ -16055,7 +16191,8 @@ export default function TreeViewPlugin($$anchor) {
 		timeTravelPanelButtonClassName: 'debug-timetravel-panel-button'
 	});
 }
-=== 994 packages/svelte-lexical/src/lib/core/plugins/bluesky/BlueskyPlugin.svelte	js
+=== 1036 packages/svelte-lexical/src/lib/core/plugins/bluesky/BlueskyPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { $insertNodeToNearestRoot as insertNodeToNearestRoot } from '@lexical/utils';
@@ -16098,7 +16235,8 @@ export default function BlueskyPlugin($$anchor, $$props) {
     @import 'bluesky-post-embed/themes/dim.css' (prefers-color-scheme: dark);
   /*}*/
 
-=== 1881 packages/svelte-lexical/src/lib/core/plugins/bluesky/BlueskyPostComponent.svelte	js
+=== 1923 packages/svelte-lexical/src/lib/core/plugins/bluesky/BlueskyPostComponent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { renderPost, fetchPost } from 'bluesky-post-embed/core';
@@ -16176,7 +16314,8 @@ export default function BlueskyPostComponent($$anchor, $$props) {
 
 	$.pop();
 }
-=== 3025 packages/svelte-lexical/src/lib/core/plugins/collaboration/CollaborationPlugin.svelte	js
+=== 3067 packages/svelte-lexical/src/lib/core/plugins/collaboration/CollaborationPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useCollaborationContext } from './CollaborationContext.js';
@@ -16314,7 +16453,8 @@ export default function CollaborationPlugin($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 7324 packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsCollaboration.svelte	js
+=== 7366 packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsCollaboration.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { mergeRegister } from '@lexical/utils';
@@ -16604,7 +16744,8 @@ export default function YjsCollaboration($$anchor, $$props) {
 
 	$.pop();
 }
-=== 977 packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsFocusTracking.svelte	js
+=== 1019 packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsFocusTracking.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { mergeRegister } from '@lexical/utils';
@@ -16642,7 +16783,8 @@ export default function YjsFocusTracking($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1724 packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsHistory.svelte	js
+=== 1766 packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsHistory.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { mergeRegister } from '@lexical/utils';
@@ -16710,7 +16852,8 @@ export default function YjsHistory($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 8914 packages/svelte-lexical/src/lib/core/plugins/link/FloatingLinkEditor.svelte	js
+=== 8956 packages/svelte-lexical/src/lib/core/plugins/link/FloatingLinkEditor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import './FloatingLinkEditor.css';
@@ -17071,7 +17214,8 @@ export default function FloatingLinkEditor($$anchor, $$props) {
 }
 
 $.delegate(['keydown', 'mousedown', 'click']);
-=== 3805 packages/svelte-lexical/src/lib/core/plugins/link/FloatingLinkEditorPlugin.svelte	js
+=== 3847 packages/svelte-lexical/src/lib/core/plugins/link/FloatingLinkEditorPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -17229,7 +17373,8 @@ export default function FloatingLinkEditorPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2455 packages/svelte-lexical/src/lib/core/plugins/link/LinkPlugin.svelte	js
+=== 2497 packages/svelte-lexical/src/lib/core/plugins/link/LinkPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LinkNode, TOGGLE_LINK_COMMAND, $toggleLink as toggleLink } from '@lexical/link';
@@ -17326,7 +17471,8 @@ export default function LinkPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2261 packages/svelte-lexical/src/lib/core/plugins/twitter/TweetComponent.svelte	js
+=== 2303 packages/svelte-lexical/src/lib/core/plugins/twitter/TweetComponent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import BlockWithAlignableContents from '../BlockWithAlignableContents.svelte';
@@ -17425,7 +17571,8 @@ export default function TweetComponent($$anchor, $$props) {
 
 	$.pop();
 }
-=== 948 packages/svelte-lexical/src/lib/core/plugins/twitter/TwitterPlugin.svelte	js
+=== 990 packages/svelte-lexical/src/lib/core/plugins/twitter/TwitterPlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { $insertNodeToNearestRoot as insertNodeToNearestRoot } from '@lexical/utils';
@@ -17460,7 +17607,8 @@ export default function TwitterPlugin($$anchor, $$props) {
 
 	$.pop();
 }
-=== 923 packages/svelte-lexical/src/lib/core/plugins/youtube/YouTubeComponent.svelte	js
+=== 965 packages/svelte-lexical/src/lib/core/plugins/youtube/YouTubeComponent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import BlockWithAlignableContents from '../BlockWithAlignableContents.svelte';
@@ -17491,7 +17639,8 @@ export default function YouTubeComponent($$anchor, $$props) {
 		$$slots: { default: true }
 	});
 }
-=== 972 packages/svelte-lexical/src/lib/core/plugins/youtube/YoutubePlugin.svelte	js
+=== 1014 packages/svelte-lexical/src/lib/core/plugins/youtube/YoutubePlugin.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { $insertNodeToNearestRoot as insertNodeToNearestRoot } from '@lexical/utils';
@@ -17557,7 +17706,8 @@ export default function YoutubePlugin($$anchor, $$props) {
     border-radius: 0.2em;
   }
 
-=== 1703 packages/svelte-lexical/src/routes/+page.svelte	js
+=== 1745 packages/svelte-lexical/src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import RichTextComposer from './RichTextComposer.svelte';
@@ -17612,7 +17762,8 @@ export default function _page($$anchor) {
     --hover-bk-color: rgb(36 41 47 / 0.8);
   }
 
-=== 1141 packages/svelte-lexical/src/routes/GitHubButton.svelte	js
+=== 1183 packages/svelte-lexical/src/routes/GitHubButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import './button.css';
@@ -17627,7 +17778,8 @@ export default function GitHubButton($$anchor) {
 === 1 packages/svelte-lexical/src/routes/PlaygroundButton.svelte	css
 
 
-=== 3839 packages/svelte-lexical/src/routes/PlaygroundButton.svelte	js
+=== 3881 packages/svelte-lexical/src/routes/PlaygroundButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import './button.css';
@@ -17639,7 +17791,8 @@ export default function PlaygroundButton($$anchor) {
 
 	$.append($$anchor, a);
 }
-=== 7365 packages/svelte-lexical/src/routes/RichTextComposer.svelte	js
+=== 7407 packages/svelte-lexical/src/routes/RichTextComposer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -17953,7 +18106,8 @@ export default function RichTextComposer($$anchor, $$props) {
 
 	$.pop();
 }
-=== 8605 packages/svelte-lexical/src/routes/RichTextToolbar.svelte	js
+=== 8647 packages/svelte-lexical/src/routes/RichTextToolbar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import InsertTableDialog from '$lib/components/toolbar/dialogs/InsertTableDialog.svelte';
@@ -18282,7 +18436,8 @@ export default function RichTextToolbar($$anchor) {
     margin: 70px auto 10px auto;
   }
 
-=== 3287 packages/svelte-lexical/src/routes/examples/+page.svelte	js
+=== 3329 packages/svelte-lexical/src/routes/examples/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Composer2RichTextBasic from './Composer2RichTextBasic.svelte';
@@ -18337,7 +18492,8 @@ export default function _page($$anchor) {
 	$.reset(main);
 	$.append($$anchor, main);
 }
-=== 1429 packages/svelte-lexical/src/routes/examples/Composer1PlainText.svelte	js
+=== 1471 packages/svelte-lexical/src/routes/examples/Composer1PlainText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18402,7 +18558,8 @@ export default function Composer1PlainText($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 707 packages/svelte-lexical/src/routes/examples/Composer1Toolbar.svelte	js
+=== 749 packages/svelte-lexical/src/routes/examples/Composer1Toolbar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Toolbar, UndoButton, RedoButton } from '$lib/index.js';
@@ -18429,7 +18586,8 @@ export default function Composer1Toolbar($$anchor) {
 		Toolbar($$anchor, { children, $$slots: { default: true } });
 	}
 }
-=== 2046 packages/svelte-lexical/src/routes/examples/Composer2RichTextBasic.svelte	js
+=== 2088 packages/svelte-lexical/src/routes/examples/Composer2RichTextBasic.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Composer, ContentEditable, ActionBar, RichTextPlugin } from '$lib/index.js';
@@ -18504,7 +18662,8 @@ export default function Composer2RichTextBasic($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1716 packages/svelte-lexical/src/routes/examples/Composer2Toolbar.svelte	js
+=== 1758 packages/svelte-lexical/src/routes/examples/Composer2Toolbar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { BoldButton } from '$lib/index.js';
@@ -18572,7 +18731,8 @@ export default function Composer2Toolbar($$anchor) {
 		Toolbar($$anchor, { children, $$slots: { default: true } });
 	}
 }
-=== 3226 packages/svelte-lexical/src/routes/examples/Composer3RichTextAdv.svelte	js
+=== 3268 packages/svelte-lexical/src/routes/examples/Composer3RichTextAdv.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18720,7 +18880,8 @@ export default function Composer3RichTextAdv($$anchor, $$props) {
 
 	$.pop();
 }
-=== 4978 packages/svelte-lexical/src/routes/examples/Composer3Toolbar.svelte	js
+=== 5020 packages/svelte-lexical/src/routes/examples/Composer3Toolbar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DropDownBackColorPicker from '$lib/components/toolbar/DropDownBackColorPicker.svelte';
@@ -18907,7 +19068,8 @@ export default function Composer3Toolbar($$anchor) {
 		Toolbar($$anchor, { children, $$slots: { default: true } });
 	}
 }
-=== 4502 packages/svelte-lexical/src/routes/examples/Composer4RTLinks.svelte	js
+=== 4544 packages/svelte-lexical/src/routes/examples/Composer4RTLinks.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -19116,7 +19278,8 @@ export default function Composer4RTLinks($$anchor, $$props) {
 
 	$.pop();
 }
-=== 5064 packages/svelte-lexical/src/routes/examples/Composer4Toolbar.svelte	js
+=== 5106 packages/svelte-lexical/src/routes/examples/Composer4Toolbar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DropDownBackColorPicker from '$lib/components/toolbar/DropDownBackColorPicker.svelte';
@@ -19307,7 +19470,8 @@ export default function Composer4Toolbar($$anchor) {
 		Toolbar($$anchor, { children, $$slots: { default: true } });
 	}
 }
-=== 5014 packages/svelte-lexical/src/routes/examples/Composer5Code.svelte	js
+=== 5056 packages/svelte-lexical/src/routes/examples/Composer5Code.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -19540,7 +19704,8 @@ export default function Composer5Code($$anchor, $$props) {
 
 	$.pop();
 }
-=== 5725 packages/svelte-lexical/src/routes/examples/Composer5Toolbar.svelte	js
+=== 5767 packages/svelte-lexical/src/routes/examples/Composer5Toolbar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CodeLanguageDropDown from '$lib/components/toolbar/CodeLanguageDropDown.svelte';
@@ -19766,7 +19931,8 @@ export default function Composer5Toolbar($$anchor) {
     margin: 2rem auto;
   }
 
-=== 1303 packages/svelte-lexical/src/routes/examples/html/+page.svelte	js
+=== 1345 packages/svelte-lexical/src/routes/examples/html/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { generateHtmlFromNodes } from '$lib/index.js';
@@ -19819,7 +19985,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 7313 packages/svelte-lexical/src/routes/examples/html/RichTextComposer.svelte	js
+=== 7355 packages/svelte-lexical/src/routes/examples/html/RichTextComposer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 

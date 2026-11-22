@@ -63,7 +63,8 @@
 		opacity: 1;
 	}
 
-=== 4015 src/components/CodeBlock.svelte	js
+=== 4057 src/components/CodeBlock.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import hljs from 'highlight.js/lib/core';
@@ -188,7 +189,8 @@ export default function CodeBlock($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 254 src/components/Custom.svelte	js
+=== 296 src/components/Custom.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -199,7 +201,8 @@ export default function Custom($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 1382 src/components/Expand.svelte	js
+=== 1424 src/components/Expand.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { toast } from '$lib/index.js';
@@ -289,7 +292,8 @@ $.delegate(['click']);
 		}
 	}
 
-=== 479 src/components/Footer.svelte	js
+=== 521 src/components/Footer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -457,7 +461,8 @@ export default function Footer($$anchor) {
 		}
 	}
 
-=== 1201 src/components/Hero.svelte	js
+=== 1243 src/components/Hero.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { toast } from '$lib/index.js';
@@ -524,7 +529,8 @@ $.delegate(['click']);
 		display: flex;
 	}
 
-=== 1915 src/components/Installation.svelte	js
+=== 1957 src/components/Installation.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import copy from 'copy-to-clipboard';
@@ -656,7 +662,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 4033 src/components/Other.svelte	js
+=== 4075 src/components/Other.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { toast } from '$lib/index.js';
@@ -822,7 +829,8 @@ export default function Other($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1591 src/components/Position.svelte	js
+=== 1633 src/components/Position.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { toast } from '$lib/index.js';
@@ -937,7 +945,8 @@ $.delegate(['click']);
 		color: var(--gray12);
 	}
 
-=== 1408 src/components/Test.svelte	js
+=== 1450 src/components/Test.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -959,7 +968,8 @@ export default function Test($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 293 src/components/TestWithProps.svelte	js
+=== 335 src/components/TestWithProps.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -972,7 +982,8 @@ export default function TestWithProps($$anchor, $$props) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 3892 src/components/Types.svelte	js
+=== 3934 src/components/Types.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { toast } from '$lib/index.js';
@@ -1144,7 +1155,8 @@ toast(Custom)`,
 }
 
 $.delegate(['click']);
-=== 505 src/components/Usage.svelte	js
+=== 547 src/components/Usage.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CodeBlock from './CodeBlock.svelte';
@@ -1165,7 +1177,8 @@ export default function Usage($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 3179 src/lib/Icon.svelte	js
+=== 3221 src/lib/Icon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1213,7 +1226,8 @@ export default function Icon($$anchor, $$props) {
 
 	$.append($$anchor, fragment);
 }
-=== 818 src/lib/Loader.svelte	js
+=== 860 src/lib/Loader.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1249,7 +1263,8 @@ export default function Loader($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 31649 src/lib/Toast.svelte	js
+=== 31691 src/lib/Toast.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, untrack } from 'svelte';
@@ -3087,7 +3102,8 @@ $.delegate(['pointermove', 'pointerup', 'pointerdown', 'click']);
 		}
 	/*}*/
 
-=== 18624 src/lib/Toaster.svelte	js
+=== 18666 src/lib/Toaster.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, untrack } from 'svelte';
@@ -3765,7 +3781,8 @@ export default function Toaster($$anchor, $$props) {
 	}
 ]
 
-=== 530 src/lib/icons/CloseIcon.svelte	js
+=== 572 src/lib/icons/CloseIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3776,7 +3793,8 @@ export default function CloseIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 553 src/lib/icons/ErrorIcon.svelte	js
+=== 595 src/lib/icons/ErrorIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3787,7 +3805,8 @@ export default function ErrorIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 651 src/lib/icons/InfoIcon.svelte	js
+=== 693 src/lib/icons/InfoIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3798,7 +3817,8 @@ export default function InfoIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 576 src/lib/icons/SuccessIcon.svelte	js
+=== 618 src/lib/icons/SuccessIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3809,7 +3829,8 @@ export default function SuccessIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 1302 src/lib/icons/WarningIcon.svelte	js
+=== 1344 src/lib/icons/WarningIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3820,7 +3841,8 @@ export default function WarningIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 306 src/routes/+layout.svelte	js
+=== 348 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import './styles.css';
@@ -3832,7 +3854,8 @@ export default function _layout($$anchor, $$props) {
 	$.snippet(node, () => $$props.children);
 	$.append($$anchor, fragment);
 }
-=== 3500 src/routes/+page.svelte	js
+=== 3542 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Toaster } from '$lib/index.js';
@@ -3951,7 +3974,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment_1);
 	$.pop();
 }
-=== 3177 src/routes/test/+page.svelte	js
+=== 3219 src/routes/test/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/state';
@@ -4046,7 +4070,8 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 358 src/routes/test/CustomIcon.svelte	js
+=== 400 src/routes/test/CustomIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4057,7 +4082,8 @@ export default function CustomIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 269 src/routes/test/WideDescription.svelte	js
+=== 311 src/routes/test/WideDescription.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4068,7 +4094,8 @@ export default function WideDescription($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 846 src/tests/MultiToasterTest.svelte	js
+=== 888 src/tests/MultiToasterTest.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Toaster, toast } from '$lib/index.js';
@@ -4103,7 +4130,8 @@ export default function MultiToasterTest($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 740 src/tests/PropsToastTest.svelte	js
+=== 782 src/tests/PropsToastTest.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Toaster, toast } from '$lib/index.js';
@@ -4133,7 +4161,8 @@ export default function PropsToastTest($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 328 src/tests/TestIcon.svelte	js
+=== 370 src/tests/TestIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4144,7 +4173,8 @@ export default function TestIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 570 src/tests/ToastTest.svelte	js
+=== 612 src/tests/ToastTest.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Toaster, toast } from '$lib/index.js';

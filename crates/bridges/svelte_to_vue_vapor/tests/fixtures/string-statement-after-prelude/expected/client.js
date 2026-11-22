@@ -131,7 +131,7 @@ const $$state_proxy = (value) => {
 		}
 	});
 };
-"module text";
+("module text");
 export const shared = 1;
 const $$v_n0 = $$v_template("<button>");
 const $$v_n2 = $$v_template(" ");

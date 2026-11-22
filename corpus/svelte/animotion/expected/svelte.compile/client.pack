@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 1777 src/lib/components/action.svelte	js
+=== 1819 src/lib/components/action.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Action from '$lib/components/action.svelte';
@@ -67,7 +68,8 @@ export default function Action_1($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 20552 src/lib/components/code.svelte	js
+=== 20594 src/lib/components/code.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { createHighlighter } from 'shiki';
 import * as $ from 'svelte/internal/client';
@@ -914,7 +916,8 @@ export default function Code_1($$anchor, $$props) {
 		}
 	}
 
-=== 3746 src/lib/components/embed.svelte	js
+=== 3788 src/lib/components/embed.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { tick } from 'svelte';
@@ -1075,7 +1078,8 @@ export default function Embed($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 339 src/lib/components/notes.svelte	js
+=== 381 src/lib/components/notes.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1089,7 +1093,8 @@ export default function Notes($$anchor, $$props) {
 	$.reset(aside);
 	$.append($$anchor, aside);
 }
-=== 4752 src/lib/components/presentation.svelte	js
+=== 4794 src/lib/components/presentation.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { tick } from 'svelte';
@@ -1375,7 +1380,8 @@ export default function Presentation($$anchor, $$props) {
 		}
 	}
 
-=== 4841 src/lib/components/recorder.svelte	js
+=== 4883 src/lib/components/recorder.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1585,7 +1591,8 @@ export default function Recorder($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 2148 src/lib/components/slide.svelte	js
+=== 2190 src/lib/components/slide.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1653,7 +1660,8 @@ export default function Slide($$anchor, $$props) {
 	$.append($$anchor, section);
 	$.pop();
 }
-=== 1665 src/lib/components/slides.svelte	js
+=== 1707 src/lib/components/slides.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import AnimotionSlide from './slide.svelte';
@@ -1716,7 +1724,8 @@ export default function Slides($$anchor, $$props) {
 		display: none;
 	}
 
-=== 4843 src/lib/components/transition.svelte	js
+=== 4885 src/lib/components/transition.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { browser } from '$app/environment';
 import * as $ from 'svelte/internal/client';
@@ -1920,7 +1929,8 @@ export default function Transition_1($$anchor, $$props) {
 	$.append($$anchor, fragment_1);
 	$.pop();
 }
-=== 413 src/routes/+layout.svelte	js
+=== 455 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import '../styles/app.css';
@@ -1939,7 +1949,8 @@ export default function _layout($$anchor, $$props) {
 	$.snippet(node, () => $$props.children);
 	$.append($$anchor, fragment);
 }
-=== 8070 src/routes/+page.svelte	js
+=== 8112 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Presentation, Slide, Code, Transition, Action } from '$lib/index.js';
@@ -2239,7 +2250,8 @@ export default function _page($$anchor, $$props) {
 
 	$.pop();
 }
-=== 429 src/routes/file-based/+page.svelte	js
+=== 471 src/routes/file-based/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Presentation, Slides } from '$lib/index.js';
@@ -2259,7 +2271,8 @@ export default function _page($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 283 src/slides/100/slide.svelte	js
+=== 325 src/slides/100/slide.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2270,7 +2283,8 @@ export default function Slide($$anchor) {
 
 	$.append($$anchor, p);
 }
-=== 3584 src/slides/200/slide.svelte	js
+=== 3626 src/slides/200/slide.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Code, Transition, Action } from '$lib/index.js';
@@ -2421,7 +2435,8 @@ export default function Slide($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 2324 src/slides/300/slide.svelte	js
+=== 2366 src/slides/300/slide.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Transition } from '$lib/index.js';
@@ -2517,7 +2532,8 @@ export default function Slide($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 438 src/slides/400/slide.svelte	js
+=== 480 src/slides/400/slide.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 

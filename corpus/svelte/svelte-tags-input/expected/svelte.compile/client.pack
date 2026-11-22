@@ -149,7 +149,8 @@
 		border: 0;
 	}
 
-=== 16022 src/Tags.svelte	js
+=== 16064 src/Tags.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -665,7 +666,8 @@ export default function Tags($$anchor, $$props) {
 }
 
 $.delegate(['click', 'pointerdown', 'keydown', 'keyup']);
-=== 2075 tests/TagsWrapper.svelte	js
+=== 2117 tests/TagsWrapper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Tags from '../src/Tags.svelte';

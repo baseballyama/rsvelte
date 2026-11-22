@@ -1,3 +1,4 @@
+import "svelte/internal/init-operations";
 import "svelte/internal/disclose-version";
 import * as $ from "svelte/internal/client";
 var root = $.from_html(`<input type="checkbox"/>`);
@@ -82,19 +83,19 @@ export default function Bind_group_interpolated_value($$anchor, $$props) {
 	}, ($$value) => $.set(one, $$value));
 	$.bind_checked(input_3, () => $.get(checked), ($$value) => $.set(checked, $$value));
 	$.bind_group(binding_group, [], input_5, () => {
-		"aq";
+		("aq");
 		return $.get(group);
 	}, ($$value) => $.set(group, $$value));
 	$.bind_group(binding_group, [], input_6, () => {
-		"it\'s q";
+		("it's q");
 		return $.get(group);
 	}, ($$value) => $.set(group, $$value));
 	$.bind_group(binding_group, [], input_7, () => {
-		'say "q" \\ back';
+		("say \"q\" \\ back");
 		return $.get(group);
 	}, ($$value) => $.set(group, $$value));
 	$.bind_group(binding_group, [], input_8, () => {
-		"lit";
+		("lit");
 		return $.get(group);
 	}, ($$value) => $.set(group, $$value));
 	$.append($$anchor, fragment);

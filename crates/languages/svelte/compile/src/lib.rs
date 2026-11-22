@@ -22,7 +22,7 @@ pub use computation::{Identified, Planned, ScopedStylesheet, compile_errors, reg
 pub use configuration::{Configuration, CssHash, CssHashInput};
 pub use extension::EXTENSION;
 pub use identity::OutputIdentity;
-pub use input::{CompileInput, Target};
+pub use input::{CompileInput, Renderer, Target};
 pub use module::CompileModule;
 pub use render_plan::RenderPlan;
 pub use task::{

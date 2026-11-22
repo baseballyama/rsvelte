@@ -57,7 +57,8 @@
 		}
 	}
 
-=== 505 src/lib/components/CheckmarkIcon.svelte	js
+=== 547 src/lib/components/CheckmarkIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -141,7 +142,8 @@ export default function CheckmarkIcon($$anchor, $$props) {
 		}
 	}
 
-=== 501 src/lib/components/ErrorIcon.svelte	js
+=== 543 src/lib/components/ErrorIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -179,7 +181,8 @@ export default function ErrorIcon($$anchor, $$props) {
 		}
 	}
 
-=== 505 src/lib/components/LoaderIcon.svelte	js
+=== 547 src/lib/components/LoaderIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -273,7 +276,8 @@ export default function LoaderIcon($$anchor, $$props) {
 		animation: svelte-l6lvp4-fadeOutAnimation 0.4s cubic-bezier(0.06, 0.71, 0.55, 1) forwards;
 	}
 
-=== 2718 src/lib/components/ToastBar.svelte	js
+=== 2760 src/lib/components/ToastBar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { prefersReducedMotion } from '../core/utils';
@@ -416,7 +420,8 @@ export default function ToastBar($$anchor, $$props) {
 		}
 	}
 
-=== 2453 src/lib/components/ToastIcon.svelte	js
+=== 2495 src/lib/components/ToastIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CheckmarkIcon from './CheckmarkIcon.svelte';
@@ -514,7 +519,8 @@ export default function ToastIcon($$anchor, $$props) {
 		white-space: pre-line;
 	}
 
-=== 1196 src/lib/components/ToastMessage.svelte	js
+=== 1238 src/lib/components/ToastMessage.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -587,7 +593,8 @@ export default function ToastMessage($$anchor, $$props) {
 		pointer-events: auto;
 	}
 
-=== 2385 src/lib/components/ToastWrapper.svelte	js
+=== 2427 src/lib/components/ToastWrapper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -686,7 +693,8 @@ export default function ToastWrapper($$anchor, $$props) {
 		pointer-events: none;
 	}
 
-=== 1827 src/lib/components/Toaster.svelte	js
+=== 1869 src/lib/components/Toaster.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import useToaster from '../core/use-toaster';
@@ -767,7 +775,8 @@ export default function Toaster($$anchor, $$props) {
 	}
 ]
 
-=== 1560 src/routes/+layout.svelte	js
+=== 1602 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import '../app.css';
@@ -812,7 +821,8 @@ export default function _layout($$anchor, $$props) {
 		@apply bg-gray-200 font-bold;
 	}
 
-=== 8371 src/routes/+page.svelte	js
+=== 8413 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import toast, { Toaster } from '../lib';
@@ -1010,7 +1020,8 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 933 src/www/Copy.svelte	js
+=== 975 src/www/Copy.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import toast from '../lib';
@@ -1047,7 +1058,8 @@ $.delegate(['click']);
 		@apply border-blue-500 font-bold;
 	}
 
-=== 2842 src/www/Examples.svelte	js
+=== 2884 src/www/Examples.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Copy from './Copy.svelte';
@@ -1148,7 +1160,8 @@ export default function Examples($$anchor) {
 }
 
 $.delegate(['change']);
-=== 623 src/www/RichContent.svelte	js
+=== 665 src/www/RichContent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import toast_ from '../lib';

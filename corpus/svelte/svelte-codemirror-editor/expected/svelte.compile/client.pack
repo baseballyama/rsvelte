@@ -54,7 +54,8 @@
         }
     }
 
-=== 9183 src/lib/CodeMirror.svelte	js
+=== 9225 src/lib/CodeMirror.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy, onMount, untrack } from "svelte";
@@ -465,7 +466,8 @@ export default function CodeMirror($$anchor, $$props) {
         }
     }
 
-=== 1873 src/routes/+layout.svelte	js
+=== 1915 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import "../styles.css";
@@ -608,7 +610,8 @@ export default function _layout($$anchor, $$props) {
         text-align: right;
     }
 
-=== 12145 src/routes/+page.svelte	js
+=== 12187 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CodeMirror from "$lib";
@@ -937,7 +940,8 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['change']);
-=== 490 src/routes/css/+page.svelte	js
+=== 532 src/routes/css/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CodeMirror from "$lib";
@@ -966,7 +970,8 @@ export default function _page($$anchor, $$props) {
 
 	$.pop();
 }
-=== 529 src/routes/html/+page.svelte	js
+=== 571 src/routes/html/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CodeMirror from "$lib";
@@ -995,7 +1000,8 @@ export default function _page($$anchor, $$props) {
 
 	$.pop();
 }
-=== 525 src/routes/javascript/+page.svelte	js
+=== 567 src/routes/javascript/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CodeMirror from "$lib";
@@ -1024,7 +1030,8 @@ export default function _page($$anchor, $$props) {
 
 	$.pop();
 }
-=== 553 src/routes/typescript/+page.svelte	js
+=== 595 src/routes/typescript/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CodeMirror from "$lib";

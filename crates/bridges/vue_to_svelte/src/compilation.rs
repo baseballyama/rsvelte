@@ -11,7 +11,7 @@ use oxc_ast_visit::VisitMut;
 use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_compile::{CompileInput, Target};
+use rsvelte_svelte_compile::{CompileInput, Renderer, Target};
 use rsvelte_typescript_compile::build::Builder;
 use rsvelte_typescript_compile::strip::Strip;
 use rsvelte_typescript_tree::{ProgramIdentifier, Tree, document_span};
@@ -57,6 +57,7 @@ impl Translation {
             },
             // Vue's text is already condensed; Svelte's cleaning would condense it again.
             preserve_whitespace: true,
+            renderer: Renderer::Dom,
         }
     }
 }

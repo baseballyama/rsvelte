@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 571 src/lib/utils/RendererUtils.svelte	js
+=== 613 src/lib/utils/RendererUtils.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
