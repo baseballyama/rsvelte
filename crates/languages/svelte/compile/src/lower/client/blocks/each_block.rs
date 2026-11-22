@@ -91,7 +91,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let mut index_use = self.index_use(each, bindings);
         index_use.body |= grouped;
 
-        let destructured_names = destructured.map(destructure::names).unwrap_or_default();
+        let destructured_names = destructured.map_or_default(destructure::names);
         let mut body = self.each_body(each, identifier, bindings, flags, destructured)?;
         if grouped && let Some(i) = index {
             body.insert(0, b.let_(&i.name, Some(b.id(&index_name))));
@@ -270,7 +270,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             let span = self.res.reference_span(store);
             &self.source_text[span.start as usize..span.end as usize]
         });
-        let destructured_names = destructured.map(destructure::names).unwrap_or_default();
+        let destructured_names = destructured.map_or_default(destructure::names);
         let item_names = bindings.item.into_iter();
         if let Some(store) = store {
             for symbol in item_names.chain(destructured_names.iter().map(|&(symbol, _)| symbol)) {

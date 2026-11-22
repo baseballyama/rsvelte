@@ -16,8 +16,7 @@ pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_inter
     install: |registry, settings| {
         let options = settings
             .options::<Options>(EXTENSION.identifier)?
-            .map(|o| o.value)
-            .unwrap_or_default();
+            .map_or_default(|o| o.value);
         // Said once for the run, not on every document, and only to a run that formats.
         if settings.runs(TASK, rsvelte_plugin_interface::TaskKind::Document)
             && let Some(name) = unported(&options)
