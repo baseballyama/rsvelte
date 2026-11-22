@@ -1,5 +1,5 @@
 [tools]
-node = "26.13.0"
+node = "26.13.1"
 # The aqua registry does not know pnpm 12's asset names yet; npm has the same release.
 "npm:pnpm" = "12.16.1"
 
