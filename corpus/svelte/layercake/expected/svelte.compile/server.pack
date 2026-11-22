@@ -1892,7 +1892,7 @@ export default function Beeswarm($$renderer, $$props) {
 		display: block;
 	}
 
-=== 3116 src/_components/BeeswarmForce.html.svelte	js
+=== 3004 src/_components/BeeswarmForce.html.svelte	js
 import * as $ from 'svelte/internal/server';
 import { getContext, untrack } from 'svelte';
 import { forceSimulation, forceX, forceY, forceCollide } from 'd3-force';
@@ -1934,11 +1934,7 @@ export default function BeeswarmForce_html($$renderer, $$props) {
 
 		$$renderer.push(`<div class="bee-group"><!--[-->`);
 
-		const each_array = $.ensure_array_like(
-			// Run the simulation for a fixed number of iterations
-			// Update nodes state to trigger reactivity
-			nodes
-		);
+		const each_array = $.ensure_array_like(nodes);
 
 		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
 			let node = each_array[$$index];
@@ -1959,7 +1955,7 @@ export default function BeeswarmForce_html($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
-=== 2772 src/_components/BeeswarmForce.svelte	js
+=== 2660 src/_components/BeeswarmForce.svelte	js
 import * as $ from 'svelte/internal/server';
 import { getContext, untrack } from 'svelte';
 import { forceSimulation, forceX, forceY, forceCollide } from 'd3-force';
@@ -2001,11 +1997,7 @@ export default function BeeswarmForce($$renderer, $$props) {
 
 		$$renderer.push(`<g class="bee-group"><!--[-->`);
 
-		const each_array = $.ensure_array_like(
-			// Run the simulation for a fixed number of iterations
-			// Update nodes state to trigger reactivity
-			nodes
-		);
+		const each_array = $.ensure_array_like(nodes);
 
 		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
 			let node = each_array[$$index];
@@ -2432,7 +2424,7 @@ export default function CirclePack_html($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
-=== 2754 src/_components/CirclePackForce.svelte	js
+=== 2636 src/_components/CirclePackForce.svelte	js
 import * as $ from 'svelte/internal/server';
 import { getContext } from 'svelte';
 
@@ -2486,9 +2478,6 @@ export default function CirclePackForce($$renderer, $$props) {
 			/* ----------------------------------------------
 			 * When variables change, set forces and restart the simulation
 			 */
-			/** @param {any} d */
-			/** @param {any} d */
-			// Divide this by two because an svg stroke is drawn halfway out
 			nodes
 		);
 
@@ -2969,7 +2958,7 @@ export default function Line($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
-=== 1933 src/_components/Map.canvas.svelte	js
+=== 1694 src/_components/Map.canvas.svelte	js
 import * as $ from 'svelte/internal/server';
 import { getContext } from 'svelte';
 import { scaleCanvas } from 'layercake';
@@ -3004,10 +2993,6 @@ export default function Map_canvas($$renderer, $$props) {
 		let featuresToDraw = $.derived(() => features || $.store_get($$store_subs ??= {}, '$data', data).features);
 
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
-		// Assign to a local variable: setting properties on `$ctx` directly
-		// would re-notify the store and re-trigger this effect
-		/** @param {any} feature */
-		// Set the context here since setting it in `geoPath` is a circular reference
 	});
 }
 === 467 src/_components/Map.svg.svelte	css
@@ -3238,7 +3223,7 @@ export default function MapLabels_svg($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
-=== 1788 src/_components/MapPoints.canvas.svelte	js
+=== 1555 src/_components/MapPoints.canvas.svelte	js
 import * as $ from 'svelte/internal/server';
 import { getContext } from 'svelte';
 import { scaleCanvas } from 'layercake';
@@ -3279,10 +3264,6 @@ export default function MapPoints_canvas($$renderer, $$props) {
 		let featuresToDraw = $.derived(() => features || $.store_get($$store_subs ??= {}, '$data', data).features);
 
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
-		// Assign to a local variable: setting properties on `$ctx` directly
-		// would re-notify the store and re-trigger this effect
-		// To scale the circle by size, set width and height to `$rGet(d.properties)`
-		/** @param {any} d */
 	});
 }
 === 96 src/_components/MapPoints.html.svelte	css
@@ -3782,7 +3763,7 @@ export default function Sankey_1($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
-=== 1226 src/_components/Scatter.canvas.svelte	js
+=== 817 src/_components/Scatter.canvas.svelte	js
 import * as $ from 'svelte/internal/server';
 import { getContext } from 'svelte';
 import { scaleCanvas } from 'layercake';
@@ -3804,18 +3785,6 @@ export default function Scatter_canvas($$renderer, $$props) {
 		let { r = 5, fill = '#0cf', stroke = '#000', strokeWidth = 1 } = $$props;
 
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
-		// Assign to a local variable: setting properties on `$ctx` directly
-		// would re-notify the store and re-trigger this effect
-		/**
-		 * If you were to have multiple canvas layers
-		 * maybe for some artistic layering purposes
-		 * put these reset functions in the first layer, not each one
-		 * since they should only run once per update
-		 */
-		/**
-		 * Draw our scatterplot
-		 */
-		/** @type {any} d */
 	});
 }
 === 110 src/_components/Scatter.html.svelte	css
@@ -3902,7 +3871,7 @@ export default function Scatter_svg($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
-=== 5549 src/_components/Scatter.webgl.svelte	js
+=== 5499 src/_components/Scatter.webgl.svelte	js
 import * as $ from 'svelte/internal/server';
 import reglWrapper from 'regl';
 import { getContext, onDestroy } from 'svelte';
@@ -4086,7 +4055,6 @@ export default function Scatter_webgl($$renderer, $$props) {
 			});
 		}
 
-		// Let regl pick up the new drawing buffer size
 		onDestroy(() => {
 			if (regl) regl.destroy();
 		});
@@ -5648,11 +5616,11 @@ export default function _page($$renderer, $$props) {
 </div>`.trim().replace(/\t/g, '  ');
 
 		$.head('1uha8ag', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="og:title" content="Layer Cake"/> <meta name="twitter:title" content="Layer Cake"/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>Layer Cake</title>`);
 			});
-
-			$$renderer.push(`<meta name="og:title" content="Layer Cake"/> <meta name="twitter:title" content="Layer Cake"/>`);
 		});
 
 		$$renderer.push(`<div class="main svelte-1uha8ag"><div class="logo-container svelte-1uha8ag"><div id="logo" class="svelte-1uha8ag"></div> <h1 class="svelte-1uha8ag">Layer Cake</h1></div> <div id="dek" class="svelte-1uha8ag"><p class="svelte-1uha8ag">Layer Cake is a headless graphics framework for <a href="https://svelte.dev" target="_blank" rel="noreferrer" class="svelte-1uha8ag">Svelte</a>. It uses the measurements of your target div and your data extents to create scales that <span class="strong svelte-1uha8ag">stay synced</span> on layout changes. Use these scales to organize multiple, <span class="strong svelte-1uha8ag">mostly-reusable Svelte components</span>, whether they be SVG, HTML,
@@ -14247,7 +14215,7 @@ export default function GuideContents($$renderer, $$props) {
 		}
 	}
 
-=== 5585 src/routes/_site-components/Nav.svelte	js
+=== 5437 src/routes/_site-components/Nav.svelte	js
 import * as $ from 'svelte/internal/server';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
@@ -14270,9 +14238,6 @@ export default function Nav($$renderer, $$props) {
 
 		let segment = '';
 
-		// type = path.split('/')[1];
-		// segment = `/${path.replace('/', '').replace(/\$/, '')}`;
-		// slug = path.replace(/\/$/, '').split('/').pop();
 		// let basePath = '/';
 		let open = false;
 
@@ -14640,7 +14605,7 @@ export default function Nav($$renderer, $$props) {
 		}
 	}
 
-=== 7165 src/routes/components/+page.svelte	js
+=== 7134 src/routes/components/+page.svelte	js
 import * as $ from 'svelte/internal/server';
 import { groupBy, sortBy } from 'underscore';
 import svelteComponents from '../_components.js';
@@ -14728,7 +14693,6 @@ export default function _page($$renderer, $$props) {
 		/** @type {HTMLElement[]} */
 		let anchors = [];
 
-		/** @type {HTMLElement[]} */
 		function onresize() {
 			if (container) {
 				const { top } = container.getBoundingClientRect();
@@ -14761,11 +14725,11 @@ export default function _page($$renderer, $$props) {
 		}
 
 		$.head('136c6pl', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="og:title" content="Layer Cake — Component gallery"/> <meta name="twitter:title" content="Layer Cake — Component gallery"/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>LayerCake - Component gallery</title>`);
 			});
-
-			$$renderer.push(`<meta name="og:title" content="Layer Cake — Component gallery"/> <meta name="twitter:title" content="Layer Cake — Component gallery"/>`);
 		});
 
 		$$renderer.push(`<sidebar class="svelte-136c6pl"><ul class="svelte-136c6pl"><!--[-->`);
@@ -16040,7 +16004,7 @@ export default function _page($$renderer, $$props) {
 		text-decoration: underline;
 	}
 
-=== 3302 src/routes/guide/+page.svelte	js
+=== 3271 src/routes/guide/+page.svelte	js
 import * as $ from 'svelte/internal/server';
 import GuideContents from '../_site-components/GuideContents.svelte';
 
@@ -16061,7 +16025,6 @@ export default function _page($$renderer, $$props) {
 		/** @type {HTMLElement[]} */
 		let anchors = [];
 
-		/** @type {HTMLElement[]} */
 		function onresize() {
 			if (container) {
 				const { top } = container.getBoundingClientRect();
@@ -16098,11 +16061,11 @@ export default function _page($$renderer, $$props) {
 
 		function $$render_inner($$renderer) {
 			$.head('36n0qb', $$renderer, ($$renderer) => {
+				$$renderer.push(`<meta name="og:title" content="Layer Cake — Guide"/> <meta name="twitter:title" content="Layer Cake — Guide"/>`);
+
 				$$renderer.title(($$renderer) => {
 					$$renderer.push(`<title>LayerCake - Guide</title>`);
 				});
-
-				$$renderer.push(`<meta name="og:title" content="Layer Cake — Guide"/> <meta name="twitter:title" content="Layer Cake — Guide"/>`);
 			});
 
 			$$renderer.push(`<sidebar class="svelte-36n0qb">`);

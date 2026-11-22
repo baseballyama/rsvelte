@@ -1,3 +1,4 @@
+import "svelte/internal/init-operations";
 import "svelte/internal/disclose-version";
 import * as $ from "svelte/internal/client";
 var root = $.from_html(`<div>expression</div> <div>interpolated</div> <div>quoted</div> <div>object</div> <div>array</div> <div>constant</div> <div>literal</div> <div>template</div> <div>call</div> <button>toggle</button> <button>resize</button>`, 1);

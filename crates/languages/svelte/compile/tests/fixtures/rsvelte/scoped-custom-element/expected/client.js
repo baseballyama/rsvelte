@@ -1,3 +1,4 @@
+import "svelte/internal/init-operations";
 import "svelte/internal/disclose-version";
 import * as $ from "svelte/internal/client";
 var root = $.from_html(`<my-el></my-el> <my-el></my-el> <my-el></my-el> <my-el></my-el> <my-el></my-el> <my-el></my-el> <div><my-el></my-el></div>`, 3);

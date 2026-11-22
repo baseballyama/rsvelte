@@ -186,7 +186,7 @@ pub(super) fn lower_prepared<'c, 'o>(
     }
     let parameters = b.parameters(parameters);
     let function = b.function_declaration_at(body_span, &component_name, parameters, body, false);
-    let function = super::script::with_prologue(b, function);
+    let function = super::script::with_prologue(b, function, input.component);
     let mut program = vec![import(b, Some("$"), Target::Server.runtime())];
     program.extend(hoisted);
     program.append(&mut sx.hoisted_snippets);

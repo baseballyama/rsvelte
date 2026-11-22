@@ -89,7 +89,7 @@ export default function Wild($$renderer, $$props) {
 		$$renderer.push(`<h2>Wildcard</h2> <p>Anything in the URL after <code>/wild/</code> is shown below as message. That's found in the <code>params.wild</code> prop.</p> <p>Your message is: ${$.escape(params.wild)}</p> <p>Note that this route was artificially delayed for 5 seconds to let us see the <code>Loading</code> component even when the network is fast (such as testing on localhost).</p>`);
 	});
 }
-=== 12141 src/Router.svelte	js
+=== 11962 src/Router.svelte	js
 import * as $ from 'svelte/internal/server';
 import { parse } from 'regexparam';
 import { tick, untrack } from 'svelte';
@@ -503,8 +503,6 @@ export default function Router($$renderer, $$props) {
 			event(detail);
 		}
 
-		// React to loc changing and untrack everything else to prevent accidental dependencies
-		// Cancel operation after async work in case a new loc change happened in the meantime
 		function matchToParams(match) {
 			// Preserve all keys, including null values for unmatched optional params
 			return match && typeof match == 'object' && Object.keys(match).length ? match : null;

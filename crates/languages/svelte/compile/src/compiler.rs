@@ -15,7 +15,7 @@ use crate::computation::CompileConfiguration;
 use crate::{Configuration, CssHash, Target};
 
 /// The version of the official compiler whose output this compiler reproduces.
-pub const VERSION: &str = "5.57.3";
+pub const VERSION: &str = "5.59.1";
 
 /// The official `CompileOptions` that this compiler reads. Components are always in runes mode.
 #[derive(Clone, Debug)]

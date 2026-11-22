@@ -1,3 +1,4 @@
+import "svelte/internal/init-operations";
 import "svelte/internal/disclose-version";
 import * as $ from "svelte/internal/client";
 var root = $.from_html(`<video></video> <audio></audio> <details></details> <details></details> <input type="file"/> <input type="file"/> <input/> <div></div> <div contenteditable=""></div> <p contenteditable="true"></p> <input type="checkbox"/> <input/> <input type="checkbox"/> <img alt=""/> <input/> <input/> <input/> <select><option>a</option></select>`, 3);

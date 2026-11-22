@@ -230,7 +230,8 @@
 		.search-dialog.svelte-kk6vmu { max-width: none; margin: 0 12px; }
 	}
 
-=== 14808 src/lib/components/common/SearchDialog.svelte	js
+=== 14850 src/lib/components/common/SearchDialog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { goto } from '$app/navigation';
@@ -678,7 +679,8 @@ $.delegate(['click', 'input', 'keydown']);
 	@media (max-width: 700px) { .component-list-grid.svelte-l89p71 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 	@media (max-width: 520px) { .component-list-header.svelte-l89p71 { align-items: flex-start; flex-direction: column; margin-bottom: 2rem; } .component-list-controls.svelte-l89p71 { width: 100%; align-items: stretch; flex-direction: column; } .component-list-search.svelte-l89p71, .component-list-select.svelte-l89p71 { width: 100%; } .clear-slot.svelte-l89p71 { display: none; } .component-list-grid.svelte-l89p71 { grid-template-columns: 1fr; } }
 
-=== 11565 src/lib/components/docs/ComponentList.svelte	js
+=== 11607 src/lib/components/docs/ComponentList.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -1024,7 +1026,8 @@ $.delegate(['click']);
 		display: block;
 	}
 
-=== 2881 src/lib/components/docs/DocsLayout.svelte	js
+=== 2923 src/lib/components/docs/DocsLayout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Navbar from '$lib/components/landing/Navbar/Navbar.svelte';
@@ -1128,7 +1131,8 @@ export default function DocsLayout($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 4759 src/lib/components/docs/Sidebar.svelte	js
+=== 4801 src/lib/components/docs/Sidebar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/state';
@@ -1283,7 +1287,8 @@ export default function Sidebar($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 5630 src/lib/components/docs/pages/ASCIITextDemo.svelte	js
+=== 5672 src/lib/components/docs/pages/ASCIITextDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Customize from "$lib/components/docs/preview/Customize.svelte";
@@ -1511,7 +1516,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 9719 src/lib/components/docs/pages/AnimatedContentDemo.svelte	js
+=== 9761 src/lib/components/docs/pages/AnimatedContentDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -1914,7 +1920,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 5589 src/lib/components/docs/pages/AnimatedListDemo.svelte	js
+=== 5631 src/lib/components/docs/pages/AnimatedListDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -2144,7 +2151,8 @@ export default function AnimatedListDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 9845 src/lib/components/docs/pages/AntigravityDemo.svelte	js
+=== 9887 src/lib/components/docs/pages/AntigravityDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -2551,7 +2559,8 @@ export default function AntigravityDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 6348 src/lib/components/docs/pages/AuroraDemo.svelte	js
+=== 6390 src/lib/components/docs/pages/AuroraDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -2821,7 +2830,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 10546 src/lib/components/docs/pages/BalatroDemo.svelte	js
+=== 10588 src/lib/components/docs/pages/BalatroDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -3272,7 +3282,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 6758 src/lib/components/docs/pages/BallpitDemo.svelte	js
+=== 6800 src/lib/components/docs/pages/BallpitDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -3585,7 +3596,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 7607 src/lib/components/docs/pages/BeamsDemo.svelte	js
+=== 7649 src/lib/components/docs/pages/BeamsDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -3925,7 +3937,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 11073 src/lib/components/docs/pages/BlobCursorDemo.svelte	js
+=== 11115 src/lib/components/docs/pages/BlobCursorDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -4383,7 +4396,8 @@ export default function BlobCursorDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 7782 src/lib/components/docs/pages/BlurTextDemo.svelte	js
+=== 7824 src/lib/components/docs/pages/BlurTextDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -4717,7 +4731,8 @@ ${'</' + 'script>'}
 
 	$.append($$anchor, fragment);
 }
-=== 9926 src/lib/components/docs/pages/BorderGlowDemo.svelte	js
+=== 9968 src/lib/components/docs/pages/BorderGlowDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -5091,7 +5106,8 @@ export default function BorderGlowDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 6300 src/lib/components/docs/pages/BounceCardsDemo.svelte	js
+=== 6342 src/lib/components/docs/pages/BounceCardsDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -5362,7 +5378,8 @@ export default function BounceCardsDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 7354 src/lib/components/docs/pages/BubbleMenuDemo.svelte	js
+=== 7396 src/lib/components/docs/pages/BubbleMenuDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -5659,7 +5676,8 @@ export default function BubbleMenuDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 6908 src/lib/components/docs/pages/CardNavDemo.svelte	js
+=== 6950 src/lib/components/docs/pages/CardNavDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -5973,7 +5991,8 @@ export default function CardNavDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 9874 src/lib/components/docs/pages/CardSwapDemo.svelte	js
+=== 9916 src/lib/components/docs/pages/CardSwapDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -6370,7 +6389,8 @@ export default function CardSwapDemo($$anchor) {
 
 	$.append($$anchor, fragment_3);
 }
-=== 6615 src/lib/components/docs/pages/CarouselDemo.svelte	js
+=== 6657 src/lib/components/docs/pages/CarouselDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -6663,7 +6683,8 @@ export default function CarouselDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 4591 src/lib/components/docs/pages/ChromaGridDemo.svelte	js
+=== 4633 src/lib/components/docs/pages/ChromaGridDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -6873,7 +6894,8 @@ export default function ChromaGridDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 5459 src/lib/components/docs/pages/CircularGalleryDemo.svelte	js
+=== 5501 src/lib/components/docs/pages/CircularGalleryDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -7123,7 +7145,8 @@ export default function CircularGalleryDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 5205 src/lib/components/docs/pages/CircularTextDemo.svelte	js
+=== 5247 src/lib/components/docs/pages/CircularTextDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Customize from "$lib/components/docs/preview/Customize.svelte";
@@ -7336,7 +7359,8 @@ ${"</" + "script>"}
 
 	$.append($$anchor, fragment);
 }
-=== 6516 src/lib/components/docs/pages/ClickSparkDemo.svelte	js
+=== 6558 src/lib/components/docs/pages/ClickSparkDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -7611,7 +7635,8 @@ export default function ClickSparkDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 11862 src/lib/components/docs/pages/ColorBendsDemo.svelte	js
+=== 11904 src/lib/components/docs/pages/ColorBendsDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -8118,7 +8143,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 896 src/lib/components/docs/pages/ComingSoon.svelte	js
+=== 938 src/lib/components/docs/pages/ComingSoon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8135,7 +8161,8 @@ export default function ComingSoon($$anchor, $$props) {
 	$.template_effect(() => $.set_text(text, $$props.name));
 	$.append($$anchor, div);
 }
-=== 7806 src/lib/components/docs/pages/CountUpDemo.svelte	js
+=== 7848 src/lib/components/docs/pages/CountUpDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -8502,7 +8529,8 @@ ${'</' + 'script>'}
 	.counter-btn.wide.svelte-h70fqo { width: 64px; }
 	.counter-btn.svelte-h70fqo:hover { background: #3a3445; }
 
-=== 8182 src/lib/components/docs/pages/CounterDemo.svelte	js
+=== 8224 src/lib/components/docs/pages/CounterDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -8814,7 +8842,8 @@ export default function CounterDemo($$anchor) {
 }
 
 $.delegate(['click']);
-=== 4293 src/lib/components/docs/pages/CrosshairDemo.svelte	js
+=== 4335 src/lib/components/docs/pages/CrosshairDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -8980,7 +9009,8 @@ export default function CrosshairDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 7147 src/lib/components/docs/pages/CubesDemo.svelte	js
+=== 7189 src/lib/components/docs/pages/CubesDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -9277,7 +9307,8 @@ export default function CubesDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 10997 src/lib/components/docs/pages/CursorGridDemo.svelte	js
+=== 11039 src/lib/components/docs/pages/CursorGridDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -9750,7 +9781,8 @@ export default function CursorGridDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 5982 src/lib/components/docs/pages/CurvedLoopDemo.svelte	js
+=== 6024 src/lib/components/docs/pages/CurvedLoopDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -10005,7 +10037,8 @@ export default function CurvedLoopDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 6936 src/lib/components/docs/pages/DarkVeilDemo.svelte	js
+=== 6978 src/lib/components/docs/pages/DarkVeilDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -10300,7 +10333,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 6650 src/lib/components/docs/pages/DecayCardDemo.svelte	js
+=== 6692 src/lib/components/docs/pages/DecayCardDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -10598,7 +10632,8 @@ export default function DecayCardDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 9509 src/lib/components/docs/pages/DecryptedTextDemo.svelte	js
+=== 9551 src/lib/components/docs/pages/DecryptedTextDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -10994,7 +11029,8 @@ export default function DecryptedTextDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 8088 src/lib/components/docs/pages/DitherDemo.svelte	js
+=== 8130 src/lib/components/docs/pages/DitherDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -11339,7 +11375,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 8239 src/lib/components/docs/pages/DockDemo.svelte	js
+=== 8281 src/lib/components/docs/pages/DockDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -11648,7 +11685,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 7893 src/lib/components/docs/pages/DomeGalleryDemo.svelte	js
+=== 7935 src/lib/components/docs/pages/DomeGalleryDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -12014,7 +12052,8 @@ export default function DomeGalleryDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 11401 src/lib/components/docs/pages/DotFieldDemo.svelte	js
+=== 11443 src/lib/components/docs/pages/DotFieldDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -12471,7 +12510,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 8744 src/lib/components/docs/pages/DotGridDemo.svelte	js
+=== 8786 src/lib/components/docs/pages/DotGridDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -12856,7 +12896,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 6254 src/lib/components/docs/pages/ElasticSliderDemo.svelte	js
+=== 6296 src/lib/components/docs/pages/ElasticSliderDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -13134,7 +13175,8 @@ export default function ElasticSliderDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 5827 src/lib/components/docs/pages/ElectricBorderDemo.svelte	js
+=== 5869 src/lib/components/docs/pages/ElectricBorderDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -13373,7 +13415,8 @@ export default function ElectricBorderDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 8825 src/lib/components/docs/pages/EvilEyeDemo.svelte	js
+=== 8867 src/lib/components/docs/pages/EvilEyeDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -13764,7 +13807,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 7902 src/lib/components/docs/pages/FadeContentDemo.svelte	js
+=== 7944 src/lib/components/docs/pages/FadeContentDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -14102,7 +14146,8 @@ ${'</' + 'script>'}
 
 	$.append($$anchor, fragment);
 }
-=== 7037 src/lib/components/docs/pages/FallingTextDemo.svelte	js
+=== 7079 src/lib/components/docs/pages/FallingTextDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Customize from "$lib/components/docs/preview/Customize.svelte";
@@ -14377,7 +14422,8 @@ ${"</" + "script>"}
 
 	$.append($$anchor, fragment);
 }
-=== 12019 src/lib/components/docs/pages/FaultyTerminalDemo.svelte	js
+=== 12061 src/lib/components/docs/pages/FaultyTerminalDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -14871,7 +14917,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 1401 src/lib/components/docs/pages/FavoritesPage.svelte	js
+=== 1443 src/lib/components/docs/pages/FavoritesPage.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -14923,7 +14970,8 @@ export default function FavoritesPage($$anchor, $$props) {
 
 	$.pop();
 }
-=== 10886 src/lib/components/docs/pages/FloatingLinesDemo.svelte	js
+=== 10928 src/lib/components/docs/pages/FloatingLinesDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -15383,7 +15431,8 @@ ${sC}
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 7184 src/lib/components/docs/pages/FlowingMenuDemo.svelte	js
+=== 7226 src/lib/components/docs/pages/FlowingMenuDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -15703,7 +15752,8 @@ export default function FlowingMenuDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 7767 src/lib/components/docs/pages/FlyingPostersDemo.svelte	js
+=== 7809 src/lib/components/docs/pages/FlyingPostersDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -16038,7 +16088,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 3692 src/lib/components/docs/pages/FolderDemo.svelte	js
+=== 3734 src/lib/components/docs/pages/FolderDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -16200,7 +16251,8 @@ export default function FolderDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 14333 src/lib/components/docs/pages/FuzzyTextDemo.svelte	js
+=== 14375 src/lib/components/docs/pages/FuzzyTextDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -16828,7 +16880,8 @@ export default function FuzzyTextDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 10180 src/lib/components/docs/pages/GalaxyDemo.svelte	js
+=== 10222 src/lib/components/docs/pages/GalaxyDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -17274,7 +17327,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 9057 src/lib/components/docs/pages/GhostCursorDemo.svelte	js
+=== 9099 src/lib/components/docs/pages/GhostCursorDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -17658,7 +17712,8 @@ export default function GhostCursorDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 7043 src/lib/components/docs/pages/GlareHoverDemo.svelte	js
+=== 7085 src/lib/components/docs/pages/GlareHoverDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -17954,7 +18009,8 @@ export default function GlareHoverDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 6059 src/lib/components/docs/pages/GlassIconsDemo.svelte	js
+=== 6101 src/lib/components/docs/pages/GlassIconsDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -18157,7 +18213,8 @@ export default function GlassIconsDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 12679 src/lib/components/docs/pages/GlassSurfaceDemo.svelte	js
+=== 12721 src/lib/components/docs/pages/GlassSurfaceDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -18692,7 +18749,8 @@ export default function GlassSurfaceDemo($$anchor, $$props) {
 }
 
 $.delegate(['mousemove']);
-=== 5142 src/lib/components/docs/pages/GlitchTextDemo.svelte	js
+=== 5184 src/lib/components/docs/pages/GlitchTextDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -18908,7 +18966,8 @@ ${'</' + 'script>'}
 
 	$.append($$anchor, fragment);
 }
-=== 5628 src/lib/components/docs/pages/GooeyNavDemo.svelte	js
+=== 5670 src/lib/components/docs/pages/GooeyNavDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -19148,7 +19207,8 @@ export default function GooeyNavDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 10345 src/lib/components/docs/pages/GradientBlindsDemo.svelte	js
+=== 10387 src/lib/components/docs/pages/GradientBlindsDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -19585,7 +19645,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 7040 src/lib/components/docs/pages/GradientTextDemo.svelte	js
+=== 7082 src/lib/components/docs/pages/GradientTextDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -19872,7 +19933,8 @@ ${'</' + 'script>'}
 
 	$.append($$anchor, fragment);
 }
-=== 8153 src/lib/components/docs/pages/GradualBlurDemo.svelte	js
+=== 8195 src/lib/components/docs/pages/GradualBlurDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -20204,7 +20266,8 @@ export default function GradualBlurDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 11008 src/lib/components/docs/pages/GrainientDemo.svelte	js
+=== 11050 src/lib/components/docs/pages/GrainientDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -20714,7 +20777,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 5706 src/lib/components/docs/pages/GridDistortionDemo.svelte	js
+=== 5748 src/lib/components/docs/pages/GridDistortionDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -20957,7 +21021,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 5779 src/lib/components/docs/pages/GridMotionDemo.svelte	js
+=== 5821 src/lib/components/docs/pages/GridMotionDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -21140,7 +21205,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 15794 src/lib/components/docs/pages/GridScanDemo.svelte	js
+=== 15836 src/lib/components/docs/pages/GridScanDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -21823,7 +21889,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 5345 src/lib/components/docs/pages/HyperspeedDemo.svelte	js
+=== 5387 src/lib/components/docs/pages/HyperspeedDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -22033,7 +22100,8 @@ ${scriptClose}
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3216 src/lib/components/docs/pages/ImageTrailDemo.svelte	js
+=== 3258 src/lib/components/docs/pages/ImageTrailDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -22172,7 +22240,8 @@ export default function ImageTrailDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 501 src/lib/components/docs/pages/IndexPage.svelte	js
+=== 543 src/lib/components/docs/pages/IndexPage.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ComponentList from '$lib/components/docs/ComponentList.svelte';
@@ -22192,7 +22261,8 @@ export default function IndexPage($$anchor) {
 		}
 	});
 }
-=== 3920 src/lib/components/docs/pages/InfiniteMenuDemo.svelte	js
+=== 3962 src/lib/components/docs/pages/InfiniteMenuDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -22568,7 +22638,8 @@ export default function InfiniteMenuDemo($$anchor) {
 		margin-top: 0;
 	}
 
-=== 12933 src/lib/components/docs/pages/Installation.svelte	js
+=== 12975 src/lib/components/docs/pages/Installation.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -22815,7 +22886,8 @@ export default function Installation($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 4313 src/lib/components/docs/pages/Introduction.svelte	js
+=== 4355 src/lib/components/docs/pages/Introduction.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -22851,7 +22923,8 @@ export default function Introduction($$anchor, $$props) {
 	$.append($$anchor, section);
 	$.pop();
 }
-=== 6251 src/lib/components/docs/pages/IridescenceDemo.svelte	js
+=== 6293 src/lib/components/docs/pages/IridescenceDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -23121,7 +23194,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 14837 src/lib/components/docs/pages/LaserFlowDemo.svelte	js
+=== 14879 src/lib/components/docs/pages/LaserFlowDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -23706,7 +23780,8 @@ $.delegate(['mousemove']);
 	}
 ]
 
-=== 5643 src/lib/components/docs/pages/LetterGlitchDemo.svelte	js
+=== 5685 src/lib/components/docs/pages/LetterGlitchDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -23946,7 +24021,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 9400 src/lib/components/docs/pages/LightPillarDemo.svelte	js
+=== 9442 src/lib/components/docs/pages/LightPillarDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -24349,7 +24425,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 10545 src/lib/components/docs/pages/LightRaysDemo.svelte	js
+=== 10587 src/lib/components/docs/pages/LightRaysDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -24808,7 +24885,8 @@ ${sC}
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 5834 src/lib/components/docs/pages/LightningDemo.svelte	js
+=== 5876 src/lib/components/docs/pages/LightningDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -25062,7 +25140,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 10870 src/lib/components/docs/pages/LineWavesDemo.svelte	js
+=== 10912 src/lib/components/docs/pages/LineWavesDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -25529,7 +25608,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 6291 src/lib/components/docs/pages/LiquidChromeDemo.svelte	js
+=== 6333 src/lib/components/docs/pages/LiquidChromeDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -25800,7 +25880,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 13362 src/lib/components/docs/pages/LiquidEtherDemo.svelte	js
+=== 13404 src/lib/components/docs/pages/LiquidEtherDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -26340,7 +26421,8 @@ ${scriptClose}
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 8368 src/lib/components/docs/pages/LogoLoopDemo.svelte	js
+=== 8410 src/lib/components/docs/pages/LogoLoopDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -26708,7 +26790,8 @@ export default function LogoLoopDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 7484 src/lib/components/docs/pages/MagicBentoDemo.svelte	js
+=== 7526 src/lib/components/docs/pages/MagicBentoDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -27013,7 +27096,8 @@ export default function MagicBentoDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 16172 src/lib/components/docs/pages/MagicRingsDemo.svelte	js
+=== 16214 src/lib/components/docs/pages/MagicRingsDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -27708,7 +27792,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 5314 src/lib/components/docs/pages/MagnetDemo.svelte	js
+=== 5356 src/lib/components/docs/pages/MagnetDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -27928,7 +28013,8 @@ export default function MagnetDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 6542 src/lib/components/docs/pages/MagnetLinesDemo.svelte	js
+=== 6584 src/lib/components/docs/pages/MagnetLinesDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -28206,7 +28292,8 @@ export default function MagnetLinesDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 9140 src/lib/components/docs/pages/MasonryDemo.svelte	js
+=== 9182 src/lib/components/docs/pages/MasonryDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -28712,7 +28799,8 @@ export default function MasonryDemo($$anchor) {
 		margin-top: 0;
 	}
 
-=== 7426 src/lib/components/docs/pages/McpServer.svelte	js
+=== 7468 src/lib/components/docs/pages/McpServer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -28873,7 +28961,8 @@ export default function McpServer($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 8713 src/lib/components/docs/pages/MetaBallsDemo.svelte	js
+=== 8755 src/lib/components/docs/pages/MetaBallsDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -29223,7 +29312,8 @@ export default function MetaBallsDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 13045 src/lib/components/docs/pages/MetallicPaintDemo.svelte	js
+=== 13087 src/lib/components/docs/pages/MetallicPaintDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -29800,7 +29890,8 @@ export default function MetallicPaintDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 11312 src/lib/components/docs/pages/ModelViewerDemo.svelte	js
+=== 11354 src/lib/components/docs/pages/ModelViewerDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -30284,7 +30375,8 @@ export default function ModelViewerDemo($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 6098 src/lib/components/docs/pages/NoiseDemo.svelte	js
+=== 6140 src/lib/components/docs/pages/NoiseDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -30541,7 +30633,8 @@ ${'</' + 'script>'}
 
 	$.append($$anchor, fragment);
 }
-=== 6264 src/lib/components/docs/pages/OrbDemo.svelte	js
+=== 6306 src/lib/components/docs/pages/OrbDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -30797,7 +30890,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 10916 src/lib/components/docs/pages/OrbitImagesDemo.svelte	js
+=== 10958 src/lib/components/docs/pages/OrbitImagesDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -31261,7 +31355,8 @@ export default function OrbitImagesDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 9718 src/lib/components/docs/pages/ParticlesDemo.svelte	js
+=== 9760 src/lib/components/docs/pages/ParticlesDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -31660,7 +31755,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 6402 src/lib/components/docs/pages/PillNavDemo.svelte	js
+=== 6444 src/lib/components/docs/pages/PillNavDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -31939,7 +32035,8 @@ export default function PillNavDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 14602 src/lib/components/docs/pages/PixelBlastDemo.svelte	js
+=== 14644 src/lib/components/docs/pages/PixelBlastDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { untrack } from 'svelte';
@@ -32565,7 +32662,8 @@ ${sC}
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3790 src/lib/components/docs/pages/PixelCardDemo.svelte	js
+=== 3832 src/lib/components/docs/pages/PixelCardDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -32725,7 +32823,8 @@ export default function PixelCardDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 8821 src/lib/components/docs/pages/PixelSnowDemo.svelte	js
+=== 8863 src/lib/components/docs/pages/PixelSnowDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -33120,7 +33219,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 7125 src/lib/components/docs/pages/PixelTrailDemo.svelte	js
+=== 7167 src/lib/components/docs/pages/PixelTrailDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -33416,7 +33516,8 @@ export default function PixelTrailDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 6554 src/lib/components/docs/pages/PixelTransitionDemo.svelte	js
+=== 6596 src/lib/components/docs/pages/PixelTransitionDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -33677,7 +33778,8 @@ export default function PixelTransitionDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 6926 src/lib/components/docs/pages/PlasmaDemo.svelte	js
+=== 6968 src/lib/components/docs/pages/PlasmaDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -33972,7 +34074,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 8750 src/lib/components/docs/pages/PlasmaWaveDemo.svelte	js
+=== 8792 src/lib/components/docs/pages/PlasmaWaveDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -34368,7 +34471,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 10773 src/lib/components/docs/pages/PrismDemo.svelte	js
+=== 10815 src/lib/components/docs/pages/PrismDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -34884,7 +34988,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 7225 src/lib/components/docs/pages/PrismaticBurstDemo.svelte	js
+=== 7267 src/lib/components/docs/pages/PrismaticBurstDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -35205,7 +35310,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 7067 src/lib/components/docs/pages/ProfileCardDemo.svelte	js
+=== 7109 src/lib/components/docs/pages/ProfileCardDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -35534,7 +35640,8 @@ export default function ProfileCardDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 10390 src/lib/components/docs/pages/RadarDemo.svelte	js
+=== 10432 src/lib/components/docs/pages/RadarDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -36001,7 +36108,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 8005 src/lib/components/docs/pages/ReflectiveCardDemo.svelte	js
+=== 8047 src/lib/components/docs/pages/ReflectiveCardDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -36332,7 +36440,8 @@ export default function ReflectiveCardDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 7220 src/lib/components/docs/pages/RibbonsDemo.svelte	js
+=== 7262 src/lib/components/docs/pages/RibbonsDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -36638,7 +36747,8 @@ export default function RibbonsDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 8535 src/lib/components/docs/pages/RippleGridDemo.svelte	js
+=== 8577 src/lib/components/docs/pages/RippleGridDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -37001,7 +37111,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 9622 src/lib/components/docs/pages/RotatingTextDemo.svelte	js
+=== 9664 src/lib/components/docs/pages/RotatingTextDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -37400,7 +37511,8 @@ export default function RotatingTextDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 6209 src/lib/components/docs/pages/ScrambledTextDemo.svelte	js
+=== 6251 src/lib/components/docs/pages/ScrambledTextDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Customize from "$lib/components/docs/preview/Customize.svelte";
@@ -37657,7 +37769,8 @@ ${"</" + "script>"}
 		scrollbar-width: thin;
 	}
 
-=== 6213 src/lib/components/docs/pages/ScrollFloatDemo.svelte	js
+=== 6255 src/lib/components/docs/pages/ScrollFloatDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -37919,7 +38032,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 7728 src/lib/components/docs/pages/ScrollRevealDemo.svelte	js
+=== 7770 src/lib/components/docs/pages/ScrollRevealDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -38261,7 +38375,8 @@ export default function ScrollRevealDemo($$anchor) {
 		height: 16px;
 	}
 
-=== 9642 src/lib/components/docs/pages/ScrollStackDemo.svelte	js
+=== 9684 src/lib/components/docs/pages/ScrollStackDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -38641,7 +38756,8 @@ export default function ScrollStackDemo($$anchor) {
 }
 
 $.delegate(['click']);
-=== 7172 src/lib/components/docs/pages/ScrollVelocityDemo.svelte	js
+=== 7214 src/lib/components/docs/pages/ScrollVelocityDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -38945,7 +39061,8 @@ export default function ScrollVelocityDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 5851 src/lib/components/docs/pages/ShapeBlurDemo.svelte	js
+=== 5893 src/lib/components/docs/pages/ShapeBlurDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -39201,7 +39318,8 @@ export default function ShapeBlurDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 7915 src/lib/components/docs/pages/ShapeGridDemo.svelte	js
+=== 7957 src/lib/components/docs/pages/ShapeGridDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -39522,7 +39640,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 8733 src/lib/components/docs/pages/ShinyTextDemo.svelte	js
+=== 8775 src/lib/components/docs/pages/ShinyTextDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -39898,7 +40017,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 11332 src/lib/components/docs/pages/ShuffleDemo.svelte	js
+=== 11374 src/lib/components/docs/pages/ShuffleDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -40398,7 +40518,8 @@ export default function ShuffleDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 5919 src/lib/components/docs/pages/SilkDemo.svelte	js
+=== 5961 src/lib/components/docs/pages/SilkDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -40661,7 +40782,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 8815 src/lib/components/docs/pages/SoftAuroraDemo.svelte	js
+=== 8857 src/lib/components/docs/pages/SoftAuroraDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -41058,7 +41180,8 @@ ${sC}
 
 	$.append($$anchor, fragment);
 }
-=== 11064 src/lib/components/docs/pages/SplashCursorDemo.svelte	js
+=== 11106 src/lib/components/docs/pages/SplashCursorDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -41525,7 +41648,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 8541 src/lib/components/docs/pages/SplitTextDemo.svelte	js
+=== 8583 src/lib/components/docs/pages/SplitTextDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -41889,7 +42013,8 @@ ${scriptClose}
 
 	$.append($$anchor, fragment);
 }
-=== 3824 src/lib/components/docs/pages/SpotlightCardDemo.svelte	js
+=== 3866 src/lib/components/docs/pages/SpotlightCardDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -42023,7 +42148,8 @@ export default function SpotlightCardDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 6271 src/lib/components/docs/pages/StackDemo.svelte	js
+=== 6313 src/lib/components/docs/pages/StackDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -42284,7 +42410,8 @@ export default function StackDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 7480 src/lib/components/docs/pages/StaggeredMenuDemo.svelte	js
+=== 7522 src/lib/components/docs/pages/StaggeredMenuDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -42619,7 +42746,8 @@ export default function StaggeredMenuDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 5194 src/lib/components/docs/pages/StarBorderDemo.svelte	js
+=== 5236 src/lib/components/docs/pages/StarBorderDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -42848,7 +42976,8 @@ ${'</' + 'script>'}
 
 	$.append($$anchor, fragment);
 }
-=== 6700 src/lib/components/docs/pages/StepperDemo.svelte	js
+=== 6742 src/lib/components/docs/pages/StepperDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -43103,7 +43232,8 @@ export default function StepperDemo($$anchor) {
 
 	$.append($$anchor, fragment_4);
 }
-=== 8012 src/lib/components/docs/pages/StickerPeelDemo.svelte	js
+=== 8054 src/lib/components/docs/pages/StickerPeelDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -43437,7 +43567,8 @@ export default function StickerPeelDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 6093 src/lib/components/docs/pages/TargetCursorDemo.svelte	js
+=== 6135 src/lib/components/docs/pages/TargetCursorDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -43658,7 +43789,8 @@ export default function TargetCursorDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 5851 src/lib/components/docs/pages/TextCursorDemo.svelte	js
+=== 5893 src/lib/components/docs/pages/TextCursorDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -43889,7 +44021,8 @@ export default function TextCursorDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 9501 src/lib/components/docs/pages/TextPressureDemo.svelte	js
+=== 9543 src/lib/components/docs/pages/TextPressureDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -44308,7 +44441,8 @@ export default function TextPressureDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 12118 src/lib/components/docs/pages/TextTypeDemo.svelte	js
+=== 12160 src/lib/components/docs/pages/TextTypeDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -44802,7 +44936,8 @@ export default function TextTypeDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 5236 src/lib/components/docs/pages/ThreadsDemo.svelte	js
+=== 5278 src/lib/components/docs/pages/ThreadsDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -45025,7 +45160,8 @@ ${scriptClose}
 		letter-spacing: -0.02em;
 	}
 
-=== 6962 src/lib/components/docs/pages/TiltedCardDemo.svelte	js
+=== 7004 src/lib/components/docs/pages/TiltedCardDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -45310,7 +45446,8 @@ export default function TiltedCardDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 7223 src/lib/components/docs/pages/TrueFocusDemo.svelte	js
+=== 7265 src/lib/components/docs/pages/TrueFocusDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DemoCodeTab from "$lib/components/docs/preview/DemoCodeTab.svelte";
@@ -45613,7 +45750,8 @@ ${"</" + "script>"}
 		}
 	}
 
-=== 6046 src/lib/components/docs/pages/VariableProximityDemo.svelte	js
+=== 6088 src/lib/components/docs/pages/VariableProximityDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -45851,7 +45989,8 @@ export default function VariableProximityDemo($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 9073 src/lib/components/docs/pages/WavesDemo.svelte	js
+=== 9115 src/lib/components/docs/pages/WavesDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TabsLayout from '$lib/components/docs/preview/TabsLayout.svelte';
@@ -46505,7 +46644,8 @@ ${sC}
 		}
 	}
 
-=== 3079 src/lib/components/docs/preview/BackgroundContentToggle.svelte	js
+=== 3121 src/lib/components/docs/preview/BackgroundContentToggle.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import logo from '$lib/assets/logo/svelte-bits-icon-logo.svg';
@@ -46779,7 +46919,8 @@ $.delegate(['change']);
 		text-decoration: underline;
 	}
 
-=== 6553 src/lib/components/docs/preview/CliInstall.svelte	js
+=== 6595 src/lib/components/docs/preview/CliInstall.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -46989,7 +47130,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 2766 src/lib/components/docs/preview/CodeBlock.svelte	js
+=== 2808 src/lib/components/docs/preview/CodeBlock.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { highlighter, resolveDocsCodeLang } from './code-block-shiki';
@@ -47080,7 +47222,8 @@ export default function CodeBlock($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 448 src/lib/components/docs/preview/Customize.svelte	js
+=== 490 src/lib/components/docs/preview/Customize.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -47095,7 +47238,8 @@ export default function Customize($$anchor, $$props) {
 	$.reset(div);
 	$.append($$anchor, fragment);
 }
-=== 1074 src/lib/components/docs/preview/DemoCodeTab.svelte	js
+=== 1116 src/lib/components/docs/preview/DemoCodeTab.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { stripSvelteBitsHeader } from '$lib/utils/svelte-bits-source-header';
@@ -47167,7 +47311,8 @@ export default function DemoCodeTab($$anchor, $$props) {
 		font-weight: 500;
 	}
 
-=== 1124 src/lib/components/docs/preview/Dependencies.svelte	js
+=== 1166 src/lib/components/docs/preview/Dependencies.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -47207,7 +47352,8 @@ export default function Dependencies($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1946 src/lib/components/docs/preview/PreviewColorPicker.svelte	js
+=== 1988 src/lib/components/docs/preview/PreviewColorPicker.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -47271,7 +47417,8 @@ export default function PreviewColorPicker($$anchor, $$props) {
 }
 
 $.delegate(['input', 'keydown']);
-=== 1259 src/lib/components/docs/preview/PreviewInput.svelte	js
+=== 1301 src/lib/components/docs/preview/PreviewInput.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -47311,7 +47458,8 @@ export default function PreviewInput($$anchor, $$props) {
 }
 
 $.delegate(['input']);
-=== 3420 src/lib/components/docs/preview/PreviewSelect.svelte	js
+=== 3462 src/lib/components/docs/preview/PreviewSelect.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -47410,7 +47558,8 @@ export default function PreviewSelect($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 5244 src/lib/components/docs/preview/PreviewSlider.svelte	js
+=== 5286 src/lib/components/docs/preview/PreviewSlider.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -47587,7 +47736,8 @@ export default function PreviewSlider($$anchor, $$props) {
 }
 
 $.delegate(['pointerdown', 'pointermove', 'pointerup', 'keydown']);
-=== 1439 src/lib/components/docs/preview/PreviewSwitch.svelte	js
+=== 1481 src/lib/components/docs/preview/PreviewSwitch.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -47638,7 +47788,8 @@ export default function PreviewSwitch($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown']);
-=== 2769 src/lib/components/docs/preview/PropTable.svelte	js
+=== 2811 src/lib/components/docs/preview/PropTable.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -47756,7 +47907,8 @@ export default function PropTable($$anchor, $$props) {
 		color: #ff8a4c;
 	}
 
-=== 851 src/lib/components/docs/preview/ReplayButton.svelte	js
+=== 893 src/lib/components/docs/preview/ReplayButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -47779,7 +47931,8 @@ export default function ReplayButton($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 9502 src/lib/components/docs/preview/TabsLayout.svelte	js
+=== 9544 src/lib/components/docs/preview/TabsLayout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/state';
@@ -48056,7 +48209,8 @@ ${sourceShown}
 }
 
 $.delegate(['keydown', 'click']);
-=== 3026 src/lib/components/landing/CTA/CTA.svelte	js
+=== 3068 src/lib/components/landing/CTA/CTA.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -48115,7 +48269,8 @@ export default function CTA($$anchor, $$props) {
 	$.append($$anchor, section);
 	$.pop();
 }
-=== 6882 src/lib/components/landing/Features/AITerminal.svelte	js
+=== 6924 src/lib/components/landing/Features/AITerminal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, onDestroy } from 'svelte';
@@ -48421,7 +48576,8 @@ export default function AITerminal($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 3084 src/lib/components/landing/Features/CategorySelector.svelte	js
+=== 3126 src/lib/components/landing/Features/CategorySelector.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import logo from '$lib/assets/logo/svelte-bits-icon-logo.svg';
@@ -48512,7 +48668,8 @@ export default function CategorySelector($$anchor) {
 	$.template_effect(() => $.set_attribute(img, 'src', logo));
 	$.append($$anchor, div);
 }
-=== 2736 src/lib/components/landing/Features/ComponentMarquee.svelte	js
+=== 2778 src/lib/components/landing/Features/ComponentMarquee.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -48608,7 +48765,8 @@ export default function ComponentMarquee($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 9775 src/lib/components/landing/Features/FeatureIcon.svelte	js
+=== 9817 src/lib/components/landing/Features/FeatureIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -48810,7 +48968,8 @@ export default function FeatureIcon($$anchor, $$props) {
 
 	$.append($$anchor, fragment);
 }
-=== 4295 src/lib/components/landing/Features/Features.svelte	js
+=== 4337 src/lib/components/landing/Features/Features.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -48963,7 +49122,8 @@ export default function Features($$anchor, $$props) {
 	$.append($$anchor, section);
 	$.pop();
 }
-=== 1351 src/lib/components/landing/Features/StarCard.svelte	js
+=== 1393 src/lib/components/landing/Features/StarCard.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useStars } from '$lib/hooks/useStars.svelte';
@@ -49172,7 +49332,8 @@ export default function StarCard($$anchor, $$props) {
 		}
 	}
 
-=== 2619 src/lib/components/landing/Features/VariantTabs.svelte	js
+=== 2661 src/lib/components/landing/Features/VariantTabs.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import iconLogo from '$lib/assets/logo/svelte-bits-icon-logo.svg';
@@ -49196,7 +49357,8 @@ export default function VariantTabs($$anchor) {
 	$.template_effect(() => $.set_attribute(img, 'src', iconLogo));
 	$.append($$anchor, div);
 }
-=== 2960 src/lib/components/landing/Footer/Footer.svelte	js
+=== 3002 src/lib/components/landing/Footer/Footer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -49271,7 +49433,8 @@ export default function Footer($$anchor, $$props) {
 	$.append($$anchor, footer);
 	$.pop();
 }
-=== 5798 src/lib/components/landing/Hero/ColorValue.svelte	js
+=== 5840 src/lib/components/landing/Hero/ColorValue.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -49488,7 +49651,8 @@ $.delegate(['click', 'keydown', 'pointerdown']);
 	}
 ]
 
-=== 3825 src/lib/components/landing/Hero/EditableValue.svelte	js
+=== 3867 src/lib/components/landing/Hero/EditableValue.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -49639,7 +49803,8 @@ export default function EditableValue($$anchor, $$props) {
 }
 
 $.delegate(['click', 'pointerdown']);
-=== 12511 src/lib/components/landing/Hero/Hero.svelte	js
+=== 12553 src/lib/components/landing/Hero/Hero.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -50104,7 +50269,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 7341 src/lib/components/landing/Hero/HeroBand.svelte	js
+=== 7383 src/lib/components/landing/Hero/HeroBand.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as THREE from 'three';
 import * as $ from 'svelte/internal/client';
@@ -50356,7 +50522,8 @@ export default function HeroBand($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 4102 src/lib/components/landing/Hero/InteractiveCode.svelte	js
+=== 4144 src/lib/components/landing/Hero/InteractiveCode.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import EditableValue from './EditableValue.svelte';
@@ -50511,7 +50678,8 @@ export default function InteractiveCode($$anchor, $$props) {
 	$.append($$anchor, pre);
 	$.pop();
 }
-=== 658 src/lib/components/landing/LandingLoader/LandingLoader.svelte	js
+=== 700 src/lib/components/landing/LandingLoader/LandingLoader.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import logo from '$lib/assets/logo/svelte-bits-logo.svg';
@@ -50569,7 +50737,8 @@ export default function LandingLoader($$anchor, $$props) {
 		height: 78px;
 	}
 
-=== 6762 src/lib/components/landing/LiveDemo/DemoPlaceholder.svelte	js
+=== 6804 src/lib/components/landing/LiveDemo/DemoPlaceholder.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -50750,7 +50919,8 @@ export default function DemoPlaceholder($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3401 src/lib/components/landing/LiveDemo/LiveDemo.svelte	js
+=== 3443 src/lib/components/landing/LiveDemo/LiveDemo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -50888,7 +51058,8 @@ export default function LiveDemo($$anchor, $$props) {
 	$.append($$anchor, section);
 	$.pop();
 }
-=== 11753 src/lib/components/landing/Navbar/Navbar.svelte	js
+=== 11795 src/lib/components/landing/Navbar/Navbar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/state';
@@ -51220,7 +51391,8 @@ export default function Navbar($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 7370 src/lib/components/landing/QuickStart/QuickStart.svelte	js
+=== 7412 src/lib/components/landing/QuickStart/QuickStart.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -51422,7 +51594,8 @@ export default function QuickStart($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 2803 src/lib/components/library/Animations/AnimatedContent/AnimatedContent.svelte	js
+=== 2845 src/lib/components/library/Animations/AnimatedContent/AnimatedContent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -51523,7 +51696,8 @@ export default function AnimatedContent($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 6522 src/lib/components/library/Animations/Antigravity/Antigravity.svelte	js
+=== 6564 src/lib/components/library/Animations/Antigravity/Antigravity.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as THREE from 'three';
@@ -51756,7 +51930,8 @@ export default function Antigravity($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 4530 src/lib/components/library/Animations/BlobCursor/BlobCursor.svelte	js
+=== 4572 src/lib/components/library/Animations/BlobCursor/BlobCursor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { gsap } from 'gsap';
@@ -51890,7 +52065,8 @@ $.delegate(['mousemove', 'touchmove']);
 	}
 ]
 
-=== 3703 src/lib/components/library/Animations/ClickSpark/ClickSpark.svelte	js
+=== 3745 src/lib/components/library/Animations/ClickSpark/ClickSpark.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -52041,7 +52217,8 @@ export default function ClickSpark($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 5003 src/lib/components/library/Animations/Crosshair/Crosshair.svelte	js
+=== 5045 src/lib/components/library/Animations/Crosshair/Crosshair.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { gsap } from 'gsap';
@@ -52211,7 +52388,8 @@ export default function Crosshair($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 9733 src/lib/components/library/Animations/Cubes/Cubes.svelte	js
+=== 9775 src/lib/components/library/Animations/Cubes/Cubes.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { gsap } from 'gsap';
@@ -52481,7 +52659,8 @@ export default function Cubes($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 7921 src/lib/components/library/Animations/CursorGrid/CursorGrid.svelte	js
+=== 7963 src/lib/components/library/Animations/CursorGrid/CursorGrid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -52783,7 +52962,8 @@ export default function CursorGrid($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 6719 src/lib/components/library/Animations/ElectricBorder/ElectricBorder.svelte	js
+=== 6761 src/lib/components/library/Animations/ElectricBorder/ElectricBorder.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -53025,7 +53205,8 @@ export default function ElectricBorder($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 2555 src/lib/components/library/Animations/FadeContent/FadeContent.svelte	js
+=== 2597 src/lib/components/library/Animations/FadeContent/FadeContent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -53119,7 +53300,8 @@ export default function FadeContent($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 12094 src/lib/components/library/Animations/GhostCursor/GhostCursor.svelte	js
+=== 12136 src/lib/components/library/Animations/GhostCursor/GhostCursor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as THREE from 'three';
@@ -53482,7 +53664,8 @@ export default function GhostCursor($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 3415 src/lib/components/library/Animations/GlareHover/GlareHover.svelte	js
+=== 3457 src/lib/components/library/Animations/GlareHover/GlareHover.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -53588,7 +53771,8 @@ export default function GlareHover($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 6343 src/lib/components/library/Animations/GradualBlur/GradualBlur.svelte	js
+=== 6385 src/lib/components/library/Animations/GradualBlur/GradualBlur.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -53800,7 +53984,8 @@ export default function GradualBlur($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 15776 src/lib/components/library/Animations/ImageTrail/ImageTrail.svelte	js
+=== 15818 src/lib/components/library/Animations/ImageTrail/ImageTrail.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { gsap } from 'gsap';
 import * as $ from 'svelte/internal/client';
@@ -54530,7 +54715,8 @@ export default function ImageTrail($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 14191 src/lib/components/library/Animations/LaserFlow/LaserFlow.svelte	js
+=== 14233 src/lib/components/library/Animations/LaserFlow/LaserFlow.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as THREE from 'three';
@@ -54935,7 +55121,8 @@ export default function LaserFlow($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 10611 src/lib/components/library/Animations/LogoLoop/LogoLoop.svelte	js
+=== 10653 src/lib/components/library/Animations/LogoLoop/LogoLoop.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -55276,7 +55463,8 @@ export default function LogoLoop($$anchor, $$props) {
 	}
 ]
 
-=== 8489 src/lib/components/library/Animations/MagicRings/MagicRings.svelte	js
+=== 8531 src/lib/components/library/Animations/MagicRings/MagicRings.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -55546,7 +55734,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 2237 src/lib/components/library/Animations/Magnet/Magnet.svelte	js
+=== 2279 src/lib/components/library/Animations/Magnet/Magnet.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -55624,7 +55813,8 @@ export default function Magnet($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 2455 src/lib/components/library/Animations/MagnetLines/MagnetLines.svelte	js
+=== 2497 src/lib/components/library/Animations/MagnetLines/MagnetLines.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -55700,7 +55890,8 @@ export default function MagnetLines($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 7754 src/lib/components/library/Animations/MetaBalls/MetaBalls.svelte	js
+=== 7796 src/lib/components/library/Animations/MetaBalls/MetaBalls.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Renderer, Program, Mesh, Triangle, Transform, Vec3, Camera } from 'ogl';
@@ -55954,7 +56145,8 @@ void main(){
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 13385 src/lib/components/library/Animations/MetallicPaint/MetallicPaint.svelte	js
+=== 13427 src/lib/components/library/Animations/MetallicPaint/MetallicPaint.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -56384,7 +56576,8 @@ export default function MetallicPaint($$anchor, $$props) {
 	$.append($$anchor, canvas_1);
 	$.pop();
 }
-=== 2197 src/lib/components/library/Animations/Noise/Noise.svelte	js
+=== 2239 src/lib/components/library/Animations/Noise/Noise.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -56470,7 +56663,8 @@ export default function Noise($$anchor, $$props) {
 	$.append($$anchor, canvas_1);
 	$.pop();
 }
-=== 8881 src/lib/components/library/Animations/OrbitImages/OrbitImages.svelte	js
+=== 8923 src/lib/components/library/Animations/OrbitImages/OrbitImages.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -56764,7 +56958,8 @@ export default function OrbitImages($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 7307 src/lib/components/library/Animations/PixelTrail/PixelTrail.svelte	js
+=== 7349 src/lib/components/library/Animations/PixelTrail/PixelTrail.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as THREE from 'three';
@@ -57021,7 +57216,8 @@ export default function PixelTrail($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 4319 src/lib/components/library/Animations/PixelTransition/PixelTransition.svelte	js
+=== 4361 src/lib/components/library/Animations/PixelTransition/PixelTransition.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { gsap } from 'gsap';
@@ -57185,7 +57381,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 6659 src/lib/components/library/Animations/Ribbons/Ribbons.svelte	js
+=== 6701 src/lib/components/library/Animations/Ribbons/Ribbons.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Renderer, Transform, Vec3, Color, Polyline } from 'ogl';
@@ -57400,7 +57597,8 @@ export default function Ribbons($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 6047 src/lib/components/library/Animations/ShapeBlur/ShapeBlur.svelte	js
+=== 6089 src/lib/components/library/Animations/ShapeBlur/ShapeBlur.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as THREE from 'three';
@@ -57587,7 +57785,8 @@ export default function ShapeBlur($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 36000 src/lib/components/library/Animations/SplashCursor/SplashCursor.svelte	js
+=== 36042 src/lib/components/library/Animations/SplashCursor/SplashCursor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -58772,7 +58971,8 @@ export default function SplashCursor($$anchor, $$props) {
 		100% { transform: translate(100%, 0%); opacity: 0; }
 	}
 
-=== 2141 src/lib/components/library/Animations/StarBorder/StarBorder.svelte	js
+=== 2183 src/lib/components/library/Animations/StarBorder/StarBorder.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -58876,7 +59076,8 @@ export default function StarBorder($$anchor, $$props) {
 		top: calc(-100% + 2 * var(--sticker-peelback-active) - 1px) !important;
 	}
 
-=== 9348 src/lib/components/library/Animations/StickerPeel/StickerPeel.svelte	js
+=== 9390 src/lib/components/library/Animations/StickerPeel/StickerPeel.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { gsap } from 'gsap';
@@ -59080,7 +59281,8 @@ export default function StickerPeel($$anchor, $$props) {
 }
 
 $.delegate(['contextmenu']);
-=== 8864 src/lib/components/library/Animations/TargetCursor/TargetCursor.svelte	js
+=== 8906 src/lib/components/library/Animations/TargetCursor/TargetCursor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { gsap } from 'gsap';
@@ -59417,7 +59619,8 @@ export default function TargetCursor($$anchor, $$props) {
 	}
 ]
 
-=== 5975 src/lib/components/library/Backgrounds/Aurora/Aurora.svelte	js
+=== 6017 src/lib/components/library/Backgrounds/Aurora/Aurora.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -59642,7 +59845,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 7791 src/lib/components/library/Backgrounds/Balatro/Balatro.svelte	js
+=== 7833 src/lib/components/library/Backgrounds/Balatro/Balatro.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -59894,7 +60098,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 19102 src/lib/components/library/Backgrounds/Ballpit/Ballpit.svelte	js
+=== 19144 src/lib/components/library/Backgrounds/Ballpit/Ballpit.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 
 import {
@@ -60557,7 +60762,8 @@ export default function Ballpit($$anchor, $$props) {
 	$.append($$anchor, canvas_1);
 	$.pop();
 }
-=== 10204 src/lib/components/library/Backgrounds/Beams/Beams.svelte	js
+=== 10246 src/lib/components/library/Backgrounds/Beams/Beams.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -60873,7 +61079,8 @@ vec3 getNormal(vec3 pos) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 9931 src/lib/components/library/Backgrounds/ColorBends/ColorBends.svelte	js
+=== 9973 src/lib/components/library/Backgrounds/ColorBends/ColorBends.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as THREE from 'three';
 import * as $ from 'svelte/internal/client';
@@ -61230,7 +61437,8 @@ export default function ColorBends($$anchor, $$props) {
 	}
 ]
 
-=== 12296 src/lib/components/library/Backgrounds/DarkVeil/DarkVeil.svelte	js
+=== 12338 src/lib/components/library/Backgrounds/DarkVeil/DarkVeil.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -61407,7 +61615,8 @@ void main(){
 	$.append($$anchor, canvas_1);
 	$.pop();
 }
-=== 10500 src/lib/components/library/Backgrounds/Dither/Dither.svelte	js
+=== 10542 src/lib/components/library/Backgrounds/Dither/Dither.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -61724,7 +61933,8 @@ void main() { vUv = uv; gl_Position = vec4(position, 1.0); }`;
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 7700 src/lib/components/library/Backgrounds/DotField/DotField.svelte	js
+=== 7742 src/lib/components/library/Backgrounds/DotField/DotField.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -62000,7 +62210,8 @@ export default function DotField($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 6666 src/lib/components/library/Backgrounds/DotGrid/DotGrid.svelte	js
+=== 6708 src/lib/components/library/Backgrounds/DotGrid/DotGrid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -62259,7 +62470,8 @@ export default function DotGrid($$anchor, $$props) {
 	$.append($$anchor, section);
 	$.pop();
 }
-=== 9133 src/lib/components/library/Backgrounds/EvilEye/EvilEye.svelte	js
+=== 9175 src/lib/components/library/Backgrounds/EvilEye/EvilEye.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -62547,7 +62759,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 10882 src/lib/components/library/Backgrounds/FaultyTerminal/FaultyTerminal.svelte	js
+=== 10924 src/lib/components/library/Backgrounds/FaultyTerminal/FaultyTerminal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { Renderer, Program, Mesh, Color, Triangle } from 'ogl';
 import * as $ from 'svelte/internal/client';
@@ -62938,7 +63151,8 @@ export default function FaultyTerminal($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 14609 src/lib/components/library/Backgrounds/FloatingLines/FloatingLines.svelte	js
+=== 14651 src/lib/components/library/Backgrounds/FloatingLines/FloatingLines.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -63342,7 +63556,8 @@ void main() { vec4 color = vec4(0.0); mainImage(color, gl_FragCoord.xy); gl_Frag
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 10743 src/lib/components/library/Backgrounds/Galaxy/Galaxy.svelte	js
+=== 10785 src/lib/components/library/Backgrounds/Galaxy/Galaxy.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -63632,7 +63847,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 10120 src/lib/components/library/Backgrounds/GradientBlinds/GradientBlinds.svelte	js
+=== 10162 src/lib/components/library/Backgrounds/GradientBlinds/GradientBlinds.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -63958,7 +64174,8 @@ void main() { vec4 color; mainImage(color, vUv * iResolution.xy); gl_FragColor =
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 9490 src/lib/components/library/Backgrounds/Grainient/Grainient.svelte	js
+=== 9532 src/lib/components/library/Backgrounds/Grainient/Grainient.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -64230,7 +64447,8 @@ void main(){ vec4 o=vec4(0.0); mainImage(o,gl_FragCoord.xy); fragColor=o; }`;
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 5819 src/lib/components/library/Backgrounds/GridDistortion/GridDistortion.svelte	js
+=== 5861 src/lib/components/library/Backgrounds/GridDistortion/GridDistortion.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -64443,7 +64661,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 4046 src/lib/components/library/Backgrounds/GridMotion/GridMotion.svelte	js
+=== 4088 src/lib/components/library/Backgrounds/GridMotion/GridMotion.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -64557,7 +64776,8 @@ export default function GridMotion($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 27232 src/lib/components/library/Backgrounds/GridScan/GridScan.svelte	js
+=== 27274 src/lib/components/library/Backgrounds/GridScan/GridScan.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -65365,7 +65585,8 @@ void main(){ vec4 c; mainImage(c, vUv * iResolution.xy); gl_FragColor = c; }
 	}
 ]
 
-=== 36539 src/lib/components/library/Backgrounds/Hyperspeed/Hyperspeed.svelte	js
+=== 36581 src/lib/components/library/Backgrounds/Hyperspeed/Hyperspeed.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 
 import {
@@ -66601,7 +66822,8 @@ export default function Hyperspeed($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 3870 src/lib/components/library/Backgrounds/Iridescence/Iridescence.svelte	js
+=== 3912 src/lib/components/library/Backgrounds/Iridescence/Iridescence.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -66752,7 +66974,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 6061 src/lib/components/library/Backgrounds/LetterGlitch/LetterGlitch.svelte	js
+=== 6103 src/lib/components/library/Backgrounds/LetterGlitch/LetterGlitch.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -66980,7 +67203,8 @@ export default function LetterGlitch($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 12087 src/lib/components/library/Backgrounds/LightPillar/LightPillar.svelte	js
+=== 12129 src/lib/components/library/Backgrounds/LightPillar/LightPillar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -67425,7 +67649,8 @@ void main() {
 	}
 ]
 
-=== 9992 src/lib/components/library/Backgrounds/LightRays/LightRays.svelte	js
+=== 10034 src/lib/components/library/Backgrounds/LightRays/LightRays.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -67765,7 +67990,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 5909 src/lib/components/library/Backgrounds/Lightning/Lightning.svelte	js
+=== 5951 src/lib/components/library/Backgrounds/Lightning/Lightning.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -67988,7 +68214,8 @@ void main() {
 	$.append($$anchor, canvas_1);
 	$.pop();
 }
-=== 9068 src/lib/components/library/Backgrounds/LineWaves/LineWaves.svelte	js
+=== 9110 src/lib/components/library/Backgrounds/LineWaves/LineWaves.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -68228,7 +68455,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 5373 src/lib/components/library/Backgrounds/LiquidChrome/LiquidChrome.svelte	js
+=== 5415 src/lib/components/library/Backgrounds/LiquidChrome/LiquidChrome.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -68417,7 +68645,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 34463 src/lib/components/library/Backgrounds/LiquidEther/LiquidEther.svelte	js
+=== 34505 src/lib/components/library/Backgrounds/LiquidEther/LiquidEther.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as THREE from 'three';
@@ -69788,7 +70017,8 @@ export default function LiquidEther($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 8786 src/lib/components/library/Backgrounds/Orb/Orb.svelte	js
+=== 8828 src/lib/components/library/Backgrounds/Orb/Orb.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -70012,7 +70242,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 6750 src/lib/components/library/Backgrounds/Particles/Particles.svelte	js
+=== 6792 src/lib/components/library/Backgrounds/Particles/Particles.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -70233,7 +70464,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 18458 src/lib/components/library/Backgrounds/PixelBlast/PixelBlast.svelte	js
+=== 18500 src/lib/components/library/Backgrounds/PixelBlast/PixelBlast.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -70823,7 +71055,8 @@ void mainUv(inout vec2 uv) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 9908 src/lib/components/library/Backgrounds/PixelSnow/PixelSnow.svelte	js
+=== 9950 src/lib/components/library/Backgrounds/PixelSnow/PixelSnow.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -71123,7 +71356,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 7793 src/lib/components/library/Backgrounds/Plasma/Plasma.svelte	js
+=== 7835 src/lib/components/library/Backgrounds/Plasma/Plasma.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -71417,7 +71651,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 6595 src/lib/components/library/Backgrounds/PlasmaWave/PlasmaWave.svelte	js
+=== 6637 src/lib/components/library/Backgrounds/PlasmaWave/PlasmaWave.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -71639,7 +71874,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 10728 src/lib/components/library/Backgrounds/Prism/Prism.svelte	js
+=== 10770 src/lib/components/library/Backgrounds/Prism/Prism.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -72000,7 +72236,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 11636 src/lib/components/library/Backgrounds/PrismaticBurst/PrismaticBurst.svelte	js
+=== 11678 src/lib/components/library/Backgrounds/PrismaticBurst/PrismaticBurst.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -72367,7 +72604,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 7894 src/lib/components/library/Backgrounds/Radar/Radar.svelte	js
+=== 7936 src/lib/components/library/Backgrounds/Radar/Radar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -72601,7 +72839,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 8767 src/lib/components/library/Backgrounds/RippleGrid/RippleGrid.svelte	js
+=== 8809 src/lib/components/library/Backgrounds/RippleGrid/RippleGrid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -72865,7 +73104,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 11229 src/lib/components/library/Backgrounds/ShapeGrid/ShapeGrid.svelte	js
+=== 11271 src/lib/components/library/Backgrounds/ShapeGrid/ShapeGrid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -73222,7 +73462,8 @@ export default function ShapeGrid($$anchor, $$props) {
 	$.append($$anchor, canvas_1);
 	$.pop();
 }
-=== 4367 src/lib/components/library/Backgrounds/Silk/Silk.svelte	js
+=== 4409 src/lib/components/library/Backgrounds/Silk/Silk.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -73388,7 +73629,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 9599 src/lib/components/library/Backgrounds/SoftAurora/SoftAurora.svelte	js
+=== 9641 src/lib/components/library/Backgrounds/SoftAurora/SoftAurora.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -73661,7 +73903,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 7179 src/lib/components/library/Backgrounds/Threads/Threads.svelte	js
+=== 7221 src/lib/components/library/Backgrounds/Threads/Threads.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -73909,7 +74152,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 10179 src/lib/components/library/Backgrounds/Waves/Waves.svelte	js
+=== 10221 src/lib/components/library/Backgrounds/Waves/Waves.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -74512,7 +74756,8 @@ export default function Waves($$anchor, $$props) {
 		background: #222 !important;
 	}
 
-=== 6203 src/lib/components/library/Components/AnimatedList/AnimatedList.svelte	js
+=== 6245 src/lib/components/library/Components/AnimatedList/AnimatedList.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, untrack } from 'svelte';
@@ -74744,7 +74989,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 9497 src/lib/components/library/Components/BorderGlow/BorderGlow.svelte	js
+=== 9539 src/lib/components/library/Components/BorderGlow/BorderGlow.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -75031,7 +75277,8 @@ export default function BorderGlow($$anchor, $$props) {
 }
 
 $.delegate(['pointermove']);
-=== 4106 src/lib/components/library/Components/BounceCards/BounceCards.svelte	js
+=== 4148 src/lib/components/library/Components/BounceCards/BounceCards.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -75377,7 +75624,8 @@ export default function BounceCards($$anchor, $$props) {
 		.bubble-menu-items .pill-link:active { transform: scale(0.94); }
 	}
 
-=== 7455 src/lib/components/library/Components/BubbleMenu/BubbleMenu.svelte	js
+=== 7497 src/lib/components/library/Components/BubbleMenu/BubbleMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -75636,7 +75884,8 @@ export default function BubbleMenu($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 7667 src/lib/components/library/Components/CardNav/CardNav.svelte	js
+=== 7709 src/lib/components/library/Components/CardNav/CardNav.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -75847,7 +76096,8 @@ export default function CardNav($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown']);
-=== 5193 src/lib/components/library/Components/CardSwap/CardSwap.svelte	js
+=== 5235 src/lib/components/library/Components/CardSwap/CardSwap.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -76047,7 +76297,8 @@ export default function CardSwap($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown']);
-=== 10118 src/lib/components/library/Components/Carousel/Carousel.svelte	js
+=== 10160 src/lib/components/library/Components/Carousel/Carousel.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, untrack } from 'svelte';
@@ -76565,7 +76816,8 @@ $.delegate(['pointerdown', 'pointermove', 'pointerup', 'click']);
 		transition: opacity 0.25s ease;
 	}
 
-=== 6141 src/lib/components/library/Components/ChromaGrid/ChromaGrid.svelte	js
+=== 6183 src/lib/components/library/Components/ChromaGrid/ChromaGrid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -76820,7 +77072,8 @@ $.delegate(['pointermove', 'mousemove', 'click', 'keydown']);
 	}
 ]
 
-=== 12786 src/lib/components/library/Components/CircularGallery/CircularGallery.svelte	js
+=== 12828 src/lib/components/library/Components/CircularGallery/CircularGallery.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { Camera, Mesh, Plane, Program, Renderer, Texture, Transform } from 'ogl';
 import * as $ from 'svelte/internal/client';
@@ -77267,7 +77520,8 @@ export default function CircularGallery($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 5799 src/lib/components/library/Components/Counter/Counter.svelte	js
+=== 5841 src/lib/components/library/Components/Counter/Counter.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { motionValue, animate } from 'motion';
@@ -77437,7 +77691,8 @@ export default function Counter($$anchor, $$props) {
 	$.append($$anchor, span);
 	$.pop();
 }
-=== 5002 src/lib/components/library/Components/DecayCard/DecayCard.svelte	js
+=== 5044 src/lib/components/library/Components/DecayCard/DecayCard.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -77566,7 +77821,8 @@ export default function DecayCard($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 6445 src/lib/components/library/Components/Dock/Dock.svelte	js
+=== 6487 src/lib/components/library/Components/Dock/Dock.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { motionValue, animate, transform } from 'motion';
 import * as $ from 'svelte/internal/client';
@@ -77896,7 +78152,8 @@ $.delegate(['mousemove', 'click', 'keydown']);
 		pointer-events: none;
 	}
 
-=== 21675 src/lib/components/library/Components/DomeGallery/DomeGallery.svelte	js
+=== 21717 src/lib/components/library/Components/DomeGallery/DomeGallery.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -78667,7 +78924,8 @@ $.delegate(['pointerdown', 'pointermove', 'pointerup', 'click']);
 		letter-spacing: 0.05em;
 	}
 
-=== 8091 src/lib/components/library/Components/ElasticSlider/ElasticSlider.svelte	js
+=== 8133 src/lib/components/library/Components/ElasticSlider/ElasticSlider.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -78950,7 +79208,8 @@ $.delegate([
 	}
 ]
 
-=== 5575 src/lib/components/library/Components/FlowingMenu/FlowingMenu.svelte	js
+=== 5617 src/lib/components/library/Components/FlowingMenu/FlowingMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -79121,7 +79380,8 @@ export default function FlowingMenu($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 13507 src/lib/components/library/Components/FlyingPosters/FlyingPosters.svelte	js
+=== 13549 src/lib/components/library/Components/FlyingPosters/FlyingPosters.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { Renderer, Camera, Transform, Plane, Program, Mesh, Texture } from 'ogl';
 import * as $ from 'svelte/internal/client';
@@ -79664,7 +79924,8 @@ export default function FlyingPosters($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 6140 src/lib/components/library/Components/Folder/Folder.svelte	js
+=== 6182 src/lib/components/library/Components/Folder/Folder.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -79853,7 +80114,8 @@ export default function Folder($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown', 'mousemove']);
-=== 3026 src/lib/components/library/Components/GlassIcons/GlassIcons.svelte	js
+=== 3068 src/lib/components/library/Components/GlassIcons/GlassIcons.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -79911,7 +80173,8 @@ export default function GlassIcons($$anchor, $$props) {
 	$.template_effect(() => $.set_class(div, 1, `grid gap-[5em] grid-cols-2 md:grid-cols-3 mx-auto py-[3em] overflow-visible ${className() ?? ''}`));
 	$.append($$anchor, div);
 }
-=== 10529 src/lib/components/library/Components/GlassSurface/GlassSurface.svelte	js
+=== 10571 src/lib/components/library/Components/GlassSurface/GlassSurface.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -80184,7 +80447,8 @@ export default function GlassSurface($$anchor, $$props) {
 		opacity: 0; transform: scale(0); transition: all 0.3s ease; z-index: -1;
 	}
 
-=== 6271 src/lib/components/library/Components/GooeyNav/GooeyNav.svelte	js
+=== 6313 src/lib/components/library/Components/GooeyNav/GooeyNav.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -80406,7 +80670,8 @@ $.delegate(['click', 'keydown']);
 	}
 ]
 
-=== 25850 src/lib/components/library/Components/InfiniteMenu/InfiniteMenu.svelte	js
+=== 25892 src/lib/components/library/Components/InfiniteMenu/InfiniteMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -81508,7 +81773,8 @@ $.delegate(['click']);
 		pointer-events: none;
 	}
 
-=== 12207 src/lib/components/library/Components/MagicBento/MagicBento.svelte	js
+=== 12249 src/lib/components/library/Components/MagicBento/MagicBento.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -81914,7 +82180,8 @@ export default function MagicBento($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 6618 src/lib/components/library/Components/Masonry/Masonry.svelte	js
+=== 6660 src/lib/components/library/Components/Masonry/Masonry.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, tick } from 'svelte';
@@ -82154,7 +82421,8 @@ export default function Masonry($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 16365 src/lib/components/library/Components/ModelViewer/ModelViewer.svelte	js
+=== 16407 src/lib/components/library/Components/ModelViewer/ModelViewer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -82944,7 +83212,8 @@ $.delegate(['click']);
 		color: var(--hover-text, #fff);
 	}
 
-=== 8626 src/lib/components/library/Components/PillNav/PillNav.svelte	js
+=== 8668 src/lib/components/library/Components/PillNav/PillNav.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -83228,7 +83497,8 @@ export default function PillNav($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 6650 src/lib/components/library/Components/PixelCard/PixelCard.svelte	js
+=== 6692 src/lib/components/library/Components/PixelCard/PixelCard.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -84083,7 +84353,8 @@ export default function PixelCard($$anchor, $$props) {
 		}
 	}
 
-=== 11047 src/lib/components/library/Components/ProfileCard/ProfileCard.svelte	js
+=== 11089 src/lib/components/library/Components/ProfileCard/ProfileCard.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -84440,7 +84711,8 @@ export default function ProfileCard($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 7852 src/lib/components/library/Components/ReflectiveCard/ReflectiveCard.svelte	js
+=== 7894 src/lib/components/library/Components/ReflectiveCard/ReflectiveCard.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -84523,7 +84795,8 @@ export default function ReflectiveCard($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 7215 src/lib/components/library/Components/ScrollStack/ScrollStack.svelte	js
+=== 7257 src/lib/components/library/Components/ScrollStack/ScrollStack.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -84755,7 +85028,8 @@ export default function ScrollStack($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1877 src/lib/components/library/Components/SpotlightCard/SpotlightCard.svelte	js
+=== 1919 src/lib/components/library/Components/SpotlightCard/SpotlightCard.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -84820,7 +85094,8 @@ export default function SpotlightCard($$anchor, $$props) {
 }
 
 $.delegate(['mousemove']);
-=== 8038 src/lib/components/library/Components/Stack/Stack.svelte	js
+=== 8080 src/lib/components/library/Components/Stack/Stack.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -85355,7 +85630,8 @@ $.delegate(['pointerdown', 'pointermove', 'pointerup', 'click']);
 		.staggered-menu-wrapper[data-open] .sm-logo-img { filter: invert(100%); }
 	}
 
-=== 14726 src/lib/components/library/Components/StaggeredMenu/StaggeredMenu.svelte	js
+=== 14768 src/lib/components/library/Components/StaggeredMenu/StaggeredMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -85867,7 +86143,8 @@ $.delegate(['click']);
 	.next-button.svelte-15qsqvs:hover { background-color: #ff7a36; }
 	.next-button.svelte-15qsqvs:active { background-color: #e86a2a; }
 
-=== 8615 src/lib/components/library/Components/Stepper/Stepper.svelte	js
+=== 8657 src/lib/components/library/Components/Stepper/Stepper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { tick } from 'svelte';
@@ -86148,7 +86425,8 @@ $.delegate(['click', 'keydown']);
 	}
 ]
 
-=== 5555 src/lib/components/library/Components/TiltedCard/TiltedCard.svelte	js
+=== 5597 src/lib/components/library/Components/TiltedCard/TiltedCard.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { motionValue, animate } from 'motion';
@@ -86360,7 +86638,8 @@ $.delegate(['mousemove']);
 		mix-blend-mode: difference;
 	}
 
-=== 14701 src/lib/components/library/TextAnimations/ASCIIText/ASCIIText.svelte	js
+=== 14743 src/lib/components/library/TextAnimations/ASCIIText/ASCIIText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as THREE from 'three';
@@ -86944,7 +87223,8 @@ void main() {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 5235 src/lib/components/library/TextAnimations/BlurText/BlurText.svelte	js
+=== 5277 src/lib/components/library/TextAnimations/BlurText/BlurText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { animate } from 'motion';
@@ -87127,7 +87407,8 @@ export default function BlurText($$anchor, $$props) {
 	$.append($$anchor, p);
 	$.pop();
 }
-=== 3058 src/lib/components/library/TextAnimations/CircularText/CircularText.svelte	js
+=== 3100 src/lib/components/library/TextAnimations/CircularText/CircularText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { animate } from "motion";
@@ -87240,7 +87521,8 @@ export default function CircularText($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 3044 src/lib/components/library/TextAnimations/CountUp/CountUp.svelte	js
+=== 3086 src/lib/components/library/TextAnimations/CountUp/CountUp.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { animate } from 'motion';
@@ -87392,7 +87674,8 @@ export default function CountUp($$anchor, $$props) {
 		line-height: 1;
 	}
 
-=== 5488 src/lib/components/library/TextAnimations/CurvedLoop/CurvedLoop.svelte	js
+=== 5530 src/lib/components/library/TextAnimations/CurvedLoop/CurvedLoop.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -87591,7 +87874,8 @@ export default function CurvedLoop($$anchor, $$props) {
 }
 
 $.delegate(['pointerdown', 'pointermove', 'pointerup']);
-=== 10143 src/lib/components/library/TextAnimations/DecryptedText/DecryptedText.svelte	js
+=== 10185 src/lib/components/library/TextAnimations/DecryptedText/DecryptedText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -87969,7 +88253,8 @@ export default function DecryptedText($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 6336 src/lib/components/library/TextAnimations/FallingText/FallingText.svelte	js
+=== 6378 src/lib/components/library/TextAnimations/FallingText/FallingText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Matter from "matter-js";
@@ -88193,7 +88478,8 @@ export default function FallingText($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown']);
-=== 11115 src/lib/components/library/TextAnimations/FuzzyText/FuzzyText.svelte	js
+=== 11157 src/lib/components/library/TextAnimations/FuzzyText/FuzzyText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -88652,7 +88938,8 @@ export default function FuzzyText($$anchor, $$props) {
 		100% { clip-path: inset(30% 0 40% 0); }
 	}
 
-=== 1406 src/lib/components/library/TextAnimations/GlitchText/GlitchText.svelte	js
+=== 1448 src/lib/components/library/TextAnimations/GlitchText/GlitchText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -88693,7 +88980,8 @@ export default function GlitchText($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 4302 src/lib/components/library/TextAnimations/GradientText/GradientText.svelte	js
+=== 4344 src/lib/components/library/TextAnimations/GradientText/GradientText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { animate } from 'motion';
@@ -88833,7 +89121,8 @@ export default function GradientText($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 9003 src/lib/components/library/TextAnimations/RotatingText/RotatingText.svelte	js
+=== 9045 src/lib/components/library/TextAnimations/RotatingText/RotatingText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { animate } from 'motion';
@@ -89137,7 +89426,8 @@ export default function RotatingText($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 2349 src/lib/components/library/TextAnimations/ScrambledText/ScrambledText.svelte	js
+=== 2391 src/lib/components/library/TextAnimations/ScrambledText/ScrambledText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { gsap } from "gsap";
@@ -89236,7 +89526,8 @@ export default function ScrambledText($$anchor, $$props) {
     .scroll-float-text.svelte-12wycj4 { display: inline-block; }
     .char.svelte-12wycj4 { display: inline-block; will-change: transform, opacity; }
 
-=== 2453 src/lib/components/library/TextAnimations/ScrollFloat/ScrollFloat.svelte	js
+=== 2495 src/lib/components/library/TextAnimations/ScrollFloat/ScrollFloat.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -89343,7 +89634,8 @@ export default function ScrollFloat($$anchor, $$props) {
 		display: inline-block;
 	}
 
-=== 3782 src/lib/components/library/TextAnimations/ScrollReveal/ScrollReveal.svelte	js
+=== 3824 src/lib/components/library/TextAnimations/ScrollReveal/ScrollReveal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -89511,7 +89803,8 @@ export default function ScrollReveal($$anchor, $$props) {
 		}
 	}
 
-=== 4766 src/lib/components/library/TextAnimations/ScrollVelocity/ScrollVelocity.svelte	js
+=== 4808 src/lib/components/library/TextAnimations/ScrollVelocity/ScrollVelocity.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -89678,7 +89971,8 @@ export default function ScrollVelocity($$anchor, $$props) {
 	$.append($$anchor, section);
 	$.pop();
 }
-=== 3515 src/lib/components/library/TextAnimations/ShinyText/ShinyText.svelte	js
+=== 3557 src/lib/components/library/TextAnimations/ShinyText/ShinyText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -89844,7 +90138,8 @@ export default function ShinyText($$anchor, $$props) {
 		text-align: center;
 	}
 
-=== 11619 src/lib/components/library/TextAnimations/Shuffle/Shuffle.svelte	js
+=== 11661 src/lib/components/library/TextAnimations/Shuffle/Shuffle.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -90290,7 +90585,8 @@ export default function Shuffle($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 4152 src/lib/components/library/TextAnimations/SplitText/SplitText.svelte	js
+=== 4194 src/lib/components/library/TextAnimations/SplitText/SplitText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -90440,7 +90736,8 @@ export default function SplitText($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 5104 src/lib/components/library/TextAnimations/TextCursor/TextCursor.svelte	js
+=== 5146 src/lib/components/library/TextAnimations/TextCursor/TextCursor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { animate } from 'motion';
@@ -90685,7 +90982,8 @@ export default function TextCursor($$anchor, $$props) {
 		-webkit-text-stroke-color: var(--text-pressure-stroke, #ff0000);
 	}
 
-=== 6409 src/lib/components/library/TextAnimations/TextPressure/TextPressure.svelte	js
+=== 6451 src/lib/components/library/TextAnimations/TextPressure/TextPressure.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -90899,7 +91197,8 @@ export default function TextPressure($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 6211 src/lib/components/library/TextAnimations/TextType/TextType.svelte	js
+=== 6253 src/lib/components/library/TextAnimations/TextType/TextType.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { gsap } from 'gsap';
 import * as $ from 'svelte/internal/client';
@@ -91117,7 +91416,8 @@ export default function TextType($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 5044 src/lib/components/library/TextAnimations/TrueFocus/TrueFocus.svelte	js
+=== 5086 src/lib/components/library/TextAnimations/TrueFocus/TrueFocus.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { animate } from 'motion';
@@ -91306,7 +91606,8 @@ export default function TrueFocus($$anchor, $$props) {
 		border: 0;
 	}
 
-=== 5536 src/lib/components/library/TextAnimations/VariableProximity/VariableProximity.svelte	js
+=== 5578 src/lib/components/library/TextAnimations/VariableProximity/VariableProximity.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -91510,7 +91811,8 @@ export default function VariableProximity($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 304 src/routes/+layout.svelte	js
+=== 346 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import '../app.css';
@@ -91522,7 +91824,8 @@ export default function _layout($$anchor, $$props) {
 	$.snippet(node, () => $$props.children);
 	$.append($$anchor, fragment);
 }
-=== 2775 src/routes/+page.svelte	js
+=== 2817 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -91639,7 +91942,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 466 src/routes/[category]/+layout.svelte	js
+=== 508 src/routes/[category]/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DocsLayout from '$lib/components/docs/DocsLayout.svelte';
@@ -91656,7 +91960,8 @@ export default function _layout($$anchor, $$props) {
 		$$slots: { default: true }
 	});
 }
-=== 2477 src/routes/[category]/[subcategory]/+page.svelte	js
+=== 2519 src/routes/[category]/[subcategory]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/state';
@@ -91755,7 +92060,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 387 src/routes/favorites/+page.svelte	js
+=== 429 src/routes/favorites/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import FavoritesPage from '$lib/components/docs/pages/FavoritesPage.svelte';

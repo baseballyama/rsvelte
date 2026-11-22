@@ -1,3 +1,4 @@
+import "svelte/internal/init-operations";
 import "svelte/internal/disclose-version";
 import * as $ from "svelte/internal/client";
 var root = $.from_svg(`<line y2="10" stroke-width="2"></line><text dominant-baseline="hanging"> </text>`, 1);

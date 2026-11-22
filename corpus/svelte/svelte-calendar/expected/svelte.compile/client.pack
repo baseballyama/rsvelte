@@ -28,7 +28,8 @@
 		grid-template: 1fr / 1fr;
 	}
 
-=== 2619 src/lib/components/calendar/Calendar.svelte	js
+=== 2661 src/lib/components/calendar/Calendar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DayPicker from '$lib/components/calendar/DayPicker.svelte';
@@ -109,7 +110,8 @@ export default function Calendar($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 866 src/lib/components/generic/ViewTransitionEffect.svelte	js
+=== 908 src/lib/components/generic/ViewTransitionEffect.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { scale } from 'svelte/transition';
@@ -153,7 +155,8 @@ export default function ViewTransitionEffect($$anchor, $$props) {
 	}
 ]
 
-=== 400 src/lib/components/generic/crossfade/CrossfadeBoundary.svelte	js
+=== 442 src/lib/components/generic/crossfade/CrossfadeBoundary.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext } from 'svelte';
@@ -187,7 +190,8 @@ export default function CrossfadeBoundary($$anchor, $$props) {
 	}
 ]
 
-=== 810 src/lib/components/generic/crossfade/CrossfadeProvider.svelte	js
+=== 852 src/lib/components/generic/crossfade/CrossfadeProvider.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -316,7 +320,8 @@ export default function CrossfadeProvider($$anchor, $$props) {
 		color: var(--sc-theme-calendar-colors-text-primary);
 	}
 
-=== 2832 src/lib/docs/JSONEditorModal.svelte	js
+=== 2874 src/lib/docs/JSONEditorModal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CrossfadeProvider from '$lib/components/generic/crossfade/CrossfadeProvider.svelte';
@@ -520,7 +525,8 @@ export default function JSONEditorModal($$anchor, $$props) {
 		}
 	}
 
-=== 968 src/lib/docs/NavBar.svelte	js
+=== 1010 src/lib/docs/NavBar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getStores } from '$app/stores';
@@ -604,7 +610,8 @@ export default function NavBar($$anchor, $$props) {
 		fill: #0f0b0c;
 	}
 
-=== 1818 src/lib/docs/SvgThing.svelte	js
+=== 1860 src/lib/docs/SvgThing.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, tick } from 'svelte';
@@ -730,7 +737,8 @@ export default function SvgThing($$anchor, $$props) {
 	}
 ]
 
-=== 743 src/lib/docs/examples/CustomTheme.svelte	js
+=== 785 src/lib/docs/examples/CustomTheme.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { InlineCalendar } from '../../index';
@@ -772,7 +780,8 @@ export default function CustomTheme($$anchor) {
 		cursor: pointer;
 	}
 
-=== 1591 src/lib/docs/examples/CustomTrigger.svelte	js
+=== 1633 src/lib/docs/examples/CustomTrigger.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import dayjs from 'dayjs';
@@ -852,7 +861,8 @@ export default function CustomTrigger($$anchor, $$props) {
 	}
 ]
 
-=== 681 src/lib/docs/examples/DarkTheme.svelte	js
+=== 723 src/lib/docs/examples/DarkTheme.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { base } from '$app/paths';
@@ -887,7 +897,8 @@ export default function DarkTheme($$anchor) {
 		background: #eee;
 	}
 
-=== 704 src/lib/docs/examples/Formatting.svelte	js
+=== 746 src/lib/docs/examples/Formatting.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Datepicker } from '../../index';
@@ -930,7 +941,8 @@ export default function Formatting($$anchor) {
 	}
 ]
 
-=== 355 src/lib/docs/examples/InlineCalendar.svelte	js
+=== 397 src/lib/docs/examples/InlineCalendar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { InlineCalendar } from '../../index';
@@ -946,7 +958,8 @@ export default function InlineCalendar_1($$anchor) {
 		}
 	});
 }
-=== 206 src/lib/docs/examples/QuickStart.svelte	js
+=== 248 src/lib/docs/examples/QuickStart.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Datepicker } from '../../index';
@@ -954,7 +967,8 @@ import { Datepicker } from '../../index';
 export default function QuickStart($$anchor) {
 	Datepicker($$anchor, {});
 }
-=== 436 src/lib/docs/examples/StartAndEnd.svelte	js
+=== 478 src/lib/docs/examples/StartAndEnd.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import dayjs from 'dayjs';
@@ -1010,7 +1024,8 @@ export default function StartAndEnd($$anchor, $$props) {
 		}
 	}
 
-=== 1939 src/lib/docs/examples/Store.svelte	js
+=== 1981 src/lib/docs/examples/Store.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { InlineCalendar } from '../../index';
@@ -1294,7 +1309,8 @@ export default function Store($$anchor, $$props) {
 		font-weight: bold;
 	}
 
-=== 6327 src/routes/docs/examples.svelte	js
+=== 6369 src/routes/docs/examples.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Crossfade from '$lib/components/generic/crossfade/Crossfade.svelte';
@@ -1637,7 +1653,8 @@ export default function Examples($$anchor) {
 		font-size: 1.3em;
 	}
 
-=== 3183 src/routes/docs/props.svelte	js
+=== 3225 src/routes/docs/props.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Code from '$lib/docs/Code.svelte';
@@ -1789,7 +1806,8 @@ export default function Props($$anchor) {
 		}
 	}
 
-=== 1622 src/routes/docs/quick-start.svelte	js
+=== 1664 src/routes/docs/quick-start.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Code from '$lib/docs/Code.svelte';
@@ -1961,7 +1979,8 @@ export default function Quick_start($$anchor) {
 		}
 	}
 
-=== 1461 src/routes/index.svelte	js
+=== 1503 src/routes/index.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Datepicker from '$lib/components/Datepicker.svelte';

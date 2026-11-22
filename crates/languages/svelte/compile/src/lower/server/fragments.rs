@@ -1,6 +1,7 @@
 use oxc_ast::ast::Statement;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Children;
 
+use super::special::Hoisted;
 use super::template::Template;
 use super::{EMPTY_COMMENT, R, ServerCompilationContext};
 use crate::lower::component::{Standalone, standalone};
@@ -51,7 +52,11 @@ impl<'c, 'o> ServerCompilationContext<'c, 'o> {
         skipped: fn(&str) -> bool,
     ) -> R<Template<'c, 'o>> {
         let mut template = Template::new(self.b);
-        self.hoisted_elements(&cleaned.hoisted, skipped, &mut template)?;
+        self.hoisted_elements(
+            &cleaned.hoisted,
+            (Hoisted::BeforeChildren, skipped),
+            &mut template,
+        )?;
         if cleaned.text_first {
             template.text(EMPTY_COMMENT);
         }
@@ -68,6 +73,11 @@ impl<'c, 'o> ServerCompilationContext<'c, 'o> {
             }
             None => self.process_children(&cleaned.items, &mut template)?,
         }
+        self.hoisted_elements(
+            &cleaned.hoisted,
+            (Hoisted::AfterChildren, skipped),
+            &mut template,
+        )?;
         Ok(template)
     }
 }

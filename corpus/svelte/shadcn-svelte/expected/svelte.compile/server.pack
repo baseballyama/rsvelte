@@ -14331,11 +14331,11 @@ export default function Metadata($$renderer, $$props) {
 		const trueTitle = $.derived(() => title === siteConfig.name ? siteConfig.name : `${title} - ${siteConfig.name}`);
 
 		$.head('5v2rt', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="description"${$.attr('content', description)}/> <meta name="keywords"${$.attr('content', keywords?.join(","))}/> <meta name="author" content="huntabyte"/> <meta name="creator" content="huntabyte"/> <meta name="twitter:card" content="summary_large_image"/> <meta name="twitter:site"${$.attr('content', siteConfig.url)}/> <meta name="twitter:title"${$.attr('content', title)}/> <meta name="twitter:description"${$.attr('content', description)}/> <meta name="twitter:image"${$.attr('content', ogUrl())}/> <meta name="twitter:image:alt"${$.attr('content', title)}/> <meta name="twitter:creator" content="@huntabyte"/> <meta property="og:title"${$.attr('content', title)}/> <meta property="og:type"${$.attr('content', ogType)}/> <meta property="og:url"${$.attr('content', siteConfig.url + page.url.pathname)}/> <meta property="og:image"${$.attr('content', ogUrl())}/> <meta property="og:image:alt"${$.attr('content', title)}/> <meta property="og:image:width"${$.attr('content', ogWidth())}/> <meta property="og:image:height"${$.attr('content', ogHeight())}/> <meta property="og:description"${$.attr('content', description)}/> <meta property="og:site_name"${$.attr('content', siteConfig.name)}/> <meta property="og:locale" content="EN_US"/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>${$.escape(trueTitle())}</title>`);
 			});
-
-			$$renderer.push(`<meta name="description"${$.attr('content', description)}/> <meta name="keywords"${$.attr('content', keywords?.join(","))}/> <meta name="author" content="huntabyte"/> <meta name="creator" content="huntabyte"/> <meta name="twitter:card" content="summary_large_image"/> <meta name="twitter:site"${$.attr('content', siteConfig.url)}/> <meta name="twitter:title"${$.attr('content', title)}/> <meta name="twitter:description"${$.attr('content', description)}/> <meta name="twitter:image"${$.attr('content', ogUrl())}/> <meta name="twitter:image:alt"${$.attr('content', title)}/> <meta name="twitter:creator" content="@huntabyte"/> <meta property="og:title"${$.attr('content', title)}/> <meta property="og:type"${$.attr('content', ogType)}/> <meta property="og:url"${$.attr('content', siteConfig.url + page.url.pathname)}/> <meta property="og:image"${$.attr('content', ogUrl())}/> <meta property="og:image:alt"${$.attr('content', title)}/> <meta property="og:image:width"${$.attr('content', ogWidth())}/> <meta property="og:image:height"${$.attr('content', ogHeight())}/> <meta property="og:description"${$.attr('content', description)}/> <meta property="og:site_name"${$.attr('content', siteConfig.name)}/> <meta property="og:locale" content="EN_US"/>`);
 		});
 	});
 }
@@ -114277,7 +114277,7 @@ export default function Elevenlabs($$renderer) {
 		$$slots: { default: true }
 	});
 }
-=== 3065 docs/src/lib/registry/examples/create/elevenlabs/live-waveform.svelte	js
+=== 2685 docs/src/lib/registry/examples/create/elevenlabs/live-waveform.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount } from "svelte";
 import { cn } from "$lib/utils.js";
@@ -114365,20 +114365,8 @@ export default function Live_waveform($$renderer, $$props) {
 		$$renderer.push(`<div${$.attributes({
 			class: $.clsx(
 				// Handle processing animation (when not active but processing)
-				// Fade to idle
 				// Handle microphone setup and teardown
-				// Clear history when starting
 				// Animation loop
-				// Update audio data if active
-				// For static mode, update bars in place
-				// Mirror the data for symmetric display
-				// Scrolling mode - original behavior
-				// Add to history
-				// Maintain history size
-				// Only redraw if needed
-				// Draw bars based on mode
-				// Scrolling mode
-				// Apply edge fading
 				cn("relative h-full w-full", className)
 			),
 			style: `height: ${$.stringify(heightStyle())};`,

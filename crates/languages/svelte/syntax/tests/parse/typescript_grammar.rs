@@ -43,3 +43,82 @@ fn an_unchecked_rule_does_not_hide_a_later_error() {
     let class = source.find("class").expect("class");
     assert!(error.span.start_offset as usize > class);
 }
+
+// svelte 5.59.1 reads `?:` in a block's type annotation and an arrow type in a snippet's type
+// parameters. Each expected text is the annotation, or the list between the angle brackets, that
+// its `parse` gives, and the offset is its `compile`'s.
+#[test]
+fn template_type_annotations_read_as_svelte_reads_them() {
+    use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
+    let script = "<script lang=\"ts\">let items: any[] = [];</script>";
+    for (template, expected) in [
+        (
+            "{#each items as item: { id: number; a?: string } (item.id)}{item.a}{/each}",
+            ": { id: number; a?: string }",
+        ),
+        (
+            "{#each items as item: { a?: string }, i (i)}{i}{/each}",
+            ": { a?: string }",
+        ),
+        (
+            "{#each items as { id }: { id?: number } (id)}{id}{/each}",
+            ": { id?: number }",
+        ),
+        (
+            "{#each items as row}{@const first: { a?: string } = row[0]}{first.a}{/each}",
+            ": { a?: string }",
+        ),
+        (
+            "{#await items then v: { a?: string }}{v.a}{/await}",
+            ": { a?: string }",
+        ),
+        (
+            "{#snippet s<T extends () => void>(x: T)}{typeof x}{/snippet}",
+            "T extends () => void",
+        ),
+        (
+            concat!(
+                "{#snippet s<T extends (a: number) => string, U = Array<T>>(x: T, y: U)}",
+                "{x}{y}{/snippet}",
+            ),
+            "T extends (a: number) => string, U = Array<T>",
+        ),
+    ] {
+        let source = format!("{script}{template}");
+        let component = parse(&source).expect(&source);
+        let tree = &component.javascript;
+        let read: Vec<(u32, u32)> = (component.nodes.iter())
+            .filter_map(|node| match node {
+                TemplateNode::Each {
+                    context: Some(p), ..
+                }
+                | TemplateNode::Await { value: Some(p), .. } => {
+                    let span = tree.get_pattern(*p).type_annotation.as_ref()?.span;
+                    Some((span.start, span.end))
+                }
+                TemplateNode::Const { declaration, .. } => {
+                    let declarator = tree.get_declaration(*declaration).declarations.first()?;
+                    let span = declarator.type_annotation.as_ref()?.span;
+                    Some((span.start, span.end))
+                }
+                TemplateNode::Snippet {
+                    type_parameters: Some(span),
+                    generics: Some(_),
+                    ..
+                } => Some((span.start_offset + 1, span.end_offset - 1)),
+                _ => None,
+            })
+            .collect();
+        let texts: Vec<&str> = read
+            .iter()
+            .map(|&(start, end)| &source[start as usize..end as usize])
+            .collect();
+        assert_eq!(texts, [expected], "{source}");
+    }
+    let source = "<script lang=\"ts\"></script>{#snippet s<T extends a >= b>(x: T)}{x}{/snippet}";
+    let error = parse(source).expect_err(source);
+    assert_eq!(
+        (&*error.code, error.span.start_offset),
+        ("expected_token", 52)
+    );
+}

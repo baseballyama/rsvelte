@@ -7,7 +7,8 @@
         flex: 1;
     }
 
-=== 2683 examples/example-svelte/src/App.svelte	js
+=== 2725 examples/example-svelte/src/App.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Nav from './components/Nav.svelte';
@@ -234,7 +235,8 @@ export default function App($$anchor, $$props) {
         flex: 1;
     }
 
-=== 3448 examples/example-svelte/src/routes/Dependencies.svelte	js
+=== 3490 examples/example-svelte/src/routes/Dependencies.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -429,7 +431,8 @@ export default function Dependencies($$anchor, $$props) {
         background-color: #00000008;
     }
 
-=== 5368 examples/example-svelte/src/routes/Events.svelte	js
+=== 5410 examples/example-svelte/src/routes/Events.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -687,7 +690,8 @@ export default function Events($$anchor, $$props) {
         cursor: grab;
     }
 
-=== 4019 examples/example-svelte/src/routes/External.svelte	js
+=== 4061 examples/example-svelte/src/routes/External.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -896,7 +900,8 @@ export default function External($$anchor, $$props) {
         flex: 1;
     }
 
-=== 3057 examples/example-svelte/src/routes/LargeDataset.svelte	js
+=== 3099 examples/example-svelte/src/routes/LargeDataset.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { SvelteGantt, SvelteGanttTable, MomentSvelteGanttDateAdapter } from 'svelte-gantt';
@@ -1055,7 +1060,8 @@ export default function LargeDataset($$anchor, $$props) {
         flex: 1;
     }
 
-=== 4407 examples/example-svelte/src/routes/Tree.svelte	js
+=== 4449 examples/example-svelte/src/routes/Tree.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1348,7 +1354,8 @@ export default function Tree($$anchor, $$props) {
         margin-right: 4px;
     }
 
-=== 2211 examples/example-sveltekit/src/routes/+layout.svelte	js
+=== 2253 examples/example-sveltekit/src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import './../gantt-default.css';
@@ -1542,7 +1549,8 @@ export default function _layout($$anchor, $$props) {
         margin-right: 4px;
     }
 
-=== 3391 packages/demo/src/routes/+layout.svelte	js
+=== 3433 packages/demo/src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import '../gantt-default.css';
@@ -1681,7 +1689,8 @@ export default function _layout($$anchor, $$props) {
         
     }
 
-=== 660 packages/demo/src/routes/+page.svelte	js
+=== 702 packages/demo/src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1698,7 +1707,8 @@ export default function _page($$anchor) {
 
 	$.append($$anchor, main);
 }
-=== 429 packages/docs-mdsvex/src/lib/icons/CloseIcon.svelte	js
+=== 471 packages/docs-mdsvex/src/lib/icons/CloseIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1709,7 +1719,8 @@ export default function CloseIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 1100 packages/docs-mdsvex/src/lib/icons/GithubIcon.svelte	js
+=== 1142 packages/docs-mdsvex/src/lib/icons/GithubIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1720,7 +1731,8 @@ export default function GithubIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 452 packages/docs-mdsvex/src/lib/icons/MenuIcon.svelte	js
+=== 494 packages/docs-mdsvex/src/lib/icons/MenuIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1731,7 +1743,8 @@ export default function MenuIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 589 packages/docs-mdsvex/src/lib/icons/MoonIcon.svelte	js
+=== 631 packages/docs-mdsvex/src/lib/icons/MoonIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1742,7 +1755,8 @@ export default function MoonIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 601 packages/docs-mdsvex/src/lib/icons/SunIcon.svelte	js
+=== 643 packages/docs-mdsvex/src/lib/icons/SunIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1753,7 +1767,8 @@ export default function SunIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 5404 packages/docs-mdsvex/src/routes/+page.svelte	js
+=== 5446 packages/docs-mdsvex/src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy, onMount } from 'svelte';
@@ -1888,7 +1903,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, main);
 	$.pop();
 }
-=== 592 packages/docs-mdsvex/src/routes/FeatureCard.svelte	js
+=== 634 packages/docs-mdsvex/src/routes/FeatureCard.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1948,7 +1964,8 @@ export default function FeatureCard($$anchor, $$props) {
         @apply bg-gradient-to-tr from-pink-500 to-violet-500 opacity-50;
     }
 
-=== 1377 packages/docs-mdsvex/src/routes/docs/data/rows/RowsExample.svelte	js
+=== 1419 packages/docs-mdsvex/src/routes/docs/data/rows/RowsExample.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { time } from '$lib';
@@ -2021,7 +2038,8 @@ export default function RowsExample($$anchor, $$props) {
 		height: 1rem;
 	}
 
-=== 1414 packages/docs-mdsvex/src/routes/docs/data/rows/TreeExample.svelte	js
+=== 1456 packages/docs-mdsvex/src/routes/docs/data/rows/TreeExample.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { time } from '$lib';
@@ -2087,7 +2105,8 @@ export default function TreeExample($$anchor, $$props) {
 === 1 packages/docs-mdsvex/src/routes/docs/data/tasks/TaskComponentExample.svelte	css
 
 
-=== 2317 packages/docs-mdsvex/src/routes/docs/data/tasks/TaskComponentExample.svelte	js
+=== 2359 packages/docs-mdsvex/src/routes/docs/data/tasks/TaskComponentExample.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { SvelteGantt } from 'svelte-gantt/svelte';
@@ -2209,7 +2228,8 @@ export default function TaskComponentExample($$anchor, $$props) {
         @apply bg-gradient-to-tr from-pink-600 to-violet-600 rounded-md shadow-xl;
     }
 
-=== 1877 packages/docs-mdsvex/src/routes/docs/data/tasks/TasksExample.svelte	js
+=== 1919 packages/docs-mdsvex/src/routes/docs/data/tasks/TasksExample.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { time } from '$lib';
@@ -2320,7 +2340,8 @@ export default function TasksExample($$anchor, $$props) {
 		@apply bg-gradient-to-tr from-pink-600 to-violet-600 rounded-md shadow-xl;
 	}
 
-=== 1181 packages/docs-mdsvex/src/routes/docs/data/time-ranges/TimeRangesExample.svelte	js
+=== 1223 packages/docs-mdsvex/src/routes/docs/data/time-ranges/TimeRangesExample.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { time } from '$lib';
@@ -2386,7 +2407,8 @@ export default function TimeRangesExample($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 342 packages/docs-mdsvex/src/routes/docs/layout.svelte	js
+=== 384 packages/docs-mdsvex/src/routes/docs/layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import a from '$lib/components/A.svelte';
 import * as $ from 'svelte/internal/client';
@@ -2432,7 +2454,8 @@ export default function Layout($$anchor, $$props) {
 	}
 ]
 
-=== 1668 packages/docs-mdsvex/src/routes/docs/modules/create-tasks/CreateTasksExample.svelte	js
+=== 1710 packages/docs-mdsvex/src/routes/docs/modules/create-tasks/CreateTasksExample.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { time } from '$lib';
@@ -2511,7 +2534,8 @@ export default function CreateTasksExample($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1813 packages/docs-mdsvex/src/routes/docs/modules/external/ExternalExample.svelte	js
+=== 1855 packages/docs-mdsvex/src/routes/docs/modules/external/ExternalExample.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { SvelteGantt, SvelteGanttTable, SvelteGanttExternal } from 'svelte-gantt/svelte';
@@ -2616,7 +2640,8 @@ export default function ExternalExample($$anchor, $$props) {
 	}
 ]
 
-=== 1084 packages/docs-mdsvex/src/routes/docs/modules/table/TableExample.svelte	js
+=== 1126 packages/docs-mdsvex/src/routes/docs/modules/table/TableExample.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { SvelteGantt, SvelteGanttTable } from 'svelte-gantt/svelte';
@@ -2677,7 +2702,8 @@ export default function TableExample($$anchor, $$props) {
 		@apply bg-violet-400;
 	}
 
-=== 3225 packages/docs-mdsvex/src/routes/docs/options/layout/LayoutExample.svelte	js
+=== 3267 packages/docs-mdsvex/src/routes/docs/options/layout/LayoutExample.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { SvelteGantt, SvelteGanttTable } from 'svelte-gantt/svelte';
@@ -2877,7 +2903,8 @@ export default function LayoutExample($$anchor, $$props) {
 		@apply bg-violet-400;
 	}
 
-=== 3666 packages/docs-mdsvex/src/routes/docs/options/zoom/ZoomExample.svelte	js
+=== 3708 packages/docs-mdsvex/src/routes/docs/options/zoom/ZoomExample.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { SvelteGantt, SvelteGanttTable } from 'svelte-gantt/svelte';
