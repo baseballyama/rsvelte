@@ -16,9 +16,10 @@ pub(super) struct UnnamedKey {
 }
 
 /// The message of svelte2tsx's `getName` for a key that does not name an event.
-pub(super) const UNNAMED_EVENT: &str = "The ComponentEvents interface can only have properties of type \
-    Identifier, StringLiteral or ComputedPropertyName. In case of ComputedPropertyName, it must \
-    be a const declared within the component and initialized with a string.";
+pub(super) const UNNAMED_EVENT: &str = "The ComponentEvents interface can only have \
+    properties of type Identifier, StringLiteral or ComputedPropertyName. In case of \
+    ComputedPropertyName, it must be a const declared within the component and initialized with \
+    a string.";
 
 /// svelte2tsx's `getName` of an event's key: the identifier or the string, or the string a
 /// top-level variable named in brackets holds; `None` for a string this side cannot hold.
