@@ -33,23 +33,21 @@ impl<'a> Strip<'a> {
 /// Whether erasing types removes `statement` from its list.
 #[must_use]
 pub fn is_type_only(statement: &Statement<'_>) -> bool {
+    if let Some(declaration) = statement.as_declaration() {
+        return is_type_only_declaration(declaration);
+    }
     match statement {
-        Statement::TSTypeAliasDeclaration(_)
-        | Statement::TSInterfaceDeclaration(_)
-        | Statement::TSExternalModuleDeclaration(_)
-        | Statement::TSNamespaceDeclaration(_)
-        | Statement::TSGlobalDeclaration(_)
-        | Statement::TSNamespaceExportDeclaration(_) => true,
-        Statement::VariableDeclaration(d) => d.declare,
-        Statement::FunctionDeclaration(f) => f.declare || f.body.is_none(),
-        Statement::ClassDeclaration(c) => c.declare,
+        Statement::TSNamespaceExportDeclaration(_) => true,
         Statement::ImportDeclaration(d) => {
             d.import_kind.is_type()
                 || d.specifiers.as_ref().is_some_and(|specifiers| {
                     !specifiers.is_empty() && specifiers.iter().all(is_type_import)
                 })
         }
-        Statement::ExportDeclaration(d) => is_type_only_declaration(&d.declaration),
+        // acorn-typescript reads `export declare …` as an export of types.
+        Statement::ExportDeclaration(d) => {
+            d.declaration.declare() || is_type_only_declaration(&d.declaration)
+        }
         Statement::ExportNamedDeclaration(d) => {
             d.export_kind.is_type() || d.specifiers.iter().all(is_type_export)
         }
@@ -67,10 +65,15 @@ pub fn is_type_only(statement: &Statement<'_>) -> bool {
 
 fn is_type_only_declaration(declaration: &Declaration<'_>) -> bool {
     match declaration {
+        Declaration::TSTypeAliasDeclaration(_)
+        | Declaration::TSInterfaceDeclaration(_)
+        | Declaration::TSExternalModuleDeclaration(_)
+        | Declaration::TSNamespaceDeclaration(_)
+        | Declaration::TSGlobalDeclaration(_) => true,
         Declaration::VariableDeclaration(d) => d.declare,
         Declaration::FunctionDeclaration(f) => f.declare || f.body.is_none(),
         Declaration::ClassDeclaration(c) => c.declare,
-        _ => true,
+        Declaration::TSEnumDeclaration(_) | Declaration::TSImportEqualsDeclaration(_) => false,
     }
 }
 
