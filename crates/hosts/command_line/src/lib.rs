@@ -76,7 +76,6 @@ static EXTENSIONS: &[&Extension] = &[
 ];
 
 /// `rsvelte-dev`.
-#[must_use]
 pub fn development() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     let mut tasks = Vec::new();

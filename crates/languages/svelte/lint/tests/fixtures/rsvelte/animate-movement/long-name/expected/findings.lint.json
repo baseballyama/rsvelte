@@ -1,0 +1,32 @@
+{
+	"rules": [
+		"no-unused-vars",
+		"svelte/button-has-type"
+	],
+	"findings": [
+		{
+			"rule": "no-unused-vars",
+			"message": "'node' is defined but never used.",
+			"start": {
+				"line": 2,
+				"column": 14
+			},
+			"end": {
+				"line": 2,
+				"column": 27
+			}
+		},
+		{
+			"rule": "no-unused-vars",
+			"message": "'p' is defined but never used.",
+			"start": {
+				"line": 2,
+				"column": 29
+			},
+			"end": {
+				"line": 2,
+				"column": 45
+			}
+		}
+	]
+}

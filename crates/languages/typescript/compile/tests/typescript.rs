@@ -156,7 +156,7 @@ fn constructs_with_a_runtime_value_are_found() {
 }
 
 #[test]
-fn svelte_refuses_the_namespace_around_an_import_equals_and_no_ambient_body() {
+fn svelte_refuses_the_namespace_around_an_import_equals_and_an_ambient_one_with_a_value() {
     let source_text = "namespace N { import A = require('m'); }";
     assert_eq!(
         svelte_feature(source_text),
@@ -168,7 +168,11 @@ fn svelte_refuses_the_namespace_around_an_import_equals_and_no_ambient_body() {
         "declare module 'm' { export const a: number; }",
         "declare global { const a: number; }",
     ] {
-        assert_eq!(svelte_feature(source_text), None, "{source_text}");
+        assert_eq!(
+            svelte_feature(source_text),
+            Some((Feature::NamespaceWithValues, source_text.to_owned())),
+            "{source_text}"
+        );
         assert_eq!(feature(source_text), None, "{source_text}");
     }
 }

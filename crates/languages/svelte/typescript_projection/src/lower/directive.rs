@@ -196,10 +196,21 @@ impl Builder<'_> {
         self.tree.push(Node::Call { callee, arguments })
     }
 
-    /// `__rsvelte_instance(component).$on(name, handler);` for each event.
-    pub(super) fn component_events(&mut self, component: NodeIdentifier, events: &[Range]) {
+    /// `__rsvelte_constructed(component, constructed).$on(name, handler);` for each event, where
+    /// `constructed` names the component's call.
+    pub(super) fn component_events(
+        &mut self,
+        component: NodeIdentifier,
+        constructed: NodeIdentifier,
+        events: &[Range],
+    ) {
         for &arguments in events {
-            let object = self.instance(component);
+            let callee = self.tree.push(Node::Identifier("__rsvelte_constructed"));
+            let instance = self.tree.list(&[component, constructed]);
+            let object = self.tree.push(Node::Call {
+                callee,
+                arguments: instance,
+            });
             let property = self.tree.push(Node::Identifier("$on"));
             let callee = self.tree.push(Node::Member { object, property });
             let call = self.tree.push(Node::Call { callee, arguments });
@@ -242,23 +253,23 @@ impl Builder<'_> {
             },
         };
         let element = match host.kind {
-            Kind::Element { .. } => self.map_element_tag(host.name),
+            Kind::Element { .. } | Kind::Slot => self.map_element_tag(host.name),
             Kind::Component => self.tree.push(Node::Identifier("__rsvelte_any_node")),
-            Kind::Slot => return Err(unsupported()),
         };
         // svelte-check maps a finding on the movement to where svelte2tsx's last mapping before it
-        // starts: the name's last character, or the name's end when parameters follow.
+        // starts: the name's last character when the start tag's `>` follows it, or else the
+        // name's end.
         let movement = (attribute.kind == AttributeKind::Animate).then(|| {
             let value = self
                 .tree
                 .push(Node::Identifier("__sveltets_2_AnimationMove"));
-            let last = match argument {
-                Some(_) => 0,
-                None => name
-                    .text(self.source)
+            let last = if host.closes_at == Some(name.end_offset) {
+                name.text(self.source)
                     .chars()
                     .last()
-                    .map_or(0, char::len_utf8),
+                    .map_or(0, char::len_utf8)
+            } else {
+                0
             };
             let at = name.end_offset - last as u32;
             let at = Span::new(at, at);

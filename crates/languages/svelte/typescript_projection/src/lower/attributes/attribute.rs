@@ -195,7 +195,10 @@ impl Builder<'_> {
                     attribute.span.start_offset + 1,
                     value_start.unwrap_or(attribute.span.start_offset + 1),
                 );
-                Node::Spread { value, dots }
+                Node::Spread {
+                    value,
+                    dots: Some(dots),
+                }
             }
             AttributeKind::Attach => Node::ComputedProperty {
                 key: self.attachment_key(),

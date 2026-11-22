@@ -1,0 +1,1 @@
+error unsupported 7:1-7:23 a `let:` on a `<slot>` outside a component's content is not supported yet

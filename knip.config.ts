@@ -45,6 +45,9 @@ export default {
 			],
 		},
 	},
+	// SvelteKit writes the tsconfig the site extends into node_modules/$app, which no package
+	// provides, and knip cannot ignore it as a dependency because `$app` is no package name.
+	ignoreIssues: { 'apps/site/tsconfig.json': ['unlisted'] },
 	// System programs the measurement tools run.
 	ignoreBinaries: ['valgrind', 'cg_annotate', 'cc', 'clang', 'perf'],
 } satisfies KnipConfig;

@@ -5,7 +5,6 @@ use rsvelte_kernel::output::emitter::{Atom, Mapping};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 
 use super::CheckRequest;
-use crate::check::Import;
 
 #[derive(Debug)]
 pub(crate) struct ContentMappedInput {
@@ -15,8 +14,6 @@ pub(crate) struct ContentMappedInput {
     pub generated_extension: &'static str,
     pub mappings: Vec<Mapping>,
     pub atoms: Vec<Atom>,
-    /// Each relative module the document imports.
-    pub imports: Vec<Import>,
 }
 
 /// Extensions the checker reads as JavaScript or TypeScript without a content mapper.

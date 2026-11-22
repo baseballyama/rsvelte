@@ -53,7 +53,7 @@ impl<'a> Names<'a> {
 impl<'a> Builder<'a> {
     fn names(&self) -> &Names<'a> {
         self.names
-            .get_or_init(|| (self.resolution)().map(Names::of).unwrap_or_default())
+            .get_or_init(|| (self.resolution)().map_or_default(Names::of))
     }
 
     /// Whether the component binds `$$Slots`, a type included.
