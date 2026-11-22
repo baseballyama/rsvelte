@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 
 use rsvelte_kernel::computation::registry::{ProjectFiles, Registry};
 use rsvelte_plugin_interface::{
-    CallError, Extension, Settings, TaskKind, installed_bin, installed_version, program_path,
+    CallError, Extension, Settings, TaskKind, installed_bin, installed_package, installed_version,
+    program_path,
 };
 use serde::Deserialize;
 
@@ -149,8 +150,9 @@ fn install_command(base: &Path) -> &'static str {
 /// A program and the arguments that start it.
 type Command = (PathBuf, Vec<String>);
 
-/// `node` and the script of the first of [`INSTALLED`] that `base` resolves and that has the API;
-/// otherwise the TypeScript packages it resolves that are older than 7.1, as `<name> <version>`.
+/// The first of [`INSTALLED`] that `base` resolves and that has the API: its native executable,
+/// else `node` and its script; otherwise the TypeScript packages it resolves that are older than
+/// 7.1, as `<name> <version>`.
 fn installed(base: &Path) -> Result<Result<Command, Vec<String>>, CallError> {
     let mut older = Vec::new();
     for (package, bin) in INSTALLED {
@@ -166,12 +168,55 @@ fn installed(base: &Path) -> Result<Result<Command, Vec<String>>, CallError> {
             older.push(format!("{package} {version}"));
             continue;
         }
+        if let Some(executable) = native_executable(package, bin, base).map_err(failed)? {
+            return Ok(Ok((executable, Vec::new())));
+        }
         return Ok(Ok((
             "node".into(),
             vec![script.to_string_lossy().into_owned()],
         )));
     }
     Ok(Err(older))
+}
+
+/// The native executable that the script of TypeScript's package `package` starts, found as the
+/// script finds it: `lib/<bin>` of [`native_package`], which the package resolves. Running it
+/// directly saves a Node start each time the checker runs.
+fn native_executable(package: &str, bin: &str, base: &Path) -> std::io::Result<Option<PathBuf>> {
+    let name = match package {
+        "typescript" => "typescript",
+        "@typescript/native-preview" => "native-preview",
+        _ => return Ok(None),
+    };
+    let Some(native) = native_package(name) else {
+        return Ok(None);
+    };
+    let Some(directory) = installed_package(package, base)? else {
+        return Ok(None);
+    };
+    let Some(native) = installed_package(&native, &directory)? else {
+        return Ok(None);
+    };
+    let executable = (native.join("lib").join(bin)).with_extension(std::env::consts::EXE_EXTENSION);
+    Ok(executable.is_file().then_some(executable))
+}
+
+/// The package of the native build of TypeScript's package `name` for this platform:
+/// `@typescript/<name>-<process.platform>-<process.arch>`.
+fn native_package(name: &str) -> Option<String> {
+    let platform = match std::env::consts::OS {
+        "macos" => "darwin",
+        "linux" => "linux",
+        "windows" => "win32",
+        _ => return None,
+    };
+    let arch = match std::env::consts::ARCH {
+        "aarch64" => "arm64",
+        "x86_64" => "x64",
+        "arm" => "arm",
+        _ => return None,
+    };
+    Some(format!("@typescript/{name}-{platform}-{arch}"))
 }
 
 #[cfg(test)]
