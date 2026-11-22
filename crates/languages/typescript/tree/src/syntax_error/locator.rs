@@ -48,13 +48,9 @@ enum Cover {
     Bare,
 }
 
-/// The span of a class member's key, where it is a public name: an empty span for a private one.
-fn public_key(key: &oxc_ast::ast::PropertyKey<'_>) -> oxc_span::Span {
-    if key.is_private_identifier() {
-        oxc_span::Span::default()
-    } else {
-        key.span()
-    }
+/// The span of a class member's key, where it is a public name.
+fn public_key(key: &oxc_ast::ast::PropertyKey<'_>) -> Option<oxc_span::Span> {
+    (!key.is_private_identifier()).then(|| key.span())
 }
 
 /// Where the name a second declaration declares again is, which oxc labels.
@@ -122,9 +118,9 @@ pub(super) enum Find {
     SuperHome,
     /// The initializer of the class field whose key is the label.
     Initializer,
-    /// The type alias, interface or class member with a public name whose name is the label, or
-    /// the parameter list around it or the signature or function without a body that holds it,
-    /// where the label redeclares the name the span is.
+    /// The type alias, interface, class member with a public name or enum member whose name is
+    /// the label, or the parameter list around it or the signature or function without a body
+    /// that holds it, where the label redeclares the name the span is.
     Redeclared(oxc_span::Span),
     /// Where acorn reads the name the label is: the innermost function, class static block or
     /// class field initializer around it.
@@ -228,13 +224,15 @@ impl Locator {
             AstKind::FormalParameters(it) if around && self.found.is_none() => {
                 return self.found = Some((it.span.start, kind.ty()));
             }
-            AstKind::TSTypeAliasDeclaration(it) => it.id.span,
-            AstKind::TSInterfaceDeclaration(it) => it.id.span,
+            AstKind::TSTypeAliasDeclaration(it) => Some(it.id.span),
+            AstKind::TSInterfaceDeclaration(it) => Some(it.id.span),
             AstKind::PropertyDefinition(it) => public_key(&it.key),
             AstKind::MethodDefinition(it) => public_key(&it.key),
             AstKind::AccessorProperty(it) => public_key(&it.key),
-            _ => return,
+            AstKind::TSEnumMember(it) => Some(it.id.span()),
+            _ => None,
         };
+        let Some(name) = name else { return };
         self.first_is_type |= name == first;
         if name == self.label {
             self.found = Some((name.start, kind.ty()));

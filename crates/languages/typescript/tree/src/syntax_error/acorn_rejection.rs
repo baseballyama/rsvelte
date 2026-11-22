@@ -46,9 +46,9 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
         "1047" => optional_rest(start, end, visit) == Some(Ok(())),
         // acorn-typescript reads a class accessor without a body as a signature.
         "1005" => locate(start, end, Find::BodilessAccessor, visit).is_some(),
-        // acorn-typescript checks no interface, no public class member, no parameter of a
-        // signature or of a function without a body, and a type alias only against the types
-        // before it.
+        // acorn-typescript checks no interface, public class member, enum member, nor parameter
+        // of a signature or of a function without a body, and a type alias only against the
+        // types before it.
         "2300" => {
             let Some(second) = error.labels.get(1) else {
                 return false;
@@ -62,6 +62,7 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
                     | AstType::PropertyDefinition
                     | AstType::MethodDefinition
                     | AstType::AccessorProperty
+                    | AstType::TSEnumMember
                     | AstType::Function
                     | AstType::TSFunctionType
                     | AstType::TSConstructorType
