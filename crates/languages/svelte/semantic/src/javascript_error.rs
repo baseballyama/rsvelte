@@ -100,12 +100,16 @@ fn first_of<'s>(
     keep: impl Fn(&SyntaxError, Option<&Semantic>) -> bool,
 ) -> Option<SyntaxError> {
     let analyzed = semantics.into_iter().flat_map(|semantic| {
-        let checked = semantic.javascript_syntax_error().cloned().map(|error| {
-            let redeclared = error.typescript_code == Some(2300);
-            (error, redeclared.then_some(semantic))
-        });
+        // Every error: one upstream raises later than parsing can hide the next.
+        let checked = semantic
+            .javascript_syntax_errors()
+            .iter()
+            .map(move |error| {
+                let redeclared = error.typescript_code == Some(2300);
+                (error.clone(), redeclared.then_some(semantic))
+            });
         let redeclared = (semantic.acorn_redeclaration()).map(|error| (error, Some(semantic)));
-        checked.into_iter().chain(redeclared)
+        checked.chain(redeclared)
     });
     (tree
         .acorn_rejection()
