@@ -50,11 +50,6 @@ impl HostFormatter for Svelte {
         options.sort_imports.clone_from(&javascript.sort_imports);
         options.jsdoc.clone_from(&javascript.jsdoc);
         if let Some(sort) = &javascript.sort_tailwindcss {
-            if let Some(pattern) = sort.attributes.iter().find(|a| a.starts_with('/')) {
-                return Err(unprinted(&format!(
-                    "the classes of the attributes `sortTailwindcss` names by a pattern ({pattern})"
-                )));
-            }
             let sorter = tailwind::ForFile {
                 tailwind: self.0.clone(),
                 options: prettier.clone(),

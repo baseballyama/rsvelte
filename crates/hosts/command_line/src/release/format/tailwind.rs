@@ -9,10 +9,11 @@ use oxfmt::HostTailwindSorter;
 use rsvelte_svelte_format::tailwind::ClassSorter;
 use serde_json::{Value, json};
 
-/// Reads one request per line, `{ options, classes }` or `{ options, lists }`, and answers each
-/// with one line, `{ sorted }` or `{ error }`. It sorts `classes` as oxfmt's `sortTailwindClasses`
-/// does, and gives each of `lists` in Tailwind CSS's order with whether Tailwind CSS knows each
-/// class, as `[class, known]`.
+/// Reads one request per line, `{ options, classes }`, `{ options, lists }` or
+/// `{ options, names }`, and answers each with one line, `{ sorted }` or `{ error }`. It sorts
+/// `classes` as oxfmt's `sortTailwindClasses` does, gives each of `lists` in Tailwind CSS's order
+/// with whether Tailwind CSS knows each class, as `[class, known]`, and tells whether each of
+/// `names` is an attribute whose classes sort, as the plugin's matcher does.
 const SORTER: &str = r#"
 import { createInterface } from "node:readline";
 import { createRequire } from "node:module";
@@ -37,8 +38,30 @@ function load(filepath) {
 	return modules.get(path);
 }
 
+// The plugin's `createMatcher` and `parseRegex`: an entry that is not a regular expression is a
+// name. Its expressions are made once per file, as the plugin makes them, since a `g` one keeps
+// state between tests.
+function matchAttributes(attributes, names) {
+	const exact = new Set(["class"]);
+	const patterns = [];
+	for (const attribute of attributes) {
+		let pattern = null;
+		const last = attribute.lastIndexOf("/");
+		if (attribute.startsWith("/") && last > 0) {
+			try {
+				pattern = new RegExp(attribute.slice(1, last), attribute.slice(last + 1));
+			} catch {}
+		}
+		if (pattern) patterns.push(pattern);
+		else exact.add(attribute);
+	}
+	return names
+		.map((name) => name ?? undefined)
+		.map((name) => exact.has(name) || patterns.some((pattern) => pattern.test(name)));
+}
+
 for await (const line of createInterface({ input: process.stdin })) {
-	const { options, classes, lists } = JSON.parse(line);
+	const { options, classes, lists, names } = JSON.parse(line);
 	let answer;
 	try {
 		const { createSorter } = await load(options.filepath);
@@ -55,7 +78,9 @@ for await (const line of createInterface({ input: process.stdin })) {
 			if (!sorters.has(key)) sorters.set(key, createSorter(settings));
 			return sorters.get(key);
 		};
-		if (classes) {
+		if (names) {
+			answer = { sorted: matchAttributes(options.tailwindAttributes ?? [], names) };
+		} else if (classes) {
 			answer = { sorted: (await sorter(settings)).sortClassAttributes(classes) };
 		} else {
 			const preserving = await sorter({ ...settings, preserveDuplicates: true });
@@ -123,6 +148,14 @@ impl ClassSorter for ForFile {
             .ask(&self.options, json!({ "lists": lists }))?;
         serde_json::from_value(sorted.clone())
             .map_err(|error| format!("the Tailwind CSS sorter answered {sorted}: {error}"))
+    }
+
+    fn match_attributes(&self, names: Vec<Option<String>>) -> Result<Vec<bool>, String> {
+        let matched = self
+            .tailwind
+            .ask(&self.options, json!({ "names": names }))?;
+        serde_json::from_value(matched.clone())
+            .map_err(|error| format!("the Tailwind CSS sorter answered {matched}: {error}"))
     }
 }
 
