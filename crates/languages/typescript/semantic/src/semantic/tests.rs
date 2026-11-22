@@ -68,9 +68,10 @@ fn acorn_reports(
     semantic
         .javascript_syntax_error()
         .map(|error| match &error.acorn {
-            Some(rsvelte_typescript_tree::Acorn::Fails { message, at }) => {
-                (message.to_string(), *at)
-            }
+            Some(
+                rsvelte_typescript_tree::Acorn::Fails { message, at }
+                | rsvelte_typescript_tree::Acorn::FailsLater { message, at, .. },
+            ) => (message.to_string(), *at),
             other => panic!("{text:?}: acorn fails, not {other:?}"),
         })
 }

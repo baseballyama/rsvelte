@@ -99,7 +99,7 @@ impl<'a> Parser<'a, '_> {
 pub fn javascript_failure(error: SyntaxError) -> Diagnostic {
     match error.acorn {
         Some(Acorn::Stops(at)) => unexpected_token(at),
-        Some(Acorn::Fails { message, at }) => {
+        Some(Acorn::Fails { message, at } | Acorn::FailsLater { message, at, .. }) => {
             svelte_error("js_parse_error", message, Span::new(at, at))
         }
         None => javascript_error(error.into()),

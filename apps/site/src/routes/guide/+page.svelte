@@ -37,8 +37,8 @@
 <pre><code class="language-sh">rsvelte lint [path...]</code></pre>
 
 <p>
-	<code>lint</code> checks the Svelte, JavaScript and TypeScript files below each path. By default, the
-	path is the current directory. It reads these extensions:
+	<code>lint</code> checks the Svelte, JavaScript and TypeScript files below each path. By default,
+	the path is the current directory. It reads these extensions:
 </p>
 
 <ul class="inline">
@@ -65,7 +65,8 @@
 </p>
 
 <p>
-	Without a configuration, these rules run. The <a href={resolve('/rules')}>rules page</a> lists the others.
+	Without a configuration, these rules run. The <a href={resolve('/rules')}>rules page</a> lists the
+	others.
 </p>
 
 <ul>
@@ -89,14 +90,16 @@
 
 <p>
 	It formats each file that oxfmt formats itself, such as TypeScript, JSON, CSS and Markdown. It
-	also formats the <code>svelte</code> code blocks in Markdown. It skips the files that oxfmt hands to
-	Prettier.
+	also formats the <code>svelte</code> code blocks in Markdown. It skips the files that oxfmt hands
+	to Prettier.
 </p>
 
 <p>
 	It formats Svelte files with every option that oxfmt gives prettier-plugin-svelte. It applies
 	<code>sortImports</code>, <code>jsdoc</code> and <code>sortTailwindcss</code> to them as oxfmt
-	does. <code>"svelte": false</code> in the configuration turns Svelte formatting off.
+	does. <code>"svelte": false</code> in the configuration turns Svelte formatting off. Like oxfmt,
+	it refuses a configuration that sets <code>experimentalTernaries</code>, which oxc does not print
+	yet.
 </p>
 
 <h2 id="typecheck"><code>typecheck</code></h2>
@@ -127,15 +130,15 @@ npm install --save-dev @typescript/native-preview   # 7.1 or newer`}</code
 
 <ul>
 	<li>
-		No configuration file, or no <code>typescript.check</code>: the <code>tsconfig.json</code> in the
-		current directory.
+		No configuration file, or no <code>typescript.check</code>: the <code>tsconfig.json</code> in
+		the current directory.
 	</li>
 	<li>
 		<code>typescript.check</code> with <code>"tsconfig"</code>: the file at that path.
 	</li>
 	<li>
-		<code>typescript.check</code> without <code>"tsconfig"</code>: the <code>tsconfig.json</code> next
-		to the configuration file.
+		<code>typescript.check</code> without <code>"tsconfig"</code>: the <code>tsconfig.json</code>
+		next to the configuration file.
 	</li>
 </ul>
 
@@ -145,8 +148,8 @@ npm install --save-dev @typescript/native-preview   # 7.1 or newer`}</code
 	<code>lint</code> and <code>typecheck</code> read <code>rsvelte.config.json</code>. The file can
 	also be a <code>rsvelte.config.js</code> or <code>rsvelte.config.ts</code>, which Node evaluates.
 	rsvelte looks for the file in the current directory, then in each parent. Use
-	<code>--config &lt;file&gt;</code> to choose a file. Two configuration files in one directory are an
-	error.
+	<code>--config &lt;file&gt;</code> to choose a file. Two configuration files in one directory are
+	an error.
 </p>
 
 <pre><code class="language-json"
@@ -215,8 +218,8 @@ npm install --save-dev @typescript/native-preview   # 7.1 or newer`}</code
 			<td><code>format</code></td>
 			<td><code>--check</code> found a file to format, or the oxfmt configuration is invalid</td>
 			<td>
-				<code>format</code> failed on a file (for example, because of an unsupported Svelte option), or
-				no path matched a file
+				<code>format</code> failed on a file (for example, because of an unsupported Svelte option),
+				or no path matched a file
 			</td>
 		</tr>
 	</tbody>
@@ -275,8 +278,8 @@ export default [
 		<code>&lt;script lang="ts"&gt;</code>, it can report no error at all.
 	</li>
 	<li>
-		<code>lint</code> and <code>format</code> read legacy syntax, but their results can differ from the
-		official tools.
+		<code>lint</code> and <code>format</code> read legacy syntax, but their results can differ from
+		the official tools.
 	</li>
 </ul>
 
