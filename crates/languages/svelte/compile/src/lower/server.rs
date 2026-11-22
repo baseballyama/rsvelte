@@ -22,7 +22,7 @@ mod template;
 
 use std::borrow::Cow;
 
-use oxc_ast::ast::{Statement, UnaryOperator, VariableDeclarationKind};
+use oxc_ast::ast::{BindingIdentifier, Statement, UnaryOperator, VariableDeclarationKind};
 use oxc_semantic::SymbolId;
 use oxc_span::{SPAN, Span};
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -36,7 +36,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::builder::{Runtime, export_default, import};
 use super::names::Names;
-use super::{Builder, Prepared, takes_props, uses_slots};
+use super::{Builder, Prepared, props_id_declaration, takes_props, uses_slots};
 use crate::input::{CompileInput, Target};
 use crate::render_plan::RenderPlan;
 
@@ -79,13 +79,14 @@ fn wrap_body<'o>(
     b: &Builder<'o>,
     an: &Analysis,
     res: &Resolution,
-    props_id: Option<&str>,
+    props_id: Option<&BindingIdentifier<'_>>,
     mut body: Vec<Statement<'o>>,
     instance: Span,
 ) -> (Vec<Statement<'o>>, Span) {
     let mut function_body = instance;
     if let Some(id) = props_id {
-        body.insert(0, b.const_(id, b.runtime("props_id", [b.id("$$renderer")])));
+        let init = b.runtime("props_id", [b.id("$$renderer")]);
+        body.insert(0, props_id_declaration(b, id, init));
     }
     if an.needs_context {
         let callback = b.arrow_block_at(instance, b.parameters(["$$renderer"]), body, false);
@@ -166,7 +167,7 @@ pub(super) fn lower_prepared<'c, 'o>(
     body.extend(bind_props(b, res, &exports));
     let stylesheet = super::embedded_stylesheet(b, &facts, Target::Server);
     let instance = super::script::instance_span(input.component);
-    let (mut body, body_span) = wrap_body(b, an, res, props_id.as_deref(), body, instance);
+    let (mut body, body_span) = wrap_body(b, an, res, props_id, body, instance);
     if stylesheet.is_some() {
         let add = b.member(
             b.member(b.member(b.id("$$renderer"), "global"), "css"),
