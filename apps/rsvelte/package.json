@@ -1,0 +1,32 @@
+{
+	"name": "@rsvelte-experimental/rsvelte",
+	"private": true,
+	"description": "rsvelte's JavaScript API: rsvelte/compiler, the official svelte/compiler API over rsvelte's compiler",
+	"files": [
+		"binding.js",
+		"compiler.js",
+		"compiler.d.ts"
+	],
+	"type": "module",
+	"exports": {
+		"./compiler": {
+			"types": "./compiler.d.ts",
+			"default": "./compiler.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
+	},
+	"devDependencies": {
+		"@types/node": "26.6.6",
+		"acorn": "8.19.0",
+		"svelte": "5.57.3"
+	},
+	"peerDependencies": {
+		"svelte": "5.57.3"
+	},
+	"engines": {
+		"node": ">=26"
+	}
+}

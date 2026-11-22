@@ -214,6 +214,18 @@ importers:
         specifier: 6.0.3
         version: 6.0.3
 
+  apps/rsvelte:
+    devDependencies:
+      '@types/node':
+        specifier: 26.6.6
+        version: 26.6.6
+      acorn:
+        specifier: 8.19.0
+        version: 8.19.0
+      svelte:
+        specifier: 5.57.3
+        version: 5.57.3(@typescript-eslint/types@8.72.1)
+
   apps/site:
     devDependencies:
       '@codemirror/commands':
@@ -6389,7 +6401,7 @@ snapshots:
 
   '@types/concat-stream@2.0.3':
     dependencies:
-      '@types/node': 18.19.130
+      '@types/node': 26.6.6
 
   '@types/debug@4.1.13':
     dependencies:

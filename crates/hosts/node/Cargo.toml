@@ -1,0 +1,23 @@
+[package]
+name = "rsvelte_node"
+description = "The Node.js binding: the entry points of the official `svelte/compiler`"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+crate-type = ["cdylib"]
+
+[dependencies]
+rsvelte_kernel.workspace = true
+rsvelte_svelte_compile.workspace = true
+napi = { version = "3.8", default-features = false, features = ["napi4"] }
+napi-derive = "3.7"
+
+[build-dependencies]
+napi-build = "2.6"
+
+[lints]
+workspace = true
