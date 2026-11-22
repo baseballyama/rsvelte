@@ -221,7 +221,7 @@ export default function PivotTableUI($$renderer, $$props) {
 		$$renderer.subsume($$inner_renderer);
 	});
 }
-=== 874 src/lib/PlotlyRenderer.svelte	js
+=== 793 src/lib/PlotlyRenderer.svelte	js
 import * as $ from 'svelte/internal/server';
 import PivotData from "./PivotData";
 import Plotly from "./UI/Plotly.svelte";
@@ -254,16 +254,14 @@ export default function PlotlyRenderer($$renderer, $$props) {
 		let layout = {};
 
 		Plotly($$renderer, {
-			layout: /* eslint-disable no-magic-numbers */
-			/* eslint-enable no-magic-numbers */
-			{ ...layout, ...layoutOptions, ...plotlyOptions },
+			layout: { ...layout, ...layoutOptions, ...plotlyOptions },
 			data,
 			config: plotlyConfig,
 			onUpdate: onRendererUpdate
 		});
 	});
 }
-=== 719 src/lib/ScatterRenderer.svelte	js
+=== 638 src/lib/ScatterRenderer.svelte	js
 import * as $ from 'svelte/internal/server';
 import PivotData from "./PivotData";
 import Plotly from "./UI/Plotly.svelte";
@@ -286,9 +284,7 @@ export default function ScatterRenderer($$renderer, $$props) {
 		let data = { type: "scatter", mode: "markers" };
 
 		Plotly($$renderer, {
-			data: /* eslint-disable no-magic-numbers */
-			/* eslint-enable no-magic-numbers */
-			[data],
+			data: [data],
 			layout: Object.assign(layout ?? {}, plotlyOptions),
 			config: plotlyConfig,
 			onUpdate: onRendererUpdate
@@ -325,7 +321,7 @@ export default function TSVExportRenderer($$renderer, $$props) {
 		$$renderer.push(`</textarea>`);
 	});
 }
-=== 9839 src/lib/TableRenderer.svelte	js
+=== 9791 src/lib/TableRenderer.svelte	js
 import * as $ from 'svelte/internal/server';
 import "./grouping.css";
 import PivotData from "./PivotData";
@@ -345,7 +341,6 @@ export default function TableRenderer($$renderer, $$props) {
 
 		let pivotData = new PivotData(restProps);
 
-		// When this is $derived we experience issues
 		// helper function for setting row/col-span in pivotTableRenderer
 		const spanSize = function (arr, i, j, no_loop = false) {
 			let x;
@@ -1176,12 +1171,12 @@ export default function _page($$renderer, $$props) {
 		};
 
 		$.head('1uha8ag', $$renderer, ($$renderer) => {
+			$$renderer.push(`<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet"/> <link href="https://fonts.googleapis.com/css?family=Dosis|Open+Sans" rel="stylesheet"/> `);
+			$$renderer.push(`<script src="https://cdn.plot.ly/plotly-basic-latest.min.js"></script>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>Svelte pivottable</title>`);
 			});
-
-			$$renderer.push(`<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet"/> <link href="https://fonts.googleapis.com/css?family=Dosis|Open+Sans" rel="stylesheet"/> `);
-			$$renderer.push(`<script src="https://cdn.plot.ly/plotly-basic-latest.min.js"></script>`);
 		});
 
 		$$renderer.push(`<nav class="navbar navbar-inverse navbar-static-top svelte-1uha8ag"><div class="container"><div class="navbar-header"><button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"><span class="sr-only">Toggle navigation</span> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span></button> <a class="navbar-brand" href="#">svelte-pivottable</a></div> <div id="navbar" class="navbar-collapse collapse"></div></div></nav> <div class="jumbotron svelte-1uha8ag"><div class="container"><h1 class="svelte-1uha8ag">svelte-pivottable</h1> <p class="svelte-1uha8ag">Svelte-based drag'n'drop pivot table with grouping and Plotly.js charts.</p> <p class="svelte-1uha8ag"><a class="btn btn-primary btn-lg svelte-1uha8ag" href="https://github.com/plotly/svelte-pivottable#readme" role="button">Get started »</a></p></div></div> <div class="container"><div class="row text-center"><div class="col-md-2 col-md-offset-3"><label class="checkbox-inline" style="text-transform: capitalize;"><input type="checkbox"${$.attr('checked', grouping, true)}/> Grouping</label></div> <fieldset class="col-md-6"${$.attr('disabled', !grouping, true)}><label class="checkbox-inline" style="text-transform: capitalize;"><input type="checkbox"${$.attr('checked', compactRows, true)}/> Compact Rows</label> <label class="checkbox-inline" style="text-transform: capitalize;"><input type="checkbox"${$.attr('checked', rowGroupBefore, true)}/> Rows totals above</label> <label class="checkbox-inline" style="text-transform: capitalize;"><input type="checkbox"${$.attr('checked', colGroupBefore, true)}/> Cols totals before</label></fieldset> <br/><br/></div> `);

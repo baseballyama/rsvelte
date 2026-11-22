@@ -1375,10 +1375,6 @@ export default function GlobalLayout($$renderer, $$props) {
 		let searchOpen = false;
 
 		$.head('1mzwsy8', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>${$.escape(blogConfig.title ?? 'Blog')}</title>`);
-			});
-
 			$$renderer.push(`<meta property="og:site_name"${$.attr('content', blogConfig.title ?? 'Blog')}/> <meta property="og:type" content="website"/> <meta property="og:title"${$.attr('content', blogConfig.title ?? 'Blog')}/> `);
 
 			if (blogConfig.description) {
@@ -1396,6 +1392,10 @@ export default function GlobalLayout($$renderer, $$props) {
 			}
 
 			$$renderer.push(`<!--]-->`);
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(blogConfig.title ?? 'Blog')}</title>`);
+			});
 		});
 
 		$$renderer.push(`<div class="sp-blog-root svelte-1mzwsy8">`);
@@ -2138,10 +2138,6 @@ export default function PostLayout($$renderer, $$props) {
 		});
 
 		$.head('1str98b', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>${$.escape(post.title)} | ${$.escape(siteTitle)}</title>`);
-			});
-
 			$$renderer.push(`<meta property="og:type" content="article"/> <meta property="og:title"${$.attr('content', post.title)}/> <meta name="description"${$.attr('content', post.excerpt)}/> <meta property="og:description"${$.attr('content', post.excerpt)}/> <meta property="og:image"${$.attr('content', ogImage())}/> <meta property="article:published_time"${$.attr('content', post.date)}/> `);
 
 			if (post.author) {
@@ -2161,6 +2157,10 @@ export default function PostLayout($$renderer, $$props) {
 			}
 
 			$$renderer.push(`<!--]--> ${$.html(`<${'script'} type="application/ld+json">${jsonLd()}</${'script'}>`)}`);
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(post.title)} | ${$.escape(siteTitle)}</title>`);
+			});
 		});
 
 		ReadingProgress($$renderer, { target: '.sp-post' });
@@ -2610,7 +2610,7 @@ export default function RelatedPosts($$renderer, $$props) {
     text-align: center;
   }
 
-=== 3981 packages/theme-blog/src/components/SearchModal.svelte	js
+=== 3958 packages/theme-blog/src/components/SearchModal.svelte	js
 import * as $ from 'svelte/internal/server';
 import { goto } from '$app/navigation';
 import { base } from '$app/paths';
@@ -2654,7 +2654,6 @@ export default function SearchModal($$renderer, $$props) {
 
 		// When the modal opens: load Pagefind, focus input, remember the opener
 		// so we can restore focus on close.
-		// Focus after mount
 		// Reset transient search state whenever the modal closes. Without this a
 		// fast-typed search followed by Esc would fire runSearch against a closed
 		// modal, and the next open would flash stale results.
@@ -3309,15 +3308,13 @@ export default function TaxonomyHeader($$renderer, $$props) {
     color: var(--sp-blog-primary);
   }
 
-=== 1744 packages/theme-blog/src/components/ThemeToggle.svelte	js
+=== 1618 packages/theme-blog/src/components/ThemeToggle.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function ThemeToggle($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
 		let theme = 'dark';
 
-		// Read the value set by the anti-FOWT inline script
-		// Follow OS preference changes when the user hasn't manually chosen
 		function toggle() {
 			theme = theme === 'dark' ? 'light' : 'dark';
 			document.documentElement.dataset.theme = theme;
@@ -5858,13 +5855,13 @@ export default function PageLayout($$renderer, $$props) {
 		});
 
 		$.head('u5a9kx', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="description"${$.attr('content', fm.description || siteConfig.description)}/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>${$.escape(fm.title
 					? `${fm.title} - ${siteConfig.title}`
 					: siteConfig.title)}</title>`);
 			});
-
-			$$renderer.push(`<meta name="description"${$.attr('content', fm.description || siteConfig.description)}/>`);
 		});
 
 		if (layout === false) {

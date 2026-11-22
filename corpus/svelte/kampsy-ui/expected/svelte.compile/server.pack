@@ -652,7 +652,7 @@ export default function Button($$renderer, $$props) {
 		$.bind_props($$props, { buttonElement });
 	});
 }
-=== 6950 src/lib/calendar/calendar.svelte	js
+=== 6901 src/lib/calendar/calendar.svelte	js
 import * as $ from 'svelte/internal/server';
 import { clickOutside, componentPosition } from "$lib/utils/event.js";
 import { cubicOut } from "svelte/easing";
@@ -709,7 +709,6 @@ export default function Calendar_1($$renderer, $$props) {
 			monthAndYear = "";
 		};
 
-		// update when the user is resizing the window
 		const toggle = (evt) => {
 			desktopPosition = componentPosition(evt);
 			isActive = !isActive;
@@ -2796,7 +2795,7 @@ export default function Link($$renderer, $$props) {
 
 	$$renderer.push(`<!--]-->`);
 }
-=== 1176 src/lib/menu/root.svelte	js
+=== 1094 src/lib/menu/root.svelte	js
 import * as $ from 'svelte/internal/server';
 import { clickOutside } from "$lib/utils/event.js";
 import { fade } from "svelte/transition";
@@ -2817,9 +2816,7 @@ export default function Root($$renderer, $$props) {
 
 		setContext("menu", rootState);
 
-		if (// update when the user is resizing the window
-		// when the esc key is pressed
-		rootState.getIsActive()) {
+		if (rootState.getIsActive()) {
 			$$renderer.push(`<!--[0--><div class="bg-kui-black fixed top-0 left-0 z-1000 h-full w-full opacity-40 lg:hidden"></div>`);
 		} else {
 			$$renderer.push('<!--[-1-->');
@@ -3038,7 +3035,7 @@ export default function Header($$renderer, $$props) {
 		$$renderer.push(`<!--]-->`);
 	});
 }
-=== 984 src/lib/modal/root.svelte	js
+=== 935 src/lib/modal/root.svelte	js
 import * as $ from 'svelte/internal/server';
 import { setContext } from "svelte";
 import { createModalState } from "./root.svelte.js";
@@ -3053,8 +3050,7 @@ export default function Root($$renderer, $$props) {
 
 		setContext("modal", rootState);
 
-		if (// update when the user is resizing the window
-		active) {
+		if (active) {
 			$$renderer.push(`<!--[0--><div class="bg-kui-black fixed top-0 left-0 z-1000 h-full w-full opacity-40"></div>`);
 		} else {
 			$$renderer.push('<!--[-1-->');
@@ -3609,7 +3605,7 @@ export default function Item($$renderer, $$props) {
 		$$renderer.push(`<!----></span></button>`);
 	});
 }
-=== 1325 src/lib/select/root.svelte	js
+=== 1187 src/lib/select/root.svelte	js
 import * as $ from 'svelte/internal/server';
 import { clickOutside } from "$lib/utils/event.js";
 import { setContext } from "svelte";
@@ -3641,10 +3637,6 @@ export default function Root($$renderer, $$props) {
 		setContext("select", rootState);
 
 		if (// Assign the selected value to the parent component value prop when changed.
-		// update when the user is resizing the window
-		// when the esc key is pressed
-		// When error is changed
-		// When loading is changed
 		rootState.getIsActive()) {
 			$$renderer.push(`<!--[0--><div class="bg-kui-black fixed top-0 left-0 z-1000 h-full w-full opacity-[0.4] lg:hidden"></div>`);
 		} else {
@@ -4328,7 +4320,7 @@ export default function Item($$renderer, $$props) {
 		$$renderer.push(`<!--]--></div></button>`);
 	});
 }
-=== 1161 src/lib/splitButton/root.svelte	js
+=== 1112 src/lib/splitButton/root.svelte	js
 import * as $ from 'svelte/internal/server';
 import { clickOutside } from "$lib/utils/event.js";
 import { fade } from "svelte/transition";
@@ -4349,8 +4341,7 @@ export default function Root($$renderer, $$props) {
 
 		setContext("split-button", rootState);
 
-		if (// update when the user is resizing the window
-		rootState.getIsActive()) {
+		if (rootState.getIsActive()) {
 			$$renderer.push(`<!--[0--><div class="fixed top-0 left-0 z-1000 h-full w-full bg-black opacity-[0.4] lg:hidden"></div>`);
 		} else {
 			$$renderer.push('<!--[-1-->');
@@ -5057,7 +5048,7 @@ export default function Tabs($$renderer, $$props) {
 		$.bind_props($$props, { selected });
 	});
 }
-=== 3712 src/lib/text/text.svelte	js
+=== 3662 src/lib/text/text.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function Text($$renderer, $$props) {
@@ -5140,9 +5131,7 @@ export default function Text($$renderer, $$props) {
 
 		let truncateClass = truncate ? "truncate" : "";
 
-		$$renderer.push(`<p${$.attr_class(`text-kui-light-gray-1000 dark:text-kui-dark-gray-1000 ${$.stringify(// update when the user is resizing the window
-		sizeClass())} ${truncateClass} ${$.stringify(klass)}`)}>`);
-
+		$$renderer.push(`<p${$.attr_class(`text-kui-light-gray-1000 dark:text-kui-dark-gray-1000 ${$.stringify(sizeClass())} ${truncateClass} ${$.stringify(klass)}`)}>`);
 		children($$renderer);
 		$$renderer.push(`<!----></p>`);
 	});
@@ -5603,7 +5592,7 @@ export default function Toggle($$renderer, $$props) {
 		$.bind_props($$props, { checked });
 	});
 }
-=== 9543 src/lib/tooltip/tooltip.svelte	js
+=== 9491 src/lib/tooltip/tooltip.svelte	js
 import * as $ from 'svelte/internal/server';
 import { getStringWidth } from "$lib/utils/text.js";
 
@@ -5619,7 +5608,6 @@ export default function Tooltip($$renderer, $$props) {
 
 		let widthClass = "width:250px";
 
-		// 24 is for the left 12px and right 12px padding
 		const positionObj = {
 			top: `bottom-[125%] left-[50%] translate-x-[-50%] text-kui-dark-gray-1000
 				dark:text-kui-light-gray-1000 bg-kui-light-gray-1000 dark:bg-kui-dark-gray-1000 after:content-[' ']

@@ -89,6 +89,7 @@ const $$set_attribute = (el, name, value) => {
 	if (cache[name] === (cache[name] = value)) return;
 	if (value == null) el.removeAttribute(name);
 	else if (typeof value !== "string" && $$setters(el).has(name)) el[name] = value;
+	else if (name.startsWith("xlink:")) el.setAttributeNS("http://www.w3.org/1999/xlink", name, value);
 	else el.setAttribute(name, value);
 };
 const $$aliases = {

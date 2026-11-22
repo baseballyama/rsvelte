@@ -8,7 +8,7 @@ use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_typescript_compile::strip::is_type_only;
 use rsvelte_typescript_tree::node_span;
 
-use super::statements::{Inspect, declares_nothing, inspect, inspects_with, is_effect};
+use super::statements::{Inspect, declares_nothing, inspect, inspects_with, removed_on_server};
 use super::{Export, ScriptRewrite, declarators, exports, props};
 use crate::input::Target;
 use crate::lower::names::Names;
@@ -63,9 +63,7 @@ pub(in crate::lower) fn lower_script<'t, 'o>(
     let mut out = Vec::with_capacity(program.directives.len() + program.body.len());
     // Upstream's parser reads a prologue as statements, which it keeps where they are.
     if !matches!(context, ScriptContext::File) {
-        out.extend(
-            (program.directives.iter()).map(|d| rw.b.statement(rw.b.string(d.directive.as_str()))),
-        );
+        out.extend((program.directives.iter()).map(|d| rw.b.directive(d.directive.as_str())));
     }
     for statement in &program.body {
         // Upstream erases the types before it analyzes the component.
@@ -134,9 +132,10 @@ pub(in crate::lower) fn lower_script<'t, 'o>(
             Statement::VariableDeclaration(d) => {
                 lower_declaration(rw, d, instance, &mut out, hoisted, names);
             }
-            // Upstream server `ExpressionStatement`: an effect renders nothing.
             Statement::EmptyStatement(_) => {}
-            _ if rw.target == Target::Server && is_effect(rw.res, statement) => {}
+            _ if rw.target == Target::Server && removed_on_server(rw.res, statement) => {
+                rw.removed.push(oxc_span::GetSpan::span(statement));
+            }
             _ if let Some(inspect) = inspect(rw.res, statement) => {
                 if inspect == Inspect::Value {
                     let span = oxc_span::GetSpan::span(statement);

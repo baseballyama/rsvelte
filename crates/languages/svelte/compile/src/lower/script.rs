@@ -10,6 +10,7 @@ mod patterns;
 mod program;
 mod props;
 mod statements;
+pub(super) use statements::outside;
 mod stores;
 mod writes;
 
@@ -30,7 +31,7 @@ pub use patterns::is_expression_async;
 pub(super) use program::{ScriptContext, lower_declaration_tag, lower_script, props_id};
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rustc_hash::FxHashMap;
-use statements::{Inspect, inspect, inspects_with, is_effect};
+use statements::{Inspect, inspect, inspects_with, removed_on_server};
 pub(super) use writes::mutates_signal;
 
 use super::Builder;
@@ -67,6 +68,8 @@ pub(super) struct ScriptRewrite<'r, 'o> {
     /// The rest props that the writes being rewritten hold directly, `rest.key = value` or
     /// `target = rest.key`: upstream reads `$$props` for every other `rest.key`.
     pub held: Vec<ReferenceId>,
+    /// The statements the server removed, whose comments it removes with them.
+    pub removed: Vec<Span>,
 }
 
 impl<'r, 'o> ScriptRewrite<'r, 'o> {
@@ -86,6 +89,7 @@ impl<'r, 'o> ScriptRewrite<'r, 'o> {
             classes: Classes::default(),
             names: None,
             held: Vec::new(),
+            removed: Vec::new(),
         }
     }
 }
@@ -461,11 +465,14 @@ impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
     }
 
     fn visit_statement(&mut self, it: &mut Statement<'o>) {
-        // Upstream server `ExpressionStatement`: an effect renders nothing.
-        if self.target == Target::Server && is_effect(self.res, it)
-            || inspect(self.res, it) == Some(Inspect::Trace)
-        {
-            *it = Statement::new_empty_statement(oxc_span::GetSpan::span(it), self.b);
+        let span = oxc_span::GetSpan::span(it);
+        if self.target == Target::Server && removed_on_server(self.res, it) {
+            self.removed.push(span);
+            *it = Statement::new_empty_statement(span, self.b);
+            return;
+        }
+        if inspect(self.res, it) == Some(Inspect::Trace) {
+            *it = Statement::new_empty_statement(span, self.b);
             return;
         }
         self.statement_patterns(it);

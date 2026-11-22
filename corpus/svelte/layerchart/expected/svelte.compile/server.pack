@@ -55581,7 +55581,7 @@ export default function Shapefile_preview($$renderer) {
 
 	$$renderer.subsume($$inner_renderer);
 }
-=== 8448 docs/src/examples/components/GeoProjection/topojson-preview.svelte	js
+=== 8376 docs/src/examples/components/GeoProjection/topojson-preview.svelte	js
 import * as $ from 'svelte/internal/server';
 
 import {
@@ -55623,8 +55623,6 @@ export default function Topojson_preview($$renderer, $$props) {
 		let geojson = void 0;
 		let error = '';
 		let selectedTab = 'input';
-
-		// TODO: Add dropdown to select features instead of only using first
 		let projection = geoMercator;
 
 		const projections = [
@@ -55919,7 +55917,7 @@ export default function Topojson_preview($$renderer, $$props) {
 		$$renderer.subsume($$inner_renderer);
 	});
 }
-=== 16324 docs/src/examples/components/GeoProjection/true-size-globe.svelte	js
+=== 16279 docs/src/examples/components/GeoProjection/true-size-globe.svelte	js
 import * as $ from 'svelte/internal/server';
 
 import {
@@ -56085,7 +56083,6 @@ export default function True_size_globe($$renderer, $$props) {
 			return Math.max(zoomMin, Math.min(zoomMax, buffer / (2 * Math.sin(theta / 2))));
 		}
 
-		// Clear preset if selection doesn't match
 		// Auto-zoom: reacts to either selection changing
 		// Presets for quick comparisons (matching reference example)
 		const presets = [
@@ -57457,7 +57454,7 @@ export default function Textures($$renderer) {
 
 	$$renderer.subsume($$inner_renderer);
 }
-=== 4084 docs/src/examples/components/GeoRaster/tiles-globe.svelte	js
+=== 4060 docs/src/examples/components/GeoRaster/tiles-globe.svelte	js
 import * as $ from 'svelte/internal/server';
 import { geoMercator, geoOrthographic } from 'd3-geo';
 import { feature } from 'topojson-client';
@@ -57481,7 +57478,6 @@ export default function Tiles_globe($$renderer, $$props) {
 		// selected zoom level. Re-fetched whenever `serviceUrl` or `zoom` changes.
 		let mosaic = null;
 
-		// 2^z tiles per side
 		// Source projection for the mosaic: Web Mercator sized to exactly match the
 		// stitched canvas dimensions. Re-created when `zoom` changes.
 		const sourceProjection = $.derived(() => () => {
@@ -92459,7 +92455,7 @@ export default function Html_nodes($$renderer, $$props) {
 		$.bind_props($$props, { data });
 	});
 }
-=== 7962 docs/src/examples/components/Tree/playground.svelte	js
+=== 7913 docs/src/examples/components/Tree/playground.svelte	js
 import * as $ from 'svelte/internal/server';
 import { cubicOut } from 'svelte/easing';
 import { hierarchy as d3Hierarchy } from 'd3-hierarchy';
@@ -92498,10 +92494,7 @@ export default function Playground($$renderer, $$props) {
 		};
 
 		let expandedNodeNames = ['R', 'A', 'B'];
-
-		// Reset expanded nodes when dataset changes
 		const hierarchy = $.derived(() => d3Hierarchy(rawData(), (d) => expandedNodeNames.includes(d.name) ? d.children : null));
-
 		let selected = void 0;
 
 		function getNodeKey(node) {
@@ -98788,7 +98781,7 @@ export default function DocsMenu($$renderer, $$props) {
 		$$renderer.push(`<!--]--></div></section></nav>`);
 	});
 }
-=== 19435 docs/src/lib/components/Example.svelte	js
+=== 19189 docs/src/lib/components/Example.svelte	js
 import * as $ from 'svelte/internal/server';
 import { slide } from 'svelte/transition';
 
@@ -98856,12 +98849,7 @@ export default function Example($$renderer, $$props) {
 		// Use $state + $effect to break potential infinite reactivity loops during HMR
 		let example = undefined;
 
-		// Path-based example
-		// Component/name-based example
-		// Only assign if the reference actually changed to avoid unnecessary downstream reactivity
-		// Untrack both the read and write to prevent this effect from depending on its own output
 		let containerEl = null;
-
 		let containerWidth = undefined;
 		const minWidth = 200;
 
@@ -107371,10 +107359,6 @@ export default function _layout($$renderer, $$props) {
 		let ogImageUrl = $.derived(() => `${page.url.origin}/images/og-image.png`);
 
 		$.head('31hqwf', $$renderer, ($$renderer) => {
-			$$renderer.title(($$renderer) => {
-				$$renderer.push(`<title>${$.escape(pageTitle())}</title>`);
-			});
-
 			$$renderer.push(`<meta name="description"${$.attr('content', pageDescription())}/> <meta property="og:type" content="website"/> <meta property="og:title"${$.attr('content', pageTitle())}/> <meta property="og:description"${$.attr('content', pageDescription())}/> <meta property="og:image"${$.attr('content', ogImageUrl())}/> <meta property="og:image:width" content="1200"/> <meta property="og:image:height" content="630"/> <meta property="og:url"${$.attr('content', page.url.href)}/> <meta property="og:site_name" content="LayerChart"/> <meta name="twitter:card" content="summary_large_image"/> <meta name="twitter:site" content="@techniq35"/> <meta name="twitter:title"${$.attr('content', pageTitle())}/> <meta name="twitter:description"${$.attr('content', pageDescription())}/> <meta name="twitter:image"${$.attr('content', ogImageUrl())}/> <link rel="icon" href="/favicon.svg" type="image/svg+xml"/> `);
 
 			if (page.url.origin.includes('https')) {
@@ -107386,6 +107370,10 @@ export default function _layout($$renderer, $$props) {
 			}
 
 			$$renderer.push(`<!--]-->`);
+
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(pageTitle())}</title>`);
+			});
 		});
 
 		$$renderer.push(`<div data-sveltekit-preload-data="off">`);
@@ -109711,7 +109699,7 @@ export default function _page($$renderer, $$props) {
 		$$renderer.subsume($$inner_renderer);
 	});
 }
-=== 2970 docs/src/routes/docs/playground/CodeEditor.svelte	js
+=== 2914 docs/src/routes/docs/playground/CodeEditor.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount, onDestroy } from 'svelte';
 import { EditorView, basicSetup } from 'codemirror';
@@ -109797,7 +109785,6 @@ export default function CodeEditor($$renderer, $$props) {
 		// Update editor when value changes externally
 		// Reconfigure language when filename changes
 		// Reconfigure theme when mode changes
-		// Access $currentTheme to create reactive dependency
 		onDestroy(() => {
 			if (editorView) {
 				editorView.destroy();
@@ -115685,7 +115672,7 @@ export default function Brush_svg($$renderer, $$props) {
     }
   }
 
-=== 6840 packages/layerchart/src/lib/components/BrushContext.svelte	js
+=== 6773 packages/layerchart/src/lib/components/BrushContext.svelte	js
 import * as $ from 'svelte/internal/server';
 import { untrack } from 'svelte';
 import { brushable } from '$lib/attachments/brushable.js';
@@ -115773,7 +115760,6 @@ export default function BrushContext($$renderer, $$props) {
 		}
 
 		if (// Sync external x/y props into brush state when provided
-		// Avoid tracking brushState internals to prevent reactive loops
 		disabled) {
 			$$renderer.push('<!--[0-->');
 			children?.($$renderer, { state: brushState });
@@ -125067,7 +125053,7 @@ export default function Path($$renderer, $$props) {
     }
   }
 
-=== 6385 packages/layerchart/src/lib/components/Path/Path.svg.svelte	js
+=== 6352 packages/layerchart/src/lib/components/Path/Path.svg.svelte	js
 import * as $ from 'svelte/internal/server';
 import { tick } from 'svelte';
 import { draw as _drawTransition } from 'svelte/transition';
@@ -125163,9 +125149,7 @@ export default function Path_svg($$renderer, $$props) {
 			: null;
 
 		// Only set up path-end tracking when startContent/endContent require it.
-		if (startContent || endContent) {
-			// Track path data changes
-		}
+		if (startContent || endContent) {}
 
 		$$renderer.push(`<!---->`);
 
@@ -129024,7 +129008,7 @@ export default function Trail_svg($$renderer, $$props) {
     }
   }
 
-=== 3072 packages/layerchart/src/lib/components/TransformContext.svelte	js
+=== 3001 packages/layerchart/src/lib/components/TransformContext.svelte	js
 import * as $ from 'svelte/internal/server';
 import { getChartContext } from '$lib/contexts/chart.js';
 import { TransformState } from '$lib/states/transform.svelte.js';
@@ -129095,7 +129079,6 @@ export default function TransformContext($$renderer, $$props) {
 		const transformState = new TransformState(ctx, options);
 
 		// Sync initial transform values when they change (e.g., when projection changes for geo transforms)
-		// Only reset if values actually changed from current initial values
 		// Bind `state` prop
 		stateProp = transformState;
 
@@ -134821,7 +134804,7 @@ export default function GeoProjection($$renderer, $$props) {
 		$$renderer.push(`<!---->`);
 	});
 }
-=== 4791 packages/layerchart/src/lib/components/geo/GeoRaster/GeoRaster.svelte	js
+=== 4700 packages/layerchart/src/lib/components/geo/GeoRaster/GeoRaster.svelte	js
 import * as $ from 'svelte/internal/server';
 import { untrack } from 'svelte';
 import { geoPath } from 'd3-geo';
@@ -134845,8 +134828,6 @@ export default function GeoRaster($$renderer, $$props) {
 		const layerCtx = getLayerContext();
 		let source = null;
 
-		// Re-run when `image` changes
-		// HTMLCanvasElement or ImageBitmap — already decoded
 		function render(dstCtx) {
 			const src = source;
 
@@ -138204,7 +138185,7 @@ export default function Tooltip($$renderer, $$props) {
     }
   }
 
-=== 26562 packages/layerchart/src/lib/components/tooltip/TooltipContext.svelte	js
+=== 26077 packages/layerchart/src/lib/components/tooltip/TooltipContext.svelte	js
 import * as $ from 'svelte/internal/server';
 import { max, min } from 'd3-array';
 import { sortFunc, localPoint } from '@layerstack/utils';
@@ -138594,12 +138575,6 @@ export default function TooltipContext($$renderer, $$props) {
 		const yAccessorOverride = $.derived(() => yProp != null ? accessor(yProp) : undefined);
 		let quadtrees = new Map();
 
-		// Touch the dependencies the quadtree is built from so the effect re-runs
-		// on changes (mode, accessors, scales, data, projection).
-		// `x` accessor with multiple properties (ex. `x={['start', 'end']})`).
-		// Default to the max (typically the "target"/"end" endpoint); override
-		// via the `x` prop for explicit control.
-		// `y` accessor with multiple properties — default to max endpoint.
 		/**
 		 * Hit rectangles for `bounds` / `band` modes, one per row.
 		 *
@@ -138779,7 +138754,6 @@ export default function TooltipContext($$renderer, $$props) {
 		 */
 		const isTransforming = $.derived(() => ctx.transformState?.dragging === true || ctx.transformState?.pinching === true);
 
-		// Hide a tooltip shown before the gesture started (ex. first finger of a pinch)
 		function onPointerEnter(e) {
 			if (isTransforming()) return;
 

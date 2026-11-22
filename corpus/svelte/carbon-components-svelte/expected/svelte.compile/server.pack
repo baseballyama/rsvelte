@@ -30725,11 +30725,11 @@ export default function Pages($$renderer) {
 	];
 
 	$.head('kcomuu', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="description" content="The Svelte implementation of the Carbon Design System featuring accessible UI components, icons, pictograms, and charts."/> <link rel="canonical" href="https://svelte.carbondesignsystem.com/"/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>Carbon Components Svelte</title>`);
 		});
-
-		$$renderer.push(`<meta name="description" content="The Svelte implementation of the Carbon Design System featuring accessible UI components, icons, pictograms, and charts."/> <link rel="canonical" href="https://svelte.carbondesignsystem.com/"/>`);
 	});
 
 	Content($$renderer, {

@@ -8,7 +8,8 @@
 		inset: 0 0 auto;
 	}
 
-=== 283 src/lib/components/common/DragRegion.svelte	js
+=== 325 src/lib/components/common/DragRegion.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -85,7 +86,8 @@ export default function DragRegion($$anchor) {
 		}
 	}
 
-=== 3140 src/lib/components/dashboard/Banner.svelte	js
+=== 3182 src/lib/components/dashboard/Banner.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy, onMount } from 'svelte';
@@ -323,7 +325,8 @@ export default function Banner($$anchor, $$props) {
 		}
 	}
 
-=== 753 src/lib/components/dashboard/LoadingScreen.svelte	js
+=== 795 src/lib/components/dashboard/LoadingScreen.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { AnimatedLogo, DragRegion } from '$lib/components';
@@ -370,7 +373,8 @@ export default function LoadingScreen($$anchor) {
 		grid-template-columns: 1fr 1fr;
 	}
 
-=== 1164 src/lib/components/settings/accounts/Accounts.svelte	js
+=== 1206 src/lib/components/settings/accounts/Accounts.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/stores';
@@ -440,7 +444,8 @@ export default function Accounts($$anchor, $$props) {
 		width: fit-content;
 	}
 
-=== 1820 src/lib/components/settings/gitlab-settings/GitlabSettings.svelte	js
+=== 1862 src/lib/components/settings/gitlab-settings/GitlabSettings.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button, Switch } from '$lib/components';
@@ -529,7 +534,8 @@ export default function GitlabSettings($$anchor, $$props) {
 	}
 ]
 
-=== 938 src/lib/icons/AnsweredDiscussionIcon.svelte	js
+=== 980 src/lib/icons/AnsweredDiscussionIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -540,7 +546,8 @@ export default function AnsweredDiscussionIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 503 src/lib/icons/ArrowRightIcon.svelte	js
+=== 545 src/lib/icons/ArrowRightIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -551,7 +558,8 @@ export default function ArrowRightIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 499 src/lib/icons/ArrowUpIcon.svelte	js
+=== 541 src/lib/icons/ArrowUpIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -562,7 +570,8 @@ export default function ArrowUpIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 413 src/lib/icons/CheckIcon.svelte	js
+=== 455 src/lib/icons/CheckIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -573,7 +582,8 @@ export default function CheckIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 474 src/lib/icons/ClosedIssueIcon.svelte	js
+=== 516 src/lib/icons/ClosedIssueIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -584,7 +594,8 @@ export default function ClosedIssueIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 703 src/lib/icons/ClosedPullRequestIcon.svelte	js
+=== 745 src/lib/icons/ClosedPullRequestIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -595,7 +606,8 @@ export default function ClosedPullRequestIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 459 src/lib/icons/CommitIcon.svelte	js
+=== 501 src/lib/icons/CommitIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -606,7 +618,8 @@ export default function CommitIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 498 src/lib/icons/CompletedIssueIcon.svelte	js
+=== 540 src/lib/icons/CompletedIssueIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -617,7 +630,8 @@ export default function CompletedIssueIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 390 src/lib/icons/CrossIcon.svelte	js
+=== 432 src/lib/icons/CrossIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -628,7 +642,8 @@ export default function CrossIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 930 src/lib/icons/DiscussionIcon.svelte	js
+=== 972 src/lib/icons/DiscussionIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -639,7 +654,8 @@ export default function DiscussionIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 426 src/lib/icons/DoubleArrowIcon.svelte	js
+=== 468 src/lib/icons/DoubleArrowIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -650,7 +666,8 @@ export default function DoubleArrowIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 718 src/lib/icons/DoubleCheckIcon.svelte	js
+=== 760 src/lib/icons/DoubleCheckIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -661,7 +678,8 @@ export default function DoubleCheckIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 606 src/lib/icons/DraftPullRequestIcon.svelte	js
+=== 648 src/lib/icons/DraftPullRequestIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -672,7 +690,8 @@ export default function DraftPullRequestIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 556 src/lib/icons/ExclamationMarkIcon.svelte	js
+=== 598 src/lib/icons/ExclamationMarkIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -683,7 +702,8 @@ export default function ExclamationMarkIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 563 src/lib/icons/ExternalLinkIcon.svelte	js
+=== 605 src/lib/icons/ExternalLinkIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -694,7 +714,8 @@ export default function ExternalLinkIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 4193 src/lib/icons/GearIcon.svelte	js
+=== 4235 src/lib/icons/GearIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -705,7 +726,8 @@ export default function GearIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 988 src/lib/icons/GithubIcon.svelte	js
+=== 1030 src/lib/icons/GithubIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -716,7 +738,8 @@ export default function GithubIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 460 src/lib/icons/GitlabIcon.svelte	js
+=== 502 src/lib/icons/GitlabIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -727,7 +750,8 @@ export default function GitlabIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 452 src/lib/icons/HeartIcon.svelte	js
+=== 494 src/lib/icons/HeartIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -738,7 +762,8 @@ export default function HeartIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 399 src/lib/icons/LightningIcon.svelte	js
+=== 441 src/lib/icons/LightningIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -749,7 +774,8 @@ export default function LightningIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 3426 src/lib/icons/LinuxIcon.svelte	js
+=== 3468 src/lib/icons/LinuxIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -760,7 +786,8 @@ export default function LinuxIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 854 src/lib/icons/MacosIcon.svelte	js
+=== 896 src/lib/icons/MacosIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -771,7 +798,8 @@ export default function MacosIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 600 src/lib/icons/MergedPullRequestIcon.svelte	js
+=== 642 src/lib/icons/MergedPullRequestIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -782,7 +810,8 @@ export default function MergedPullRequestIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 579 src/lib/icons/MuteIcon.svelte	js
+=== 621 src/lib/icons/MuteIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -793,7 +822,8 @@ export default function MuteIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 896 src/lib/icons/MutedIcon.svelte	js
+=== 938 src/lib/icons/MutedIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -804,7 +834,8 @@ export default function MutedIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 426 src/lib/icons/OpenIssueIcon.svelte	js
+=== 468 src/lib/icons/OpenIssueIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -815,7 +846,8 @@ export default function OpenIssueIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 640 src/lib/icons/OpenPullRequestIcon.svelte	js
+=== 682 src/lib/icons/OpenPullRequestIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -826,7 +858,8 @@ export default function OpenPullRequestIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 471 src/lib/icons/PersonIcon.svelte	js
+=== 513 src/lib/icons/PersonIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -837,7 +870,8 @@ export default function PersonIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 617 src/lib/icons/PinIcon.svelte	js
+=== 659 src/lib/icons/PinIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -848,7 +882,8 @@ export default function PinIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 383 src/lib/icons/PlusIcon.svelte	js
+=== 425 src/lib/icons/PlusIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -859,7 +894,8 @@ export default function PlusIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 523 src/lib/icons/PriorityDownIcon.svelte	js
+=== 565 src/lib/icons/PriorityDownIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -870,7 +906,8 @@ export default function PriorityDownIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 518 src/lib/icons/PriorityIcon.svelte	js
+=== 560 src/lib/icons/PriorityIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -881,7 +918,8 @@ export default function PriorityIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 520 src/lib/icons/PriorityUpIcon.svelte	js
+=== 562 src/lib/icons/PriorityUpIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -892,7 +930,8 @@ export default function PriorityUpIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 582 src/lib/icons/RefreshIcon.svelte	js
+=== 624 src/lib/icons/RefreshIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -903,7 +942,8 @@ export default function RefreshIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 547 src/lib/icons/ReleaseIcon.svelte	js
+=== 589 src/lib/icons/ReleaseIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -914,7 +954,8 @@ export default function ReleaseIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 677 src/lib/icons/RepositoryIcon.svelte	js
+=== 719 src/lib/icons/RepositoryIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -925,7 +966,8 @@ export default function RepositoryIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 529 src/lib/icons/RestoreIcon.svelte	js
+=== 571 src/lib/icons/RestoreIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -936,7 +978,8 @@ export default function RestoreIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 483 src/lib/icons/SearchIcon.svelte	js
+=== 525 src/lib/icons/SearchIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -947,7 +990,8 @@ export default function SearchIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 403 src/lib/icons/SmallArrowIcon.svelte	js
+=== 445 src/lib/icons/SmallArrowIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -958,7 +1002,8 @@ export default function SmallArrowIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 773 src/lib/icons/SparklesIcon.svelte	js
+=== 815 src/lib/icons/SparklesIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -969,7 +1014,8 @@ export default function SparklesIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 478 src/lib/icons/ThreeDotsIcon.svelte	js
+=== 520 src/lib/icons/ThreeDotsIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -980,7 +1026,8 @@ export default function ThreeDotsIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 701 src/lib/icons/TrashIcon.svelte	js
+=== 743 src/lib/icons/TrashIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -991,7 +1038,8 @@ export default function TrashIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 844 src/lib/icons/UnpinIcon.svelte	js
+=== 886 src/lib/icons/UnpinIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1002,7 +1050,8 @@ export default function UnpinIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 528 src/lib/icons/UnreadIcon.svelte	js
+=== 570 src/lib/icons/UnreadIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1013,7 +1062,8 @@ export default function UnreadIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 480 src/lib/icons/WindowsIcon.svelte	js
+=== 522 src/lib/icons/WindowsIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1024,7 +1074,8 @@ export default function WindowsIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 392 src/lib/icons/WorkflowFailIcon.svelte	js
+=== 434 src/lib/icons/WorkflowFailIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1035,7 +1086,8 @@ export default function WorkflowFailIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 418 src/lib/icons/WorkflowSuccessIcon.svelte	js
+=== 460 src/lib/icons/WorkflowSuccessIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1046,7 +1098,8 @@ export default function WorkflowSuccessIcon($$anchor) {
 
 	$.append($$anchor, svg);
 }
-=== 525 src/lib/icons/XIcon.svelte	js
+=== 567 src/lib/icons/XIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1085,7 +1138,8 @@ export default function XIcon($$anchor) {
 		}
 	}
 
-=== 1515 src/routes/(app)/deeplink/+page.svelte	js
+=== 1557 src/routes/(app)/deeplink/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -1144,7 +1198,8 @@ export default function _page($$anchor, $$props) {
 		height: 100vh;
 	}
 
-=== 2402 src/routes/(tray)/tray/+page.svelte	js
+=== 2444 src/routes/(tray)/tray/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { listen } from '@tauri-apps/api/event';
@@ -1490,7 +1545,8 @@ export default function _page($$anchor, $$props) {
 		}
 	}
 
-=== 4980 src/routes/+page.svelte	js
+=== 5022 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy, onMount } from 'svelte';

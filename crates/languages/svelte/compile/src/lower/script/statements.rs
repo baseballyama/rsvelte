@@ -3,6 +3,7 @@
 use oxc_allocator::Vec as ArenaVec;
 use oxc_ast::ast::{Declaration, Statement, VariableDeclarator};
 use oxc_ast_visit::VisitMut;
+use oxc_span::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
 
 use super::ScriptRewrite;
@@ -32,10 +33,20 @@ impl<'o> ScriptRewrite<'_, 'o> {
     }
 }
 
-/// Upstream server `ExpressionStatement`: an effect statement renders nothing.
-pub(super) fn is_effect(res: &Resolution, statement: &Statement<'_>) -> bool {
+/// Upstream server `ExpressionStatement`: an effect or `$inspect.trace(…)` statement renders
+/// nothing, and its comments go with it.
+pub(super) fn removed_on_server(res: &Resolution, statement: &Statement<'_>) -> bool {
     matches!(statement, Statement::ExpressionStatement(s)
-        if res.rune(&s.expression).is_some_and(|(r, _)| matches!(r, "$effect" | "$effect.pre" | "$effect.root")))
+        if res.rune(&s.expression).is_some_and(|(r, _)| matches!(r, "$effect" | "$effect.pre" | "$effect.root" | "$inspect.trace")))
+}
+
+/// Whether `comment` is outside every statement of `removed`, which are apart and in source order:
+/// upstream drops the comments inside a statement the server removes.
+pub(in crate::lower) fn outside(removed: &[Span], comment: Span) -> bool {
+    let candidate = removed.partition_point(|statement| statement.end < comment.end);
+    removed
+        .get(candidate)
+        .is_none_or(|statement| comment.start < statement.start || comment.end > statement.end)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

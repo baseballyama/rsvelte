@@ -132,7 +132,8 @@
     transform: translateY(-1px);
   }
 
-=== 5278 src/lib/components/AppInfo.svelte	js
+=== 5320 src/lib/components/AppInfo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getVersion } from "@tauri-apps/api/app";
@@ -429,7 +430,8 @@ export default function AppInfo($$anchor, $$props) {
     align-items: center;
   }
 
-=== 432 src/lib/components/TitleBar.svelte	js
+=== 474 src/lib/components/TitleBar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -440,7 +442,8 @@ export default function TitleBar($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 307 src/routes/+layout.svelte	js
+=== 349 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import "../app.css";

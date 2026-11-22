@@ -16,7 +16,7 @@
 		"knip": "6.44.1",
 		"oxfmt": "0.75.0",
 		"oxlint": "1.90.0",
-		"svelte": "5.57.3",
+		"svelte": "5.59.1",
 		"typescript-7": "npm:typescript@7.1.0-dev.20261102.1"
 	},
 	"engines": {

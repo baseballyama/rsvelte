@@ -44,7 +44,7 @@ use super::builder::{Runtime, export_default, import};
 use super::names::Names;
 use super::script::Read;
 use super::{Builder, Prepared, takes_props, uses_slots};
-use crate::input::Target;
+use crate::input::{Renderer, Target};
 use crate::render_plan::RenderPlan;
 
 /// Svelte's passive events: a listener for them cannot prevent the default.
@@ -284,6 +284,9 @@ pub(super) fn lower_prepared<'c, 'o>(
     let registration = context.custom_element_registration(&exports);
 
     let mut program = Vec::new();
+    match input.renderer {
+        Renderer::Dom => program.push(import(b, None, "svelte/internal/init-operations")),
+    }
     program.push(import(b, None, "svelte/internal/disclose-version"));
     let runtime = import(b, Some("$"), Target::Client.runtime());
     // Upstream lists `[...module, $, ...hoisted]` and moves every import to the top in that order.

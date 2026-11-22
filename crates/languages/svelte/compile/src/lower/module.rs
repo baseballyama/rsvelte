@@ -54,7 +54,11 @@ pub(crate) fn lower_module<'o>(
         SPAN,
         SourceType::mjs(),
         b.str(component.source_text),
-        b.vec(program.comments.iter().cloned()),
+        b.vec(
+            (program.comments.iter())
+                .filter(|comment| script::outside(&rewrite.removed, comment.span))
+                .cloned(),
+        ),
         None,
         [],
         b.vec(hoisted.into_iter().chain(statements)),
@@ -97,7 +101,7 @@ fn typescript_emit<'o>(
         ));
     }
     if !source.body.iter().any(Statement::is_module_declaration) {
-        out.body.insert(0, b.statement(b.string("use strict")));
+        out.body.insert(0, b.directive("use strict"));
     }
     Ok(())
 }

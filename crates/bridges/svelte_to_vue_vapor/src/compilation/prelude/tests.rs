@@ -76,7 +76,7 @@ fn a_marker_copied_into_another_arena_marks_the_same_prelude() {
 fn a_string_the_script_wrote_is_not_a_marker() {
     let allocator = oxc_allocator::Allocator::default();
     let b = Builder::new(&allocator);
-    let written = b.statement(b.string(REST));
+    let written = b.directive(REST);
     assert!(expand(&written).is_none());
 }
 

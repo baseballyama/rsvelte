@@ -1,5 +1,5 @@
 use oxc_allocator::{CloneIn, GetAllocator};
-use oxc_ast::ast::{ArrowFunctionBody, Directive, Expression, FunctionBody, Statement};
+use oxc_ast::ast::{ArrowFunctionBody, Expression, FunctionBody, Statement};
 use oxc_span::SPAN;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, EachKey, Modifiers, NodeKind,
@@ -250,16 +250,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             unreachable!("a binding")
         };
         let current = b.return_(Some(self.expression(target)));
-        // Upstream prints a string read bare, so its output opens the body with a directive.
-        let (directives, read) = match read {
-            Expression::StringLiteral(s) if let Some(value) = s.value.as_str() => {
-                let raw = b.str(&quoted_raw(value));
-                (vec![Directive::new(SPAN, s.unbox(), raw, b)], None)
-            }
-            read => (Vec::new(), Some(b.statement(read))),
-        };
-        let statements = b.vec(read.into_iter().chain([current]));
-        let body = FunctionBody::boxed(SPAN, b.vec(directives), statements, b);
+        let statements = b.vec([b.statement(read), current]);
+        let body = FunctionBody::boxed(SPAN, b.vec([]), statements, b);
         Expression::new_arrow_function_expression(
             SPAN,
             false,
@@ -276,19 +268,4 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let b = self.b;
         b.runtime("attach", [node.id(b), b.thunk(self.expression(e))])
     }
-}
-
-/// A directive's text between single quotes, escaped as upstream's printer (esrap) quotes it.
-fn quoted_raw(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    for c in value.chars() {
-        match c {
-            '\\' => out.push_str("\\\\"),
-            '\'' => out.push_str("\\'"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            c => out.push(c),
-        }
-    }
-    out
 }
